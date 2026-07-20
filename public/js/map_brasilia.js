@@ -80,21 +80,23 @@ export function buildBrasilia(scene, T) {
     const glass = new THREE.Mesh(glassGeo, glassMat);
     glass.position.set(0, 0, -60); root.add(glass);
   }
-  // Palácio do Planalto (east) + STF (west) framing the Praça, facing inward. Each
-  // building sits ON TOP of its stone plinth (not sunk into it): plinth first, then the
-  // model placed at plinth-top height, with the collider from its real bounds.
+  // Palácio do Planalto (east) + STF (west) framing the Praça, facing inward. Like the
+  // REAL Planalto, the pilotis stand IN a shallow reflecting pool — the water grounds
+  // the cantilevered roof so it no longer reads as floating. Plinth slab + water on top.
   for (const px of [22, -22]) {
     const ry = px > 0 ? -Math.PI / 2 : Math.PI / 2;
     const PL = 0.35;
-    // measure once to size the plinth, then re-place on top of it
     const probe = placeProp('palacio', { x: px, z: 30, targetH: 6, ry });
     if (probe) {
       probe.updateMatrixWorld(true);
       const bb = new THREE.Box3().setFromObject(probe);
       root.remove(probe);
       const pw = (bb.max.x - bb.min.x) + 1.2, pd = (bb.max.z - bb.min.z) + 1.2;
-      addBox(pw, PL, pd, lam({ color: 0xcfd2cb }), (bb.min.x + bb.max.x) / 2, 0, (bb.min.z + bb.max.z) / 2, { collide: false });
-      const b = placeProp('palacio', { x: px, z: 30, targetH: 6, ry, y: PL });
+      const pcx = (bb.min.x + bb.max.x) / 2, pcz = (bb.min.z + bb.max.z) / 2;
+      addBox(pw, PL, pd, lam({ color: 0xcfd2cb }), pcx, 0, pcz, { collide: false });
+      // shallow reflecting pool on the slab (the real Planalto signature)
+      addPlane(pw - 0.5, pd - 0.5, lam({ color: 0x2f6ea0, transparent: true, opacity: 0.85 }), pcx, PL + 0.015, pcz, 0, -Math.PI / 2);
+      const b = placeProp('palacio', { x: px, z: 30, targetH: 6, ry, y: PL + 0.02 });
       if (b) {
         root.add(b); occluders.push(b);
         b.updateMatrixWorld(true);
@@ -159,21 +161,22 @@ export function buildBrasilia(scene, T) {
     for (const gx of [-22, 22]) addPlane(10, 12, lam({ map: tiled(T.grass, 3, 4) }), gx, 0.04, 50, 0, -Math.PI / 2);
   }
 
-  /* ---------------- protest posters / banners on the GRAY end walls ---------------- */
+  /* ---------------- protest posters / banners on the ministry FACADES ---------------- */
   {
     const imgs = T.posterImgs || [], aspects = T.posterAspects || [];
-    const putPoster = (b, endSign, idx) => {
+    const laneOrder = [1, 4, 0, 3, 2, 5];   // priority posters land on the mid buildings first
+    const putPoster = (b, idx) => {
       if (!b || !imgs.length) return;
       const bb = new THREE.Box3().setFromObject(b);
-      const cx = (bb.min.x + bb.max.x) / 2;
-      const fz = (endSign > 0 ? bb.max.z : bb.min.z) + endSign * 0.06;
+      const cx = (bb.min.x + bb.max.x) / 2, cz = (bb.min.z + bb.max.z) / 2;
+      const lane = cx > 0 ? -1 : 1;
+      const fx = (lane > 0 ? bb.max.x : bb.min.x) + lane * 0.06;
       const ti = idx % imgs.length;
-      const H = 6.0, A = aspects[ti] || 0.7;             // BIG posters on the gray end walls
-      const fy = Math.min(bb.max.y - H / 2 - 0.3, 3.8);
-      const m = addPlane(H * A, H, lam({ map: imgs[ti], side: THREE.DoubleSide }), cx, fy, fz, 0);
+      const H = 5.6, A = aspects[ti] || 0.7;             // big posters on the lane facades
+      const fy = Math.min(bb.max.y - H / 2 - 0.4, 3.5);
+      addPlane(H * A, H, lam({ map: imgs[ti], side: THREE.DoubleSide }), fx, fy, cz, lane > 0 ? Math.PI / 2 : -Math.PI / 2);
     };
-    // priority posters (DOLLYNHO, ET, Chupacabra, Saci) on the mid buildings' end walls
-    ministries.forEach((b, i) => { putPoster(b, 1, i * 2); putPoster(b, -1, i * 2 + 1); });
+    ministries.forEach((b, i) => putPoster(b, laneOrder[i] ?? i));
   }
 
   /* ---------------- gameplay cover: props do 8 de janeiro ---------------- */
