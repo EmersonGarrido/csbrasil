@@ -117,18 +117,20 @@ export function buildCharacterModel(def, opts = {}) {
 
   // Rifle in the right hand: a scale-compensated mount parented to the hand bone so
   // GUN_POS/GUN_ROT are expressed in world meters regardless of the bone's scale.
-  let handBone = null;
+  let handBone = null, lhandBone = null;
   model.traverse((o) => { if (o.isBone && !handBone && /right.?hand|hand.?r\b|rhand|r_hand/i.test(o.name)) handBone = o; });
+  model.traverse((o) => { if (o.isBone && !lhandBone && /left.?hand|hand.?l\b|lhand|l_hand/i.test(o.name)) lhandBone = o; });
   if (!handBone) model.traverse((o) => { if (o.isBone && !handBone && /hand/i.test(o.name)) handBone = o; });
   if (handBone && withWeapon) {
     const gun = weaponModel(opts.weaponId || 'awp') || buildRifle();
-    gun.rotation.set(GUN_ROT[0], GUN_ROT[1], GUN_ROT[2]);
     // Measure the weapon's authored (real-world) size in its own space, before parenting.
     gun.updateMatrixWorld(true);
     const asz = new THREE.Vector3(); new THREE.Box3().setFromObject(gun).getSize(asz);
     const authored = Math.max(asz.x, asz.y, asz.z) || 1;
     const mount = new THREE.Group();
     handBone.add(mount); mount.add(gun);
+    // Orientation is computed AFTER the controller is created (below), aiming the barrel
+    // from the right hand to the left hand in the settled hold pose — rig-independent.
     // Meshy rigs have wildly different hand-bone world scales (~70x apart), so a fixed
     // or clamped compensation makes weapons either microscopic or giant. Instead, measure
     // the mounted world size and rescale so the weapon always renders at its real length.
@@ -146,6 +148,30 @@ export function buildCharacterModel(def, opts = {}) {
   for (const name of STATES) if (_clips[name]) actions[name] = mixer.clipAction(_clips[name]);
 
   const ctrl = new CharController(mixer, actions, group, headBone, head);
+
+  if (handBone && withWeapon) {
+    // Settle into the SHOOT clip at its aim moment (both hands extended along the gun —
+    // the only pose where right→left hand IS the barrel direction). Aim the mount from
+    // the right hand to the left hand there; rigid in hand space afterwards. A fixed
+    // bone-local rotation pointed the gun forward on some Meshy rigs and backward on
+    // others ("arma ao contrário"); hand-to-hand aiming is consistent on every rig.
+    ctrl._to('shoot');
+    for (let i = 0; i < 6; i++) ctrl.update(1 / 30, 0, false, 0);
+    model.updateMatrixWorld(true);
+    const gripP = handBone.getWorldPosition(new THREE.Vector3());
+    const dir = new THREE.Vector3(0, 0, 1).applyQuaternion(group.getWorldQuaternion(new THREE.Quaternion()));
+    if (lhandBone) {
+      const foreP = lhandBone.getWorldPosition(new THREE.Vector3());
+      const d = foreP.clone().sub(gripP);
+      if (d.lengthSq() > 1e-6) dir.copy(d.normalize());
+    }
+    // Matrix4.lookAt orients -Z at the target; we want the gun's +Z (barrel) along dir.
+    const lookM = new THREE.Matrix4().lookAt(new THREE.Vector3(), dir.clone().negate(), new THREE.Vector3(0, 1, 0));
+    const desired = new THREE.Quaternion().setFromRotationMatrix(lookM);
+    const parentQ = handBone.getWorldQuaternion(new THREE.Quaternion());
+    const mount = handBone.children.find(c => c.isGroup);
+    mount.quaternion.copy(parentQ.invert().multiply(desired));
+  }
   return { group, parts: { head }, isGLB: true, mixer, ctrl };
 }
 

@@ -263,7 +263,7 @@ export class Game {
     const bolt = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.02, 0.03), dark(0x888888)); bolt.position.set(0.05, 0.03, 0.05); awp.add(bolt);
     const handR = fpArm(); handR.name = 'handR'; handR.position.set(0, -0.085, 0.02); awp.add(handR);
     const handL = frontHand(0.95); handL.name = 'handL'; handL.position.set(0.005, -0.04, -0.3); awp.add(handL);
-    awp.position.set(0.26, -0.23, -0.5); awp.rotation.y = 0.03;
+    awp.position.set(0.3, -0.26, -0.55); awp.rotation.y = 0.03;
     // rifles genéricos (ak / m4 / mp5 / shotgun / deagle)
     const mkRifle = (bodyC, woodC, len, magH) => {
       const g = new THREE.Group();
@@ -275,7 +275,7 @@ export class Game {
       mag.position.set(0, -0.06 - magH / 2, -0.05); g.add(mag);
       const hR = fpArm(); hR.name = 'handR'; hR.position.set(0, -0.085, 0.1); g.add(hR);
       const hL = frontHand(0.95); hL.name = 'handL'; hL.position.set(0.005, -0.04, -len / 3); g.add(hL);
-      g.position.set(0.26, -0.23, -0.5); g.rotation.y = 0.03;
+      g.position.set(0.3, -0.26, -0.55); g.rotation.y = 0.03;
       return g;
     };
     const ak = mkRifle(dark(0x2a2a2a), dark(0x6b4f2c), 0.55, 0.16);
@@ -287,20 +287,20 @@ export class Game {
     const dgrip = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.12, 0.07), dark(0xc9a227));
     dgrip.position.set(0, -0.1, 0.09); dgrip.rotation.x = 0.25; deagle.add(dgrip);
     const handD = fpArm(0.075, 0.1, 0.08); handD.name = 'handR'; handD.position.set(0, -0.1, 0.09); deagle.add(handD);
-    deagle.position.set(0.24, -0.2, -0.42);
+    deagle.position.set(0.27, -0.23, -0.46);
     // pistol
     const pistol = new THREE.Group();
     pistol.add(new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.09, 0.22), dark(0x333333)));
     const pgrip = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.12, 0.06), dark(0x3a2a1e));
     pgrip.position.set(0, -0.09, 0.08); pgrip.rotation.x = 0.25; pistol.add(pgrip);
     const handP = fpArm(0.075, 0.1, 0.08); handP.name = 'handR'; handP.position.set(0, -0.1, 0.08); pistol.add(handP);
-    pistol.position.set(0.24, -0.2, -0.42);
+    pistol.position.set(0.27, -0.23, -0.46);
     // knife
     const knife = new THREE.Group();
     const blade = new THREE.Mesh(new THREE.BoxGeometry(0.015, 0.05, 0.3), dark(0xb8c0c8)); blade.position.z = -0.2; knife.add(blade);
     knife.add(new THREE.Mesh(new THREE.BoxGeometry(0.025, 0.06, 0.12), dark(0x2a1e14)));
     const handK = fpArm(0.07, 0.08, 0.08); handK.name = 'handR'; handK.position.set(0, -0.02, 0.03); knife.add(handK);
-    knife.position.set(0.28, -0.22, -0.4); knife.rotation.set(-0.2, 0.25, -0.15);
+    knife.position.set(0.3, -0.24, -0.44); knife.rotation.set(-0.2, 0.25, -0.15);
     root.add(awp, ak, m4, mp5, shotgun, deagle, pistol, knife);
     const models = { awp, ak, m4, mp5, shotgun, deagle, pistol, knife };
     // Swap the procedural box guns for the real weapon GLBs where available: add the
@@ -344,6 +344,8 @@ export class Game {
       root.add(g); models[id] = g;
     }
     for (const k in models) models[k].visible = k === 'awp';
+    // ev.io-style framing: slightly smaller and tucked to the bottom-right corner
+    for (const k in models) models[k].scale.setScalar(0.88);
     return { root, models, awp, pistol, knife, kick: 0, bobPhase: 0, reloadDip: 0 };
   }
 
