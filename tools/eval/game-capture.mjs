@@ -29,7 +29,7 @@ const page = await browser.newPage({ viewport: { width: 960, height: 600 } });
 page.on('console', m => { if (m.type() === 'error') console.error('[page-err]', m.text()); });
 page.on('pageerror', e => console.error('[pageerror]', e.message));
 
-await page.goto(`${BASE}/?debug=1&auto=${encodeURIComponent(AUTO)}&camd=${process.env.CAMD || 3.2}&camh=${process.env.CAMH || 1.25}&side=${process.env.SIDE || 0}`, { waitUntil: 'load' });
+await page.goto(`${BASE}/?debug=1&auto=${encodeURIComponent(AUTO)}&camd=${process.env.CAMD || 3.2}&camh=${process.env.CAMH || 1.25}&side=${process.env.SIDE || 0}&front=${process.env.FRONT || 0}`, { waitUntil: 'load' });
 await page.addStyleTag({ content: 'astro-dev-toolbar{display:none!important}' });
 await page.waitForFunction(() => window.__game && window.__game.state === 'live', null, { timeout: 60000 });
 
@@ -55,12 +55,14 @@ for (let i = 0; i < FRAMES; i++) {
     const D = parseFloat(new URLSearchParams(location.search).get('camd')) || 3.2;
     const H = parseFloat(new URLSearchParams(location.search).get('camh')) || 1.25;
     const SIDE = parseFloat(new URLSearchParams(location.search).get('side')) || 0;
-    // side=1: camera on the bot's right flank instead of behind (judge stride/planting)
-    const ox = SIDE ? fz * D : -fx * D, oz = SIDE ? -fx * D : -fz * D;
+    const FRONT = parseFloat(new URLSearchParams(location.search).get('front')) || 0;
+    // side=1: camera on the bot's right flank; front=1: camera ahead facing back at it
+    const ox = FRONT ? fx * D : (SIDE ? fz * D : -fx * D);
+    const oz = FRONT ? fz * D : (SIDE ? -fx * D : -fz * D);
     p.pos.set(b.pos.x + ox, b.pos.y + H, b.pos.z + oz);
     if (p.vel) p.vel.set(0, 0, 0);
-    p.yaw = SIDE ? Math.atan2(b.pos.x - p.pos.x, b.pos.z - p.pos.z) : b.yaw;
-    p.pitch = SIDE ? -0.12 : -0.28;
+    p.yaw = FRONT ? Math.atan2(p.pos.x - b.pos.x, p.pos.z - b.pos.z) : (SIDE ? Math.atan2(b.pos.x - p.pos.x, b.pos.z - p.pos.z) : b.yaw);
+    p.pitch = SIDE || FRONT ? -0.12 : -0.28;
     p.hp = 1e9; if (p.alive === false) p.alive = true;
     if (g.vm && g.vm.models) for (const k in g.vm.models) g.vm.models[k].visible = false;
     const m = b.mesh;

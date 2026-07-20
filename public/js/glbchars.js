@@ -24,6 +24,7 @@ export const GLB_CHARS = new Set([
 
 const STATES = ['idle', 'walk', 'run', 'shoot', 'death', 'crouch', 'crouchwalk', 'jump'];
 const qp = new URLSearchParams(location.search);
+const ANIM_DIR = qp.get('animdir') || 'models/anims';   // ?animdir=models/anims/ue → UE retargeted clips
 const TARGET_HEIGHT = parseFloat(qp.get('charh')) || 1.72;      // meters (match box silhouette)
 // Per-clip natural ground speed (m/s) that plants the feet at timeScale 1, MEASURED from
 // each clip's real foot stride (tools: iktest HARNESS.measureStride). walk and run have
@@ -61,7 +62,7 @@ export async function preloadCharacterAssets(ids) {
       preloadWeapons(), // real weapon GLBs (mounts fall back to box if missing)
       ...STATES.map(async (s) => {
         try {
-          const g = await loadGLB(`models/anims/${s}.glb?v=${VERSION}`);
+          const g = await loadGLB(`${ANIM_DIR}/${s}.glb?v=${VERSION}`);
           if (g.animations[0]) { g.animations[0].name = s; _clips[s] = g.animations[0]; }
         } catch (e) { console.warn('anim load failed', s, e); }
       }),
