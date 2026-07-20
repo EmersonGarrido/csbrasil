@@ -240,6 +240,7 @@ body{font-family:"Arial Black",Impact,Haettenschweiler,"Segoe UI",sans-serif;col
 #scoreboard table{width:100%;border-collapse:collapse;font-size:14px}
 #scoreboard th{font-size:10px;letter-spacing:2px;color:#8a8064;text-align:left;padding:4px 10px;border-bottom:1px solid #444}
 #scoreboard td{padding:5px 10px;color:#e8e0cc}
+#scoreboard th:nth-child(3),#scoreboard th:nth-child(4),#scoreboard td:nth-child(3),#scoreboard td:nth-child(4){text-align:right;font-family:Consolas,monospace;font-size:15px}
 #scoreboard tr.tp td:first-child{border-left:3px solid var(--red)}
 #scoreboard tr.tb td:first-child{border-left:3px solid var(--green)}
 #scoreboard tr.me td{background:rgba(255,210,63,.1)}

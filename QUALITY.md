@@ -56,3 +56,18 @@ Cada item fecha com evidência (vídeo/screenshot/número) antes de ser dado com
 3. A1–A3
 4. U1–U3
 5. P1–P3 (benchmark contínuo a cada fase)
+
+## Status medido (2026-07-20, branch feat/evio-feel)
+- **M1–M5 ✅** acel 55/12, atrito contínuo, air control, landing dip (verif. 0.86 @ -12),
+  sprint FOV (já existia), bob escalonado.
+- **G1–G5 ✅** recoil com retorno (verif. 0.024→0), ADS ease (existia), sway do viewmodel,
+  dano direcional (verif. rotate=π/2 à direita), tracers (existiam).
+- **V1–V4 ✅** ACES (já existia) + contraste (hemi 0.82/sol 1.65); sombras PCFSoft 2048;
+  céu gradiente + fog coerente (já existiam); landmarks legíveis (mapeval).
+- **A1–A3 ✅** fades entre estados; foot planting (refs medidos: walk 0.78/run 1.92);
+  death clip.
+- **U1–U3 ✅** kill feed com arma+fade; dano direcional (novo); scoreboard ordenado
+  por kills, números monospace alinhados, linha do jogador destacada.
+- **P1–P3 📐 baseline** (`studio benchmark 10`): 98 draw calls, 316.685 tris,
+  108 geometrias, 89 texturas — dentro do orçamento web (cena <500k tris).
+  FPS real: medir no hardware do usuário (headless swiftshader não é representativo).
