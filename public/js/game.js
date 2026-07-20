@@ -165,7 +165,7 @@ export class Game {
     const $ = id => document.getElementById(id);
     this.el = {
       hud: $('hud'), crosshair: $('crosshair'), hitmarker: $('hitmarker'),
-      scope: $('scope-overlay'), vignette: $('damage-vignette'),
+      scope: $('scope-overlay'), vignette: $('damage-vignette'), dmgDir: $('dmg-dir'),
       hpFill: $('hp-fill'), hpNum: $('hp-num'), weaponName: $('weapon-name'),
       ammoMag: $('ammo-mag'), ammoRes: $('ammo-reserve'), reloadNote: $('reload-note'),
       roundTime: $('round-time'), roundsP: $('rounds-p'), roundsB: $('rounds-b'),
@@ -799,6 +799,15 @@ export class Game {
     if (ent.isPlayer) {
       this.el.vignette.style.opacity = 0.9;
       setTimeout(() => this.el.vignette.style.opacity = 0, 130);
+      // directional indicator: wedge pointing at the attacker relative to the view
+      if (attacker && attacker.pos && this.el.dmgDir) {
+        const rel = Math.atan2(attacker.pos.x - ent.pos.x, attacker.pos.z - ent.pos.z) - ent.yaw;
+        const el = this.el.dmgDir;
+        el.style.transform = `rotate(${rel.toFixed(3)}rad)`;
+        el.style.opacity = 0.95;
+        clearTimeout(this._dmgDirT);
+        this._dmgDirT = setTimeout(() => { el.style.opacity = 0; }, 700);
+      }
       this.sfx.hurt();
     } else if (attacker === this.player) {
       this._hitmarker(ent.hp <= 0);

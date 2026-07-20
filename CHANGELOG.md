@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.15.0] — 2026-07-20 (branch feat/evio-feel)
+### Adicionado — feel ev.io
+- **Movimento crocante**: aceleração 55/12 (era 42/8), atrito contínuo com parada
+  suave, air control real no ar, landing dip proporcional ao impacto, bob de
+  câmera escalonado pela velocidade
+- **Recoil com retorno**: acumula por tiro e recupera suave (padrão por arma),
+  em vez da subida permanente
+- **Sway do viewmodel**: a arma fica defasada ao mouse (ev.io feel)
+- **Indicador direcional de dano**: cunha vermelha na tela apontando a origem do
+  tiro (ângulo relativo à câmera)
+- **Contraste ACES**: hemi 1.05→0.82, sol 1.5→1.65 (mais estrutura sem perder o
+  claro de Brasília)
+
+### Infra
+- `STUDIO_CONSTITUTION.md` (10 princípios) e `QUALITY.md` (barra ev.io mensurável)
+- `studio benchmark` (FPS/p95/draw calls/tris numa partida real) e `studio validate`
+
 ## [1.14.0] — 2026-07-20
 ### Corrigido
 - **Bots empunham de verdade**: idle agora é pose de empunhadura (frame de passagem do

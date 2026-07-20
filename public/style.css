@@ -187,6 +187,9 @@ body{font-family:"Arial Black",Impact,Haettenschweiler,"Segoe UI",sans-serif;col
 .scope-line.h{left:50%;top:50%;width:62vmin;height:1px;transform:translate(-50%,0)}
 .scope-line.v{left:50%;top:50%;width:1px;height:62vmin;transform:translate(0,-50%)}
 #damage-vignette{position:absolute;inset:0;opacity:0;box-shadow:inset 0 0 140px 60px rgba(220,20,20,.75);transition:opacity .09s}
+/* directional damage indicator: a red wedge arc pointing at the damage source */
+#dmg-dir{position:absolute;left:50%;top:50%;width:230px;height:230px;margin:-115px 0 0 -115px;opacity:0;transition:opacity .14s;pointer-events:none}
+#dmg-dir::before{content:'';position:absolute;left:50%;top:-4px;transform:translateX(-50%);border-left:52px solid transparent;border-right:52px solid transparent;border-top:30px solid rgba(255,42,42,.85);filter:drop-shadow(0 0 6px rgba(255,42,42,.7))}
 #mk-banner{position:absolute;left:0;right:0;top:26%;text-align:center;font-family:"Arial Black",Impact,sans-serif;
   font-size:46px;letter-spacing:6px;color:#ff5030;text-shadow:0 3px 0 #000,0 0 30px rgba(255,80,30,.6);
   opacity:0;transform:scale(1.4);transition:all .12s;pointer-events:none}
