@@ -233,9 +233,9 @@ export function buildBrasilia(scene, T) {
     const cl = new THREE.Sprite(new THREE.SpriteMaterial({ map: T.cloud, transparent: true, fog: false, depthWrite: false, opacity: 0.9 }));
     cl.position.set(cx, cy, cz); cl.scale.set(cs, cs * 0.42, 1); root.add(cl);
   }
-  const hemi = new THREE.HemisphereLight(0xeaf3ff, 0x9c8f6f, 1.05);
+  const hemi = new THREE.HemisphereLight(0xeaf3ff, 0x9c8f6f, 0.82);   // lower ambient → more structure/contrast (ACES does the rest)
   scene.add(hemi);
-  const sun = new THREE.DirectionalLight(0xfff4e0, 1.5);
+  const sun = new THREE.DirectionalLight(0xfff4e0, 1.65);
   sun.position.set(40, 65, -10); sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
   sun.shadow.camera.left = -80; sun.shadow.camera.right = 80;

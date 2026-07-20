@@ -416,6 +416,9 @@ export class Game {
       this.player.yaw -= e.movementX * s;
       this.player.pitch -= e.movementY * s;
       this.player.pitch = Math.max(-1.45, Math.min(1.45, this.player.pitch));
+      // viewmodel sway: the gun lags the mouse slightly (ev.io feel)
+      this._swayX = Math.max(-1, Math.min(1, (this._swayX || 0) + e.movementX * 0.002));
+      this._swayY = Math.max(-1, Math.min(1, (this._swayY || 0) + e.movementY * 0.002));
     };
     this._cc = e => e.preventDefault();
     this._blur = () => { this.keys = {}; };   // alt-tab com tecla pressionada não deixa tecla presa
@@ -739,8 +742,9 @@ export class Game {
       dir.normalize();
       this._fireHitscan(this.player, from, dir, w.dmg, true, w.short);
     }
-    // recoil + muzzle flash
-    p.pitch += w.recoil * (1 - 0.25 * p.crouchF); this.vm.kick = 1;
+    // recoil + muzzle flash — accumulates and RECOVERS toward zero (ev.io/CS pattern,
+    // not a permanent pitch climb)
+    p.recoilP = (p.recoilP || 0) + w.recoil * (1 - 0.25 * p.crouchF); this.vm.kick = 1;
     this._flash(this.camera.localToWorld(new THREE.Vector3(0.26, -0.2, -1.1)));
     // bolt-action snipers drop the scope after each shot (CS-style); autos stay aimed
     if (p.scoped && (p.weapon === 'awp' || p.weapon === 'mosin' || p.weapon === 'rem700')) this._scope(false, true);
@@ -942,11 +946,12 @@ export class Game {
     const sin = Math.sin(p.yaw), cos = Math.cos(p.yaw);
     // camera: forward = (-sin, -cos), right = (cos, -sin)  →  wish = right*ix + forward*(-iz)
     const wx = ix * cos + iz * sin, wz = -ix * sin + iz * cos;
-    const accel = p.grounded ? 42 : 8;
+    const accel = p.grounded ? 55 : 12;   // snappier start + real air control (ev.io feel)
     p.vel.x += wx * accel * dt; p.vel.z += wz * accel * dt;
     if (p.grounded) {
-      const f = Math.max(0, 1 - 9 * dt);
-      if (!ix && !iz) { p.vel.x *= f; p.vel.z *= f; }
+      // friction applied ALWAYS (smooth controlled stop), stronger with no input
+      const f = Math.max(0, 1 - (ix || iz ? 7 : 11) * dt);
+      p.vel.x *= f; p.vel.z *= f;
     }
     const sp = Math.hypot(p.vel.x, p.vel.z);
     if (sp > maxSp) { p.vel.x *= maxSp / sp; p.vel.z *= maxSp / sp; }
@@ -968,16 +973,18 @@ export class Game {
     p.pos.y += p.vel.y * dt;
     const g2 = this.world.groundHeightAt(p.pos.x, p.pos.z);
     if (p.pos.y <= g2) {
-      if (!p.grounded && p.vel.y < -6) this.sfx.land();
+      if (!p.grounded && p.vel.y < -4) { this.sfx.land(); p.landDip = Math.min(1, -p.vel.y / 14); } // landing dip, sized by impact
       p.pos.y = g2; p.vel.y = 0; p.grounded = true;
     } else if (p.pos.y > g2 + 0.05) p.grounded = false;
     // auto-fire (ak/m4/mp5) enquanto o botão está segurado
     if (WEAPONS[p.weapon].auto && this.mouseDown0 && p.alive) this._tryShoot();
     this.bloom = Math.max(0, (this.bloom || 0) - dt * 1.8);
-    // camera (eye drops when crouched)
-    const eye = 1.62 - 0.52 * p.crouchF;
+    // camera: crouch drop + landing dip (decays) + recoil recovery (decays) + speed bob
+    p.landDip = (p.landDip || 0) + (0 - (p.landDip || 0)) * Math.min(1, dt * 7);
+    p.recoilP = Math.max(0, (p.recoilP || 0) - dt * (0.55 + (p.recoilP || 0) * 3.5));
+    const eye = 1.62 - 0.52 * p.crouchF - p.landDip * 0.09;
     this.camera.position.set(p.pos.x, p.pos.y + eye, p.pos.z);
-    this.camera.rotation.set(p.pitch, p.yaw, 0);
+    this.camera.rotation.set(p.pitch + p.recoilP, p.yaw, 0);
     // footsteps + view bob
     const moving = sp > 0.6 && p.grounded;
     if (moving) {
@@ -1017,13 +1024,16 @@ export class Game {
     }
     // view model animation
     this.vm.kick = Math.max(0, this.vm.kick - dt * 6);
-    const bobY = moving ? Math.sin(p.stepPhase * 2) * 0.012 : 0;
+    this._swayX *= Math.max(0, 1 - dt * 7); this._swayY *= Math.max(0, 1 - dt * 7);
+    const bobAmp = Math.min(1, sp / 6.6);
+    const bobY = moving ? Math.sin(p.stepPhase * 2) * 0.014 * bobAmp : 0;
     // iron-sight ADS: ease the gun toward screen center so you sight down it
     const adsWant = p.scoped && !realScope ? 1 : 0;
     this.vm.adsF = (this.vm.adsF || 0) + (adsWant - (this.vm.adsF || 0)) * Math.min(1, dt * 12);
     const a = this.vm.adsF;
-    this.vm.root.position.set(-0.17 * a, bobY - this.vm.reloadDip * 0.18 - p.crouchF * 0.02 + 0.05 * a, this.vm.kick * 0.09 - 0.1 * a);
+    this.vm.root.position.set(-0.17 * a + this._swayX * 0.02, bobY - this.vm.reloadDip * 0.18 - p.crouchF * 0.02 + 0.05 * a + this._swayY * 0.015, this.vm.kick * 0.09 - 0.1 * a);
     this.vm.root.rotation.x = this.vm.kick * 0.12 + this.vm.reloadDip * 0.9;
+    this.vm.root.rotation.z = this._swayY * 0.03;
   }
   // fy_pool_day ground weapons: anyone who runs over one grabs it (CS-1.6 style).
   // The gun vanishes and respawns after PICKUP_RESPAWN. No-op on maps without
