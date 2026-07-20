@@ -136,6 +136,26 @@ export class Game {
     this.tracers = [];
     this.puffs = [];
     this.flashes = [];
+    this.decals = [];
+    // bullet-hole decal: shared geometry+material, oriented to the surface normal at hit
+    {
+      const c = document.createElement('canvas'); c.width = c.height = 64;
+      const x = c.getContext('2d');
+      const g = x.createRadialGradient(32, 32, 2, 32, 32, 30);
+      g.addColorStop(0, 'rgba(12,10,9,0.98)'); g.addColorStop(0.4, 'rgba(18,16,14,0.85)');
+      g.addColorStop(0.75, 'rgba(24,22,19,0.35)'); g.addColorStop(1, 'rgba(24,22,19,0)');
+      x.fillStyle = g; x.fillRect(0, 0, 64, 64);
+      // cracks radiating out
+      x.strokeStyle = 'rgba(20,17,14,0.7)'; x.lineWidth = 1.6;
+      for (let i = 0; i < 7; i++) {
+        const a = (i / 7) * Math.PI * 2 + Math.random() * 0.5;
+        x.beginPath(); x.moveTo(32 + Math.cos(a) * 10, 32 + Math.sin(a) * 10);
+        x.lineTo(32 + Math.cos(a) * (20 + Math.random() * 9), 32 + Math.sin(a) * (20 + Math.random() * 9)); x.stroke();
+      }
+      const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+      this._holeGeo = new THREE.PlaneGeometry(0.22, 0.22);
+      this._holeMat = new THREE.MeshBasicMaterial({ map: t, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 });
+    }
     this.drops = [];
     this.puffTex = this._makePuffTexture();
     this.ray = new THREE.Raycaster();
@@ -891,6 +911,17 @@ export class Game {
     s.scale.setScalar(0.4);
     this.scene.add(s);
     this.puffs.push({ s, ttl: 0.4, t: 0 });
+    // persistent bullet hole on the surface (capped ring buffer)
+    if (normal) {
+      const m = new THREE.Mesh(this._holeGeo, this._holeMat);
+      m.position.copy(pos).add(normal.clone().multiplyScalar(0.012));
+      m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal.clone().normalize());
+      m.rotateZ(Math.random() * Math.PI * 2);
+      m.scale.setScalar(0.7 + Math.random() * 0.6);
+      this.scene.add(m);
+      this.decals.push(m);
+      if (this.decals.length > 48) { const old = this.decals.shift(); this.scene.remove(old); }
+    }
   }
   _flash(pos) {
     const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: this.flashTex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
