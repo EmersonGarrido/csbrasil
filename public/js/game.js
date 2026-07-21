@@ -4,6 +4,7 @@ import { MAPS, resolveMapId } from './maps.js';
 import { buildCharacter, poseCharacter, byId, CHARACTERS, buildRifle } from './characters.js';
 import { buildCharacterModel } from './glbchars.js';
 import { weaponModel, weaponCFG, ONE_HANDED, WEAPON_IDS } from './weapons.js';
+import { GPUParticles } from './gpuparticles.js';
 
 export const WEAPONS = {
   awp:    { name: 'AWP "DELIBERADOR"', short: 'AWP', dmg: 400, mag: 5, reserve: 25, rate: 1.7, reload: 3.1, spreadHip: 0.075, spreadScope: 0.0008, recoil: 0.055, scope: true },
@@ -134,8 +135,6 @@ export class Game {
 
     // ---- fx pools ----
     this.tracers = [];
-    this.puffs = [];
-    this.flashes = [];
     this.decals = [];
     // bullet-hole decal: shared geometry+material, oriented to the surface normal at hit
     {
@@ -158,6 +157,14 @@ export class Game {
     }
     this.drops = [];
     this.puffTex = this._makePuffTexture();
+    // GPU-batched particles: ALL muzzle flashes share one Points (additive), ALL impact puffs
+    // share another (soft smoke) — 1 draw call each, zero per-shot allocation (ring buffer).
+    this.flashFx = new GPUParticles(this.scene, this.camera, { tex: this.flashTex, additive: true });
+    this.puffFx = new GPUParticles(this.scene, this.camera, { tex: this.puffTex, additive: false });
+    // tracer mesh pool (shared unit geometry + material; reused, never disposed per shot)
+    this._tracerGeo = new THREE.CylinderGeometry(0.014, 0.014, 1, 5, 1, true);
+    this._tracerMat = new THREE.MeshBasicMaterial({ color: 0xffe9a0, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false });
+    this._tracerPool = [];
     this.ray = new THREE.Raycaster();
 
     // ---- round state ----
@@ -896,21 +903,23 @@ export class Game {
   _tracer(a, b) {
     const len = a.distanceTo(b);
     if (len < 0.5) return;
-    const geo = new THREE.CylinderGeometry(0.014, 0.014, len, 5, 1, true);
-    const mat = new THREE.MeshBasicMaterial({ color: 0xffe9a0, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false });
-    const m = new THREE.Mesh(geo, mat);
+    // pooled mesh: shared unit cylinder scaled to length, own material cloned once (never
+    // disposed per shot) — eliminates the geometry+material alloc that spiked GC each shot.
+    const t = this._tracerPool.pop() || { m: new THREE.Mesh(this._tracerGeo, this._tracerMat.clone()), ttl: 0 };
+    const m = t.m;
+    m.material.opacity = 0.95;
+    m.scale.set(1, len, 1);
     m.position.copy(a).lerp(b, 0.5);
     m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), b.clone().sub(a).normalize());
     this.scene.add(m);
-    this.tracers.push({ m, ttl: 0.09 });
+    t.ttl = 0.09;
+    this.tracers.push(t);
   }
   _puff(pos, normal) {
-    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: this.puffTex, transparent: true, opacity: 0.9, depthWrite: false }));
-    s.position.copy(pos);
-    if (normal) s.position.add(normal.clone().multiplyScalar(0.12));
-    s.scale.setScalar(0.4);
-    this.scene.add(s);
-    this.puffs.push({ s, ttl: 0.4, t: 0 });
+    // impact smoke: one GPU particle (batched, no allocation)
+    const p = pos.clone();
+    if (normal) p.add(normal.clone().multiplyScalar(0.12));
+    this.puffFx.spawn(p, { life: 0.4, size: 0.4, grow: 2.2 });
     // persistent bullet hole on the surface (capped ring buffer)
     if (normal) {
       const m = new THREE.Mesh(this._holeGeo, this._holeMat);
@@ -924,27 +933,17 @@ export class Game {
     }
   }
   _flash(pos) {
-    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: this.flashTex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
-    s.position.copy(pos); s.scale.setScalar(0.55);
-    this.scene.add(s);
-    this.flashes.push({ s, ttl: 0.05 });
+    // muzzle flash: one GPU particle (additive, batched)
+    this.flashFx.spawn(pos, { life: 0.05, size: 0.55 });
   }
   _updateFx(dt) {
     for (let i = this.tracers.length - 1; i >= 0; i--) {
       const t = this.tracers[i];
       t.ttl -= dt; t.m.material.opacity = Math.max(0, t.ttl / 0.09);
-      if (t.ttl <= 0) { this.scene.remove(t.m); t.m.geometry.dispose(); t.m.material.dispose(); this.tracers.splice(i, 1); }
+      if (t.ttl <= 0) { this.scene.remove(t.m); this._tracerPool.push(t); this.tracers.splice(i, 1); }
     }
-    for (let i = this.puffs.length - 1; i >= 0; i--) {
-      const p = this.puffs[i]; p.t += dt;
-      p.s.scale.setScalar(0.4 + p.t * 2.2);
-      p.s.material.opacity = Math.max(0, 0.9 - p.t * 2.4);
-      if (p.t > 0.4) { this.scene.remove(p.s); p.s.material.dispose(); this.puffs.splice(i, 1); }
-    }
-    for (let i = this.flashes.length - 1; i >= 0; i--) {
-      const f = this.flashes[i]; f.ttl -= dt;
-      if (f.ttl <= 0) { this.scene.remove(f.s); f.s.material.dispose(); this.flashes.splice(i, 1); }
-    }
+    this.flashFx.update(dt);
+    this.puffFx.update(dt);
   }
 
   /* ================= player physics ================= */
