@@ -27,8 +27,7 @@ const qp = new URLSearchParams(location.search);
 const ANIM_DIR = qp.get('animdir') || 'models/anims';   // ?animdir=models/anims/ue → UE retargeted clips
 const TARGET_HEIGHT = parseFloat(qp.get('charh')) || 1.72;      // meters (match box silhouette)
 // Per-clip natural ground speed (m/s) that plants the feet at timeScale 1, MEASURED from
-// each clip's real foot stride (tools: iktest HARNESS.measureStride). walk and run have
-// different strides, so a single ref moon-walks one of them. Override via ?wref/?rref/?cref.
+// each clip's real foot stride (tools: iktest HARNESS.measureStride).
 const WALK_REF   = parseFloat(qp.get('wref')) || 0.79;
 const RUN_REF    = parseFloat(qp.get('rref')) || 1.92;
 const CROUCH_REF = parseFloat(qp.get('cref')) || 0.83;
@@ -118,9 +117,10 @@ export function buildCharacterModel(def, opts = {}) {
 
   // Rifle in the right hand: a scale-compensated mount parented to the hand bone so
   // GUN_POS/GUN_ROT are expressed in world meters regardless of the bone's scale.
-  let handBone = null, lhandBone = null;
+  let handBone = null, lhandBone = null, rforeBone = null;
   model.traverse((o) => { if (o.isBone && !handBone && /right.?hand|hand.?r\b|rhand|r_hand/i.test(o.name)) handBone = o; });
   model.traverse((o) => { if (o.isBone && !lhandBone && /left.?hand|hand.?l\b|lhand|l_hand/i.test(o.name)) lhandBone = o; });
+  model.traverse((o) => { if (o.isBone && !rforeBone && /right.?forearm|r_forearm/i.test(o.name)) rforeBone = o; });
   if (!handBone) model.traverse((o) => { if (o.isBone && !handBone && /hand/i.test(o.name)) handBone = o; });
   if (handBone && withWeapon) {
     const gun = weaponModel(opts.weaponId || 'awp') || buildRifle();
@@ -160,12 +160,15 @@ export function buildCharacterModel(def, opts = {}) {
     for (let i = 0; i < 6; i++) ctrl.update(1 / 30, 0, false, 0);
     model.updateMatrixWorld(true);
     const gripP = handBone.getWorldPosition(new THREE.Vector3());
-    const dir = new THREE.Vector3(0, 0, 1).applyQuaternion(group.getWorldQuaternion(new THREE.Quaternion()));
-    if (lhandBone) {
-      const foreP = lhandBone.getWorldPosition(new THREE.Vector3());
-      const d = foreP.clone().sub(gripP);
-      if (d.lengthSq() > 1e-6) dir.copy(d.normalize());
+    // Barrel direction = the arm's own line (forearm -> hand), which IS the gun direction
+    // in any hold pose (two-handed or pistol), and is rig- and frame-independent.
+    let dir = null;
+    if (rforeBone) {
+      const elbowP = rforeBone.getWorldPosition(new THREE.Vector3());
+      const d = gripP.clone().sub(elbowP);
+      if (d.lengthSq() > 1e-6) dir = d.normalize();
     }
+    if (!dir) dir = new THREE.Vector3(0, 0, 1).applyQuaternion(group.getWorldQuaternion(new THREE.Quaternion()));
     // Matrix4.lookAt orients -Z at the target; we want the gun's +Z (barrel) along dir.
     const lookM = new THREE.Matrix4().lookAt(new THREE.Vector3(), dir.clone().negate(), new THREE.Vector3(0, 1, 0));
     const desired = new THREE.Quaternion().setFromRotationMatrix(lookM);
