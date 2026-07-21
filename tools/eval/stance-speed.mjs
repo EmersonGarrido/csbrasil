@@ -15,7 +15,7 @@ const browser = await chromium.launch({
 });
 const page = await browser.newPage({ viewport: { width: 640, height: 400 } });
 page.on('console', m => { if (m.type() === 'error') console.error('[page]', m.text()); });
-await page.goto(`${BASE}/iktest.html?char=${encodeURIComponent(CHAR)}`, { waitUntil: 'load' });
+await page.goto(`${BASE}/iktest.html?char=${encodeURIComponent(CHAR)}${process.env.ANIMDIR ? '&animdir=' + process.env.ANIMDIR : ''}`, { waitUntil: 'load' });
 await page.waitForFunction(() => window.HARNESS && window.HARNESS.ready, null, { timeout: 60000 });
 
 const out = {};

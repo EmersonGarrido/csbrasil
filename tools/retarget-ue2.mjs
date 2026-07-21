@@ -148,8 +148,10 @@ for (const [state, srcClipName] of Object.entries(EXPORT)) {
       const srcName = Object.keys(MAP).find(k => MAP[k] === tg.name);
       const sg = SG.get(srcName);
       if (!sg) continue;
-      const delta = worldQ(sg, overrides).clone().multiply(restWorldQ(sg).invert());
-      const desiredW = delta.multiply(restWorldQ(tg));
+      // STANDARD retarget form: tgtWorld = tgtRestWorld ⊗ srcRestWorld⁻¹ ⊗ srcWorld,
+      // then tgtLocal = tgtParentWorld⁻¹ ⊗ tgtWorld. (The earlier delta-on-the-wrong-side
+      // was the calibration bug — order matters, quaternions don't commute.)
+      const desiredW = restWorldQ(tg).clone().multiply(restWorldQ(sg).invert()).multiply(worldQ(sg, overrides));
       const parentW = tg.parent && parentComputed.has(tg.parent.name) ? parentComputed.get(tg.parent.name) : restWorldQ(tg.parent);
       const local = parentW.clone().invert().multiply(desiredW);
       parentComputed.set(tg.name, desiredW.clone());
