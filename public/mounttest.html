@@ -50,15 +50,36 @@ const def = CHARACTERS.find(c => c.id === CHAR) || { id: CHAR, team:'P' };
 const built = buildCharacterModel(def, { weapon:true, weaponId: WEAPON });
 if (!built || !built.group) { hud.textContent = 'sem modelo '+CHAR; throw new Error('no model'); }
 scene.add(built.group);
-// settle into idle and hold still
-if (built.ctrl && built.ctrl._to) built.ctrl._to('idle');
-for (let i=0;i<10;i++){ if(built.ctrl) built.ctrl.update(1/30,0,false,0); }
-built.group.updateMatrixWorld(true);
 
-hud.textContent = `char=${CHAR} weapon=${WEAPON}\nseta verde = +Z (frente)\ncano deve apontar junto`;
-renderer.render(scene, cam);
-window.MOUNT_READY = true;
-addEventListener('resize', ()=>{ cam.aspect=innerWidth/innerHeight; cam.updateProjectionMatrix(); renderer.setSize(innerWidth,innerHeight); renderer.render(scene,cam); });
+const PLAY = qp.get('play'); // 'walk'|'run'|'idle' -> animate continuously for video capture
+if (PLAY) {
+  const state = PLAY;
+  if (built.ctrl && built.ctrl._to) built.ctrl._to(state);
+  const ts = parseFloat(qp.get('ts')) || 1;
+  if (built.ctrl && built.ctrl.actions && built.ctrl.actions[state]) built.ctrl.actions[state].timeScale = ts;
+  const orbit = qp.get('orbit') === '1';
+  let last = performance.now();
+  hud.textContent = `char=${CHAR} weapon=${WEAPON} play=${state} ts=${ts}`;
+  const SPD = parseFloat(qp.get('spd')) || (state==='run' ? 1.9 : 1.0);
+  window.STEP = (dt)=>{ if(built.ctrl) built.ctrl.update(dt, 1, false, SPD, false); built.group.updateMatrixWorld(true); };
+  (function loop(now){
+    const dt = Math.min(0.05, (now-last)/1000); last = now;
+    window.STEP(dt);
+    if (orbit) { const a = now*0.0004; cam.position.set(Math.sin(a)*3.4, 1.35, Math.cos(a)*3.4); cam.lookAt(0,1.0,0); }
+    renderer.render(scene, cam);
+    requestAnimationFrame(loop);
+  })(last);
+  window.MOUNT_READY = true;
+} else {
+  // settle into idle and hold still
+  if (built.ctrl && built.ctrl._to) built.ctrl._to('idle');
+  for (let i=0;i<10;i++){ if(built.ctrl) built.ctrl.update(1/30,0,false,0); }
+  built.group.updateMatrixWorld(true);
+  hud.textContent = `char=${CHAR} weapon=${WEAPON}\nseta verde = +Z (frente)\ncano deve apontar junto`;
+  renderer.render(scene, cam);
+  window.MOUNT_READY = true;
+  addEventListener('resize', ()=>{ cam.aspect=innerWidth/innerHeight; cam.updateProjectionMatrix(); renderer.setSize(innerWidth,innerHeight); renderer.render(scene,cam); });
+}
 </script>
 </body>
 </html>
