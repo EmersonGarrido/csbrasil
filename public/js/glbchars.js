@@ -151,23 +151,24 @@ export function buildCharacterModel(def, opts = {}) {
   const ctrl = new CharController(mixer, actions, group, headBone, head);
 
   if (handBone && withWeapon) {
-    // Settle into the SHOOT clip at its aim moment (both hands extended along the gun —
-    // the only pose where right→left hand IS the barrel direction). Aim the mount from
-    // the right hand to the left hand there; rigid in hand space afterwards. A fixed
-    // bone-local rotation pointed the gun forward on some Meshy rigs and backward on
-    // others ("arma ao contrário"); hand-to-hand aiming is consistent on every rig.
-    ctrl._to('shoot');
-    for (let i = 0; i < 6; i++) ctrl.update(1 / 30, 0, false, 0);
-    model.updateMatrixWorld(true);
+    // Aim the mount from the walk cycle's natural hold: average the forearm->hand line
+    // across the loop (the walk holds the gun with both hands on it). Pose-independent,
+    // works for rifle and pistol rigs. (The shoot pose is pistol-flavored and unreliable.)
+    ctrl._to('walk');
+    const dirAvg = new THREE.Vector3();
     const gripP = handBone.getWorldPosition(new THREE.Vector3());
-    // Barrel direction = the arm's own line (forearm -> hand), which IS the gun direction
-    // in any hold pose (two-handed or pistol), and is rig- and frame-independent.
-    let dir = null;
     if (rforeBone) {
       const elbowP = rforeBone.getWorldPosition(new THREE.Vector3());
-      const d = gripP.clone().sub(elbowP);
-      if (d.lengthSq() > 1e-6) dir = d.normalize();
+      for (let i = 0; i < 8; i++) {
+        ctrl.update(1 / 24, 0, false, 0);
+        model.updateMatrixWorld(true);
+        const hp = handBone.getWorldPosition(new THREE.Vector3());
+        const ep = rforeBone.getWorldPosition(new THREE.Vector3());
+        const d = hp.sub(ep);
+        if (d.lengthSq() > 1e-6) dirAvg.add(d.normalize());
+      }
     }
+    let dir = dirAvg.lengthSq() > 1e-6 ? dirAvg.normalize() : null;
     if (!dir) dir = new THREE.Vector3(0, 0, 1).applyQuaternion(group.getWorldQuaternion(new THREE.Quaternion()));
     // Matrix4.lookAt orients -Z at the target; we want the gun's +Z (barrel) along dir.
     const lookM = new THREE.Matrix4().lookAt(new THREE.Vector3(), dir.clone().negate(), new THREE.Vector3(0, 1, 0));
