@@ -13,14 +13,16 @@ export const WEAPON_IDS = ['awp', 'ak', 'm4', 'mp5', 'shotgun', 'deagle', 'pisto
 
 // len = real length along the barrel (m); rot = degrees to point the barrel +Z;
 // gripZ = fraction of length from the muzzle where the hand grips (0=muzzle,1=stock).
-// rot = graus pra apontar o cano +Z. VERIFICADO visualmente arma a arma via weapontest.html
-// (tools/eval/weapon-capture.mjs): os GLBs vêm de fontes diferentes e NÃO têm convenção
-// consistente — 6 estavam com a coronha em +Z (cano -Z = "ao contrário") e levaram +180 no yaw.
+// rot = graus pra apontar o cano +Z. Verificado OBJETIVAMENTE arma a arma via weapontest.html
+// (tools/eval/weapon-capture.mjs): mede a seção transversal perto de cada ponta Z — o cano é
+// FINO, a coronha GROSSA; se a ponta +Z não é a mais fina, a arma está invertida e leva +180
+// no yaw. (Os GLBs vêm de fontes diferentes, sem convenção; a leitura à olho falhava nas
+// bullpups/compactas — a medição não.) Confirmadas pelo usuário: tavor, uzi, m400.
 const CFG = {
   awp:     { len: 1.15, rot: [0, 90, 0], gripZ: 0.72 },
   ak:      { len: 0.88, rot: [0, 270, 0], gripZ: 0.62 },  // +180: estava coronha em +Z (invertido)
   m4:      { len: 0.84, rot: [0, 90, 0], gripZ: 0.62 },
-  mp5:     { len: 0.66, rot: [0, 90, 0], gripZ: 0.58 },
+  mp5:     { len: 0.66, rot: [0, 90, 0], gripZ: 0.58 },   // medição borderline (7%); cano +Z confirmado à olho
   shotgun: { len: 1.00, rot: [0, 0, 0], gripZ: 0.6 },   // model is natively +Z (barrel forward)
   deagle:  { len: 0.30, rot: [0, 90, 0], gripZ: 0.7 },
   pistol:  { len: 0.26, rot: [0, 90, 0], gripZ: 0.7 },
@@ -29,19 +31,19 @@ const CFG = {
   m92:       { len: 0.76, rot: [0, 270, 0], gripZ: 0.6 },   // +180: Zastava M92 estava invertido
   g3:        { len: 1.10, rot: [0, 270, 0], gripZ: 0.58 },  // +180: HK G3 estava invertido
   akm:       { len: 0.88, rot: [0, 90, 0], gripZ: 0.62 },
-  revolver38:{ len: 0.24, rot: [0, 90, 0], gripZ: 0.68 },
+  revolver38:{ len: 0.24, rot: [0, 270, 0], gripZ: 0.68 },  // +180: medição -Z (invertido)
   md97:      { len: 1.05, rot: [0, 270, 0], gripZ: 0.62 },  // +180: estava invertido
   carbine:   { len: 0.98, rot: [0, 0, 0], gripZ: 0.6 },   // natively +Z; [0,90,0] threw the barrel onto X (giant)
-  m400:      { len: 0.92, rot: [0, 90, 0], gripZ: 0.62 },
+  m400:      { len: 0.92, rot: [0, 270, 0], gripZ: 0.62 },  // +180: usuário confirmou invertido
   mosin:     { len: 1.20, rot: [0, 270, 0], gripZ: 0.66 },  // +180: estava invertido
   rem700:    { len: 1.15, rot: [0, 270, 0], gripZ: 0.66 },  // +180: estava invertido
   // arsenal-3 (military)
   lmg:       { len: 1.10, rot: [0, 90, 0], gripZ: 0.58 },
   scar:      { len: 0.90, rot: [0, 90, 0], gripZ: 0.62 },
-  tavor:     { len: 0.72, rot: [0, 90, 0], gripZ: 0.5 },
+  tavor:     { len: 0.72, rot: [0, 270, 0], gripZ: 0.5 },   // +180: usuário confirmou invertido
   famas:     { len: 0.76, rot: [0, 90, 0], gripZ: 0.5 },
-  uzi:       { len: 0.60, rot: [0, 90, 0], gripZ: 0.58 },
-  p90:       { len: 0.52, rot: [0, 90, 0], gripZ: 0.55 },
+  uzi:       { len: 0.60, rot: [0, 270, 0], gripZ: 0.58 },  // +180: usuário confirmou invertido
+  p90:       { len: 0.52, rot: [0, 270, 0], gripZ: 0.55 },  // +180: medição -Z (invertido)
 };
 
 const loadGLB = (url) => new Promise((res, rej) => loader.load(url, res, undefined, rej));

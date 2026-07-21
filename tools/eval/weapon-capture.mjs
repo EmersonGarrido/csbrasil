@@ -33,12 +33,15 @@ if (!list) {
   });
 }
 console.log('weapons:', list.join(' '));
+const hints = {};
 for (const id of list) {
   await page.goto(`${BASE}/weapontest.html?w=${encodeURIComponent(id)}`, { waitUntil: 'load' });
   await page.waitForFunction(() => window.WT_READY, null, { timeout: 60000 });
+  hints[id] = await page.evaluate(() => window.WT_HINT || null);
   await page.waitForTimeout(60);
   await page.screenshot({ path: `${DIR}/${id}.png` });
 }
+for (const id of list) { const h = hints[id]; console.log(`${h && h.ok ? 'OK      ' : 'INVERT? '} ${id}  tip(+Z)=${h && h.rTip} tail(-Z)=${h && h.rTail}  muzzleAt=${h && h.muzzleAt}`); }
 await browser.close();
 const cols = Math.ceil(Math.sqrt(list.length));
 execSync(`montage ${list.map(i => `${DIR}/${i}.png`).join(' ')} -tile ${cols}x -geometry +3+3 -background '#111' -fill white -label '%f' "${OUTSHEET}"`, { stdio: 'inherit' });
