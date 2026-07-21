@@ -26,7 +26,7 @@ const CFG = {
   shotgun: { len: 1.00, rot: [0, 0, 0], gripZ: 0.6 },   // model is natively +Z (barrel forward)
   deagle:  { len: 0.30, rot: [0, 90, 0], gripZ: 0.7 },
   pistol:  { len: 0.26, rot: [0, 90, 0], gripZ: 0.7 },
-  knife:   { len: 0.30, rot: [0, 90, 0], gripZ: 0.6 },
+  knife:   { len: 0.30, rot: [0, 270, 0], gripZ: 0.6 },  // +180: lâmina estava pra trás (medição -Z)
   // arsenal-2 (Brazilian-flavored)
   m92:       { len: 0.76, rot: [0, 270, 0], gripZ: 0.6 },   // +180: Zastava M92 estava invertido
   g3:        { len: 1.10, rot: [0, 270, 0], gripZ: 0.58 },  // +180: HK G3 estava invertido
@@ -62,6 +62,8 @@ export function hasWeapon(id) { return _cache.has(id); }
 export function weaponCFG(id) { return CFG[id] || CFG.awp; }
 // One-handed weapons get no support hand on a handguard.
 export const ONE_HANDED = new Set(['pistol', 'deagle', 'revolver38', 'knife']);
+// Sidearm slot (tecla 2). Everything else except the knife is a primary (tecla 1).
+export const PISTOLS = new Set(['pistol', 'deagle', 'revolver38']);
 
 // Returns a THREE.Group holding the weapon, scaled to real size, barrel pointing +Z,
 // grip roughly at the group origin (so it sits in a hand placed at origin).

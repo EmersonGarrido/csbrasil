@@ -1,7 +1,7 @@
 // Boot, menus, settings, logo, main loop.
 import * as THREE from 'three';
 import { initTextures } from './textures.js';
-import { CHARACTERS, buildCharacter } from './characters.js';
+import { CHARACTERS, buildCharacter, charWeapon } from './characters.js';
 import { preloadCharacterAssets, buildCharacterModel, hasModel, GLB_CHARS } from './glbchars.js';
 import { preloadMapProps } from './mapprops.js';
 import { MAPS, MAP_IDS, DEFAULT_MAP, resolveMapId } from './maps.js';
@@ -81,13 +81,7 @@ function ensurePreview() {
   return pv;
 }
 // Each character shows off a weapon that fits their vibe (not everyone with an AK).
-const CHAR_WEAPON = {
-  esquerdomacho: 'pistol', sindicato: 'shotgun', mst: 'ak', doutora: 'm4', mistico: 'mp5',
-  caminhoneiro: 'md97', influencer: 'deagle', sertanejo: 'revolver38', senhora: 'uzi',
-  coach: 'scar', gotinha: 'mp5', farialimer: 'm4', bombado: 'lmg', hipster: 'uzi',
-  dollynho: 'p90', et: 'awp', ancap: 'mosin',
-};
-const charWeapon = (id) => CHAR_WEAPON[id] || 'ak';
+// CHAR_WEAPON/charWeapon live in characters.js, shared with game.js (initial loadout).
 let pvToken = 0;
 function pvSetChar(def) {
   const p = ensurePreview();

@@ -56,6 +56,16 @@ export const CHARACTERS = [
 ];
 export const byId = id => CHARACTERS.find(c => c.id === id);
 
+// Which weapon each character is shown holding (character-select) AND spawns with.
+// Shared by main.js (select screen) and game.js (initial loadout) so they never disagree.
+export const CHAR_WEAPON = {
+  esquerdomacho: 'pistol', sindicato: 'shotgun', mst: 'ak', doutora: 'm4', mistico: 'mp5',
+  caminhoneiro: 'md97', influencer: 'deagle', sertanejo: 'revolver38', senhora: 'uzi',
+  coach: 'scar', gotinha: 'mp5', farialimer: 'm4', bombado: 'lmg', hipster: 'uzi',
+  dollynho: 'p90', et: 'awp', ancap: 'mosin',
+};
+export const charWeapon = (id) => CHAR_WEAPON[id] || 'ak';
+
 const matCache = new Map();
 function M(color) {
   if (!matCache.has(color)) matCache.set(color, new THREE.MeshLambertMaterial({ color }));

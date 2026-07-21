@@ -1,9 +1,9 @@
 // Core game: FPS controller, weapons, bots, rounds, HUD.
 import * as THREE from 'three';
 import { MAPS, resolveMapId } from './maps.js';
-import { buildCharacter, poseCharacter, byId, CHARACTERS, buildRifle } from './characters.js';
+import { buildCharacter, poseCharacter, byId, CHARACTERS, buildRifle, charWeapon } from './characters.js';
 import { buildCharacterModel } from './glbchars.js';
-import { weaponModel, weaponCFG, ONE_HANDED, WEAPON_IDS } from './weapons.js';
+import { weaponModel, weaponCFG, ONE_HANDED, WEAPON_IDS, PISTOLS } from './weapons.js';
 import { GPUParticles } from './gpuparticles.js';
 
 export const WEAPONS = {
@@ -89,11 +89,15 @@ export class Game {
     this.combatants = [];   // scoreboard entries
 
     // ---- player ----
+    // Spawns holding the SAME weapon shown on the character-select screen (charWeapon).
+    // primary/secondary remember the last weapon of each slot for the 1/2 keys.
+    const startWeapon = charWeapon(playerCharId);
     this.player = {
       isPlayer: true, name: (nickname || '').trim().slice(0, 14) || 'VOCÊ', def: this.playerDef, team: playerTeam,
       pos: new THREE.Vector3(), vel: new THREE.Vector3(),
       yaw: 0, pitch: 0, hp: 100, alive: true, respawnAt: 0, crouchF: 0,
-      weapon: 'awp', scoped: false, reloadUntil: 0, nextShotAt: 0, drawUntil: 0,
+      weapon: startWeapon, scoped: false, reloadUntil: 0, nextShotAt: 0, drawUntil: 0,
+      primary: startWeapon, secondary: 'pistol',
       ammo: Object.fromEntries(Object.keys(WEAPONS).filter(w => w !== 'knife').map(w => [w, { mag: WEAPONS[w].mag, res: WEAPONS[w].reserve }])),
       kills: 0, deaths: 0, headshots: 0, grounded: true, stepPhase: 0, revealedAt: -99,
     };
@@ -401,8 +405,9 @@ export class Game {
       if (e.code === 'KeyZ') { this._radioShow('z'); return; }
       if (e.code === 'KeyX') { this._radioShow('x'); return; }
       if (e.code === 'KeyV') { this._radioShow('c'); return; }
-      if (e.code === 'Digit1') this._switchWeapon('awp');
-      if (e.code === 'Digit2') this._switchWeapon('pistol');
+      // slot memory: 1 = last primary held, 2 = last sidearm held (not a hardcoded reset)
+      if (e.code === 'Digit1') this._switchWeapon(this.player.primary || 'awp');
+      if (e.code === 'Digit2') this._switchWeapon(this.player.secondary || 'pistol');
       if (e.code === 'Digit3') this._switchWeapon('knife');
       if (e.code === 'KeyE' && this.nearPickup) {
         const { pk, dropIdx } = this.nearPickup;
@@ -528,8 +533,10 @@ export class Game {
     this.player.pitch = 0; this.player.vel.set(0, 0, 0); this.player.crouchF = 0;
     this.player.ammo.awp = { mag: WEAPONS.awp.mag, res: WEAPONS.awp.reserve };
     this.player.ammo.pistol = { mag: WEAPONS.pistol.mag, res: WEAPONS.pistol.reserve };
-    // modo de armas: aplica o loadout inicial
+    // modo de armas: aplica o loadout inicial. No modo 'all', o player entra com a arma do
+    // personagem dele (a mesma da tela de seleção) em vez da AWP padrão.
     const mode = this.settings.wpnMode || 'all';
+    const cw = charWeapon(this.playerCharId);
     if (mode === 'pistols') {
       this.player.weapon = 'pistol';
       this.player.ammo.awp = { mag: 0, res: 0 };
@@ -541,29 +548,33 @@ export class Game {
       this.player.weapon = 'awp';
       this.player.ammo.pistol = { mag: 0, res: 0 };
     } else {
-      this.player.weapon = 'awp';
+      this.player.weapon = cw;
     }
+    // reset slot memory to the loadout (1 = primary, 2 = sidearm)
+    this.player.primary = PISTOLS.has(this.player.weapon) ? 'pistol' : (this.player.weapon === 'knife' ? cw : this.player.weapon);
+    this.player.secondary = 'pistol';
     this.player.scoped = false; this.player.reloadUntil = 0;
     for (const d of this.drops) this.scene.remove(d.mesh);
     this.drops = [];
-    // scatter a few real weapons on the ground each round so the player finds variety
-    // (map pickups are often AWP-only; bot drops only appear after kills)
-    const wp = this.world.waypoints && this.world.waypoints.nodes;
-    if (wp && wp.length) {
-      // Weapons RIGHT AT each spawn — lined up like the CS spawn racks (fy_pool_day).
-      // No map-wide scatter: guns live at the respawn, snipers first.
-      const rack = ['awp', 'mosin', 'rem700', 'm400', 'ak', 'm4', 'g3', 'm92', 'scar', 'shotgun', 'mp5', 'lmg']
-        .filter(w => this._pickupAllowed(w));
-      if (rack.length) {
-        for (const team of ['P', 'B']) {
-          const spawns = this.world.spawns[team] || [];
-          const sz = spawns.length ? spawns[0].z : 0;
-          const inward = sz > 0 ? -1 : 1;              // just in front of the spawn line
-          let i = 0;
-          for (const gx of [-13, -10, -6, -2, 2, 6, 10, 13])
-            this._dropWeapon(gx, sz + inward * (1.8 + (i % 2) * 0.9), rack[i++ % rack.length], true);
-        }
-      }
+    // FULL arsenal available AT each respawn — no map-wide scatter. Organized in rows by
+    // category (snipers → rifles → bullpups/SMG → sidearms) like a spawn weapon rack.
+    const rackRows = [
+      ['awp', 'mosin', 'rem700', 'm400'],                        // snipers
+      ['ak', 'akm', 'm4', 'md97', 'g3', 'scar', 'carbine', 'm92'], // rifles
+      ['tavor', 'famas', 'p90', 'mp5', 'uzi', 'shotgun', 'lmg'],   // bullpups / SMG / shotgun / LMG
+      ['deagle', 'revolver38', 'pistol'],                        // sidearms
+    ].map(row => row.filter(w => this._pickupAllowed(w)));
+    for (const team of ['P', 'B']) {
+      const spawns = this.world.spawns[team] || [];
+      const sz = spawns.length ? spawns[0].z : 0;
+      const inward = sz > 0 ? -1 : 1;                          // toward map center, in front of spawn
+      rackRows.forEach((row, r) => {
+        const n = row.length;
+        row.forEach((w, c) => {
+          const gx = n > 1 ? -13 + (c * 26) / (n - 1) : 0;
+          this._dropWeapon(gx, sz + inward * (1.8 + r * 1.3), w, true);
+        });
+      });
     }
     for (const k in this.vm.models) this.vm.models[k].visible = k === this.player.weapon;
     this.el.weaponName.textContent = WEAPONS[this.player.weapon].name;
@@ -705,6 +716,8 @@ export class Game {
     if (p.weapon === w || !p.alive || !WEAPONS[w]) return;
     if (w !== 'knife' && !p.ammo[w]) p.ammo[w] = { mag: WEAPONS[w].mag, res: WEAPONS[w].reserve };
     p.weapon = w; p.reloadUntil = 0; p.drawUntil = this.time + 0.28;
+    // remember the slot so 1/2 recall the LAST weapon of that kind (primary vs sidearm)
+    if (w !== 'knife') { if (PISTOLS.has(w)) p.secondary = w; else p.primary = w; }
     this.vm.reloadDip = 0;   // evita arma travada inclinada ao trocar no meio da recarga
     this.bloom = 0;
     this._scope(false, true);
@@ -846,8 +859,9 @@ export class Game {
   _kill(ent, attacker, weap = 'AWP', head = false) {
     ent.alive = false; ent.hp = 0; ent.deaths++;
     ent.respawnAt = this.time + RESPAWN_DELAY;
-    // CS: larga a arma no chão onde morreu
-    this._dropWeapon(ent.pos.x, ent.pos.z, ent.weapon === 'knife' ? 'awp' : ent.weapon);
+    // Sem drop de arma onde morreu: o arsenal completo já está no respawn, então drops
+    // pelo mapa viravam lixo espalhado (pedido do usuário: nada de arma jogada no chão).
+    // this._dropWeapon(ent.pos.x, ent.pos.z, ent.weapon === 'knife' ? 'awp' : ent.weapon);
     if (attacker) {
       attacker.kills++; this.roundKills[attacker.team]++;
       this.sfx.voice(attacker.team);   // killer's side celebrates (meme audio)
@@ -1170,7 +1184,9 @@ export class Game {
     p.pos.set(s.x, 0, s.z); p.vel.set(0, 0, 0);
     p.hp = 100; p.alive = true; p.crouchF = 0;
     p.yaw = p.team === 'P' ? Math.PI : 0; p.pitch = 0;
-    p.ammo.awp.mag = WEAPONS.awp.mag; p.ammo.pistol.mag = WEAPONS.pistol.mag;
+    // top off the CURRENT loadout's mags (primary could be any weapon now, not just AWP)
+    if (p.primary && p.ammo[p.primary]) p.ammo[p.primary] = { mag: WEAPONS[p.primary].mag, res: WEAPONS[p.primary].reserve };
+    if (p.secondary && p.ammo[p.secondary]) p.ammo[p.secondary] = { mag: WEAPONS[p.secondary].mag, res: WEAPONS[p.secondary].reserve };
     this.camera.rotation.z = 0;
     this.el.respawn.classList.add('hidden');
     this.sfx.respawn();
