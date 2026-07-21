@@ -12,7 +12,7 @@ import { VERSION } from './version.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone as skeletonClone } from 'three/addons/utils/SkeletonUtils.js';
 import { buildRifle } from './characters.js';
-import { weaponModel, preloadWeapons } from './weapons.js';
+import { weaponModel, preloadWeapons, ONE_HANDED } from './weapons.js';
 
 // Character ids that have a real model under public/models/characters/<id>.glb.
 export const GLB_CHARS = new Set([
@@ -175,6 +175,13 @@ export function buildCharacterModel(def, opts = {}) {
     const parentQ = handBone.getWorldQuaternion(new THREE.Quaternion());
     const mount = handBone.children.find(c => c.isGroup);
     mount.quaternion.copy(parentQ.invert().multiply(desired));
+    // Grip curl: close the fingers onto the grip (the auto-skinned curl bones).
+    // Two-handed weapons curl both hands; one-handed only the grip (right) hand.
+    const twoHanded = !ONE_HANDED.has(opts.weaponId || 'awp');
+    let curlR = null, curlL = null;
+    model.traverse(o => { if (o.isBone) { if (o.name === 'Curl_R') curlR = o; if (o.name === 'Curl_L') curlL = o; } });
+    if (curlR) { curlR.rotation.x += 0.5; }
+    if (twoHanded && curlL) { curlL.rotation.x += 0.5; }
   }
   return { group, parts: { head }, isGLB: true, mixer, ctrl };
 }
