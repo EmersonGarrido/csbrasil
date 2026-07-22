@@ -69,7 +69,13 @@ A base já está pronta: `skill`, `reactAt`, `nextShotAt` e dano dos bots em
   agregado — schema já preparado em `supabase/schema.sql`).
 - 🟡 **Perfis de jogador** — nick único, stats, personagem favorito.
 - 🔴 **Multiplayer real** — salas 4×4 via WebSocket/WebRTC com servidor
-  autoritativo.
+  autoritativo. **Alternativa sem servidor (dica do Leonardo G. Sato, 22/07):
+  [trystero](https://github.com/dmotz/trystero)** — P2P WebRTC com rendezvous
+  público (Nostr/MQTT/IPFS) só pro sinal; depois tráfego direto entre pares.
+  Bom pra spike 1v1/salas pequenas: 1 peer vira host (roda bots+hitreg), sem
+  backend; casar com Supabase p/ ranking/lobby. Ressalvas: NATs hostis sem
+  TURN próprio, anti-cheat fraco (host confiável), netcode de estado/interpolação
+  fica por nossa conta.
 - 🔴 **Clans e torneios** — tabela de confrontos, temporadas.
 
 ## Áudio & conteúdo
