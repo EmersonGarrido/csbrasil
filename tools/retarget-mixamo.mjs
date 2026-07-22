@@ -23,15 +23,18 @@ const THREE = await import(pathToFileURL(resolve(fbxDir, 'node_modules/three/bui
 const { FBXLoader } = await import(pathToFileURL(resolve(fbxDir, 'node_modules/three/examples/jsm/loaders/FBXLoader.js')).href);
 
 // state -> source FBX (Mixamo rifle set, UnityMixamoLibrary mirror — see SOURCES.md)
+// idle/walk usam as variantes NÃO-aim (postura mais quadrada; a aim/bladed deixava
+// os personagens corcundas — feedback do usuário). walk1h = pistola em 1 mão.
 const EXPORT = {
-  idle: 'rifle_aim_idle',
-  walk: 'rifle_aim_walk_1',
+  idle: 'rifle_idle_1',
+  walk: 'rifle_walk_1',
   run: 'rifle_aim_run',
   shoot: 'rifle_fire_single',
   death: 'rifle_death_back',
   crouch: 'rifle_crouch_aim_idle',
   crouchwalk: 'rifle_crouch_aim_walk',
   jump: 'rifle_jump',
+  walk1h: 'pistol_aim_walk',
 };
 
 // Mixamo -> Meshy bone map (mechanical; 'neck' is lowercase in the Meshy rig).

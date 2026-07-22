@@ -238,13 +238,13 @@ export class Game {
       const g = new THREE.Group();
       const sc = w / 0.08; // callers pass a smaller w for pistols/knife → scale the whole hand
       const knuckle = new THREE.Group(); g.add(knuckle);
-      // palm — flattened capsule laid across the grip (X axis), slimmer than before
-      const palm = new THREE.Mesh(new THREE.CapsuleGeometry(0.036, 0.052, 4, 8), skinMat);
-      palm.rotation.z = Math.PI / 2; palm.scale.set(1, 1, 0.62);
+      // palm — flattened capsule laid across the grip (X axis), slimmer (mão menos "blocão")
+      const palm = new THREE.Mesh(new THREE.CapsuleGeometry(0.030, 0.052, 4, 8), skinMat);
+      palm.rotation.z = Math.PI / 2; palm.scale.set(1, 1, 0.5);
       palm.castShadow = false; knuckle.add(palm);
-      // four two-segment fingers wrapping over the grip, spaced along Z
-      const proxGeo = new THREE.CapsuleGeometry(0.0085, 0.026, 3, 6);
-      const distGeo = new THREE.CapsuleGeometry(0.0075, 0.022, 3, 6);
+      // four two-segment fingers wrapping over the grip, spaced along Z (mais longos e finos)
+      const proxGeo = new THREE.CapsuleGeometry(0.0072, 0.030, 3, 6);
+      const distGeo = new THREE.CapsuleGeometry(0.0064, 0.026, 3, 6);
       for (let i = 0; i < 4; i++) {
         const f = new THREE.Group();
         const prox = new THREE.Mesh(proxGeo, skinMat);
@@ -252,11 +252,11 @@ export class Game {
         const dist = new THREE.Mesh(distGeo, skinMat);
         dist.rotation.set(1.15, 0, Math.PI / 2); dist.position.set(-0.017, -0.006, 0);
         f.add(prox, dist);
-        f.position.set(0.004, 0.026, -0.028 + i * 0.019);
+        f.position.set(0.004, 0.024, -0.026 + i * 0.016);
         knuckle.add(f);
       }
       // thumb on the near side, angled up along the grip
-      const thumb = new THREE.Mesh(new THREE.CapsuleGeometry(0.011, 0.034, 3, 6), skinMat);
+      const thumb = new THREE.Mesh(new THREE.CapsuleGeometry(0.009, 0.038, 3, 6), skinMat);
       thumb.rotation.set(0.35, 0, 0.55); thumb.position.set(-0.03, 0.004, 0.026);
       thumb.castShadow = false; knuckle.add(thumb);
       knuckle.scale.setScalar(sc);
@@ -264,11 +264,11 @@ export class Game {
       // a rounded cuff at the wrist. Capsule/cylinder → no hard box edges.
       const fore = new THREE.Group();
       fore.rotation.set(0.78, 0.62, 0);
-      const L = 0.42 * sc;
-      const sleeve = new THREE.Mesh(new THREE.CapsuleGeometry(w * 0.55, L, 4, 10), sleeveMat);
+      const L = 0.38 * sc;
+      const sleeve = new THREE.Mesh(new THREE.CapsuleGeometry(w * 0.46, L, 4, 10), sleeveMat);
       sleeve.rotation.x = Math.PI / 2; sleeve.position.set(0, 0, L * 0.5 + 0.04);
       sleeve.castShadow = false; fore.add(sleeve);
-      const cuff = new THREE.Mesh(new THREE.CylinderGeometry(w * 0.66, w * 0.6, 0.05, 12), skinMat);
+      const cuff = new THREE.Mesh(new THREE.CylinderGeometry(w * 0.56, w * 0.52, 0.04, 12), skinMat);
       cuff.rotation.x = Math.PI / 2; cuff.position.set(0, 0, 0.05);
       cuff.castShadow = false; fore.add(cuff);
       g.add(fore);
@@ -277,10 +277,10 @@ export class Game {
     // Support (front) hand: palm + two-segment curled fingers only, no receding sleeve.
     const frontHand = (sc = 1) => {
       const g = new THREE.Group();
-      const palm = new THREE.Mesh(new THREE.CapsuleGeometry(0.034, 0.048, 4, 8), skinMat);
-      palm.rotation.z = Math.PI / 2; palm.scale.set(1, 1, 0.62); palm.castShadow = false; g.add(palm);
-      const proxGeo = new THREE.CapsuleGeometry(0.008, 0.024, 3, 6);
-      const distGeo = new THREE.CapsuleGeometry(0.007, 0.02, 3, 6);
+      const palm = new THREE.Mesh(new THREE.CapsuleGeometry(0.029, 0.048, 4, 8), skinMat);
+      palm.rotation.z = Math.PI / 2; palm.scale.set(1, 1, 0.5); palm.castShadow = false; g.add(palm);
+      const proxGeo = new THREE.CapsuleGeometry(0.0068, 0.028, 3, 6);
+      const distGeo = new THREE.CapsuleGeometry(0.006, 0.024, 3, 6);
       for (let i = 0; i < 4; i++) {
         const f = new THREE.Group();
         const prox = new THREE.Mesh(proxGeo, skinMat);
@@ -288,7 +288,7 @@ export class Game {
         const dist = new THREE.Mesh(distGeo, skinMat);
         dist.rotation.set(1.2, 0, Math.PI / 2); dist.position.set(-0.015, -0.006, 0);
         f.add(prox, dist);
-        f.position.set(0.004, 0.024, -0.026 + i * 0.018);
+        f.position.set(0.004, 0.022, -0.024 + i * 0.015);
         g.add(f);
       }
       g.scale.setScalar(sc);

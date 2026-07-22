@@ -18,11 +18,15 @@ import { solveCCDIK } from './handik.js';
 // Character ids that have a real model under public/models/characters/<id>.glb.
 export const GLB_CHARS = new Set([
   'esquerdomacho', 'sindicato', 'mst', 'doutora', 'mistico',
-  'caminhoneiro', 'influencer', 'sertanejo', 'senhora', 'coach',
+  'caminhoneiro', 'sertanejo', 'coach',
   'gotinha', 'farialimer',
   'bombado', 'hipster', 'dollynho', 'et', 'ancap',
-  'bozo',
+  'bozo', 'canarinho', 'proerd',
 ]);
+
+// Mascotes de braços-toco: a mão de apoio via IK vira uma mão gigante flutuando
+// (caso do Dollynho na tela de seleção). Neles, a mão L segue a pose do clipe.
+const IK_L_SKIP = new Set(['dollynho', 'gotinha', 'et', 'canarinho']);
 
 const STATES = ['idle', 'walk', 'run', 'shoot', 'death', 'crouch', 'crouchwalk', 'jump'];
 // Clipes OPCIONAIS de 1 mão (pistolas): se o arquivo não existir, o load falha em
@@ -33,7 +37,7 @@ const ANIM_DIR = qp.get('animdir') || 'models/anims/mixamo';   // pack Mixamo ri
 const TARGET_HEIGHT = parseFloat(qp.get('charh')) || 1.72;      // meters (match box silhouette)
 // Per-clip natural ground speed (m/s) that plants the feet at timeScale 1, MEASURED from
 // each clip's real foot stride (tools: iktest HARNESS.measureStride / tools/eval/mixamo-measure.mjs).
-const WALK_REF   = parseFloat(qp.get('wref')) || 1.43;
+const WALK_REF   = parseFloat(qp.get('wref')) || 0.84;
 const RUN_REF    = parseFloat(qp.get('rref')) || 2.08;
 const CROUCH_REF = parseFloat(qp.get('cref')) || 0.75;
 const FACING_OFFSET = (parseFloat(qp.get('charface')) || 0) * Math.PI / 180; // yaw fix if model faces -Z
@@ -244,7 +248,7 @@ export function buildCharacterModel(def, opts = {}) {
       let lArm = null, lFore = null;
       model.traverse(o => { if (o.isBone) { if (o.name === 'LeftArm') lArm = o; if (o.name === 'LeftForeArm') lFore = o; } });
       const gp = gripPoints(opts.weaponId || 'awp');
-      if (lArm && lFore && gp.fore && gunObj) ctrl.ikL = { chain: [lArm, lFore], end: lhandBone, endOffset: measurePalmLocal(model, lhandBone, curlL), gun: gunObj, fore: gp.fore.clone() };
+      if (lArm && lFore && gp.fore && gunObj && !IK_L_SKIP.has(def.id)) ctrl.ikL = { chain: [lArm, lFore], end: lhandBone, endOffset: measurePalmLocal(model, lhandBone, curlL), gun: gunObj, fore: gp.fore.clone() };
     }
   }
   return { group, parts: { head }, isGLB: true, mixer, ctrl };

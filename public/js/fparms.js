@@ -19,8 +19,8 @@ import { solveCCDIK } from './handik.js';
 // canarinho (ave, sem dedos), gotinha (gota), et (alien), dollynho (garrafa) e proerd
 // (patas curtas de leão + rabo invadindo o quadro) deformam sob IK. bozo: a gola-gargantilha
 // e as luvas gigantes invadem o quadro em qualquer altura do corpo (medido ?fpy=).
-export const FP_FALLBACK = new Set(['doutora', 'influencer', 'senhora', 'sindicato',
-  'canarinho', 'gotinha', 'et', 'dollynho', 'bozo']);
+export const FP_FALLBACK = new Set(['doutora', 'sindicato',
+  'canarinho', 'gotinha', 'et', 'dollynho', 'proerd', 'bozo']);
 
 const qp = new URLSearchParams(location.search);
 const _n3 = (s, d) => { const p = (s || '').split(',').map(Number); return p.length === 3 && p.every((n) => !isNaN(n)) ? p : d; };

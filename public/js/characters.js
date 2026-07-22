@@ -20,15 +20,9 @@ export const CHARACTERS = [
   { id: 'caminhoneiro', team: 'B', name: 'Caminhoneiro',
     blurb: 'Camisa do Brasil, luva de estrada e 40h de BR na semana. Freia pra ninguém.',
     pal: { skin: 0xd9a066, shirt: 0xffd23f, pants: 0x2e3d55, hair: 0x3a2a1e, boots: 0x3a3a3a } },
-  { id: 'influencer', team: 'B', name: 'Influencer de Dubai',
-    blurb: 'Óculos dourado, stories em 3 fusos e mira patrocinada. Atira, posta, engaja.',
-    pal: { skin: 0xf2c9a4, shirt: 0xf0f0f0, pants: 0xe8c25a, hair: 0xf5d76e, boots: 0xffffff } },
   { id: 'sertanejo', team: 'B', name: 'Cantor Sertanejo',
     blurb: 'Chapéu de cowboy, fivela de ouro e violão nas costas. Moda de viola em dose dupla.',
     pal: { skin: 0xc98d5e, shirt: 0x8a2f2f, pants: 0x2e3d55, hair: 0x2a1e14, boots: 0x5a3d1e } },
-  { id: 'senhora', team: 'B', name: 'Tia Zilá',
-    blurb: '60 anos, 300 grupos de mensagem e um quadro de pistas nas costas. Ela SABE de tudo.',
-    pal: { skin: 0xeec39a, shirt: 0x1faa4d, pants: 0xffd23f, hair: 0xd8d8d8, boots: 0xf0f0f0 } },
   { id: 'coach', team: 'B', name: 'Coach Quântico',
     blurb: 'Blazer, headset e 47 técnicas de manifestação. Já venceu antes de começar — no quântico.',
     pal: { skin: 0xf2c9a4, shirt: 0xf0f0f0, pants: 0x2a2a2a, hair: 0x2a2a2a, boots: 0x1a1a1a } },
@@ -53,6 +47,12 @@ export const CHARACTERS = [
   { id: 'ancap', team: 'B', name: 'Ancap Medieval',
     blurb: 'Cota de malha, cruz templária e capa verde-amarela. Privatiza a treta e xinga o Banco Central.',
     pal: { skin: 0xe8b98a, shirt: 0xf0f0f0, pants: 0x3a3a30, hair: 0x8a8a8a, boots: 0x9a9a8a } },
+  { id: 'canarinho', team: 'B', name: 'Canarinho Pistola',
+    blurb: 'Pistola desde 2016. Bico torto, peito estufado e camisa 24: ele NÃO amarela.',
+    pal: { skin: 0xf2c531, shirt: 0xffd23f, pants: 0x2e56c4, hair: 0xf2c531, boots: 0x3a6fd8 } },
+  { id: 'proerd', team: 'B', name: 'Leão do Proerd',
+    blurb: 'Camisa preta colada, rugido de mascote de formatura e garra afiada na defesa da treta.',
+    pal: { skin: 0xd9a25f, shirt: 0x1a1a1a, pants: 0x2e3d55, hair: 0x8a3a26, boots: 0xf0f0f0 } },
   { id: 'bozo', team: 'P', name: 'Bozo',
     blurb: 'Do picadeiro pra praça. Nariz vermelho, sapatão marrom e risada de quem arma o circo.',
     pal: { skin: 0xf5f0e6, shirt: 0x3b6fd4, pants: 0x2f56a8, hair: 0xd43a2e, boots: 0x6b4a2f } },
@@ -63,10 +63,10 @@ export const byId = id => CHARACTERS.find(c => c.id === id);
 // Shared by main.js (select screen) and game.js (initial loadout) so they never disagree.
 export const CHAR_WEAPON = {
   esquerdomacho: 'pistol', sindicato: 'shotgun', mst: 'ak', doutora: 'm4', mistico: 'mp5',
-  caminhoneiro: 'md97', influencer: 'deagle', sertanejo: 'revolver38', senhora: 'uzi',
+  caminhoneiro: 'md97', sertanejo: 'revolver38',
   coach: 'scar', gotinha: 'mp5', farialimer: 'm4', bombado: 'lmg', hipster: 'uzi',
   dollynho: 'p90', et: 'awp', ancap: 'mosin',
-  bozo: 'revolver38',
+  bozo: 'revolver38', canarinho: 'deagle', proerd: 'md97',
 };
 export const charWeapon = (id) => CHAR_WEAPON[id] || 'ak';
 
