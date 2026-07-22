@@ -380,8 +380,8 @@ export class Game {
       const g = new THREE.Group();
       const rw = weaponModel(id);
       if (rw) { rw.name = 'rw'; rw.rotation.y = Math.PI; rw.scale.multiplyScalar(0.82); rw.position.z += id === 'knife' ? 0 : 0.12; g.add(rw); }
-      const hR = fpArm(); hR.name = 'handR'; g.add(hR);
-      if (!ONE_HANDED.has(id)) { const hL = frontHand(0.95); hL.name = 'handL'; g.add(hL); }
+      const hR = fpArm(); hR.name = 'handR'; hR.scale.setScalar(0.85); g.add(hR);   // fallback menor (proporção)
+      if (!ONE_HANDED.has(id)) { const hL = frontHand(0.95); hL.name = 'handL'; hL.scale.setScalar(0.85); g.add(hL); }
       alignHands(g, id);
       g.position.copy(awp.position); g.rotation.copy(awp.rotation);
       root.add(g); models[id] = g;
@@ -395,7 +395,7 @@ export class Game {
       root.add(arms.group);
       // Aproxima as armas pra distância de alcance real do braço (as posições antigas,
       // z=-0.5, ficam além do comprimento do braço — o guarda-mão seria inalcançável).
-      const ARM_MOUNTS = { rifle: [0.19, -0.11, -0.42], pistol: [0.18, -0.10, -0.36], knife: [0.22, -0.12, -0.36] };
+      const ARM_MOUNTS = { rifle: [0.19, -0.12, -0.42], pistol: [0.18, -0.11, -0.36], knife: [0.22, -0.13, -0.36] };
       for (const k in models) {
         const g = models[k];
         const hR = g.getObjectByName('handR'), hL = g.getObjectByName('handL');
@@ -671,7 +671,6 @@ export class Game {
     } catch {}
     mine ? this.sfx.matchWin() : this.sfx.roundLose();
   }
-
   /* -------- dollynho dançando na tela de round vencido (pedido do usuário) -------- */
   // Canvas próprio dentro do placar de fim de round; toca o clipe de dança embutido
   // (models/dollynho_dance.glb, Mixamo) num renderer separado e transparente.
@@ -687,15 +686,16 @@ export class Game {
     scene.add(new THREE.HemisphereLight(0xffffff, 0x555555, 1.1));
     const dir = new THREE.DirectionalLight(0xffffff, 1.4); dir.position.set(2, 4, 3); scene.add(dir);
     const camera = new THREE.PerspectiveCamera(38, 240 / 190, 0.1, 50);
-    // enquadramento largo: a dança desloca o quadril (root motion no osso, não no nó)
-    camera.position.set(0, 1.3, 4.8); camera.lookAt(0, 0.85, 0);
-    const dolly = this._dolly = { canvas, renderer, scene, camera, mixer: null };
+    camera.position.set(0, 1.35, 5.2); camera.lookAt(0, 0.95, 0);
+    const dolly = this._dolly = { canvas, renderer, scene, camera, mixer: null, mesh: null, sphere: new THREE.Sphere(), cx: 0, cy: 0.9, cz: 0, dist: 5.2 };
     new GLTFLoader().load('models/dollynho_dance.glb', g => {
       const box = new THREE.Box3().setFromObject(g.scene);
       const s = 1.85 / (box.max.y - box.min.y);
       g.scene.scale.setScalar(s);
       g.scene.position.set(-(box.min.x + box.max.x) / 2 * s, -box.min.y * s, -(box.min.z + box.max.z) / 2 * s);
       scene.add(g.scene);
+      // guarda a malha skinned p/ enquadrar pela bounding sphere animada a cada frame
+      g.scene.traverse(o => { if (!dolly.mesh && o.isSkinnedMesh) dolly.mesh = o; });
       dolly.mixer = new THREE.AnimationMixer(g.scene);
       dolly.mixer.clipAction(g.animations[0]).play();   // mixamo.com (7s) em loop
     }, undefined, () => {});
@@ -706,8 +706,22 @@ export class Game {
     const on = this.state === 'roundEnd' && !this.el.scoreboard.classList.contains('hidden');
     this._dolly.canvas.style.display = on ? '' : 'none';
     if (!on) return;
-    if (this._dolly.mixer) this._dolly.mixer.update(dt);
-    this._dolly.renderer.render(this._dolly.scene, this._dolly.camera);
+    const d = this._dolly;
+    if (d.mixer) d.mixer.update(dt);
+    // enquadra pela bounding sphere da malha SKINNED (r160 já considera a pose animada):
+    // acompanha centro+raio suavizados — o Dollynho fica sempre INTEIRO no quadro
+    if (d.mesh) {
+      d.mesh.computeBoundingSphere();
+      d.sphere.copy(d.mesh.boundingSphere).applyMatrix4(d.mesh.matrixWorld);
+      const k = Math.min(1, dt * 5);
+      d.cx += (d.sphere.center.x - d.cx) * k;
+      d.cy += (d.sphere.center.y - d.cy) * k;
+      d.cz += (d.sphere.center.z - d.cz) * k;
+      d.dist += (d.sphere.radius * 3.0 - d.dist) * k;
+      d.camera.position.set(d.cx, d.cy + d.dist * 0.18, d.cz + d.dist);
+      d.camera.lookAt(d.cx, d.cy, d.cz);
+    }
+    d.renderer.render(d.scene, d.camera);
   }
 
   setPaused(v) {

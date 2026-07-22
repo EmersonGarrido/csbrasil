@@ -3,7 +3,9 @@
   "assetRoot": "public/models/characters",
   "assets": {
     "bozo": {
-      "files": ["public/models/characters/bozo.glb"],
+      "files": [
+        "public/models/characters/bozo.glb"
+      ],
       "source": {
         "kind": "mint-model",
         "assetId": "ks75fkrm2j1yyyf6tka5zmb99d8b15y0",
@@ -13,7 +15,9 @@
       }
     },
     "canarinho": {
-      "files": ["public/models/characters/canarinho.glb"],
+      "files": [
+        "public/models/characters/canarinho.glb"
+      ],
       "source": {
         "kind": "mint-model",
         "assetId": "ks75jx39ypybs5hdvy34ej7fzh8b0cey",
@@ -21,10 +25,13 @@
         "animationBatchId": "w577yjh3ypmh3v8m8kj6j94j018b04jw",
         "displayName": "Crested Canary Striker (v2 semi-real)",
         "notes": "v2 shipped. v1 (ks7acwqj31393mw93gxmszzfz18b1jmj) no histórico do chat; raw /tmp/canarinho-rigged-raw.glb."
-      }
+      },
+      "removed": "removido do jogo a pedido do usuário (22/07 noite) — GLB deletado, asset segue no Mint"
     },
     "proerd": {
-      "files": ["public/models/characters/proerd.glb"],
+      "files": [
+        "public/models/characters/proerd.glb"
+      ],
       "source": {
         "kind": "mint-model",
         "assetId": "ks76jjngk5k8zpata2gaanbbns8b04wk",
@@ -32,7 +39,8 @@
         "animationBatchId": "w572044nc1wjf3whbhtpzshhcs8b1mbf",
         "displayName": "Proerd Mane Lion (v2 camisa preta)",
         "notes": "v2 shipped. v1 camisa branca (ks7c0tp5f9r4fnn3gz706jjwgx8b02mf) no histórico; raw /tmp/proerd-rigged-v2-raw.glb."
-      }
+      },
+      "removed": "removido do jogo a pedido do usuário (22/07 noite) — GLB deletado, asset segue no Mint"
     }
   }
 }

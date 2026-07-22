@@ -20,18 +20,21 @@ import { solveCCDIK } from './handik.js';
 // (patas curtas de leão + rabo invadindo o quadro) deformam sob IK. bozo: a gola-gargantilha
 // e as luvas gigantes invadem o quadro em qualquer altura do corpo (medido ?fpy=).
 export const FP_FALLBACK = new Set(['doutora', 'influencer', 'senhora', 'sindicato',
-  'canarinho', 'gotinha', 'et', 'dollynho', 'proerd', 'bozo']);
+  'canarinho', 'gotinha', 'et', 'dollynho', 'bozo']);
 
 const qp = new URLSearchParams(location.search);
 const _n3 = (s, d) => { const p = (s || '').split(',').map(Number); return p.length === 3 && p.every((n) => !isNaN(n)) ? p : d; };
 // Tuning ao vivo: ?fpr=x,y,z (offset do pulso R no espaço da arma, cano +Z, estoque -Z),
 // ?fpl=x,y,z (idem mão L relativo ao guarda-mão), ?fpy=/?fpz= (corpo sob a câmera).
 const R_OFF = _n3(qp.get('fpr'), [0, -0.008, -0.012]);
-const L_OFF = _n3(qp.get('fpl'), [0, -0.005, 0]);
+const L_OFF = _n3(qp.get('fpl'), [0, -0.03, -0.01]);
 const BODY_Y = parseFloat(qp.get('fpy')) || -1.52;
 const BODY_Z = parseFloat(qp.get('fpz')) || 0.02;
 const FROZEN_T = 0.6;          // ponto do clipe idle congelado (pose base do rifle-hold)
 const TARGET_HEIGHT = 1.72;    // mesma normalização dos bots (glbchars.js)
+// Escala global do corpo FP (proporção na tela: 1.0 deixava as mãos grandes demais,
+// tampando a mira — pedido do usuário). Tunável via ?fps=.
+const FP_SCALE = parseFloat(qp.get('fps')) || 0.93;
 
 const _t = new THREE.Vector3();
 const _eff = new THREE.Vector3();
@@ -52,7 +55,7 @@ function orientHand(end, qFix) {
 function poseHand(chain, qFix, tgt) {
   for (let p = 0; p < 2; p++) {
     orientHand(chain.end, qFix);
-    solveCCDIK(chain.bones, chain.end, tgt, { iterations: 8, endOffset: chain.endOffset });
+    solveCCDIK(chain.bones, chain.end, tgt, { iterations: 14, endOffset: chain.endOffset });
   }
   orientHand(chain.end, qFix);
   return _eff.copy(chain.endOffset).applyMatrix4(chain.end.matrixWorld).distanceTo(tgt);
@@ -70,7 +73,7 @@ export function buildFPArms(def) {
   model.updateMatrixWorld(true);
   const bbox = new THREE.Box3().setFromObject(model);
   const h = bbox.max.y - bbox.min.y || 1;
-  const s = TARGET_HEIGHT / h;
+  const s = (TARGET_HEIGHT * FP_SCALE) / h;
   model.scale.setScalar(s);
   model.position.y = -bbox.min.y * s;
   model.traverse((o) => { if (o.isMesh) { o.castShadow = false; o.frustumCulled = false; } });

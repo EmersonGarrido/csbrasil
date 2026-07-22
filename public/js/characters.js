@@ -56,12 +56,6 @@ export const CHARACTERS = [
   { id: 'bozo', team: 'P', name: 'Bozo',
     blurb: 'Do picadeiro pra praça. Nariz vermelho, sapatão marrom e risada de quem arma o circo.',
     pal: { skin: 0xf5f0e6, shirt: 0x3b6fd4, pants: 0x2f56a8, hair: 0xd43a2e, boots: 0x6b4a2f } },
-  { id: 'canarinho', team: 'B', name: 'Canarinho Pistola',
-    blurb: 'Pistola desde 2016. Bico torto, peito estufado e camisa 24: ele NÃO amarela.',
-    pal: { skin: 0xf2c531, shirt: 0xffd23f, pants: 0x2e56c4, hair: 0xf2c531, boots: 0x3a6fd8 } },
-  { id: 'proerd', team: 'B', name: 'Leão do Proerd',
-    blurb: 'Camisa preta colada, rugido de mascote de formatura e garra afiada na defesa da treta.',
-    pal: { skin: 0xd9a25f, shirt: 0x1a1a1a, pants: 0x2e3d55, hair: 0x8a3a26, boots: 0xf0f0f0 } },
 ];
 export const byId = id => CHARACTERS.find(c => c.id === id);
 
@@ -72,7 +66,7 @@ export const CHAR_WEAPON = {
   caminhoneiro: 'md97', influencer: 'deagle', sertanejo: 'revolver38', senhora: 'uzi',
   coach: 'scar', gotinha: 'mp5', farialimer: 'm4', bombado: 'lmg', hipster: 'uzi',
   dollynho: 'p90', et: 'awp', ancap: 'mosin',
-  bozo: 'revolver38', canarinho: 'deagle', proerd: 'md97',
+  bozo: 'revolver38',
 };
 export const charWeapon = (id) => CHAR_WEAPON[id] || 'ak';
 

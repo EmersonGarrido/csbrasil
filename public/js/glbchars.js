@@ -21,7 +21,7 @@ export const GLB_CHARS = new Set([
   'caminhoneiro', 'influencer', 'sertanejo', 'senhora', 'coach',
   'gotinha', 'farialimer',
   'bombado', 'hipster', 'dollynho', 'et', 'ancap',
-  'bozo', 'canarinho', 'proerd',
+  'bozo',
 ]);
 
 const STATES = ['idle', 'walk', 'run', 'shoot', 'death', 'crouch', 'crouchwalk', 'jump'];
@@ -341,11 +341,11 @@ class CharController {
     // Pitch da cabeça em MALHA FECHADA (substitui o HEAD_UP fixo, que ACUMULAVA rotação
     // quando o mixer parava de escrever o osso — ex.: idle.glb com duração zero, que
     // dobrava a cabeça do personagem na tela de seleção). Mede o pitch real do olhar
-    // (eixo +Z local da cabeça em mundo) e gira o osso pela DIFERENÇA pro alvo:
-    // aimPitch dos bots (FASE 3) ou 0 (nível) para preview/qualquer outro caso.
-    // Suavizado p/ não estalar, clampado, e não roda morto (o death clip manda na pose).
-    if (this.headBone && !this.dead) {
-      const target = this.aimPitch !== undefined ? this.aimPitch : 0;
+    // (eixo +Z local da cabeça em mundo) e gira o osso pela DIFERENÇA pro aimPitch.
+    // Só roda quando aimPitch é DEFINIDO (bots) — preview da seleção e braços FP ficam
+    // com a pose natural do clipe (aplicar em todos deixava as cabeças esquisitas).
+    if (this.headBone && this.aimPitch !== undefined && !this.dead) {
+      const target = this.aimPitch;
       this.group.getWorldQuaternion(_gq);
       _right.set(1, 0, 0).applyQuaternion(_gq);
       this.headBone.getWorldQuaternion(_wq);
