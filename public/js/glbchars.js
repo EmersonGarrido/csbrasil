@@ -25,14 +25,17 @@ export const GLB_CHARS = new Set([
 ]);
 
 const STATES = ['idle', 'walk', 'run', 'shoot', 'death', 'crouch', 'crouchwalk', 'jump'];
+// Clipes OPCIONAIS de 1 mão (pistolas): se o arquivo não existir, o load falha em
+// silêncio e o personagem cai no idle/walk padrão de 2 mãos (comportamento atual).
+const OPT_STATES = ['idle1h', 'walk1h'];
 const qp = new URLSearchParams(location.search);
-const ANIM_DIR = qp.get('animdir') || 'models/anims';   // ?animdir=models/anims/ue → UE retargeted clips
+const ANIM_DIR = qp.get('animdir') || 'models/anims/mixamo';   // pack Mixamo rifle (retarget próprio, tools/retarget-mixamo.mjs) — padrão desde 22/07; override via ?animdir=
 const TARGET_HEIGHT = parseFloat(qp.get('charh')) || 1.72;      // meters (match box silhouette)
 // Per-clip natural ground speed (m/s) that plants the feet at timeScale 1, MEASURED from
-// each clip's real foot stride (tools: iktest HARNESS.measureStride).
-const WALK_REF   = parseFloat(qp.get('wref')) || 0.79;
-const RUN_REF    = parseFloat(qp.get('rref')) || 1.92;
-const CROUCH_REF = parseFloat(qp.get('cref')) || 0.83;
+// each clip's real foot stride (tools: iktest HARNESS.measureStride / tools/eval/mixamo-measure.mjs).
+const WALK_REF   = parseFloat(qp.get('wref')) || 1.43;
+const RUN_REF    = parseFloat(qp.get('rref')) || 2.08;
+const CROUCH_REF = parseFloat(qp.get('cref')) || 0.75;
 const FACING_OFFSET = (parseFloat(qp.get('charface')) || 0) * Math.PI / 180; // yaw fix if model faces -Z
 // FASE 3: clamp de segurança da correção de pitch da cabeça (malha fechada, ~28°).
 // (O antigo HEAD_UP fixo foi removido: ele acumulava rotação quando o mixer não
@@ -103,6 +106,13 @@ export async function preloadCharacterAssets(ids) {
           const g = await loadGLB(`${ANIM_DIR}/${s}.glb?v=${VERSION}`);
           if (g.animations[0]) { g.animations[0].name = s; _clips[s] = g.animations[0]; }
         } catch (e) { console.warn('anim load failed', s, e); }
+      }),
+      // Opcionais (idle/walk de 1 mão p/ pistolas): ausência NÃO é erro — sem warn.
+      ...OPT_STATES.map(async (s) => {
+        try {
+          const g = await loadGLB(`${ANIM_DIR}/${s}.glb?v=${VERSION}`);
+          if (g.animations[0]) { g.animations[0].name = s; _clips[s] = g.animations[0]; }
+        } catch (e) { /* fallback: idle/walk de 2 mãos */ }
       }),
     ]);
   }
@@ -187,9 +197,11 @@ export function buildCharacterModel(def, opts = {}) {
 
   const mixer = new THREE.AnimationMixer(model);
   const actions = {};
-  for (const name of STATES) if (_clips[name]) actions[name] = mixer.clipAction(_clips[name]);
+  for (const name of [...STATES, ...OPT_STATES]) if (_clips[name]) actions[name] = mixer.clipAction(_clips[name]);
 
   const ctrl = new CharController(mixer, actions, group, headBone, head);
+  // Arma de 1 mão (pistol/deagle/revolver38/knife): usa idle1h/walk1h quando carregados.
+  ctrl.oneHanded = !!(opts.weaponId && ONE_HANDED.has(opts.weaponId));
 
   if (handBone && withWeapon) {
     // Aim the mount from the walk cycle's natural hold: average the forearm->hand line
@@ -245,6 +257,7 @@ class CharController {
     this.mixer = mixer; this.actions = actions;
     this.group = group; this.headBone = headBone; this.head = head;
     this.cur = null; this.dead = false; this.shooting = false; this.crouch = false; this.jumping = false;
+    this.oneHanded = false; // arma de 1 mão: idle/walk trocam p/ idle1h/walk1h (setado em buildCharacterModel)
     this._loco = 'idle'; // current locomotion state (hysteresis memory for walk/run choice)
     mixer.addEventListener('finished', (e) => {
       if (e.action === actions.shoot) this.shooting = false;
@@ -315,11 +328,11 @@ class CharController {
       if (this.crouch) {
         this._to(moving > 0.05 ? 'crouchwalk' : 'crouch');
       } else if (!this.shooting && !this.jumping) {
-        if (moving <= 0.05) { this._to('idle'); this._loco = 'idle'; }
+        if (moving <= 0.05) { this._to(this.oneHanded && this.actions.idle1h ? 'idle1h' : 'idle'); this._loco = 'idle'; }
         else if (back) {
           // Backpedal: walk clip REVERSED (negative timeScale below) so the feet step
           // backward — a forward clip while retreating is the classic moonwalk.
-          this._to('walk'); this._loco = 'walk';
+          this._to(this.oneHanded && this.actions.walk1h ? 'walk1h' : 'walk'); this._loco = 'walk';
         } else {
           // Pick the clip by SPEED with hysteresis (not by hasTarget): fast movement with
           // the slow walk clip needs a frantic ~2.4x cycle; slow movement with the run
@@ -327,7 +340,7 @@ class CharController {
           if (this._loco !== 'run' && speed > 1.45) this._loco = 'run';
           else if (this._loco !== 'walk' && speed < 1.15) this._loco = 'walk';
           else if (this._loco !== 'walk' && this._loco !== 'run') this._loco = hasTarget && speed < 1.7 ? 'walk' : 'run';
-          this._to(this._loco);
+          this._to(this._loco === 'walk' && this.oneHanded && this.actions.walk1h ? 'walk1h' : this._loco);
         }
       }
       // Per-clip cycle rate = ground speed / that clip's measured natural speed, so the
@@ -335,6 +348,7 @@ class CharController {
       const rate = (ref) => Math.max(0.45, Math.min(3.0, speed / ref));
       if (this.actions.run) this.actions.run.timeScale = rate(RUN_REF);
       if (this.actions.walk) this.actions.walk.timeScale = back ? -rate(WALK_REF) : rate(WALK_REF);
+      if (this.actions.walk1h) this.actions.walk1h.timeScale = back ? -rate(WALK_REF) : rate(WALK_REF);
       if (this.actions.crouchwalk) this.actions.crouchwalk.timeScale = rate(CROUCH_REF);
     }
     this.mixer.update(dt);
