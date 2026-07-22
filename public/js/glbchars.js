@@ -12,7 +12,8 @@ import { VERSION } from './version.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone as skeletonClone } from 'three/addons/utils/SkeletonUtils.js';
 import { buildRifle } from './characters.js';
-import { weaponModel, preloadWeapons, ONE_HANDED } from './weapons.js';
+import { weaponModel, preloadWeapons, ONE_HANDED, gripPoints } from './weapons.js';
+import { solveCCDIK } from './handik.js';
 
 // Character ids that have a real model under public/models/characters/<id>.glb.
 export const GLB_CHARS = new Set([
@@ -20,6 +21,7 @@ export const GLB_CHARS = new Set([
   'caminhoneiro', 'influencer', 'sertanejo', 'senhora', 'coach',
   'gotinha', 'farialimer',
   'bombado', 'hipster', 'dollynho', 'et', 'ancap',
+  'bozo', 'canarinho', 'proerd',
 ]);
 
 const STATES = ['idle', 'walk', 'run', 'shoot', 'death', 'crouch', 'crouchwalk', 'jump'];
@@ -35,6 +37,8 @@ const FACING_OFFSET = (parseFloat(qp.get('charface')) || 0) * Math.PI / 180; // 
 // The rifle-hold clips bake in a strong forward head tilt ("cabeça baixa"). Lift the
 // head slightly at runtime — arm/grip poses untouched. Tunable via ?headup=deg.
 const HEAD_UP = (parseFloat(qp.get('headup')) || 2) * Math.PI / 180;
+// FASE 3: clamp de segurança da correção de pitch da cabeça (malha fechada, ~28°).
+const AIM_CORR_CLAMP = 0.5;
 
 // Rifle mounted in the right hand (bone-local meters via a scale-compensated mount).
 // Tunable live with ?gunpos=x,y,z ?gunrot=xdeg,ydeg,zdeg ?guns=scale.
@@ -50,6 +54,42 @@ let _clips = null;                 // { idle: AnimationClip, ... } shared across
 const _base = new Map();           // id -> THREE.Object3D template scene
 
 export function hasModel(id) { return _base.has(id); }
+// Acesso ao template já carregado (fparms.js clona daqui p/ os braços de 1ª pessoa)
+// e aos clipes compartilhados (pose base congelada). Pré-requisito: preloadCharacterAssets.
+export function getCharTemplate(id) { return _base.get(id); }
+export function getSharedClips() { return _clips; }
+
+// Mede o centro REAL da palma no espaço local do osso Hand: média (em BIND pose) dos
+// verts da malha com peso dominante (>0.5) no osso Hand ou no seu filho Curl (os dedos
+// são skinned nos ossos Curl). Rígido por construção (independe da pose) e adaptado a
+// cada personagem — sem isso o IK crava o PULSO no grip e a palma visível flutua
+// centímetros fora da arma. Compartilhado por fparms.js (1ª pessoa) e pelo IK de 3ª
+// pessoa (mão de apoio dos bots). Fallback: fração do antebraço ao longo de +Y.
+export function measurePalmLocal(model, hand, curl) {
+  const fallback = new THREE.Vector3(0, hand.position.length() * 0.25, 0);
+  let sk = null;
+  model.traverse((o) => { if (o.isSkinnedMesh && !sk) sk = o; });
+  if (!sk) return fallback;
+  const bones = sk.skeleton.bones;
+  const hi = bones.indexOf(hand);
+  if (hi < 0) return fallback;
+  const ci = curl ? bones.indexOf(curl) : -1;
+  const pos = sk.geometry.attributes.position, si = sk.geometry.attributes.skinIndex, sw = sk.geometry.attributes.skinWeight;
+  const at = (a, i, k) => (k === 0 ? a.getX(i) : k === 1 ? a.getY(i) : k === 2 ? a.getZ(i) : a.getW(i));
+  const c = new THREE.Vector3(), v = new THREE.Vector3();
+  let n = 0;
+  for (let i = 0; i < pos.count; i++) {
+    let w = 0;
+    for (let k = 0; k < 4; k++) { const bi = at(si, i, k); if (bi === hi || bi === ci) w += at(sw, i, k); }
+    if (w > 0.5) { c.add(v.fromBufferAttribute(pos, i)); n++; }
+  }
+  if (!n) return fallback;
+  c.divideScalar(n);
+  // bind: posição do vértice no espaço local do osso = inv(handBindWorld) × meshBindWorld × c
+  // (boneInverses[hi] já É inv(handBindWorld) por definição do esqueleto)
+  const toLocal = new THREE.Matrix4().copy(sk.skeleton.boneInverses[hi]).multiply(sk.bindMatrix);
+  return c.applyMatrix4(toLocal);
+}
 
 // Preload shared clips + base meshes for the given character ids. Safe to call once
 // before a match; already-loaded assets are skipped. Failures are swallowed per-asset
@@ -79,6 +119,7 @@ export async function preloadCharacterAssets(ids) {
 const _v = new THREE.Vector3();
 const _gq = new THREE.Quaternion(), _wq = new THREE.Quaternion(), _pq = new THREE.Quaternion(), _headUpQ = new THREE.Quaternion();
 const _right = new THREE.Vector3();
+const _ikTgt = new THREE.Vector3();
 
 // Build a bot mesh from a loaded GLB. Returns an object shaped like buildCharacter()'s
 // result ({ group, parts }) plus animation control (isGLB, mixer, ctrl). Returns null
@@ -117,13 +158,14 @@ export function buildCharacterModel(def, opts = {}) {
 
   // Rifle in the right hand: a scale-compensated mount parented to the hand bone so
   // GUN_POS/GUN_ROT are expressed in world meters regardless of the bone's scale.
-  let handBone = null, lhandBone = null, rforeBone = null;
+  let handBone = null, lhandBone = null, rforeBone = null, gunObj = null;
   model.traverse((o) => { if (o.isBone && !handBone && /right.?hand|hand.?r\b|rhand|r_hand/i.test(o.name)) handBone = o; });
   model.traverse((o) => { if (o.isBone && !lhandBone && /left.?hand|hand.?l\b|lhand|l_hand/i.test(o.name)) lhandBone = o; });
   model.traverse((o) => { if (o.isBone && !rforeBone && /right.?forearm|r_forearm/i.test(o.name)) rforeBone = o; });
   if (!handBone) model.traverse((o) => { if (o.isBone && !handBone && /hand/i.test(o.name)) handBone = o; });
   if (handBone && withWeapon) {
     const gun = weaponModel(opts.weaponId || 'awp') || buildRifle();
+    gunObj = gun;
     // Measure the weapon's authored (real-world) size in its own space, before parenting.
     gun.updateMatrixWorld(true);
     const asz = new THREE.Vector3(); new THREE.Box3().setFromObject(gun).getSize(asz);
@@ -183,6 +225,16 @@ export function buildCharacterModel(def, opts = {}) {
     model.traverse(o => { if (o.isBone) { if (o.name === 'Curl_R') curlR = o; if (o.name === 'Curl_L') curlL = o; } });
     if (curlR) { curlR.rotation.x += 0.5; }
     if (twoHanded && curlL) { curlL.rotation.x += 0.5; }
+    // IK da mão de apoio (FASE 2): em armas de 2 mãos, o CharController trava a palma L
+    // no guarda-mão depois de cada mixer.update — vale pra idle/walk dos bots E pro
+    // preview da tela de seleção (mesmo ctrl.update). Posicional apenas: os clipes já
+    // orientam a mão perto do certo (rifle-hold); o IK resolve o contato por arma.
+    if (twoHanded && lhandBone) {
+      let lArm = null, lFore = null;
+      model.traverse(o => { if (o.isBone) { if (o.name === 'LeftArm') lArm = o; if (o.name === 'LeftForeArm') lFore = o; } });
+      const gp = gripPoints(opts.weaponId || 'awp');
+      if (lArm && lFore && gp.fore && gunObj) ctrl.ikL = { chain: [lArm, lFore], end: lhandBone, endOffset: measurePalmLocal(model, lhandBone, curlL), gun: gunObj, fore: gp.fore.clone() };
+    }
   }
   return { group, parts: { head }, isGLB: true, mixer, ctrl };
 }
@@ -298,9 +350,40 @@ class CharController {
       this.headBone.quaternion.copy(_pq.invert().multiply(_headUpQ).multiply(_wq));
       this.headBone.updateWorldMatrix(false, true);
     }
+    // Bots (FASE 3): mira a CABEÇA no alvo em pitch. Os clipes assam ~13° de olhar pra
+    // baixo e o HEAD_UP fixo não cobre — então aqui é malha fechada: mede o pitch real
+    // do olhar (eixo +Z local da cabeça em mundo) e gira o osso pela DIFERENÇA pro
+    // pitch desejado (this.aimPitch, já clampado pelo game; suavizado p/ não estalar).
+    // Só roda quando aimPitch é DEFINIDO (bots) — preview da tela de seleção e braços
+    // FP não setam, então o comportamento deles não muda.
+    if (this.headBone && this.aimPitch !== undefined && !this.dead) {
+      this.group.getWorldQuaternion(_gq);
+      _right.set(1, 0, 0).applyQuaternion(_gq);
+      this.headBone.getWorldQuaternion(_wq);
+      _v.set(0, 0, 1).applyQuaternion(_wq);
+      const curPitch = Math.asin(Math.max(-1, Math.min(1, _v.y)));
+      let corr = this.aimPitch - curPitch;
+      corr = Math.max(-AIM_CORR_CLAMP, Math.min(AIM_CORR_CLAMP, corr));
+      this._aimCorr = (this._aimCorr || 0) + (corr - (this._aimCorr || 0)) * Math.min(1, dt * 6);
+      if (Math.abs(this._aimCorr) > 1e-4) {
+        _headUpQ.setFromAxisAngle(_right, -this._aimCorr);
+        this.headBone.parent.getWorldQuaternion(_pq);
+        this.headBone.quaternion.copy(_pq.invert().multiply(_headUpQ).multiply(_wq));
+        this.headBone.updateWorldMatrix(false, true);
+      }
+    }
     if (this.headBone) {
       this.group.updateMatrixWorld(true);
       this.head.position.copy(this.group.worldToLocal(this.headBone.getWorldPosition(_v)));
+    }
+    // IK da mão de apoio (FASE 2): palma L no guarda-mão da arma montada (só 2 mãos).
+    // Roda depois do mixer/pose — corrige o contato por arma sem tocar na orientação.
+    if (this.ikL && !this.dead) {
+      const ik = this.ikL;
+      ik.gun.updateWorldMatrix(true, false);
+      _ikTgt.copy(ik.fore);
+      ik.gun.localToWorld(_ikTgt);
+      solveCCDIK(ik.chain, ik.end, _ikTgt, { iterations: 8, endOffset: ik.endOffset });
     }
   }
 }

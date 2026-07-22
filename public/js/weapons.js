@@ -65,6 +65,20 @@ export const ONE_HANDED = new Set(['pistol', 'deagle', 'revolver38', 'knife']);
 // Sidearm slot (tecla 2). Everything else except the knife is a primary (tecla 1).
 export const PISTOLS = new Set(['pistol', 'deagle', 'revolver38']);
 
+// Pontos de empunhadura no espaço local do grupo do weaponModel() (grip na origem,
+// cano apontando +Z). ÚNICA FONTE usada por: alignHands (game.js, mãos procedurais),
+// IK dos braços FP (fparms.js) e IK da mão de apoio em 3ª pessoa (glbchars.js).
+// fore = ponto no guarda-mão, à frente do grip (fração do trecho grip→boca); null p/ 1 mão.
+// ATENÇÃO à convenção: no grupo da viewmodel (game.js) o GLB entra girado em π (cano -Z),
+// então lá o fore vira z' = GRIP_Z - fore.z; nos mounts de 3ª pessoa o cano é +Z direto.
+export function gripPoints(id) {
+  const cfg = weaponCFG(id);
+  return {
+    grip: new THREE.Vector3(0, 0, 0),
+    fore: ONE_HANDED.has(id) ? null : new THREE.Vector3(0.005, -0.045, 0.82 * cfg.len * (1 - cfg.gripZ) * 0.72),
+  };
+}
+
 // Returns a THREE.Group holding the weapon, scaled to real size, barrel pointing +Z,
 // grip roughly at the group origin (so it sits in a hand placed at origin).
 export function weaponModel(id) {

@@ -8,6 +8,7 @@ import { MAPS, MAP_IDS, DEFAULT_MAP, resolveMapId } from './maps.js';
 import { Sfx } from './audio.js';
 import { Game } from './game.js';
 import { VERSION } from './version.js';
+import { enableLightBloom } from './bloom.js';
 
 /* ---------------- settings & nickname ---------------- */
 const SETTINGS_KEY = 'awpbr_settings';
@@ -26,6 +27,8 @@ renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.06;
 container.appendChild(renderer.domElement);
+// bloom leve (FASE 4) — ligado por padrão, pulado na qualidade 'low'
+if (settings.quality !== 'low') enableLightBloom(renderer);
 
 const textures = initTextures();
 const sfx = new Sfx(); sfx.vol = settings.vol;
@@ -39,7 +42,7 @@ settings.map = currentMap;
 
 /* ---------------- menu backdrop (orbiting map) ---------------- */
 // Mint building/statue GLBs used by the Brasília map (loaded once, cloned per placement).
-const MAP_PROPS = ['congresso', 'catedral', 'ministerio', 'palacio', 'justica', 'tires', 'stall', 'tent', 'bus', 'drinkstand'];
+const MAP_PROPS = ['congresso', 'catedral', 'ministerio', 'palacio', 'justica', 'tires', 'stall', 'tent', 'bus', 'drinkstand', 'urna', 'towner'];
 let menuScene = new THREE.Scene();
 MAPS[currentMap].build(menuScene, textures);
 const menuCam = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, 0.1, 400);
@@ -89,7 +92,7 @@ function pvSetChar(def) {
   const my = ++pvToken;
   const showBox = () => {   // procedural fallback (only when there's no GLB at all)
     if (p.model) p.scene.remove(p.model);
-    p.mixer = null;
+    p.mixer = null; p.ctrl = null;
     p.model = buildCharacter(def).group;
     p.model.rotation.y = 0.4;
     p.scene.add(p.model);
@@ -103,7 +106,7 @@ function pvSetChar(def) {
       if (!m) { showBox(); return; }
       if (p.model) p.scene.remove(p.model);
       m.group.rotation.y = 0.4;
-      p.model = m.group; p.mixer = m.mixer;
+      p.model = m.group; p.mixer = m.mixer; p.ctrl = m.ctrl;
       p.scene.add(m.group);
     }).catch(() => { if (my === pvToken) showBox(); });
   } else {
@@ -114,7 +117,7 @@ function pvThumb(def) {
   // Box-only thumbnail (tiny icon) — never triggers a GLB load.
   const p = ensurePreview();
   if (p.model) { p.scene.remove(p.model); p.model = null; }
-  p.mixer = null;
+  p.mixer = null; p.ctrl = null;
   const box = buildCharacter(def).group; box.rotation.y = 0.55;
   p.scene.add(box);
   p.r.render(p.scene, p.cam);
@@ -686,7 +689,8 @@ function loop() {
   }
   if (csOpen && pv && pv.model) {
     pv.model.rotation.y += dt * 0.9;
-    if (pv.mixer) pv.mixer.update(dt);
+    // ctrl.update (idle + IK da mão de apoio) quando há GLB; mixer cru só no fallback box
+    if (pv.ctrl) pv.ctrl.update(dt, 0, false, 0); else if (pv.mixer) pv.mixer.update(dt);
     pv.r.render(pv.scene, pv.cam);
   }
 }

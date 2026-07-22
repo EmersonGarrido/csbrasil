@@ -194,6 +194,8 @@ body{font-family:"Arial Black",Impact,Haettenschweiler,"Segoe UI",sans-serif;col
   font-size:46px;letter-spacing:6px;color:#ff5030;text-shadow:0 3px 0 #000,0 0 30px rgba(255,80,30,.6);
   opacity:0;transform:scale(1.4);transition:all .12s;pointer-events:none}
 #mk-banner.show{opacity:1;transform:scale(1)}
+#prot-badge{position:absolute;left:50%;top:70px;transform:translateX(-50%);font-weight:bold;font-size:16px;
+  letter-spacing:2px;color:var(--yellow);text-shadow:0 2px 0 #000,0 0 20px rgba(255,210,63,.5);pointer-events:none}
 #hud-top{position:absolute;top:14px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:22px}
 .team-score{font-size:16px;letter-spacing:2px;padding:5px 12px;border-radius:3px;background:rgba(0,0,0,.55)}
 .ts-p{color:#ff8080;border:1px solid var(--red)}
@@ -244,6 +246,7 @@ body{font-family:"Arial Black",Impact,Haettenschweiler,"Segoe UI",sans-serif;col
 #scoreboard tr.tp td:first-child{border-left:3px solid var(--red)}
 #scoreboard tr.tb td:first-child{border-left:3px solid var(--green)}
 #scoreboard tr.me td{background:rgba(255,210,63,.1)}
+#dollynho-dance{display:block;margin:12px auto 0;width:240px;height:190px}
 
 /* ---------- match end ---------- */
 #match-end .panel{min-width:520px}

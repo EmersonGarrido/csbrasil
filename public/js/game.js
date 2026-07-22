@@ -3,8 +3,10 @@ import * as THREE from 'three';
 import { MAPS, resolveMapId } from './maps.js';
 import { buildCharacter, poseCharacter, byId, CHARACTERS, buildRifle, charWeapon } from './characters.js';
 import { buildCharacterModel } from './glbchars.js';
-import { weaponModel, weaponCFG, ONE_HANDED, WEAPON_IDS, PISTOLS } from './weapons.js';
+import { weaponModel, weaponCFG, ONE_HANDED, WEAPON_IDS, PISTOLS, gripPoints } from './weapons.js';
+import { buildFPArms, poseToWeapon, FP_FALLBACK } from './fparms.js';
 import { GPUParticles } from './gpuparticles.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 export const WEAPONS = {
   awp:    { name: 'AWP "DELIBERADOR"', short: 'AWP', dmg: 400, mag: 5, reserve: 25, rate: 1.7, reload: 3.1, spreadHip: 0.075, spreadScope: 0.0008, recoil: 0.055, scope: true },
@@ -33,8 +35,10 @@ export const WEAPONS = {
   uzi:       { name: 'UZI "RÁ-TÁ-TÁ"', short: 'UZI', dmg: 25, mag: 25, reserve: 100, rate: 0.07, reload: 2.1, spreadHip: 0.032, recoil: 0.006, auto: true },
   p90:       { name: 'P90 "CHINELÃO"', short: 'P90', dmg: 23, mag: 50, reserve: 100, rate: 0.065, reload: 2.3, spreadHip: 0.03, recoil: 0.005, auto: true },
 };
-const ROUND_TIME = 99, ROUNDS_TO_WIN = 3, RESPAWN_DELAY = 2.5, PICKUP_RESPAWN = 8;
+const ROUND_TIME = 99, ROUNDS_TO_WIN = 3, RESPAWN_DELAY = 2.5, PICKUP_RESPAWN = 8, SPAWN_PROT = 3;
 const BOT_SPEED = 3.3, BOT_EYE = 1.5;
+const BOT_VIEW = 45;              // alcance de aquisição de alvo (m) — ver comentário no think
+const BOT_AIM_PITCH = 15 * Math.PI / 180;   // clamp do pitch da cabeça ao mirar (rad)
 const TEAM_LABEL = { P: 'PETISTAS', B: 'BOLSONARISTAS' };
 const RADIO = {
   z: { title: 'COMANDOS', items: ['Bora, bora, bora!', 'Cobre eu!', 'Recua, recua!'] },
@@ -86,6 +90,7 @@ export class Game {
     this.playerTeam = playerTeam;
     this.enemyTeam = playerTeam === 'P' ? 'B' : 'P';
     this.playerDef = byId(playerCharId);
+    this.playerCharId = playerCharId;   // usado por _buildViewModels (paleta/braços FP) e _resetPositions (loadout)
     this.combatants = [];   // scoreboard entries
 
     // ---- player ----
@@ -99,7 +104,7 @@ export class Game {
       weapon: startWeapon, scoped: false, reloadUntil: 0, nextShotAt: 0, drawUntil: 0,
       primary: startWeapon, secondary: 'pistol',
       ammo: Object.fromEntries(Object.keys(WEAPONS).filter(w => w !== 'knife').map(w => [w, { mag: WEAPONS[w].mag, res: WEAPONS[w].reserve }])),
-      kills: 0, deaths: 0, headshots: 0, grounded: true, stepPhase: 0, revealedAt: -99,
+      kills: 0, deaths: 0, headshots: 0, grounded: true, stepPhase: 0, revealedAt: -99, protUntil: 0,
     };
     this.combatants.push(this.player);
 
@@ -109,7 +114,12 @@ export class Game {
     const DIFF = { easy: 0.55, normal: 1, hard: 1.3, insane: 1.7 };
     const diffMul = DIFF[this.settings.difficulty] || 1;
     const teamSize = Math.max(1, Math.min(8, this.settings.bots || 4));
-    const cycle = (pool, n) => Array.from({ length: Math.max(0, n) }, (_, i) => pool[i % pool.length]).filter(Boolean);
+    // Rotação aleatória do pool por partida: sem ela só os 8 primeiros do time viravam
+    // bots (personagens no fim da lista, ex.: canarinho/proerd, nunca apareciam).
+    const cycle = (pool, n) => {
+      const r = pool.length ? (Math.random() * pool.length) | 0 : 0;
+      return Array.from({ length: Math.max(0, n) }, (_, i) => pool[(i + r) % pool.length]).filter(Boolean);
+    };
     const allyDefs = cycle(CHARACTERS.filter(c => c.team === playerTeam && c.id !== playerCharId), teamSize - 1);
     const enemyDefs = cycle(CHARACTERS.filter(c => c.team === this.enemyTeam), teamSize);
     const mkBot = (def, team, i) => {
@@ -119,7 +129,7 @@ export class Game {
       const bot = {
         isPlayer: false, name: def.name, def, team,
         mesh: c, pos: new THREE.Vector3(), yaw: 0, hp: 100, alive: true,
-        respawnAt: 0, kills: 0, deaths: 0,
+        respawnAt: 0, protUntil: 0, kills: 0, deaths: 0,
         target: null, reactAt: 0, nextShotAt: 0, skill: (0.85 + Math.random() * 0.35) * diffMul, weapon: wpn,
         path: null, pathIdx: 0, repathAt: 0, roamIdx: 0, phase: 0, think: Math.random() * 0.2,
         deadT: 0, strafeT: Math.random() * 10, revealedAt: -99,
@@ -203,6 +213,7 @@ export class Game {
       scoreP: $('score-p'), scoreB: $('score-b'), killfeed: $('killfeed'),
       banner: $('round-banner'), bannerTitle: $('banner-title'), bannerSub: $('banner-sub'),
       respawn: $('respawn-overlay'), respawnCount: $('respawn-count'),
+      prot: $('prot-badge'), protCount: $('prot-count'),
       scoreboard: $('scoreboard'), sbBody: $('sb-body'),
       matchEnd: $('match-end'), matchTitle: $('match-title'), matchSub: $('match-sub'), matchStats: $('match-stats'),
       pause: $('pause-menu'), radar: $('radar'),
@@ -342,18 +353,19 @@ export class Game {
     // the grip; the support hand wraps the handguard ~55% of the way from grip to muzzle
     // (two-handed weapons only). Derived from each weapon's CFG (len/gripZ), not guesses.
     const alignHands = (g, id) => {
-      const cfg = weaponCFG(id);
       const GRIP_Z = id === 'knife' ? 0 : 0.12;
+      const gp = gripPoints(id);   // espaço do GLB (cano +Z); aqui o cano é -Z → z' = GRIP_Z - z
       const hR = g.getObjectByName('handR'), hL = g.getObjectByName('handL');
-      if (hR) hR.position.set(0, -0.03, GRIP_Z);
+      if (hR) hR.position.set(gp.grip.x, -0.03, GRIP_Z - gp.grip.z);
       if (hL) {
-        if (ONE_HANDED.has(id)) hL.visible = false;
-        else hL.position.set(0.005, -0.045, GRIP_Z - 0.82 * cfg.len * (1 - cfg.gripZ) * 0.72);
+        if (!gp.fore) hL.visible = false;
+        else hL.position.set(gp.fore.x, gp.fore.y, GRIP_Z - gp.fore.z);
       }
     };
     for (const id in models) {
       const rw = weaponModel(id);
       if (!rw) continue;
+      rw.name = 'rw';                    // espaço local: grip na origem, cano +Z (IK mira nele)
       rw.rotation.y = Math.PI;             // weapon barrel +Z -> -Z (into the screen)
       rw.scale.multiplyScalar(0.82);       // slightly tucked for first-person framing
       rw.position.z += id === 'knife' ? 0.0 : 0.12; // pull the grip back toward the hand
@@ -367,7 +379,7 @@ export class Game {
       if (models[id]) continue;
       const g = new THREE.Group();
       const rw = weaponModel(id);
-      if (rw) { rw.rotation.y = Math.PI; rw.scale.multiplyScalar(0.82); rw.position.z += id === 'knife' ? 0 : 0.12; g.add(rw); }
+      if (rw) { rw.name = 'rw'; rw.rotation.y = Math.PI; rw.scale.multiplyScalar(0.82); rw.position.z += id === 'knife' ? 0 : 0.12; g.add(rw); }
       const hR = fpArm(); hR.name = 'handR'; g.add(hR);
       if (!ONE_HANDED.has(id)) { const hL = frontHand(0.95); hL.name = 'handL'; g.add(hL); }
       alignHands(g, id);
@@ -375,7 +387,26 @@ export class Game {
       root.add(g); models[id] = g;
     }
     for (const k in models) models[k].visible = k === 'awp';
-    return { root, models, awp, pistol, knife, kick: 0, bobPhase: 0, reloadDip: 0 };
+    // Braços FP reais (FASE 1): o GLB do próprio personagem vira o corpo de 1ª pessoa e o
+    // IK trava as mãos na arma. Chars com prop colado na mão/sem GLB → fallback procedural.
+    let arms = null;
+    if (!FP_FALLBACK.has(this.playerCharId)) arms = buildFPArms({ id: this.playerCharId });
+    if (arms) {
+      root.add(arms.group);
+      // Aproxima as armas pra distância de alcance real do braço (as posições antigas,
+      // z=-0.5, ficam além do comprimento do braço — o guarda-mão seria inalcançável).
+      const ARM_MOUNTS = { rifle: [0.19, -0.11, -0.42], pistol: [0.18, -0.10, -0.36], knife: [0.22, -0.12, -0.36] };
+      for (const k in models) {
+        const g = models[k];
+        const hR = g.getObjectByName('handR'), hL = g.getObjectByName('handL');
+        if (hR) hR.visible = false;
+        if (hL) hL.visible = false;
+        const m = ARM_MOUNTS[ONE_HANDED.has(k) ? (k === 'knife' ? 'knife' : 'pistol') : 'rifle'];
+        g.position.set(m[0], m[1], m[2]);
+        if (k !== 'knife') g.rotation.set(0, 0.03, 0);   // faca mantém a rotação própria
+      }
+    }
+    return { root, models, awp, pistol, knife, arms, kick: 0, bobPhase: 0, reloadDip: 0 };
   }
 
   _makePuffTexture() {
@@ -525,7 +556,7 @@ export class Game {
     const place = (ent, team, slot) => {
       const s = this.world.spawns[team][slot % 4];
       ent.pos.set(s.x + (Math.random() - .5), 0, s.z + (Math.random() - .5));
-      ent.hp = 100; ent.alive = true; ent.respawnAt = 0;
+      ent.hp = 100; ent.alive = true; ent.respawnAt = 0; ent.protUntil = 0;
       return s;
     };
     place(this.player, this.playerTeam, 0);
@@ -600,6 +631,7 @@ export class Game {
     this.player.scoped = false; this.el.scope.classList.remove('on');
     this.radioOpen = null; this._radioUi();
     this._showScoreboard(true);   // CS-style: scoreboard pops at round end
+    this._ensureDolly();          // dollynho comemora dançando no placar
     if (!winner) {
       this._banner('EMPATE NA TRETA', `${p} × ${b} — ninguém convenceu ninguém`);
       this.sfx.roundLose();
@@ -638,6 +670,44 @@ export class Game {
       });
     } catch {}
     mine ? this.sfx.matchWin() : this.sfx.roundLose();
+  }
+
+  /* -------- dollynho dançando na tela de round vencido (pedido do usuário) -------- */
+  // Canvas próprio dentro do placar de fim de round; toca o clipe de dança embutido
+  // (models/dollynho_dance.glb, Mixamo) num renderer separado e transparente.
+  _ensureDolly() {
+    if (this._dolly) return this._dolly;
+    const canvas = document.createElement('canvas');
+    canvas.id = 'dollynho-dance';
+    this.el.scoreboard.appendChild(canvas);
+    const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+    renderer.setSize(240, 190, false);
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    const scene = new THREE.Scene();
+    scene.add(new THREE.HemisphereLight(0xffffff, 0x555555, 1.1));
+    const dir = new THREE.DirectionalLight(0xffffff, 1.4); dir.position.set(2, 4, 3); scene.add(dir);
+    const camera = new THREE.PerspectiveCamera(38, 240 / 190, 0.1, 50);
+    // enquadramento largo: a dança desloca o quadril (root motion no osso, não no nó)
+    camera.position.set(0, 1.3, 4.8); camera.lookAt(0, 0.85, 0);
+    const dolly = this._dolly = { canvas, renderer, scene, camera, mixer: null };
+    new GLTFLoader().load('models/dollynho_dance.glb', g => {
+      const box = new THREE.Box3().setFromObject(g.scene);
+      const s = 1.85 / (box.max.y - box.min.y);
+      g.scene.scale.setScalar(s);
+      g.scene.position.set(-(box.min.x + box.max.x) / 2 * s, -box.min.y * s, -(box.min.z + box.max.z) / 2 * s);
+      scene.add(g.scene);
+      dolly.mixer = new THREE.AnimationMixer(g.scene);
+      dolly.mixer.clipAction(g.animations[0]).play();   // mixamo.com (7s) em loop
+    }, undefined, () => {});
+    return dolly;
+  }
+  _tickDolly(dt) {
+    if (!this._dolly) return;
+    const on = this.state === 'roundEnd' && !this.el.scoreboard.classList.contains('hidden');
+    this._dolly.canvas.style.display = on ? '' : 'none';
+    if (!on) return;
+    if (this._dolly.mixer) this._dolly.mixer.update(dt);
+    this._dolly.renderer.render(this._dolly.scene, this._dolly.camera);
   }
 
   setPaused(v) {
@@ -835,6 +905,7 @@ export class Game {
   }
   _damage(ent, dmg, attacker, weap = 'AWP', head = false) {
     if (!ent.alive || this.state !== 'live') return;
+    if (this.time < (ent.protUntil || 0)) return;   // spawn protection: zero dano (e sem hitmarker) enquanto protegido
     ent.hp -= dmg;
     if (ent.isPlayer) {
       this.el.vignette.style.opacity = 0.9;
@@ -1077,16 +1148,24 @@ export class Game {
     }
     // view model animation
     this.vm.kick = Math.max(0, this.vm.kick - dt * 6);
-    this._swayX *= Math.max(0, 1 - dt * 7); this._swayY *= Math.max(0, 1 - dt * 7);
+    this._swayX = (this._swayX || 0) * Math.max(0, 1 - dt * 7); this._swayY = (this._swayY || 0) * Math.max(0, 1 - dt * 7);
     const bobAmp = Math.min(1, sp / 6.6);
     const bobY = moving ? Math.sin(p.stepPhase * 2) * 0.014 * bobAmp : 0;
     // iron-sight ADS: ease the gun toward screen center so you sight down it
     const adsWant = p.scoped && !realScope ? 1 : 0;
     this.vm.adsF = (this.vm.adsF || 0) + (adsWant - (this.vm.adsF || 0)) * Math.min(1, dt * 12);
     const a = this.vm.adsF;
-    this.vm.root.position.set(-0.17 * a + this._swayX * 0.02, bobY - this.vm.reloadDip * 0.18 - p.crouchF * 0.02 + 0.05 * a + this._swayY * 0.015, this.vm.kick * 0.09 - 0.1 * a);
-    this.vm.root.rotation.x = this.vm.kick * 0.12 + this.vm.reloadDip * 0.9;
+    // draw animation: arma sobe de baixo ao trocar (drawUntil já existia p/ travar o tiro)
+    const drawF = Math.max(0, (p.drawUntil - this.time) / 0.28);
+    this.vm.root.position.set(-0.17 * a + this._swayX * 0.02, bobY - this.vm.reloadDip * 0.18 - p.crouchF * 0.02 + 0.05 * a + this._swayY * 0.015 - drawF * 0.22, this.vm.kick * 0.09 - 0.1 * a);
+    this.vm.root.rotation.x = this.vm.kick * 0.12 + this.vm.reloadDip * 0.9 - drawF * 0.55;
     this.vm.root.rotation.z = this._swayY * 0.03;
+    // Braços reais: IK trava as mãos na arma visível DEPOIS de todos os transforms do
+    // vm.root (kick/dip/ADS/sway/bob/draw) — as mãos acompanham a arma em qualquer estado.
+    if (this.vm.arms && this.vm.root.visible) {
+      const wg = this.vm.models[p.weapon];
+      if (wg) poseToWeapon(this.vm.arms, wg, p.weapon);
+    }
   }
   // fy_pool_day ground weapons: anyone who runs over one grabs it (CS-1.6 style).
   // The gun vanishes and respawns after PICKUP_RESPAWN. No-op on maps without
@@ -1183,6 +1262,7 @@ export class Game {
     const s = this.world.spawns[p.team][(Math.random() * 4) | 0];
     p.pos.set(s.x, 0, s.z); p.vel.set(0, 0, 0);
     p.hp = 100; p.alive = true; p.crouchF = 0;
+    p.protUntil = this.time + SPAWN_PROT;
     p.yaw = p.team === 'P' ? Math.PI : 0; p.pitch = 0;
     // top off the CURRENT loadout's mags (primary could be any weapon now, not just AWP)
     if (p.primary && p.ammo[p.primary]) p.ammo[p.primary] = { mag: WEAPONS[p.primary].mag, res: WEAPONS[p.primary].reserve };
@@ -1216,7 +1296,9 @@ export class Game {
       if (this.time >= b.respawnAt && (this.state === 'live')) {
         const s = this.world.spawns[b.team][(Math.random() * 4) | 0];
         b.pos.set(s.x, 0, s.z); b.hp = 100; b.alive = true;
+        b.protUntil = this.time + SPAWN_PROT;
         b.target = null; b.path = null; b.yaw = b.team === 'P' ? 0 : Math.PI;
+        b._lp = { x: s.x, z: s.z };   // evita spike de velocidade (teleporte) no 1º frame
         g.rotation.set(0, b.yaw, 0); g.position.copy(b.pos); g.visible = true;
         if (b.mesh.isGLB) b.mesh.ctrl.revive();
       }
@@ -1228,6 +1310,10 @@ export class Game {
       return;
     }
 
+    // spawn protection: pisca o modelo enquanto invulnerável
+    if (this.time < b.protUntil) g.visible = Math.floor(this.time * 12) % 2 === 0;
+    else if (!g.visible) g.visible = true;
+
     // --- think: target acquisition
     b.think -= dt;
     if (b.think <= 0) {
@@ -1235,7 +1321,11 @@ export class Game {
       let best = null, bd = 1e9;
       for (const e of this._enemyOf(b)) {
         const d = b.pos.distanceTo(e.pos);
-        if (d < bd && d < 70) {
+        // BOT_VIEW < map length: with 70m+ sight on the open esplanade both teams
+        // acquired from spawn and the round became a stand-still snipe loop (100 dmg
+        // bot-vs-bot = first hit kills) — nobody roamed. 45m forces bots to close
+        // in through mid-map, so the varied roam routes actually play out.
+        if (d < bd && d < BOT_VIEW) {
           const eye = this._botEye(b);
           const teye = e.isPlayer ? this.camera.position.clone() : this._botEye(e);
           if (this._losClear(eye, teye)) { best = e; bd = d; }
@@ -1365,6 +1455,19 @@ export class Game {
     g.rotation.set(0, b.yaw, 0);
     if (b.mesh.isGLB) {
       b.mesh.ctrl.setCrouch(!!b.target && b.crouchBias);
+      // "olhar pra baixo": os clipes de rifle-hold assam ~13° de inclinação da cabeça
+      // pra baixo. Passa o pitch vertical olho→olho do alvo (clamp ±15°) pro controller
+      // fechar o loop no osso da cabeça; sem alvo, 0 = olhar na horizontal pra onde anda.
+      {
+        const e = b.target;
+        let aim = 0;
+        if (e) {
+          const teyeY = e.isPlayer ? this.camera.position.y : e.pos.y + BOT_EYE;
+          const hd = Math.hypot(e.pos.x - b.pos.x, e.pos.z - b.pos.z) || 1;
+          aim = Math.max(-BOT_AIM_PITCH, Math.min(BOT_AIM_PITCH, Math.atan2(teyeY - (b.pos.y + BOT_EYE), hd)));
+        }
+        b.mesh.ctrl.aimPitch = aim;
+      }
       // occasional hop while roaming (bots can jump)
       if (!b.target && moving > 0.5 && this.time > (b._nextJump || 0)) {
         if (Math.random() < 0.2) b.mesh.ctrl.jump();
@@ -1462,6 +1565,10 @@ export class Game {
     this.el.roundsB.textContent = this.roundsWon.B;
     this.el.scoreP.innerHTML = `PET <b>${this.roundKills.P}</b>`;
     this.el.scoreB.innerHTML = `BOL <b>${this.roundKills.B}</b>`;
+    // badge de spawn protection (issue #24)
+    const protLeft = p.protUntil - this.time;
+    this.el.prot.classList.toggle('hidden', !(p.alive && protLeft > 0));
+    if (protLeft > 0) this.el.protCount.textContent = Math.ceil(protLeft);
   }
 
   /* ================= main update ================= */
@@ -1490,6 +1597,7 @@ export class Game {
         this.testMode || this.paused || !!document.pointerLockElement ||
         (this.state !== 'live' && this.state !== 'countdown'));
     this.renderer.render(this.scene, this.camera);
+    this._tickDolly(dt);
   }
 
   /* ================= teardown ================= */
@@ -1516,6 +1624,7 @@ export class Game {
     this.el.lockHint.classList.add('hidden');
     this.el.scoreboard.classList.add('hidden');
     this.el.vignette.style.opacity = 0;
+    if (this._dolly) { this._dolly.renderer.dispose(); this._dolly.canvas.remove(); this._dolly = null; }
     this.scene.traverse(o => { if (o.geometry) o.geometry.dispose(); });
     this.scene.clear();
   }
