@@ -1,0 +1,38 @@
+{
+  "registryVersion": 1,
+  "assetRoot": "public/models/characters",
+  "assets": {
+    "bozo": {
+      "files": ["public/models/characters/bozo.glb"],
+      "source": {
+        "kind": "mint-model",
+        "assetId": "ks75fkrm2j1yyyf6tka5zmb99d8b15y0",
+        "chatUrl": "https://mint.gg/chat/ph7ayd0zemw2qzgxdssjhq2nkh8b1k98",
+        "displayName": "Red Wing Clown (v1)",
+        "notes": "v1 shipped — rig Meshy compatível, anims OK. v2 semi-real (ks77tampj9a7ga8kwas1kfams58b0jnv) veio com rig quebrado (A-pose) e foi descartado; raws em /tmp/bozo-v2-raw.glb."
+      }
+    },
+    "canarinho": {
+      "files": ["public/models/characters/canarinho.glb"],
+      "source": {
+        "kind": "mint-model",
+        "assetId": "ks75jx39ypybs5hdvy34ej7fzh8b0cey",
+        "chatUrl": "https://mint.gg/chat/ph7amtaa6jc8bxf0wwsd70m9t58b0kcf",
+        "animationBatchId": "w577yjh3ypmh3v8m8kj6j94j018b04jw",
+        "displayName": "Crested Canary Striker (v2 semi-real)",
+        "notes": "v2 shipped. v1 (ks7acwqj31393mw93gxmszzfz18b1jmj) no histórico do chat; raw /tmp/canarinho-rigged-raw.glb."
+      }
+    },
+    "proerd": {
+      "files": ["public/models/characters/proerd.glb"],
+      "source": {
+        "kind": "mint-model",
+        "assetId": "ks76jjngk5k8zpata2gaanbbns8b04wk",
+        "chatUrl": "https://mint.gg/chat/ph7ck93xmx6f615je4c95t95bd8b036w",
+        "animationBatchId": "w572044nc1wjf3whbhtpzshhcs8b1mbf",
+        "displayName": "Proerd Mane Lion (v2 camisa preta)",
+        "notes": "v2 shipped. v1 camisa branca (ks7c0tp5f9r4fnn3gz706jjwgx8b02mf) no histórico; raw /tmp/proerd-rigged-v2-raw.glb."
+      }
+    }
+  }
+}

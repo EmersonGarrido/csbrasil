@@ -5,17 +5,20 @@ const petistas = [
   { name: 'Líder do Sindicato', desc: 'Boné vermelho, colete de assembleia e megafone. Convoca greve de fogo a cada round.' },
   { name: 'Líder do MST', desc: 'Do campo pra arena. Bandeira na mochila, bota no barro e tiro certeiro de enxada.' },
   { name: 'Doutora do SUS', desc: 'Jaleco, estetoscópio e plantão de 24h. Receita tiro certeiro, na veia.' },
+  { name: 'Bozo', desc: 'Do picadeiro pra praça. Nariz vermelho, sapatão marrom e risada de quem arma o circo.' },
 ];
 const bolsonaristas = [
   { name: 'Caminhoneiro', desc: 'Camisa do Brasil, luva de estrada e 40h de BR na semana. Freia pra ninguém.' },
   { name: 'Influencer de Dubai', desc: 'Óculos dourado, stories em 3 fusos e mira patrocinada. Atira, posta, engaja.' },
   { name: 'Cantor Sertanejo', desc: 'Chapéu de cowboy, fivela de ouro e violão nas costas. Moda de viola em dose dupla.' },
   { name: 'Tia Zilá', desc: '60 anos, 300 grupos de mensagem e um quadro de pistas nas costas. Ela SABE de tudo.' },
+  { name: 'Canarinho Pistola', desc: 'Pistola desde 2016. Bico torto, peito estufado e camisa 24: ele NÃO amarela.' },
+  { name: 'Leão do Proerd', desc: 'Camisa preta colada, rugido de mascote de formatura e garra afiada na defesa da treta.' },
 ];
 ---
 <Layout title="Personagens — CS BRASIL: Treta Suprema">
   <h1>PERSONAGENS</h1>
-  <p>Oito arquétipos 100% fictícios e satíricos — nenhuma pessoa real foi consultada (ou poupada). Cada um tem silhueta, acessórios e estilo próprios, modelados em low-poly procedural.</p>
+  <p>Vinte arquétipos 100% fictícios e satíricos — nenhuma pessoa real foi consultada (ou poupada). Cada um tem silhueta, acessórios e estilo próprios, modelados em 3D estilizado.</p>
 
   <h2 style="color:#ff8080">PETISTAS — "A treta se faz na praça!"</h2>
   <ul>{petistas.map(c => <li style="margin:8px 0"><strong style="color:#f2ead8">{c.name}</strong> — {c.desc}</li>)}</ul>

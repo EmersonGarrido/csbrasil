@@ -48,6 +48,21 @@ Se a ferramenta permitir, peça também: **rigged skeleton with animations: idle
 
 ---
 
+## Novos (sessão 22/07 — gerados no Mint com imagem de referência)
+
+Estilo pedido pelo usuário nesta leva: **semi-realista** (pelugem/tecido com textura real), NÃO flat cartoon.
+
+**bozo** (time P) — *Bozo*
+> ...classic circus clown mascot: white clown face makeup, big round red nose, wide red smile, fluffy red wing-hair tufts on the sides of a bald white head, royal-blue long-sleeve top and matching pants, wide light-blue-and-white cape collar with red zigzag trim, red waist sash, white gloves, white boot covers with red trim over brown shoes. Semi-realistic fabric/latex/greasepaint materials.
+
+**canarinho** (time B) — *Canarinho Pistola*
+> ...angry canary bird mascot ("canarinho pistola"): bright yellow feathered body, pointed feather crest on top of the head, big white furrowed angry eyes, orange beak, stocky build with big head, yellow soccer jersey with green collar trim and green number 24 on the chest, blue soccer shorts, white socks, blue soccer boots. Semi-realistic feather/fabric materials.
+
+**proerd** (time B) — *Leão do Proerd*
+> ...upright-standing lion mascot (PROERD): tan golden fur, full fluffy dark-red to orange-brown mane, friendly smiling lion face, BLACK t-shirt with red cursive script "Proerd" logo across the chest (white outline), dark blue jeans, sneakers, lion tail with dark-red tuft. Semi-realistic fur/fabric materials. A camisa PRETA com o logo vermelho é OBRIGATÓRIA — sem ela vira um leão genérico (feedback do usuário).
+
+---
+
 ## O que eu faço quando os GLB chegarem
 
 1. Adiciono GLTFLoader + AnimationMixer ao jogo (uma vez).
