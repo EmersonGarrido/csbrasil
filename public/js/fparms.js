@@ -22,6 +22,11 @@ import { solveCCDIK } from './handik.js';
 export const FP_FALLBACK = new Set(['doutora', 'sindicato',
   'canarinho', 'gotinha', 'et', 'dollynho', 'proerd', 'bozo']);
 
+// Braços IK no corpo do personagem: DESLIGADO por padrão (as mãos-mitten de ~200 tris
+// dos GLBs viram "salsichas" em qualquer render grande — reprovado pelo usuário).
+// A solução real é o asset dedicado de braços FP (em produção). Re-ligar: ?ikarms=1
+export const FP_REAL_ARMS = new URLSearchParams(location.search).get('ikarms') === '1';
+
 const qp = new URLSearchParams(location.search);
 const _n3 = (s, d) => { const p = (s || '').split(',').map(Number); return p.length === 3 && p.every((n) => !isNaN(n)) ? p : d; };
 // Tuning ao vivo: ?fpr=x,y,z (offset do pulso R no espaço da arma, cano +Z, estoque -Z),

@@ -29,9 +29,9 @@ export const GLB_CHARS = new Set([
 const IK_L_SKIP = new Set(['dollynho', 'gotinha', 'et', 'canarinho']);
 
 const STATES = ['idle', 'walk', 'run', 'shoot', 'death', 'crouch', 'crouchwalk', 'jump'];
-// Clipes OPCIONAIS de 1 mão (pistolas): se o arquivo não existir, o load falha em
-// silêncio e o personagem cai no idle/walk padrão de 2 mãos (comportamento atual).
-const OPT_STATES = ['idle1h', 'walk1h'];
+// Clipes OPCIONAIS: 1 mão (pistolas) + andando atirando. Se o arquivo não existir,
+// o load falha em silêncio e cai no comportamento padrão (idle/walk/shoot de 2 mãos).
+const OPT_STATES = ['idle1h', 'walk1h', 'walkfire'];
 const qp = new URLSearchParams(location.search);
 const ANIM_DIR = qp.get('animdir') || 'models/anims/mixamo';   // pack Mixamo rifle (retarget próprio, tools/retarget-mixamo.mjs) — padrão desde 22/07; override via ?animdir=
 const TARGET_HEIGHT = parseFloat(qp.get('charh')) || 1.72;      // meters (match box silhouette)
@@ -296,6 +296,7 @@ class CharController {
   shoot() {
     if (this.dead || this.crouch || !this.actions.shoot) return; // crouch pose already aims
     this.shooting = true;
+    this._shootUntil = this.mixer.time + this.actions.shoot.getClip().duration;
     this.actions.shoot.reset();
     this.actions.shoot.setLoop(THREE.LoopOnce, 1);
     this.actions.shoot.clampWhenFinished = true;
@@ -331,6 +332,11 @@ class CharController {
     if (!this.dead) {
       if (this.crouch) {
         this._to(moving > 0.05 ? 'crouchwalk' : 'crouch');
+      } else if (this.shooting && moving > 0.05 && this.actions.walkfire) {
+        // Atirar EM MOVIMENTO: o clipe combinado (walk+fire) mantém as pernas andando —
+        // antes as pernas congelavam ~1s a cada disparo (usuário reprovou).
+        this._to('walkfire');
+        if (this.mixer.time >= (this._shootUntil || 0)) this.shooting = false;
       } else if (!this.shooting && !this.jumping) {
         if (moving <= 0.05) { this._to(this.oneHanded && this.actions.idle1h ? 'idle1h' : 'idle'); this._loco = 'idle'; }
         else if (back) {

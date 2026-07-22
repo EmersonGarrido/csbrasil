@@ -27,8 +27,9 @@ renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.06;
 container.appendChild(renderer.domElement);
-// bloom leve (FASE 4) — ligado por padrão, pulado na qualidade 'low'
-if (settings.quality !== 'low') enableLightBloom(renderer);
+// bloom leve (FASE 4) — ligado por padrão, pulado na qualidade 'low' ou com ?bloom=0
+// (escape hatch p/ GPUs/extensões que derrubam a aba — suspeita do "jogo fechar sozinho")
+if (settings.quality !== 'low' && new URLSearchParams(location.search).get('bloom') !== '0') enableLightBloom(renderer);
 
 const textures = initTextures();
 const sfx = new Sfx(); sfx.vol = settings.vol;

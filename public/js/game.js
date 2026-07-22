@@ -4,7 +4,7 @@ import { MAPS, resolveMapId } from './maps.js';
 import { buildCharacter, poseCharacter, byId, CHARACTERS, buildRifle, charWeapon } from './characters.js';
 import { buildCharacterModel } from './glbchars.js';
 import { weaponModel, weaponCFG, ONE_HANDED, WEAPON_IDS, PISTOLS, gripPoints } from './weapons.js';
-import { buildFPArms, poseToWeapon, FP_FALLBACK } from './fparms.js';
+import { buildFPArms, poseToWeapon, FP_FALLBACK, FP_REAL_ARMS } from './fparms.js';
 import { GPUParticles } from './gpuparticles.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
@@ -390,7 +390,7 @@ export class Game {
     // Braços FP reais (FASE 1): o GLB do próprio personagem vira o corpo de 1ª pessoa e o
     // IK trava as mãos na arma. Chars com prop colado na mão/sem GLB → fallback procedural.
     let arms = null;
-    if (!FP_FALLBACK.has(this.playerCharId)) arms = buildFPArms({ id: this.playerCharId });
+    if (FP_REAL_ARMS && !FP_FALLBACK.has(this.playerCharId)) arms = buildFPArms({ id: this.playerCharId });
     if (arms) {
       root.add(arms.group);
       // Aproxima as armas pra distância de alcance real do braço (as posições antigas,
@@ -1419,6 +1419,9 @@ export class Game {
           // Per-bot lane preference: the team spreads across left/center/right instead of
           // every bot funnelling down the same corridor (persistent per bot).
           if (b.lanePref === undefined) b.lanePref = [-12, -5, 5, 12][(Math.random() * 4) | 0] + (Math.random() * 4 - 2);
+          // Semente de dispersão por bot (índice no time): sem ela, o "top 3" dos melhores
+          // nós fazia vários bots convergirem pros MESMOS pontos (usuário: "andam em bando").
+          if (b.roamSeed === undefined) b.roamSeed = this.bots.indexOf(b);
           const candidates = W.waypoints.nodes
             .map((n, i) => ({ n, i }))
             .filter(o => o.n.z * sign > 4 * sign && Math.abs(o.n.x) < 24);
@@ -1430,7 +1433,8 @@ export class Game {
               ? -Math.hypot(o.n.x - b.pos.x, o.n.z - b.pos.z) + Math.random() * 14
               : Math.abs(o.n.x - b.lanePref) + Math.random() * 7 }))
             .sort((a, b2) => a.d - b2.d);
-          const pick = ranked.length ? ranked[(Math.random() * Math.min(3, ranked.length)) | 0].o : { i: from };
+          const span = Math.min(6, ranked.length);
+          const pick = ranked.length ? ranked[(b.roamSeed * 2 + ((Math.random() * 2) | 0)) % span].o : { i: from };
           b.roamIdx = pick.i; b.roamUntil = this.time + 18;   // long enough to actually cross the map
         }
         b.path = W.findPath(from, b.roamIdx); b.pathIdx = 1;
