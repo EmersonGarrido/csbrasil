@@ -21,6 +21,10 @@ Documento de continuidade. Se esta for uma sessão nova, leia isto primeiro: aqu
 
 **FASE 3 (bots) — ✅ ENTREGUE**: a maioria já existia na branch (lanePref, exploração 40% far-node, anti-moonwalk c/ backpedal reverso, stuck-sidestep) — verificado c/ vídeos before/after (`/tmp/fase3/`, rotas se espalham em leque ✓). O que faltava, "olhar pra baixo", foi corrigido em **malha fechada**: `ctrl.aimPitch` (game.js, pitch pro alvo) → em `CharController.update` (glbchars.js) mede o pitch REAL do olhar (eixo +Z da cabeça em mundo) e gira o osso Head pela DIFERENÇA (clamp ±0.5 rad ≈ 28°, suavizado dt*6, só quando aimPitch definido = bots; seleção/FP intocados). Medido ao vivo: clipes assavam ~12-28° de tilt pra baixo; correção converge pra 0.202-0.5 conforme o char.
 
+**BUGS CAÇADOS 22/07 noite (21 screenshots do usuário)**:
+- **Cabeça dobrando até sumir (seleção/idle)**: causa raiz = `idle.glb` com TODOS os keyframes no tempo 0 (duração zero → `action.time=NaN` → mixer não escreve nenhum osso) + HEAD_UP open-loop acumulando ~2°/frame. Fix duplo: (1) `idle.glb` reparado (keyframes duplicados pra [0,1.766]; backup /tmp/idle-zeroed-backup.glb); (2) correção da cabeça agora é SEMPRE malha fechada (alvo = aimPitch ?? 0; o HEAD_UP fixo foi removido do glbchars.js). Verificado: cabeça estável t=4.5s+. Lição: validar duração dos clipes com `node trackcheck` (min/max dos tempos).
+- **Braços FP deformados (lençóis brancos, patas-camarão, rabo, gola)**: anatomias não-humanas não aguentam o IK. `FP_FALLBACK` agora inclui: doutora, influencer, senhora, sindicato (props fundidos), canarinho (ave), **gotinha (gota), et (alien), dollynho (garrafa), proerd (patas+rabo)** e **bozo (gola-gargantilha invade o quadro em qualquer ?fpy=)**. mst e humanoides normais mantêm braços reais IK. Verificado com screenshots por char.
+
 ## Branch e commits recentes (tudo verificado em jogo, 0 erros)
 
 Branch: `feat/evio-feel`. Commits desta sessão (mais novos primeiro):

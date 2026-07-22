@@ -34,10 +34,9 @@ const WALK_REF   = parseFloat(qp.get('wref')) || 0.79;
 const RUN_REF    = parseFloat(qp.get('rref')) || 1.92;
 const CROUCH_REF = parseFloat(qp.get('cref')) || 0.83;
 const FACING_OFFSET = (parseFloat(qp.get('charface')) || 0) * Math.PI / 180; // yaw fix if model faces -Z
-// The rifle-hold clips bake in a strong forward head tilt ("cabeça baixa"). Lift the
-// head slightly at runtime — arm/grip poses untouched. Tunable via ?headup=deg.
-const HEAD_UP = (parseFloat(qp.get('headup')) || 2) * Math.PI / 180;
 // FASE 3: clamp de segurança da correção de pitch da cabeça (malha fechada, ~28°).
+// (O antigo HEAD_UP fixo foi removido: ele acumulava rotação quando o mixer não
+// escrevia o osso — a correção agora é sempre em malha fechada, ver update().)
 const AIM_CORR_CLAMP = 0.5;
 
 // Rifle mounted in the right hand (bone-local meters via a scale-compensated mount).
@@ -339,30 +338,20 @@ class CharController {
       if (this.actions.crouchwalk) this.actions.crouchwalk.timeScale = rate(CROUCH_REF);
     }
     this.mixer.update(dt);
-    // Counter the baked-in forward head tilt of the hold clips ("cabeça baixa"): rotate
-    // the head bone up a touch around the character's right axis, after the mixer writes.
-    if (this.headBone && HEAD_UP && !this.dead) {
-      this.group.getWorldQuaternion(_gq);
-      _right.set(1, 0, 0).applyQuaternion(_gq);
-      _headUpQ.setFromAxisAngle(_right, -HEAD_UP);
-      this.headBone.getWorldQuaternion(_wq);
-      this.headBone.parent.getWorldQuaternion(_pq);
-      this.headBone.quaternion.copy(_pq.invert().multiply(_headUpQ).multiply(_wq));
-      this.headBone.updateWorldMatrix(false, true);
-    }
-    // Bots (FASE 3): mira a CABEÇA no alvo em pitch. Os clipes assam ~13° de olhar pra
-    // baixo e o HEAD_UP fixo não cobre — então aqui é malha fechada: mede o pitch real
-    // do olhar (eixo +Z local da cabeça em mundo) e gira o osso pela DIFERENÇA pro
-    // pitch desejado (this.aimPitch, já clampado pelo game; suavizado p/ não estalar).
-    // Só roda quando aimPitch é DEFINIDO (bots) — preview da tela de seleção e braços
-    // FP não setam, então o comportamento deles não muda.
-    if (this.headBone && this.aimPitch !== undefined && !this.dead) {
+    // Pitch da cabeça em MALHA FECHADA (substitui o HEAD_UP fixo, que ACUMULAVA rotação
+    // quando o mixer parava de escrever o osso — ex.: idle.glb com duração zero, que
+    // dobrava a cabeça do personagem na tela de seleção). Mede o pitch real do olhar
+    // (eixo +Z local da cabeça em mundo) e gira o osso pela DIFERENÇA pro alvo:
+    // aimPitch dos bots (FASE 3) ou 0 (nível) para preview/qualquer outro caso.
+    // Suavizado p/ não estalar, clampado, e não roda morto (o death clip manda na pose).
+    if (this.headBone && !this.dead) {
+      const target = this.aimPitch !== undefined ? this.aimPitch : 0;
       this.group.getWorldQuaternion(_gq);
       _right.set(1, 0, 0).applyQuaternion(_gq);
       this.headBone.getWorldQuaternion(_wq);
       _v.set(0, 0, 1).applyQuaternion(_wq);
       const curPitch = Math.asin(Math.max(-1, Math.min(1, _v.y)));
-      let corr = this.aimPitch - curPitch;
+      let corr = target - curPitch;
       corr = Math.max(-AIM_CORR_CLAMP, Math.min(AIM_CORR_CLAMP, corr));
       this._aimCorr = (this._aimCorr || 0) + (corr - (this._aimCorr || 0)) * Math.min(1, dt * 6);
       if (Math.abs(this._aimCorr) > 1e-4) {

@@ -14,8 +14,13 @@ import { getCharTemplate, getSharedClips, measurePalmLocal } from './glbchars.js
 import { gripPoints, ONE_HANDED } from './weapons.js';
 import { solveCCDIK } from './handik.js';
 
-// Chars cujo GLB tem prop colado na mão ou corpo não-humano → mãos procedurais.
-export const FP_FALLBACK = new Set(['doutora', 'influencer', 'senhora', 'sindicato', 'canarinho']);
+// Chars cujo GLB tem prop colado na mão (doutora/influencer/senhora/sindicato — malha
+// única "char1", props inseparáveis) ou corpo não-humano → mãos procedurais.
+// canarinho (ave, sem dedos), gotinha (gota), et (alien), dollynho (garrafa) e proerd
+// (patas curtas de leão + rabo invadindo o quadro) deformam sob IK. bozo: a gola-gargantilha
+// e as luvas gigantes invadem o quadro em qualquer altura do corpo (medido ?fpy=).
+export const FP_FALLBACK = new Set(['doutora', 'influencer', 'senhora', 'sindicato',
+  'canarinho', 'gotinha', 'et', 'dollynho', 'proerd', 'bozo']);
 
 const qp = new URLSearchParams(location.search);
 const _n3 = (s, d) => { const p = (s || '').split(',').map(Number); return p.length === 3 && p.every((n) => !isNaN(n)) ? p : d; };
