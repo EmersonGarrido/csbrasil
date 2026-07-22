@@ -193,8 +193,13 @@ export function buildBrasilia(scene, T) {
   // Barraquinhas de camelô (vendor stalls)
   putBuilding('stall', { x: -13, z: -8, targetH: 2.7, ry: Math.PI / 2 });
   putBuilding('stall', { x: 13, z: 8, targetH: 2.7, ry: -Math.PI / 2 });
+  // +2 barraquinhas no lado bolsonarista, mais pro meio da praça (pedido do usuário)
+  putBuilding('stall', { x: -10, z: -23, targetH: 2.7, ry: Math.PI / 2 });
+  putBuilding('stall', { x: 9, z: -21, targetH: 2.7, ry: -Math.PI / 2 });
   // Mini-acampamento de barracas (protest camp) junto aos ministérios oeste
-  for (const [tx, tz, ry] of [[-15, -30, 0.2], [-17, -35, 1.1], [-13, -36, -0.5], [16, 33, 0.6]])
+  // (+2 barracas avançadas em direção ao centro: cobertura extra saindo do spawn B)
+  for (const [tx, tz, ry] of [[-15, -30, 0.2], [-17, -35, 1.1], [-13, -36, -0.5], [16, 33, 0.6],
+    [-6, -27, 0.9], [7, -25, -0.4]])
     putBuilding('tent', { x: tx, z: tz, targetH: 1.7, ry });
   // a few Correios/SEDEX parcels still around for variety (Brazilian postal boxes)
   const crateMats = [lam({ map: T.crate }), lam({ map: T.crate2 || T.crate })];
@@ -204,6 +209,14 @@ export function buildBrasilia(scene, T) {
   /* ---------------- ônibus quebrado do DF (Mint GLB — cover grande, CENTRAL) ---------------- */
   // "Amarelinho" gerado no Mint, atravessado no meio da Esplanada (quebrado, encostado).
   putBuilding('bus', { x: 2.5, z: -4, targetH: 3.1, ry: 0.55 });
+
+  /* ---------------- urna eletrônica (Sketchfab — monumento no MEIO do mapa) ---------------- */
+  // Urna no centro da praça (pedido do usuário): cover baixo entre o ônibus e as barracas.
+  putBuilding('urna', { x: 0, z: 0, targetH: 1.2, ry: -0.4 });
+
+  /* ---------------- Towner do hotdog (Sketchfab — carrinho de hotdog) ---------------- */
+  // Asia Towner/Daihatsu Hijet virou o carrinho de hotdog da praça, no lado bolsonarista.
+  putBuilding('towner', { x: 12, z: -15, targetH: 2.0, ry: -0.9 });
 
   /* ---------------- barraquinha de bebida (Mint GLB — mini-bar c/ guarda-sol) -------------- */
   // Drink stand com cadeiras de plástico e guarda-sol grande, junto às barraquinhas.
