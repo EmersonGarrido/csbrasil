@@ -104,7 +104,7 @@ export class Game {
       weapon: startWeapon, scoped: false, reloadUntil: 0, nextShotAt: 0, drawUntil: 0,
       primary: startWeapon, secondary: 'pistol',
       ammo: Object.fromEntries(Object.keys(WEAPONS).filter(w => w !== 'knife').map(w => [w, { mag: WEAPONS[w].mag, res: WEAPONS[w].reserve }])),
-      kills: 0, deaths: 0, headshots: 0, grounded: true, stepPhase: 0, revealedAt: -99, protUntil: 0,
+      kills: 0, deaths: 0, headshots: 0, grounded: true, stepPhase: 0, revealedAt: -99, protUntil: 0, smokes: 5,
     };
     this.combatants.push(this.player);
 
@@ -183,6 +183,11 @@ export class Game {
     this._casingGeo = new THREE.CylinderGeometry(0.011, 0.011, 0.034, 6);
     this._casingMat = new THREE.MeshStandardMaterial({ color: 0xd9a441, metalness: 0.85, roughness: 0.4 });
     this._casings = []; this._casingPool = [];
+    // granada de fumaça: projétil (mesh) + nuvem de sprites billboard que bloqueia a visão dos bots
+    this._grenades = []; this._smokes = [];
+    this._grenGeo = new THREE.SphereGeometry(0.06, 8, 6);
+    this._grenMat = new THREE.MeshStandardMaterial({ color: 0x38472c, metalness: 0.2, roughness: 0.8 });
+    this._smokeTex = this._makeSmokeTex();
     this.ray = new THREE.Raycaster();
 
     // ---- round state ----
@@ -212,7 +217,7 @@ export class Game {
       hud: $('hud'), crosshair: $('crosshair'), hitmarker: $('hitmarker'),
       scope: $('scope-overlay'), vignette: $('damage-vignette'), dmgDir: $('dmg-dir'),
       hpFill: $('hp-fill'), hpNum: $('hp-num'), weaponName: $('weapon-name'),
-      ammoMag: $('ammo-mag'), ammoRes: $('ammo-reserve'), reloadNote: $('reload-note'),
+      ammoMag: $('ammo-mag'), ammoRes: $('ammo-reserve'), reloadNote: $('reload-note'), smokeCount: $('smoke-count'),
       roundTime: $('round-time'), roundsP: $('rounds-p'), roundsB: $('rounds-b'),
       scoreP: $('score-p'), scoreB: $('score-b'), killfeed: $('killfeed'),
       banner: $('round-banner'), bannerTitle: $('banner-title'), bannerSub: $('banner-sub'),
@@ -480,6 +485,7 @@ export class Game {
       }
       if (e.code === 'KeyM') { if (this.onRequestSwitch) this.onRequestSwitch(); else this._switchTeam(); }
       if (e.code === 'KeyR') this._startReload();
+      if (e.code === 'KeyG') this._throwSmoke();
       if (e.code === 'Space') e.preventDefault();
     };
     this._ku = e => {
@@ -596,6 +602,7 @@ export class Game {
     this.player.pitch = 0; this.player.vel.set(0, 0, 0); this.player.crouchF = 0;
     this.player.ammo.awp = { mag: WEAPONS.awp.mag, res: WEAPONS.awp.reserve };
     this.player.ammo.pistol = { mag: WEAPONS.pistol.mag, res: WEAPONS.pistol.reserve };
+    this.player.smokes = 5; this._updateSmokeHud();   // 5 granadas de fumaça por round
     // modo de armas: aplica o loadout inicial. No modo 'all', o player entra com a arma do
     // personagem dele (a mesma da tela de seleção) em vez da AWP padrão.
     const mode = this.settings.wpnMode || 'all';
@@ -1104,6 +1111,65 @@ export class Game {
     this.scene.add(c.m); this._casings.push(c);
   }
 
+  _makeSmokeTex() {
+    const c = document.createElement('canvas'); c.width = c.height = 128; const x = c.getContext('2d');
+    const g = x.createRadialGradient(64, 64, 4, 64, 64, 64);
+    g.addColorStop(0, 'rgba(255,255,255,0.95)'); g.addColorStop(0.5, 'rgba(220,222,226,0.6)'); g.addColorStop(1, 'rgba(210,212,216,0)');
+    x.fillStyle = g; x.beginPath(); x.arc(64, 64, 64, 0, 6.29); x.fill();
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+  }
+
+  _updateSmokeHud() { if (this.el && this.el.smokeCount) this.el.smokeCount.textContent = '💨 ' + (this.player.smokes | 0); }
+
+  _throwSmoke() {
+    const p = this.player;
+    if (!p.alive || (p.smokes | 0) <= 0 || this.time < (p._nextSmoke || 0)) return;
+    p.smokes--; p._nextSmoke = this.time + 0.6; this._updateSmokeHud();
+    const dir = new THREE.Vector3(); this.camera.getWorldDirection(dir);
+    const mesh = new THREE.Mesh(this._grenGeo, this._grenMat);
+    mesh.position.copy(this.camera.position).addScaledVector(dir, 0.5);
+    this.scene.add(mesh);
+    this._grenades.push({ mesh, v: dir.multiplyScalar(15).add(new THREE.Vector3(0, 3.5, 0)), fuse: 2.2 });
+  }
+
+  _popSmoke(pos) {
+    const R = 2.6;
+    const group = new THREE.Group();
+    group.position.set(pos.x, Math.max(0.5, pos.y), pos.z);
+    const sprites = [];
+    for (let i = 0; i < 18; i++) {
+      const mat = new THREE.SpriteMaterial({ map: this._smokeTex, color: 0xcfd2d6, transparent: true, opacity: 0, depthWrite: false });
+      const sp = new THREE.Sprite(mat);
+      const a = Math.random() * 6.28, r = Math.random() * R, h = (Math.random() - 0.2) * R;
+      sp.position.set(Math.cos(a) * r, h, Math.sin(a) * r);
+      sp.scale.setScalar(3 + Math.random() * 2.2);
+      sp.userData = { baseOp: 0.7 + Math.random() * 0.3 };
+      group.add(sp); sprites.push(sp);
+    }
+    this.scene.add(group);
+    this._smokes.push({ center: group.position.clone(), radius: R + 1.4, born: this.time, dur: 13, group, sprites, _opaque: false });
+  }
+
+  _updateGrenades(dt) {
+    for (let i = this._grenades.length - 1; i >= 0; i--) {
+      const g = this._grenades[i];
+      g.fuse -= dt; g.v.y -= 12 * dt;
+      g.mesh.position.addScaledVector(g.v, dt);
+      if (g.mesh.position.y < 0.1) { g.mesh.position.y = 0.1; g.v.y = Math.abs(g.v.y) * 0.4; g.v.x *= 0.6; g.v.z *= 0.6; }
+      if (g.fuse <= 0) { this._popSmoke(g.mesh.position.clone()); this.scene.remove(g.mesh); this._grenades.splice(i, 1); }
+    }
+    for (let i = this._smokes.length - 1; i >= 0; i--) {
+      const s = this._smokes[i], age = this.time - s.born;
+      if (age >= s.dur) { this.scene.remove(s.group); this._smokes.splice(i, 1); continue; }
+      const grow = Math.min(1, age / 0.8);
+      let op = grow;
+      if (age > s.dur - 2.5) op = Math.max(0, (s.dur - age) / 2.5);
+      s.group.scale.setScalar(0.5 + 0.5 * grow);
+      for (const sp of s.sprites) sp.material.opacity = op * sp.userData.baseOp;
+      s._opaque = op > 0.45;
+    }
+  }
+
   /* ================= player physics ================= */
   _collide(pos, r) {
     for (const c of this.world.colliders) {
@@ -1360,7 +1426,15 @@ export class Game {
     const dir = to.clone().sub(from), dist = dir.length();
     if (dist < 0.5) return true;
     this.ray.set(from, dir.normalize()); this.ray.far = dist - 0.3;
-    return this.ray.intersectObjects(this.world.occluders, false).length === 0;
+    if (this.ray.intersectObjects(this.world.occluders, false).length > 0) return false;
+    // fumaça bloqueia a visão dos bots: se o segmento cruza uma nuvem opaca, sem linha de visão.
+    for (const s of this._smokes) {
+      if (!s._opaque) continue;
+      const ab = to.clone().sub(from);
+      const t = Math.max(0, Math.min(1, s.center.clone().sub(from).dot(ab) / (ab.lengthSq() || 1)));
+      if (from.clone().addScaledVector(ab, t).distanceToSquared(s.center) <= s.radius * s.radius) return false;
+    }
+    return true;
   }
   _botEye(b) { return new THREE.Vector3(b.pos.x, b.pos.y + BOT_EYE, b.pos.z); }
   _enemyOf(bot) { return this.combatants.filter(c => c.team !== bot.team && c.alive); }
@@ -1676,6 +1750,7 @@ export class Game {
     for (const b of this.bots) this._updateBot(b, dt);
     this._updatePickups();
     this._updateFx(dt);
+    this._updateGrenades(dt);
     this._updateHud();
     this._updateRadar();
     // hint de pointer lock: visível só quando o jogo está ativo mas sem lock
