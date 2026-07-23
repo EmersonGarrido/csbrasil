@@ -188,6 +188,11 @@ export class Game {
     this._grenGeo = new THREE.SphereGeometry(0.06, 8, 6);
     this._grenMat = new THREE.MeshStandardMaterial({ color: 0x38472c, metalness: 0.2, roughness: 0.8 });
     this._smokeTex = this._makeSmokeTex();
+    // modo Capture the Flag (?ctf=1): 3 pontos (2 spawns + meio); time vence o round segurando
+    // os 3 ao mesmo tempo. Rounds SEM FIM (sem _endMatch). Captura = ~3s na zona sem inimigo.
+    this.ctf = new URLSearchParams(location.search).get('ctf') === '1';
+    this.ctfPts = [];
+    this._ctfRingGeo = new THREE.TorusGeometry(1, 0.14, 6, 40);
     this.ray = new THREE.Raycaster();
 
     // ---- round state ----
@@ -219,7 +224,7 @@ export class Game {
       hpFill: $('hp-fill'), hpNum: $('hp-num'), weaponName: $('weapon-name'),
       ammoMag: $('ammo-mag'), ammoRes: $('ammo-reserve'), reloadNote: $('reload-note'), smokeCount: $('smoke-count'),
       roundTime: $('round-time'), roundsP: $('rounds-p'), roundsB: $('rounds-b'),
-      scoreP: $('score-p'), scoreB: $('score-b'), killfeed: $('killfeed'),
+      scoreP: $('score-p'), scoreB: $('score-b'), killfeed: $('killfeed'), ctfHud: $('ctf-hud'),
       banner: $('round-banner'), bannerTitle: $('banner-title'), bannerSub: $('banner-sub'),
       respawn: $('respawn-overlay'), respawnCount: $('respawn-count'),
       prot: $('prot-badge'), protCount: $('prot-count'),
@@ -584,6 +589,7 @@ export class Game {
     this.timeLeft = ROUND_TIME;
     this.mk.life = 0; this.mk.count = 0;
     this._resetPositions();
+    if (this.ctf) this._initCTF();
     this.state = 'countdown';
     this.stateUntil = this.time + 3;
     this._showScoreboard(false);
@@ -1170,6 +1176,69 @@ export class Game {
     }
   }
 
+  // ---------------- Capture the Flag (?ctf=1) ----------------
+  _initCTF() {
+    for (const p of this.ctfPts) if (p.ring) this.scene.remove(p.ring);
+    const sP = this.world.spawns.P[0], sB = this.world.spawns.B[0];
+    const mk = (id, label, x, z) => {
+      const ring = new THREE.Mesh(this._ctfRingGeo, new THREE.MeshBasicMaterial({ color: 0x999999, transparent: true, opacity: 0.6, depthWrite: false }));
+      ring.position.set(x, 0.12, z); ring.rotation.x = Math.PI / 2; ring.scale.setScalar(4.5);
+      this.scene.add(ring);
+      return { id, label, x, z, r: 4.5, owner: null, prog: 0, ring };
+    };
+    // 2 spawns + meio (ônibus). Puxados ~18% pra dentro pra ficarem jogáveis, não no fundo.
+    this.ctfPts = [
+      mk('P', 'CONGRESSO', sP.x * 0.82, sP.z * 0.82),
+      mk('MID', 'MEIO', 0, 0),
+      mk('B', 'CATEDRAL', sB.x * 0.82, sB.z * 0.82),
+    ];
+    this._updateCtfHud();
+  }
+
+  _updateCTF(dt) {
+    const CAP = 3;   // segundos pra capturar
+    for (const pt of this.ctfPts) {
+      let np = 0, nb = 0;
+      for (const c of this.combatants) {
+        if (!c.alive) continue;
+        const dx = c.pos.x - pt.x, dz = c.pos.z - pt.z;
+        if (dx * dx + dz * dz <= pt.r * pt.r) { if (c.team === 'P') np++; else nb++; }
+      }
+      const solo = np > 0 && nb === 0 ? 'P' : (nb > 0 && np === 0 ? 'B' : null);
+      if (solo && solo !== pt.owner) {
+        pt.prog += dt / CAP;
+        if (pt.prog >= 1) { pt.owner = solo; pt.prog = 0; this._updateCtfHud(); }
+      } else if (!solo) {
+        pt.prog = Math.max(0, pt.prog - dt / CAP);
+      }
+      pt.ring.material.color.setHex(pt.owner === 'P' ? 0xff5555 : pt.owner === 'B' ? 0x55dd66 : 0x999999);
+      pt.ring.material.opacity = 0.5 + 0.45 * (pt.prog || (pt.owner ? 1 : 0));
+    }
+    const owners = this.ctfPts.map(p => p.owner);
+    if (owners.length === 3 && owners.every(o => o === 'P')) this._ctfWin('P');
+    else if (owners.length === 3 && owners.every(o => o === 'B')) this._ctfWin('B');
+  }
+
+  _ctfWin(team) {
+    this.roundsWon[team] = (this.roundsWon[team] || 0) + 1;
+    this.state = 'roundEnd'; this.stateUntil = this.time + 4;
+    this.player.scoped = false; this.el.scope.classList.remove('on');
+    this.radioOpen = null; this._radioUi();
+    this._showScoreboard(true); this._ensureDolly();
+    const mine = team === this.playerTeam;
+    this._banner(`${TEAM_LABEL[team]} DOMINARAM OS 3 PODERES`, mine ? '— capturou tudo! 🏆' : '— corre pra retomar!');
+    if (!this.sfx.roundSound(team)) mine ? this.sfx.roundWin() : this.sfx.roundLose();
+  }
+
+  _updateCtfHud() {
+    if (!this.el.ctfHud) return;
+    this.el.ctfHud.classList.remove('hidden');
+    this.el.ctfHud.innerHTML = this.ctfPts.map(p => {
+      const col = p.owner === 'P' ? '#ff6b6b' : p.owner === 'B' ? '#7be08a' : '#bbb';
+      return `<span style="color:${col}">● ${p.label}</span>`;
+    }).join('<span style="opacity:.4"> · </span>');
+  }
+
   /* ================= player physics ================= */
   _collide(pos, r) {
     for (const c of this.world.colliders) {
@@ -1744,11 +1813,11 @@ export class Game {
       this.state = 'live';
       this._banner('VALENDO!', 'A treta está liberada');
     } else if (this.state === 'live') {
-      this.timeLeft -= dt;
-      if (this.timeLeft <= 0) this._endRound();
+      if (this.ctf) this._updateCTF(dt);
+      else { this.timeLeft -= dt; if (this.timeLeft <= 0) this._endRound(); }
     } else if (this.state === 'roundEnd' && this.time >= this.stateUntil) {
-      if (this.roundsWon.P >= ROUNDS_TO_WIN || this.roundsWon.B >= ROUNDS_TO_WIN) this._endMatch();
-      else this._startRound();
+      if (!this.ctf && (this.roundsWon.P >= ROUNDS_TO_WIN || this.roundsWon.B >= ROUNDS_TO_WIN)) this._endMatch();
+      else this._startRound();   // CTF: sempre recomeça (endless)
     }
     this._updatePlayer(dt);
     for (const b of this.bots) this._updateBot(b, dt);
