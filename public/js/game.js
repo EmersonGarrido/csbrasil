@@ -179,6 +179,10 @@ export class Game {
     this._tracerGeo = new THREE.CylinderGeometry(0.022, 0.022, 1, 6, 1, true);   // mais grosso: "bala voando" visível
     this._tracerMat = new THREE.MeshBasicMaterial({ color: 0xffe9a0, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false });
     this._tracerPool = [];
+    // cápsulas (brass) ejetadas a cada tiro — geo/mat compartilhados, pool reusado
+    this._casingGeo = new THREE.CylinderGeometry(0.011, 0.011, 0.034, 6);
+    this._casingMat = new THREE.MeshStandardMaterial({ color: 0xd9a441, metalness: 0.85, roughness: 0.4 });
+    this._casings = []; this._casingPool = [];
     this.ray = new THREE.Raycaster();
 
     // ---- round state ----
@@ -391,7 +395,9 @@ export class Game {
     // dedos de verdade) p/ TODOS os personagens, por padrão. Só cai nas mãos
     // procedurais (fpArm/frontHand acima) se o GLB não carregou — ou via ?fpoff=1.
     let arms = null;
-    if (!FP_OFF) arms = buildFPArms({ id: this.playerCharId });
+    // Viewmodel SÓ-ARMA por padrão (decisão v2: sem mãos FP). ?hands=1 traz os braços (A/B).
+    const WEAPON_ONLY = new URLSearchParams(location.search).get('hands') !== '1';
+    if (!FP_OFF && !WEAPON_ONLY) arms = buildFPArms({ id: this.playerCharId });
     if (arms) {
       root.add(arms.group);
       // Aproxima as armas pra distância de alcance real do braço (as posições antigas,
@@ -409,6 +415,8 @@ export class Game {
         if (k !== 'knife') g.rotation.set(0, 0.03, 0);   // faca mantém a rotação própria
       }
     }
+    // SÓ-ARMA: esconde as mãos procedurais (handR/handL) presas a cada modelo de arma.
+    if (WEAPON_ONLY) for (const k in models) models[k].traverse((o) => { if (o.name === 'handR' || o.name === 'handL') o.visible = false; });
     const vmObj = { root, models, awp, pistol, knife, arms, kick: 0, bobPhase: 0, reloadDip: 0 };
     // ?tvm=1 (prova): viewmodel Tripo mão+arma por personagem em models/fpvm/<char>_<arma>.glb.
     // Vira filho do vm.root → herda sway/kick/reload de graça. Framing afinável por querystring
@@ -894,6 +902,7 @@ export class Game {
     // not a permanent pitch climb)
     p.recoilP = (p.recoilP || 0) + w.recoil * (1 - 0.25 * p.crouchF); this.vm.kick = 1;
     this._flash(this.camera.localToWorld(new THREE.Vector3(0.26, -0.2, -1.1)));
+    this._ejectCasing();
     // bolt-action snipers drop the scope after each shot (CS-style); autos stay aimed
     if (p.scoped && (p.weapon === 'awp' || p.weapon === 'mosin' || p.weapon === 'rem700')) this._scope(false, true);
   }
@@ -1062,11 +1071,37 @@ export class Game {
   _updateFx(dt) {
     for (let i = this.tracers.length - 1; i >= 0; i--) {
       const t = this.tracers[i];
-      t.ttl -= dt; t.m.material.opacity = Math.max(0, t.ttl / 0.09);
+      t.ttl -= dt; t.m.material.opacity = Math.max(0, t.ttl / 0.13);
       if (t.ttl <= 0) { this.scene.remove(t.m); this._tracerPool.push(t); this.tracers.splice(i, 1); }
+    }
+    // cápsulas: gravidade + quica no chão + gira; encolhe e some no fim.
+    const groundY = this.camera.position.y - 1.55;
+    for (let i = this._casings.length - 1; i >= 0; i--) {
+      const c = this._casings[i];
+      c.ttl -= dt; c.v.y -= 9.8 * dt;
+      c.m.position.addScaledVector(c.v, dt);
+      if (c.m.position.y < groundY) { c.m.position.y = groundY; c.v.y = Math.abs(c.v.y) * 0.35; c.v.x *= 0.6; c.v.z *= 0.6; c.av.multiplyScalar(0.5); }
+      c.m.rotation.x += c.av.x * dt; c.m.rotation.y += c.av.y * dt; c.m.rotation.z += c.av.z * dt;
+      if (c.ttl < 0.3) c.m.scale.setScalar(Math.max(0.02, c.ttl / 0.3));
+      if (c.ttl <= 0) { this.scene.remove(c.m); c.m.scale.setScalar(1); this._casingPool.push(c); this._casings.splice(i, 1); }
     }
     this.flashFx.update(dt);
     this.puffFx.update(dt);
+  }
+
+  _ejectCasing() {
+    if (this.player.weapon === 'knife') return;
+    const c = this._casingPool.pop() || { m: new THREE.Mesh(this._casingGeo, this._casingMat), v: new THREE.Vector3(), av: new THREE.Vector3(), ttl: 0 };
+    c.m.position.copy(this.camera.localToWorld(new THREE.Vector3(0.28, -0.14, -0.7)));
+    const q = this.camera.quaternion;
+    const right = new THREE.Vector3(1, 0, 0).applyQuaternion(q);
+    const up = new THREE.Vector3(0, 1, 0).applyQuaternion(q);
+    const back = new THREE.Vector3(0, 0, 1).applyQuaternion(q);
+    c.v.copy(right).multiplyScalar(2.2 + Math.random() * 0.9).addScaledVector(up, 1.7 + Math.random() * 0.6).addScaledVector(back, 0.5 + Math.random() * 0.4);
+    c.av.set((Math.random() - 0.5) * 24, (Math.random() - 0.5) * 24, (Math.random() - 0.5) * 24);
+    c.m.rotation.set(Math.random() * 6, Math.random() * 6, Math.random() * 6);
+    c.m.scale.setScalar(1); c.ttl = 1.6;
+    this.scene.add(c.m); this._casings.push(c);
   }
 
   /* ================= player physics ================= */
