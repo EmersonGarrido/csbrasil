@@ -1779,26 +1779,28 @@ export class Game {
           const sP = this.world.spawns.P[0], sB = this.world.spawns.B[0];
           const enemyDir = sB && sP ? Math.sign(sB.z - sP.z) || 1 : 1;
           const sign = b.team === 'P' ? enemyDir : -enemyDir;
-          // Per-bot lane preference: the team spreads across left/center/right instead of
-          // every bot funnelling down the same corridor (persistent per bot).
-          if (b.lanePref === undefined) b.lanePref = [-12, -5, 5, 12][(Math.random() * 4) | 0] + (Math.random() * 4 - 2);
-          // Semente de dispersão por bot (índice no time): sem ela, o "top 3" dos melhores
-          // nós fazia vários bots convergirem pros MESMOS pontos (usuário: "andam em bando").
-          if (b.roamSeed === undefined) b.roamSeed = this.bots.indexOf(b);
-          const candidates = W.waypoints.nodes
-            .map((n, i) => ({ n, i }))
-            .filter(o => o.n.z * sign > 4 * sign && Math.abs(o.n.x) < 24);
-          // 40% of the time pick a FAR node (explore the whole enemy half); otherwise
-          // rank by closeness to the bot's lane (plus jitter) and pick among the best few
-          const far = Math.random() < 0.4;
-          const ranked = candidates
-            .map(o => ({ o, d: far
-              ? -Math.hypot(o.n.x - b.pos.x, o.n.z - b.pos.z) + Math.random() * 14
-              : Math.abs(o.n.x - b.lanePref) + Math.random() * 7 }))
-            .sort((a, b2) => a.d - b2.d);
-          const span = Math.min(6, ranked.length);
-          const pick = ranked.length ? ranked[(b.roamSeed * 2 + ((Math.random() * 2) | 0)) % span].o : { i: from };
-          b.roamIdx = pick.i; b.roamUntil = this.time + 18;   // long enough to actually cross the map
+          // Lane DETERMINÍSTICA por ordinal no time: o ônibus central + a cobertura à
+          // esquerda funilavam TODOS pra esquerda (medido: L61/C35/R3) mesmo com alvo à
+          // direita. Agora cada bot recebe uma coluna x fixa e espalhada por toda a largura,
+          // e o alvo é o nó da metade inimiga mais perto de (laneX, z-profundo) — força a
+          // ocupar esquerda/centro/direita e evita o "andam em bando".
+          if (b.laneX === undefined) {
+            const mates = this.bots.filter(o => o.team === b.team);
+            const ord = mates.indexOf(b), n = Math.max(1, mates.length);
+            b.laneX = -18 + 36 * (n === 1 ? 0.5 : ord / (n - 1)) + (Math.random() * 4 - 2);
+            b.roamSeed = this.bots.indexOf(b);
+          }
+          // z-alvo: fundo da metade inimiga, alternando profundidade por bot pra não empilhar
+          const deepZ = sign * (30 + (b.roamSeed % 3) * 14);
+          let best = -1, bd = 1e9;
+          const nodes = W.waypoints.nodes;
+          for (let i = 0; i < nodes.length; i++) {
+            const n = nodes[i];
+            if (n.z * sign <= 4 * sign) continue;            // só metade inimiga
+            const d = Math.abs(n.x - b.laneX) * 2.2 + Math.abs(n.z - deepZ) + Math.random() * 4;
+            if (d < bd) { bd = d; best = i; }
+          }
+          b.roamIdx = best >= 0 ? best : from; b.roamUntil = this.time + 12;
         }
         b.path = W.findPath(from, b.roamIdx); b.pathIdx = 1;
       }

@@ -206,11 +206,13 @@ export function buildBrasilia(scene, T) {
   // "Amarelinho" gerado no Mint, atravessado no meio da Esplanada (quebrado, encostado).
   putBuilding('bus', { x: 2.5, z: -4, targetH: 3.1, ry: 0.55 });
   // ônibus: caixa-occluder invisível — o GLB é Group e o raycast de bala é NÃO-recursivo,
-  // então a bala atravessava. Esta box bloqueia bala/visão no ponto CENTRAL do CTF.
+  // então a bala atravessava. Dimensões CASADAS ao mesh real (medido: 9.26 × 3.1 × 4.48):
+  // a box antiga (9 × 3.2 × 3) era 1.5m estreita (tiros passavam na lateral) e 0.1m alta
+  // demais (teto invisível ACIMA do real → "tiros num layer acima").
   {
-    const bx = new THREE.Mesh(new THREE.BoxGeometry(9, 3.2, 3), new THREE.MeshBasicMaterial({ visible: false }));
-    bx.position.set(2.5, 1.6, -4); bx.rotation.y = 0.55; root.add(bx); occluders.push(bx);
-    col(2.5 - 4.3, 2.5 + 4.3, 0, 3.2, -4 - 2.4, -4 + 2.4);
+    const bx = new THREE.Mesh(new THREE.BoxGeometry(9.3, 3.1, 4.5), new THREE.MeshBasicMaterial({ visible: false }));
+    bx.position.set(2.5, 3.1 / 2, -4); bx.rotation.y = 0.55; root.add(bx); occluders.push(bx);
+    col(2.5 - 4.5, 2.5 + 4.5, 0, 3.1, -4 - 2.6, -4 + 2.6);
   }
 
   /* ---------------- urna eletrônica (Sketchfab — monumento no MEIO do mapa) ---------------- */
@@ -243,10 +245,13 @@ export function buildBrasilia(scene, T) {
     col(bx - ex, bx + ex, 0, 1.6, bz - ez, bz + ez);
   }
 
-  // concrete planters with greenery
+  // concrete planters with greenery. A grama do topo ERA {collide:false} (só visual): o muro
+  // parecia ~1.4m de cobertura mas só bloqueava 0.9m (a base), então agachado (olho ~1m) a
+  // cabeça ficava exposta e tomava tiro "atrás do muro". Agora o topo também bloqueia
+  // bala/visão → a cobertura visível = a cobertura real (agachado protege).
   for (const [px, pz] of [[-9, 8], [9, -8], [0, -20], [0, 16]]) {
     addBox(3.4, 0.9, 1.3, lam({ color: 0xd9dbd4 }), px, 0, pz);
-    addBox(3, 0.5, 0.9, lam({ map: T.grass }), px, 0.9, pz, { collide: false });
+    addBox(3, 0.5, 0.9, lam({ map: T.grass }), px, 0.9, pz);
   }
 
   /* ---------------- lighting & sky ---------------- */
