@@ -97,26 +97,42 @@ export class Sfx {
     o.start(t); o.stop(t + dur + 0.05);
   }
 
-  // tiro por arma: pack "weapons" por id, senão fallback por classe
+  // Punch procedural por CLASSE de arma: um corpo filtrado + sub-thump grave layerado SOB o
+  // sample .wav. Os wav do CS 1.6 são finos/baixos; o punch dá peso ("boom") sem descaracterizar.
+  _punch(cls) {
+    this.ensure(); if (!this.ctx) return;
+    const P = {
+      sniper: [.34, .8, 620, 105], rifle: [.13, .55, 1250, 150], shotgun: [.24, .9, 440, 92],
+      smg: [.09, .42, 1750, 195], pistol: [.11, .5, 1450, 200], lmg: [.16, .6, 900, 128],
+    }[cls] || [.12, .45, 1400, 165];
+    const [dur, peak, filt, f0] = P;
+    this._burst(dur, peak * 0.5, filt);            // corpo filtrado (encorpa)
+    this._beep('sine', f0, f0 * 0.4, dur * 1.4, peak);  // sub-thump grave (soco no peito)
+  }
+  // tiro por arma: pack "weapons" por id, senão sample CS + punch procedural por classe.
   shotWeapon(w) {
     const f = this._pick(this.pack?.weapons?.[w]);
     if (f) { this._sample(f); return; }
-    // Sons reais estilo CS (audio/weapons/*.wav): cada arma no seu som; snipers com sniper de
-    // verdade. Se o arquivo faltar, _sample falha silencioso e cai no procedural abaixo.
-    // (Os .wav são do CS/Valve — trocar por CC0/licenciado antes do launch público.)
+    // Sample estilo CS (audio/weapons/*.wav) + volumes reforçados. Snipers de FERROLHO
+    // (mosin/rem700) usam o scout (bolt) em vez do som da AWP — antes os 3 soavam iguais.
+    // (Os .wav são do CS/Valve — trocar por CC0 antes do launch público.)
     const CS = {
-      awp: ['awp1', 0.35], mosin: ['awp1', 0.4], rem700: ['awp1', 0.4], m400: ['sg550-1', 0.5],
-      ak: 'ak47-2', akm: 'ak47-2', m92: 'ak47-2', m4: 'm4a1-1', carbine: 'galil-2', g3: 'g3sg1-1',
-      scar: 'sg552-1', tavor: 'aug-1', famas: 'famas-2', mp5: 'mp5-2', uzi: 'mac10-1', p90: 'p90-1',
-      lmg: 'm249-2', shotgun: 'm3-1', md97: 'xm1014-1', deagle: 'deagle-1', pistol: 'glock18-1',
-      revolver38: 'deagle-2',
+      awp: ['awp1', 0.75], mosin: ['scout_fire-1', 0.9], rem700: ['scout_fire-1', 0.85], m400: ['sg550-1', 0.75],
+      ak: ['ak47-2', 1.0], akm: ['ak47-2', 1.0], m92: ['ak47-2', 0.95], m4: ['m4a1-1', 1.0],
+      carbine: ['galil-2', 0.95], g3: ['g3sg1-1', 0.9], scar: ['sg552-1', 0.95], tavor: ['aug-1', 0.95],
+      famas: ['famas-2', 0.9], mp5: ['mp5-2', 0.95], uzi: ['mac10-1', 0.95], p90: ['p90-1', 0.95],
+      lmg: ['m249-2', 1.0], shotgun: ['m3-1', 1.0], md97: ['xm1014-1', 1.0], deagle: ['deagle-1', 1.0],
+      pistol: ['glock18-1', 0.95], revolver38: ['deagle-2', 0.95],
     };
-    const hit = CS[w];
-    if (hit) { const [n, v] = Array.isArray(hit) ? hit : [hit, 0.9]; this._sample('audio/weapons/' + n + '.wav', v); return; }
-    if (w === 'awp') return this.shotAwp();
-    if (w === 'pistol' || w === 'deagle') return this.shotPistol();
+    const CLS = {
+      awp: 'sniper', mosin: 'sniper', rem700: 'sniper', m400: 'sniper', shotgun: 'shotgun', md97: 'shotgun',
+      mp5: 'smg', uzi: 'smg', p90: 'smg', lmg: 'lmg', pistol: 'pistol', deagle: 'pistol', revolver38: 'pistol',
+    };
     if (w === 'knife') return this.knife();
-    this._burst(.14, .5, 1600); this._beep('sine', 160, 60, .13, .25);   // fallback procedural
+    const cls = CLS[w] || 'rifle';
+    const hit = CS[w];
+    if (hit) { this._sample('audio/weapons/' + hit[0] + '.wav', hit[1]); this._punch(cls); return; }
+    this._punch(cls);   // sem sample: punch procedural por classe já é o tiro
   }
 
   uiClick()   { this.ensure(); this._beep('square', 880, 660, .06, .12); }
