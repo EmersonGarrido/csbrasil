@@ -176,7 +176,7 @@ export class Game {
     this.flashFx = new GPUParticles(this.scene, this.camera, { tex: this.flashTex, additive: true });
     this.puffFx = new GPUParticles(this.scene, this.camera, { tex: this.puffTex, additive: false });
     // tracer mesh pool (shared unit geometry + material; reused, never disposed per shot)
-    this._tracerGeo = new THREE.CylinderGeometry(0.014, 0.014, 1, 5, 1, true);
+    this._tracerGeo = new THREE.CylinderGeometry(0.022, 0.022, 1, 6, 1, true);   // mais grosso: "bala voando" visível
     this._tracerMat = new THREE.MeshBasicMaterial({ color: 0xffe9a0, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false });
     this._tracerPool = [];
     this.ray = new THREE.Raycaster();
@@ -409,7 +409,28 @@ export class Game {
         if (k !== 'knife') g.rotation.set(0, 0.03, 0);   // faca mantém a rotação própria
       }
     }
-    return { root, models, awp, pistol, knife, arms, kick: 0, bobPhase: 0, reloadDip: 0 };
+    const vmObj = { root, models, awp, pistol, knife, arms, kick: 0, bobPhase: 0, reloadDip: 0 };
+    // ?tvm=1 (prova): viewmodel Tripo mão+arma por personagem em models/fpvm/<char>_<arma>.glb.
+    // Vira filho do vm.root → herda sway/kick/reload de graça. Framing afinável por querystring
+    // (tvs=escala, tvp=x,y,z, tvr=x,y,z rad). Reversível: sem a flag, nada muda.
+    this._tvm = new URLSearchParams(location.search).get('tvm') === '1';
+    if (this._tvm) {
+      const qp = new URLSearchParams(location.search);
+      const n3 = (k, d) => { const v = qp.get(k); if (!v) return d; const a = v.split(',').map(Number); return a.length === 3 ? a : d; };
+      const wid = charWeapon(this.playerCharId);
+      new GLTFLoader().load(`models/fpvm/${this.playerCharId}_${wid}.glb`, (g) => {
+        const o = g.scene;
+        const box = new THREE.Box3().setFromObject(o), sz = box.getSize(new THREE.Vector3()), ctr = box.getCenter(new THREE.Vector3());
+        o.position.sub(ctr);
+        const holder = new THREE.Group(); holder.add(o);
+        holder.scale.setScalar((0.5 / Math.max(sz.x, sz.y, sz.z)) * (parseFloat(qp.get('tvs')) || 0.55));
+        const r = n3('tvr', [-0.3, 3.6, 0]); holder.rotation.set(r[0], r[1], r[2]);   // cano pra frente/baixo-direita (afinado in-game)
+        const pp = n3('tvp', [0.18, -0.22, -0.42]); holder.position.set(pp[0], pp[1], pp[2]);
+        holder.visible = false; root.add(holder);
+        vmObj.tvm = holder; vmObj.tvmWeapon = wid;
+      }, undefined, (e) => console.warn('[tvm] load falhou', e));
+    }
+    return vmObj;
   }
 
   _makePuffTexture() {
@@ -1014,7 +1035,7 @@ export class Game {
     m.position.copy(a).lerp(b, 0.5);
     m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), b.clone().sub(a).normalize());
     this.scene.add(m);
-    t.ttl = 0.09;
+    t.ttl = 0.13;   // dura um pouco mais p/ o rastro ser visível (era 0.09, sumia)
     this.tracers.push(t);
   }
   _puff(pos, normal) {
@@ -1182,6 +1203,16 @@ export class Game {
     if (this.vm.arms && this.vm.root.visible) {
       const wg = this.vm.models[p.weapon];
       if (wg) poseToWeapon(this.vm.arms, wg, p.weapon);
+    }
+    // ?tvm=1: quando o viewmodel Tripo existe p/ a arma equipada, mostra ele e esconde o
+    // braço+arma procedural (a GLB já traz mão+arma). Override por frame (robusto ao equip).
+    if (this._tvm && this.vm.tvm) {
+      const on = this.vm.root.visible && p.weapon === this.vm.tvmWeapon;
+      this.vm.tvm.visible = on;
+      if (on) {
+        if (this.vm.arms && this.vm.arms.group) this.vm.arms.group.visible = false;
+        const wg = this.vm.models[p.weapon]; if (wg) wg.visible = false;
+      }
     }
   }
   // fy_pool_day ground weapons: anyone who runs over one grabs it (CS-1.6 style).

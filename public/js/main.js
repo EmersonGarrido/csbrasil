@@ -10,6 +10,7 @@ import { Sfx } from './audio.js';
 import { Game } from './game.js';
 import { VERSION } from './version.js';
 import { enableLightBloom } from './bloom.js';
+import { enableStylize } from './stylize.js';
 
 /* ---------------- settings & nickname ---------------- */
 const SETTINGS_KEY = 'awpbr_settings';
@@ -30,7 +31,13 @@ renderer.toneMappingExposure = 1.06;
 container.appendChild(renderer.domElement);
 // bloom leve (FASE 4) — ligado por padrão, pulado na qualidade 'low' ou com ?bloom=0
 // (escape hatch p/ GPUs/extensões que derrubam a aba — suspeita do "jogo fechar sozinho")
-if (settings.quality !== 'low' && new URLSearchParams(location.search).get('bloom') !== '0') enableLightBloom(renderer);
+{
+  const _qp = new URLSearchParams(location.search);
+  const _bloomOn = settings.quality !== 'low' && _qp.get('bloom') !== '0';
+  // pipeline estilizado (cel+contorno) atrás de ?style=1 — prova de conceito reversível.
+  if (_qp.get('style') === '1') enableStylize(renderer, { bloom: _bloomOn });
+  else if (_bloomOn) enableLightBloom(renderer);
+}
 
 const textures = initTextures();
 const sfx = new Sfx(); sfx.vol = settings.vol;
