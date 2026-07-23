@@ -56,7 +56,8 @@ const GUN_SCALE = parseFloat(qp.get('guns')) || 1.0;
 const loader = new GLTFLoader();
 const loadGLB = (url) => new Promise((res, rej) => loader.load(url, res, undefined, rej));
 
-let _clips = null;                 // { idle: AnimationClip, ... } shared across all chars
+let _clips = null;                 // { idle: AnimationClip, ... } shared fallback
+const _clipsByChar = {};           // id -> per-character retargeted clip set (fallback to _clips)
 const _base = new Map();           // id -> THREE.Object3D template scene
 
 export function hasModel(id) { return _base.has(id); }
@@ -126,6 +127,18 @@ export async function preloadCharacterAssets(ids) {
       const g = await loadGLB(`models/characters/${id}.glb?v=${VERSION}`);
       _base.set(id, g.scene);
     } catch (e) { console.warn('model load failed', id, e); }
+    // Clipes retargetados POR PERSONAGEM (models/anims/<id>/): cada rig do Meshy tem
+    // proporção de esqueleto diferente, então o pack único (assado contra 1 referência)
+    // deformava quem divergia (doutora agachada, dollynho dobrado). Aqui cada char usa
+    // seus próprios clipes; qualquer estado ausente cai no pack compartilhado (_clips).
+    const set = { ..._clips };
+    await Promise.all([...STATES, ...OPT_STATES].map(async (s) => {
+      try {
+        const g = await loadGLB(`models/anims/${id}/${s}.glb?v=${VERSION}`);
+        if (g.animations[0]) { g.animations[0].name = s; set[s] = g.animations[0]; }
+      } catch (e) { /* fallback: clipe compartilhado */ }
+    }));
+    _clipsByChar[id] = set;
   }));
 }
 
@@ -201,7 +214,8 @@ export function buildCharacterModel(def, opts = {}) {
 
   const mixer = new THREE.AnimationMixer(model);
   const actions = {};
-  for (const name of [...STATES, ...OPT_STATES]) if (_clips[name]) actions[name] = mixer.clipAction(_clips[name]);
+  const clips = _clipsByChar[def.id] || _clips;   // clipes retargetados por personagem
+  for (const name of [...STATES, ...OPT_STATES]) if (clips[name]) actions[name] = mixer.clipAction(clips[name]);
 
   const ctrl = new CharController(mixer, actions, group, headBone, head);
   // Arma de 1 mão (pistol/deagle/revolver38/knife): usa idle1h/walk1h quando carregados.
