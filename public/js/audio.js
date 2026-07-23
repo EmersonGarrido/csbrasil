@@ -154,6 +154,11 @@ export class Sfx {
     this.ensure(); this._burst(.045, .09, 700 + Math.random() * 300); }
   respawn()   { this.ensure(); this._beep('sine', 440, 880, .18, .18); }
   ricochet()  { this.ensure(); this._beep('sine', 2400, 700, .12, .08); }
+  explosion() { this.ensure(); if (!this.ctx) return;   // frag: crack agudo + corpo grave + rumble
+    this._burst(.18, .95, 1800, 0.7);            // crack inicial
+    this._burst(.6, .8, 300);                     // corpo
+    this._beep('sine', 90, 30, .55, .6);          // rumble grave
+    this._beep('sawtooth', 160, 45, .35, .3, .02); }
 
   vuvuzela(dur = 1.2) { // round start — Brazilian stadium energy
     this.ensure();

@@ -187,6 +187,7 @@ export class Game {
     this._grenades = []; this._smokes = [];
     this._grenGeo = new THREE.SphereGeometry(0.06, 8, 6);
     this._grenMat = new THREE.MeshStandardMaterial({ color: 0x38472c, metalness: 0.2, roughness: 0.8 });
+    this._fragMat = new THREE.MeshStandardMaterial({ color: 0x4a2018, metalness: 0.5, roughness: 0.55 });   // HE frag (marrom-metálico)
     this._smokeTex = this._makeSmokeTex();
     // modo Capture the Flag (?ctf=1): 3 pontos (2 spawns + meio); time vence o round segurando
     // os 3 ao mesmo tempo. Rounds SEM FIM (sem _endMatch). Captura = ~3s na zona sem inimigo.
@@ -490,7 +491,9 @@ export class Game {
       }
       if (e.code === 'KeyM') { if (this.onRequestSwitch) this.onRequestSwitch(); else this._switchTeam(); }
       if (e.code === 'KeyR') this._startReload();
-      if (e.code === 'KeyG') this._throwSmoke();
+      if (e.code === 'Digit4') this._throwSmoke();   // fumaça no 4 (convenção CS)
+      if (e.code === 'Digit5') this._throwFrag();     // granada de fragmentação no 5
+      if (e.code === 'KeyG') this._throwSmoke();      // atalho legado de fumaça
       if (e.code === 'Space') e.preventDefault();
     };
     this._ku = e => {
@@ -510,11 +513,20 @@ export class Game {
         return;
       }
       if (e.button === 0) { this.mouseDown0 = true; this._tryShoot(); }
-      if (e.button === 2) this._scope(true);
+      if (e.button === 2) {
+        // Sniper (arma com luneta): botão direito ALTERNA e TRAVA a mira — não precisa segurar
+        // (pedido de jogador). Demais armas: ADS enquanto segura (iron-sight).
+        const w = this.player.weapon;
+        if (WEAPONS[w] && WEAPONS[w].scope) this._scope(!this.player.scoped);
+        else this._scope(true);
+      }
     };
     this._mu = e => {
       if (e.button === 0) this.mouseDown0 = false;
-      if (e.button === 2) this._scope(false);
+      if (e.button === 2) {
+        const w = this.player.weapon;
+        if (!(WEAPONS[w] && WEAPONS[w].scope)) this._scope(false);   // só solta o ADS das não-sniper
+      }
     };
     this._mm = e => {
       if (!this._acceptInput()) return;
@@ -608,7 +620,7 @@ export class Game {
     this.player.pitch = 0; this.player.vel.set(0, 0, 0); this.player.crouchF = 0;
     this.player.ammo.awp = { mag: WEAPONS.awp.mag, res: WEAPONS.awp.reserve };
     this.player.ammo.pistol = { mag: WEAPONS.pistol.mag, res: WEAPONS.pistol.reserve };
-    this.player.smokes = 5; this._updateSmokeHud();   // 5 granadas de fumaça por round
+    this.player.smokes = 5; this.player.frags = 1; this._updateSmokeHud();   // 5 fumaças + 1 frag por round
     // modo de armas: aplica o loadout inicial. No modo 'all', o player entra com a arma do
     // personagem dele (a mesma da tela de seleção) em vez da AWP padrão.
     const mode = this.settings.wpnMode || 'all';
@@ -647,7 +659,11 @@ export class Game {
       rackRows.forEach((row, r) => {
         const n = row.length;
         row.forEach((w, c) => {
-          const gx = n > 1 ? -18 + (c * 36) / (n - 1) : 0;   // mais espalhado: as 22 armas ficam visíveis
+          // Armário COMPACTO (±8m) na frente do spawn: antes espalhava ±18m e as armas das
+          // pontas (m400/lmg/etc.) caíam a ~27m, fora do campo de visão — "não achei a M400".
+          // Agora todas ficam a ≤~17m e dentro do FOV de quem nasce (spawns em x∈[-9..9]).
+          const HW = 8;
+          const gx = n > 1 ? -HW + (c * 2 * HW) / (n - 1) : 0;
           this._dropWeapon(gx, sz + inward * (2.2 + r * 1.7), w, true);
         });
       });
@@ -866,9 +882,12 @@ export class Game {
   }
   // Target FOV while aiming: strong for scoped snipers, light ADS for the rest.
   _zoomFov(w) {
-    const Z = { awp: 22, mosin: 20, rem700: 22, m400: 38, m400scope: 38, md97: 44, carbine: 42,
-      ak: 52, m92: 52, akm: 52, g3: 52, m4: 52, mp5: 55, deagle: 50, pistol: 54, revolver38: 54 };
-    return Z[w] || 55;
+    // Zoom de ADS mais forte que antes (base é FOV 70): pedido "parece longe, dá pra ver no
+    // ferrolho". Snipers com luneta = zoom pesado; marksman forte; rifles/SMG/pistola iron-sight.
+    const Z = { awp: 22, mosin: 20, rem700: 22, m400: 34, m400scope: 34, md97: 40, carbine: 38,
+      ak: 42, m92: 42, akm: 42, g3: 42, m4: 42, scar: 42, tavor: 42, famas: 42,
+      mp5: 46, uzi: 46, p90: 46, lmg: 44, deagle: 47, pistol: 48, revolver38: 48 };
+    return Z[w] || 46;
   }
   _reloading() { return this.time < this.player.reloadUntil; }
   _startReload() {
@@ -1125,17 +1144,60 @@ export class Game {
     const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
   }
 
-  _updateSmokeHud() { if (this.el && this.el.smokeCount) this.el.smokeCount.textContent = '💨 ' + (this.player.smokes | 0); }
+  _updateSmokeHud() {
+    if (this.el && this.el.smokeCount) this.el.smokeCount.textContent = '💨 ' + (this.player.smokes | 0) + '   🧨 ' + (this.player.frags | 0);
+  }
+
+  // Spawner genérico: projétil físico com pavio; ao estourar vira fumaça OU explosão de frag.
+  // Usado pelo jogador (câmera) e pelos bots (olho + direção do alvo).
+  _spawnGrenade(origin, dir, kind, owner) {
+    const mesh = new THREE.Mesh(this._grenGeo, kind === 'frag' ? this._fragMat : this._grenMat);
+    mesh.position.copy(origin).addScaledVector(dir, 0.5);
+    this.scene.add(mesh);
+    this._grenades.push({
+      mesh, kind, owner,
+      v: dir.clone().multiplyScalar(kind === 'frag' ? 17 : 15).add(new THREE.Vector3(0, 3.2, 0)),
+      fuse: kind === 'frag' ? 1.5 : 2.2,
+    });
+  }
 
   _throwSmoke() {
     const p = this.player;
-    if (!p.alive || (p.smokes | 0) <= 0 || this.time < (p._nextSmoke || 0)) return;
-    p.smokes--; p._nextSmoke = this.time + 0.6; this._updateSmokeHud();
+    if (!p.alive || (p.smokes | 0) <= 0 || this.time < (p._nextNade || 0)) return;
+    p.smokes--; p._nextNade = this.time + 0.6; this._updateSmokeHud();
     const dir = new THREE.Vector3(); this.camera.getWorldDirection(dir);
-    const mesh = new THREE.Mesh(this._grenGeo, this._grenMat);
-    mesh.position.copy(this.camera.position).addScaledVector(dir, 0.5);
-    this.scene.add(mesh);
-    this._grenades.push({ mesh, v: dir.multiplyScalar(15).add(new THREE.Vector3(0, 3.5, 0)), fuse: 2.2 });
+    this._spawnGrenade(this.camera.position, dir, 'smoke', p);
+  }
+
+  _throwFrag() {
+    const p = this.player;
+    if (!p.alive || (p.frags | 0) <= 0 || this.time < (p._nextNade || 0)) return;
+    p.frags--; p._nextNade = this.time + 0.6; this._updateSmokeHud();
+    const dir = new THREE.Vector3(); this.camera.getWorldDirection(dir);
+    this._spawnGrenade(this.camera.position, dir, 'frag', p);
+  }
+
+  // Explosão de frag: dano em área SÓ nos inimigos do dono (sem fogo amigo, arcade), com
+  // falloff radial, estilhaços visuais e clarão. Tremor de tela se o jogador estiver perto.
+  _explodeFrag(pos, owner) {
+    const R = 6.5;
+    this._flash(pos.clone());
+    for (let i = 0; i < 7; i++) this._puff(pos.clone().add(new THREE.Vector3((Math.random() - .5) * 1.4, Math.random() * 1.3, (Math.random() - .5) * 1.4)), null);
+    if (this.sfx.explosion) this.sfx.explosion();
+    const team = owner ? owner.team : this.playerTeam;
+    for (const c of this.combatants) {
+      if (!c.alive || c.team === team) continue;
+      const d = Math.hypot(c.pos.x - pos.x, c.pos.z - pos.z);
+      const dy = Math.abs((c.pos.y || 0) - pos.y);
+      if (d > R || dy > 4) continue;
+      const dmg = Math.round(95 * (1 - d / R));
+      if (dmg > 0) this._damage(c, dmg, owner || this.player, 'FRAG');
+    }
+    const pd = Math.hypot(this.player.pos.x - pos.x, this.player.pos.z - pos.z);
+    if (pd < R * 1.6 && this.el.vignette) {
+      this.el.vignette.style.transition = 'opacity 0.1s'; this.el.vignette.style.opacity = String(Math.min(0.85, (R * 1.6 - pd) / (R * 1.6)));
+      setTimeout(() => { if (this.el.vignette) this.el.vignette.style.opacity = '0'; }, 130);
+    }
   }
 
   _popSmoke(pos) {
@@ -1162,7 +1224,11 @@ export class Game {
       g.fuse -= dt; g.v.y -= 12 * dt;
       g.mesh.position.addScaledVector(g.v, dt);
       if (g.mesh.position.y < 0.1) { g.mesh.position.y = 0.1; g.v.y = Math.abs(g.v.y) * 0.4; g.v.x *= 0.6; g.v.z *= 0.6; }
-      if (g.fuse <= 0) { this._popSmoke(g.mesh.position.clone()); this.scene.remove(g.mesh); this._grenades.splice(i, 1); }
+      if (g.fuse <= 0) {
+        if (g.kind === 'frag') this._explodeFrag(g.mesh.position.clone(), g.owner);
+        else this._popSmoke(g.mesh.position.clone());
+        this.scene.remove(g.mesh); this._grenades.splice(i, 1);
+      }
     }
     for (let i = this._smokes.length - 1; i >= 0; i--) {
       const s = this._smokes[i], age = this.time - s.born;
@@ -1640,8 +1706,16 @@ export class Game {
       // walk clip read as walking, instead of the old pure sideways strafe that looked
       // like the bot was sliding/moonwalking across the map.
       const dist = Math.hypot(dx, dz);
-      const approach = dist > 18 ? 1 : dist < 9 ? -1 : 0;
-      const strafe = Math.sin(b.strafeT * 1.1) * 0.22;   // small lateral juke — approach dominant, so the forward clip matches the motion (no sideways slide)
+      // #27: às vezes o bot PLANTA e mira (parado), em vez de sempre jogar de lado. A média/
+      // longa distância (e mais ainda quem agacha) segura a posição por 1-3s — dá pra "ver o
+      // bot parado mirando", como pedido, e não vira só um walk-strafe infinito.
+      if (this.time > (b._holdDecide || 0)) {
+        b._holdDecide = this.time + 1.2 + Math.random() * 1.5;
+        b.holdUntil = (dist > 16 && Math.random() < (b.crouchBias ? 0.6 : 0.4)) ? this.time + 1.0 + Math.random() * 1.8 : 0;
+      }
+      const holding = this.time < (b.holdUntil || 0);
+      const approach = holding ? 0 : (dist > 18 ? 1 : dist < 9 ? -1 : 0);
+      const strafe = holding ? 0 : Math.sin(b.strafeT * 1.1) * 0.22;   // small lateral juke — approach dominant, so the forward clip matches the motion (no sideways slide)
       const fdx = Math.sin(b.yaw), fdz = Math.cos(b.yaw);   // forward (mesh facing)
       const rdx = Math.cos(b.yaw), rdz = -Math.sin(b.yaw);  // right
       const spd = BOT_SPEED * 0.55;
@@ -1649,6 +1723,15 @@ export class Game {
       b.pos.z += (fdz * approach + rdz * strafe) * spd * dt;
       this._collide(b.pos, 0.38);
       moving = Math.min(1, Math.abs(approach) + Math.abs(strafe));
+      // #23: bots jogam fumaça de vez em quando (cobrir avanço / quebrar linha de tiro).
+      if (b.smokes === undefined) b.smokes = 2;
+      if (b.smokes > 0 && this.time > (b._nextNade || 0) && dist > 16 && dist < 55 && Math.random() < dt * 0.12) {
+        b.smokes--; b._nextNade = this.time + 10;
+        const from = this._botEye(b);
+        const tgt = e.isPlayer ? this.camera.position : this._botEye(e);
+        const ndir = tgt.clone().sub(from); ndir.y += ndir.length() * 0.18;
+        this._spawnGrenade(from, ndir.normalize(), 'smoke', b);
+      }
       // fire
       if (this.time > b.reactAt && this.time > b.nextShotAt && Math.abs(dy) < 0.3) {
         b.nextShotAt = this.time + (2.1 + Math.random() * 1.4) / (b.skill * 1.5);
