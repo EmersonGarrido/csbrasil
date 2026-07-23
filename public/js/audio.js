@@ -101,11 +101,22 @@ export class Sfx {
   shotWeapon(w) {
     const f = this._pick(this.pack?.weapons?.[w]);
     if (f) { this._sample(f); return; }
+    // Sons reais estilo CS (audio/weapons/*.wav): cada arma no seu som; snipers com sniper de
+    // verdade. Se o arquivo faltar, _sample falha silencioso e cai no procedural abaixo.
+    // (Os .wav são do CS/Valve — trocar por CC0/licenciado antes do launch público.)
+    const CS = {
+      awp: ['awp1', 0.35], mosin: ['awp1', 0.4], rem700: ['awp1', 0.4], m400: ['sg550-1', 0.5],
+      ak: 'ak47-2', akm: 'ak47-2', m92: 'ak47-2', m4: 'm4a1-1', carbine: 'galil-2', g3: 'g3sg1-1',
+      scar: 'sg552-1', tavor: 'aug-1', famas: 'famas-2', mp5: 'mp5-2', uzi: 'mac10-1', p90: 'p90-1',
+      lmg: 'm249-2', shotgun: 'm3-1', md97: 'xm1014-1', deagle: 'deagle-1', pistol: 'glock18-1',
+      revolver38: 'deagle-2',
+    };
+    const hit = CS[w];
+    if (hit) { const [n, v] = Array.isArray(hit) ? hit : [hit, 0.9]; this._sample('audio/weapons/' + n + '.wav', v); return; }
     if (w === 'awp') return this.shotAwp();
     if (w === 'pistol' || w === 'deagle') return this.shotPistol();
     if (w === 'knife') return this.knife();
-    // rifles/escopeta: rajada genérica
-    this._burst(.14, .5, 1600); this._beep('sine', 160, 60, .13, .25);
+    this._burst(.14, .5, 1600); this._beep('sine', 160, 60, .13, .25);   // fallback procedural
   }
 
   uiClick()   { this.ensure(); this._beep('square', 880, 660, .06, .12); }

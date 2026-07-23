@@ -1544,7 +1544,7 @@ export class Game {
         if (hit) {
           end = teye;
           const dmg = e.isPlayer ? 63 : 100;   // 1.5x dano
-          this._damage(e, dmg, b, 'AWP');
+          this._damage(e, dmg, b, (WEAPONS[b.weapon] && WEAPONS[b.weapon].short) || 'AWP');   // arma real do bot no killfeed
         } else if (hitsW && Math.random() < 0.5) this._puff(hitsW.point, hitsW.face ? hitsW.face.normal : null);
         this._tracer(from.clone().add(dir.clone().multiplyScalar(0.7)), end);
         this._flash(from.clone().add(dir.clone().multiplyScalar(0.85)));
