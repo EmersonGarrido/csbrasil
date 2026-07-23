@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { initTextures } from './textures.js';
 import { CHARACTERS, buildCharacter, charWeapon } from './characters.js';
 import { preloadCharacterAssets, buildCharacterModel, hasModel, GLB_CHARS } from './glbchars.js';
+import { preloadFPArms } from './fparms.js';
 import { preloadMapProps } from './mapprops.js';
 import { MAPS, MAP_IDS, DEFAULT_MAP, resolveMapId } from './maps.js';
 import { Sfx } from './audio.js';
@@ -148,6 +149,7 @@ async function startGame(team, charId) {
   await Promise.all([
     preloadCharacterAssets([...GLB_CHARS]),
     preloadMapProps(MAP_PROPS),
+    preloadFPArms(),   // braços FP dedicados (falha → fallback procedural, sem bloquear)
   ]);
   game = new Game({
     renderer, textures, sfx, settings,
@@ -552,7 +554,10 @@ function pickTeam(team) {
   chars.forEach((c, i) => {
     const row = document.createElement('button');
     row.className = 'char-row';
-    row.innerHTML = `<img src="${pvThumb(c)}" alt="${c.name}"><span>${c.name}</span>`;
+    // GLB direto quando já pré-carregado (menu faz preloadCharacterAssets no boot) — evita
+    // o flash caixa→GLB; só cai na thumb de caixa se o modelo ainda não chegou.
+    const thumb0 = (hasModel(c.id) ? glbThumb(c) : null) || pvThumb(c);
+    row.innerHTML = `<img src="${thumb0}" alt="${c.name}"><span>${c.name}</span>`;
     imgs.push(row.querySelector('img'));
     row.onclick = () => { sfx.uiClick(); selectChar(c, row); };
     list.appendChild(row);

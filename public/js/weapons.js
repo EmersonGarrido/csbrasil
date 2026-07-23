@@ -13,6 +13,11 @@ export const WEAPON_IDS = ['awp', 'ak', 'm4', 'mp5', 'shotgun', 'deagle', 'pisto
 
 // len = real length along the barrel (m); rot = degrees to point the barrel +Z;
 // gripZ = fraction of length from the muzzle where the hand grips (0=muzzle,1=stock).
+// vm (opcional) = multiplicador SÓ da viewmodel FP (game.js), default 1. Cada arma já é
+// normalizada ao comprimento real (len), então a 1ª pessoa fica proporcional; medido em
+// 1080p, as SMGs (uzi/p90/mp5) NÃO estão gigantes. Este knob existe pra afinar UMA arma
+// que ainda leia grande/pequena de perto, sem tocar no len (grip/3ª pessoa dependem dele).
+// ATENÇÃO: vm≠1 escala o mesh em torno do grip → re-verificar gripError da arma no fparms-capture.
 // rot = graus pra apontar o cano +Z. Verificado OBJETIVAMENTE arma a arma via weapontest.html
 // (tools/eval/weapon-capture.mjs): mede a seção transversal perto de cada ponta Z — o cano é
 // FINO, a coronha GROSSA; se a ponta +Z não é a mais fina, a arma está invertida e leva +180

@@ -4,7 +4,7 @@ import { MAPS, resolveMapId } from './maps.js';
 import { buildCharacter, poseCharacter, byId, CHARACTERS, buildRifle, charWeapon } from './characters.js';
 import { buildCharacterModel } from './glbchars.js';
 import { weaponModel, weaponCFG, ONE_HANDED, WEAPON_IDS, PISTOLS, gripPoints } from './weapons.js';
-import { buildFPArms, poseToWeapon, FP_FALLBACK, FP_REAL_ARMS } from './fparms.js';
+import { buildFPArms, poseToWeapon, FP_OFF } from './fparms.js';
 import { GPUParticles } from './gpuparticles.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
@@ -367,7 +367,7 @@ export class Game {
       if (!rw) continue;
       rw.name = 'rw';                    // espaço local: grip na origem, cano +Z (IK mira nele)
       rw.rotation.y = Math.PI;             // weapon barrel +Z -> -Z (into the screen)
-      rw.scale.multiplyScalar(0.82);       // slightly tucked for first-person framing
+      rw.scale.multiplyScalar(0.82 * (weaponCFG(id).vm ?? 1)); // tucked p/ FP; vm = ajuste fino por arma
       rw.position.z += id === 'knife' ? 0.0 : 0.12; // pull the grip back toward the hand
       models[id].children.forEach((ch) => { if (ch.isMesh) ch.visible = false; });
       models[id].add(rw);
@@ -379,7 +379,7 @@ export class Game {
       if (models[id]) continue;
       const g = new THREE.Group();
       const rw = weaponModel(id);
-      if (rw) { rw.name = 'rw'; rw.rotation.y = Math.PI; rw.scale.multiplyScalar(0.82); rw.position.z += id === 'knife' ? 0 : 0.12; g.add(rw); }
+      if (rw) { rw.name = 'rw'; rw.rotation.y = Math.PI; rw.scale.multiplyScalar(0.82 * (weaponCFG(id).vm ?? 1)); rw.position.z += id === 'knife' ? 0 : 0.12; g.add(rw); }
       const hR = fpArm(); hR.name = 'handR'; hR.scale.setScalar(0.85); g.add(hR);   // fallback menor (proporção)
       if (!ONE_HANDED.has(id)) { const hL = frontHand(0.95); hL.name = 'handL'; hL.scale.setScalar(0.85); g.add(hL); }
       alignHands(g, id);
@@ -387,15 +387,18 @@ export class Game {
       root.add(g); models[id] = g;
     }
     for (const k in models) models[k].visible = k === 'awp';
-    // Braços FP reais (FASE 1): o GLB do próprio personagem vira o corpo de 1ª pessoa e o
-    // IK trava as mãos na arma. Chars com prop colado na mão/sem GLB → fallback procedural.
+    // Braços FP DEDICADOS (FASE 2): asset próprio (models/fparms/arms.glb, mãos com
+    // dedos de verdade) p/ TODOS os personagens, por padrão. Só cai nas mãos
+    // procedurais (fpArm/frontHand acima) se o GLB não carregou — ou via ?fpoff=1.
     let arms = null;
-    if (FP_REAL_ARMS && !FP_FALLBACK.has(this.playerCharId)) arms = buildFPArms({ id: this.playerCharId });
+    if (!FP_OFF) arms = buildFPArms({ id: this.playerCharId });
     if (arms) {
       root.add(arms.group);
       // Aproxima as armas pra distância de alcance real do braço (as posições antigas,
       // z=-0.5, ficam além do comprimento do braço — o guarda-mão seria inalcançável).
-      const ARM_MOUNTS = { rifle: [0.19, -0.12, -0.42], pistol: [0.18, -0.11, -0.36], knife: [0.22, -0.13, -0.36] };
+      // Medido: ombro L→guarda-mão do rifle ≈ 0.55 m (braço do asset ≈ 0.60 m) — além
+      // disso o IK não alcança e a mão flutua fora da madeira.
+      const ARM_MOUNTS = { rifle: [0.16, -0.13, -0.38], pistol: [0.18, -0.11, -0.36], knife: [0.22, -0.13, -0.36] };
       for (const k in models) {
         const g = models[k];
         const hR = g.getObjectByName('handR'), hL = g.getObjectByName('handL');

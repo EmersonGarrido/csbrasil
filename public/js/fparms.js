@@ -1,39 +1,52 @@
-// Braços de 1ª pessoa REAIS (FASE 1): reusa o GLB do próprio personagem como corpo FP.
-// O corpo fica pendurado na câmera (filho de vm.root, cabeça escondida via scale no osso
-// Head), a pose base é o clipe idle compartilhado CONGELADO (rifle-hold) e a cada frame o
-// IK CCD do handik.js trava a mão direita no grip e a esquerda no guarda-mão da arma
-// visível. Como kick/reloadDip/sway/bob mexem o vm.root inteiro, o IK re-trava as mãos na
-// arma depois desses transforms — o recuo lê como braços+arma chutando juntos.
+// Braços de 1ª pessoa DEDICADOS (FASE 2): asset próprio em models/fparms/arms.glb —
+// corpo inteiro rigado (4.9k tris, material único pele+manga escura, MESMA nomeação de
+// ossos do rig compartilhado: Hips/Spine/…/LeftHand/RightHand). Substitui a FASE 1
+// (clone do corpo do personagem + IK = "luvas salsicha", reprovada): as mãos aqui têm
+// dedos de verdade já relaxados/fechados na malha (o rig NÃO tem ossos de dedo).
 //
-// Personagens com props FUNDIDOS na malha da mão (inspetado via gltf-transform: mesh única
-// "char1" — clipboard/celular/megafone não são separáveis) ou anatomia de ave ficam no
-// FP_FALLBACK e mantêm as mãos procedurais antigas (fpArm/frontHand do game.js).
+// O corpo fica pendurado na câmera (filho de vm.root). Cabeça e as DUAS cadeias de
+// perna (UpLeg→Leg→Foot→ToeBase) vão a zero-scale — colapsam fora do quadro; quadril/
+// coluna/peito ficam (presença de corpo sob a câmera sem tampar a visão). A pose base
+// é o clipe idle compartilhado CONGELADO (bind por nome de osso — os nomes batem) e a
+// cada frame o IK CCD do handik.js trava a mão direita no grip e a esquerda no guarda-
+// mão da arma visível. Como kick/reloadDip/sway/bob mexem o vm.root inteiro, o IK
+// re-trava as mãos na arma depois desses transforms — o recuo lê como braços+arma
+// chutando juntos.
+//
+// Se o asset falhar no load, buildFPArms retorna null e o caller cai nas mãos
+// procedurais antigas (fpArm/frontHand do game.js) — ÚNICO fallback restante.
 import * as THREE from 'three';
 import { clone as skeletonClone } from 'three/addons/utils/SkeletonUtils.js';
-import { getCharTemplate, getSharedClips, measurePalmLocal } from './glbchars.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { VERSION } from './version.js';
+import { getSharedClips, measurePalmLocal } from './glbchars.js';
 import { gripPoints, ONE_HANDED } from './weapons.js';
 import { solveCCDIK } from './handik.js';
 
-// Chars cujo GLB tem prop colado na mão (doutora/influencer/senhora/sindicato — malha
-// única "char1", props inseparáveis) ou corpo não-humano → mãos procedurais.
-// canarinho (ave, sem dedos), gotinha (gota), et (alien), dollynho (garrafa) e proerd
-// (patas curtas de leão + rabo invadindo o quadro) deformam sob IK. bozo: a gola-gargantilha
-// e as luvas gigantes invadem o quadro em qualquer altura do corpo (medido ?fpy=).
-export const FP_FALLBACK = new Set(['doutora', 'sindicato',
-  'canarinho', 'gotinha', 'et', 'dollynho', 'proerd', 'bozo']);
-
-// Braços IK no corpo do personagem: DESLIGADO por padrão (as mãos-mitten de ~200 tris
-// dos GLBs viram "salsichas" em qualquer render grande — reprovado pelo usuário).
-// A solução real é o asset dedicado de braços FP (em produção). Re-ligar: ?ikarms=1
-export const FP_REAL_ARMS = new URLSearchParams(location.search).get('ikarms') === '1';
+// Escape hatch p/ debug e A-B: ?fpoff=1 força o fallback procedural.
+export const FP_OFF = new URLSearchParams(location.search).get('fpoff') === '1';
 
 const qp = new URLSearchParams(location.search);
 const _n3 = (s, d) => { const p = (s || '').split(',').map(Number); return p.length === 3 && p.every((n) => !isNaN(n)) ? p : d; };
 // Tuning ao vivo: ?fpr=x,y,z (offset do pulso R no espaço da arma, cano +Z, estoque -Z),
 // ?fpl=x,y,z (idem mão L relativo ao guarda-mão), ?fpy=/?fpz= (corpo sob a câmera).
-const R_OFF = _n3(qp.get('fpr'), [0, -0.008, -0.012]);
+const R_OFF = _n3(qp.get('fpr'), [0, -0.02, -0.015]);
 const L_OFF = _n3(qp.get('fpl'), [0, -0.03, -0.01]);
-const BODY_Y = parseFloat(qp.get('fpy')) || -1.52;
+// Correção de orientação da mão em espaço da ARMA (graus, Euler XYZ; cano +Z): o
+// transplante do rifle-hold deixa o roll em volta do cano livre — estes ângulos fecham
+// a mão em volta do grip/guarda-mão de verdade (tunados em capturas 1080p).
+const _deg3 = (s, d) => _n3(s, d).map((x) => x * Math.PI / 180);
+const R_ROT = _deg3(qp.get('fprrot'), [-90, 0, 0]);
+const L_ROT = _deg3(qp.get('fplrot'), [90, 0, 0]);
+// Overrides de rotação R por arma. Faca: o roll -45° ("hammer grip") empurrava o pulso
+// pra uma pose que o IK não alcançava (gripError r=0.023, lâmina flutuando acima dos
+// dedos). Medido em 1080p: rot [0,0,0] (só a orientação base transplantada) converge
+// (r=0.0001) e assenta a lâmina na mão. Sem override o default seria o do rifle (-90) —
+// que também não converge p/ a faca (r=0.024) — então mantém a entrada própria da faca.
+const R_ROT_W = { knife: _deg3(qp.get('fprrot_knife'), [0, 0, 0]) };
+// Offset do pulso R por arma (mesmo espaço de R_OFF).
+const R_OFF_W = { knife: _n3(qp.get('fpr_knife'), [0, -0.01, 0.02]) };
+const BODY_Y = parseFloat(qp.get('fpy')) || -1.48;
 const BODY_Z = parseFloat(qp.get('fpz')) || 0.02;
 const FROZEN_T = 0.6;          // ponto do clipe idle congelado (pose base do rifle-hold)
 const TARGET_HEIGHT = 1.72;    // mesma normalização dos bots (glbchars.js)
@@ -44,6 +57,22 @@ const FP_SCALE = parseFloat(qp.get('fps')) || 0.93;
 const _t = new THREE.Vector3();
 const _eff = new THREE.Vector3();
 const _qg = new THREE.Quaternion(), _qp = new THREE.Quaternion(), _qf = new THREE.Quaternion();
+
+// Asset dedicado: carregado 1× via preloadFPArms (startGame), clonado por build.
+let _armsTpl = null;
+let _loading = null;
+const _loader = new GLTFLoader();
+
+// Preload do asset dedicado. Falha → _armsTpl fica null → buildFPArms devolve null →
+// fallback procedural (fpArm/frontHand do game.js).
+export function preloadFPArms() {
+  if (!_loading) {
+    _loading = new Promise((res, rej) => _loader.load(`models/fparms/arms.glb?v=${VERSION}`, res, undefined, rej))
+      .then((g) => { _armsTpl = g.scene; })
+      .catch((e) => { console.warn('[fparms] arms.glb falhou no load — mãos procedurais', e); });
+  }
+  return _loading;
+}
 
 // Orienta a mão com rotação fixa no espaço da arma (transplante da pose congelada do
 // rifle-hold: anatomicamente correta por construção). A posição vem do IK; a rotação
@@ -66,14 +95,16 @@ function poseHand(chain, qFix, tgt) {
   return _eff.copy(chain.endOffset).applyMatrix4(chain.end.matrixWorld).distanceTo(tgt);
 }
 
-// Monta o corpo FP do personagem. Retorna null se não houver template/clipe carregado
-// (caller cai pro fallback procedural). Pré-requisito: preloadCharacterAssets([id]).
+// Monta os braços FP a partir do asset dedicado (mesmo p/ todos os personagens em v1).
+// Retorna null se o asset/clipe não estiver carregado (caller cai pro fallback
+// procedural). Pré-requisito: preloadFPArms() + preloadCharacterAssets() (shared clips).
 export function buildFPArms(def) {
-  const template = getCharTemplate(def.id);
   const clips = getSharedClips();
-  if (!template || !clips || !clips.idle) return null;
+  if (!_armsTpl || !clips || !clips.idle) return null;
 
-  const model = skeletonClone(template);
+  const model = skeletonClone(_armsTpl);
+  // Futuro: tint de pele/manga por personagem entra AQUI (material único — clonar o
+  // material antes de tingir pra não vazar entre builds).
   // Normaliza como buildCharacterModel: altura real e pés no y=0 do wrapper.
   model.updateMatrixWorld(true);
   const bbox = new THREE.Box3().setFromObject(model);
@@ -90,7 +121,7 @@ export function buildFPArms(def) {
   group.rotation.y = Math.PI;
   group.position.set(0, BODY_Y, BODY_Z);
 
-  // Ossos (nomes Meshy exatos; regex de resgate igual ao glbchars.js por segurança).
+  // Ossos (nomes idênticos ao rig compartilhado; regex de resgate por segurança).
   const bone = (exact, re) => {
     let b = null;
     model.traverse((o) => { if (o.isBone && !b && o.name === exact) b = o; });
@@ -103,9 +134,13 @@ export function buildFPArms(def) {
   const lSh = bone('LeftShoulder', /left.?shoulder/i), lArm = bone('LeftArm', /left.?arm|l_arm/i),
     lFore = bone('LeftForeArm', /left.?forearm/i), lHand = bone('LeftHand', /left.?hand|lhand/i);
   if (!rArm || !rFore || !rHand || !lArm || !lFore || !lHand) return null;
-  const curlR = bone('Curl_R', /curl_?r/i), curlL = bone('Curl_L', /curl_?l/i);
-  // Esconde a cabeça: osso-folha pro FP (head_end/headfront são filhos e colapsam junto).
+  const legL = bone('LeftUpLeg', /left.?upleg/i), legR = bone('RightUpLeg', /right.?upleg/i);
+  // Esconde cabeça e pernas: zero-scale no topo da cadeia colapsa os filhos junto
+  // (Leg→Foot→ToeBase, head_end/headfront). O clipe idle não tem track de scale,
+  // então o zero segura (re-aplicado por garantia no poseToWeapon).
   if (head) head.scale.setScalar(0.0001);
+  if (legL) legL.scale.setScalar(0.0001);
+  if (legR) legR.scale.setScalar(0.0001);
 
   // Pose base: idle compartilhado congelado (braços já chegam perto da arma; o IK refina).
   const mixer = new THREE.AnimationMixer(model);
@@ -114,9 +149,10 @@ export function buildFPArms(def) {
   mixer.update(FROZEN_T);
   model.updateMatrixWorld(true);
 
-  // Efetor = centro da palma MEDIDO da malha (ver measurePalmLocal).
-  const palmR = measurePalmLocal(model, rHand, curlR);
-  const palmL = measurePalmLocal(model, lHand, curlL);
+  // Efetor = centro da palma MEDIDO da malha (ver measurePalmLocal). O rig dedicado não
+  // tem ossos Curl → null (a palma é medida só pelos verts com peso no osso Hand).
+  const palmR = measurePalmLocal(model, rHand, null);
+  const palmL = measurePalmLocal(model, lHand, null);
   // Orientação fixa da mão no espaço da arma = a da pose congelada do rifle-hold.
   // A pose NÃO segura o rifle paralelo a +Z (segura atravessado no peito): mede o eixo
   // real do rifle congelado (linha palma R → palma L = direção do cano) no espaço do
@@ -130,14 +166,16 @@ export function buildFPArms(def) {
   const qCorr = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), axisModel);
   qFixR.premultiply(qCorr);
   qFixL.premultiply(qCorr);
+  // A correção manual (R_ROT/L_ROT/overrides por arma) NÃO entra aqui: compõe por frame
+  // no poseToWeapon, que sabe qual arma está na mão.
 
   const arms = {
-    group, model, mixer, head,
+    group, model, mixer, head, legs: [legL, legR].filter(Boolean),
     chainR: { bones: [rSh, rArm, rFore].filter(Boolean), end: rHand, endOffset: palmR },
     chainL: { bones: [lSh, lArm, lFore].filter(Boolean), end: lHand, endOffset: palmL },
-    curlR, curlL,
-    curlBaseR: curlR ? curlR.rotation.x : 0,
-    curlBaseL: curlL ? curlL.rotation.x : 0,
+    // Sem ossos de dedo no asset dedicado: nada de curl por frame (dedos já vêm na malha).
+    curlR: null, curlL: null,
+    curlBaseR: 0, curlBaseL: 0,
     qFixR, qFixL,
     _tgtR: new THREE.Vector3(), _tgtL: new THREE.Vector3(),
     _errR: 0, _errL: null,
@@ -152,25 +190,35 @@ export function buildFPArms(def) {
 // (espaço local: grip na origem, cano +Z — ver weapons.js gripPoints).
 export function poseToWeapon(arms, weaponGroup, weaponId) {
   if (!arms || !weaponGroup) return;
-  // Repõe a pose congelada (zera drift do CCD entre frames/trocas) e re-esconde a cabeça.
+  // Repõe a pose congelada (zera drift do CCD entre frames/trocas) e re-esconde cabeça/pernas.
   arms.mixer.setTime(FROZEN_T);
   if (arms.head) arms.head.scale.setScalar(0.0001);
+  if (arms.legs) for (const leg of arms.legs) leg.scale.setScalar(0.0001);
 
   const rw = weaponGroup.getObjectByName('rw') || weaponGroup;
   rw.updateWorldMatrix(true, false);
   rw.getWorldQuaternion(_qg);
   const gp = gripPoints(weaponId);
 
+  // Correção manual de orientação por arma (espaço da arma, ver R_ROT/L_ROT): composta
+  // por frame. A faca segura o cabo na horizontal ("hammer grip"), não o grip vertical.
+  const rotR = R_ROT_W[weaponId] || R_ROT;
+  _qu.setFromEuler(_eu.set(rotR[0], rotR[1], rotR[2], 'XYZ'));
+  _qR.copy(_qu).multiply(arms.qFixR);
+  _qu.setFromEuler(_eu.set(L_ROT[0], L_ROT[1], L_ROT[2], 'XYZ'));
+  _qL.copy(_qu).multiply(arms.qFixL);
+
   // Mão R no grip (centro da palma no ponto de empunhadura; dedos fecham por cima).
-  _t.copy(gp.grip).add(R_OFF_VEC.set(R_OFF[0], R_OFF[1], R_OFF[2]));
+  const roff = R_OFF_W[weaponId] || R_OFF;
+  _t.copy(gp.grip).add(R_OFF_VEC.set(roff[0], roff[1], roff[2]));
   arms._tgtR.copy(rw.localToWorld(_t));
-  arms._errR = poseHand(arms.chainR, arms.qFixR, arms._tgtR);
+  arms._errR = poseHand(arms.chainR, _qR, arms._tgtR);
 
   if (gp.fore) {
     // Mão L no guarda-mão.
     _t.copy(gp.fore).add(L_OFF_VEC.set(L_OFF[0], L_OFF[1], L_OFF[2]));
     arms._tgtL.copy(rw.localToWorld(_t));
-    arms._errL = poseHand(arms.chainL, arms.qFixL, arms._tgtL);
+    arms._errL = poseHand(arms.chainL, _qL, arms._tgtL);
   } else {
     // Arma de 1 mão: braço L relaxado junto ao quadril, fora do quadro (espaço vm.root).
     // Orientação natural (sem transplante) — o braço só desce pra fora do quadro.
@@ -181,7 +229,7 @@ export function poseToWeapon(arms, weaponGroup, weaponId) {
     arms._errL = _eff.copy(arms.chainL.endOffset).applyMatrix4(arms.chainL.end.matrixWorld).distanceTo(arms._tgtL);
   }
 
-  // Dedos: fecha os dois lados em arma de 2 mãos; em 1 mão a L fica relaxada.
+  // Dedos: o asset dedicado não tem ossos Curl — dedos vêm fechados na malha (no-op).
   const two = !ONE_HANDED.has(weaponId) && !!gp.fore;
   if (arms.curlR) arms.curlR.rotation.x = arms.curlBaseR + 0.85;
   if (arms.curlL) arms.curlL.rotation.x = arms.curlBaseL + (two ? 0.8 : 0.25);
@@ -189,3 +237,5 @@ export function poseToWeapon(arms, weaponGroup, weaponId) {
 
 const R_OFF_VEC = new THREE.Vector3();
 const L_OFF_VEC = new THREE.Vector3();
+const _qu = new THREE.Quaternion(), _qR = new THREE.Quaternion(), _qL = new THREE.Quaternion();
+const _eu = new THREE.Euler();

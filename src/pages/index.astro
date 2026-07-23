@@ -2,6 +2,33 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
+<!-- Captura de crash: mostra o erro NA TELA. O jogo "fechava sozinho" e o erro sumia do
+     console; este overlay persiste a exceção (JS) pra o usuário printar. Script clássico
+     inline roda ANTES dos módulos (deferidos), então pega até erro em tempo de execução
+     dos módulos. Crash de GPU/renderer não dispara 'error' — pra esse caso use ?bloom=0. -->
+<script is:inline>
+(function(){
+  function show(kind, msg, extra){
+    try{
+      var el = document.getElementById('crash-overlay');
+      if(!el){
+        el = document.createElement('div'); el.id = 'crash-overlay';
+        el.style.cssText = 'position:fixed;left:0;right:0;bottom:0;max-height:45vh;overflow:auto;z-index:2147483647;background:rgba(120,0,0,.94);color:#fff;font:12px/1.45 ui-monospace,Menlo,monospace;padding:10px 14px;white-space:pre-wrap;border-top:2px solid #ff5252';
+        el.onclick = function(){ el.remove(); };
+        (document.body || document.documentElement).appendChild(el);
+      }
+      el.textContent = '⚠ CRASH (' + kind + '): ' + msg + (extra ? ('\n\n' + extra) : '') + '\n\n(clique pra fechar — tire um print e me mande)';
+    }catch(_){}
+  }
+  window.addEventListener('error', function(e){
+    var loc = e.filename ? (e.filename + ':' + e.lineno + ':' + e.colno) : '';
+    show('error', ((e.message || e.error || '?')) + (loc ? ('  @ ' + loc) : ''), e.error && e.error.stack);
+  });
+  window.addEventListener('unhandledrejection', function(e){
+    var r = e.reason; show('promise', (r && r.message) || String(r), r && r.stack);
+  });
+})();
+</script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CS BRASIL: Treta Suprema — FPS grátis de navegador estilo CS 1.6</title>
 <meta name="description" content="Jogo FPS gratuito de navegador: arena de sniper estilo awp_map do CS 1.6 numa Brasília fictícia e satírica. Petistas × Bolsonaristas, 8 personagens originais, bots, rounds, placar e rádio de voz. Sem instalação — jogue no desktop.">
@@ -70,23 +97,23 @@
 <script type="importmap" is:inline>
 { "imports": {
   "three": "./vendor/three.module.js", "three/addons/": "./vendor/addons/",
-  "./js/main.js": "./js/main.js?v=1.16.0",
-  "./js/game.js": "./js/game.js?v=1.16.0",
-  "./js/glbchars.js": "./js/glbchars.js?v=1.16.0",
-  "./js/weapons.js": "./js/weapons.js?v=1.16.0",
-  "./js/characters.js": "./js/characters.js?v=1.16.0",
-  "./js/audio.js": "./js/audio.js?v=1.16.0",
-  "./js/maps.js": "./js/maps.js?v=1.16.0",
-  "./js/map.js": "./js/map.js?v=1.16.0",
-  "./js/map_brasilia.js": "./js/map_brasilia.js?v=1.16.0",
-  "./js/map_pool_day.js": "./js/map_pool_day.js?v=1.16.0",
-  "./js/mapprops.js": "./js/mapprops.js?v=1.16.0",
-  "./js/fparms.js": "./js/fparms.js?v=1.16.0",
-  "./js/bloom.js": "./js/bloom.js?v=1.16.0",
-  "./js/gpuparticles.js": "./js/gpuparticles.js?v=1.16.0",
-  "./js/textures.js": "./js/textures.js?v=1.16.0",
-  "./js/version.js": "./js/version.js?v=1.16.0",
-  "./js/handik.js": "./js/handik.js?v=1.16.0"
+  "./js/main.js": "./js/main.js?v=1.17.0",
+  "./js/game.js": "./js/game.js?v=1.17.0",
+  "./js/glbchars.js": "./js/glbchars.js?v=1.17.0",
+  "./js/weapons.js": "./js/weapons.js?v=1.17.0",
+  "./js/characters.js": "./js/characters.js?v=1.17.0",
+  "./js/audio.js": "./js/audio.js?v=1.17.0",
+  "./js/maps.js": "./js/maps.js?v=1.17.0",
+  "./js/map.js": "./js/map.js?v=1.17.0",
+  "./js/map_brasilia.js": "./js/map_brasilia.js?v=1.17.0",
+  "./js/map_pool_day.js": "./js/map_pool_day.js?v=1.17.0",
+  "./js/mapprops.js": "./js/mapprops.js?v=1.17.0",
+  "./js/fparms.js": "./js/fparms.js?v=1.17.0",
+  "./js/bloom.js": "./js/bloom.js?v=1.17.0",
+  "./js/gpuparticles.js": "./js/gpuparticles.js?v=1.17.0",
+  "./js/textures.js": "./js/textures.js?v=1.17.0",
+  "./js/version.js": "./js/version.js?v=1.17.0",
+  "./js/handik.js": "./js/handik.js?v=1.17.0"
 } }
 </script>
 </head>
