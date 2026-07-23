@@ -197,6 +197,11 @@ export function buildBrasilia(scene, T) {
   for (const [tx, tz, ry] of [[-15, -30, 0.2], [-17, -35, 1.1], [-13, -36, -0.5], [16, 33, 0.6],
     [-6, -27, 0.9], [7, -25, -0.4]])
     putBuilding('tent', { x: tx, z: tz, targetH: 1.7, ry });
+  // Acampamento (barracas em 2 fileiras) emoldurando a ponta da CATEDRAL (lado bolsonarista),
+  // simétrico ao jardim+espelho da ponta do Congresso — backdrop temático atrás do spawn B.
+  for (const [tx, tz, ry] of [[-12, -66, 0.15], [-4, -67, -0.2], [4, -66, 0.25], [12, -67, -0.15],
+    [-8, -70.5, 0.5], [8, -70.5, -0.5]])
+    putBuilding('tent', { x: tx, z: tz, targetH: 1.7, ry });
   // a few Correios/SEDEX parcels still around for variety (Brazilian postal boxes)
   const crateMats = [lam({ map: T.crate }), lam({ map: T.crate2 || T.crate })];
   for (const [i, [cx, cz, lv]] of [[11, 2, 0], [-11, 0, 0], [11, 3.6, 1], [-5, 18, 0]].entries())
