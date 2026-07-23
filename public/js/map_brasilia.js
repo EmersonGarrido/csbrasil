@@ -55,19 +55,19 @@ export function buildBrasilia(scene, T) {
   const ground = new THREE.Mesh(new THREE.PlaneGeometry(300, 360), lam({ map: tiled(T.grass, 46, 55) }));
   ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; root.add(ground);
   // Esplanada dos Ministérios — pale stone paving (tiled so the slab grid reads)
-  addPlane(30, 116, lam({ map: tiled(T.concrete, 10, 40) }), 0, 0.03, 0, 0, -Math.PI / 2);
-  for (const sx of [-1, 1]) addPlane(7, 116, lam({ map: tiled(T.concreteDark, 3, 40) }), sx * 20, 0.02, 0, 0, -Math.PI / 2);
+  addPlane(30, 150, lam({ map: tiled(T.concrete, 10, 52) }), 0, 0.03, 0, 0, -Math.PI / 2);   // eixo alongado (116->150)
+  for (const sx of [-1, 1]) addPlane(7, 150, lam({ map: tiled(T.concreteDark, 3, 52) }), sx * 20, 0.02, 0, 0, -Math.PI / 2);
 
   /* ---------------- LANDMARKS (Mint building models) ---------------- */
   // Congresso Nacional at the NORTH end (towers + Senate dome + Chamber bowl).
   // ry = π: towers BEHIND the tray, Senate dome (convex) left, Chamber bowl right —
   // the postcard view from the esplanade (verified in mapeval).
-  putBuilding('congresso', { x: 0, z: 62, targetH: 22, ry: Math.PI });
+  putBuilding('congresso', { x: 0, z: 78, targetH: 22, ry: Math.PI });   // recuado (62->78) p/ caber jardim+espelho na frente
   // Catedral (crown) at the SOUTH end + stained glass BETWEEN the ribs (the Mint model
   // has no glass). The glass profile is fitted 0.3–0.5m INSIDE the measured rib envelope
   // (ribs run r≈10.3 @ base → r≈3.4 @ rim y≈9.5, see tools: measure-catedral) so the
   // white ribs stay visible outside the glass, like the real Niemeyer crown.
-  putBuilding('catedral', { x: 0, z: -60, targetH: 13, ry: 0 });
+  putBuilding('catedral', { x: 0, z: -76, targetH: 13, ry: 0 });   // recuada (-60->-76) p/ caber mais barracas na frente
   {
     const profile = [[9.6, 0.3], [9.35, 1], [8.35, 2], [7.3, 3], [6.3, 4], [4.6, 5],
       [4.1, 6], [3.5, 7], [3.35, 8], [3.2, 9.2]]
@@ -78,7 +78,7 @@ export function buildBrasilia(scene, T) {
       side: THREE.DoubleSide, depthWrite: false,
     });
     const glass = new THREE.Mesh(glassGeo, glassMat);
-    glass.position.set(0, 0, -60); root.add(glass);
+    glass.position.set(0, 0, -76); root.add(glass);
   }
   // Palácio do Planalto (east) + STF (west) framing the Praça, facing inward. Like the
   // REAL Planalto, the pilotis stand IN a shallow reflecting pool — the water grounds
@@ -109,7 +109,7 @@ export function buildBrasilia(scene, T) {
   }
   // Ministérios lining the esplanade (reuse the one slab, long axis along Z = lane walls).
   const ministries = [];
-  for (const sx of [-1, 1]) for (const mz of [-26, 0, 26])
+  for (const sx of [-1, 1]) for (const mz of [-40, -13, 13, 40])   // +1 fileira por lado p/ preencher o eixo alongado
     ministries.push(putBuilding('ministerio', { x: sx * 23, z: mz, targetH: 7, ry: Math.PI / 2 }));
 
   /* ---------------- statues ---------------- */
@@ -284,7 +284,7 @@ export function buildBrasilia(scene, T) {
     return false;
   };
   for (let gx = -22; gx <= 22; gx += STEP)
-    for (let gz = -46; gz <= 46; gz += STEP)
+    for (let gz = -60; gz <= 60; gz += STEP)   // grade de waypoints estendida p/ o mapa longo
       if (!blocked(gx, gz, 0.5)) nodes.push({ x: gx, z: gz });
   const segClear = (a, b) => {
     for (let i = 1; i < 6; i++) {
@@ -330,7 +330,7 @@ export function buildBrasilia(scene, T) {
   }
 
   /* ---------------- spawns ---------------- */
-  const mk = s => [-9, -3, 3, 9].map(x => ({ x, z: 43 * s, yaw: s < 0 ? Math.PI : 0 }));
+  const mk = s => [-9, -3, 3, 9].map(x => ({ x, z: 62 * s, yaw: s < 0 ? Math.PI : 0 }));   // spawns recuados (43->62) p/ longe da 1ª área
   // Bolsonaristas start at the Cathedral (south) end, Petistas at the Congresso (north)
   // end — swapped per request.
   const spawns = { B: mk(-1), P: mk(1) };
@@ -338,6 +338,6 @@ export function buildBrasilia(scene, T) {
   return {
     root, colliders, occluders, groundHeightAt, spawns, sun, hemi,
     waypoints: { nodes, adj }, nearestWaypoint, findPath,
-    bounds: { minX: -25.5, maxX: 25.5, minZ: -60, maxZ: 60 },
+    bounds: { minX: -25.5, maxX: 25.5, minZ: -76, maxZ: 76 },
   };
 }
