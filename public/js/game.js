@@ -1178,13 +1178,18 @@ export class Game {
 
   // ---------------- Capture the Flag (?ctf=1) ----------------
   _initCTF() {
-    for (const p of this.ctfPts) if (p.ring) this.scene.remove(p.ring);
+    for (const p of this.ctfPts) for (const m of [p.ring, p.pole, p.flag]) if (m) this.scene.remove(m);
     const sP = this.world.spawns.P[0], sB = this.world.spawns.B[0];
     const mk = (id, label, x, z) => {
       const ring = new THREE.Mesh(this._ctfRingGeo, new THREE.MeshBasicMaterial({ color: 0x999999, transparent: true, opacity: 0.6, depthWrite: false }));
       ring.position.set(x, 0.12, z); ring.rotation.x = Math.PI / 2; ring.scale.setScalar(4.5);
-      this.scene.add(ring);
-      return { id, label, x, z, r: 4.5, owner: null, prog: 0, ring };
+      // mastro + bandeira que colore com o dono (vermelha P / verde B), como pedido
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 4.2, 8), new THREE.MeshStandardMaterial({ color: 0xbfc3c9, metalness: 0.6, roughness: 0.5 }));
+      pole.position.set(x, 2.1, z);
+      const flag = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 1.05), new THREE.MeshBasicMaterial({ color: 0xaaaaaa, side: THREE.DoubleSide }));
+      flag.position.set(x + 0.9, 3.55, z);
+      this.scene.add(ring); this.scene.add(pole); this.scene.add(flag);
+      return { id, label, x, z, r: 4.5, owner: null, prog: 0, ring, pole, flag };
     };
     // 2 spawns + meio (ônibus). Puxados ~18% pra dentro pra ficarem jogáveis, não no fundo.
     this.ctfPts = [
@@ -1213,6 +1218,7 @@ export class Game {
       }
       pt.ring.material.color.setHex(pt.owner === 'P' ? 0xff5555 : pt.owner === 'B' ? 0x55dd66 : 0x999999);
       pt.ring.material.opacity = 0.5 + 0.45 * (pt.prog || (pt.owner ? 1 : 0));
+      if (pt.flag) pt.flag.material.color.setHex(pt.owner === 'P' ? 0xe03232 : pt.owner === 'B' ? 0x1faa4d : 0xaaaaaa);
     }
     const owners = this.ctfPts.map(p => p.owner);
     if (owners.length === 3 && owners.every(o => o === 'P')) this._ctfWin('P');
@@ -1617,7 +1623,7 @@ export class Game {
         } else if (hitsW && Math.random() < 0.5) this._puff(hitsW.point, hitsW.face ? hitsW.face.normal : null);
         this._tracer(from.clone().add(dir.clone().multiplyScalar(0.7)), end);
         this._flash(from.clone().add(dir.clone().multiplyScalar(0.85)));
-        this.sfx.shotAwp();
+        this.sfx.shotWeapon(b.weapon);   // som da arma REAL do bot (era shotAwp fixo)
         if (b.mesh.isGLB) b.mesh.ctrl.shoot();
       }
     } else {
@@ -1793,8 +1799,12 @@ export class Game {
       this.el.ammoRes.textContent = a.res;
       this.el.ammoMag.classList.toggle('empty', a.mag === 0);
     }
-    const total = Math.max(0, Math.ceil(this.timeLeft));
-    this.el.roundTime.textContent = `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
+    if (this.ctf) {
+      this.el.roundTime.textContent = '∞';   // CTF: round sem tempo
+    } else {
+      const total = Math.max(0, Math.ceil(this.timeLeft));
+      this.el.roundTime.textContent = `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
+    }
     this.el.roundsP.textContent = this.roundsWon.P;
     this.el.roundsB.textContent = this.roundsWon.B;
     this.el.scoreP.innerHTML = `PET <b>${this.roundKills.P}</b>`;

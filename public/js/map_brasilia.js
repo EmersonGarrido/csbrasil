@@ -205,6 +205,13 @@ export function buildBrasilia(scene, T) {
   /* ---------------- ônibus quebrado do DF (Mint GLB — cover grande, CENTRAL) ---------------- */
   // "Amarelinho" gerado no Mint, atravessado no meio da Esplanada (quebrado, encostado).
   putBuilding('bus', { x: 2.5, z: -4, targetH: 3.1, ry: 0.55 });
+  // ônibus: caixa-occluder invisível — o GLB é Group e o raycast de bala é NÃO-recursivo,
+  // então a bala atravessava. Esta box bloqueia bala/visão no ponto CENTRAL do CTF.
+  {
+    const bx = new THREE.Mesh(new THREE.BoxGeometry(9, 3.2, 3), new THREE.MeshBasicMaterial({ visible: false }));
+    bx.position.set(2.5, 1.6, -4); bx.rotation.y = 0.55; root.add(bx); occluders.push(bx);
+    col(2.5 - 4.3, 2.5 + 4.3, 0, 3.2, -4 - 2.4, -4 + 2.4);
+  }
 
   /* ---------------- urna eletrônica (Sketchfab — monumento no MEIO do mapa) ---------------- */
   // Urna no centro da praça (pedido do usuário): cover baixo entre o ônibus e as barracas.
