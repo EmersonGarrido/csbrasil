@@ -1236,6 +1236,60 @@ export class Game {
     if (!this.sfx.roundSound(team)) mine ? this.sfx.roundWin() : this.sfx.roundLose();
   }
 
+  // IA de CTF do bot: sem alvo de combate, escolhe um ponto NÃO do seu time, navega até ele
+  // via waypoints e o segura (ficar no anel já acumula progresso em _updateCTF). O esquadrão
+  // se espalha pelos pontos via roamSeed (índice no time) — senão todos empilham no mesmo.
+  _botCtf(b, dt) {
+    const W = this.world, pts = this.ctfPts;
+    if (!pts || !pts.length) { b._ctfMoving = 0; return; }
+    const cur = pts[b.ctfPt];
+    const need = b.ctfPt === undefined || this.time > (b.ctfRepick || 0) || !cur || cur.owner === b.team;
+    if (need) {
+      if (b.roamSeed === undefined) b.roamSeed = this.bots.indexOf(b);
+      const cap = pts.map((p, i) => ({ i, d: Math.hypot(p.x - b.pos.x, p.z - b.pos.z) }))
+        .filter(o => pts[o.i].owner !== b.team)
+        .sort((a, c) => a.d - c.d);
+      if (cap.length) {
+        // 60% vai no mais perto; resto se espalha pelo roamSeed pra cobrir vários pontos
+        b.ctfPt = (Math.random() < 0.6 ? cap[0] : cap[b.roamSeed % cap.length]).i;
+      } else b.ctfPt = 1;   // tudo nosso (raro no meio do round): segura o meio
+      b.ctfRepick = this.time + 3 + Math.random() * 2;
+      b.path = null;
+    }
+    const pt = pts[b.ctfPt];
+    const distPt = Math.hypot(pt.x - b.pos.x, pt.z - b.pos.z);
+    if (distPt < pt.r * 0.7) {   // dentro do anel: segura e varre o entorno
+      b._ctfMoving = 0;
+      b.yaw += dt * 0.6 * (b.roamSeed % 2 ? 1 : -1);
+      return;
+    }
+    if (!b.path || this.time > b.repathAt) {
+      b.repathAt = this.time + 1.5;
+      b.path = W.findPath(W.nearestWaypoint(b.pos.x, b.pos.z), W.nearestWaypoint(pt.x, pt.z));
+      b.pathIdx = 1;
+    }
+    const atEnd = !b.path || b.pathIdx >= b.path.length;
+    let tx = pt.x, tz = pt.z;
+    if (!atEnd) { const n = W.waypoints.nodes[b.path[Math.min(b.pathIdx, b.path.length - 1)]]; tx = n.x; tz = n.z; }
+    const dx = tx - b.pos.x, dz = tz - b.pos.z, d = Math.hypot(dx, dz);
+    if (!atEnd && d < 0.7) { b.pathIdx++; b._ctfMoving = 1; return; }
+    const wantYaw = Math.atan2(dx, dz);
+    let dy = wantYaw - b.yaw;
+    while (dy > Math.PI) dy -= Math.PI * 2; while (dy < -Math.PI) dy += Math.PI * 2;
+    b.yaw += dy * Math.min(1, dt * 8);
+    const bSlow = this.world.slowAt && this.world.slowAt(b.pos.x, b.pos.z) ? 0.5 : 1;
+    const px = b.pos.x, pz = b.pos.z;
+    b.pos.x += Math.sin(b.yaw) * BOT_SPEED * bSlow * dt;
+    b.pos.z += Math.cos(b.yaw) * BOT_SPEED * bSlow * dt;
+    this._collide(b.pos, 0.38);
+    b._ctfMoving = 1;
+    const moved = Math.hypot(b.pos.x - px, b.pos.z - pz);
+    if (moved < BOT_SPEED * bSlow * dt * 0.35) {
+      b._stuckT = (b._stuckT || 0) + dt;
+      if (b._stuckT > 0.5) { b.yaw += (Math.random() < 0.5 ? 1 : -1) * (0.8 + Math.random()); b.repathAt = 0; b.path = null; b._stuckT = 0; }
+    } else b._stuckT = 0;
+  }
+
   _updateCtfHud() {
     if (!this.el.ctfHud) return;
     this.el.ctfHud.classList.remove('hidden');
@@ -1626,6 +1680,10 @@ export class Game {
         this.sfx.shotWeapon(b.weapon);   // som da arma REAL do bot (era shotAwp fixo)
         if (b.mesh.isGLB) b.mesh.ctrl.shoot();
       }
+    } else if (this.ctf) {
+      // --- CTF: procurar e segurar um ponto capturável (o combate acima ainda tem prioridade)
+      this._botCtf(b, dt);
+      moving = b._ctfMoving || 0;
     } else {
       // --- roam toward enemy half
       if (!b.path || this.time > b.repathAt) {
