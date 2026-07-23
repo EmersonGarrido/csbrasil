@@ -634,8 +634,8 @@ export class Game {
       rackRows.forEach((row, r) => {
         const n = row.length;
         row.forEach((w, c) => {
-          const gx = n > 1 ? -13 + (c * 26) / (n - 1) : 0;
-          this._dropWeapon(gx, sz + inward * (1.8 + r * 1.3), w, true);
+          const gx = n > 1 ? -18 + (c * 36) / (n - 1) : 0;   // mais espalhado: as 22 armas ficam visíveis
+          this._dropWeapon(gx, sz + inward * (2.2 + r * 1.7), w, true);
         });
       });
     }
@@ -1205,9 +1205,9 @@ export class Game {
     this.vm.root.visible = !realScope;
     // reload completion
     if (this._reloading()) {
-      this.vm.reloadDip = Math.min(1, this.vm.reloadDip + dt * 4);
+      this.vm.reloadDip = Math.min(1, this.vm.reloadDip + dt * 3);   // sobe mais suave (menos truncado)
     } else {
-      this.vm.reloadDip = Math.max(0, this.vm.reloadDip - dt * 6); // safety: nunca trava inclinado
+      this.vm.reloadDip = Math.max(0, this.vm.reloadDip - dt * 4); // volta mais suave; safety: nunca trava inclinado
       if (p.reloadUntil > 0) {
         p.reloadUntil = 0;
         for (const k of Object.keys(p.ammo)) {
@@ -1231,7 +1231,7 @@ export class Game {
     // draw animation: arma sobe de baixo ao trocar (drawUntil já existia p/ travar o tiro)
     const drawF = Math.max(0, (p.drawUntil - this.time) / 0.28);
     this.vm.root.position.set(-0.17 * a + this._swayX * 0.02, bobY - this.vm.reloadDip * 0.18 - p.crouchF * 0.02 + 0.05 * a + this._swayY * 0.015 - drawF * 0.22, this.vm.kick * 0.09 - 0.1 * a);
-    this.vm.root.rotation.x = this.vm.kick * 0.12 + this.vm.reloadDip * 0.9 - drawF * 0.55;
+    this.vm.root.rotation.x = this.vm.kick * 0.12 + this.vm.reloadDip * 0.6 - drawF * 0.55;   // tilt de reload menos extremo
     this.vm.root.rotation.z = this._swayY * 0.03;
     // Braços reais: IK trava as mãos na arma visível DEPOIS de todos os transforms do
     // vm.root (kick/dip/ADS/sway/bob/draw) — as mãos acompanham a arma em qualquer estado.
