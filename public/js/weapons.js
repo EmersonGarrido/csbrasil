@@ -47,8 +47,8 @@ const CFG = {
   scar:      { len: 0.90, rot: [0, 90, 0], gripZ: 0.62 },
   tavor:     { len: 0.72, rot: [0, 270, 0], gripZ: 0.5 },   // +180: usuário confirmou invertido
   famas:     { len: 0.76, rot: [0, 90, 0], gripZ: 0.5 },
-  uzi:       { len: 0.60, rot: [0, 270, 0], gripZ: 0.58 },  // +180: usuário confirmou invertido
-  p90:       { len: 0.52, rot: [0, 270, 0], gripZ: 0.55 },  // +180: medição -Z (invertido)
+  uzi:       { len: 0.60, rot: [0, 270, 0], gripZ: 0.58, vm: 0.72 },  // vm: encolhe no FP (estava grande)
+  p90:       { len: 0.52, rot: [0, 270, 0], gripZ: 0.55, vmRotY: Math.PI },  // vmRotY: flip 180 só no FP (estava invertida)
 };
 
 const loadGLB = (url) => new Promise((res, rej) => loader.load(url, res, undefined, rej));

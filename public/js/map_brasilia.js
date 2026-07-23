@@ -102,12 +102,8 @@ export function buildBrasilia(scene, T) {
         b.updateMatrixWorld(true);
         const bb2 = new THREE.Box3().setFromObject(b);
         col(bb2.min.x, bb2.max.x, 0, Math.max(1, bb2.max.y), bb2.min.z, bb2.max.z);
-        // big DOLLYNHO poster on the palácio's lane-facing side (user pick, per request)
-        if (px > 0 && T.posterImgs && T.posterImgs[0]) {
-          const A = (T.posterAspects && T.posterAspects[0]) || 0.5625, H = 5.8;
-          addPlane(H * A, H, lam({ map: T.posterImgs[0], side: THREE.DoubleSide }),
-            bb2.min.x - 0.08, Math.min(bb2.max.y - H / 2 - 0.4, 3.6), 30, -Math.PI / 2);
-        }
+        // (o poster do Dollynho saiu do Palácio do Planalto — agora vai só nas fachadas
+        //  dos ministérios, abaixo; o Planalto fica limpo, como na Brasília real)
       }
     }
   }

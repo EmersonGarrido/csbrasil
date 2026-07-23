@@ -375,7 +375,7 @@ export class Game {
       const rw = weaponModel(id);
       if (!rw) continue;
       rw.name = 'rw';                    // espaço local: grip na origem, cano +Z (IK mira nele)
-      rw.rotation.y = Math.PI;             // weapon barrel +Z -> -Z (into the screen)
+      rw.rotation.y = Math.PI + (weaponCFG(id).vmRotY || 0); // barrel +Z -> -Z; vmRotY = flip FP por arma (P90)
       rw.scale.multiplyScalar(0.82 * (weaponCFG(id).vm ?? 1)); // tucked p/ FP; vm = ajuste fino por arma
       rw.position.z += id === 'knife' ? 0.0 : 0.12; // pull the grip back toward the hand
       models[id].children.forEach((ch) => { if (ch.isMesh) ch.visible = false; });
@@ -388,7 +388,7 @@ export class Game {
       if (models[id]) continue;
       const g = new THREE.Group();
       const rw = weaponModel(id);
-      if (rw) { rw.name = 'rw'; rw.rotation.y = Math.PI; rw.scale.multiplyScalar(0.82 * (weaponCFG(id).vm ?? 1)); rw.position.z += id === 'knife' ? 0 : 0.12; g.add(rw); }
+      if (rw) { rw.name = 'rw'; rw.rotation.y = Math.PI + (weaponCFG(id).vmRotY || 0); rw.scale.multiplyScalar(0.82 * (weaponCFG(id).vm ?? 1)); rw.position.z += id === 'knife' ? 0 : 0.12; g.add(rw); }
       const hR = fpArm(); hR.name = 'handR'; hR.scale.setScalar(0.85); g.add(hR);   // fallback menor (proporção)
       if (!ONE_HANDED.has(id)) { const hL = frontHand(0.95); hL.name = 'handL'; hL.scale.setScalar(0.85); g.add(hL); }
       alignHands(g, id);
@@ -1385,8 +1385,12 @@ export class Game {
       if (!who.ammo[w]) who.ammo[w] = { mag: 0, res: 0 };
       who.ammo[w].mag = WEAPONS[w].mag;
       who.ammo[w].res = WEAPONS[w].reserve;
-      if (who.weapon !== w) { this._switchWeapon(w); this.sfx.reloadEnd(); }
-      else this.sfx.uiClick();                     // mesma arma = só munição
+      if (who.weapon !== w) {
+        const oldW = who.weapon;                   // arma que estava na mão
+        this._switchWeapon(w); this.sfx.reloadEnd();
+        // dropa a arma antiga no chão (não some — volta pro mapa, estilo CS)
+        if (oldW && oldW !== w && oldW !== 'knife' && pk.mesh) this._dropWeapon(pk.mesh.position.x, pk.mesh.position.z, oldW, false);
+      } else this.sfx.uiClick();                   // mesma arma = só munição
     } else {
       who.weapon = w === 'knife' ? 'awp' : w;      // bot grabs it
     }
