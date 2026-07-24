@@ -14,7 +14,7 @@ export const WEAPON_IDS = ['awp', 'ak', 'm4', 'mp5', 'shotgun', 'deagle', 'pisto
 
 // Snipers semi-auto novas reaproveitam a MALHA de uma arma existente (sem asset novo):
 // SVD←SCAR, G3SG1←G3, SKS←carabina. weaponModel/preload usam este alias.
-const MODEL_ALIAS = { svd: 'scar', g3sg1: 'g3', sks: 'carbine' };
+const MODEL_ALIAS = { sks: 'carbine' };   // SVD e G3SG1 agora têm modelo próprio (Mint); SKS ainda reusa até o dele sair
 
 // len = real length along the barrel (m); rot = degrees to point the barrel +Z;
 // gripZ = fraction of length from the muzzle where the hand grips (0=muzzle,1=stock).
@@ -55,7 +55,7 @@ const CFG = {
   uzi:       { len: 0.60, rot: [0, 270, 0], gripZ: 0.58, vm: 0.72 },  // vm: encolhe no FP (estava grande)
   p90:       { len: 0.52, rot: [0, 270, 0], gripZ: 0.55, vmRotY: Math.PI },  // vmRotY: flip 180 só no FP (estava invertida)
   // snipers semi-auto — herdam a malha (MODEL_ALIAS) e o rot/len do modelo reusado
-  svd:       { len: 1.05, rot: [0, 90, 0], gripZ: 0.62 },    // modelo do SCAR
+  svd:       { len: 1.15, rot: [0, 270, 0], gripZ: 0.64 },   // modelo próprio (Mint); +180 (estava invertida)
   g3sg1:     { len: 1.12, rot: [0, 270, 0], gripZ: 0.58 },   // modelo do G3
   sks:       { len: 1.00, rot: [0, 0, 0], gripZ: 0.6 },      // modelo da carabina
 };
