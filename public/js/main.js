@@ -650,12 +650,15 @@ updLabels();
   const fx = 150, fy = 40, fw = 600, fh = 258, k = 26;
   const br = (cx, cy, dx, dy) => { x.beginPath(); x.moveTo(cx + dx * k, cy); x.lineTo(cx, cy); x.lineTo(cx, cy + dy * k); x.stroke(); };
   br(fx, fy, 1, 1); br(fx + fw, fy, -1, 1); br(fx, fy + fh, 1, -1); br(fx + fw, fy + fh, -1, -1);
-  // crista de soundwave (barras simétricas; pico âmbar no centro)
+  // crista de soundwave (barras simétricas) com as cores da BANDEIRA do Brasil (verde→
+  // amarelo do centro pra fora) + pico âmbar — "coro" (vozes) que remete ao Brasil.
   const bars = 29, bw = 10, gap = 6, tot = bars * (bw + gap) - gap, sx = W / 2 - tot / 2, base = 122;
+  const GREEN = '#12a24a', YELLOW = '#ffd23f';
   for (let i = 0; i < bars; i++) {
-    const d = Math.abs(i - (bars - 1) / 2) / ((bars - 1) / 2);
+    const d = Math.abs(i - (bars - 1) / 2) / ((bars - 1) / 2);   // 0 no centro, 1 nas pontas
     const h = 8 + Math.pow(1 - d, 1.7) * 62 + (i % 2 ? 7 : 0);
-    x.fillStyle = d < 0.13 ? AM : CY; x.globalAlpha = d < 0.13 ? 1 : 0.82;
+    x.fillStyle = d < 0.10 ? AM : d < 0.5 ? YELLOW : GREEN;   // centro âmbar, miolo amarelo, pontas verdes
+    x.globalAlpha = d < 0.10 ? 1 : 0.9;
     x.fillRect(sx + i * (bw + gap), base - h, bw, h);
   }
   x.globalAlpha = 1;

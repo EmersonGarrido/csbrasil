@@ -359,3 +359,9 @@ body{font-family:"Arial Black",Impact,Haettenschweiler,"Segoe UI",sans-serif;col
   text-shadow:0 0 10px rgba(255,180,77,.4)}
 .cs-setup-actions{display:flex;gap:12px;justify-content:space-between;align-items:center;margin-top:14px}
 .cs-setup-actions #btn-jogar{flex:1}
+
+/* fundo das telas de seleção/loading = render do MAPA real (com overlay escuro p/ legibilidade) */
+#team-select,#char-select{
+  background:
+    linear-gradient(180deg,rgba(4,9,13,.82),rgba(4,9,13,.66) 40%,rgba(4,9,13,.9)),
+    #05090c url('/img/select-bg.png') center/cover no-repeat}
