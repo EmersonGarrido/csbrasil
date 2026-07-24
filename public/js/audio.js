@@ -123,9 +123,11 @@ export class Sfx {
       famas: ['famas-2', 0.9], mp5: ['mp5-2', 0.95], uzi: ['mac10-1', 0.95], p90: ['p90-1', 0.95],
       lmg: ['m249-2', 1.0], shotgun: ['m3-1', 1.0], md97: ['xm1014-1', 1.0], deagle: ['deagle-1', 1.0],
       pistol: ['glock18-1', 0.95], revolver38: ['deagle-2', 0.95],
+      svd: ['sg550-1', 0.6], g3sg1: ['g3sg1-1', 0.7], sks: ['galil-2', 0.75],
     };
     const CLS = {
-      awp: 'sniper', mosin: 'sniper', rem700: 'sniper', m400: 'sniper', shotgun: 'shotgun', md97: 'shotgun',
+      awp: 'sniper', mosin: 'sniper', rem700: 'sniper', m400: 'sniper', svd: 'sniper', g3sg1: 'sniper', sks: 'sniper',
+      shotgun: 'shotgun', md97: 'shotgun',
       mp5: 'smg', uzi: 'smg', p90: 'smg', lmg: 'lmg', pistol: 'pistol', deagle: 'pistol', revolver38: 'pistol',
     };
     if (w === 'knife') return this.knife();

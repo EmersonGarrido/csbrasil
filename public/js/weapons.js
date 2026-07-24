@@ -9,7 +9,12 @@ const loader = new GLTFLoader();
 const _cache = new Map();
 export const WEAPON_IDS = ['awp', 'ak', 'm4', 'mp5', 'shotgun', 'deagle', 'pistol', 'knife',
   'm92', 'akm', 'g3', 'revolver38', 'md97', 'carbine', 'm400', 'mosin', 'rem700',
-  'lmg', 'scar', 'tavor', 'famas', 'uzi', 'p90'];
+  'lmg', 'scar', 'tavor', 'famas', 'uzi', 'p90',
+  'svd', 'g3sg1', 'sks'];   // snipers semi-auto (reusam o modelo de outra arma via MODEL_ALIAS)
+
+// Snipers semi-auto novas reaproveitam a MALHA de uma arma existente (sem asset novo):
+// SVD←SCAR, G3SG1←G3, SKS←carabina. weaponModel/preload usam este alias.
+const MODEL_ALIAS = { svd: 'scar', g3sg1: 'g3', sks: 'carbine' };
 
 // len = real length along the barrel (m); rot = degrees to point the barrel +Z;
 // gripZ = fraction of length from the muzzle where the hand grips (0=muzzle,1=stock).
@@ -49,19 +54,24 @@ const CFG = {
   famas:     { len: 0.76, rot: [0, 90, 0], gripZ: 0.5 },
   uzi:       { len: 0.60, rot: [0, 270, 0], gripZ: 0.58, vm: 0.72 },  // vm: encolhe no FP (estava grande)
   p90:       { len: 0.52, rot: [0, 270, 0], gripZ: 0.55, vmRotY: Math.PI },  // vmRotY: flip 180 só no FP (estava invertida)
+  // snipers semi-auto — herdam a malha (MODEL_ALIAS) e o rot/len do modelo reusado
+  svd:       { len: 1.05, rot: [0, 90, 0], gripZ: 0.62 },    // modelo do SCAR
+  g3sg1:     { len: 1.12, rot: [0, 270, 0], gripZ: 0.58 },   // modelo do G3
+  sks:       { len: 1.00, rot: [0, 0, 0], gripZ: 0.6 },      // modelo da carabina
 };
 
 const loadGLB = (url) => new Promise((res, rej) => loader.load(url, res, undefined, rej));
 
 export async function preloadWeapons() {
   await Promise.all(WEAPON_IDS.map(async (id) => {
-    if (_cache.has(id)) return;
-    try { const g = await loadGLB(`models/weapons/${id}.glb?v=${VERSION}`); _cache.set(id, g.scene); }
-    catch (e) { console.warn('weapon load failed', id, e); }
+    const src = MODEL_ALIAS[id] || id;    // snipers reusadas carregam a malha da arma-fonte
+    if (_cache.has(src)) return;
+    try { const g = await loadGLB(`models/weapons/${src}.glb?v=${VERSION}`); _cache.set(src, g.scene); }
+    catch (e) { console.warn('weapon load failed', src, e); }
   }));
 }
 
-export function hasWeapon(id) { return _cache.has(id); }
+export function hasWeapon(id) { return _cache.has(MODEL_ALIAS[id] || id); }
 
 // Geometry facts for aligning hands/mounts: real length + grip point (fraction from muzzle).
 export function weaponCFG(id) { return CFG[id] || CFG.awp; }
@@ -87,7 +97,7 @@ export function gripPoints(id) {
 // Returns a THREE.Group holding the weapon, scaled to real size, barrel pointing +Z,
 // grip roughly at the group origin (so it sits in a hand placed at origin).
 export function weaponModel(id) {
-  const tpl = _cache.get(id) || _cache.get('awp');
+  const tpl = _cache.get(MODEL_ALIAS[id] || id) || _cache.get('awp');
   if (!tpl) return null;
   const cfg = CFG[id] || CFG.awp;
   const model = tpl.clone(true);

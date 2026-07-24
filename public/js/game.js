@@ -27,6 +27,10 @@ export const WEAPONS = {
   m400:      { name: 'M400 "MIRA FINA"', short: 'M400', dmg: 40, mag: 20, reserve: 80, rate: 0.11, reload: 2.4, spreadHip: 0.018, spreadScope: 0.004, recoil: 0.011, auto: true, scope: true },
   mosin:     { name: 'MOSIN "VOVÓ RUSSA"', short: 'MOSIN', dmg: 120, mag: 5, reserve: 25, rate: 1.5, reload: 3.4, spreadHip: 0.08, spreadScope: 0.001, recoil: 0.05, scope: true },
   rem700:    { name: 'REM 700 "CAÇADOR"', short: 'REM', dmg: 130, mag: 5, reserve: 25, rate: 1.5, reload: 3.2, spreadHip: 0.08, spreadScope: 0.0009, recoil: 0.05, scope: true },
+  // snipers SEMI-AUTO (estilo M400: luneta + tiro rápido) — dano/cadência entre a M400 e os ferrolhos
+  svd:       { name: 'SVD "VODKA"', short: 'SVD', dmg: 62, mag: 10, reserve: 40, rate: 0.28, reload: 3.0, spreadHip: 0.05, spreadScope: 0.0015, recoil: 0.03, auto: true, scope: true },
+  g3sg1:     { name: 'G3SG1 "FRITZ"', short: 'G3SG1', dmg: 55, mag: 20, reserve: 60, rate: 0.22, reload: 2.8, spreadHip: 0.045, spreadScope: 0.0016, recoil: 0.026, auto: true, scope: true },
+  sks:       { name: 'SKS "MILÍCIA"', short: 'SKS', dmg: 48, mag: 10, reserve: 50, rate: 0.18, reload: 2.6, spreadHip: 0.04, spreadScope: 0.002, recoil: 0.02, auto: true, scope: true },
   // arsenal 3 (militar)
   lmg:       { name: 'METRALHA "TRETA PESADA"', short: 'LMG', dmg: 31, mag: 100, reserve: 200, rate: 0.085, reload: 5.0, spreadHip: 0.04, recoil: 0.011, auto: true },
   scar:      { name: 'SCAR "PAGA-PAU"', short: 'SCAR', dmg: 37, mag: 20, reserve: 80, rate: 0.11, reload: 2.5, spreadHip: 0.02, recoil: 0.01, auto: true },
@@ -660,7 +664,7 @@ export class Game {
     // FULL arsenal available AT each respawn — no map-wide scatter. Organized in rows by
     // category (snipers → rifles → bullpups/SMG → sidearms) like a spawn weapon rack.
     const rackRows = [
-      ['awp', 'mosin', 'rem700', 'm400'],                        // snipers
+      ['awp', 'mosin', 'rem700', 'm400', 'svd', 'g3sg1', 'sks'],  // snipers (+ semi-auto)
       ['ak', 'akm', 'm4', 'md97', 'g3', 'scar', 'carbine', 'm92'], // rifles
       ['tavor', 'famas', 'p90', 'mp5', 'uzi', 'shotgun', 'lmg'],   // bullpups / SMG / shotgun / LMG
       ['deagle', 'revolver38', 'pistol'],                        // sidearms
@@ -897,7 +901,7 @@ export class Game {
   _zoomFov(w) {
     // Zoom de ADS mais forte que antes (base é FOV 70): pedido "parece longe, dá pra ver no
     // ferrolho". Snipers com luneta = zoom pesado; marksman forte; rifles/SMG/pistola iron-sight.
-    const Z = { awp: 22, mosin: 20, rem700: 22, m400: 34, m400scope: 34, md97: 40, carbine: 38,
+    const Z = { awp: 22, mosin: 20, rem700: 22, m400: 34, m400scope: 34, svd: 30, g3sg1: 30, sks: 32, md97: 40, carbine: 38,
       ak: 42, m92: 42, akm: 42, g3: 42, m4: 42, scar: 42, tavor: 42, famas: 42,
       mp5: 46, uzi: 46, p90: 46, lmg: 44, deagle: 47, pistol: 48, revolver38: 48 };
     return Z[w] || 46;
