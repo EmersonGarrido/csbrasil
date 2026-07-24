@@ -52,6 +52,7 @@ const _num3 = (s, d) => { const p = (s || '').split(',').map(Number); return p.l
 const GUN_POS = _num3(qp.get('gunpos'), [0.02, 0.02, 0.10]);
 const GUN_ROT = _num3(qp.get('gunrot'), [90, 0, 0]).map((d) => d * Math.PI / 180);
 const GUN_SCALE = parseFloat(qp.get('guns')) || 1.0;
+const TP_FLIP_Y = new Set(['p90']);   // armas que precisam de +180° só na 3ª pessoa (mount)
 
 const loader = new GLTFLoader();
 const loadGLB = (url) => new Promise((res, rej) => loader.load(url, res, undefined, rej));
@@ -191,6 +192,10 @@ export function buildCharacterModel(def, opts = {}) {
   if (!handBone) model.traverse((o) => { if (o.isBone && !handBone && /hand/i.test(o.name)) handBone = o; });
   if (handBone && withWeapon) {
     const gun = weaponModel(opts.weaponId || 'awp') || buildRifle();
+    // Flip de 180° SÓ na 3ª pessoa p/ armas que ficam de costas no mount (o cano +Z da
+    // weaponModel não bate com a mão nesses casos). O FP tem seu próprio ajuste (vmRotY),
+    // então corrigimos aqui sem tocar no viewmodel já validado. (P90: usuário viu ao contrário.)
+    if (TP_FLIP_Y.has(opts.weaponId)) gun.rotateY(Math.PI);
     gunObj = gun;
     // Measure the weapon's authored (real-world) size in its own space, before parenting.
     gun.updateMatrixWorld(true);

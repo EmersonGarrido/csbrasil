@@ -1714,8 +1714,11 @@ export class Game {
         b.holdUntil = (dist > 16 && Math.random() < (b.crouchBias ? 0.6 : 0.4)) ? this.time + 1.0 + Math.random() * 1.8 : 0;
       }
       const holding = this.time < (b.holdUntil || 0);
-      const approach = holding ? 0 : (dist > 18 ? 1 : dist < 9 ? -1 : 0);
-      const strafe = holding ? 0 : Math.sin(b.strafeT * 1.1) * 0.22;   // small lateral juke — approach dominant, so the forward clip matches the motion (no sideways slide)
+      // Meio-alcance (9-18m) NÃO era mais só strafe puro: isso deslizava (idle pose enquanto
+      // move de lado). Agora avança/recua devagar (±0.55) pra o movimento pra FRENTE dominar
+      // o lateral → o clipe de walk casa e as pernas andam de verdade.
+      const approach = holding ? 0 : (dist > 18 ? 1 : dist < 8 ? -1 : Math.sin(b.strafeT * 0.7) * 0.55);
+      const strafe = holding ? 0 : Math.sin(b.strafeT * 1.1) * 0.18;
       const fdx = Math.sin(b.yaw), fdz = Math.cos(b.yaw);   // forward (mesh facing)
       const rdx = Math.cos(b.yaw), rdz = -Math.sin(b.yaw);  // right
       const spd = BOT_SPEED * 0.55;
