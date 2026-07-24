@@ -70,8 +70,22 @@ function show(id) {
   if (!id) for (const s of screens) document.getElementById(s).classList.add('hidden');
   // ao navegar pra qualquer tela, fecha o painel de setup do menu CS (não fica aberto after)
   if (id !== 'main-menu') { const ms = document.getElementById('menu-setup'); if (ms) ms.classList.remove('open'); }
+  else applyHomeWall();   // voltando pra home, restaura o wallpaper de home (caso o setup tenha trocado)
 }
 const $ = id => document.getElementById(id);
+
+// Wallpapers rotativos (wall-1..4): 1 por tela no fluxo home→setup→lado→personagem, sem
+// repetir; o offset rotaciona a cada acesso (localStorage) pra variar entre visitas.
+const WALLS = ['/img/wall-1.png', '/img/wall-2.png', '/img/wall-3.png', '/img/wall-4.png'];
+let _wallK = 0;
+try { _wallK = (parseInt(localStorage.getItem('cs_wallK') || '-1', 10) + 1) % 4; localStorage.setItem('cs_wallK', String(_wallK)); } catch {}
+const wallUrl = (i) => `url('${WALLS[(_wallK + i) % 4]}')`;
+const HOME_WALL = wallUrl(0), SETUP_WALL = wallUrl(1), TEAM_WALL = wallUrl(2), CHAR_WALL = wallUrl(3);
+function applyHomeWall() { const w = document.querySelector('#main-menu .cs-wallpaper'); if (w) w.style.backgroundImage = HOME_WALL; }
+function applySetupWall() { const w = document.querySelector('#main-menu .cs-wallpaper'); if (w) w.style.backgroundImage = SETUP_WALL; }
+applyHomeWall();
+{ const t = $('team-select'); if (t) t.style.setProperty('--wall', TEAM_WALL); }
+{ const c = $('char-select'); if (c) c.style.setProperty('--wall', CHAR_WALL); }
 const isMobile = matchMedia('(pointer: coarse)').matches || innerWidth < 820;
 let settingsReturn = 'main-menu';
 
@@ -233,6 +247,7 @@ const openSetup = (mode, title) => {
   if (mode) matchMode = mode;
   $('setup-title').textContent = title;
   menuSetup.classList.add('open');
+  applySetupWall();   // "escolher mapa/config" usa o wallpaper da posição 2 do fluxo
 };
 document.querySelectorAll('.cs-item').forEach((it) => {
   it.onclick = () => {
@@ -247,7 +262,7 @@ document.querySelectorAll('.cs-item').forEach((it) => {
     }
   };
 });
-$('setup-back').onclick = () => { sfx.uiClick(); menuSetup.classList.remove('open'); };
+$('setup-back').onclick = () => { sfx.uiClick(); menuSetup.classList.remove('open'); applyHomeWall(); };
 
 /* ---------------- menu wiring ---------------- */
 $('btn-jogar').onclick = () => {
@@ -639,7 +654,8 @@ updLabels();
 (function drawLogo() {
   // CORO SOLTO — logo terminal futurista: crista de soundwave (evoca "coro" = vozes) em
   // ciano com pico âmbar, wordmark com aberração cromática (glitch), moldura HUD, subtítulo mono.
-  const c = $('logo-canvas'), x = c.getContext('2d');
+  const c = $('logo-canvas'); if (!c) return;   // logo agora vem no wallpaper (wall-1..4)
+  const x = c.getContext('2d');
   const W = 900, H = 360; const CY = '#39d6e0', AM = '#ffb44d'; x.clearRect(0, 0, W, H);
   // brilho ciano suave
   const g = x.createRadialGradient(W / 2, 150, 20, W / 2, 150, 400);
