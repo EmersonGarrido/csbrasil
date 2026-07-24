@@ -70,7 +70,7 @@ function show(id) {
   if (!id) for (const s of screens) document.getElementById(s).classList.add('hidden');
   // ao navegar pra qualquer tela, fecha o painel de setup do menu CS (não fica aberto after)
   if (id !== 'main-menu') { const ms = document.getElementById('menu-setup'); if (ms) ms.classList.remove('open'); }
-  else applyHomeWall();   // voltando pra home, restaura o wallpaper de home (caso o setup tenha trocado)
+  else { applyHomeWall(); if (musicArmed) startMenuMusic(); }   // volta pra home: wallpaper + música de menu
 }
 const $ = id => document.getElementById(id);
 
@@ -86,6 +86,38 @@ function applySetupWall() { const w = document.querySelector('#main-menu .cs-wal
 applyHomeWall();
 { const t = $('team-select'); if (t) t.style.setProperty('--wall', TEAM_WALL); }
 { const c = $('char-select'); if (c) c.style.setProperty('--wall', CHAR_WALL); }
+
+// Música de menu (loop, volume baixo). Toca só nas telas de menu; some quando a partida
+// começa e volta ao voltar pro menu. O navegador bloqueia autoplay até o 1º gesto do
+// usuário, então armamos no primeiro clique. Se o arquivo não existir, falha em silêncio.
+// ATENÇÃO: use uma faixa CC0/licenciada — NÃO usar música protegida (ex.: YouTube/MPB) no
+// build público (risco de copyright, igual aos sons da Valve a trocar).
+const MENU_MUSIC_VOL = 0.3;
+let menuMusic = null, musicArmed = false, musicFade = null;
+function _ensureMusic() {
+  if (menuMusic) return menuMusic;
+  menuMusic = new Audio('/audio/menu-music.mp3');
+  menuMusic.loop = true; menuMusic.volume = MENU_MUSIC_VOL;
+  return menuMusic;
+}
+function startMenuMusic() {
+  const m = _ensureMusic();
+  if (musicFade) { clearInterval(musicFade); musicFade = null; }
+  m.volume = MENU_MUSIC_VOL;
+  m.play().catch(() => {});   // silencioso se autoplay bloqueado ou arquivo ausente
+}
+function stopMenuMusic() {   // fade rápido pra não cortar seco ao entrar na partida
+  if (!menuMusic) return;
+  if (musicFade) clearInterval(musicFade);
+  musicFade = setInterval(() => {
+    menuMusic.volume = Math.max(0, menuMusic.volume - 0.05);
+    if (menuMusic.volume <= 0.001) { clearInterval(musicFade); musicFade = null; menuMusic.pause(); }
+  }, 40);
+}
+// arma no 1º gesto (clique/tecla) — exigência de autoplay dos navegadores
+const _armMusic = () => { if (!musicArmed) { musicArmed = true; startMenuMusic(); } };
+window.addEventListener('pointerdown', _armMusic);
+window.addEventListener('keydown', _armMusic);
 const isMobile = matchMedia('(pointer: coarse)').matches || innerWidth < 820;
 let settingsReturn = 'main-menu';
 
@@ -163,6 +195,7 @@ const testMode = params.get('debug') === '1';
 async function startGame(team, charId) {
   if (isMobile && !testMode) { show('mobile-warning'); return; }
   currentTeam = team; currentChar = charId;
+  stopMenuMusic();   // música é só do menu — some (fade) quando a partida começa
   if (game) game.dispose();
   show(null);
   await sfxReady;   // make sure voice/CS samples are registered before round 1 sounds
