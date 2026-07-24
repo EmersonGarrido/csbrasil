@@ -47,6 +47,19 @@ const RADIO = {
 };
 const MK_TIERS = { 2: 'doublekill', 3: 'triplekill', 4: 'multikill', 5: 'megakill' };
 const MK_LABELS = { doublekill: 'DOUBLE KILL', triplekill: 'TRIPLE KILL', multikill: 'MULTI KILL', megakill: 'MEGA KILL', killingspree: 'KILLING SPREE', godlike: 'GODLIKE' };
+// Dificuldade RANDÔMICA por bot (não há mais seletor): 50% ruins, 20% médios, 20% bons,
+// 10% muito bons. Retorna um escalar `skill` (usado em reação/cadência/chance de acerto).
+const BOT_SKILLS = [
+  { p: 0.50, tier: 'ruim', skill: 0.6 },
+  { p: 0.20, tier: 'medio', skill: 0.95 },
+  { p: 0.20, tier: 'bom', skill: 1.25 },
+  { p: 0.10, tier: 'muitobom', skill: 1.7 },
+];
+function rollBotSkill() {
+  let r = Math.random();
+  for (const s of BOT_SKILLS) { if (r < s.p) return s.skill; r -= s.p; }
+  return BOT_SKILLS[0].skill;
+}
 
 export class Game {
   constructor({ renderer, textures, sfx, settings, playerCharId, playerTeam, nickname, mapId, ctf, testMode = false, onQuit, onMatchEnd }) {
@@ -111,9 +124,8 @@ export class Game {
 
     // ---- bots ----
     this.bots = [];
-    // Custom match: team size (total per side, player fills one ally slot) + difficulty.
-    const DIFF = { easy: 0.55, normal: 1, hard: 1.3, insane: 1.7 };
-    const diffMul = DIFF[this.settings.difficulty] || 1;
+    // Custom match: team size (total per side, player fills one ally slot). Dificuldade
+    // é RANDÔMICA por bot (rollBotSkill), não mais um seletor único de partida.
     const teamSize = Math.max(1, Math.min(8, this.settings.bots || 4));
     // Rotação aleatória do pool por partida: sem ela só os 8 primeiros do time viravam
     // bots (personagens no fim da lista, ex.: canarinho/proerd, nunca apareciam).
@@ -131,7 +143,7 @@ export class Game {
         isPlayer: false, name: def.name, def, team,
         mesh: c, pos: new THREE.Vector3(), yaw: 0, hp: 100, alive: true,
         respawnAt: 0, protUntil: 0, kills: 0, deaths: 0,
-        target: null, reactAt: 0, nextShotAt: 0, skill: (0.85 + Math.random() * 0.35) * diffMul, weapon: wpn,
+        target: null, reactAt: 0, nextShotAt: 0, skill: rollBotSkill() * (0.9 + Math.random() * 0.2), weapon: wpn,
         path: null, pathIdx: 0, repathAt: 0, roamIdx: 0, phase: 0, think: Math.random() * 0.2,
         deadT: 0, strafeT: Math.random() * 10, revealedAt: -99,
         crouchBias: Math.random() < 0.45, // ~half the bots hold angles crouched (AWPer style)
@@ -192,7 +204,7 @@ export class Game {
     this._smokeTex = this._makeSmokeTex();
     // modo Capture the Flag (?ctf=1): 3 pontos (2 spawns + meio); time vence o round segurando
     // os 3 ao mesmo tempo. Rounds SEM FIM (sem _endMatch). Captura = ~3s na zona sem inimigo.
-    this.ctf = this._ctfOpt ?? (new URLSearchParams(location.search).get('ctf') === '1');   // menu (Capture the Flag) ou ?ctf=1
+    this.ctf = !!this._ctfOpt || (new URLSearchParams(location.search).get('ctf') === '1');   // menu (Capture the Flag) ou ?ctf=1
     this.ctfPts = [];
     this._ctfRingGeo = new THREE.TorusGeometry(1, 0.14, 6, 40);
     this.ray = new THREE.Raycaster();
@@ -1287,6 +1299,7 @@ export class Game {
       pt.ring.material.opacity = 0.5 + 0.45 * (pt.prog || (pt.owner ? 1 : 0));
       if (pt.flag) pt.flag.material.color.setHex(pt.owner === 'P' ? 0xe03232 : pt.owner === 'B' ? 0x1faa4d : 0xaaaaaa);
     }
+    this._updateCtfHud();   // atualiza a barra de progresso de captura a cada frame
     const owners = this.ctfPts.map(p => p.owner);
     if (owners.length === 3 && owners.every(o => o === 'P')) this._ctfWin('P');
     else if (owners.length === 3 && owners.every(o => o === 'B')) this._ctfWin('B');
@@ -1362,7 +1375,10 @@ export class Game {
     this.el.ctfHud.classList.remove('hidden');
     this.el.ctfHud.innerHTML = this.ctfPts.map(p => {
       const col = p.owner === 'P' ? '#ff6b6b' : p.owner === 'B' ? '#7be08a' : '#bbb';
-      return `<span style="color:${col}">● ${p.label}</span>`;
+      const prog = Math.max(0, Math.min(1, p.prog || 0));
+      // barra de captura: preenche em âmbar enquanto alguém captura (prog 0→1)
+      const bar = `<span style="display:inline-block;width:52px;height:4px;margin-left:5px;background:rgba(255,255,255,.14);border-radius:2px;vertical-align:middle;overflow:hidden"><span style="display:block;height:100%;width:${(prog * 100) | 0}%;background:${prog > 0 ? '#ffd23f' : 'transparent'};transition:width .1s"></span></span>`;
+      return `<span style="color:${col}">● ${p.label}</span>${bar}`;
     }).join('<span style="opacity:.4"> · </span>');
   }
 
@@ -1692,6 +1708,17 @@ export class Game {
       else if (!best) b.target = null;
     }
 
+    // Lane/coluna do bot (sempre definida): usada tanto no roam quanto pela direção de
+    // flanco no combate, pra o time ocupar os DOIS lados do mapa (não só a esquerda).
+    if (b.laneX === undefined) {
+      const mates = this.bots.filter(o => o.team === b.team);
+      const ord = mates.indexOf(b), n = Math.max(1, mates.length);
+      // Corredor JOGÁVEL do mapa é ~x∈[-11,+11] (Palácio/STF em ±22 ocupam de ±11.5 pra fora).
+      // Lanes iam até ±18 -> miravam DENTRO do prédio, os bots batiam e voltavam pro centro.
+      // Clampado a ±9.5: agora as colunas cabem no corredor e os dois flancos são usados.
+      b.laneX = -9.5 + 19 * (n === 1 ? 0.5 : ord / (n - 1)) + (Math.random() * 3 - 1.5);
+      b.roamSeed = this.bots.indexOf(b);
+    }
     let moving = 0;
     if (b.target) {
       // --- combat
@@ -1725,8 +1752,12 @@ export class Game {
       const spd = BOT_SPEED * 0.55;
       b.pos.x += (fdx * approach + rdx * strafe) * spd * dt;
       b.pos.z += (fdz * approach + rdz * strafe) * spd * dt;
+      // direção de FLANCO: puxa devagar pra coluna (laneX) do bot mesmo em combate, senão
+      // todos convergem pro centro-esquerda. Deadzone 2m + puxão suave (não atrapalha a mira).
+      const off = b.laneX - b.pos.x;
+      if (Math.abs(off) > 2) b.pos.x += Math.sign(off) * BOT_SPEED * 0.5 * dt;
       this._collide(b.pos, 0.38);
-      moving = Math.min(1, Math.abs(approach) + Math.abs(strafe));
+      moving = Math.min(1, Math.abs(approach) + Math.abs(strafe) + (Math.abs(off) > 2 ? 0.4 : 0));
       // #23: bots jogam fumaça de vez em quando (cobrir avanço / quebrar linha de tiro).
       if (b.smokes === undefined) b.smokes = 2;
       if (b.smokes > 0 && this.time > (b._nextNade || 0) && dist > 16 && dist < 55 && Math.random() < dt * 0.12) {
