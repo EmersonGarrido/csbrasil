@@ -210,6 +210,7 @@ export class Game {
     // os 3 ao mesmo tempo. Rounds SEM FIM (sem _endMatch). Captura = ~3s na zona sem inimigo.
     this.ctf = !!this._ctfOpt || (new URLSearchParams(location.search).get('ctf') === '1');   // menu (Capture the Flag) ou ?ctf=1
     this.ctfPts = [];
+    this.ctfCaps = { P: 0, B: 0 };   // total de capturas de bandeira por time (cumulativo na partida)
     this._ctfRingGeo = new THREE.TorusGeometry(1, 0.14, 6, 40);
     this.ray = new THREE.Raycaster();
 
@@ -1296,7 +1297,17 @@ export class Game {
       const solo = np > 0 && nb === 0 ? 'P' : (nb > 0 && np === 0 ? 'B' : null);
       if (solo && solo !== pt.owner) {
         pt.prog += dt / CAP;
-        if (pt.prog >= 1) { pt.owner = solo; pt.prog = 0; this._updateCtfHud(); }
+        if (pt.prog >= 1) {
+          pt.owner = solo; pt.prog = 0;
+          // credita a captura: +1 pro time e +1 pra cada combatente do time DENTRO do anel
+          this.ctfCaps[solo] = (this.ctfCaps[solo] || 0) + 1;
+          for (const c of this.combatants) {
+            if (!c.alive || c.team !== solo) continue;
+            const dx = c.pos.x - pt.x, dz = c.pos.z - pt.z;
+            if (dx * dx + dz * dz <= pt.r * pt.r) c.captures = (c.captures || 0) + 1;
+          }
+          this._updateCtfHud();
+        }
       } else if (!solo) {
         pt.prog = Math.max(0, pt.prog - dt / CAP);
       }
@@ -1384,7 +1395,9 @@ export class Game {
       // barra de captura: preenche em âmbar enquanto alguém captura (prog 0→1)
       const bar = `<span style="display:inline-block;width:52px;height:4px;margin-left:5px;background:rgba(255,255,255,.14);border-radius:2px;vertical-align:middle;overflow:hidden"><span style="display:block;height:100%;width:${(prog * 100) | 0}%;background:${prog > 0 ? '#ffd23f' : 'transparent'};transition:width .1s"></span></span>`;
       return `<span style="color:${col}">● ${p.label}</span>${bar}`;
-    }).join('<span style="opacity:.4"> · </span>');
+    }).join('<span style="opacity:.4"> · </span>')
+      + `<span style="opacity:.5"> — </span><span style="color:#ff6b6b">🚩 ${this.ctfCaps.P || 0}</span>`
+      + `<span style="opacity:.4"> · </span><span style="color:#7be08a">🚩 ${this.ctfCaps.B || 0}</span>`;
   }
 
   /* ================= player physics ================= */
@@ -1963,10 +1976,14 @@ export class Game {
     if (v) {
       document.querySelector('#scoreboard h3').textContent =
         `PLACAR — PET ${this.roundsWon.P} × ${this.roundsWon.B} BOL · ROUND ${this.roundNum}`;
-      const rows = [...this.combatants].sort((a, b) => b.kills - a.kills).map(c =>
+      const capH = document.getElementById('sb-cap-h');
+      if (capH) capH.classList.toggle('hidden', !this.ctf);
+      // no CTF ordena por capturas (depois kills); senão por kills
+      const rank = this.ctf ? (a, b) => (b.captures || 0) - (a.captures || 0) || b.kills - a.kills : (a, b) => b.kills - a.kills;
+      const rows = [...this.combatants].sort(rank).map(c =>
         `<tr class="${c.team === 'P' ? 'tp' : 'tb'}${c.isPlayer ? ' me' : ''}">
           <td>${c.name}${c.isPlayer ? ' ★' : ''}</td><td>${c.def.name}</td>
-          <td>${c.kills}</td><td>${c.deaths}</td></tr>`).join('');
+          <td>${c.kills}</td><td>${c.deaths}</td>${this.ctf ? `<td>${c.captures || 0}</td>` : ''}</tr>`).join('');
       this.el.sbBody.innerHTML = rows;
     }
     this.el.scoreboard.classList.toggle('hidden', !v);
