@@ -503,7 +503,8 @@ export class Game {
       if (e.code === 'KeyE' && this.nearPickup) {
         const { pk, dropIdx } = this.nearPickup;
         this._grabPickup(pk, this.player, true);
-        if (dropIdx >= 0) { this.scene.remove(pk.mesh); this.drops.splice(dropIdx, 1); }
+        // consome só drops NÃO-rack (armas largadas/mortes); o rack persiste (armário)
+        if (dropIdx >= 0 && !pk.rack) { this.scene.remove(pk.mesh); this.drops.splice(dropIdx, 1); }
         this.nearPickup = null;
       }
       if (e.code === 'KeyM') { if (this.onRequestSwitch) this.onRequestSwitch(); else this._switchTeam(); }
@@ -1604,14 +1605,17 @@ export class Game {
       if (who.weapon !== w) {
         const oldW = who.weapon;                   // arma que estava na mão
         this._switchWeapon(w); this.sfx.reloadEnd();
-        // dropa a arma antiga no chão (não some — volta pro mapa, estilo CS)
-        if (oldW && oldW !== w && oldW !== 'knife' && pk.mesh) this._dropWeapon(pk.mesh.position.x, pk.mesh.position.z, oldW, false);
+        // dropa a arma antiga no chão (estilo CS) — MAS não no rack: o rack é armário, você
+        // só troca de arma lá sem largar a anterior (senão o spawn vira um monte de armas).
+        if (oldW && oldW !== w && oldW !== 'knife' && pk.mesh && !pk.rack) this._dropWeapon(pk.mesh.position.x, pk.mesh.position.z, oldW, false);
       } else this.sfx.uiClick();                   // mesma arma = só munição
     } else {
       who.weapon = w === 'knife' ? 'awp' : w;      // bot grabs it
     }
-    if (pk.mesh) pk.mesh.visible = false;           // taken off the ground
-    pk.readyAt = this.time + PICKUP_RESPAWN;        // respawns later (map pickups)
+    // Rack (armário do spawn) é PERSISTENTE: fica visível e nunca some (bug: antes o rack
+    // esvaziava porque a arma pega era removida de vez). Só pickups não-rack somem+respawnam.
+    if (pk.mesh && !pk.rack) pk.mesh.visible = false;
+    if (!pk.rack) pk.readyAt = this.time + PICKUP_RESPAWN;
     return true;
   }
   // CS: morto larga a arma no chão
