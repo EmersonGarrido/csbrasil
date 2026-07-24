@@ -611,69 +611,44 @@ updLabels();
 
 /* ---------------- logo ---------------- */
 (function drawLogo() {
+  // CORO SOLTO — logo terminal futurista: crista de soundwave (evoca "coro" = vozes) em
+  // ciano com pico âmbar, wordmark com aberração cromática (glitch), moldura HUD, subtítulo mono.
   const c = $('logo-canvas'), x = c.getContext('2d');
-  const W = 900, H = 360;
-  const g = x.createRadialGradient(W / 2, H / 2, 40, W / 2, H / 2, 420);
-  g.addColorStop(0, 'rgba(255,180,80,0.30)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+  const W = 900, H = 360; const CY = '#39d6e0', AM = '#ffb44d'; x.clearRect(0, 0, W, H);
+  // brilho ciano suave
+  const g = x.createRadialGradient(W / 2, 150, 20, W / 2, 150, 400);
+  g.addColorStop(0, 'rgba(57,214,224,0.20)'); g.addColorStop(1, 'rgba(0,0,0,0)');
   x.fillStyle = g; x.fillRect(0, 0, W, H);
-  // skyline silhouette
-  x.fillStyle = 'rgba(18,16,20,0.9)';
-  x.fillRect(120, 250, 660, 110);
-  x.fillRect(398, 170, 14, 90); x.fillRect(428, 170, 14, 90);   // congress towers
-  x.beginPath(); x.arc(360, 252, 34, Math.PI, 0); x.fill();      // dome
-  x.beginPath(); x.arc(486, 216, 34, 0, Math.PI); x.fill();      // bowl
-  for (let i = 0; i < 7; i++) {                                  // cathedral spikes
-    x.save(); x.translate(210 + i * 16, 260); x.rotate((i - 3) * 0.12);
-    x.fillRect(-2, -46, 4, 46); x.restore();
+  // moldura HUD (cantos em colchete)
+  x.strokeStyle = 'rgba(57,214,224,.55)'; x.lineWidth = 2;
+  const fx = 150, fy = 40, fw = 600, fh = 258, k = 26;
+  const br = (cx, cy, dx, dy) => { x.beginPath(); x.moveTo(cx + dx * k, cy); x.lineTo(cx, cy); x.lineTo(cx, cy + dy * k); x.stroke(); };
+  br(fx, fy, 1, 1); br(fx + fw, fy, -1, 1); br(fx, fy + fh, 1, -1); br(fx + fw, fy + fh, -1, -1);
+  // crista de soundwave (barras simétricas; pico âmbar no centro)
+  const bars = 29, bw = 10, gap = 6, tot = bars * (bw + gap) - gap, sx = W / 2 - tot / 2, base = 122;
+  for (let i = 0; i < bars; i++) {
+    const d = Math.abs(i - (bars - 1) / 2) / ((bars - 1) / 2);
+    const h = 8 + Math.pow(1 - d, 1.7) * 62 + (i % 2 ? 7 : 0);
+    x.fillStyle = d < 0.13 ? AM : CY; x.globalAlpha = d < 0.13 ? 1 : 0.82;
+    x.fillRect(sx + i * (bw + gap), base - h, bw, h);
   }
-  // crossed rifles
-  const rifle = (color) => {
-    x.fillStyle = '#1c1c1c';
-    x.fillRect(-130, -7, 150, 14);
-    x.fillRect(20, -3.5, 110, 7);
-    x.fillRect(-40, -20, 55, 11);
-    x.beginPath(); x.moveTo(-130, -7); x.lineTo(-165, 14); x.lineTo(-130, 14); x.closePath(); x.fill();
-    x.fillStyle = color; x.fillRect(-128, 5, 145, 4);
-  };
-  x.save(); x.translate(W / 2, 190); x.rotate(-0.42); rifle('#e03232'); x.restore();
-  x.save(); x.translate(W / 2, 190); x.scale(-1, 1); x.rotate(-0.42); rifle('#1faa4d'); x.restore();
-  // Brazil silhouette, split colors + crack
-  const BR = [[.32, .05], [.45, .02], [.58, .07], [.62, .14], [.75, .13], [.85, .20], [.97, .27],
-    [.90, .33], [.86, .40], [.80, .50], [.74, .58], [.70, .68], [.62, .75], [.58, .86], [.52, .97],
-    [.46, .90], [.44, .78], [.38, .72], [.32, .68], [.28, .60], [.30, .50], [.24, .44], [.18, .38], [.16, .28], [.22, .22], [.24, .13]];
-  const bw = 190, bh = 190, bx = W / 2 - bw / 2, by = 92;
-  const path = () => {
-    x.beginPath();
-    BR.forEach((p, i) => i ? x.lineTo(bx + p[0] * bw, by + p[1] * bh) : x.moveTo(bx + p[0] * bw, by + p[1] * bh));
-    x.closePath();
-  };
-  x.save(); path(); x.clip();
-  let hg = x.createLinearGradient(bx, 0, bx + bw, 0);
-  hg.addColorStop(0, '#8f1d1d'); hg.addColorStop(1, '#e03232');
-  x.fillStyle = hg; x.fillRect(bx, by, bw / 2, bh);
-  hg = x.createLinearGradient(bx + bw / 2, 0, bx + bw, 0);
-  hg.addColorStop(0, '#1faa4d'); hg.addColorStop(1, '#e8bd25');
-  x.fillStyle = hg; x.fillRect(bx + bw / 2, by, bw / 2, bh);
-  x.strokeStyle = '#f2ead8'; x.lineWidth = 4; x.beginPath();
-  let cx = bx + bw * 0.52, cy = by;
-  x.moveTo(cx, cy);
-  while (cy < by + bh) { cx += (Math.random() - .5) * 26; cy += 14 + Math.random() * 10; x.lineTo(cx, cy); }
-  x.stroke(); x.restore();
-  path(); x.strokeStyle = '#0c0e11'; x.lineWidth = 5; x.stroke();
-  // title
-  x.textAlign = 'center';
+  x.globalAlpha = 1;
+  // wordmark CORO SOLTO com aberração cromática (glitch de terminal)
+  x.textAlign = 'center'; x.lineJoin = 'round';
   x.font = '900 96px "Arial Black",Impact,sans-serif';
-  x.lineWidth = 14; x.strokeStyle = '#0c0e11'; x.lineJoin = 'round';
-  x.strokeText('CS BRASIL', W / 2, 96);
-  const tg = x.createLinearGradient(0, 30, 0, 100);
-  tg.addColorStop(0, '#ffffff'); tg.addColorStop(1, '#ffd9a0');
-  x.fillStyle = tg; x.fillText('CS BRASIL', W / 2, 96);
-  x.font = '900 52px "Arial Black",Impact,sans-serif';
-  x.lineWidth = 10;
-  x.strokeText('TRETA SUPREMA', W / 2, 338);
-  const sg = x.createLinearGradient(200, 0, 700, 0);
-  sg.addColorStop(0, '#ff6b6b'); sg.addColorStop(0.5, '#ffd23f'); sg.addColorStop(1, '#7dff9a');
-  x.fillStyle = sg; x.fillText('TRETA SUPREMA', W / 2, 338);
+  const wy = 224;
+  x.globalAlpha = .45; x.fillStyle = '#ff3b6b'; x.fillText('CORO SOLTO', W / 2 - 4, wy);
+  x.fillStyle = CY; x.fillText('CORO SOLTO', W / 2 + 4, wy); x.globalAlpha = 1;
+  x.lineWidth = 11; x.strokeStyle = '#04121a'; x.strokeText('CORO SOLTO', W / 2, wy);
+  const tg = x.createLinearGradient(0, 150, 0, 232);
+  tg.addColorStop(0, '#eafcff'); tg.addColorStop(1, '#bfeff5');
+  x.fillStyle = tg; x.fillText('CORO SOLTO', W / 2, wy);
+  // subtítulo mono espaçado, âmbar
+  x.font = '700 24px "Courier New",monospace'; x.fillStyle = AM;
+  x.fillText('/ / T R E T A   S U P R E M A', W / 2, 272);
+  // divisor fino
+  x.strokeStyle = 'rgba(57,214,224,.35)'; x.lineWidth = 1;
+  x.beginPath(); x.moveTo(fx + 30, 290); x.lineTo(fx + fw - 30, 290); x.stroke();
 })();
 
 /* ---------------- loop ---------------- */
