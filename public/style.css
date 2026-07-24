@@ -315,3 +315,47 @@ body{font-family:"Arial Black",Impact,Haettenschweiler,"Segoe UI",sans-serif;col
   .pc-cols{grid-template-columns:1fr;gap:14px}
   .pc-col+.pc-col{border-left:0;padding-left:0;border-top:1px solid #123039;padding-top:14px}
 }
+
+/* ============ MENU CS 1.6 (Coro Solto) — wallpaper + lista de texto à esquerda ============ */
+#main-menu.cs-screen{display:block;padding:0;gap:0;overflow:hidden}
+.cs-wallpaper{position:absolute;inset:0;z-index:0;
+  background:#05090c url('/img/menu-bg.png') center right/cover no-repeat}
+.cs-vignette{position:absolute;inset:0;z-index:1;pointer-events:none;
+  background:
+    linear-gradient(90deg,rgba(4,8,11,.97) 0%,rgba(4,8,11,.86) 26%,rgba(4,8,11,.28) 46%,rgba(4,8,11,0) 62%),
+    linear-gradient(0deg,rgba(4,8,11,.85) 0%,rgba(4,8,11,0) 30%)}
+#main-menu .scanlines{z-index:2}
+.cs-left{position:absolute;z-index:3;left:min(6vw,84px);top:50%;transform:translateY(-50%);
+  display:flex;flex-direction:column;align-items:flex-start;gap:18px;max-width:46vw}
+.cs-left #logo-canvas{width:min(440px,42vw);height:auto;filter:drop-shadow(0 6px 24px rgba(0,0,0,.6))}
+.cs-menu{display:flex;flex-direction:column;gap:2px;margin-top:6px}
+.cs-item{appearance:none;background:none;border:0;border-left:3px solid transparent;
+  color:#cfe9ee;font-family:"Arial Narrow",Arial,sans-serif;font-weight:800;
+  font-size:26px;letter-spacing:3px;text-transform:uppercase;text-align:left;
+  padding:7px 14px 7px 10px;cursor:pointer;position:relative;
+  transition:color .16s,border-color .16s,transform .16s,letter-spacing .16s,background .16s;
+  text-shadow:0 2px 6px rgba(0,0,0,.7);
+  animation:cs-item-in .4s cubic-bezier(.2,.8,.2,1) backwards}
+.cs-item:nth-child(1){animation-delay:.05s}.cs-item:nth-child(2){animation-delay:.10s}
+.cs-item:nth-child(3){animation-delay:.15s}.cs-item:nth-child(4){animation-delay:.20s}
+.cs-item:nth-child(5){animation-delay:.25s}.cs-item:nth-child(6){animation-delay:.30s}
+@keyframes cs-item-in{from{opacity:0;transform:translateX(-22px)}to{opacity:1;transform:translateX(0)}}
+.cs-tick{display:inline-block;width:0;overflow:hidden;opacity:0;color:var(--am);
+  transform:translateX(-8px);transition:all .16s;margin-right:0}
+.cs-item:hover,.cs-item:focus-visible{color:#fff;border-left-color:var(--cs);
+  transform:translateX(10px);letter-spacing:4px;
+  background:linear-gradient(90deg,rgba(57,214,224,.16),rgba(57,214,224,0));outline:none;
+  text-shadow:0 0 12px var(--cy-glow),0 2px 6px rgba(0,0,0,.8)}
+.cs-item:hover .cs-tick,.cs-item:focus-visible .cs-tick{width:22px;opacity:1;transform:translateX(0);margin-right:6px}
+.cs-left .footnote{position:static;color:#5f7a80;font-size:11px;max-width:380px;margin-top:10px}
+/* painel de setup (perfil + partida), desliza da direita sobre o wallpaper */
+.cs-setup{position:absolute;z-index:4;right:min(5vw,64px);top:50%;transform:translateY(-50%) translateX(28px);
+  width:min(560px,50vw);opacity:0;pointer-events:none;
+  transition:opacity .22s,transform .22s}
+.cs-setup.open{opacity:1;transform:translateY(-50%) translateX(0);pointer-events:auto}
+.cs-setup-head{font-family:"Arial Narrow",Arial,sans-serif;font-weight:800;letter-spacing:4px;
+  font-size:22px;color:var(--am);text-transform:uppercase;margin-bottom:10px;
+  border-bottom:1px solid rgba(57,214,224,.35);padding-bottom:6px;
+  text-shadow:0 0 10px rgba(255,180,77,.4)}
+.cs-setup-actions{display:flex;gap:12px;justify-content:space-between;align-items:center;margin-top:14px}
+.cs-setup-actions #btn-jogar{flex:1}

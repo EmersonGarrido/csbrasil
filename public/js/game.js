@@ -49,7 +49,8 @@ const MK_TIERS = { 2: 'doublekill', 3: 'triplekill', 4: 'multikill', 5: 'megakil
 const MK_LABELS = { doublekill: 'DOUBLE KILL', triplekill: 'TRIPLE KILL', multikill: 'MULTI KILL', megakill: 'MEGA KILL', killingspree: 'KILLING SPREE', godlike: 'GODLIKE' };
 
 export class Game {
-  constructor({ renderer, textures, sfx, settings, playerCharId, playerTeam, nickname, mapId, testMode = false, onQuit, onMatchEnd }) {
+  constructor({ renderer, textures, sfx, settings, playerCharId, playerTeam, nickname, mapId, ctf, testMode = false, onQuit, onMatchEnd }) {
+    this._ctfOpt = ctf;
     this.renderer = renderer;
     this.sfx = sfx;
     this.settings = settings;
@@ -191,7 +192,7 @@ export class Game {
     this._smokeTex = this._makeSmokeTex();
     // modo Capture the Flag (?ctf=1): 3 pontos (2 spawns + meio); time vence o round segurando
     // os 3 ao mesmo tempo. Rounds SEM FIM (sem _endMatch). Captura = ~3s na zona sem inimigo.
-    this.ctf = new URLSearchParams(location.search).get('ctf') === '1';
+    this.ctf = this._ctfOpt ?? (new URLSearchParams(location.search).get('ctf') === '1');   // menu (Capture the Flag) ou ?ctf=1
     this.ctfPts = [];
     this._ctfRingGeo = new THREE.TorusGeometry(1, 0.14, 6, 40);
     this.ray = new THREE.Raycaster();

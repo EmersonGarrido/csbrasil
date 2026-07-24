@@ -97,23 +97,23 @@
 <script type="importmap" is:inline>
 { "imports": {
   "three": "./vendor/three.module.js", "three/addons/": "./vendor/addons/",
-  "./js/main.js": "./js/main.js?v=1.19.0",
-  "./js/game.js": "./js/game.js?v=1.19.0",
-  "./js/glbchars.js": "./js/glbchars.js?v=1.19.0",
-  "./js/weapons.js": "./js/weapons.js?v=1.19.0",
-  "./js/characters.js": "./js/characters.js?v=1.19.0",
-  "./js/audio.js": "./js/audio.js?v=1.19.0",
-  "./js/maps.js": "./js/maps.js?v=1.19.0",
-  "./js/map.js": "./js/map.js?v=1.19.0",
-  "./js/map_brasilia.js": "./js/map_brasilia.js?v=1.19.0",
-  "./js/map_pool_day.js": "./js/map_pool_day.js?v=1.19.0",
-  "./js/mapprops.js": "./js/mapprops.js?v=1.19.0",
-  "./js/fparms.js": "./js/fparms.js?v=1.19.0",
-  "./js/bloom.js": "./js/bloom.js?v=1.19.0",
-  "./js/gpuparticles.js": "./js/gpuparticles.js?v=1.19.0",
-  "./js/textures.js": "./js/textures.js?v=1.19.0",
-  "./js/version.js": "./js/version.js?v=1.19.0",
-  "./js/handik.js": "./js/handik.js?v=1.19.0"
+  "./js/main.js": "./js/main.js?v=1.20.0",
+  "./js/game.js": "./js/game.js?v=1.20.0",
+  "./js/glbchars.js": "./js/glbchars.js?v=1.20.0",
+  "./js/weapons.js": "./js/weapons.js?v=1.20.0",
+  "./js/characters.js": "./js/characters.js?v=1.20.0",
+  "./js/audio.js": "./js/audio.js?v=1.20.0",
+  "./js/maps.js": "./js/maps.js?v=1.20.0",
+  "./js/map.js": "./js/map.js?v=1.20.0",
+  "./js/map_brasilia.js": "./js/map_brasilia.js?v=1.20.0",
+  "./js/map_pool_day.js": "./js/map_pool_day.js?v=1.20.0",
+  "./js/mapprops.js": "./js/mapprops.js?v=1.20.0",
+  "./js/fparms.js": "./js/fparms.js?v=1.20.0",
+  "./js/bloom.js": "./js/bloom.js?v=1.20.0",
+  "./js/gpuparticles.js": "./js/gpuparticles.js?v=1.20.0",
+  "./js/textures.js": "./js/textures.js?v=1.20.0",
+  "./js/version.js": "./js/version.js?v=1.20.0",
+  "./js/handik.js": "./js/handik.js?v=1.20.0"
 } }
 </script>
 </head>
@@ -131,15 +131,26 @@
 </div>
 
 <!-- Main menu -->
-<div id="main-menu" class="screen">
+<div id="main-menu" class="screen cs-screen">
+  <div class="cs-wallpaper"></div>
+  <div class="cs-vignette"></div>
   <div class="scanlines"></div>
-  <div class="corner-links">
-    <a href="/ranking" target="_blank" class="corner-btn" title="Ranking global">RANKING ↗</a>
-    <a href="/mapa" target="_blank" class="corner-btn" title="Mapa da treta ao vivo">MAPA ↗</a>
-    <a href="/sobre" target="_blank" class="corner-btn" title="Sobre o jogo">SOBRE ↗</a>
+
+  <div class="cs-left">
+    <canvas id="logo-canvas" width="900" height="360"></canvas>
+    <nav class="cs-menu" id="cs-menu">
+      <button class="cs-item" data-act="sp"    type="button"><span class="cs-tick">▸</span>SINGLE PLAYER</button>
+      <button class="cs-item" data-act="ctf"   type="button"><span class="cs-tick">▸</span>CAPTURE THE FLAG</button>
+      <button class="cs-item" data-act="config" type="button"><span class="cs-tick">▸</span>CONFIGURAÇÕES</button>
+      <button class="cs-item" data-act="ranking" type="button"><span class="cs-tick">▸</span>RANKING</button>
+      <button class="cs-item" data-act="mapa"  type="button"><span class="cs-tick">▸</span>MAPA</button>
+      <button class="cs-item" data-act="sobre" type="button"><span class="cs-tick">▸</span>SOBRE O JOGO</button>
+    </nav>
+    <p class="footnote">Sátira política fictícia. Nenhum político real foi consultado (ou poupado).</p>
   </div>
-  <canvas id="logo-canvas" width="900" height="360"></canvas>
-  <div class="menu-buttons">
+
+  <div id="menu-setup" class="cs-setup">
+    <div class="cs-setup-head" id="setup-title">SINGLE PLAYER</div>
     <div class="profile-card">
       <div class="pc-cols">
         <div class="pc-col">
@@ -176,15 +187,18 @@
           </label>
         </div>
       </div>
-      <button id="btn-jogar" class="btn btn-big">▶ JOGAR</button>
+      <div class="cs-setup-actions">
+        <button id="setup-back" class="btn btn-back" type="button">◀ VOLTAR</button>
+        <button id="btn-jogar" class="btn btn-big">▶ JOGAR</button>
+      </div>
     </div>
   </div>
-  <div class="side-actions">
+  <!-- botões legados (ainda referenciados pelo main.js; roteados pelo menu CS acima) -->
+  <div class="side-actions hidden">
     <button id="btn-ranking" class="btn btn-side">RANKING</button>
     <button id="btn-howto" class="btn btn-side">COMO JOGAR</button>
     <button id="btn-settings" class="btn btn-side">CONFIG.</button>
   </div>
-  <p class="footnote">Sátira política fictícia. Nenhum político real foi consultado (ou poupado).</p>
 </div>
 
 <!-- Team selection -->

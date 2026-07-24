@@ -68,6 +68,8 @@ const screens = ['mobile-warning', 'main-menu', 'team-select', 'char-select', 's
 function show(id) {
   for (const s of screens) document.getElementById(s).classList.toggle('hidden', s !== id);
   if (!id) for (const s of screens) document.getElementById(s).classList.add('hidden');
+  // ao navegar pra qualquer tela, fecha o painel de setup do menu CS (não fica aberto after)
+  if (id !== 'main-menu') { const ms = document.getElementById('menu-setup'); if (ms) ms.classList.remove('open'); }
 }
 const $ = id => document.getElementById(id);
 const isMobile = matchMedia('(pointer: coarse)').matches || innerWidth < 820;
@@ -162,6 +164,7 @@ async function startGame(team, charId) {
     renderer, textures, sfx, settings,
     playerCharId: charId, playerTeam: team, mapId: currentMap,
     nickname: $('nick-input').value, testMode,
+    ctf: matchMode === 'ctf',
     onMatchEnd: recordMatchStats,
   });
   window.__game = game;
@@ -222,6 +225,29 @@ $('avatar-file').onchange = async e => {
   } catch { $('avatar-note').textContent = 'falhou — tente outra imagem'; }
   e.target.value = '';
 };
+
+/* ---------------- menu CS 1.6 (Coro Solto) ---------------- */
+let matchMode = 'rounds';   // 'rounds' | 'ctf' — lido em startGame (ctf)
+const menuSetup = $('menu-setup');
+const openSetup = (mode, title) => {
+  if (mode) matchMode = mode;
+  $('setup-title').textContent = title;
+  menuSetup.classList.add('open');
+};
+document.querySelectorAll('.cs-item').forEach((it) => {
+  it.onclick = () => {
+    sfx.uiClick();
+    switch (it.dataset.act) {
+      case 'sp':    openSetup('rounds', 'SINGLE PLAYER'); break;
+      case 'ctf':   openSetup('ctf', 'CAPTURE THE FLAG'); break;
+      case 'mapa':  openSetup(null, 'ESCOLHER MAPA · ' + (matchMode === 'ctf' ? 'CTF' : 'SINGLE PLAYER')); break;
+      case 'config': show('settings-panel'); break;
+      case 'ranking': showRanking(); break;
+      case 'sobre': show('howto-panel'); break;
+    }
+  };
+});
+$('setup-back').onclick = () => { sfx.uiClick(); menuSetup.classList.remove('open'); };
 
 /* ---------------- menu wiring ---------------- */
 $('btn-jogar').onclick = () => {
