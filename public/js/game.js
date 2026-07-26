@@ -85,6 +85,7 @@ export class Game {
     this.camera.rotation.order = 'YXZ';
     this.scene.add(this.camera);
     this.world = MAPS[resolveMapId(mapId)].build(this.scene, textures);
+    this._buildEnv();   // IBL: env map de gradiente dusk -> materiais PBR (Standard) ganham ambiente/reflexo
     this.flashTex = textures.flash;
     // modo de armas também muda o mapa: pickups fora do modo somem (e suas meshes)
     if (this.world.pickups) {
@@ -254,6 +255,27 @@ export class Game {
       lockHint: $('lock-hint'), hudSpeech: $('hud-speech'), hudSettings: $('hud-settings'),
       pickupHint: $('pickup-hint'),
     };
+  }
+
+  // IBL: gera um env map (gradiente de céu dusk) e seta scene.environment, pra os materiais
+  // PBR (MeshStandardMaterial) terem luz ambiente/reflexo em vez de ficarem chapados.
+  _buildEnv() {
+    try {
+      const c = document.createElement('canvas'); c.width = 16; c.height = 128;
+      const g = c.getContext('2d');
+      const grd = g.createLinearGradient(0, 0, 0, 128);
+      grd.addColorStop(0.00, '#1a2740');   // topo do céu
+      grd.addColorStop(0.48, '#8ea8c6');   // céu claro perto do horizonte
+      grd.addColorStop(0.52, '#c3a577');   // faixa quente do pôr do sol
+      grd.addColorStop(1.00, '#2a2620');   // chão/reflexo escuro
+      g.fillStyle = grd; g.fillRect(0, 0, 16, 128);
+      const tex = new THREE.CanvasTexture(c);
+      tex.mapping = THREE.EquirectangularReflectionMapping; tex.colorSpace = THREE.SRGBColorSpace;
+      const pmrem = new THREE.PMREMGenerator(this.renderer); pmrem.compileEquirectangularShader();
+      this._envRT = pmrem.fromEquirectangular(tex);
+      this.scene.environment = this._envRT.texture;
+      tex.dispose(); pmrem.dispose();
+    } catch (e) { console.warn('env map', e); }
   }
 
   _buildViewModels() {
@@ -2050,6 +2072,7 @@ export class Game {
 
   /* ================= teardown ================= */
   dispose() {
+    if (this._envRT) { this._envRT.dispose(); this._envRT = null; this.scene.environment = null; }   // libera o env map (IBL)
     document.removeEventListener('keydown', this._kd);
     document.removeEventListener('keyup', this._ku);
     document.removeEventListener('mousedown', this._md);

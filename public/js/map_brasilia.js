@@ -12,7 +12,9 @@ export function buildBrasilia(scene, T) {
   const root = new THREE.Group();
   scene.add(root);
 
-  const lam = (opts) => new THREE.MeshLambertMaterial(opts);
+  // PBR: era MeshLambertMaterial (chapado). Standard reage ao env map (IBL) e à luz com
+  // roughness/metalness — mesmo com map/color, ganha ambiente e sombreamento real.
+  const lam = (opts) => new THREE.MeshStandardMaterial({ roughness: 0.92, metalness: 0.0, ...opts });
   function addBox(w, h, d, mat, x, y, z, opts = {}) {
     const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
     m.position.set(x, y + h / 2, z);
@@ -268,17 +270,20 @@ export function buildBrasilia(scene, T) {
     const cl = new THREE.Sprite(new THREE.SpriteMaterial({ map: T.cloud, transparent: true, fog: false, depthWrite: false, opacity: 0.9 }));
     cl.position.set(cx, cy, cz); cl.scale.set(cs, cs * 0.42, 1); root.add(cl);
   }
-  const hemi = new THREE.HemisphereLight(0xeaf3ff, 0x9c8f6f, 0.82);   // lower ambient → more structure/contrast (ACES does the rest)
+  // Luz rebalanceada (upgrade PBR): menos ambiente chapado + sol mais forte/direcional +
+  // sombra mais nítida = mais forma/profundidade. O env map (IBL) preenche o ambiente agora.
+  const hemi = new THREE.HemisphereLight(0xeaf3ff, 0x8a7f63, 0.42);
   scene.add(hemi);
-  const sun = new THREE.DirectionalLight(0xfff4e0, 1.65);
-  sun.position.set(40, 65, -10); sun.castShadow = true;
+  const sun = new THREE.DirectionalLight(0xfff1d8, 2.5);
+  sun.position.set(38, 58, -14); sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
   sun.shadow.camera.left = -80; sun.shadow.camera.right = 80;
   sun.shadow.camera.top = 80; sun.shadow.camera.bottom = -80;
-  sun.shadow.camera.far = 220; sun.shadow.bias = -0.0004;
+  sun.shadow.camera.far = 220; sun.shadow.bias = -0.00035; sun.shadow.normalBias = 0.03;
+  sun.shadow.radius = 3;   // penumbra mais suave (PCFSoft)
   scene.add(sun);
-  const fill = new THREE.DirectionalLight(0xbfd8ee, 0.3);
-  fill.position.set(-30, 45, 30); scene.add(fill);
+  const fill = new THREE.DirectionalLight(0xaecbe8, 0.35);   // rebote frio do céu (lado oposto)
+  fill.position.set(-32, 40, 28); scene.add(fill);
 
   /* ---------------- ground height (flat) ---------------- */
   function groundHeightAt() { return 0; }
