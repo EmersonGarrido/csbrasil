@@ -97,44 +97,64 @@ export class Sfx {
     o.start(t); o.stop(t + dur + 0.05);
   }
 
-  // Punch procedural por CLASSE de arma: um corpo filtrado + sub-thump grave layerado SOB o
-  // sample .wav. Os wav do CS 1.6 são finos/baixos; o punch dá peso ("boom") sem descaracterizar.
-  _punch(cls) {
-    this.ensure(); if (!this.ctx) return;
-    const P = {
-      sniper: [.34, .8, 620, 105], rifle: [.13, .55, 1250, 150], shotgun: [.24, .9, 440, 92],
-      smg: [.09, .42, 1750, 195], pistol: [.11, .5, 1450, 200], lmg: [.16, .6, 900, 128],
-    }[cls] || [.12, .45, 1400, 165];
-    const [dur, peak, filt, f0] = P;
-    this._burst(dur, peak * 0.5, filt);            // corpo filtrado (encorpa)
-    this._beep('sine', f0, f0 * 0.4, dur * 1.4, peak);  // sub-thump grave (soco no peito)
+  // Curva de saturação (tanh) cacheada por drive — dá o "grão"/estouro do tiro.
+  _satCurve(drive) {
+    this._satCache = this._satCache || {};
+    if (this._satCache[drive]) return this._satCache[drive];
+    const n = 1024, c = new Float32Array(n), k = Math.tanh(drive);
+    for (let i = 0; i < n; i++) { const x = (i / (n - 1)) * 2 - 1; c[i] = Math.tanh(x * drive) / k; }
+    return (this._satCache[drive] = c);
   }
-  // tiro por arma: pack "weapons" por id, senão sample CS + punch procedural por classe.
-  shotWeapon(w) {
+  // Perfis por CLASSE (Hz/s). Portado do synth de tiro do Claude-of-Duty (7 camadas).
+  static GUN = {
+    sniper:  { lvl: 1.0, bodyF: 118, bodyDecay: 0.15, crackF: 1500, crackQ: 1.0, crackDecay: 0.09, drive: 8, midF: 540, midDecay: 0.06, tailF: 5200, tailDecay: 0.52, mech: 0.045, boom: true },
+    rifle:   { lvl: 0.82, bodyF: 150, bodyDecay: 0.09, crackF: 2450, crackQ: 0.95, crackDecay: 0.055, drive: 6, midF: 780, midDecay: 0.05, tailF: 5200, tailDecay: 0.3, mech: 0.03 },
+    ak:      { lvl: 0.9, bodyF: 126, bodyDecay: 0.11, crackF: 1780, crackQ: 0.9, crackDecay: 0.07, drive: 7.5, midF: 640, midDecay: 0.06, tailF: 4200, tailDecay: 0.42, mech: 0.034 },
+    smg:     { lvl: 0.62, bodyF: 172, bodyDecay: 0.06, crackF: 3050, crackQ: 1.05, crackDecay: 0.04, drive: 5, midF: 900, midDecay: 0.035, tailF: 6200, tailDecay: 0.19, mech: 0.021 },
+    pistol:  { lvl: 0.72, bodyF: 196, bodyDecay: 0.07, crackF: 2600, crackQ: 1.0, crackDecay: 0.05, drive: 5.5, midF: 820, midDecay: 0.04, tailF: 5000, tailDecay: 0.22, mech: 0.03 },
+    shotgun: { lvl: 1.0, bodyF: 92, bodyDecay: 0.17, crackF: 1150, crackQ: 0.7, crackDecay: 0.11, drive: 7, midF: 430, midDecay: 0.07, tailF: 3800, tailDecay: 0.55, mech: 0.05, boom: true },
+    lmg:     { lvl: 0.92, bodyF: 122, bodyDecay: 0.12, crackF: 1900, crackQ: 0.9, crackDecay: 0.075, drive: 8, midF: 600, midDecay: 0.06, tailF: 4600, tailDecay: 0.45, mech: 0.035 },
+  };
+  static GUN_CLASS = {
+    awp: 'sniper', mosin: 'sniper', rem700: 'sniper', m400: 'sniper', svd: 'sniper', g3sg1: 'sniper', sks: 'sniper',
+    shotgun: 'shotgun', md97: 'shotgun', mp5: 'smg', uzi: 'smg', p90: 'smg', lmg: 'lmg',
+    pistol: 'pistol', deagle: 'pistol', revolver38: 'pistol', m92: 'ak', ak: 'ak', akm: 'ak',
+  };
+  // Tiro SINTETIZADO em camadas (sem sample/copyright): transiente + corpo/soco + crack +
+  // mid + cauda + mecânica + boom. Jitter por tiro (2 tiros nunca iguais). vol: trim de distância.
+  _gunshot(cls, vol = 1) {
+    this.ensure(); if (!this.ctx) return;
+    const R = this.ctx, t = R.currentTime, out = this.master;
+    const P = Sfx.GUN[cls] || Sfx.GUN.rifle;
+    const jit = 1 + (Math.random() - 0.5) * 0.09;
+    const V = P.lvl * (0.9 + Math.random() * 0.2) * 0.9 * vol;
+    const mk = (node) => { node.connect(out); return node; };
+    // shaper compartilhado p/ corpo+crack (saturação)
+    const shaper = R.createWaveShaper(); shaper.curve = this._satCurve(P.drive); shaper.oversample = '2x';
+    const shg = R.createGain(); shg.gain.value = V; shaper.connect(shg); shg.connect(out);
+    const env = (g, a, pk, d) => this._env(g, t, a, pk, d);
+    // 1) transiente (click agudo)
+    { const s = this._noise(0.008); const hp = R.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 2200; const g = R.createGain(); env(g, 0.0005, 0.85 * V, 0.007); s.connect(hp); hp.connect(mk(g)); s.start(t); s.stop(t + 0.02); }
+    // 2) corpo/soco (sine grave em queda + tri sub) -> shaper
+    { const o = this._osc('sine', P.bodyF * jit); o.frequency.exponentialRampToValueAtTime(P.bodyF * 0.4 * jit, t + P.bodyDecay); const g = R.createGain(); env(g, 0.002, 1.0, P.bodyDecay); o.connect(g); g.connect(shaper); o.start(t); o.stop(t + P.bodyDecay + 0.06);
+      const o2 = this._osc('triangle', P.bodyF * 0.5 * jit); const g2 = R.createGain(); env(g2, 0.002, 0.6, P.bodyDecay * 1.15); o2.connect(g2); g2.connect(shaper); o2.start(t); o2.stop(t + P.bodyDecay * 1.15 + 0.06); }
+    // 3) crack (ruído band-pass) -> shaper
+    { const s = this._noise(P.crackDecay + 0.02); const bp = R.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = P.crackF * jit; bp.Q.value = P.crackQ; const g = R.createGain(); env(g, 0.001, 0.95, P.crackDecay); s.connect(bp); bp.connect(g); g.connect(shaper); s.start(t); s.stop(t + P.crackDecay + 0.05); }
+    // 4) mid (cola)
+    { const s = this._noise(P.midDecay); const bp = R.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = P.midF; bp.Q.value = 0.8; const g = R.createGain(); env(g, 0.001, 0.4 * V, P.midDecay); s.connect(bp); bp.connect(mk(g)); s.start(t); s.stop(t + P.midDecay + 0.05); }
+    // 5) cauda (ruído sob lowpass em queda = "sala")
+    { const s = this._noise(P.tailDecay); const lp = R.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.setValueAtTime(P.tailF, t); lp.frequency.exponentialRampToValueAtTime(700, t + P.tailDecay); const g = R.createGain(); env(g, 0.004, 0.5 * V, P.tailDecay); s.connect(lp); lp.connect(mk(g)); s.start(t); s.stop(t + P.tailDecay + 0.05); }
+    // 6) mecânica (ferrolho metálico, atrasado)
+    { const md = P.mech; const o = this._osc('square', 2100 * jit); const bp = R.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 2500; bp.Q.value = 3; const g = R.createGain(); this._env(g, t + md, 0.001, 0.14 * V, 0.05); o.connect(bp); bp.connect(g); g.connect(out); o.start(t + md); o.stop(t + md + 0.08); }
+    // 7) boom grave (só sniper/shotgun) — rolo de distância
+    if (P.boom) this._beep('sine', 72, 32, 0.5, 0.5 * V);
+  }
+  // tiro por arma: pack "weapons" (override local) senão synth por classe.
+  shotWeapon(w, vol = 1) {
     const f = this._pick(this.pack?.weapons?.[w]);
-    if (f) { this._sample(f); return; }
-    // Sample estilo CS (audio/weapons/*.wav) + volumes reforçados. Snipers de FERROLHO
-    // (mosin/rem700) usam o scout (bolt) em vez do som da AWP — antes os 3 soavam iguais.
-    // (Os .wav são do CS/Valve — trocar por CC0 antes do launch público.)
-    const CS = {
-      awp: ['awp1', 0.75], mosin: ['scout_fire-1', 0.9], rem700: ['scout_fire-1', 0.85], m400: ['sg550-1', 0.75],
-      ak: ['ak47-2', 1.0], akm: ['ak47-2', 1.0], m92: ['ak47-2', 0.95], m4: ['m4a1-1', 1.0],
-      carbine: ['galil-2', 0.95], g3: ['g3sg1-1', 0.9], scar: ['sg552-1', 0.95], tavor: ['aug-1', 0.95],
-      famas: ['famas-2', 0.9], mp5: ['mp5-2', 0.95], uzi: ['mac10-1', 0.95], p90: ['p90-1', 0.95],
-      lmg: ['m249-2', 1.0], shotgun: ['m3-1', 1.0], md97: ['xm1014-1', 1.0], deagle: ['deagle-1', 1.0],
-      pistol: ['glock18-1', 0.95], revolver38: ['deagle-2', 0.95],
-      svd: ['sg550-1', 0.6], g3sg1: ['g3sg1-1', 0.7], sks: ['galil-2', 0.75],
-    };
-    const CLS = {
-      awp: 'sniper', mosin: 'sniper', rem700: 'sniper', m400: 'sniper', svd: 'sniper', g3sg1: 'sniper', sks: 'sniper',
-      shotgun: 'shotgun', md97: 'shotgun',
-      mp5: 'smg', uzi: 'smg', p90: 'smg', lmg: 'lmg', pistol: 'pistol', deagle: 'pistol', revolver38: 'pistol',
-    };
+    if (f) { this._sample(f, vol); return; }
     if (w === 'knife') return this.knife();
-    const cls = CLS[w] || 'rifle';
-    const hit = CS[w];
-    if (hit) { this._sample('audio/weapons/' + hit[0] + '.wav', hit[1]); this._punch(cls); return; }
-    this._punch(cls);   // sem sample: punch procedural por classe já é o tiro
+    this._gunshot(Sfx.GUN_CLASS[w] || 'rifle', vol);
   }
 
   uiClick()   { this.ensure(); this._beep('square', 880, 660, .06, .12); }
