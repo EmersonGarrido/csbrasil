@@ -13,7 +13,7 @@ export class Sfx {
     // Local pack first (audio/manifest.json, gitignored — dev's own CS samples);
     // fall back to the committed CC0 pack (real gun recordings, public domain) so
     // production plays real shots instead of the synth. Never throws.
-    for (const url of ['audio/manifest.json?v=3', 'audio/manifest.default.json?v=1']) {
+    for (const url of ['audio/manifest.json?v=4', 'audio/manifest.default.json?v=1']) {
       try {
         const r = await fetch(url, { cache: 'no-cache' });
         if (r.ok) { this.pack = await r.json(); return; }
@@ -36,7 +36,11 @@ export class Sfx {
     if (!this.speechEnabled) return;
     const now = performance.now();
     if (now - this._lastVoice < minGap * 1000) return;
-    const f = this._pick(this.pack?.voice?.[team]);
+    const arr = this.pack?.voice?.[team];
+    if (!arr || !arr.length) return;
+    // IN-GAME (grito de kill): prioriza clipes CURTOS. O array vem ordenado do mais curto
+    // pro mais longo (por tamanho no manifest); random*random puxa o sorteio pro início.
+    const f = arr[Math.floor(Math.random() * Math.random() * arr.length)];
     if (f) { this._lastVoice = now; this._sample(f); }
   }
   // player-triggered radio line (CS-style) — always plays, stops previous
