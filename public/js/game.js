@@ -1016,8 +1016,17 @@ export class Game {
            que dá o Zg mínimo que mantém a coronha dentro de NEAR_X da largura. Empurrar a
            arma pro fundo também REDUZ o tamanho aparente — que é o que o dono pediu desde o
            começo ("as armas tomam a tela"). Vale para as 26 armas sem tabela nova. */
+        /* RECUO DE TAMANHO APARENTE (P0.2). A fórmula de enquadramento é INVARIANTE À
+           ESCALA: back, fwd e gx crescem todos com vmScale, então mexer em vmScale move a
+           arma junto e o tamanho na tela não muda — foi por isso que baixar vmScale nunca
+           resolveu o "as armas tomam a tela". O que muda o tamanho aparente é a razão
+           (comprimento da arma / distância do grip): empurrar Zg pra trás sem mexer no
+           comprimento encolhe a arma e mantém o grip no MESMO ponto em NDC (porque
+           gx = Zg·tanH também escala). 1,35 é o fator que põe o AK ocupando ~1/3 da
+           largura em vez de ~metade, medido em tools/eval/ (vmcheck). */
+        Zg *= 1.35;
         {
-          const NEAR_X = 0.94;                                    // fração da meia-largura da tela
+          const NEAR_X = 0.80;                                    // fração da meia-largura da tela
           const halfTanH = Math.tan(THREE.MathUtils.degToRad(((this.vmCamera && this.vmCamera.fov) || 62) / 2)) * asp;
           const lim = NEAR_X * halfTanH;
           if (lim > t.tanH + 1e-3 && back > 0) Zg = Math.max(Zg, (back * lim) / (lim - t.tanH));
