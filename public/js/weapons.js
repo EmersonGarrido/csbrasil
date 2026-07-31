@@ -29,7 +29,7 @@ const MODEL_ALIAS = {};   // as 3 snipers novas têm modelo próprio (Mint)
 // no yaw. (Os GLBs vêm de fontes diferentes, sem convenção; a leitura à olho falhava nas
 // bullpups/compactas — a medição não.) Confirmadas pelo usuário: tavor, uzi, m400.
 const CFG = {
-  awp:     { len: 1.15, rot: [0, 90, 0], gripZ: 0.72 },
+  awp:     { len: 1.15, rot: [0, 90, 0], gripZ: 0.72, vm: 0.78 },   // vm: scope/rifle longo demais de perto (dono: "gigantesca")
   ak:      { len: 0.88, rot: [0, 270, 0], gripZ: 0.62 },  // +180: estava coronha em +Z (invertido)
   m4:      { len: 0.84, rot: [0, 90, 0], gripZ: 0.62 },
   mp5:     { len: 0.66, rot: [0, 90, 0], gripZ: 0.58 },   // medição borderline (7%); cano +Z confirmado à olho
@@ -39,25 +39,25 @@ const CFG = {
   knife:   { len: 0.30, rot: [0, 270, 0], gripZ: 0.6 },  // +180: lâmina estava pra trás (medição -Z)
   // arsenal-2 (Brazilian-flavored)
   m92:       { len: 0.76, rot: [0, 270, 0], gripZ: 0.6 },   // +180: Zastava M92 estava invertido
-  g3:        { len: 1.10, rot: [0, 270, 0], gripZ: 0.58 },  // +180: HK G3 estava invertido
+  g3:        { len: 1.10, rot: [0, 270, 0], gripZ: 0.58, vm: 0.85 },  // +180: HK G3 estava invertido
   akm:       { len: 0.88, rot: [0, 90, 0], gripZ: 0.62 },
   revolver38:{ len: 0.24, rot: [0, 270, 0], gripZ: 0.68 },  // +180: medição -Z (invertido)
-  md97:      { len: 1.05, rot: [0, 270, 0], gripZ: 0.62 },  // +180: estava invertido
+  md97:      { len: 1.05, rot: [0, 270, 0], gripZ: 0.62, vm: 0.88 },  // +180: estava invertido
   carbine:   { len: 0.98, rot: [0, 0, 0], gripZ: 0.6 },   // natively +Z; [0,90,0] threw the barrel onto X (giant)
-  m400:      { len: 0.92, rot: [0, 270, 0], gripZ: 0.62 },  // +180: usuário confirmou invertido
-  mosin:     { len: 1.20, rot: [0, 270, 0], gripZ: 0.66 },  // +180: estava invertido
-  rem700:    { len: 1.15, rot: [0, 270, 0], gripZ: 0.66 },  // +180: estava invertido
+  m400:      { len: 0.92, rot: [0, 270, 0], gripZ: 0.62, vm: 0.85 },  // +180: usuário confirmou invertido
+  mosin:     { len: 1.20, rot: [0, 270, 0], gripZ: 0.66, vm: 0.75 },  // +180: estava invertido
+  rem700:    { len: 1.15, rot: [0, 270, 0], gripZ: 0.66, vm: 0.78 },  // +180: estava invertido
   // arsenal-3 (military)
-  lmg:       { len: 1.10, rot: [0, 90, 0], gripZ: 0.58 },
+  lmg:       { len: 1.10, rot: [0, 90, 0], gripZ: 0.58, vm: 0.72 },   // vm: caixão preto gigante na tela
   scar:      { len: 0.90, rot: [0, 90, 0], gripZ: 0.62 },
   tavor:     { len: 0.72, rot: [0, 270, 0], gripZ: 0.5 },   // +180: usuário confirmou invertido
   famas:     { len: 0.76, rot: [0, 90, 0], gripZ: 0.5 },
   uzi:       { len: 0.60, rot: [0, 270, 0], gripZ: 0.58, vm: 0.72 },  // vm: encolhe no FP (estava grande)
   p90:       { len: 0.52, rot: [0, 270, 0], gripZ: 0.55, vmRotY: Math.PI },  // vmRotY: flip 180 só no FP (estava invertida)
   // snipers semi-auto — herdam a malha (MODEL_ALIAS) e o rot/len do modelo reusado
-  svd:       { len: 1.15, rot: [0, 270, 0], gripZ: 0.64 },   // modelo próprio (Mint); +180 (estava invertida)
-  g3sg1:     { len: 1.12, rot: [0, 270, 0], gripZ: 0.58 },   // modelo do G3
-  sks:       { len: 1.02, rot: [0, 270, 0], gripZ: 0.6 },    // modelo próprio (Mint), cano +Z como a SVD
+  svd:       { len: 1.15, rot: [0, 270, 0], gripZ: 0.64, vm: 0.8 },   // modelo próprio (Mint); +180 (estava invertida)
+  g3sg1:     { len: 1.12, rot: [0, 270, 0], gripZ: 0.58, vm: 0.85 },   // modelo do G3
+  sks:       { len: 1.02, rot: [0, 270, 0], gripZ: 0.6, vm: 0.85 },    // modelo próprio (Mint), cano +Z como a SVD
 };
 
 const loadGLB = (url) => new Promise((res, rej) => loader.load(url, res, undefined, rej));

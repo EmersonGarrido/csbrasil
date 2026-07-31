@@ -298,13 +298,19 @@ export function buildBrasilia(scene, T) {
     }
     return false;
   };
+  // Folga = raio do bot (0.38) + margem. Antes o grafo usava 0.5/0.25 (< raio do bot), então
+  // os caminhos passavam por frestas estreitas demais entre os props e o bot ENCALHAVA perto
+  // do spawn (nunca cruzava). Agora nós e arestas respeitam a largura do bot -> rotas pelas
+  // faixas abertas de verdade.
+  const BOTR = 0.55;
   for (let gx = -22; gx <= 22; gx += STEP)
     for (let gz = -60; gz <= 60; gz += STEP)   // grade de waypoints estendida p/ o mapa longo
-      if (!blocked(gx, gz, 0.5)) nodes.push({ x: gx, z: gz });
+      if (!blocked(gx, gz, BOTR + 0.15)) nodes.push({ x: gx, z: gz });
   const segClear = (a, b) => {
-    for (let i = 1; i < 6; i++) {
-      const t = i / 6, x = a.x + (b.x - a.x) * t, z = a.z + (b.z - a.z) * t;
-      if (blocked(x, z, 0.25)) return false;
+    const dist = Math.hypot(b.x - a.x, b.z - a.z), steps = Math.max(6, Math.ceil(dist / 0.6));
+    for (let i = 1; i < steps; i++) {
+      const t = i / steps, x = a.x + (b.x - a.x) * t, z = a.z + (b.z - a.z) * t;
+      if (blocked(x, z, BOTR)) return false;   // corredor com largura do bot
     }
     return true;
   };
@@ -324,21 +330,34 @@ export function buildBrasilia(scene, T) {
     }
     return best;
   }
+  // A* com custo EUCLIDIANO. Antes era BFS por nº de saltos: com arestas diagonais, o
+  // "menor nº de saltos" preferia passos diagonais e escolhia um caminho ERRANTE — uma viagem
+  // reta pela direita (x=9, z 59->-29) voltava zigue-zagueando até x=-13 e voltava, funilando
+  // TODOS os bots pelo centro-esquerda (a dor "petista esquerda / bolsonarista direita"). A*
+  // por distância devolve o caminho geometricamente mais curto -> desce reto pela coluna.
+  const D = (a, b) => { const dx = nodes[a].x - nodes[b].x, dz = nodes[a].z - nodes[b].z; return Math.sqrt(dx * dx + dz * dz); };
   function findPath(fromIdx, toIdx) {
     if (fromIdx === toIdx) return [toIdx];
-    const prev = new Int16Array(nodes.length).fill(-1);
-    const q = [fromIdx]; prev[fromIdx] = fromIdx;
-    while (q.length) {
-      const n = q.shift();
-      for (const m of adj[n]) if (prev[m] === -1) {
-        prev[m] = n;
-        if (m === toIdx) {
-          const path = [m]; let c = n;
-          while (c !== fromIdx) { path.unshift(c); c = prev[c]; }
-          path.unshift(fromIdx);
-          return path;
-        }
-        q.push(m);
+    const n = nodes.length;
+    const g = new Float32Array(n).fill(Infinity);
+    const f = new Float32Array(n).fill(Infinity);
+    const prev = new Int32Array(n).fill(-1);
+    const open = new Uint8Array(n);
+    g[fromIdx] = 0; f[fromIdx] = D(fromIdx, toIdx); open[fromIdx] = 1;
+    let openCount = 1;
+    while (openCount > 0) {
+      let cur = -1, bf = Infinity;                       // grafo pequeno (~centenas): scan linear
+      for (let i = 0; i < n; i++) if (open[i] && f[i] < bf) { bf = f[i]; cur = i; }
+      if (cur === -1) break;
+      if (cur === toIdx) {
+        const path = [cur]; let c = prev[cur];
+        while (c !== -1) { path.unshift(c); c = prev[c]; }
+        return path;
+      }
+      open[cur] = 0; openCount--;
+      for (const m of adj[cur]) {
+        const t = g[cur] + D(cur, m);
+        if (t < g[m]) { prev[m] = cur; g[m] = t; f[m] = t + D(m, toIdx); if (!open[m]) { open[m] = 1; openCount++; } }
       }
     }
     return [fromIdx];

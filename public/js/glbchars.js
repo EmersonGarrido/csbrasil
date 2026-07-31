@@ -22,6 +22,8 @@ export const GLB_CHARS = new Set([
   'gotinha', 'farialimer',
   'bombado', 'hipster', 'dollynho', 'et', 'ancap',
   'bozo', 'canarinho', 'proerd',
+  // Tribos Urbanas (3º grupo, GLB Mint riggado).
+  'emo', 'blackmetal', 'metaleiro', 'punk', 'skatista', 'clubber', 'rapper', 'reggae', 'funkeiro',
 ]);
 
 // Mascotes de braços-toco: a mão de apoio via IK vira uma mão gigante flutuando

@@ -56,6 +56,37 @@ export const CHARACTERS = [
   { id: 'bozo', team: 'P', name: 'Bozo',
     blurb: 'Do picadeiro pra praça. Nariz vermelho, sapatão marrom e risada de quem arma o circo.',
     pal: { skin: 0xf5f0e6, shirt: 0x3b6fd4, pants: 0x2f56a8, hair: 0xd43a2e, boots: 0x6b4a2f } },
+
+  // ── TRIBOS URBANAS (3º grupo, models GLB do Mint). team:'U' = invisível aos filtros P/B
+  // (bots e seleção política não os pegam); selecionáveis via tribe:'urbanas' em qualquer lado.
+  // Modo de FACÇÃO dedicada (spawns/placar próprios) fica como follow-up. pal é fallback (usam GLB).
+  { id: 'emo', team: 'U', tribe: 'urbanas', name: 'Emo',
+    blurb: 'Franja na cara e playlist de sofrência. Mira embaçada por um olho só.',
+    pal: { skin: 0xe6d3d0, shirt: 0x1a1a1a, pants: 0x1a1a1a, hair: 0x111111, boots: 0x1a1a1a } },
+  { id: 'blackmetal', team: 'U', tribe: 'urbanas', name: 'Black Metal',
+    blurb: 'Corpse paint, cabelão e blast beat. Congela a treta num inverno norueguês.',
+    pal: { skin: 0xf0f0f0, shirt: 0x0a0a0a, pants: 0x0a0a0a, hair: 0x0a0a0a, boots: 0x0a0a0a } },
+  { id: 'metaleiro', team: 'U', tribe: 'urbanas', name: 'Metaleiro',
+    blurb: 'Jaqueta jeans coberta de bottons e cabelo até a cintura. Headbang no recuo.',
+    pal: { skin: 0xd9a580, shirt: 0x1a2740, pants: 0x24324f, hair: 0x2a1e14, boots: 0x1a1a1a } },
+  { id: 'punk', team: 'U', tribe: 'urbanas', name: 'Punk',
+    blurb: 'Moicano colorido e jaqueta de spikes. Anarquia, três acordes e um tiro só.',
+    pal: { skin: 0xe8b98a, shirt: 0x111111, pants: 0x3a2a2a, hair: 0xe23bcf, boots: 0x1a1a1a } },
+  { id: 'skatista', team: 'U', tribe: 'urbanas', name: 'Skatista',
+    blurb: 'Gorro, camiseta larga e joelho ralado. Dropa a treta de flip.',
+    pal: { skin: 0xd9a066, shirt: 0x3a6ea5, pants: 0x2a2a2a, hair: 0x2a1e14, boots: 0xf0f0f0 } },
+  { id: 'clubber', team: 'U', tribe: 'urbanas', name: 'Clubber',
+    blurb: 'Regata neon e glowstick. Só atira no drop da batida.',
+    pal: { skin: 0xf0c9a4, shirt: 0x1affd2, pants: 0x141414, hair: 0x101010, boots: 0xf0f0f0 } },
+  { id: 'rapper', team: 'U', tribe: 'urbanas', name: 'Rapper',
+    blurb: 'Camisão gigante, correntes de ouro e calça saggy. Rima e recarrega no flow.',
+    pal: { skin: 0x8d5a3b, shirt: 0xf0f0f0, pants: 0x2a3550, hair: 0x1a1a1a, boots: 0xf0f0f0 } },
+  { id: 'reggae', team: 'U', tribe: 'urbanas', name: 'Rasta',
+    blurb: 'Dreads, gorro rastafári e paz interior. Só que armado. Jah guia a mira.',
+    pal: { skin: 0x5a3a22, shirt: 0xd9a441, pants: 0x3a5a3a, hair: 0x1a1a1a, boots: 0x6b4a2f } },
+  { id: 'funkeiro', team: 'U', tribe: 'urbanas', name: 'Funkeiro',
+    blurb: 'Boné Quiksilver, Oakley Juliet vermelho e corrente de ouro. Ostenta e domina.',
+    pal: { skin: 0xd9a066, shirt: 0xf0f0f0, pants: 0xd03030, hair: 0xe8e0c0, boots: 0x2e56c4 } },
 ];
 export const byId = id => CHARACTERS.find(c => c.id === id);
 

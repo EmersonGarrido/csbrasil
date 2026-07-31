@@ -9,7 +9,9 @@ export function buildWorld(scene, T) {
   const root = new THREE.Group();
   scene.add(root);
 
-  const lam = (opts) => new THREE.MeshLambertMaterial(opts);
+  // Standard (não Lambert) pra receber o env map IBL (scene.environment, _buildEnv no game.js) —
+  // mesmo padrão visual do map_brasilia. roughness alto/metalness 0 = superfícies foscas do mapa.
+  const lam = (opts) => new THREE.MeshStandardMaterial({ roughness: 0.9, metalness: 0, ...opts });
   function addBox(w, h, d, mat, x, y, z, opts = {}) {
     const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
     m.position.set(x, y + h / 2, z);

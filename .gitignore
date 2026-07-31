@@ -15,3 +15,7 @@ dist/
 .astro/
 .env
 .env.*
+
+# transferencia para o container de eval (gauntlet) — nao versionar
+xferwork/
+--help/

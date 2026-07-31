@@ -3,11 +3,12 @@ import * as THREE from 'three';
 import { initTextures } from './textures.js';
 import { CHARACTERS, buildCharacter, charWeapon } from './characters.js';
 import { preloadCharacterAssets, buildCharacterModel, hasModel, GLB_CHARS } from './glbchars.js';
-import { preloadFPArms } from './fparms.js';
+import { preloadFPArms, preloadStaticVm } from './fparms.js';
 import { preloadMapProps } from './mapprops.js';
 import { MAPS, MAP_IDS, DEFAULT_MAP, resolveMapId } from './maps.js';
+import { setHavanCarSeed } from './map_havan.js';
 import { Sfx } from './audio.js';
-import { Game } from './game.js';
+import { Game, vmPreloadClasses } from './game.js';
 import { VERSION } from './version.js';
 import { enableLightBloom } from './bloom.js';
 import { enableStylize } from './stylize.js';
@@ -42,6 +43,14 @@ container.appendChild(renderer.domElement);
 const textures = initTextures();
 const sfx = new Sfx(); sfx.vol = settings.vol;
 sfx.speechEnabled = settings.speech !== false;
+sfx.reverbOn = new URLSearchParams(location.search).get('reverb') === '1';   // reverb leve opt-in (default off)
+// sidechain da música do menu: cliques/SFX abaixam a trilha por ~150-250ms e ela volta suave
+sfx.onDuck = (amt, hold) => {
+  const m = menuMusic;
+  if (!m || m.paused || m.muted || musicFade) return;
+  m.volume = MENU_MUSIC_VOL * amt;
+  setTimeout(() => { if (menuMusic && !musicFade && !menuMusic.paused) menuMusic.volume = MENU_MUSIC_VOL; }, hold * 1000 + 220);
+};
 const sfxReady = sfx.loadManifest();
 
 /* ---------------- selected map ---------------- */
@@ -51,17 +60,58 @@ settings.map = currentMap;
 
 /* ---------------- menu backdrop (orbiting map) ---------------- */
 // Mint building/statue GLBs used by the Brasília map (loaded once, cloned per placement).
-const MAP_PROPS = ['congresso', 'catedral', 'ministerio', 'palacio', 'justica', 'tires', 'stall', 'tent', 'bus', 'drinkstand', 'urna', 'towner'];
+const MAP_PROPS = ['congresso', 'catedral', 'ministerio', 'palacio', 'justica', 'tires', 'stall', 'tent', 'bus', 'drinkstand', 'urna', 'towner',
+  'quiosque', 'skate_ramp', 'lifeguard_tower', 'guarda_sol', 'arquibancada',
+  'churrasqueira', 'mesa_guardasol', 'cooler', 'boia', 'placa_piscina', 'caixa_som'];   // props do Piscinão de Ramos (Mint); carros/estátua do Havan carregam por-mapa   // Havan (estátua + carros + carrinho)
 let menuScene = new THREE.Scene();
 MAPS[currentMap].build(menuScene, textures);
 const menuCam = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, 0.1, 400);
+/* ---------------- loading real (barra via LoadingManager compartilhado) ---------------- */
+// GLTFLoader sem manager cai no THREE.DefaultLoadingManager — TODOS os GLBs (personagens,
+// props de mapa, braços FP, viewmodel) passam por ele. Cada fase faz snapshot do acumulado
+// (l0) e mede (loaded-l0)/(total-l0) → barra de progresso REAL, não spinner fake.
+const _lstat = { loaded: 0, total: 0, phase: null };
+THREE.DefaultLoadingManager.onProgress = (url, l, t) => {
+  _lstat.loaded = l; _lstat.total = t;
+  const ph = _lstat.phase;
+  if (ph) ph.set(Math.min(0.99, (l - ph.l0) / Math.max(1, t - ph.l0)));
+};
+function _mkPhase(fillEl, pctEl) {
+  const ph = { l0: _lstat.loaded, set(p) { fillEl.style.width = (p * 100).toFixed(0) + '%'; pctEl.textContent = Math.round(p * 100) + '%'; } };
+  _lstat.phase = ph; ph.set(0); return ph;
+}
+// fase de boot: props do cenário 3D do menu (carrega por baixo da splash)
+const _bootPhase = _mkPhase(document.getElementById('boot-bar-fill'), document.getElementById('boot-pct'));
+let _splashReady = false;
+function _splashSetReady() {
+  if (_splashReady) return; _splashReady = true;
+  _bootPhase.set(1);
+  if (_lstat.phase === _bootPhase) _lstat.phase = null;
+  // G2-R10: o failsafe de 20s dispara DEPOIS da splash sair do DOM (debug/?auto= e
+  // fluxos rápidos) — sem guarda, crashava "textContent null" (banner vermelho).
+  const bs = document.getElementById('boot-status'), se = document.getElementById('splash-enter');
+  if (bs) bs.textContent = 'ARENA PRONTA';
+  if (se) se.classList.remove('hidden');
+}
+setTimeout(_splashSetReady, 20000);   // failsafe: nunca prende o jogador na splash
+// overlay de loading de partida/personagens (cobre a cena montando — sem "minecraft")
+const _lo = {
+  box: document.getElementById('load-overlay'), fill: document.getElementById('load-bar-fill'),
+  pct: document.getElementById('load-pct'), label: document.getElementById('load-label'), status: document.getElementById('load-status'),
+};
+function showLoading(label, status = 'CARREGANDO MODELOS 3D…') {
+  _lo.label.textContent = label; _lo.status.textContent = status;
+  _lo.box.classList.remove('hidden');
+  _mkPhase(_lo.fill, _lo.pct);
+}
+function hideLoading() { _lstat.phase = null; _lo.box.classList.add('hidden'); }
 function rebuildMenuBackdrop() {
   menuScene = new THREE.Scene();
   MAPS[currentMap].build(menuScene, textures);
 }
 // The first backdrop is built before props load; rebuild once they're ready so the
-// menu shows the real Brasília landmarks too.
-preloadMapProps(MAP_PROPS).then(rebuildMenuBackdrop).catch(() => {});
+// menu shows the real Brasília landmarks too. Só então a splash libera a entrada.
+preloadMapProps(MAP_PROPS).then(() => { rebuildMenuBackdrop(); _splashSetReady(); }).catch(() => _splashSetReady());
 
 /* ---------------- screens ---------------- */
 const screens = ['mobile-warning', 'main-menu', 'team-select', 'char-select', 'settings-panel', 'howto-panel', 'ranking-panel', 'pause-menu', 'match-end'];
@@ -74,12 +124,13 @@ function show(id) {
 }
 const $ = id => document.getElementById(id);
 
-// Wallpapers rotativos (wall-1..4): 1 por tela no fluxo home→setup→lado→personagem, sem
+// Wallpapers rotativos (wall-1..8): 1 por tela no fluxo home→setup→lado→personagem, sem
 // repetir; o offset rotaciona a cada acesso (localStorage) pra variar entre visitas.
-const WALLS = ['/img/wall-1.png', '/img/wall-2.png', '/img/wall-3.png', '/img/wall-4.png'];
+const WALLS = ['/img/wall-1.png', '/img/wall-2.png', '/img/wall-3.png', '/img/wall-4.png',
+  '/img/wall-5.png', '/img/wall-6.png', '/img/wall-7.png', '/img/wall-8.png'];
 let _wallK = 0;
-try { _wallK = (parseInt(localStorage.getItem('cs_wallK') || '-1', 10) + 1) % 4; localStorage.setItem('cs_wallK', String(_wallK)); } catch {}
-const wallUrl = (i) => `url('${WALLS[(_wallK + i) % 4]}')`;
+try { _wallK = (parseInt(localStorage.getItem('cs_wallK') || '-1', 10) + 1) % WALLS.length; localStorage.setItem('cs_wallK', String(_wallK)); } catch {}
+const wallUrl = (i) => `url('${WALLS[(_wallK + i) % WALLS.length]}')`;
 const HOME_WALL = wallUrl(0), SETUP_WALL = wallUrl(1), TEAM_WALL = wallUrl(2), CHAR_WALL = wallUrl(3);
 function applyHomeWall() { const w = document.querySelector('#main-menu .cs-wallpaper'); if (w) w.style.backgroundImage = HOME_WALL; }
 function applySetupWall() { const w = document.querySelector('#main-menu .cs-wallpaper'); if (w) w.style.backgroundImage = SETUP_WALL; }
@@ -88,23 +139,42 @@ applyHomeWall();
 { const c = $('char-select'); if (c) c.style.setProperty('--wall', CHAR_WALL); }
 
 // Música de menu (loop, volume baixo). Toca só nas telas de menu; some quando a partida
-// começa e volta ao voltar pro menu. O navegador bloqueia autoplay até o 1º gesto do
-// usuário, então armamos no primeiro clique. Se o arquivo não existir, falha em silêncio.
+// começa e volta ao voltar pro menu. Chrome bloqueia autoplay COM som até o 1º gesto do
+// usuário — contorno: a faixa toca MUDA desde o load (permitido) e desmuta com fade no 1º
+// gesto, então já está rolando quando o som entra. Se o arquivo não existir, falha em silêncio.
 // ATENÇÃO: use uma faixa CC0/licenciada — NÃO usar música protegida (ex.: YouTube/MPB) no
 // build público (risco de copyright, igual aos sons da Valve a trocar).
 const MENU_MUSIC_VOL = 0.3;
+// Trilhas do menu (public/audio/menu-music/m01..m15 — trims de ~105s normalizados via ffmpeg,
+// ver HANDOFF). Uma aleatória POR VISITA ao menu; troca a cada partida/retorno.
+const MENU_TRACKS = Array.from({ length: 15 }, (_, i) => `/audio/menu-music/m${String(i + 1).padStart(2, '0')}.mp3`);
 let menuMusic = null, musicArmed = false, musicFade = null;
 function _ensureMusic() {
   if (menuMusic) return menuMusic;
-  menuMusic = new Audio('/audio/menu-music.mp3');
+  menuMusic = new Audio(MENU_TRACKS[(Math.random() * MENU_TRACKS.length) | 0]);
   menuMusic.loop = true; menuMusic.volume = MENU_MUSIC_VOL;
+  window.__mm = menuMusic;   // hook de debug/teste (estado da música do menu)
   return menuMusic;
 }
 function startMenuMusic() {
   const m = _ensureMusic();
   if (musicFade) { clearInterval(musicFade); musicFade = null; }
-  m.volume = MENU_MUSIC_VOL;
-  m.play().catch(() => {});   // silencioso se autoplay bloqueado ou arquivo ausente
+  if (!musicArmed) {
+    // tenta autoplay COM SOM (Chrome libera se o site tem Media Engagement Index alto pro
+    // usuário — é por isso que o YouTube consegue). Se rejeitar (NotAllowedError), cai no
+    // fluxo atual: mudo no load + desmute com fade no 1º gesto. Sem promise não tratada.
+    m.muted = false; m.volume = MENU_MUSIC_VOL;
+    const p = m.play();
+    if (p && p.then) p.then(() => { musicArmed = true; }, () => {
+      if (m.paused) { m.muted = true; m.play().catch(() => {}); }   // fallback gracioso
+    });
+    // o play() do boot nem sempre "gruda" (rede/dev server lento, readyState 0) —
+    // re-tenta quando houver dados, enquanto a intenção for tocar no menu
+    if (!m._cpHook) { m._cpHook = 1; m.addEventListener('canplay', () => { if (!menuMusic || menuMusic.paused) m.play().catch(() => {}); }); }
+    return;
+  }
+  m.muted = false; m.volume = MENU_MUSIC_VOL;
+  m.play().catch(() => {});   // silencioso se arquivo ausente
 }
 function stopMenuMusic() {   // fade rápido pra não cortar seco ao entrar na partida
   if (!menuMusic) return;
@@ -114,10 +184,33 @@ function stopMenuMusic() {   // fade rápido pra não cortar seco ao entrar na p
     if (menuMusic.volume <= 0.001) { clearInterval(musicFade); musicFade = null; menuMusic.pause(); }
   }, 40);
 }
-// arma no 1º gesto (clique/tecla) — exigência de autoplay dos navegadores
-const _armMusic = () => { if (!musicArmed) { musicArmed = true; startMenuMusic(); } };
+// no 1º gesto (clique/tecla): desmuta com fade-in — a faixa JÁ está rolando (autoplay mudo),
+// então o som "entra" instantâneo, como se fosse autoplay de verdade
+const _armMusic = () => {
+  if (musicArmed) return; musicArmed = true;
+  const m = _ensureMusic();
+  m.muted = false;
+  let v = 0.02; m.volume = v;
+  musicFade = setInterval(() => { v += 0.04; m.volume = Math.min(MENU_MUSIC_VOL, v); if (v >= MENU_MUSIC_VOL) { clearInterval(musicFade); musicFade = null; } }, 40);
+};
+// SPLASH DE BOOT ("pressione para entrar"): o gesto que sai da splash é GARANTIDO, então
+// destrava o áudio COM SOM na hora — sem fallback mudo e sem fade atrapalhado. Registrado
+// em capture ANTES do _armMusic, que vira no-op (musicArmed já true).
+function dismissSplash() {
+  const sp = document.getElementById('boot-splash');
+  if (!sp || !_splashReady || sp.classList.contains('gone')) return;
+  sp.classList.add('gone');
+  setTimeout(() => sp.remove(), 480);
+  musicArmed = true;
+  if (musicFade) { clearInterval(musicFade); musicFade = null; }
+  const m = _ensureMusic();
+  m.muted = false; m.volume = MENU_MUSIC_VOL; m.play().catch(() => {});
+}
+window.addEventListener('pointerdown', dismissSplash, true);
+window.addEventListener('keydown', dismissSplash, true);
 window.addEventListener('pointerdown', _armMusic);
 window.addEventListener('keydown', _armMusic);
+startMenuMusic();   // boot: começa MUDA imediatamente (loop rolando antes do 1º clique)
 const isMobile = matchMedia('(pointer: coarse)').matches || innerWidth < 820;
 let settingsReturn = 'main-menu';
 
@@ -185,33 +278,53 @@ function pvThumb(def) {
 }
 
 /* ---------------- game lifecycle ---------------- */
-let game = null, currentTeam = 'P', currentChar = CHARACTERS[0].id, selChar = null;
+let game = null, currentTeam = 'P', currentFaction = 'P', currentChar = CHARACTERS[0].id, selChar = null;
+let pickingEnemy = false, currentEnemyFaction = null;   // 2º passo do team-select: escolher o adversário
 let submitted = true;   // stats da partida atual já enviados?
 let registeredNick = ''; // nick usado no registro da sessão (token está atrelado a ele)
 let heartbeatOff = false;
 const params = new URLSearchParams(location.search);
 const testMode = params.get('debug') === '1';
 
-async function startGame(team, charId) {
+async function startGame(team, charId, enemyFaction) {
   if (isMobile && !testMode) { show('mobile-warning'); return; }
-  currentTeam = team; currentChar = charId;
+  // facção = time do personagem ('P'/'B'/'U'). O jogador ESCOLHE o adversário (enemyFaction);
+  // default = oposto político. Mesma facção dos dois lados = mirror (inimigo roxo no HUD).
+  const faction = (CHARACTERS.find(c => c.id === charId) || {}).team || team || 'P';
+  const side = faction === 'B' ? 'B' : 'P';
+  const enemyFac = enemyFaction || currentEnemyFaction || (side === 'B' ? 'P' : 'B');
+  currentFaction = faction; currentTeam = side; currentChar = charId; currentEnemyFaction = enemyFac;
   stopMenuMusic();   // música é só do menu — some (fade) quando a partida começa
   if (game) game.dispose();
   show(null);
+  const _sp = document.getElementById('boot-splash'); if (_sp) _sp.remove();   // fluxo ?auto= pula a splash
+  // LOADING REAL da partida: overlay opaco cobre TUDO enquanto os GLBs entram e o mundo
+  // é construído — nada de cena parcial/"minecraft" aparecendo aos poucos
+  showLoading('CARREGANDO — ' + MAPS[currentMap].name.toUpperCase());
   await sfxReady;   // make sure voice/CS samples are registered before round 1 sounds
   // Preload real GLB character models + shared animation clips (bots). Falls back to
   // procedural box meshes for any archetype that isn't modeled yet. Map props (statues)
   // load in parallel and are optional — the map renders fine if they're missing.
-  await Promise.all([
-    preloadCharacterAssets([...GLB_CHARS]),
-    preloadMapProps(MAP_PROPS),
-    preloadFPArms(),   // braços FP dedicados (falha → fallback procedural, sem bloquear)
-  ]);
+  // sorteia os carros da Havan desta partida ANTES do preload (seleção = props do mapa)
+  setHavanCarSeed((Math.random() * 1e9) | 0);
+  try {
+    await Promise.all([
+      preloadCharacterAssets([...GLB_CHARS]),
+      preloadMapProps([...MAP_PROPS, ...((MAPS[currentMap] && MAPS[currentMap].props) || [])]),   // + props do mapa (Havan: carros/estátua)
+      preloadFPArms(),   // braços FP dedicados (falha → fallback procedural, sem bloquear)
+      // viewmodel estático Tripo: LAZY (G2-R14A — crash Aw Snap! no CTF da Havan por OOM:
+      // o preload antigo baixava os 13 arms_*.glb ~270MB de uma vez). Boot = só o loadout
+      // inicial (classe da arma do personagem + rifle/pistol/faca + herói dedicada, se houver);
+      // as demais classes carregam sob demanda na 1ª troca (_ensureStaticVm, com cache).
+      preloadStaticVm(vmPreloadClasses(charWeapon(charId))),
+    ]);
+  } catch (e) { console.error('preload da partida falhou parcialmente', e); }
+  if (_lstat.phase) _lstat.phase.set(1);
   game = new Game({
     renderer, textures, sfx, settings,
-    playerCharId: charId, playerTeam: team, mapId: currentMap,
+    playerCharId: charId, playerTeam: side, playerFaction: faction, enemyFaction: enemyFac, mapId: currentMap,
     nickname: $('nick-input').value, testMode,
-    ctf: matchMode === 'ctf',
+    ctf: matchMode === 'ctf' || !!MAPS[currentMap].ctfOnly,   // ctfOnly nunca entra em rounds, mesmo se o modo ficou pra trás
     onMatchEnd: recordMatchStats,
   });
   window.__game = game;
@@ -227,6 +340,9 @@ async function startGame(team, charId) {
     return settings.speech;
   };
   game.start();
+  // esconde o loading só depois do 1º frame REAL da partida renderizado
+  await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+  hideLoading();
   // registra nick no ranking global (silencioso se a API não estiver no ar)
   const nick = $('nick-input').value.trim();
   registeredNick = nick; heartbeatOff = false;
@@ -241,7 +357,10 @@ async function startGame(team, charId) {
 }
 function quitToMenu() {
   switchMode = false;   // never carry an in-match team-switch into the menu
-  if (game) { game.dispose(); game = null; }
+  // dispose protegido: se a limpeza da partida falhar, o menu volta MESMO assim
+  // (antes, uma exceção aqui deixava o botão "SAIR PRO MENU" morto e o jogo zumbi)
+  try { if (game) game.dispose(); } catch (e) { console.error('dispose falhou ao sair pro menu', e); }
+  game = null; window.__game = null;
   if (document.pointerLockElement) document.exitPointerLock();
   show('main-menu');
 }
@@ -275,6 +394,7 @@ $('avatar-file').onchange = async e => {
 
 /* ---------------- menu CS 1.6 (Coro Solto) ---------------- */
 let matchMode = 'rounds';   // 'rounds' | 'ctf' — lido em startGame (ctf)
+if (MAPS[currentMap].ctfOnly) matchMode = 'ctf';   // mapas ctfOnly (Havan/Ferro Velho) forçam CTF — sem query string
 const menuSetup = $('menu-setup');
 const openSetup = (mode, title) => {
   if (mode) matchMode = mode;
@@ -313,11 +433,22 @@ $('btn-jogar').onclick = () => {
     setTimeout(() => document.querySelector('.social-item input')?.classList.remove('invalid'), 1200);
   }
   show('team-select');
+  ensureTeamPreviews();   // thumbnails 3D dos times (async, cacheia no card)
 };
 $('btn-ranking').onclick = () => { sfx.uiClick(); showRanking(); };
 $('ranking-back').onclick = () => { sfx.uiClick(); show('main-menu'); };
-// carrossel de mapas: setas ‹ › trocam o mapa E o fundo 3D do menu
+// carrossel de mapas: setas ‹ › trocam o mapa E o fundo 3D do menu + thumbnail real do mapa
 const mapNameEl = $('map-name');
+const mapThumb = $('map-thumb');
+if (mapThumb) {
+  mapThumb.onload = () => { mapThumb.style.opacity = '1'; };
+  mapThumb.onerror = () => { mapThumb.style.opacity = '0'; };   // sem captura ainda → some limpo
+}
+function setMapThumb() {
+  if (!mapThumb) return;
+  mapThumb.style.opacity = '0';
+  mapThumb.src = `/img/map-previews/${currentMap}.jpg?v=${VERSION}`;
+}
 let mapIdx = Math.max(0, MAP_IDS.indexOf(currentMap));
 function stepMap(dir) {
   sfx.uiClick();
@@ -325,9 +456,13 @@ function stepMap(dir) {
   currentMap = resolveMapId(MAP_IDS[mapIdx]);
   settings.map = currentMap; saveSettings();
   mapNameEl.textContent = MAPS[currentMap].name;
+  setMapThumb();
+  if (MAPS[currentMap].ctfOnly) matchMode = 'ctf';   // Havan/Ferro Velho: CTF automático, sem ?ctf=1
+  $('setup-title').textContent = 'ESCOLHER MAPA · ' + (matchMode === 'ctf' ? 'CTF' : 'SINGLE PLAYER');
   rebuildMenuBackdrop();
 }
 mapNameEl.textContent = MAPS[currentMap].name;
+setMapThumb();
 $('map-prev').onclick = () => stepMap(-1);
 $('map-next').onclick = () => stepMap(1);
 const wpnSel = { value: settings.wpnMode || 'all' };
@@ -380,10 +515,11 @@ $('settings-back').onclick = () => {
   show(settingsReturn);
 };
 $('mobile-ok').onclick = () => { sfx.uiClick(); show('main-menu'); };
-$('team-back').onclick = () => { sfx.uiClick(); show('main-menu'); };
+$('team-back').onclick = () => { sfx.uiClick(); pickingEnemy = false; setEnemyPickMode(false); const t = document.querySelector('#team-select .screen-title'); if (t) t.textContent = 'ESCOLHA SEU LADO DA TRETA'; show('main-menu'); };
 $('char-back').onclick = () => { sfx.uiClick(); show('team-select'); };
 $('btn-team-p').onclick = () => { sfx.uiClick(); pickTeam('P'); };
 $('btn-team-b').onclick = () => { sfx.uiClick(); pickTeam('B'); };
+$('btn-team-u') && ($('btn-team-u').onclick = () => { sfx.uiClick(); pickTeam('U'); });
 $('btn-resume').onclick = () => { sfx.uiClick(); game?.resume(); };
 $('btn-pause-settings').onclick = () => { sfx.uiClick(); settingsReturn = 'pause-menu'; show('settings-panel'); };
 $('btn-quit').onclick = () => {
@@ -417,9 +553,24 @@ $('char-confirm').onclick = () => {
     game.resume();   // unpause + re-request pointer lock (fixes "M opens but game won't resume")
   } else {
     switchMode = false;
-    startGame(currentTeam, selChar.id);
+    // 2º passo: escolher o ADVERSÁRIO (reusa o team-select com título trocado).
+    // O card da SUA facção é escondido — adversário só entre os outros 2 (sem mirror).
+    currentChar = selChar.id;
+    pickingEnemy = true;
+    setEnemyPickMode(true, currentFaction);
+    const t = document.querySelector('#team-select .screen-title'); if (t) t.textContent = 'ESCOLHA O ADVERSÁRIO';
+    show('team-select');
+    ensureTeamPreviews();   // no-op se já rodou (previews ficam cacheados nos cards)
   }
 };
+
+// Esconde/mostra o card da sua facção na tela de adversário (btn-team-p/b/u).
+function setEnemyPickMode(on, myFaction) {
+  for (const f of ['p', 'b', 'u']) {
+    const b = $('btn-team-' + f);
+    if (b) b.classList.toggle('hidden', !!(on && f.toUpperCase() === myFaction));
+  }
+}
 
 const nickEl = $('nick-input');
 nickEl.value = localStorage.getItem(NICK_KEY) || '';
@@ -625,34 +776,64 @@ function glbThumb(def) {
   if (p.model) p.model.visible = prevVis;
   return c.toDataURL();
 }
-function pickTeam(team) {
-  currentTeam = team;
-  const list = $('char-list');
-  list.innerHTML = '';
-  const chars = CHARACTERS.filter(c => c.team === team);
-  let firstRow = null;
-  const imgs = [];
-  chars.forEach((c, i) => {
-    const row = document.createElement('button');
-    row.className = 'char-row';
-    // GLB direto quando já pré-carregado (menu faz preloadCharacterAssets no boot) — evita
-    // o flash caixa→GLB; só cai na thumb de caixa se o modelo ainda não chegou.
-    const thumb0 = (hasModel(c.id) ? glbThumb(c) : null) || pvThumb(c);
-    row.innerHTML = `<img src="${thumb0}" alt="${c.name}"><span>${c.name}</span>`;
-    imgs.push(row.querySelector('img'));
-    row.onclick = () => { sfx.uiClick(); selectChar(c, row); };
-    list.appendChild(row);
-    if (i === 0) firstRow = row;
+/* ---------------- previews 3D dos times nos cards (pedido do dono: "uma imagem
+   preview dos models, tipo um time") — renderiza 4 GLBs reais de cada facção no
+   renderer de preview (dataURL) e cacheia no card. Roda 1x por visita ao menu. */
+let teamPreviewsDone = false;
+function ensureTeamPreviews() {
+  if (teamPreviewsDone) return;
+  teamPreviewsDone = true;
+  for (const [btn, fac] of [['btn-team-p', 'P'], ['btn-team-b', 'B'], ['btn-team-u', 'U']]) {
+    const box = document.querySelector(`#${btn} .team-chars`);
+    if (!box) continue;
+    const chars = CHARACTERS.filter(c => c.team === fac && GLB_CHARS.has(c.id)).slice(0, 4);
+    if (!chars.length) continue;
+    box.innerHTML = chars.map(() => '<span class="tc-slot"></span>').join('');
+    const slots = [...box.children];
+    preloadCharacterAssets(chars.map(c => c.id)).then(() => {
+      chars.forEach((c, i) => {
+        const url = glbThumb(c);
+        if (url && slots[i]) slots[i].innerHTML = `<img src="${url}" alt="${c.name}" title="${c.name}">`;
+      });
+    }).catch(() => {});
+  }
+}
+function pickTeam(faction) {
+  // 2º passo: se está escolhendo o ADVERSÁRIO, grava e começa a partida.
+  // (o card da sua facção fica escondido nessa tela — adversário é sempre um dos outros 2)
+  if (pickingEnemy) {
+    pickingEnemy = false; currentEnemyFaction = faction;
+    setEnemyPickMode(false);
+    const t = document.querySelector('#team-select .screen-title'); if (t) t.textContent = 'ESCOLHA SEU LADO DA TRETA';
+    startGame(currentTeam, currentChar, faction);
+    return;
+  }
+  // faction = FACÇÃO escolhida (P/B/U). O LADO físico é P (petista/tribos) ou B (bolsonarista).
+  currentFaction = faction;
+  currentTeam = faction === 'B' ? 'B' : 'P';
+  const chars = CHARACTERS.filter(c => c.team === faction);   // roster da facção escolhida
+  // LOADING REAL da seleção de personagem: os GLBs do roster entram ANTES da tela abrir —
+  // nada de thumbnails de caixa montando aos poucos (o "minecraft" que o dono viu)
+  showLoading('CARREGANDO PERSONAGENS…');
+  preloadCharacterAssets(chars.map(c => c.id)).catch(() => {}).then(() => {
+    hideLoading();
+    const list = $('char-list');
+    list.innerHTML = '';
+    let firstRow = null;
+    chars.forEach((c, i) => {
+      const row = document.createElement('button');
+      row.className = 'char-row';
+      // GLB direto (acabou de pré-carregar) — caixa procedural só se o modelo não existe
+      const thumb0 = (hasModel(c.id) ? glbThumb(c) : null) || pvThumb(c);
+      row.innerHTML = `<img src="${thumb0}" alt="${c.name}"><span>${c.name}</span>`;
+      row.onclick = () => { sfx.uiClick(); selectChar(c, row); };
+      list.appendChild(row);
+      if (i === 0) firstRow = row;
+    });
+    // seleciona DEPOIS de gerar todos os thumbs — senão o preview fica com o último
+    if (firstRow) selectChar(chars[0], firstRow);
+    show('char-select');
   });
-  // seleciona DEPOIS de gerar todos os thumbs — senão o preview fica com o último
-  if (firstRow) selectChar(chars[0], firstRow);
-  show('char-select');
-  // Upgrade the box placeholders to real GLB: preload all team models once, then swap
-  // each thumbnail and refresh the main preview (so the first load isn't stuck on box).
-  preloadCharacterAssets(chars.map(c => c.id)).then(() => {
-    chars.forEach((c, i) => { const url = glbThumb(c); if (url && imgs[i]) imgs[i].src = url; });
-    if (selChar) pvSetChar(selChar);
-  }).catch(() => {});
 }
 function selectChar(c, row) {
   selChar = c;
@@ -687,7 +868,7 @@ updLabels();
 (function drawLogo() {
   // CORO SOLTO — logo terminal futurista: crista de soundwave (evoca "coro" = vozes) em
   // ciano com pico âmbar, wordmark com aberração cromática (glitch), moldura HUD, subtítulo mono.
-  const c = $('logo-canvas'); if (!c) return;   // logo agora vem no wallpaper (wall-1..4)
+  const c = $('logo-canvas') || $('splash-logo'); if (!c) return;   // splash de boot (o menu usa o logo do wallpaper)
   const x = c.getContext('2d');
   const W = 900, H = 360; const CY = '#39d6e0', AM = '#ffb44d'; x.clearRect(0, 0, W, H);
   // brilho ciano suave
@@ -765,6 +946,7 @@ loop();
 /* ---------------- boot ---------------- */
 document.querySelector('.footnote').textContent =
   `v${VERSION} · Sátira política fictícia. Nenhum político real foi consultado (ou poupado).`;
+{ const sv = document.getElementById('splash-ver'); if (sv) sv.textContent = `v${VERSION}`; }
 show(isMobile && !testMode ? 'mobile-warning' : 'main-menu');
 if (testMode && params.get('auto')) {
   const [team, char] = params.get('auto').split(',');

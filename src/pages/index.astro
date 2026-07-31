@@ -93,32 +93,63 @@
 }
 </script>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' fill='%23060b0f'/><rect x='2' y='7' width='2' height='4' fill='%2339d6e0'/><rect x='5' y='4' width='2' height='8' fill='%2339d6e0'/><rect x='8' y='2' width='2' height='12' fill='%23ffb44d'/><rect x='11' y='5' width='2' height='6' fill='%2339d6e0'/></svg>">
-<link rel="stylesheet" href="/style.css">
+<link rel="stylesheet" href="/style.css?v=2.2.0">
 <script type="importmap" is:inline>
 { "imports": {
   "three": "./vendor/three.module.js", "three/addons/": "./vendor/addons/",
-  "./js/main.js": "./js/main.js?v=1.23.1",
-  "./js/game.js": "./js/game.js?v=1.23.1",
-  "./js/glbchars.js": "./js/glbchars.js?v=1.23.1",
-  "./js/weapons.js": "./js/weapons.js?v=1.23.1",
-  "./js/characters.js": "./js/characters.js?v=1.23.1",
-  "./js/audio.js": "./js/audio.js?v=1.23.1",
-  "./js/maps.js": "./js/maps.js?v=1.23.1",
-  "./js/map.js": "./js/map.js?v=1.23.1",
-  "./js/map_brasilia.js": "./js/map_brasilia.js?v=1.23.1",
-  "./js/map_pool_day.js": "./js/map_pool_day.js?v=1.23.1",
-  "./js/mapprops.js": "./js/mapprops.js?v=1.23.1",
-  "./js/fparms.js": "./js/fparms.js?v=1.23.1",
-  "./js/bloom.js": "./js/bloom.js?v=1.23.1",
-  "./js/gpuparticles.js": "./js/gpuparticles.js?v=1.23.1",
-  "./js/textures.js": "./js/textures.js?v=1.23.1",
-  "./js/version.js": "./js/version.js?v=1.23.1",
-  "./js/handik.js": "./js/handik.js?v=1.23.1"
+  "./js/main.js": "./js/main.js?v=2.2.0",
+  "./js/game.js": "./js/game.js?v=2.2.0",
+  "./js/glbchars.js": "./js/glbchars.js?v=2.2.0",
+  "./js/weapons.js": "./js/weapons.js?v=2.2.0",
+  "./js/characters.js": "./js/characters.js?v=2.2.0",
+  "./js/audio.js": "./js/audio.js?v=2.2.0",
+  "./js/maps.js": "./js/maps.js?v=2.2.0",
+  "./js/map.js": "./js/map.js?v=2.2.0",
+  "./js/map_brasilia.js": "./js/map_brasilia.js?v=2.2.0",
+  "./js/map_pool_day.js": "./js/map_pool_day.js?v=2.2.0",
+  "./js/map_havan.js": "./js/map_havan.js?v=2.2.0",
+  "./js/map_ferrovelho.js": "./js/map_ferrovelho.js?v=2.2.0",
+  "./js/mapprops.js": "./js/mapprops.js?v=2.2.0",
+  "./js/fparms.js": "./js/fparms.js?v=2.2.0",
+  "./js/vmattach.js": "./js/vmattach.js?v=2.2.0",
+  "./js/stylize.js": "./js/stylize.js?v=2.2.0",
+  "./js/bloom.js": "./js/bloom.js?v=2.2.0",
+  "./js/gpuparticles.js": "./js/gpuparticles.js?v=2.2.0",
+  "./js/textures.js": "./js/textures.js?v=2.2.0",
+  "./js/version.js": "./js/version.js?v=2.2.0",
+  "./js/handik.js": "./js/handik.js?v=2.2.0",
+  "./js/springs.js": "./js/springs.js?v=2.2.0"
 } }
 </script>
 </head>
 <body>
 <h1 class="sr-only">CORO SOLTO: Treta Suprema (ex-CS BRASIL) — jogo FPS gratuito de navegador, Petistas × Bolsonaristas</h1>
+
+<!-- SPLASH DE BOOT: cobre o load inicial (nada de cena parcial/"minecraft" visível) e
+     destrava o áudio COM SOM no 1º gesto (política de autoplay do browser exige gesto;
+     a splash transforma essa exigência em ritual de entrada). O menu carrega por baixo
+     e já aparece pronto quando a splash sai. -->
+<div id="boot-splash">
+  <div class="splash-frame">
+    <canvas id="splash-logo" width="900" height="360"></canvas>
+    <div class="splash-sub">ARENA DE SNIPER · PET × BOL × TRIBOS</div>
+    <div class="splash-bar"><div id="boot-bar-fill"></div></div>
+    <div class="splash-status"><span id="boot-status">CARREGANDO ARENA…</span><span id="boot-pct">0%</span></div>
+    <div id="splash-enter" class="hidden">CLIQUE OU PRESSIONE QUALQUER TECLA</div>
+  </div>
+  <div class="splash-ver" id="splash-ver"></div>
+</div>
+
+<!-- LOADING de partida/personagens: overlay opaco com barra real (THREE.LoadingManager)
+     — enquanto os GLBs entram, NADA da cena montando fica visível -->
+<div id="load-overlay" class="hidden">
+  <div class="lo-box">
+    <div class="lo-title">CORO SOLTO<span>// TRETA SUPREMA</span></div>
+    <div id="load-label">CARREGANDO…</div>
+    <div class="splash-bar lo-bar"><div id="load-bar-fill"></div></div>
+    <div class="splash-status"><span id="load-status">CARREGANDO MODELOS 3D…</span><span id="load-pct">0%</span></div>
+  </div>
+</div>
 
 <!-- Mobile fallback -->
 <div id="mobile-warning" class="screen hidden">
@@ -155,9 +186,13 @@
       <div class="pc-cols">
         <div class="pc-col">
           <div class="pc-title">▚ SEU PERFIL</div>
-          <input id="nick-input" maxlength="14" placeholder="SEU NICK (ex: Zé do AWP)" autocomplete="off">
-          <div id="social-list"></div>
-          <button id="social-add" class="btn-ghost" type="button">+ REDE SOCIAL</button>
+          <label class="map-label" for="nick-input">SEU NICK
+            <input id="nick-input" maxlength="14" placeholder="ex: Zé do AWP" autocomplete="off">
+          </label>
+          <div class="map-label">REDES SOCIAIS (OPCIONAL)
+            <div id="social-list"></div>
+            <button id="social-add" class="btn-ghost" type="button">+ REDE SOCIAL</button>
+          </div>
           <div id="avatar-row" class="hidden">
             <button id="avatar-btn" class="btn-ghost">📷 ADICIONAR FOTO DE PERFIL</button>
             <input id="avatar-file" type="file" accept="image/png,image/jpeg,image/webp" class="hidden">
@@ -173,10 +208,15 @@
             </div>
           </label>
           <label class="map-label">MAPA
-            <div class="map-carousel">
-              <button id="map-prev" class="map-arrow" type="button" aria-label="mapa anterior">‹</button>
-              <span id="map-name">—</span>
-              <button id="map-next" class="map-arrow" type="button" aria-label="próximo mapa">›</button>
+            <div class="map-picker">
+              <img id="map-thumb" src="/img/map-previews/awp_map.jpg" alt="preview do mapa">
+              <div class="map-side">
+                <span id="map-name">—</span>
+                <div class="map-arrows">
+                  <button id="map-prev" class="map-arrow" type="button" aria-label="mapa anterior">‹</button>
+                  <button id="map-next" class="map-arrow" type="button" aria-label="próximo mapa">›</button>
+                </div>
+              </div>
             </div>
           </label>
           <label class="map-label">BOTS / LADO
@@ -205,14 +245,22 @@
   <h2 class="screen-title">ESCOLHA SEU LADO DA TRETA</h2>
   <div class="team-row">
     <button id="btn-team-p" class="team-card team-p">
+      <span class="team-chars" aria-hidden="true"></span>
       <span class="team-name">PETISTAS</span>
       <span class="team-slogan">"A treta se faz na praça!"</span>
       <span class="team-desc">Esquerdomacho · Líder do Sindicato · Líder do MST · Doutora do SUS · Jovem Místico</span>
     </button>
     <button id="btn-team-b" class="team-card team-b">
+      <span class="team-chars" aria-hidden="true"></span>
       <span class="team-name">BOLSONARISTAS</span>
       <span class="team-slogan">"A treta se faz na rodovia!"</span>
       <span class="team-desc">Caminhoneiro · Influencer de Dubai · Cantor Sertanejo · Tia Zilá · Coach Quântico</span>
+    </button>
+    <button id="btn-team-u" class="team-card team-u">
+      <span class="team-chars" aria-hidden="true"></span>
+      <span class="team-name">TRIBOS URBANAS</span>
+      <span class="team-slogan">"A treta se faz na quebrada!"</span>
+      <span class="team-desc">Emo · Black Metal · Metaleiro · Punk · Skatista · Clubber · Rapper · Rasta · Funkeiro</span>
     </button>
   </div>
   <button id="team-back" class="btn btn-back">◀ VOLTAR</button>
@@ -308,6 +356,7 @@
   <div id="radio-menu" class="hidden"></div>
   <div id="crosshair"><i></i><i></i><i></i><i></i><b></b></div>
   <div id="hitmarker"><i></i><i></i><i></i><i></i></div>
+  <div id="dmg-numbers"></div>
   <div id="scope-overlay">
     <div class="scope-circle"></div>
     <div class="scope-line h"></div>
@@ -321,14 +370,14 @@
     <div id="score-p" class="team-score ts-p">PET <b>0</b></div>
     <div id="hud-mid">
       <div id="round-time">1:39</div>
-      <div id="rounds-row"><span id="rounds-p">0</span> ROUNDS <span id="rounds-b">0</span></div>
+      <div id="rounds-row">RODADA 1 · PET 0 × 0 BOL</div>
     </div>
     <div id="score-b" class="team-score ts-b">BOL <b>0</b></div>
   </div>
-  <div id="ctf-hud" class="hidden" style="position:absolute;top:62px;left:50%;transform:translateX(-50%);display:flex;gap:8px;font:600 13px/1 system-ui,sans-serif;letter-spacing:.04em;text-shadow:0 1px 3px #000;pointer-events:none;white-space:nowrap"></div>
+  <div id="ctf-hud" class="hidden"></div>
   <div id="killfeed"></div>
   <div id="hud-bottom-left">
-    <div id="hp-row"><span id="hp-cross">✚</span><span id="hp-num">100</span></div>
+    <div id="hp-row"><span id="hp-num">100</span></div>
     <div id="hp-bar"><div id="hp-fill"></div></div>
   </div>
   <div id="hud-bottom-right">
@@ -337,7 +386,7 @@
     <div id="smoke-count" title="Fumaça (tecla 4)  ·  Frag (tecla 5)">💨 5   🧨 1</div>
     <div id="reload-note" class="hidden">RECARREGANDO…</div>
   </div>
-  <div id="round-banner" class="hidden"><div id="banner-title"></div><div id="banner-sub"></div></div>
+  <div id="round-banner" class="hidden"><div id="banner-title"></div><div class="banner-rule"></div><div id="banner-sub"></div></div>
   <div id="lock-hint" class="hidden">
     <div class="lh-title">🖱️ CLIQUE PARA ATIVAR A MIRA</div>
     <div class="lh-sub">Se o navegador bloquear, clique de novo. Em iframe/preview, abra o jogo em aba própria.</div>

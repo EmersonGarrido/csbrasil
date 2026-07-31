@@ -74,6 +74,54 @@ export function preloadFPArms() {
   return _loading;
 }
 
+// Viewmodels ESTÁTICOS Tripo (braços+arma baked, sem rig): a pose já nasce empunhando —
+// substituem arma procedural + braços IK na classe deles (visual muito acima, ver HANDOFF).
+const _staticTpls = {};
+// Texturas de variante dos viewmodels (geradas por tools/vm-variant-tex.mjs: máscara
+// mãos-vs-arma por proximidade 3D da pele + regras de cor; SÓ a zona da arma muda).
+const _texTpls = {};
+export function getStaticVmTex(name) { return _texTpls[name] || null; }
+// LAZY-LOAD (G2-R14A — crash "Aw Snap! Error code: 15" no CTF da Havan): o preload antigo
+// baixava os 13 arms_*.glb de UMA vez (~270MB compactados, >1GB decodificado entre JS heap
+// e GPU — 8 heróis de ~19MB cada que o jogador nem usa na partida). Agora cada classe
+// carrega sob demanda (loadStaticVm) e cacheia; o boot (preloadStaticVm) traz só as
+// classes do loadout inicial + as texturas de variante (6.7MB, leves).
+const _staticPromises = {};
+export function loadStaticVm(cls) {
+  if (_staticTpls[cls]) return Promise.resolve(_staticTpls[cls]);
+  if (!_staticPromises[cls]) {
+    _staticPromises[cls] = new Promise((res, rej) => _loader.load(`models/fpvm/arms_${cls}.glb?v=${VERSION}`, res, undefined, rej))
+      .then((g) => { _staticTpls[cls] = g.scene; return _staticTpls[cls]; })
+      .catch((e) => { console.warn('[fparms] static vm falhou p/ classe', cls, e); return null; });
+  }
+  return _staticPromises[cls];
+}
+let _texLoading = null;
+export function preloadStaticVm(classes = ['rifle', 'pistol', 'knife']) {
+  if (!_texLoading) {
+    // variantes de textura (snipers/lift rifle/lâmina da faca) — carrega junto
+    const tl = new THREE.TextureLoader();
+    _texLoading = Promise.all(['awp_svd', 'awp_mosin', 'awp_m400', 'awp_rem700', 'awp_g3sg1', 'awp_sks', 'awp_glove', 'awp_orm_wear', 'rifle_lift', 'rifle_orm_wear', 'rifle_emissive', 'pistol_glove', 'shotgun_glove', 'shotgun_orm_wear', 'knife_steel', 'knife_orm',
+      // identidade por arma (GAUNTLET 2.0): acabamentos rifle/pistol/shotgun
+      'rifle_ak', 'rifle_akm', 'rifle_g3', 'rifle_scar', 'rifle_mp5', 'rifle_famas', 'rifle_p90', 'pistol_deagle', 'pistol_revolver38', 'pistol_orm_wear', 'shotgun_md97',
+      // G2-R8 (GAP3): m92 aço azulado, carbine madeira, pistol polímero
+      // G2-R9 (GAP1): tavor polímero preto (paleta divergente)
+      'rifle_m92', 'rifle_carbine', 'pistol_polymer', 'rifle_tavor',
+      // G2-R12 (GAP2): ORM de desgaste POR ARMA (cada rifle tem crackle próprio)
+      'rifle_orm_akm', 'rifle_orm_g3', 'rifle_orm_scar', 'rifle_orm_famas', 'rifle_orm_p90', 'rifle_orm_m92', 'rifle_orm_carbine', 'rifle_orm_mp5', 'rifle_orm_tavor', 'rifle_orm_lmg'].map(async (n) => {
+      try {
+        const t = await tl.loadAsync(`models/fpvm/tex/${n}.webp?v=${VERSION}`);
+        t.flipY = false;   // convenção glTF (mesma das texturas do GLB)
+        t.colorSpace = n.endsWith('_orm') || n.endsWith('_orm_wear') ? THREE.NoColorSpace : THREE.SRGBColorSpace;
+        t.wrapS = t.wrapT = THREE.RepeatWrapping;
+        _texTpls[n] = t;
+      } catch (e) { console.warn('[fparms] vm tex falhou', n, e); }
+    }));
+  }
+  return Promise.all([_texLoading, ...classes.map(loadStaticVm)]);
+}
+export function getStaticVm(cls = 'rifle') { return _staticTpls[cls] || null; }
+
 // Orienta a mão com rotação fixa no espaço da arma (transplante da pose congelada do
 // rifle-hold: anatomicamente correta por construção). A posição vem do IK; a rotação
 // NÃO — o CCD torce o antebraço e deixa a palma achatada se depender só dele.
@@ -103,8 +151,20 @@ export function buildFPArms(def) {
   if (!_armsTpl || !clips || !clips.idle) return null;
 
   const model = skeletonClone(_armsTpl);
-  // Futuro: tint de pele/manga por personagem entra AQUI (material único — clonar o
-  // material antes de tingir pra não vazar entre builds).
+  // LUVA POR TIME (antes a mão era genérica pros 3 times): tinge o material (clonado, pra não
+  // vazar entre builds) na cor do time — Petista avermelhado, Bolsonarista verde, Tribos azul.
+  // Blend moderado (não recolore a pele toda de roxo): multiplica a cor base pela cor da luva.
+  const GLOVE = { P: 0xd83232, B: 0x28c858, U: 0x8a3ffc };   // vermelho PT / verde / roxo Tribos
+  const gloveHex = GLOVE[def && def.team] || 0xbdb6ab;
+  const _gc = new THREE.Color(gloveHex);
+  model.traverse((o) => {
+    if (!o.isMesh || !o.material) return;
+    o.material = o.material.clone();
+    // luva por time: blend MODERADO — acima de ~60% a tinta cobre a textura da mão e vira
+    // "bloco colorido" (a reclamação "mão muito feia"). color + emissive (o arms.glb é unlit).
+    if (o.material.color) o.material.color.lerp(_gc, 0.55);
+    if (o.material.emissive) o.material.emissive.lerp(_gc, 0.55);
+  });
   // Normaliza como buildCharacterModel: altura real e pés no y=0 do wrapper.
   model.updateMatrixWorld(true);
   const bbox = new THREE.Box3().setFromObject(model);

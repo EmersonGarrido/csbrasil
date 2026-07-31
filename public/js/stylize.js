@@ -50,6 +50,7 @@ export function enableStylize(renderer, opts = {}) {
   const bloom = opts.bloom !== false;
   const composers = new Map();
   const rawRender = renderer.render.bind(renderer);
+  renderer.__postPatched = true;   // idem bloom.js: evita o overlay manual do game.js
   const patched = (scene, camera) => {
     const cp = forScene(scene, camera);
     renderer.render = rawRender;   // evita recursão (composer chama renderer.render nos quads)
@@ -63,6 +64,12 @@ export function enableStylize(renderer, opts = {}) {
       cp.setPixelRatio(renderer.getPixelRatio());
       cp.setSize(innerWidth, innerHeight);
       cp.addPass(new RenderPass(scene, camera));
+      // viewmodel em cena própria (mesmo esquema do bloom.js): por cima do mundo, depth limpa
+      if (scene.userData.vmPass) {
+        const vmp = new RenderPass(scene.userData.vmPass.scene, scene.userData.vmPass.camera);
+        vmp.clear = false; vmp.clearDepth = true;
+        cp.addPass(vmp);
+      }
       if (bloom) cp.addPass(new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.25, 0.45, 0.85));
       cp.addPass(new OutputPass());
       const cel = new ShaderPass(CelEdgeShader);
@@ -78,5 +85,5 @@ export function enableStylize(renderer, opts = {}) {
     return cp;
   };
   renderer.render = patched;
-  return () => { renderer.render = rawRender; composers.clear(); };
+  return () => { renderer.render = rawRender; renderer.__postPatched = false; composers.clear(); };
 }
