@@ -106,11 +106,37 @@ const BOT_FAIR = QS.get('botfair') !== '0';
 const BOT_MOVE2 = QS.get('botmove') !== '0';
 // Teto de giro do bot em rad/s (264°/s). Sem teto o A* trocando de nó virava pião de 720°/s.
 const YAW_CAP = 4.6;
-const BOT_DMG_BY_DIFF = { easy: 0.55, normal: 0.72, hard: 0.88, insane: 1.0 };
+const BOT_DMG_BY_DIFF = { easy: 0.48, normal: 0.63, hard: 0.80, insane: 0.98 };
 const BOT_HS_MAX = 0.07;
 const BOT_HS_MUL = { rifle: 2.0, smg: 2.0, pistol: 2.0, lmg: 1.9, shotgun: 1.5, sniper: 2.5 };
 const BOT_REACT_MIN = 0.20;
 const BOT_FOCUS_MIN = 0.16;
+/* ===================== 5. RAJADA E TURNO (causa-raiz medida do BOT4) =====================
+   O harness (tools/eval/botdiag.mjs) imprimiu a rajada que MATA, tiro a tiro. O padrão era
+   sempre o mesmo, nos 4 mapas: 4 acertos de 22-33 de dano, dos quais 3 dentro de 0,25 s —
+   a cadência CÍCLICA da arma. Ou seja: assim que a mira do bot assentava, TODO tiro da
+   rajada acertava, porque o erro de mira (b.aimErr ~0,036 rad) era MENOR que o tamanho
+   angular do tronco a 10 m (0,050 rad). Com erro menor que o alvo, acertar é certeza
+   geométrica — é literalmente a definição de aimbot, e é o que o dono descreve.
+   Três alavancas, todas com número, todas atrás de ?botfair=0:
+
+   a) COICE PROPORCIONAL AO ALVO (BOT_SPRAY_K). O coice somado por tiro era w.recoil (0,006
+      rad na AK) — 8x menor que o alvo. Agora cada tiro abre a mira em múltiplos do TAMANHO
+      ANGULAR do alvo, então a rajada degrada na mesma proporção a 5 m e a 40 m: o 1º tiro
+      encosta, o 2º e o 3º abrem. É o padrão humano e é legível na tela (o tracer sobe).
+   b) RAJADA CURTA + PAUSA LONGA. A rajada era 1-6 tiros e MAIOR de perto (dist<14 -> até 6),
+      exatamente ao contrário do que a justiça pede. Agora é 1-3 tiros e mais curta de perto,
+      com pausa de re-aquisição entre elas.
+   c) TURNO DE DUELO (attack token — técnica clássica de IA de FPS, usada em Halo/Arkham).
+      Nas rajadas fatais medidas havia 2-3 bots diferentes atirando no jogador ao mesmo
+      tempo: não existe janela de reação possível contra fogo somado de três lados. Agora
+      no máximo BOT_DUEL_TOKENS bots ATIRAM no jogador ao mesmo tempo; os outros continuam
+      manobrando/flanqueando (não congelam) e entram quando o turno passa. */
+const BOT_SPRAY_K = 1.9;        // coice por tiro em MÚLTIPLOS do tamanho angular do alvo
+const BOT_BURST_PAUSE = 0.95;    // pausa base entre rajadas (s), ainda dividida pela skill
+const BOT_DUEL_TOKENS = 2;       // quantos bots podem atirar NO JOGADOR ao mesmo tempo
+const BOT_TOKEN_HOLD = 1.6;      // s de turno antes de passar a vez
+const BOT_TOKEN_REST = 1.1;      // s de descanso obrigatório depois de largar o turno
 /* ===================== MOVIMENTO (referência CS2) =====================
    Andar com rifle no CS2 = 5.46 m/s (faca 6.35, AWP 5.08). Aqui a base era 4.7 pra TODAS as
    armas + um sprint de 6.6 que não existe em CS. Resultado: a AWP andava igual à faca (posição
@@ -975,7 +1001,27 @@ export class Game {
         // len·gripZ / len·(1-gripZ) se a medição não veio (GLB ausente).
         const back = S * (met ? Math.max(0, -met.box.min.z) : cfg.len * (1 - cfg.gripZ));
         const fwd = S * (met ? Math.max(0.001, met.box.max.z) : cfg.len * cfg.gripZ);
-        const Zg = Math.max(back + t.clear, t.minz, fwd / t.fwdTan) * (VM_FRAME.zMul[id] || 1);
+        let Zg = Math.max(back + t.clear, t.minz, fwd / t.fwdTan) * (VM_FRAME.zMul[id] || 1);
+        /* TRAVA DE BORDA (P0.1) — a coronha não pode projetar FORA da tela.
+           Sintoma medido em /root/shots/p0/_probe.json (ak, 3:2): a caixa do viewmodel ia
+           de NDC x 0,227 a 2,114 e o centro caía em 1,17, ou seja, a maior parte da arma
+           estava fora do quadro à direita; o que sobrava na tela era o antebraço enorme e a
+           ponta do cano. A causa é geométrica, não de tuning: a arma é uma linha em
+           x = Zg·tanH que vai de z = −(Zg−back) até z = −(Zg+fwd). O ponto MAIS PERTO da
+           lente (a coronha, em z = −(Zg−back)) é o que projeta mais largo, porque a divisão
+           perspectiva usa esse z pequeno. Com back ≈ 0,24 m e Zg = 0,345 a coronha ficava a
+           10,4 cm do olho — a 62° de lente isso explode.
+           Em vez de chutar `clear` até parar de doer, resolve-se a desigualdade:
+             (Zg·tanH) / (Zg − back) ≤ NEAR_X · halfTanH
+           que dá o Zg mínimo que mantém a coronha dentro de NEAR_X da largura. Empurrar a
+           arma pro fundo também REDUZ o tamanho aparente — que é o que o dono pediu desde o
+           começo ("as armas tomam a tela"). Vale para as 26 armas sem tabela nova. */
+        {
+          const NEAR_X = 0.94;                                    // fração da meia-largura da tela
+          const halfTanH = Math.tan(THREE.MathUtils.degToRad(((this.vmCamera && this.vmCamera.fov) || 62) / 2)) * asp;
+          const lim = NEAR_X * halfTanH;
+          if (lim > t.tanH + 1e-3 && back > 0) Zg = Math.max(Zg, (back * lim) / (lim - t.tanH));
+        }
         const gx = Zg * t.tanH, gy = -gx * VM_FRAME.tanBarrel;
         g.position.set(gx, gy, -Zg);
         // Cano PARALELO ao eixo de mira (pitch=yaw=0): é literalmente o "miro no meio do mapa
@@ -1009,7 +1055,23 @@ export class Game {
     // MÃOS FP POR PADRÃO (decisão do dono 28/07 — "mãos genéricas por time", com luva por
     // facção; arma-sozinha virou opt-out via ?hands=0). Se o GLB falhar, cai nas mãos
     // procedurais (fpArm/frontHand — que ficam VISÍVEIS nesse caso, ver abaixo).
-    const WEAPON_ONLY = new URLSearchParams(location.search).get('hands') === '0';
+    /* BRAÇOS FP DESLIGADOS NO CAMINHO MINT (P0.1, 31/07) — decisão medida, não estética.
+       Com o viewmodel novo (GLBs da Mint) os braços de `buildFPArms` entram com escala e
+       pose herdadas do pipeline Tripo, que tinha OUTRA distância de grip e OUTRA escala de
+       arma. O resultado, capturado em /root/shots/vm/ak.png e /root/shots/p0/ak-32-hip.png,
+       é uma massa rosa sem forma de mão ocupando o quadrante inferior direito, com a arma
+       solta em cima. Os números confirmam: gripErrR = 0,001 m (a mão DIREITA está travada
+       no grip, o cálculo está certo) — o que está errado é o TAMANHO do braço em relação à
+       arma, e isso é um rig a refazer, não um offset a tunar.
+       Entre entregar "arma com identidade + braço quebrado" e "arma com identidade, sem
+       braço", a régua nova decide: o critério nº1 é NÃO TER BUG PERCEPTÍVEL (o dono: "o
+       usuário tem que se preocupar em jogar e não com bugs"), e a referência que ele mesmo
+       escolheu — ev.io, CS 1.6 — mostra arma-sozinha ou mão mínima na maior parte do tempo.
+       Então: no caminho Mint o padrão é ARMA SOZINHA, e `?hands=1` liga os braços pra quem
+       quiser continuar o trabalho de rig. No caminho Tripo (?tripovm=1) nada muda.
+       PENDÊNCIA REGISTRADA: refazer a escala/pose de buildFPArms contra o grip da Mint. */
+    const _qsHands = new URLSearchParams(location.search).get('hands');
+    const WEAPON_ONLY = MINT_VM ? (_qsHands !== '1') : (_qsHands === '0');
     if (!FP_OFF && !WEAPON_ONLY) arms = buildFPArms({ id: this.playerCharId, team: this.playerFaction });
     if (arms) {
       root.add(arms.group);
@@ -2926,7 +2988,25 @@ export class Game {
       const R2 = BOT_MOVE2 ? 1.3225 : 2.56, R = BOT_MOVE2 ? 1.15 : 1.6;
       if (d2 < R2 && d2 > 1e-4) { const d = Math.sqrt(d2), u = (R - d) / R, w = BOT_MOVE2 ? u * u : u; px += (dx / d) * w; pz += (dz / d) * w; }
     }
-    if (px || pz) { const k = BOT_MOVE2 ? 0.45 : 0.7; b.pos.x += px * BOT_SPEED * k * dt; b.pos.z += pz * BOT_SPEED * k * dt; this._collide(b.pos, 0.38); }
+    if (!px && !pz) return;
+    const k = BOT_MOVE2 ? 0.45 : 0.7;
+    /* CAUSA-RAIZ do "andando de lado" que sobrou (medido: 17 latFlips/min, quase todos em
+       ROAM, não em combate): a separação era uma TRANSLAÇÃO EM X/Z DO MUNDO. Quando ela
+       aponta pro lado do corpo, o bot escorrega de lado com o corpo virado pra frente — e
+       não existe clipe de "andar de lado" no controller, então ele desliza. Pior: como o
+       vizinho também empurra de volta, o sinal alterna e vira o zigzag.
+       AGORA (só fora de combate, pra não mexer na mira): o empurrão é decomposto no
+       referencial do bot. O componente PRA FRENTE/TRÁS continua translação (tem animação);
+       o componente LATERAL vira DESVIO DE ROTA — o bot CONTORNA o colega andando, que é o
+       que uma pessoa faz. Em combate segue como era (translação curta já calibrada). */
+    if (BOT_MOVE2 && !b.target) {
+      const f = px * Math.sin(b.yaw) + pz * Math.cos(b.yaw);
+      const l = px * Math.cos(b.yaw) - pz * Math.sin(b.yaw);
+      b.pos.x += Math.sin(b.yaw) * f * BOT_SPEED * k * dt;
+      b.pos.z += Math.cos(b.yaw) * f * BOT_SPEED * k * dt;
+      b.yaw += Math.max(-1, Math.min(1, l)) * 1.5 * dt;   // desvio suave, teto de ~86°/s
+    } else { b.pos.x += px * BOT_SPEED * k * dt; b.pos.z += pz * BOT_SPEED * k * dt; }
+    this._collide(b.pos, 0.38);
   }
   _initCTF() {
     for (const p of this.ctfPts) for (const m of [p.ring, p.zone, p.pole, p.flag]) if (m) this.scene.remove(m);
@@ -3058,14 +3138,48 @@ export class Game {
     }
     return bestA;
   }
-  _walkReach(b, n) {
+  /* STRING-PULLING (poda de rota). CAUSA-RAIZ estrutural do "andando de lado": o A* anda
+     num GRAFO DE GRID, então a rota vem em escada — e seguir a escada nó a nó obriga uma
+     VIRADA a cada nó. Medido em botdiag: 47-62% dos flips laterais acontecem num frame em
+     que o bot girou >0,25 rad; ou seja, o zigzag que o dono vê é a escada do A* impressa no
+     corpo do boneco. A tentativa anterior (mirar 2 nós à frente) foi revertida porque cortava
+     quina PRA DENTRO do obstáculo. Aqui a poda é VERIFICADA com a física real: um nó só é
+     descartado se o bot conseguir andar RETO até o nó seguinte (_walkReach usa _collide, o
+     mesmo do movimento). Rota mais curta e reta = menos viradas = menos flips, e de quebra
+     mais deslocamento líquido (eff) e menos raspada em quina (stuck).
+     ORÇAMENTO: poda só os 8 primeiros nós, com salto máximo de 3, e só no repath
+     (0,25-2,5 s) — teto de ~24 sondas por bot por rerrota, não por frame. */
+  _pullString(b, path) {
+    if (!path || path.length < 3) return path;
+    const nd = this.world.waypoints.nodes;
+    const out = [path[0]];
+    let cur = { pos: { x: b.pos.x, y: b.pos.y, z: b.pos.z } };
+    let i = 1;
+    const lim = Math.min(path.length, 9);   // só o começo da rota; o resto é podado no próximo repath
+    while (i < lim) {
+      let pick = i;
+      for (let j = Math.min(lim - 1, i + 3); j > i; j--) {
+        if (this._walkReach(cur, nd[path[j]], 0.8)) { pick = j; break; }
+      }
+      out.push(path[pick]);
+      const n = nd[path[pick]];
+      cur = { pos: { x: n.x, y: b.pos.y, z: n.z } };
+      i = pick + 1;
+    }
+    for (let k = lim; k < path.length; k++) out.push(path[k]);
+    return out;
+  }
+  // `tol` = quanto o passeio simulado pode terminar longe do nó. 1,2 m serve pra decidir
+  // "esse nó é alcançável"; a PODA de rota (_pullString) pede 0,45 m, porque ali tolerância
+  // grande significa "chega raspando na parede" — e raspar parede é o bot travando.
+  _walkReach(b, n, tol = 1.2) {
     if (!n) return false;
     const dx = n.x - b.pos.x, dz = n.z - b.pos.z, d = Math.hypot(dx, dz);
     if (d < 0.8) return true;
     const sim = { x: b.pos.x, y: b.pos.y, z: b.pos.z };
     const steps = Math.min(24, Math.ceil(d / 0.3));
     for (let i = 0; i < steps; i++) { sim.x += (dx / d) * 0.3; sim.z += (dz / d) * 0.3; this._collide(sim, 0.38); }
-    return Math.hypot(n.x - sim.x, n.z - sim.z) < 1.2;
+    return Math.hypot(n.x - sim.x, n.z - sim.z) < tol;
   }
   // A* local idêntico ao do mapa, mas pulando nós banidos (b._banNodes — hops que o bot
   // não conseguiu transitar fisicamente). Mantido aqui (game.js) pra não tocar nos mapas.
@@ -3172,8 +3286,17 @@ export class Game {
     if (!atEnd) { const n = W.waypoints.nodes[b.path[Math.min(b.pathIdx, b.path.length - 1)]]; tx = n.x; tz = n.z; }
     const dx = tx - b.pos.x, dz = tz - b.pos.z, d = Math.hypot(dx, dz);
     if (!atEnd && d < (BOT_MOVE2 ? 0.35 : 0.7)) { b.pathIdx++; b._ctfMoving = 1; return; }
-    const wantYaw = Math.atan2(dx, dz);
-    let dy = wantYaw - b.yaw;
+    /* MESMO RUMO SUAVIZADO DO ROAM (b._hdg — ver o comentário lá). O CTF é um caminho de
+       movimento SEPARADO, então sem repetir aqui o dono continuaria vendo o zigzag no modo
+       em que ele mais joga: trocar de nó teleportava o alvo de rotação, e a menos de 1,2 m
+       do nó o atan2 de um vetor quase nulo vira 180° com meio passo. */
+    if (b._hdg === undefined) b._hdg = Math.atan2(dx, dz);
+    if (d > 1.2) {
+      let hd = Math.atan2(dx, dz) - b._hdg;
+      while (hd > Math.PI) hd -= Math.PI * 2; while (hd < -Math.PI) hd += Math.PI * 2;
+      b._hdg += hd * Math.min(1, dt * 2.2);
+    }
+    let dy = (BOT_MOVE2 ? b._hdg : Math.atan2(dx, dz)) - b.yaw;
     while (dy > Math.PI) dy -= Math.PI * 2; while (dy < -Math.PI) dy += Math.PI * 2;
     const cturn = dy * Math.min(1, dt * 8);
     b.yaw += BOT_MOVE2 ? Math.max(-YAW_CAP * dt, Math.min(YAW_CAP * dt, cturn)) : cturn;
@@ -3832,6 +3955,25 @@ export class Game {
   }
   _botEye(b) { return new THREE.Vector3(b.pos.x, b.pos.y + BOT_EYE, b.pos.z); }
   _enemyOf(bot) { return this.combatants.filter(c => c.team !== bot.team && c.alive); }
+  /* TURNO DE DUELO (attack token) — ver o comentário de BOT_DUEL_TOKENS.
+     POR QUE existe: medido em botdiag, as rajadas que matavam o jogador vinham de 2-3 bots
+     SIMULTÂNEOS. Somando três fontes de fogo não existe janela de reação: o jogador leva
+     100 de dano de três direções antes de achar a primeira. O token limita quantos ATIRAM
+     (não quantos veem nem quantos se movem), e obriga rodízio: quem usou o turno descansa
+     BOT_TOKEN_REST antes de poder pegar de novo, então a vez circula pelo time em vez de
+     ficar sempre com o mesmo bot. Só vale contra o JOGADOR — bot-vs-bot segue igual. */
+  _duelToken(b) {
+    const T = this._duelTok || (this._duelTok = new Map());
+    const now = this.time;
+    for (const [k, until] of T) {
+      if (until > now && k.alive && k.target && k.target.isPlayer) continue;
+      T.delete(k); k._tokRest = now + BOT_TOKEN_REST;
+    }
+    if (T.has(b)) return true;
+    if (now < (b._tokRest || 0) || T.size >= BOT_DUEL_TOKENS) return false;
+    T.set(b, now + BOT_TOKEN_HOLD);
+    return true;
+  }
   _updateBot(b, dt) {
     const g = b.mesh.group;
     if (!b.alive) {
@@ -3854,6 +3996,11 @@ export class Game {
         b.target = null; b.path = null; b.yaw = b.team === 'P' ? 0 : Math.PI;
         b.laneX = undefined; b.roamUntil = 0;   // re-sorteia a coluna A CADA VIDA -> rotas variam (não "sempre a mesma")
         b._banNodes = null; b._unreach = null; b._escapeUntil = 0; b._jukeAt = 0;   // limpa estado de rota/juke da vida anterior (G2-R6A)
+        // rumo suavizado e turno de duelo também são estado de vida: nascer com o _hdg da
+        // vida anterior faz o bot sair do spawn girando pra alinhar com um rumo de outro
+        // lugar do mapa — de novo a pirueta, só que no respawn.
+        b._hdg = undefined; b._tokRest = 0; b._repathMin = 0;
+        if (this._duelTok) this._duelTok.delete(b);
         b._lp = { x: s.x, z: s.z };   // evita spike de velocidade (teleporte) no 1º frame
         g.rotation.set(0, b.yaw, 0); g.position.copy(b.pos); g.visible = true;
         if (b.mesh.isGLB) b.mesh.ctrl.revive();
@@ -3978,6 +4125,12 @@ export class Game {
         b._holdDecide = this.time + 1.2 + Math.random() * 1.5;
         b.holdUntil = (dist > 16 && Math.random() < (b.crouchBias ? 0.6 : 0.4)) ? this.time + 1.0 + Math.random() * 1.8 : 0;
       }
+      /* PIVÔ PARADO = a "pirueta" que o dono vê. Segurar ângulo é bom; segurar ângulo
+         enquanto o alvo dá a volta em você não é — o bot fica plantado girando 360° no
+         próprio eixo, com velocidade zero, que é exatamente a leitura de "rodando em volta
+         de si mesmo". Gente não faz isso: quando o alvo sai muito do eixo (>40°), você
+         REPOSICIONA. Aqui, sair do eixo cancela o hold e o bot volta a andar enquanto vira. */
+      if (Math.abs(dy) > 0.5) b.holdUntil = 0;
       const holding = this.time < (b.holdUntil || 0);
       // USO DE COBERTURA: machucado (<40 HP) e ainda sob fogo, o bot QUEBRA a linha de visão —
       // recua e procura o lado com obstáculo, em vez de morrer em pé trocando tiro. Com o
@@ -4012,10 +4165,15 @@ export class Game {
         b._jukeAt = this.time + (BOT_MOVE2 ? 1.9 + Math.random() * 1.7 : 1.1 + Math.random() * 1.3);
         const r = Math.random();
         b._adv = r < 0.45 ? 0 : (r < 0.75 ? (BOT_MOVE2 ? 0.55 : 0.5) : (BOT_MOVE2 ? -0.55 : -0.5));
-        b._lat = BOT_MOVE2
-          ? (Math.random() < 0.28 ? (Math.random() < 0.5 ? -0.22 : 0.22) : 0)
-          : (Math.random() < 0.5 ? 0 : (Math.random() < 0.5 ? -0.4 : 0.4));
-        if (BOT_MOVE2 && b._lat && !b._adv) b._adv = Math.random() < 0.6 ? 0.5 : -0.45;   // arco, não caranguejo
+        /* PASSO LATERAL: ZERO. A rodada anterior já o tinha cortado de 50% pra 28% das
+           decisões; medindo agora, ele ainda respondia por ~2 flips laterais por minuto por
+           bot — e nunca teve como ficar bom, porque o controller de personagem NÃO TEM
+           clipe de andar de lado: qualquer passo lateral é o boneco deslizando com as pernas
+           andando pra frente. É o caso exato da régua ("melhor um valor visual mais simples,
+           porém consistente"): o bot passa a só avançar, recuar ou segurar — tudo com
+           animação que casa — e a variação de ângulo vem do reposicionamento (ver o
+           cancelamento de hold acima), que também anda de frente. */
+        b._lat = BOT_MOVE2 ? 0 : (Math.random() < 0.5 ? 0 : (Math.random() < 0.5 ? -0.4 : 0.4));
       }
       /* BANDA DE DISTÂNCIA COM HISTERESE. O degrau anterior era `dist>20 ? … : dist<8 ? -1`:
          dois limiares SEM histerese, num alvo que se mexe. O bot fechava até 8 m, recuava até
@@ -4027,9 +4185,15 @@ export class Game {
       b._range = rs === 'push' ? (dist < 17 ? 'mid' : 'push')
         : rs === 'back' ? (dist > 9.5 ? 'mid' : 'back')
         : (dist > 22 ? 'push' : dist < 6 ? 'back' : 'mid');
-      const approach = holding ? 0
+      let approach = holding ? 0
         : BOT_MOVE2 ? (b._range === 'push' ? 0.9 : b._range === 'back' ? -1 : (b._adv || 0))
         : (dist > 20 ? 0 : dist < 8 ? -1 : (b._adv || 0));
+      /* NUNCA GIRAR PARADO. Restava um caso: alvo fora do eixo (o bot ainda virando) numa
+         decisão de "segurar posição" (45% delas dão _adv = 0). Corpo parado + cabeça girando
+         é, na tela, a pirueta — e a métrica confirma (voltas/min sobe quando o bot para de
+         derivar de lado). Gente que é surpreendida pelo flanco DÁ UM PASSO enquanto vira.
+         Então: enquanto o alvo estiver a mais de ~29° do eixo, o passo é pra frente. */
+      if (BOT_MOVE2 && !approach && Math.abs(dy) > 0.5) approach = 0.5;
       const strafe = holding ? 0 : (b._lat || 0);
       const fdx = Math.sin(b.yaw), fdz = Math.cos(b.yaw);   // forward (mesh facing)
       const rdx = Math.cos(b.yaw), rdz = -Math.sin(b.yaw);  // right
@@ -4053,12 +4217,17 @@ export class Game {
          coluna só entra como uma correção MUITO suave, proporcional (sem degrau em ±2 m, que
          era o que flipava o sinal), limitada a 22% da velocidade e desligada quando ele está
          segurando ângulo. Sem degrau = sem flip. */
+      /* E AGORA: ZERO. A rodada anterior amansou o puxão de coluna (proporcional, 22% da
+         velocidade, sem degrau) mas não mudou a natureza dele — continuava sendo TRANSLAÇÃO
+         EM X-MUNDO com o corpo travado olhando pro alvo, ou seja, o boneco andando de lado
+         sem clipe que case. Medindo agora, 40% dos flips laterais que sobraram acontecem em
+         COMBATE, e este é o único deslocamento lateral que restou lá. O objetivo dele
+         (espalhar o time pela largura do mapa) já é cumprido pela coluna no ROAM, que é onde
+         o bot anda de frente pra onde vai. Em combate o bot avança, recua, segura ou
+         reposiciona — sempre com a animação certa. */
       const off = b.laneX - b.pos.x;
       if (BOT_MOVE2) {
-        if (!holding && Math.abs(off) > 3) {
-          const pull = Math.max(-1, Math.min(1, off / 12));
-          b.pos.x += pull * BOT_SPEED * 0.22 * dt;
-        }
+        /* sem deslocamento lateral em combate — ver o bloco acima */
       } else if (dist > 20) {
         const lz = Math.sign(dz) || 1, ln = Math.hypot(off, lz) || 1;
         b.pos.x += (off / ln) * BOT_SPEED * 0.85 * dt;
@@ -4092,8 +4261,13 @@ export class Game {
         // m/s derruba isso pra ~1/3 disso — é o que faz strafar valer a pena.
         // 0.012→0.015 no piso: com o teto de headshot o que sobra é o TRONCO, e o bot acertava
         // tronco demais de longe. O piso é ANGULAR, então distância já pesa sozinha.
-        const floorErr = (snip0 ? 0.004 : 0.006) + (BOT_FAIR ? 0.015 : 0.012) / Math.max(0.4, b.skill) + eSp * 0.004 / Math.max(0.5, b.skill);
-        const rate = (snip0 ? 1.5 : 2.7) * Math.max(0.4, b.skill);
+        const floorErr = (snip0 ? 0.004 : 0.006) + (BOT_FAIR ? 0.019 : 0.012) / Math.max(0.4, b.skill) + eSp * 0.004 / Math.max(0.5, b.skill);
+        // RE-AQUISIÇÃO ENTRE RAJADAS (medido): com rate 2.7 a mira voltava INTEIRA ao piso
+        // durante a pausa de ~0,9 s (exp(-2,3) = 10% de resíduo), então TODA rajada começava
+        // com um acerto garantido — 4 rajadas = 4 acertos = morte, e a janela travava em
+        // ~2,3 s. Com 1,6 sobra ~30% do erro da rajada anterior: o bot precisa de duas
+        // rajadas pra reassentar a mira, que é o "re-aquisição entre rajadas" que faltava.
+        const rate = (snip0 ? 1.2 : 2.0) * Math.max(0.4, b.skill);
         b.aimErr = floorErr + ((b.aimErr === undefined ? 0.2 : b.aimErr) - floorErr) * Math.exp(-rate * dt);
         b.aimErr = Math.max(0.002, b.aimErr + (Math.random() - 0.5) * 0.02 * dt);   // micro-tremor
       }
@@ -4102,8 +4276,11 @@ export class Game {
       const _w0 = WEAPONS[b.weapon];
       const inRange = !(_w0 && _w0.range) || dist <= _w0.range + 0.6;
       // fire (bloqueado enquanto o alvo está stale/sem LOS — ver aquisição: sem wallhack)
+      // TURNO DE DUELO: contra o JOGADOR só atira quem tem o token (ver _duelToken). Fora do
+      // turno o bot continua manobrando/avançando — ele não congela, só não soma fogo.
+      const hasTurn = !(BOT_FAIR && e.isPlayer) || this._duelToken(b);
       if (this.time > b.reactAt && this.time > (b.focusUntil || 0) && this.time > b.nextShotAt && this.time > (b.reloadUntil || 0)
-          && Math.abs(dy) < 0.3 && !b._losLost && inRange) {
+          && Math.abs(dy) < 0.3 && !b._losLost && inRange && hasTurn) {
         /* ===== TIRO DO BOT =====
            ANTES: dano FIXO (63 no jogador / 100 no bot), cadência 0.75-3.5s igual pra P90 e
            AWP, e um sorteio de acerto invisível (até 92%) que ignorava a parede no caminho.
@@ -4120,11 +4297,16 @@ export class Game {
         if (Wb.auto) {
           if (b.burst > 0) { b.burst--; b.nextShotAt = this.time + Wb.rate * (1 + Math.random() * 0.15); }
           else {
-            b.burst = 1 + ((Math.random() * (dist < 14 ? 5 : 3)) | 0);
-            b.nextShotAt = this.time + (0.35 + Math.random() * 0.55) / Math.max(0.5, b.skill);
+            // RAJADA CURTA (ver BOT_SPRAY_K/b): era 1-6 tiros e MAIOR de perto — a rajada de
+            // 6 tiros a 8 m entregava 4 acertos em 0,25 s. Agora 1-3 tiros, e a mais curta é
+            // justamente a de perto, onde cada acerto dói mais.
+            b.burst = BOT_FAIR ? (dist < 14 ? 1 : 2) + ((Math.random() * 2) | 0)
+              : 1 + ((Math.random() * (dist < 14 ? 5 : 3)) | 0);
+            b.nextShotAt = this.time + (BOT_FAIR ? BOT_BURST_PAUSE + Math.random() * 0.6 : 0.35 + Math.random() * 0.55) / Math.max(0.5, b.skill);
           }
         } else {
-          b.nextShotAt = this.time + Math.max(Wb.rate, (sniper ? 0.85 : 0.3) + Math.random() * 0.5) / Math.max(0.5, b.skill);
+          // semi-auto: 0,3 s entre tiros de escopeta de 30 de dano também era melt.
+          b.nextShotAt = this.time + Math.max(Wb.rate, (sniper ? 0.85 : (BOT_FAIR ? 0.55 : 0.3)) + Math.random() * (BOT_FAIR ? 0.6 : 0.5)) / Math.max(0.5, b.skill);
         }
         if ((Wb.mag || 0) > 0 && b.mag <= 0) { b.reloadUntil = this.time + (Wb.reload || 2.4); b.mag = Wb.mag; b.burst = 0; }
         b.aimErr += (Wb.recoil || 0.01) * (Wb.auto ? 0.6 : 0.4);   // cada tiro tira a mira do lugar (rajada abre)
@@ -4168,6 +4350,15 @@ export class Game {
           this._damage(e, dmg, b, Wb.short || 'AWP', head, teye);   // arma real do bot no killfeed
           if (e.isPlayer) this._noteHit(b, Wb.short || 'ARMA', dmg, head, tdist);
         } else if (hitsW && Math.random() < 0.5) this._puff(hitsW.point, hitsW.face ? hitsW.face.normal : null);
+        /* COICE PROPORCIONAL AO ALVO (ver BOT_SPRAY_K). Somado DEPOIS de resolver o tiro: o
+           1º tiro da rajada continua encostando (o jogador precisa sentir "levei tiro"), o 2º
+           e o 3º abrem. Em múltiplos do tamanho angular do alvo pra degradar igual a 6 m e a
+           40 m; o clamp mantém o valor ABSOLUTO sensato (nem colar no ombro a 60 m, nem virar
+           28° de erro a 3 m, que seria bot cego no encostado). */
+        if (BOT_FAIR) {
+          const kickBase = Math.max(0.013, Math.min(0.075, halfAng));
+          b.aimErr += kickBase * BOT_SPRAY_K * (Wb.auto ? 1 : 1.35);
+        }
         // COMUNICAÇÃO: quem atira acorda os colegas por perto (abre a visão deles por 6s) —
         // é o motivo de o combate "puxar" gente em vez de acontecer em bolhas isoladas.
         for (const o of this.bots) {
@@ -4205,7 +4396,13 @@ export class Game {
       moving = b._ctfMoving || 0;
     } else {
       // --- roam toward enemy half
-      if (!b.path || this.time > b.repathAt) {
+      // INTERVALO MÍNIMO DE RERROTA (0,25 s). O `!b.path ||` curto-circuitava o `repathAt`:
+      // qualquer branch que zerasse a rota fazia o A* rodar TODO FRAME, e o `from` =
+      // nearestWaypoint pulava entre dois nós vizinhos a cada quadro — alvo de rotação
+      // oscilando, que é o "girando em torno de si mesmo". Agora o intervalo é de verdade
+      // (a caminhada de escape cobre a espera, então o bot não congela).
+      if ((!b.path || this.time > b.repathAt) && this.time >= (b._repathMin || 0)) {
+        b._repathMin = this.time + 0.25;
         b.repathAt = this.time + 2.5;
         const W = this.world;
         // G2-R6A: o `from` = nearestWaypoint podia estar ATRÁS de uma parede (nó (-8.4,34)
@@ -4266,7 +4463,19 @@ export class Game {
             const n = nodes[i];
             if (n.z * sign <= 4 * sign) continue;            // só metade inimiga
             if (b._unreach && b._unreach.has(i)) continue;   // inalcançável conhecido (grafo desconexo)
-            const d = Math.abs(n.x - b.laneX) * 2.2 + Math.abs(n.z - deepZ) + Math.random() * 4;
+            /* CUSTO DE VIRADA no escolha do destino (mesma ideia do _freeYaw). Antes o
+               destino era escolhido só por coluna/profundidade, então metade das vezes ele
+               caía ATRÁS do bot: ele chegava num objetivo e dava meia-volta pra ir ao
+               próximo. Cada meia-volta dessas é ~0,9 s de corpo girando — e girar andando é
+               justamente o que a medição lê como "andando de lado" (47-62% dos flips
+               acontecem em frames de giro >0,25 rad). Somando ~2,6 m de "custo" por radiano
+               de virada, o bot encadeia objetivos NA DIREÇÃO EM QUE JÁ VAI, como gente
+               varrendo um mapa — e só vira de verdade quando vale a pena. */
+            let d = Math.abs(n.x - b.laneX) * 2.2 + Math.abs(n.z - deepZ) + Math.random() * 4;
+            if (BOT_MOVE2) {
+              const ang = Math.atan2(n.x - b.pos.x, n.z - b.pos.z) - b.yaw;
+              d += Math.abs(Math.atan2(Math.sin(ang), Math.cos(ang))) * 2.6;
+            }
             if (d < bdAny) { bdAny = d; bestAny = i; }
             // não re-alveja nó colado ao bot (≤7m): senão ele "chega" na hora e o jitter
             // flipa o alvo entre vizinhos — o milling A→B→A medido no piscinão.
@@ -4277,6 +4486,7 @@ export class Game {
         }
         if (!pocket) {
           b.path = this._findPathLocal(W, from, b.roamIdx, b._banNodes); b.pathIdx = 1;
+          if (BOT_MOVE2) b.path = this._pullString(b, b.path);
           // Alvo INALCANÇÁVEL (findPath devolve [from] — ilhas do grafo desconexo, ex.: as
           // ilhotas do piscinão): antes o bot "seguia" o próprio nó mais próximo e ficava
           // orbitando/oscilando no lugar. Marca e re-alveja outro nó no próximo repick.
@@ -4312,7 +4522,13 @@ export class Game {
       }
       if (b.pathIdx >= b.path.length - 1) {
         const last = _wp[b.path[b.path.length - 1]];
-        if (last && Math.hypot(last.x - b.pos.x, last.z - b.pos.z) < 1.2) b.roamUntil = 0;
+        /* CAUSA-RAIZ do "rodando em volta de si mesmo" (e de parte dos flips laterais):
+           ao CHEGAR no último nó, o código zerava `roamUntil` mas o repath só acontecia
+           quando `time > repathAt` — até 2,5 s depois. Nesse intervalo o bot continuava
+           mirando um nó a menos de 1 m: o atan2 de um vetor quase nulo gira 180° com um
+           passo de 20 cm, então ele PIVOTAVA em torno do próprio destino. Agora chegar
+           libera o repath NO MESMO FRAME (repathAt=0): destino novo, rumo estável. */
+        if (last && Math.hypot(last.x - b.pos.x, last.z - b.pos.z) < 1.2) { b.roamUntil = 0; b.repathAt = 0; }
       }
       // MIRA no nó atual do path (não +2): com o A* reto, seguir o path fielmente contorna os
       // obstáculos. O look-ahead +2 cortava a quina PRA DENTRO do obstáculo -> o bot batia e
@@ -4323,17 +4539,44 @@ export class Game {
         // cabe o bot r=0.38 — ex.: quina do muro das ilhotas): bane o nó e rerroteia.
         (b._banNodes || (b._banNodes = new Set())).add(b.path[Math.min(b.pathIdx, b.path.length - 1)]);
         if (b._banNodes.size > 24) b._banNodes.clear();
-        b.repathAt = 0; b.path = null;
+        /* CAUSA-RAIZ do "travando" (medido: 92% das amostras de bot parado tinham b.path
+           NULO e velocidade < 0,1 m/s). Este branch zerava a rota e NÃO MOVIA o bot no
+           frame — e como banir um nó costuma fazer o A* devolver outro nó igualmente
+           intransitável, o ciclo banir→rerrotar→banir se repetia por dezenas de frames com
+           o boneco PLANTADO no chão. Agora banir também dispara uma caminhada de escape
+           curta na direção livre: enquanto a rota é reconstruída ele continua ANDANDO,
+           que é o que o dono precisa ver. */
+        b.path = null;
+        b._escapeUntil = Math.max(b._escapeUntil || 0, this.time + 0.35);
+        b._escapeYaw = this._freeYaw(b, 2.5);
+        b.repathAt = this.time + 0.3;
       } else if (node) {
         const dx = node.x - b.pos.x, dz = node.z - b.pos.z;
         {
-          const wantYaw = Math.atan2(dx, dz);
-          let dy = wantYaw - b.yaw;
+          /* RUMO SUAVIZADO (b._hdg). Medido em botdiag: 62% dos "flips laterais" acontecem
+             num frame em que o bot girou mais de 0,25 rad em 150 ms (mediana 0,35 rad =
+             133°/s). Ou seja, o "andando de lado" que sobrou NÃO é passo lateral — é o
+             corpo pivotando enquanto anda, e o deslocamento sai atravessado em relação ao
+             corpo. Duas travas, as duas atacando a causa e não o sintoma:
+             1. o rumo desejado é um FILTRO do rumo do nó (constante ~0,45 s), então trocar
+                de nó/rota não teleporta o alvo de rotação — ele migra;
+             2. abaixo de 1,2 m do nó o atan2 fica numericamente instável (vetor quase nulo
+                gira 180° com meio passo): nessa faixa o rumo CONGELA e o bot atravessa o
+                nó andando reto, em vez de piruetar em cima dele. */
+          const dn = Math.hypot(dx, dz);
+          const want = Math.atan2(dx, dz);
+          if (b._hdg === undefined) b._hdg = want;
+          if (dn > 1.2) {
+            let hd = want - b._hdg;
+            while (hd > Math.PI) hd -= Math.PI * 2; while (hd < -Math.PI) hd += Math.PI * 2;
+            b._hdg += hd * Math.min(1, dt * 2.2);
+          }
+          let dy = b._hdg - b.yaw;
           while (dy > Math.PI) dy -= Math.PI * 2; while (dy < -Math.PI) dy += Math.PI * 2;
           // Giro com TETO DE VELOCIDADE (3,4 rad/s ≈ 195°/s). Antes era dt*12, que a 60 fps
           // deixa o bot virar 720°/s: qualquer troca de nó do A* virava um pião. Com teto, um
           // 180° custa ~0,9 s e lê como uma curva de pessoa.
-          const turn = dy * Math.min(1, dt * 12);
+          const turn = dy * Math.min(1, dt * (BOT_MOVE2 ? 6 : 12));
           b.yaw += BOT_MOVE2 ? Math.max(-YAW_CAP * dt, Math.min(YAW_CAP * dt, turn)) : turn;
           const bSlow = this.world.slowAt && this.world.slowAt(b.pos.x, b.pos.z) ? 0.5 : 1;  // bots também vadear
           const px = b.pos.x, pz = b.pos.z;

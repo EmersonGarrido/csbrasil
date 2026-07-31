@@ -390,12 +390,20 @@ export const VM_FRAME = {
     // roll   = cant (rad) em torno do EIXO DA CÂMERA. É de graça no que importa: girar em Z
     //         não move a direção do cano (0,0,-1) nem 1 grau, então a arma continua apontada
     //         exatamente pra mira — só mostra o topo do receiver, como no CS.
-    rifle:   { roll: -0.070, tanH: 0.600, clear: 0.040, minz: 0.345, fwdTan: 1.60 },
-    sniper:  { roll: -0.055, tanH: 0.600, clear: 0.040, minz: 0.360, fwdTan: 1.60 },
-    shotgun: { roll: -0.078, tanH: 0.600, clear: 0.040, minz: 0.345, fwdTan: 1.60 },
-    smg:     { roll: -0.085, tanH: 0.575, clear: 0.040, minz: 0.300, fwdTan: 1.60 },
-    pistol:  { roll: -0.050, tanH: 0.420, clear: 0.040, minz: 0.258, fwdTan: 1.60 },
-    knife:   { roll: 0, tanH: 0.500, clear: 0.040, minz: 0.230, fwdTan: 1.60 },
+    // tanH 0,600 -> 0,460 (P0.1). Com 0,600 o grip ficava a 31 graus do eixo da lente, e a
+    // CORONHA (o ponto mais perto do olho, que e o que projeta mais largo) saia da tela: o
+    // probe mediu a caixa do viewmodel indo ate NDC x 2,11 com o centro em 1,17 — a arma
+    // estava mais fora do quadro do que dentro. Empurrar a arma pro fundo ate caber (a trava
+    // de borda do _vmFrame) resolvia a borda mas mandava o AK pra 0,82 m do olho, e ai ele
+    // fica pequeno demais. Baixar o angulo horizontal e a solucao certa: com 0,460 a arma
+    // cabe INTEIRA com Zg ~0,45 m (distancia de viewmodel de FPS de verdade), a boca cai em
+    // NDC 0,23 (borda esquerda ~0,62 W, o alvo medido nas referencias) e a coronha em ~0,94.
+    rifle:   { roll: -0.070, tanH: 0.460, clear: 0.040, minz: 0.345, fwdTan: 1.60 },
+    sniper:  { roll: -0.055, tanH: 0.460, clear: 0.040, minz: 0.360, fwdTan: 1.60 },
+    shotgun: { roll: -0.078, tanH: 0.460, clear: 0.040, minz: 0.345, fwdTan: 1.60 },
+    smg:     { roll: -0.085, tanH: 0.445, clear: 0.040, minz: 0.300, fwdTan: 1.60 },
+    pistol:  { roll: -0.050, tanH: 0.400, clear: 0.040, minz: 0.258, fwdTan: 1.60 },
+    knife:   { roll: 0, tanH: 0.430, clear: 0.040, minz: 0.230, fwdTan: 1.60 },
   },
   // A faca não tem cano: em vez do cant ela leva a pose CS clássica (lâmina atravessada,
   // gume pra dentro do quadro). Euler XYZ em rad, aplicado ao grupo do viewmodel.

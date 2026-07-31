@@ -259,10 +259,15 @@ export function buildBrasilia(scene, T) {
     return c;
   }
   // Alpha de folhagem/flor de ipê para billboard cruzado — massa irregular de flor amarela.
+  // CONSERTO (reclamação nº 3: "árvores amarelas meio esquisitas"). A paleta era amarelo-
+  // limão esverdeado (#f4cf2e) com emissivo por cima: dava aquele tom fluorescente de planta
+  // DOENTE, e ainda por cima competia com a silhueta do inimigo, que é o pecado capital
+  // segundo a régua de consistência. Agora é ouro/âmbar quente — a cor real do ipê — sem
+  // emissivo nenhum.
   function florIpeTex() {
     const S = LOWQ ? 128 : 256;
     const c = cvs(S, S), x = c.getContext('2d');
-    const tones = ['#f4cf2e', '#e8b81a', '#f7dc63', '#c9930d', '#ffe98a'];
+    const tones = ['#e0a41c', '#c88b10', '#efbe4c', '#a97208', '#f4d68c'];
     for (let i = 0; i < 340; i++) {
       // cachos concentrados no centro, esgarçando na borda -> silhueta recortada, não hexágono
       const a = Math.random() * Math.PI * 2, rr = Math.pow(Math.random(), 0.62) * S * 0.47;
@@ -439,8 +444,14 @@ export function buildBrasilia(scene, T) {
   // de 1,5 m recebe textura na densidade certa em vez de 60 tiles espremidos.
   MAT.guia = triplanar(lam({ color: 0xc9c6bb, roughness: 0.92 }), TX_FORMA, 1.18);
   MAT.mato = lam({ map: ctex(matoTex(), 1, 1), transparent: false, alphaTest: 0.42, side: THREE.DoubleSide, roughness: 1 });
-  MAT.florIpe = [0xf0c81e, 0xd9a712, 0xfadb5c].map(c => lam({ color: c, roughness: 0.86, emissive: 0x1e1600 }));
-  MAT.folhaIpe = lam({ map: ctex(florIpeTex(), 1, 1), alphaTest: 0.45, side: THREE.DoubleSide, roughness: 0.88, emissive: 0x1a1200 });
+  // Três materiais com a MESMA textura de flor e tinta diferente: é a variação de VALOR
+  // (claro/médio/escuro) dentro da copa que faz a massa ter volume sem sólido facetado.
+  {
+    const txFlor = ctex(florIpeTex(), 1, 1);
+    MAT.folhaIpe = [0xffffff, 0xdccfa6, 0xb6a271].map(c => lam({
+      map: txFlor, color: c, alphaTest: 0.45, side: THREE.DoubleSide, roughness: 0.9,
+    }));
+  }
   MAT.tintaGasta = lam({ map: ctex(faixaTex(), 1, 1), transparent: true, roughness: 0.85, depthWrite: false });
   MAT.mancha = lam({ map: ctex(manchaTex(), 1, 1), transparent: true, opacity: 0.9, roughness: 0.9, depthWrite: false });
   function tiledLocal(tex, rx, ry) { const t = tex.clone(); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rx, ry); t.needsUpdate = true; return t; }
@@ -477,9 +488,12 @@ export function buildBrasilia(scene, T) {
 
   // Place a Mint building GLB, normalized to targetH metres, and derive a footprint
   // collider from its real placed bounds. Returns the object (or null if not loaded).
-  function putBuilding(id, { x, z, targetH, ry = 0, solid = true, y = 0, occ = true, dress = null, skirt = true }) {
+  function putBuilding(id, { x, z, targetH, ry = 0, solid = true, y = 0, occ = true, dress = null, skirt = true, sq = 1 }) {
     const o = placeProp(id, { x, z, targetH, ry, y });
     if (!o) return null;
+    // `sq` achata SÓ o eixo Z LOCAL do modelo. Nos blocos que entram girados 90° esse eixo
+    // vira a ESPESSURA no mundo — é o que deixa o ministério um prisma fino em vez de caixa.
+    if (sq !== 1) o.scale.z *= sq;
     if (dress) dressGLB(o, dress);
     root.add(o); occluders.push(o);
     o.updateMatrixWorld(true);
@@ -514,10 +528,18 @@ export function buildBrasilia(scene, T) {
   const MIN_H = BIG ? 22 : 7;          // 8-10 pavimentos ≈ 22 m (era 7 m = casinha)
   const PILOTI = BIG ? 4.8 : 0;        // os blocos reais são VAZADOS por baixo (pilotis)
   const LANE_HX = 24;                  // face interna dos ministérios = parede da lane
+  // RECLAMAÇÃO Nº 6 ("os prédios do lado parecem malfeitos"). O GLB do ministério tem
+  // 0,69 de espessura para 1,0 de altura: a 22 m ele nasce com 15,2 m de espesso e lê como
+  // CAIXA. O bloco real da Esplanada é um prisma fino — ~20 m de espessura para ~26 m de
+  // altura. MIN_SQ achata só a espessura (10,9 m), sem mexer no comprimento nem na altura,
+  // então nada do layout derivado (espaçamento, Z do Palácio, jardim) se move. Proporção
+  // antes de detalhe. `?minsq=0` volta ao bloco gordo.
+  const MIN_SQ = (BIG && QP.get('minsq') !== '0') ? 0.72 : 1;
   let MW = 26, MD = 14;                // fallback se o GLB não carregou
   {
     const probe = placeProp('ministerio', { x: 0, z: 0, targetH: MIN_H, ry: Math.PI / 2 });
     if (probe) {
+      probe.scale.z *= MIN_SQ;
       probe.updateMatrixWorld(true);
       const bb = new THREE.Box3().setFromObject(probe);
       MW = Math.max(6, bb.max.x - bb.min.x); MD = Math.max(6, bb.max.z - bb.min.z);
@@ -602,30 +624,42 @@ export function buildBrasilia(scene, T) {
   const PAL_Z = BIG ? Math.max(50, MZ[MN - 1] + MD / 2 + 16) : 30;
   // PAL_H=10 (não 14): o GLB do palácio tem planta QUADRADA 3,55:1 — a 14 m ele viraria um
   // bloco de 50 × 50 m que engolia os spawns do norte. 10 m mantém a leitura e o campo livre.
-  const PAL_X = BIG ? 29 : 22, PAL_H = BIG ? 10 : 6;
+  // PAL_X 29 -> 32: a plataforma cresceu em X para caber a colunata nova (ela avança 2,2 m
+  // da fachada e precisa nascer EM CIMA do embasamento, não boiando fora dele). Empurrar o
+  // prédio 3 m para fora mantém o corredor central da praça e os spawns do norte livres.
+  const PAL_X = BIG ? 32 : 22, PAL_H = BIG ? 10 : 6;
+  const PAL_OUT = 2.2;                       // avanço da colunata em relação à fachada
+  const PAL_EX = BIG ? PAL_OUT + 1.0 : 1.2;  // folga da plataforma em X (cobre a colunata)
   let PAL_ZMAX = PAL_Z + 10;   // borda norte real da Praça, medida (usada pelos marcos)
 
   for (const px of [PAL_X, -PAL_X]) {
     const ry = px > 0 ? -Math.PI / 2 : Math.PI / 2;
-    const PL = BIG ? 1.2 : 0.35;   // plataforma elevada (o STF real fica sobre plataforma)
+    const PL = BIG ? 1.45 : 0.35;   // plataforma elevada (o STF real fica sobre plataforma)
     const probe = placeProp('palacio', { x: px, z: PAL_Z, targetH: PAL_H, ry });
     if (probe) {
       probe.updateMatrixWorld(true);
       const bb = new THREE.Box3().setFromObject(probe);
-      const pw = (bb.max.x - bb.min.x) + 2.4, pd = (bb.max.z - bb.min.z) + 2.4;
+      const pw = (bb.max.x - bb.min.x) + PAL_EX * 2, pd = (bb.max.z - bb.min.z) + 2.4;
       const pcx = (bb.min.x + bb.max.x) / 2, pcz = (bb.min.z + bb.max.z) / 2;
       PAL_ZMAX = Math.max(PAL_ZMAX, bb.max.z + 1.2);
-      // base em GRANITO PRETO (BAR: granito preto em bases e soleiras) + soleira de mármore
-      addBox(pw, PL, pd, MAT.granitoPreto, pcx, 0, pcz, { collide: false });
-      addBox(pw - 0.6, 0.12, pd - 0.6, MAT.marmore, pcx, PL, pcz, { collide: false });
-      // espelho d'água raso sobre a plataforma (a assinatura do Planalto real)
-      addPlane(pw - 1.6, pd - 1.6, MAT.agua, pcx, PL + 0.14, pcz, 0, -Math.PI / 2);
+      // base em GRANITO PRETO (BAR: granito preto em bases e soleiras) + soleira de mármore.
+      // AGORA COLIDE (era `collide:false`): a plataforma tinha 1,2 m de altura VISÍVEL e zero
+      // colisão, então o jogador entrava 1,2 m dentro do granito e só parava na caixa
+      // invisível do prédio — com o espelho d'água boiando na altura do peito. Era isso o
+      // "não dá pra andar na parte da água". Com 1,45 m (acima do apex do pulo, 0,61 m) a
+      // plataforma vira o que ela parece: um embasamento de monumento em que não se sobe.
+      addBox(pw, PL, pd, MAT.granitoPreto, pcx, 0, pcz);
+      addBox(pw + 0.3, 0.14, pd + 0.3, MAT.marmore, pcx, PL, pcz, { collide: false });
+      // O espelho d'água que existia AQUI EM CIMA foi REMOVIDO. Ele ficava sobre a plataforma,
+      // quase todo escondido embaixo do próprio prédio: sobrava um anel azul de 40 cm que
+      // ninguém nunca leu como água — só como "borda azul esquisita" — e era a segunda
+      // superfície de água meia-boca do mapa. O mapa fica com UMA lâmina d'água só, a do
+      // jardim, essa sim com parapeito e leitura clara. Excesso é o problema, não falta.
       const b = placeProp('palacio', { x: px, z: PAL_Z, targetH: PAL_H, ry, y: PL + 0.16 });
       if (b) {
-        // ORIGEM DO PIOR FRAME DO JOGO: este GLB é UMA malha com UM material branco liso, e
-        // a 10 m de altura por ~35 m de lado ele vira uma parede de 45% do frame com desvio
-        // de L* zero (B6 = 67,3). Reveste com concreto de marca de forma (triplanar) e, logo
-        // abaixo, quebra o plano com brise vertical, faixa de vidro e embasamento de granito.
+        // Este GLB é UMA malha com UM material branco liso: a 10 m de altura por ~35 m de
+        // lado ele vira uma parede chapada. O revestimento de concreto de forma (triplanar)
+        // resolve o material; a IDENTIDADE quem devolve é o bloco logo abaixo.
         dressGLB(b, MAT.concBranco);
         root.add(b); occluders.push(b);
         b.updateMatrixWorld(true);
@@ -633,42 +667,82 @@ export function buildBrasilia(scene, T) {
         col(bb2.min.x, bb2.max.x, 0, Math.max(1, bb2.max.y), bb2.min.z, bb2.max.z);
         occBox(bb2.max.x - bb2.min.x, bb2.max.y - PL, bb2.max.z - bb2.min.z,
           (bb2.min.x + bb2.max.x) / 2, PL, (bb2.min.z + bb2.max.z) / 2);
-        // COLUNATA CURVA DE MÁRMORE BRANCO POLIDO (roughness .25) — é o elemento que
-        // Niemeyer descreve e o que diferencia Planalto/STF de "caixa de vidro genérica".
-        if (BIG && DETAIL > 0) {
-          const sgn = px > 0 ? -1 : 1;                     // colunata na face virada pra lane
-          const cfx = (px > 0 ? bb2.min.x : bb2.max.x) + sgn * 0.9;
-          const nc = LOWQ ? 5 : 9, cz0 = bb2.min.z + 1.5, cstep = (bb2.max.z - bb2.min.z - 3) / (nc - 1);
-          const cols = [];
-          for (let i = 0; i < nc; i++) cols.push({ x: cfx, y: PL + 0.16, z: cz0 + i * cstep });
-          addInst(new THREE.CylinderGeometry(0.28, 0.85, PAL_H * 0.82, 8, 1, false), MAT.marmore,
-            cols.map(c => ({ ...c, y: c.y + PAL_H * 0.41 })), { occlude: true });
+        /* ============ IDENTIDADE DO PLANALTO / STF (reclamação nº 4 do dono) ============
+           "ganhou texturas mas perdeu toda identidade". A versão anterior enfiava BRISE
+           VERTICAL nas QUATRO faces + uma laje de coroamento de 60 cm: brise vertical em
+           volta inteira é vocabulário de edifício comercial dos anos 80, é o oposto do
+           Planalto, e a laje gorda matava o "flutuar". Regra deste conserto: SILHUETA ANTES
+           DE TEXTURA. Ficam só os quatro elementos que fazem qualquer brasileiro reconhecer
+           o prédio de longe, sem nenhuma textura nova:
+             1. duas LAJES FINAS (34 cm) em balanço de 2,8 m — o volume "flutua";
+             2. o VIDRO ESCURO RECUADO entre elas (a caixa some na sombra da laje);
+             3. a COLUNATA CURVA de Niemeyer, perfil de vela: toca o chão num fio, engrossa
+                no meio e afina de novo ao encontrar a laje (era um tronco de cone de 8 lados);
+             4. a RAMPA, que é a assinatura do Planalto.
+           `?planalto=old` volta ao brise antigo. */
+        const NEWPAL = QP.get('planalto') !== 'old';
+        if (BIG && DETAIL > 0 && NEWPAL) {
+          const y0 = bb2.min.y, y1 = bb2.max.y, HH = Math.max(2, y1 - y0);
+          const x0 = bb2.min.x, x1 = bb2.max.x, z0 = bb2.min.z, z1 = bb2.max.z;
+          const W = x1 - x0, D = z1 - z0, cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
+          const OUT = PAL_OUT;                               // quanto a colunata avança da fachada
+          // 1. LAJES FINAS. A de baixo é o piso que a colunata apoia; a de cima é a cobertura.
+          //    O balanço (OUT+1,0) passa DA FRENTE da colunata: é a sombra dura desse balanço
+          //    que joga o vidro para dentro e faz o volume ler como laje flutuando.
+          addBox(W + PAL_EX * 2, 0.32, D + 2.0, MAT.marmore, cx, y1 - 0.32, cz, { collide: false });
+          addBox(W + PAL_EX * 2, 0.30, D + 2.0, MAT.marmore, cx, y0 - 0.30, cz, { collide: false, cast: false });
+          // 2. VIDRO ESCURO ocupando TODA a altura entre as lajes (antes era uma faixa de
+          //    peitoril de 34% da altura, que lia como "listra" e não como caixa envidraçada).
+          const gy = y0 + HH * 0.5, gh = HH - 0.9;
+          for (const [fw, fx, fz, fry] of [[D - 1.0, x0 - 0.05, cz, -Math.PI / 2],
+            [D - 1.0, x1 + 0.05, cz, Math.PI / 2],
+            [W - 1.0, cx, z0 - 0.05, Math.PI], [W - 1.0, cx, z1 + 0.05, 0]])
+            addPlane(fw, gh, MAT.vidroFume, fx, gy, fz, fry);
+          // 3. COLUNATA CURVA. Perfil desenhado com bezier e EXTRUDADO: é um plano de mármore,
+          //    não um cilindro. `ry = π/2` põe a curva de frente para quem olha a fachada
+          //    (o x local do Shape vira o z do mundo, a extrusão vira a espessura em x).
+          const CH = Math.max(2, (y1 - 0.32) - y0);
+          const sh = new THREE.Shape();
+          const wb = 0.07, wm = 0.52, wt = 0.19;   // largura no pé / no bojo / no encontro c/ a laje
+          sh.moveTo(-wb, 0);
+          sh.bezierCurveTo(-wm * 1.06, CH * 0.17, -wm, CH * 0.63, -wt, CH);
+          sh.lineTo(wt, CH);
+          sh.bezierCurveTo(wm, CH * 0.63, wm * 1.06, CH * 0.17, wb, 0);
+          sh.lineTo(-wb, 0);
+          const colGeo = new THREE.ExtrudeGeometry(sh, { depth: 1.5, bevelEnabled: false, curveSegments: LOWQ ? 3 : 6 });
+          colGeo.translate(0, 0, -0.75);
+          const nc = LOWQ ? 6 : 10, cz0 = z0 + 1.6, cstep = (D - 3.2) / (nc - 1);
+          const colsL = [];
+          for (const fs of [-1, 1]) for (let i = 0; i < nc; i++)
+            colsL.push({ x: (fs < 0 ? x0 : x1) + fs * OUT, y: y0, z: cz0 + i * cstep, ry: Math.PI / 2 });
+          addInst(colGeo, MAT.marmore, colsL, { occlude: false });
+          // 4. RAMPA — a assinatura do Planalto. Lâmina branca subindo em diagonal contra o
+          //    vidro escuro, na face virada pro miolo da praça. É DECORATIVA e nasce a 2,3 m
+          //    do chão (acima da cabeça do jogador) justamente para não prometer um caminho
+          //    que não existe: quem manda no acesso é o embasamento de granito, que é sólido.
+          const rrun = Math.min(17, W * 0.52), rrise = HH * 0.45;
+          const rlen = Math.hypot(rrun, rrise), rsg = px > 0 ? 1 : -1;
+          const rmp = new THREE.Mesh(new THREE.BoxGeometry(rlen, 0.26, 2.4), MAT.marmore);
+          rmp.rotation.z = rsg * Math.atan2(rrise, rrun);
+          rmp.position.set(px > 0 ? x0 + rrun / 2 : x1 - rrun / 2, PL + 0.9 + rrise / 2, z0 - 0.9);
+          rmp.castShadow = !LOWQ; rmp.receiveShadow = true; root.add(rmp);
+          const guard = new THREE.Mesh(new THREE.BoxGeometry(rlen, 0.52, 0.14), MAT.marmore);
+          guard.position.set(0, 0.39, -1.16); rmp.add(guard);   // guarda-corpo só na face de fora
         }
-        // QUEBRA DE PLANO (r2). Nenhuma textura salva uma parede de 35 × 10 m sem relevo:
-        // o que faz uma fachada modernista brasileira ler é a sombra própria do brise e da
-        // laje de coroamento. Aqui entram os QUATRO materiais que o BAR pede na mesma
-        // fachada — granito preto no embasamento, vidro fumê na faixa, mármore no brise e
-        // na cornija, concreto de forma no fundo — em vez de "um branco só".
-        if (BIG && DETAIL > 0) {
+        // brise antigo (só com `?planalto=old`, para A/B)
+        if (BIG && DETAIL > 0 && !NEWPAL) {
           const y0 = bb2.min.y, y1 = bb2.max.y, HH = Math.max(2, y1 - y0);
           const x0 = bb2.min.x, x1 = bb2.max.x, z0 = bb2.min.z, z1 = bb2.max.z;
           const W = x1 - x0, D = z1 - z0;
-          // embasamento de granito preto: a "linha de terra" do edifício. Também é o
-          // gradiente de contato que faltava na junção parede–chão (critério A1).
           addBox(W + 0.5, 0.95, D + 0.5, MAT.granitoPreto, (x0 + x1) / 2, y0 - 0.02, (z0 + z1) / 2, { collide: false, cast: false });
-          // laje de coroamento em mármore, com balanço de 1,3 m (cobre a colunata, como no
-          // Planalto real) -> sombra dura e horizontal no topo da
-          // fachada ao meio-dia (é essa faixa escura que mata o "chapado" no frame).
           addBox(W + 2.6, 0.60, D + 2.6, MAT.marmore, (x0 + x1) / 2, y1 - 0.38, (z0 + z1) / 2, { collide: false });
-          // faixa de VIDRO FUMÊ na altura do peitoril: caixa escura entre lajes brancas.
           const gy = y0 + HH * 0.52, gh = HH * 0.34;
           for (const [fw, fx, fz, fry] of [[D - 1.2, x0 - 0.06, (z0 + z1) / 2, -Math.PI / 2],
             [D - 1.2, x1 + 0.06, (z0 + z1) / 2, Math.PI / 2],
             [W - 1.2, (x0 + x1) / 2, z0 - 0.06, Math.PI], [W - 1.2, (x0 + x1) / 2, z1 + 0.06, 0]])
             addPlane(fw, gh, MAT.vidroFume, fx, gy, fz, fry);
-          // brise vertical de mármore nas quatro faces (o "quebra-sol" de Niemeyer).
           const finsX = [], finsZ = [], step = LOWQ ? 4.2 : 2.6;
-          const finH = Math.max(1.2, HH - 1.7), finY = y0 + 0.95 + finH / 2;   // o brise NASCE em cima do embasamento
+          const finH = Math.max(1.2, HH - 1.7), finY = y0 + 0.95 + finH / 2;
           for (let t = step * 0.5; t < D - 0.4; t += step) {
             finsX.push({ x: x0 - 0.28, y: finY, z: z0 + t });
             finsX.push({ x: x1 + 0.28, y: finY, z: z0 + t });
@@ -690,8 +764,15 @@ export function buildBrasilia(scene, T) {
   // flanco que faltava (o mapa era um corredor reto). Colisão só nos pilares.
   const ministries = [];
   const pilCols = [];
+  // FACHADA POR PAVIMENTO (reclamação nº 6). Antes cada bloco levava UM plano de vidro fumê
+  // de 54 × 19,6 m: um retângulo cinza-escuro chapado do tamanho de um quarteirão — a coisa
+  // mais "malfeita" do fundo. Agora a mesma área vira 6 FITAS horizontais de vidro separadas
+  // por testeiras brancas de concreto que se projetam 15 cm: a sombra própria de cada
+  // testeira desenha os pavimentos e o bloco passa a ler como edifício a qualquer distância.
+  // Continua sendo 2 draw calls no total (InstancedMesh) e nenhum prop novo.
+  const minGlass = [], minBand = [];
   for (const sx of [-1, 1]) for (const mz of MZ) {
-    const b = putBuilding('ministerio', { x: sx * MIN_CX, z: mz, targetH: MIN_H, ry: Math.PI / 2, y: PILOTI, solid: !BIG, occ: false, dress: MAT.concBranco });
+    const b = putBuilding('ministerio', { x: sx * MIN_CX, z: mz, targetH: MIN_H, ry: Math.PI / 2, y: PILOTI, solid: !BIG, occ: false, dress: MAT.concBranco, sq: MIN_SQ });
     ministries.push(b);
     if (!b) continue;
     b.updateMatrixWorld(true);
@@ -702,9 +783,19 @@ export function buildBrasilia(scene, T) {
     if (!BIG) continue;
     // laje inferior (fecha o vão por baixo e dá sombra dura de meio-dia no piso)
     addBox(w, 0.9, d, MAT.concBranco, cx, PILOTI - 0.9, cz, { collide: false });
-    // vidro fumê na fachada: o gerador de contraste da Esplanada (caixa escura entre lajes)
-    for (const fs of [-1, 1]) addPlane(d - 1.6, MIN_H - 2.4, MAT.vidroFume,
-      cx + fs * (w / 2 + 0.05), PILOTI + MIN_H / 2, cz, fs > 0 ? Math.PI / 2 : -Math.PI / 2);
+    // vidro fumê em FITAS de pavimento + testeira branca entre elas (ver comentário acima)
+    {
+      const NF = LOWQ ? 4 : 6, fh = (MIN_H - 1.6) / NF;
+      for (let i = 0; i < NF; i++) {
+        const yb = PILOTI + 0.9 + i * fh;
+        for (const fs of [-1, 1]) {
+          minGlass.push({ x: cx + fs * (w / 2 + 0.05), y: yb + fh * 0.32, z: cz,
+            ry: fs > 0 ? Math.PI / 2 : -Math.PI / 2, sx: d - 1.4, sy: fh * 0.64 });
+          minBand.push({ x: cx + fs * (w / 2 + 0.12), y: yb + fh * 0.82, z: cz,
+            sx: 0.3, sy: fh * 0.34, sz: d - 0.5 });
+        }
+      }
+    }
     // pilares: grade 3 (X) × N (Z). Viram COVER dentro da passagem de flanco.
     const nz = Math.max(3, Math.round(d / 7));
     for (let i = 0; i < 3; i++) for (let j = 0; j < nz; j++) {
@@ -714,6 +805,8 @@ export function buildBrasilia(scene, T) {
     }
   }
   if (pilCols.length) addInst(new THREE.CylinderGeometry(0.5, 0.55, PILOTI, 8), MAT.concBranco, pilCols, { occlude: true });
+  addInst(new THREE.PlaneGeometry(1, 1), MAT.vidroFume, minGlass, { shadow: false });
+  addInst(new THREE.BoxGeometry(1, 1, 1), MAT.concBranco, minBand, { shadow: false });
 
   /* ---------------- statues ---------------- */
   { // A Justiça — Mint GLB v2 (blindfolded, sword across the lap, Brazil flag draped as a
@@ -735,51 +828,86 @@ export function buildBrasilia(scene, T) {
     // BAR: Bruno Giorgi 1959, duas figuras de ~8 m, pátina VERDE-ESCURA (não marrom-mostarda
     // como estava) sobre base baixa de GRANITO. É a silhueta que identifica a praça de longe,
     // então cresce de 5,6 m -> 8,4 m junto com o resto da escala.
-    const bx = BIG ? 8 : 6, bz = BIG ? 24 : 40, S = BIG ? 1.5 : 1;
+    // CONSERTO (reclamação nº 5: "parecem 2 cones"). Eram literalmente dois troncos de cone
+    // de 6 lados com uma bola em cima — nenhuma leitura humana. Os Candangos do Giorgi são
+    // duas figuras CHAPADAS e altíssimas, de pernas muito longas, ombro largo, cabeça
+    // pequena, encostadas uma na outra e com as lanças subindo em V. Aqui a figura é montada
+    // com as proporções certas (perna 45% da altura, tronco 30%, cabeça 4%): mesmo em
+    // primitivas simples, proporção certa = silhueta humana. Nada de textura nova.
+    const bx = BIG ? 9 : 6, bz = BIG ? 24 : 40, S = BIG ? 1.25 : 0.85;
     const bronze = MAT.bronze;
     const g = new THREE.Group(); g.position.set(bx, 0, bz); root.add(g); occluders.push(g);
-    const ped = new THREE.Mesh(new THREE.BoxGeometry(2.6 * S, 0.5, 1.7 * S), MAT.granitoPreto);
+    const ped = new THREE.Mesh(new THREE.BoxGeometry(2.5 * S, 0.5, 1.6 * S), MAT.granitoPreto);
     ped.position.y = 0.25; ped.receiveShadow = true; g.add(ped);
-    for (const dx of [-0.55 * S, 0.55 * S]) {
-      const sgn = dx > 0 ? 1 : -1;
-      const body = new THREE.Mesh(new THREE.CylinderGeometry(0.13 * S, 0.5 * S, 4.7 * S, 6), bronze);
-      body.position.set(dx, 2.85 * S, 0); body.castShadow = true; g.add(body);
-      const head = new THREE.Mesh(new THREE.SphereGeometry(0.3 * S, 8, 6), bronze);
-      head.position.set(dx, 5.25 * S, 0); head.castShadow = true; g.add(head);
-      const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.07 * S, 0.1 * S, 2.2 * S, 5), bronze);
-      arm.position.set(dx + sgn * 0.5 * S, 4.7 * S, 0); arm.rotation.z = -sgn * 0.9; g.add(arm);
-      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.035 * S, 0.035 * S, 3.6 * S, 4), bronze);
-      pole.position.set(dx + sgn * 1.05 * S, 5.6 * S, 0); pole.rotation.z = -sgn * 0.18; pole.castShadow = true; g.add(pole);
+    // uma figura, em metros "de figura" (a escala S é aplicada no grupo)
+    const candango = (s) => {
+      const f = new THREE.Group();
+      for (const lx of [-0.17, 0.17]) {   // pernas longas e finas: 45% da altura
+        const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.115, 0.16, 3.05, 6), bronze);
+        leg.position.set(lx, 1.52, 0); leg.rotation.z = -lx * 0.11; f.add(leg);
+      }
+      const hip = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.55, 0.4), bronze); hip.position.y = 3.3; f.add(hip);
+      // tronco de cintura fina para ombro largo — é esse trapézio que o olho lê como "torso"
+      const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.46, 0.31, 2.05, 6), bronze);
+      torso.position.y = 4.58; f.add(torso);
+      const sho = new THREE.Mesh(new THREE.BoxGeometry(1.14, 0.32, 0.42), bronze); sho.position.y = 5.62; f.add(sho);
+      const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.12, 0.3, 5), bronze); neck.position.y = 5.92; f.add(neck);
+      const head = new THREE.Mesh(new THREE.SphereGeometry(0.25, 8, 6), bronze);
+      head.position.y = 6.32; head.scale.set(0.82, 1.35, 0.9); f.add(head);
+      // braço de DENTRO: quase horizontal, cruzando para as costas do companheiro = o abraço
+      const armIn = new THREE.Mesh(new THREE.CylinderGeometry(0.085, 0.1, 1.6, 5), bronze);
+      armIn.position.set(-s * 0.6, 5.32, 0.1); armIn.rotation.z = s * 1.18; f.add(armIn);
+      // braço de FORA: levantado, acompanhando a lança
+      const armOut = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.095, 1.75, 5), bronze);
+      armOut.position.set(s * 0.7, 5.02, 0); armOut.rotation.z = -s * 0.44; f.add(armOut);
+      const lance = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.055, 5.6, 5), bronze);
+      lance.position.set(s * 1.0, 5.2, -0.12); lance.rotation.z = -s * 0.17; f.add(lance);
+      f.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+      return f;
+    };
+    for (const s of [-1, 1]) {
+      const f = candango(s);
+      f.position.set(s * 0.62 * S, 0.5, 0);
+      f.rotation.z = -s * 0.06;          // as duas se apoiam: o V é o assunto do monumento
+      f.scale.setScalar(S); g.add(f);
     }
-    col(bx - 1.5 * S, bx + 1.5 * S, 0, 5.6 * S, bz - 1 * S, bz + 1 * S);
-    occBox(2.8 * S, 5.8 * S, 1.9 * S, bx, 0, bz);
+    // colisão FINA (o monumento é uma lâmina): fica fora da faixa de tiro da lane
+    col(bx - 1.4 * S, bx + 1.4 * S, 0, 0.5 + 6.7 * S, bz - 0.95 * S, bz + 0.95 * S);
+    occBox(2.6 * S, 0.5 + 6.7 * S, 1.8 * S, bx, 0, bz);
   }
 
   /* ---------------- praça furniture ---------------- */
-  // MASTRO ESPECIAL DA PRAÇA DOS TRÊS PODERES — Sérgio Bernardes (gap B3).
-  // Era um cano liso de 8 lados com 32 m. O real tem 100 m, é uma TRELIÇA de 24 barras de
-  // aço corten em torno de um mastro central de 80 cm, com 15 diafragmas — e por isso lê
-  // SEMITRANSPARENTE de longe. É a segunda silhueta mais reconhecível da praça.
+  // MASTRO ESPECIAL DA PRAÇA DOS TRÊS PODERES — Sérgio Bernardes.
+  // CONSERTO (reclamação do dono: "mastro gigante e impossível de ver a bandeira"). Ele
+  // estava em x=0, ou seja, EXATAMENTE na linha de tiro central, e com 84 m de altura +
+  // 1,6 m de raio: virava uma coluna de corten no meio da mira, e a bandeira ficava a 78 m
+  // — muito acima do frustum (FOV vertical 70° => a 50 m o topo da tela é ~37 m). Ou seja:
+  // atrapalhava o duelo E não entregava o marco. Agora ele SAI DO EIXO (x = -34, fora da
+  // lane e fora do crosshair de quem duela pelo eixo), afina de 3,2 m para 1,5 m de largura
+  // (treliça esbelta, que é o que o real é) e a bandeira desce para ~38 m — dentro do
+  // frustum de quem olha para o norte de qualquer ponto jogável. Marco de orientação, não
+  // obstáculo. `?mastro=old` volta ao mastro antigo se algo depender dele.
   {
+    const OLDM = QP.get('mastro') === 'old';
     const MZ2 = BIG ? Math.min(118, Math.max(96, PAL_ZMAX + 34)) : 44;
-    const MX = 0, H = BIG ? 84 : 32, R = BIG ? 1.6 : 0.6;
-    const NB = LOWQ ? 12 : 24, NR = LOWQ ? 7 : 15;
+    const MX = OLDM ? 0 : (BIG ? -34 : -16), H = BIG ? (OLDM ? 84 : 46) : 30, R = BIG ? (OLDM ? 1.6 : 0.75) : 0.5;
+    const NB = LOWQ ? 8 : 14, NR = LOWQ ? 5 : 9;
     const bars = [];
     for (let i = 0; i < NB; i++) {
       const a = (i / NB) * Math.PI * 2;
       bars.push({ x: MX + Math.cos(a) * R, y: H / 2, z: MZ2 + Math.sin(a) * R });
     }
-    addInst(new THREE.CylinderGeometry(0.05, 0.20, H, 5), MAT.corten, bars, { occlude: false });
-    const core = new THREE.Mesh(new THREE.CylinderGeometry(BIG ? 0.34 : 0.18, BIG ? 0.42 : 0.22, H, 10), MAT.corten);
+    addInst(new THREE.CylinderGeometry(0.04, 0.11, H, 4), MAT.corten, bars, { occlude: false });
+    const core = new THREE.Mesh(new THREE.CylinderGeometry(BIG ? 0.19 : 0.14, BIG ? 0.26 : 0.18, H, 8), MAT.corten);
     core.position.set(MX, H / 2, MZ2); core.castShadow = !LOWQ; root.add(core);
     const rings = [];
     for (let i = 1; i <= NR; i++) rings.push({ x: MX, y: (H / (NR + 1)) * i, z: MZ2, rx: Math.PI / 2 });
-    addInst(new THREE.TorusGeometry(R, 0.08, 4, 14), MAT.corten, rings, { shadow: false });
-    // topo de 14 m + bandeira 20 × 14,30 m (286 m²). Sem hook de update por frame no mapa,
-    // então a ondulação é ASSADA na geometria (custo zero, mesma leitura de pano ao vento).
-    const tip = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.14, BIG ? 14 : 4, 6), MAT.corten);
-    tip.position.set(MX, H + (BIG ? 7 : 2), MZ2); root.add(tip);
-    const FW = BIG ? 20 : 6, FH = BIG ? 14.3 : 4;
+    addInst(new THREE.TorusGeometry(R, 0.06, 4, 12), MAT.corten, rings, { shadow: false });
+    // ponta curta + bandeira. Sem hook de update por frame no mapa, então a ondulação é
+    // ASSADA na geometria (custo zero, mesma leitura de pano ao vento).
+    const tip = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.11, BIG ? 5 : 3, 6), MAT.corten);
+    tip.position.set(MX, H + (BIG ? 2.5 : 1.5), MZ2); root.add(tip);
+    const FW = BIG ? 13 : 6, FH = BIG ? 9.3 : 4;
     const fg = new THREE.PlaneGeometry(FW, FH, 14, 6);
     { const p = fg.attributes.position;
       for (let i = 0; i < p.count; i++) {
@@ -788,15 +916,36 @@ export function buildBrasilia(scene, T) {
       }
       fg.computeVertexNormals(); }
     const flag = new THREE.Mesh(fg, lam({ map: T.flagBR, side: THREE.DoubleSide, roughness: 0.85 }));
-    flag.position.set(MX + FW / 2 + 0.3, BIG ? 78 : 29, MZ2); flag.castShadow = !LOWQ; root.add(flag);
+    // altura da bandeira DENTRO do frustum: a 100 m de distância o topo da tela está a ~72 m,
+    // a 50 m está a ~37 m. 38 m é o maior valor que ainda lê do meio do mapa sem olhar pra cima.
+    flag.position.set(MX + FW / 2 + 0.3, BIG ? (OLDM ? 78 : 38) : 25, MZ2); flag.castShadow = !LOWQ; root.add(flag);
     col(MX - R - 0.3, MX + R + 0.3, 0, H, MZ2 - R - 0.3, MZ2 + R + 0.3);
   }
   // Jardim com espelho d'água em frente ao Congresso (garden + reflecting pool)
-  const GARDEN_Z = BIG ? Math.max(76, PAL_ZMAX + 20) : 50;
+  // CONSERTO (reclamação do dono: "não dá pra andar na parte da água"). O espelho era um
+  // PLANO sem colisão, e quem parava o jogador era o limite invisível do mapa, alguns metros
+  // ANTES da água: o jogador via água caminhável e batia no nada. Escolha feita aqui: a água
+  // é INTRANSPONÍVEL e passa a DIZER isso: virou uma BACIA ELEVADA com parede de granito de
+  // 1,05 m e soleira de mármore, que colide de verdade, e com a lâmina d'água a 55 cm — ou
+  // seja, a água aparece POR CIMA da borda, de longe, em vez de ser um decalque azul no
+  // chão. O espelho ainda desceu 6 m e o limite invisível do mapa subiu de 76 para 84 m,
+  // para que quem para o jogador seja a PAREDE QUE ELE VÊ e não o nada. 1,05 m é de
+  // propósito: o teste de colisão libera a passagem em `y + 0,3 > maxY`, e o apex do pulo é
+  // 0,61 m — com 0,9 m dava pra atravessar pulando; com 1,05 não dá.
+  const GARDEN_Z = BIG ? Math.max(76, PAL_ZMAX + 14) : 50;
   {
-    addPlane(30, 9, MAT.agua, 0, 0.06, GARDEN_Z, 0, -Math.PI / 2);
-    for (const rz of [GARDEN_Z - 4.8, GARDEN_Z + 4.8]) addBox(31, 0.35, 0.7, MAT.marmore, 0, 0, rz, { collide: false });
-    for (const rx of [-15.2, 15.2]) addBox(0.7, 0.35, 10, MAT.marmore, rx, 0, GARDEN_Z, { collide: false });
+    const PAR_H = 1.05, HW = 14.2, HD = 5.1;   // meia-largura / meia-profundidade do parapeito
+    addPlane(26.4, 8.6, MAT.agua, 0, 0.55, GARDEN_Z, 0, -Math.PI / 2);
+    // parapeito fechado nos 4 lados: granito no corpo + soleira de mármore no topo (a linha
+    // clara é o que faz a borda LER a 30 m, mesmo contra o piso claro da praça)
+    for (const rz of [GARDEN_Z - HD, GARDEN_Z + HD]) {
+      addBox(HW * 2, PAR_H, 0.7, MAT.granitoPreto, 0, 0, rz);
+      addBox(HW * 2 + 0.3, 0.12, 0.92, MAT.marmore, 0, PAR_H, rz, { collide: false });
+    }
+    for (const rx of [-HW + 0.35, HW - 0.35]) {
+      addBox(0.7, PAR_H, HD * 2, MAT.granitoPreto, rx, 0, GARDEN_Z);
+      addBox(0.92, 0.12, HD * 2, MAT.marmore, rx, PAR_H, GARDEN_Z, { collide: false });
+    }
     for (const gx of [-22, 22]) addPlane(10, 12, lam({ map: ctex(cerradoTex(), 3, 4) }), gx, 0.04, GARDEN_Z, 0, -Math.PI / 2);
   }
 
@@ -834,7 +983,9 @@ export function buildBrasilia(scene, T) {
     }
     // Pombal (Niemeyer) — bloco vazado de concreto branco, escala pequena, ISOLADO no vazio.
     {
-      const px = -14, pz = PAL_ZMAX + 6;
+      // +6 -> +4: o espelho d'água ganhou parapeito e desceu para PAL_ZMAX+14; a +6 o Pombal
+      // encostava na borda dele (folga de 15 cm). A +4 sobram ~2 m, sem volume atravessado.
+      const px = -14, pz = PAL_ZMAX + 4;
       const g = new THREE.Group(); g.position.set(px, 0, pz); root.add(g);
       for (const [ox, oy] of [[0, 5.6], [0, 0]])   // laje de cima e de baixo
         { const s = new THREE.Mesh(new THREE.BoxGeometry(4.4, 0.4, 4.4), MAT.concBranco); s.position.set(ox, oy + 0.2, 0); g.add(s); }
@@ -1061,17 +1212,18 @@ export function buildBrasilia(scene, T) {
     // IPÊ-AMARELO florido (ago–set): galhos NUS cobertos de flor amarela intensa. O BAR diz
     // que é "o único ponto de cor saturada legítimo da cena" — logo, o melhor marcador de
     // affordance disponível. Vão nos chokepoints, de propósito.
-    // r2 — REFEITO. Antes eram 4 icosaedros de face única com UMA cor chapada: um sólido
-    // convexo facetado, o pior asset do mapa, e logo o ponto de cor que mais chama atenção.
-    // Agora: fuste + 5 GALHOS em leque (o ipê florido tem galho NU aparecendo), 9 massas
-    // irregulares de flor em 3 TONS diferentes (silhueta recortada, variação de valor) e
-    // 3 billboards cruzados com textura de cacho e alphaTest — é o alpha que dá a borda
-    // esgarçada que nenhum poliedro convexo consegue dar.
-    const ipeTr = [], ipeGalho = [], ipeCopa = [[], [], []], ipeFolha = [];
+    // r3 — REFEITO DE NOVO (reclamação nº 3). A r2 ainda deixava 9 ICOSAEDROS de flor por
+    // árvore: sólido convexo facetado, e a 15 m ele lê como uma bola de origami amarela. Os
+    // icosaedros saíram INTEIROS. A copa agora é só BILLBOARD CRUZADO com alpha: 3 alturas
+    // × 3 planos a 60°, tamanho e posição sorteados por ruído determinístico e tinta
+    // diferente por plano. Só o alpha dá borda esgarçada; poliedro nenhum dá.
+    const ipeTr = [], ipeGalho = [], ipeFolha = [[], [], []];
     const ipeMat = lam({ color: 0x6b5a44, roughness: 0.95 });
     // ruído determinístico: cada árvore precisa ser DIFERENTE, mas igual em todo carregamento
     const hash = (n) => { const s = Math.sin(n * 127.1) * 43758.5453; return s - Math.floor(s); };
-    for (const [ti, [tx, tz]] of [[-11, -14], [12, 14], [-5, 46], [9, -40]].entries()) {
+    // a árvore de z=46 estava em x=-5, ou seja, DENTRO da lane (|x| < 6,2) — tronco no meio
+    // da linha de tiro. Foi para x=-9, junto da calçada, com as outras.
+    for (const [ti, [tx, tz]] of [[-11, -14], [12, 14], [-9, 46], [9, -40]].entries()) {
       if (!freeSpot(tx, tz, 2.6)) continue;
       const S0 = ti * 17.3 + 3.1;
       ipeTr.push({ x: tx, y: 2.35, z: tz, rz: (hash(S0) - 0.5) * 0.07 });
@@ -1081,19 +1233,22 @@ export function buildBrasilia(scene, T) {
         ipeGalho.push({ x: tx + Math.cos(a) * len * 0.34, y: 4.55 + hash(S0 + g + 9) * 0.55,
           z: tz + Math.sin(a) * len * 0.34, ry: -a, rz: 0.8 + hash(S0 + g + 5) * 0.4, sy: len / 2.4 });
       }
-      for (let k = 0; k < 9; k++) {
-        const a = (k / 9) * Math.PI * 2 + hash(S0 + k + 20) * 1.3, r = 0.7 + hash(S0 + k + 30) * 1.9;
-        const s = 0.72 + hash(S0 + k + 40) * 0.95;
-        ipeCopa[k % 3].push({ x: tx + Math.cos(a) * r, y: 5.25 + hash(S0 + k + 50) * 1.5, z: tz + Math.sin(a) * r,
-          sx: s * (0.85 + hash(S0 + k + 60) * 0.5), sy: s * (0.52 + hash(S0 + k + 70) * 0.3),
-          sz: s * (0.85 + hash(S0 + k + 80) * 0.5), rx: hash(S0 + k + 90) * 3, ry: hash(S0 + k + 95) * 3 });
+      // 3 patamares de copa; em cada um, 3 planos cruzados a 60°. O deslocamento lateral
+      // (ox/oz) por patamar é o que impede a copa de virar um cilindro simétrico.
+      const tiers = LOWQ ? 2 : 3;
+      for (let t = 0; t < tiers; t++) {
+        const ty = 5.0 + t * 0.92, ts = 4.9 - t * 0.9;
+        const ox = (hash(S0 + t + 11) - 0.5) * 1.2, oz = (hash(S0 + t + 21) - 0.5) * 1.2;
+        for (let b = 0; b < 3; b++)
+          ipeFolha[(t + b) % 3].push({ x: tx + ox, y: ty, z: tz + oz,
+            ry: b * 1.047 + hash(S0 + t * 3 + b) * 0.5,
+            sx: ts * (0.86 + hash(S0 + t + b + 31) * 0.4),
+            sy: ts * 0.62 * (0.82 + hash(S0 + t + b + 41) * 0.42) });
       }
-      if (!LOWQ) for (let b = 0; b < 3; b++) ipeFolha.push({ x: tx, y: 5.85, z: tz, ry: b * 1.047 + hash(S0 + b) * 0.3 });
     }
     addInst(new THREE.CylinderGeometry(0.2, 0.42, 4.7, 8), ipeMat, ipeTr, { occlude: false });
     addInst(new THREE.CylinderGeometry(0.05, 0.14, 2.4, 5), ipeMat, ipeGalho, { shadow: false });
-    ipeCopa.forEach((list, i) => addInst(new THREE.IcosahedronGeometry(1.15, 1), MAT.florIpe[i], list));
-    addInst(new THREE.PlaneGeometry(5.4, 3.6), MAT.folhaIpe, ipeFolha, { shadow: false });
+    ipeFolha.forEach((list, i) => addInst(new THREE.PlaneGeometry(1, 1), MAT.folhaIpe[i], list, { shadow: false }));
 
     /* ------- SINAIS DE IDADE + densidade secundária (critério D2, que estava em FAIL) ------- */
     // Brasília tem 65 anos e o mapa parecia entregue ontem. Tudo aqui é decal ou InstancedMesh:
@@ -1292,6 +1447,9 @@ export function buildBrasilia(scene, T) {
     waypoints: { nodes, adj }, nearestWaypoint, findPath,
     // bounds abertos até a face externa dos ministérios: sem isso o jogador é empurrado
     // pra fora da rota de flanco sob os pilotis que acabamos de abrir.
-    bounds: { minX: -(FLANK_X + 1.5), maxX: FLANK_X + 1.5, minZ: -76, maxZ: 76 },
+    // maxZ 76 -> 84: o limite invisível caía a ~15 m ANTES do espelho d'água, e era ele que
+    // o dono sentia como "não dá pra andar na água". Agora quem para o jogador é o parapeito
+    // de granito do espelho (geometria que ele VÊ), e o limite invisível fica atrás dela.
+    bounds: { minX: -(FLANK_X + 1.5), maxX: FLANK_X + 1.5, minZ: -76, maxZ: BIG ? 84 : 76 },
   };
 }

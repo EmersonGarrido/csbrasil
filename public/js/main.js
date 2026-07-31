@@ -249,8 +249,55 @@ function ensurePreview() {
   disc.position.y = -0.03; disc.receiveShadow = true; scene.add(disc);
   const cam = new THREE.PerspectiveCamera(34, 1, 0.1, 20);
   cam.position.set(0, 1.3, 3.2); cam.lookAt(0, 0.92, 0);
-  pv = { r, scene, cam, model: null };
+  pv = { r, scene, cam, model: null, disc };
   return pv;
+}
+/* ---------- miniatura da lista de personagens ----------------------------------
+   BUG DO DONO: "nas miniaturas os bonecos aparecem cinzas/sem cor, o preview grande
+   tem cor". A luz e o material eram os MESMOS — o defeito era de ENQUADRAMENTO e de
+   composição, e ele acontecia três vezes:
+     1. a miniatura reusava a câmera do preview (corpo inteiro a 3,2 m + disco escuro):
+        num quadro de 96 px o personagem saía com ~40 px, e exibido a 52 px sobrava
+        ~28 px de boneco. Quase todo pixel da miniatura era FUNDO;
+     2. o downscale de 96 -> 52 misturava esses poucos pixels coloridos com o preto do
+        fundo, então o croma médio caía (medido no print do dono: S 0,35 na miniatura
+        contra 0,42 no preview grande, mesmo personagem, mesmo frame);
+     3. o PNG saía com alfa e ia compor sobre --bg-700, um segundo escurecimento.
+   Correção: câmera PRÓPRIA de retrato (o personagem ocupa a miniatura inteira),
+   supersampling (render a 400² -> grava a 128²), disco fora do quadro e fundo OPACO
+   pintado antes do drawImage. Mesma luz, mesmo material, mesma cena: consistência. */
+// Kill-switch: ?thumbcam=0 volta a gravar a miniatura com a câmera larga do preview
+// (o comportamento antigo), caso o retrato corte mal algum personagem fora do padrão.
+// (URLSearchParams próprio: o `params` global só é declarado mais abaixo no arquivo)
+const THUMB_PORTRAIT = new URLSearchParams(location.search).get('thumbcam') !== '0';
+const THUMB_PX = 128;
+let _thumbCam = null;
+function thumbCam() {
+  if (!THUMB_PORTRAIT) return ensurePreview().cam;
+  if (_thumbCam) return _thumbCam;
+  // Retrato: da cintura pra cima. A altura visível a essa distância é ~1,15 m contra os
+  // 1,72 m do personagem — é o recorte que faz camisa, pele e cabelo lerem a 56 px.
+  const c = new THREE.PerspectiveCamera(30, 1, 0.1, 20);
+  c.position.set(0, 1.30, 2.15); c.lookAt(0, 1.24, 0);
+  _thumbCam = c;
+  return c;
+}
+function snapThumb(obj) {
+  const p = ensurePreview();
+  const prevVis = p.model ? p.model.visible : false;
+  if (p.model) p.model.visible = false;
+  if (p.disc) p.disc.visible = false;   // o disco entra no quadro do retrato e só rouba contraste
+  p.scene.add(obj);
+  p.r.render(p.scene, thumbCam());
+  const c = document.createElement('canvas'); c.width = c.height = THUMB_PX;
+  const x = c.getContext('2d');
+  x.fillStyle = '#101a21';              // = var(--bg-700): a miniatura já nasce composta
+  x.fillRect(0, 0, THUMB_PX, THUMB_PX);
+  x.drawImage(p.r.domElement, 0, 0, THUMB_PX, THUMB_PX);   // 400² -> 128²: downscale = antialias de graça
+  p.scene.remove(obj);
+  if (p.disc) p.disc.visible = true;
+  if (p.model) p.model.visible = prevVis;
+  return c.toDataURL();
 }
 // Each character shows off a weapon that fits their vibe (not everyone with an AK).
 // CHAR_WEAPON/charWeapon live in characters.js, shared with game.js (initial loadout).
@@ -284,16 +331,11 @@ function pvSetChar(def) {
 }
 function pvThumb(def) {
   // Box-only thumbnail (tiny icon) — never triggers a GLB load.
-  const p = ensurePreview();
-  if (p.model) { p.scene.remove(p.model); p.model = null; }
-  p.mixer = null; p.ctrl = null;
+  // Passa pelo MESMO snapThumb do GLB: antes esta versão ainda destruía o preview
+  // grande (p.model = null) e gravava com outro enquadramento — duas miniaturas com
+  // duas aparências na mesma lista é exatamente o tipo de inconsistência que o dono vê.
   const box = buildCharacter(def).group; box.rotation.y = 0.55;
-  p.scene.add(box);
-  p.r.render(p.scene, p.cam);
-  const c = document.createElement('canvas'); c.width = c.height = 96;
-  c.getContext('2d').drawImage(p.r.domElement, 0, 0, 96, 96);
-  p.scene.remove(box);
-  return c.toDataURL();
+  return snapThumb(box);
 }
 
 /* ---------------- game lifecycle ---------------- */
@@ -435,14 +477,31 @@ function markCurrent(act) {
     if (on) it.setAttribute('aria-current', 'true'); else it.removeAttribute('aria-current');
   }
 }
-const SETUP_STEPS = { rounds: 'PASSO 1 DE 3 · PARTIDA', ctf: 'PASSO 1 DE 3 · PARTIDA' };
+/* O setup tem DOIS passos no mesmo painel (data-step):
+     'match'   = PASSO 1, escolher a partida — o mapa é o protagonista;
+     'profile' = passo à parte, o perfil (nick/redes/foto), que o dono pediu pra tirar
+                 da primeira tela ("o primeiro menu com o mapa não precisa ter o nick").
+   Um container só = a máquina de estados do menu (ESC, clique fora, VOLTAR, o seletor
+   :has(.cs-setup.open) do CSS) continua valendo pros dois sem duplicação. */
+let setupTitle = 'SINGLE PLAYER';
+function setSetupStep(step) {
+  menuSetup.dataset.step = step;
+  const st = $('setup-step'), tt = $('setup-title');
+  if (step === 'profile') {
+    if (st) st.textContent = 'PASSO À PARTE · NOME NA CAMISA';
+    if (tt) tt.textContent = 'SEU PERFIL';
+  } else {
+    if (st) st.textContent = matchMode === 'ctf' ? 'PASSO 1 · A PARTIDA (CTF)' : 'PASSO 1 · A PARTIDA';
+    if (tt) tt.textContent = setupTitle;
+  }
+}
 const openSetup = (mode, title, act) => {
   if (mode) matchMode = mode;
-  $('setup-title').textContent = title;
-  const st = $('setup-step'); if (st) st.textContent = SETUP_STEPS[matchMode] || 'PASSO 1 DE 3 · PARTIDA';
+  setupTitle = title;
   markCurrent(act);
   menuSetup.classList.add('open');
   setMapMode();
+  setSetupStep('match');   // abrir o menu SEMPRE cai no passo da partida, nunca no perfil
   applySetupWall();   // "escolher mapa/config" usa o wallpaper da posição 2 do fluxo
 };
 csItems.forEach((it) => {
@@ -484,6 +543,16 @@ function closeSetup(back) {
   return true;
 }
 $('setup-back').onclick = () => { closeSetup(true); };
+/* passo do perfil: entra pelo botão PERFIL e volta pro passo da partida (nunca fecha o
+   menu inteiro — voltar um passo é voltar UM passo). */
+function openProfileStep(focusNick) {
+  ui.click();
+  setSetupStep('profile');
+  if (focusNick) setTimeout(() => nickEl.focus(), 60);
+}
+$('btn-profile').onclick = () => openProfileStep(true);
+$('profile-back').onclick = () => { ui.back(); setSetupStep('match'); };
+$('profile-ok').onclick = () => { ui.click(); saveSettings(); setSetupStep('match'); };
 // ESC no menu = voltar um passo. Num jogo de PC, ESC é o botão de voltar universal;
 // não ter isso no menu é inconsistente com o próprio jogo (ESC pausa a partida).
 // no window (não no #main-menu): depois de um clique no wallpaper o foco volta pro <body>
@@ -491,6 +560,10 @@ $('setup-back').onclick = () => { closeSetup(true); };
 addEventListener('keydown', (e) => {
   if (e.key !== 'Escape') return;
   if ($('main-menu').classList.contains('hidden')) return;
+  // ESC no passo do perfil volta pro passo da partida — só o segundo ESC fecha o painel.
+  if (menuSetup.classList.contains('open') && menuSetup.dataset.step === 'profile') {
+    e.preventDefault(); ui.back(); setSetupStep('match'); return;
+  }
   if (closeSetup(true)) { e.preventDefault(); csItems[0]?.focus(); }
 });
 // Clique no wallpaper (fora do painel e fora da nav) também fecha — comportamento de
@@ -504,23 +577,29 @@ $('main-menu').addEventListener('pointerdown', (e) => {
 // JOGAR sem nick era um SHAKE depois do clique; agora é ESTADO (aria-disabled), atualizado
 // a cada tecla — o jogador vê que falta algo ANTES de tentar.
 function syncPlayState() {
-  const b = $('btn-jogar'); if (!b) return;
-  b.setAttribute('aria-disabled', (nickEl.value || '').trim() ? 'false' : 'true');
+  const nick = (nickEl.value || '').trim();
+  const b = $('btn-jogar'); if (b) b.setAttribute('aria-disabled', nick ? 'false' : 'true');
+  // o botão do passo de perfil mostra o nick de verdade: o jogador sabe com que nome
+  // vai entrar sem ter que abrir o passo pra conferir
+  const p = $('btn-profile');
+  if (p) {
+    p.dataset.empty = nick ? '0' : '1';
+    const s = $('profile-name');
+    if (s) s.textContent = nick || 'PÔR O NOME NA CAMISA';
+  }
 }
 $('btn-jogar').onclick = () => {
   if (!(nickEl.value || '').trim()) {
+    // sem nick o JOGAR não morre: ele LEVA pro passo que falta (o nick não está mais
+    // nesta tela, então um shake num campo invisível não diria nada a ninguém)
+    nickEl.placeholder = 'SEM NOME NÃO TEM CORO!';
+    openProfileStep(true);
     nickEl.classList.add('invalid');
-    nickEl.placeholder = 'DIGITE UM NICK PRIMEIRO!';
-    nickEl.focus();
     setTimeout(() => nickEl.classList.remove('invalid'), 1500);
     return;   // sem nick, sem treta
   }
   sfx.uiClick();
-  const firstEmpty = socials.find(s => !s.handle);
-  if (firstEmpty) {
-    document.querySelector('.social-item input')?.classList.add('invalid');
-    setTimeout(() => document.querySelector('.social-item input')?.classList.remove('invalid'), 1200);
-  }
+  setTeamStep('side');
   show('team-select');
   ensureTeamPreviews();   // thumbnails 3D dos times (async, cacheia no card)
 };
@@ -540,6 +619,18 @@ function setMapThumb() {
 }
 // Badge de modo + pontinhos de posição: o carrossel não dizia onde o jogador estava
 // (quantos mapas existem, qual é este) nem que Havan/Ferro Velho SÃO CTF por natureza.
+// Rótulos dos modos de arma em UM lugar (WPN_MODES lá embaixo é derivado daqui): a
+// ficha do cartaz e o dropdown têm que dizer a mesma coisa com as mesmas palavras.
+const WPN_MODE_LABEL = { all: 'TODAS', pistols: 'SÓ PISTOLAS', knife: 'SÓ FACA', awp: 'SÓ AWP' };
+// Ficha da partida IMPRESSA NO CARTAZ (modo · bots · armas). O dono pediu "maior dimensão
+// pro mapa" com "nome, modo, bots" — então o resumo mora sobre a arte, e não numa coluna
+// de formulário ao lado dela.
+function setMapMeta() {
+  const el = $('map-meta'); if (!el) return;
+  const n = settings.bots || 4;
+  const modo = matchMode === 'ctf' ? 'CAPTURE THE FLAG' : 'ROUNDS · MELHOR DE 5';
+  el.textContent = `${modo}  ·  ${n} VS ${n}  ·  ARMAS: ${WPN_MODE_LABEL[settings.wpnMode || 'all'] || 'TODAS'}`;
+}
 function setMapMode() {
   const m = $('map-mode');
   if (m) {
@@ -548,6 +639,7 @@ function setMapMode() {
   }
   const d = $('map-dots');
   if (d) d.innerHTML = MAP_IDS.map((_, i) => `<i class="${i === mapIdx ? 'on' : ''}"></i>`).join('');
+  setMapMeta();
 }
 // O badge de modo virou BOTÃO: pedido do dono ("os mapas todos podem ser rounds ou CTF,
 // mas tem uns que forçam ser CTF"). Antes ele era um <span> informativo e Loja H/Ferro Velho
@@ -558,7 +650,7 @@ function setMapMode() {
     matchMode = matchMode === 'ctf' ? 'rounds' : 'ctf';
     ui.click();
     setMapMode();
-    const st = $('setup-step'); if (st) st.textContent = SETUP_STEPS[matchMode] || 'PASSO 1 DE 3 · PARTIDA';
+    setSetupStep('match');   // o eyebrow do passo carrega o modo (PARTIDA / PARTIDA (CTF))
   });
 }
 let mapIdx = Math.max(0, MAP_IDS.indexOf(currentMap));
@@ -589,12 +681,7 @@ const WPN_ICONS = {
   knife: `<svg width="20" height="14" viewBox="0 0 20 14" fill="none"><path d="M1 12L14 1l4 1-3 11-8 2-6-3z" fill="currentColor"/><rect x="1" y="10" width="5" height="3" fill="currentColor"/></svg>`,
   awp: `<svg width="26" height="12" viewBox="0 0 26 12" fill="none"><rect x="0" y="4" width="26" height="3" fill="currentColor"/><rect x="7" y="0" width="8" height="4" fill="currentColor"/><rect x="2" y="7" width="6" height="4" fill="currentColor"/></svg>`,
 };
-const WPN_MODES = [
-  { id: 'all', label: 'TODAS' },
-  { id: 'pistols', label: 'SÓ PISTOLAS' },
-  { id: 'knife', label: 'SÓ FACA' },
-  { id: 'awp', label: 'SÓ AWP' },
-];
+const WPN_MODES = Object.entries(WPN_MODE_LABEL).map(([id, label]) => ({ id, label }));
 const wpnDdBtn = $('wpn-dd-btn'), wpnDdList = $('wpn-dd-list'), wpnDdLabel = $('wpn-dd-label');
 function wpnLabel(id) {
   const m = WPN_MODES.find(m => m.id === id);
@@ -607,14 +694,14 @@ wpnDdBtn.onclick = e => { e.stopPropagation(); wpnDdList.classList.toggle('hidde
 document.addEventListener('click', () => { wpnDdList.classList.add('hidden'); wpnDdBtn.classList.remove('open'); });
 wpnDdList.querySelectorAll('.dd-item').forEach(b => b.onclick = () => {
   settings.wpnMode = b.dataset.id; saveSettings();
-  wpnLabel(settings.wpnMode); sfx.uiClick();
+  wpnLabel(settings.wpnMode); setMapMeta(); sfx.uiClick();
 });
 // bots-per-side + difficulty selectors (custom match)
 const botsSel = $('bots-select');
 if (botsSel) {
   [2, 3, 4, 5, 6, 7, 8].forEach(n => { const o = document.createElement('option'); o.value = n; o.textContent = `${n} vs ${n}`; botsSel.appendChild(o); });
   botsSel.value = settings.bots || 4;
-  botsSel.onchange = () => { settings.bots = +botsSel.value; saveSettings(); sfx.uiClick(); };
+  botsSel.onchange = () => { settings.bots = +botsSel.value; saveSettings(); setMapMeta(); sfx.uiClick(); };
 }
 const diffSel = $('diff-select');
 if (diffSel) {
@@ -632,7 +719,7 @@ $('settings-back').onclick = () => {
   show(settingsReturn);
 };
 $('mobile-ok').onclick = () => { sfx.uiClick(); show('main-menu'); };
-$('team-back').onclick = () => { ui.back(); pickingEnemy = false; setEnemyPickMode(false); const t = document.querySelector('#team-select .screen-title'); if (t) t.textContent = 'ESCOLHA SEU LADO DA TRETA'; show('main-menu'); };
+$('team-back').onclick = () => { ui.back(); pickingEnemy = false; setEnemyPickMode(false); setTeamStep('side'); show('main-menu'); };
 $('char-back').onclick = () => { ui.back(); show('team-select'); };
 $('btn-team-p').onclick = () => { sfx.uiClick(); pickTeam('P'); };
 $('btn-team-b').onclick = () => { sfx.uiClick(); pickTeam('B'); };
@@ -675,7 +762,7 @@ $('char-confirm').onclick = () => {
     currentChar = selChar.id;
     pickingEnemy = true;
     setEnemyPickMode(true, currentFaction);
-    const t = document.querySelector('#team-select .screen-title'); if (t) t.textContent = 'ESCOLHA O ADVERSÁRIO';
+    setTeamStep('enemy', currentFaction);
     show('team-select');
     ensureTeamPreviews();   // no-op se já rodou (previews ficam cacheados nos cards)
   }
@@ -686,6 +773,25 @@ function setEnemyPickMode(on, myFaction) {
   for (const f of ['p', 'b', 'u']) {
     const b = $('btn-team-' + f);
     if (b) b.classList.toggle('hidden', !!(on && f.toUpperCase() === myFaction));
+  }
+}
+/* A MESMA tela serve dois passos e precisa DIZER qual é. Antes o único sinal era o
+   título trocado por querySelector em 4 lugares diferentes do arquivo — e o 2º passo
+   ficava com cara de formulário ("escolha o adversário" e três caixas iguais).
+   Agora o passo é um estado (data-step) que a tela inteira lê: eyebrow, título, dica
+   e o texto da barra de ação de cada placa (ver .team-cta no style.css). */
+const FACTION_NAME = { P: 'PETISTAS', B: 'BOLSONARISTAS', U: 'TRIBOS URBANAS' };
+function setTeamStep(step, myFaction) {
+  const ts = $('team-select'); if (ts) ts.dataset.step = step;
+  const st = $('team-step'), tt = $('team-title'), hint = $('team-hint');
+  if (step === 'enemy') {
+    if (st) st.textContent = 'PASSO 4 · O ADVERSÁRIO';
+    if (tt) tt.textContent = 'QUEM VAI LEVAR O CORO?';
+    if (hint) hint.textContent = `Você fecha com ${FACTION_NAME[myFaction] || 'os seus'}. Aponte quem vai encarar do outro lado.`;
+  } else {
+    if (st) st.textContent = 'PASSO 2 · O SEU LADO';
+    if (tt) tt.textContent = 'ESCOLHA SEU LADO DA TRETA';
+    if (hint) hint.textContent = 'Cada facção tem elenco, grito e jeito de brigar. Escolha o coro.';
   }
 }
 
@@ -879,21 +985,12 @@ async function renderGlobal(nick) {
 
 // GLB idle thumbnail (no weapon), rendered off the shared preview renderer.
 function glbThumb(def) {
-  const p = ensurePreview();
   if (!hasModel(def.id)) return null;
   const m = buildCharacterModel(def, { weapon: false });
   if (!m) return null;
   m.group.rotation.y = 0.5;
   for (let i = 0; i < 42; i++) m.mixer.update(1 / 60); // settle into the idle pose
-  const prevVis = p.model ? p.model.visible : false;
-  if (p.model) p.model.visible = false;
-  p.scene.add(m.group);
-  p.r.render(p.scene, p.cam);
-  const c = document.createElement('canvas'); c.width = c.height = 96;
-  c.getContext('2d').drawImage(p.r.domElement, 0, 0, 96, 96);
-  p.scene.remove(m.group);
-  if (p.model) p.model.visible = prevVis;
-  return c.toDataURL();
+  return snapThumb(m.group);
 }
 /* ---------------- previews 3D dos times nos cards (pedido do dono: "uma imagem
    preview dos models, tipo um time") — renderiza 4 GLBs reais de cada facção no
@@ -923,7 +1020,7 @@ function pickTeam(faction) {
   if (pickingEnemy) {
     pickingEnemy = false; currentEnemyFaction = faction;
     setEnemyPickMode(false);
-    const t = document.querySelector('#team-select .screen-title'); if (t) t.textContent = 'ESCOLHA SEU LADO DA TRETA';
+    setTeamStep('side');
     startGame(currentTeam, currentChar, faction);
     return;
   }

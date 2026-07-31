@@ -152,9 +152,8 @@ body{font-family:var(--font);font-weight:600;color:var(--ink1)}
   display:flex;align-items:center;gap:var(--s-2)}
 .pc-title::before{content:"";width:3px;height:12px;background:var(--am);flex:0 0 auto}   /* marcador em vez do "▚" tipográfico */
 .pc-row{display:grid;grid-template-columns:2fr 4fr;gap:10px}
-.pc-cols{display:grid;grid-template-columns:1fr 1fr;gap:22px;align-items:start}
-.pc-col{display:flex;flex-direction:column;gap:12px;min-width:0}
-.pc-col+.pc-col{border-left:1px solid var(--line);padding-left:22px}
+/* .pc-cols/.pc-col saíram junto com as duas colunas do setup: perfil e partida agora são
+   PASSOS separados (ver bloco "PASSOS DO SETUP"), não duas metades da mesma tela. */
 #social-list{display:flex;flex-direction:column;gap:10px}
 .social-item{display:grid;grid-template-columns:2fr 3fr auto;gap:8px;align-items:center}
 .social-item select,.social-item input{font-family:var(--mono);font-size:13px;letter-spacing:1px;
@@ -236,54 +235,127 @@ body{font-family:var(--font);font-weight:600;color:var(--ink1)}
 #auth-row .auth-chip img{width:26px;height:26px;border-radius:50%;border:1px solid var(--line)}
 #auth-row .auth-chip button{background:none;border:1px solid var(--line);color:var(--ink3);cursor:pointer;font-size:11px;padding:2px 8px}
 
-/* ---------- team select ---------- */
-.team-row{display:flex;gap:34px;flex-wrap:wrap;justify-content:center}
-.team-card{width:340px;height:300px;cursor:pointer;font-family:inherit;color:#fff;
-  display:flex;flex-direction:column;justify-content:flex-end;gap:10px;padding:26px;text-align:left;
-  border:1px solid var(--line);clip-path:var(--cut);transition:all .15s;position:relative;overflow:hidden}
-.team-card::before{content:"";position:absolute;inset:0;background:repeating-linear-gradient(45deg,transparent 0 14px,rgba(0,0,0,.18) 14px 28px)}
-.team-card{transition:transform var(--t-slow) var(--ease),box-shadow var(--t) var(--ease),filter var(--t) var(--ease);filter:saturate(.86) brightness(.92)}
-.team-card:hover,.team-card:focus-visible{transform:translateY(-4px);filter:none;box-shadow:var(--sh-2)}
-/* estado SELECIONADO (o 2º passo escolhe o adversário — precisa dizer qual é o seu) */
-.team-card[aria-pressed="true"]{filter:none;box-shadow:var(--sh-2),inset 0 0 0 3px var(--br-faixa)}
-.team-card[aria-pressed="true"]::after{content:"SEU LADO";position:absolute;top:var(--s-3);right:var(--s-3);
-  font-family:var(--mono);font-size:var(--fs-50);letter-spacing:var(--tr-2);color:var(--bg-900);
-  background:var(--br-faixa);padding:3px var(--s-2)}
-.team-p{background:linear-gradient(160deg,#b52e2e,#5e1212);border-color:#ff6b6b}
-.team-b{background:linear-gradient(160deg,#1d8f45 30%,#b0901c);border-color:#7de08f}
-.team-u{background:linear-gradient(160deg,#5f22c2 30%,#b823a0);border-color:#c79bff}
-/* "BOLSONARISTAS" a 32px + tracking 3px estourava a caixa de 340px e vazava pro card
-   vizinho — agora o corpo encolhe com o comprimento do nome e a linha pode quebrar. */
-.team-name{font-size:clamp(22px,2.1vw,30px);font-weight:700;letter-spacing:var(--tr-2);
-  text-transform:uppercase;line-height:var(--lh-tight);text-shadow:var(--sh-text)}
-.team-slogan{font-size:var(--fs-300);font-style:italic;font-weight:500;text-shadow:var(--sh-text)}
-.team-desc{font-size:var(--fs-100);font-weight:600;letter-spacing:var(--tr-tight);opacity:.9;line-height:var(--lh-snug)}
-/* previews 3D dos personagens da facção (renderizados do GLB real, ver main.js) */
-.team-chars{display:flex;gap:8px;margin-bottom:auto;min-height:64px}
-.team-chars .tc-slot{width:64px;height:64px;display:block;border:1px solid rgba(255,255,255,.28);
-  background:rgba(0,0,0,.30);clip-path:var(--cut-sm)}
-.team-chars img{width:64px;height:64px;display:block;image-rendering:auto}
+/* ---------- cabeçalho comum das telas de fluxo (lado / personagem) ----------
+   Eyebrow + título + dica numa peça só: o jogador tem que saber EM QUE PASSO está sem
+   ler o conteúdo. Mesma família do .cs-setup-head do menu — nenhum estilo novo. */
+.ts-head{display:flex;flex-direction:column;align-items:center;gap:var(--s-1);flex:0 0 auto}
+.ts-head small{font-family:var(--mono);font-size:var(--fs-50);letter-spacing:var(--tr-4);
+  color:var(--am);text-transform:uppercase}
+.ts-hint{font-size:var(--fs-200);font-weight:500;letter-spacing:var(--tr-tight);color:var(--ink-300);
+  max-width:64ch;text-align:center;margin-top:var(--s-1)}
 
-/* ---------- character select ---------- */
-.char-wrap{display:flex;gap:var(--s-5);align-items:stretch}
-.char-list{display:flex;flex-direction:column;gap:var(--s-1);width:340px;max-height:66vh;overflow-y:auto;padding-right:var(--s-1)}
+/* ---------- team select ----------
+   Cada facção é uma PLACA de cartaz, não um cartão de formulário: arte da facção ao
+   fundo, cor própria (--tc) no contorno/rodapé, grito em destaque e o elenco em letra
+   miúda embaixo. Duas faces claras = a cor e o slogan dizem quem é quem antes de ler.  */
+#team-select{justify-content:center;gap:var(--s-5);padding:clamp(56px,7vh,90px) var(--s-5) var(--s-6)}
+.team-row{display:flex;gap:var(--s-4);flex-wrap:nowrap;justify-content:center;align-items:stretch;
+  width:min(1280px,96vw)}
+.team-card{flex:1 1 0;min-width:0;height:min(58vh,470px);cursor:pointer;font-family:inherit;color:#fff;
+  display:flex;flex-direction:column;justify-content:flex-end;gap:var(--s-2);
+  padding:var(--s-4) var(--s-4) 0;text-align:left;position:relative;overflow:hidden;
+  border:1px solid var(--line);border-bottom:0;clip-path:var(--cut);
+  background:var(--tc-bg);
+  transition:transform var(--t-slow) var(--ease),box-shadow var(--t) var(--ease),
+             border-color var(--t) var(--ease)}
+/* LUGAR RESERVADO PRA ARTE POR TIME (o dono vai gerar uma imagem por facção).
+   Basta soltar o arquivo em /img/teams/<facção>.jpg. Se ele NÃO existir, a camada
+   simplesmente não pinta e o degradê da facção continua sendo o fundo — nada de
+   ícone de imagem quebrada, nada de buraco preto. É o fallback por construção. */
+/* O "apagado" do estado ocioso mora AQUI, na camada de arte — nunca num filter no card
+   inteiro. O filter antigo (saturate .86) caía também sobre as miniaturas 3D do elenco e
+   descolorir personagem é justamente a queixa nº 4 do dono. */
+.team-art{position:absolute;inset:0;z-index:0;background:var(--art) center top/cover no-repeat;
+  opacity:.3;filter:saturate(.6) brightness(.72);
+  transition:opacity var(--t) var(--ease),filter var(--t) var(--ease)}
+.team-card:hover .team-art,.team-card:focus-visible .team-art,
+.team-card[aria-pressed="true"] .team-art{opacity:.6;filter:none}
+.team-p{--tc:#ff6b6b;--art:url('/img/teams/petistas.jpg');
+  --tc-bg:linear-gradient(165deg,#b52e2e 0%,#7a1a1a 52%,#3d0d0d 100%)}
+.team-b{--tc:#7de08f;--art:url('/img/teams/bolsonaristas.jpg');
+  --tc-bg:linear-gradient(165deg,#1d8f45 0%,#2f7a2a 46%,#7a6412 100%)}
+.team-u{--tc:#c79bff;--art:url('/img/teams/tribos.jpg');
+  --tc-bg:linear-gradient(165deg,#5f22c2 0%,#8a1f9c 55%,#3d0f52 100%)}
+/* scrim de leitura: nasce embaixo (onde mora o texto) e morre no meio da placa, pra
+   não apagar a arte — a mesma lição do scrim do menu principal. */
+.team-card::before{content:"";position:absolute;inset:0;z-index:1;pointer-events:none;
+  background:linear-gradient(0deg,rgba(5,8,11,.92) 0%,rgba(5,8,11,.55) 38%,rgba(5,8,11,0) 78%),
+             var(--lambe)}
+.team-card>*{position:relative;z-index:2}
+.team-card:hover,.team-card:focus-visible{transform:translateY(-6px);
+  box-shadow:var(--sh-2);border-color:var(--tc);outline:none}
+/* SELECIONADO: cor cheia, trilho da facção e a etiqueta — estado óbvio a 2 m de distância */
+.team-card[aria-pressed="true"]{border-color:var(--tc);
+  box-shadow:var(--sh-2),inset 0 0 0 2px var(--tc)}
+.team-card[aria-pressed="true"]::after{content:"SEU LADO";position:absolute;top:0;right:0;z-index:3;
+  font-family:var(--mono);font-size:var(--fs-50);letter-spacing:var(--tr-2);color:var(--bg-900);
+  background:var(--br-faixa);padding:4px var(--s-3)}
+.team-plate{display:flex;flex-direction:column;gap:2px}
+.team-kicker{font-family:var(--mono);font-size:var(--fs-50);letter-spacing:var(--tr-3);color:var(--tc)}
+/* "BOLSONARISTAS" a 32px + tracking 3px estourava a caixa e vazava pro card vizinho —
+   o corpo encolhe com a largura disponível e a linha pode quebrar. */
+.team-name{font-size:clamp(20px,1.9vw,28px);font-weight:700;letter-spacing:var(--tr-1);
+  text-transform:uppercase;line-height:var(--lh-tight);text-shadow:var(--sh-text)}
+.team-slogan{font-size:var(--fs-300);font-style:italic;font-weight:500;color:var(--ink-100);
+  text-shadow:var(--sh-text)}
+.team-desc{font-size:var(--fs-100);font-weight:600;letter-spacing:var(--tr-tight);color:var(--ink-200);
+  line-height:var(--lh-snug);text-shadow:var(--sh-text)}
+/* CTA no rodapé da placa: a barra na cor do time é o "botão" — ela é o que muda entre
+   o passo do SEU LADO e o passo do ADVERSÁRIO (texto vem do data-step, abaixo). */
+.team-cta{display:block;margin:var(--s-3) calc(var(--s-4) * -1) 0;padding:9px var(--s-4);
+  font-family:var(--font);font-weight:700;font-size:var(--fs-100);letter-spacing:var(--tr-3);
+  text-transform:uppercase;color:var(--bg-900);background:var(--tc);
+  opacity:.55;transition:opacity var(--t) var(--ease)}
+.team-card:hover .team-cta,.team-card:focus-visible .team-cta{opacity:1}
+#team-select[data-step="side"] .team-cta::before{content:"ENTRAR NESSE CORO ▸"}
+#team-select[data-step="enemy"] .team-cta::before{content:"CHAMAR PRO CORO ▸"}
+/* previews 3D dos personagens da facção (renderizados do GLB real, ver main.js) */
+.team-chars{display:flex;gap:var(--s-2);margin-bottom:auto;min-height:72px;flex-wrap:wrap}
+.team-chars .tc-slot{width:72px;height:72px;display:block;border:1px solid rgba(255,255,255,.22);
+  background:rgba(0,0,0,.34);clip-path:var(--cut-sm)}
+.team-chars img{width:72px;height:72px;display:block;image-rendering:auto}
+@media(max-height:820px){
+  .team-card{height:min(62vh,400px)}
+  .team-chars,.team-chars .tc-slot,.team-chars img{min-height:56px;width:56px;height:56px}
+}
+
+/* ---------- character select ----------
+   A tela é uma COLUNA de altura cheia: header em cima, corpo elástico embaixo. A lista
+   ganha a altura que sobra (flex:1 + min-height:0) em vez de um max-height:66vh chutado
+   — era esse 66vh que cortava o último personagem no rodapé em janela 3:2. */
+#char-select{justify-content:flex-start;gap:var(--s-4);padding:clamp(56px,7vh,88px) var(--s-5) var(--s-5)}
+.char-wrap{display:flex;gap:var(--s-5);align-items:stretch;flex:1 1 auto;min-height:0;
+  width:min(1100px,94vw)}
+.char-list{display:flex;flex-direction:column;gap:var(--s-1);width:340px;flex:0 0 340px;
+  min-height:0;overflow-y:auto;overscroll-behavior:contain;padding-right:var(--s-1);
+  scrollbar-width:thin;scrollbar-color:var(--line-2) transparent}
+.char-list::-webkit-scrollbar{width:8px}
+.char-list::-webkit-scrollbar-thumb{background:var(--line-2)}
 .char-row{display:flex;align-items:center;gap:var(--s-3);padding:var(--s-2) var(--s-3);cursor:pointer;text-align:left;
   background:rgba(10,17,22,.9);border:1px solid var(--line);color:var(--ink-200);clip-path:var(--cut-sm);
   font-family:var(--font);font-weight:600;font-size:var(--fs-400);letter-spacing:var(--tr-1);
   transition:background var(--t) var(--ease),border-color var(--t) var(--ease),color var(--t) var(--ease)}
-.char-row img{width:52px;height:52px;border:1px solid var(--line);background:var(--bg-700);image-rendering:auto}
+/* Miniatura: 56 px na tela, imagem-fonte de 128 px (2,3×) e enquadramento próprio no
+   main.js. A miniatura antiga era um snapshot de 96 px da câmera LARGA do preview
+   (corpo inteiro + disco), exibido a 52 px: o boneco ficava com ~28 px de altura e o
+   downscale misturava o personagem com o fundo escuro — daí ele "perder a cor". */
+.char-row img{width:56px;height:56px;border:1px solid var(--line);background:var(--bg-700);image-rendering:auto}
 .char-row:hover,.char-row:focus-visible{background:var(--bg-600);border-color:var(--line-2);color:var(--ink-100)}
 /* SELECIONADO: barra interna + fundo, não só uma borda de 1px que somia no hover */
 .char-row.sel,.char-row[aria-selected="true"]{background:#16303a;border-color:var(--sys);color:#fff;
   box-shadow:inset 3px 0 0 var(--sys)}
-.char-preview-box{display:flex;flex-direction:column;align-items:center;gap:var(--s-3);
+.char-preview-box{display:flex;flex-direction:column;align-items:center;gap:var(--s-3);flex:1 1 auto;
+  min-width:0;justify-content:center;
   background:rgba(10,17,22,.9);border:1px solid var(--line);padding:var(--s-4);clip-path:var(--cut);position:relative}
 .char-preview-box::before{content:"";position:absolute;left:0;top:0;width:4px;height:64px;background:var(--hazard)}
+/* O canvas encolhe com a JANELA (min de altura e largura disponíveis) em vez de ter dois
+   tamanhos fixos por media query: em 3:2 é a altura que aperta, e era ela que empurrava
+   a caixa pra fora da tela. Backing store continua 400² → downscale nítido. */
 #char-preview{background:
     radial-gradient(ellipse at 50% 30%,rgba(57,214,224,.10),rgba(0,0,0,0) 62%),
     radial-gradient(ellipse at 50% 100%,#16242d,#080e13);
-  border:1px solid var(--line);width:380px;height:380px}   /* backing store 400² → downscale nítido */
-@media(max-height:820px){#char-preview{width:300px;height:300px}.char-list{max-height:60vh}}
+  border:1px solid var(--line);flex:0 1 auto;
+  width:min(380px,44vh,42vw);height:min(380px,44vh,42vw)}
 #char-info{text-align:center;max-width:400px}
 #char-info-name{font-size:var(--fs-500);font-weight:700;letter-spacing:var(--tr-2);color:var(--br-faixa);
   margin-bottom:var(--s-1);text-transform:uppercase}
@@ -528,18 +600,64 @@ html[data-ui="legacy"] #hud-mid{padding:0;background:none;clip-path:none}
 #scoreboard tr.me td:first-child{border-left-color:var(--yellow);font-weight:700}
 #dollynho-dance{display:block;margin:12px auto 0;width:240px;height:190px}
 
-/* ---------- match end ---------- */
-#match-end .panel{min-width:560px;gap:14px}
-#match-title{font-size:84px;font-weight:700;letter-spacing:14px;text-transform:uppercase;line-height:1;
+/* ---------- match end ----------
+   Três blocos com hierarquia declarada, em vez de um painel único com tudo do mesmo
+   tamanho: (1) VEREDITO — quem ganhou, (2) PLACAR — o número da partida, (3) SEU
+   DESEMPENHO — o que o jogador fez. A ação de jogar de novo é a maior peça clicável.
+   O título era 84px FIXO com tracking 14px: em 1280 de largura "DERROTA" encostava nas
+   bordas. Agora ele é fluido. */
+#match-end{justify-content:center;padding:var(--s-6) var(--s-5)}
+#match-end::before{content:"";position:absolute;inset:0;pointer-events:none;background:var(--lambe);opacity:.6}
+.me-wrap{position:relative;display:flex;flex-direction:column;align-items:center;gap:var(--s-5);
+  width:min(880px,94vw)}
+.me-verdict{display:flex;flex-direction:column;align-items:center;gap:var(--s-1);text-align:center}
+.me-kicker{font-family:var(--mono);font-size:var(--fs-50);letter-spacing:var(--tr-4);color:var(--ink-300);
+  text-transform:uppercase}
+#match-title{font-size:clamp(46px,8vw,84px);font-weight:700;letter-spacing:clamp(6px,1.2vw,14px);
+  text-transform:uppercase;line-height:var(--lh-tight);
   animation:matchTitleIn .55s cubic-bezier(.16,1,.3,1) both}
 #match-end.win #match-title{color:var(--yellow);text-shadow:0 0 34px rgba(255,210,63,.35)}
 #match-end.lose #match-title{color:var(--red);text-shadow:0 0 34px rgba(224,50,50,.3)}
 #match-end.win #btn-again{border-color:var(--yellow)}
 @keyframes matchTitleIn{0%{opacity:0;transform:scale(1.25);letter-spacing:34px}
-  100%{opacity:1;transform:scale(1);letter-spacing:14px}}
-#match-sub{font-weight:600;letter-spacing:1px;color:var(--ink2)}
-#match-stats{display:flex;gap:26px;font-family:var(--mono);font-size:15px;color:var(--ink2)}
-#match-stats b{color:var(--yellow);font-size:24px;display:block;text-align:center}
+  100%{opacity:1;transform:scale(1)}}
+#match-sub{font-size:var(--fs-300);font-weight:600;letter-spacing:var(--tr-tight);color:var(--ink-200);
+  max-width:60ch;line-height:var(--lh-base)}
+/* #match-stats é preenchido pelo game.js (_endMatch). Coluna: se o main.js anexar o
+   aviso de "stats não enviados", ele cai embaixo em vez de entrar na grade. */
+#match-stats{display:flex;flex-direction:column;align-items:center;gap:var(--s-4);width:100%}
+/* PLACAR: os dois lados com nome e número; o vencedor em âmbar e em corpo maior. */
+.me-score{display:flex;align-items:center;justify-content:center;gap:var(--s-4);width:100%;
+  background:var(--panel);border:1px solid var(--line);clip-path:var(--cut);padding:var(--s-3) var(--s-5)}
+.mes-side{display:flex;align-items:center;gap:var(--s-3);flex:1 1 0;min-width:0}
+.mes-side:last-of-type{flex-direction:row-reverse}
+.mes-side i{font-style:normal;font-weight:700;font-size:var(--fs-200);letter-spacing:var(--tr-2);
+  text-transform:uppercase;color:var(--ink-300);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mes-side b{font-size:var(--fs-700);line-height:var(--lh-tight);font-variant-numeric:tabular-nums;
+  color:var(--ink-300)}
+.me-score .mes-win i{color:var(--ink-100)}
+.me-score .mes-win b{color:var(--br-faixa);font-size:var(--fs-800)}
+/* ink-300 e não ink-400: o sistema diz que ink-400 é régua decorativa, nunca texto */
+.mes-x{font-family:var(--mono);font-size:var(--fs-50);letter-spacing:var(--tr-2);color:var(--ink-300);
+  flex:0 0 auto;text-transform:uppercase}
+/* SEU DESEMPENHO: o bloco do jogador é o único com trilho de sinaleiro — é o que ele
+   veio ver. Números tabulares e rótulo embaixo, nunca na mesma linha (era isso que
+   quebrava em "9 kills de r"). */
+.me-you{width:100%;background:var(--panel);border:1px solid var(--line);clip-path:var(--cut);
+  padding:var(--s-4) var(--s-5);position:relative}
+.me-you::before{content:"";position:absolute;left:0;top:14px;width:4px;height:44px;background:var(--hazard)}
+.mey-h{display:block;font-size:var(--fs-100);font-weight:700;letter-spacing:var(--tr-3);
+  color:var(--ink-300);text-transform:uppercase;margin-bottom:var(--s-3);text-align:center}
+.mey-h b{color:var(--br-faixa)}
+.me-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));gap:var(--s-3) var(--s-4)}
+.me-grid div{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:0}
+.me-grid b{font-size:var(--fs-700);line-height:var(--lh-tight);font-weight:700;color:var(--ink-100);
+  font-variant-numeric:tabular-nums}
+.me-grid .hi b{color:var(--br-faixa)}
+.me-grid span{font-size:var(--fs-50);font-weight:600;letter-spacing:var(--tr-2);color:var(--ink-300);
+  text-transform:uppercase;text-align:center}
+.me-actions{display:flex;gap:var(--s-3);align-items:center;justify-content:center;flex-wrap:wrap}
+#btn-again{letter-spacing:var(--tr-4)}
 
 /* ---- layout fix: menu rola e o JOGAR fica sempre visível ---- */
 #main-menu{padding-top:5vh;gap:14px;overflow-y:auto;overflow-x:hidden}
@@ -559,8 +677,9 @@ html[data-ui="legacy"] #hud-mid{padding:0;background:none;clip-path:none}
 
 /* empilha em telas estreitas */
 @media(max-width:640px){
-  .pc-cols{grid-template-columns:1fr;gap:14px}
-  .pc-col+.pc-col{border-left:0;padding-left:0;border-top:1px solid var(--line);padding-top:14px}
+  .match-opts{grid-template-columns:1fr;gap:var(--s-3)}
+  .team-row{flex-wrap:wrap}
+  .team-card{flex:1 1 240px}
 }
 
 /* ============ MENU (Coro Solto) — wallpaper + lista de texto à esquerda ============ */
@@ -709,6 +828,40 @@ html[data-ui="legacy"] .cs-vignette{
 #map-dots{position:absolute;top:var(--s-2);right:var(--s-2);z-index:2;display:flex;gap:5px}
 #map-dots i{width:6px;height:6px;background:rgba(255,255,255,.32);display:block;transition:background var(--t)}
 #map-dots i.on{background:var(--br-faixa)}
+
+/* ============ PASSOS DO SETUP (partida / perfil) ============
+   Pedido literal do dono: "o primeiro menu com o mapa não precisa ter o nick — a gente
+   pode pôr um botão pra configurar o usuário (como se fosse outro step) e dar uma maior
+   dimensão pro mapa". Então: passo 1 = A PARTIDA, com o cartaz do mapa ocupando a tela
+   inteira do painel; o perfil virou um passo próprio, atrás do botão PERFIL. Os dois
+   painéis vivem no MESMO container (#menu-setup[data-step]) pra não duplicar a máquina
+   de estados do menu (ESC, clique fora, VOLTAR, .cs-setup.open). */
+.setup-pane{display:none;flex-direction:column;gap:var(--s-4)}
+#menu-setup[data-step="match"] .pane-match,
+#menu-setup[data-step="profile"] .pane-profile{display:flex}
+/* o cartaz do mapa é o protagonista: sem rótulo em cima, sem caixa em volta */
+.pane-match .map-picker{margin-bottom:var(--s-1)}
+.map-kicker{display:block;font-family:var(--mono);font-size:var(--fs-50);letter-spacing:var(--tr-3);
+  color:var(--br-faixa);text-transform:uppercase;margin-bottom:2px;text-shadow:var(--sh-text)}
+.pane-match #map-name{font-size:var(--fs-600);letter-spacing:var(--tr-2)}
+#map-meta{display:block;font-family:var(--mono);font-size:var(--fs-100);letter-spacing:var(--tr-1);
+  color:var(--ink-200);text-transform:uppercase;margin-top:3px;text-shadow:var(--sh-text)}
+/* ARMAS e BOTS: duas fichas embaixo da arte. É o resto da partida, não o assunto dela. */
+.match-opts{display:grid;grid-template-columns:1fr 1fr;gap:var(--s-4);align-items:end}
+/* Botão do passo de perfil: rótulo pequeno + o nick de verdade, pra ele saber com que
+   nome vai entrar sem precisar abrir nada. */
+.btn-profile{display:flex;flex-direction:column;align-items:flex-start;gap:1px;
+  padding:7px var(--s-4);font-size:var(--fs-200);letter-spacing:var(--tr-1);max-width:44%}
+.btn-profile small{font-family:var(--mono);font-size:var(--fs-50);letter-spacing:var(--tr-2);
+  color:var(--ink-300);text-transform:uppercase}
+.btn-profile span{font-family:var(--mono);font-size:var(--fs-200);letter-spacing:var(--tr-1);
+  color:var(--br-faixa);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.btn-profile:hover small,.btn-profile:focus-visible small{color:var(--ink-200)}
+/* sem nick ainda: o botão vira o próximo passo óbvio, não um enfeite */
+.btn-profile[data-empty="1"]{border-color:var(--am)}
+.btn-profile[data-empty="1"] span{color:var(--am)}
+.pc-note{font-size:var(--fs-100);font-weight:500;color:var(--ink-300);line-height:var(--lh-base);
+  letter-spacing:var(--tr-tight)}
 
 /* fundo das telas de seleção = wallpaper rotativo (--wall, setado no main.js) + overlay escuro */
 #team-select,#char-select{

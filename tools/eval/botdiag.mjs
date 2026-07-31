@@ -1,25 +1,31 @@
 /* ============================================================================
-   botsim.mjs — SIMULAÇÃO DE BOTS EM FAST-FORWARD, SEM CHROME E SEM RENDER.
+   botdiag.mjs — BOTSIM COM INSTRUMENTAÇÃO (irmão de diagnóstico do botsim.mjs).
    ----------------------------------------------------------------------------
-   POR QUE existe: o harness anterior (g2r6-bots2.mjs) subia Playwright+SwiftShader
-   pra medir movimento de bot. Isso custa ~10 min por mapa nesta máquina de 2 CPUs e
-   está proibido nesta rodada. Aqui o jogo roda em NODE PURO: `stub` de DOM/canvas +
-   three vendorizado, a classe Game real, os mapas reais, o `_updateBot` real.
-   O que se mede é o CÓDIGO DE PRODUÇÃO, não uma reimplementação — se o número
-   melhorar aqui, melhorou no jogo.
+   POR QUE existe: botsim.mjs responde "quanto"; este responde "POR QUÊ". Ele roda
+   exatamente a mesma simulação (Game real, mapas reais, node puro) mas grava o
+   detalhe por evento, que é o que permite achar CAUSA-RAIZ em vez de chutar
+   constante. Foi com ele que se descobriu, nesta rodada, que:
+     - a rajada que matava o jogador entregava 3 acertos em 0,25 s (cadência
+       cíclica da arma), vindos de 2-3 bots ao mesmo tempo;
+     - 62% dos "flips laterais" aconteciam em frames em que o bot girava mais de
+       0,25 rad — ou seja, o "andando de lado" era o corpo PIVOTANDO, não passo
+       lateral;
+     - 90% das amostras de "bot travado" eram o COUNTDOWN de round, quando o jogo
+       inteiro está congelado de propósito (corrigido no botsim.mjs).
 
-   Métricas (por mapa, por minuto de tempo de jogo):
-     latFlips/min  — trocas de sinal da velocidade LATERAL do bot (o "andando de lado
-                     pro lado e pro outro" do dono). Amostrado a 150 ms, com histerese
-                     de 0.35 m/s pra não contar tremor numérico.
-     fwdFlips/min  — idem no eixo À FRENTE (avança/recua/avança).
-     spin/min      — ROTAÇÃO ACUMULADA (em voltas) enquanto o bot está praticamente
-                     PARADO (<0.5 m/s). É a medida direta de "rodando em volta de si
-                     mesmo": girar andando é curva normal, girar parado é bug.
-     stuck%        — % das amostras com deslocamento < 12% do esperado.
-     eff           — deslocamento líquido / caminho percorrido (1 = reto, 0 = milling).
-
-   Uso: node tools/eval/botsim.mjs [segundos] [mapId|all]
+   Uso (tudo por variável de ambiente, some quando não pedido):
+     SIM_DUEL=1 SIM_EV=1     → imprime, em stderr, a rajada que matou o jogador
+                               tiro a tiro (quem, arma, dano, distância, tempo)
+     SIM_DUEL=1 SIM_ENG=1    → percentis da distância de engajamento por mapa
+     SIM_FLIP=1              → atribui os flips laterais (girando? em combate?
+                               no deslize de destravamento? sem rota?)
+     SIM_STUCK=1             → atribui as amostras de bot parado
+     SIM_SEEDS=1,2,3         → troca as sementes (checar se o ganho é real ou
+                               sorte da semente fixa do portão)
+   Uso: [SIM_*] node tools/eval/botdiag.mjs [segundos] [mapId|all]
+   NOTA: rodar um mapa sozinho NÃO dá o mesmo resultado que rodar 'all' com a
+   mesma semente (caches globais de textura/personagem consomem RNG diferente).
+   Para comparar A/B, use sempre o mesmo conjunto de mapas.
    ============================================================================ */
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
@@ -151,11 +157,13 @@ function runMap(mapId, textures, seed) {
        o dono reclamou — "matam muito fácil" e "sempre na cabeça" — em números: tiros do bot,
        taxa de acerto, fração de acertos na cabeça, mortes do jogador por minuto e o tempo
        entre o primeiro tiro que encosta e a morte (a janela que ele tem pra reagir). */
-    D = { shots: 0, hits: 0, hs: 0, deaths: 0, firstHit: 0, lastHit: -99, ttk: 0, ttkN: 0 };
+    D = { shots: 0, hits: 0, hs: 0, deaths: 0, firstHit: 0, lastHit: -99, ttk: 0, ttkN: 0, ev: [], burst: [] };
     const f0 = g._flash.bind(g); g._flash = (...a) => { D.shots++; return f0(...a); };
     const n0 = g._noteHit.bind(g);
     g._noteHit = (by, w, dmg, head, dist) => {
       D.hits++; if (head) D.hs++;
+      if (!D.firstHit || g.time - D.lastHit > 3) D.burst = [];
+      D.burst.push({ t: g.time, by: by.name, sk: +by.skill.toFixed(2), w, dmg, head, d: +dist.toFixed(1) });
       // 'janela' = duração da RAJADA que matou: se faz mais de 3 s que ninguém encosta, é
       // outro engajamento. Sem esse corte a média virava "tempo desde o 1º tiro da vida".
       if (!D.firstHit || g.time - D.lastHit > 3) D.firstHit = g.time;
@@ -164,7 +172,13 @@ function runMap(mapId, textures, seed) {
     };
     const k0 = g._kill.bind(g);
     g._kill = (ent, ...a) => {
-      if (ent.isPlayer && ent.alive) { D.deaths++; if (D.firstHit) { D.ttk += g.time - D.firstHit; D.ttkN++; } D.firstHit = 0; }
+      if (ent.isPlayer && ent.alive) {
+        D.deaths++; if (D.firstHit) { D.ttk += g.time - D.firstHit; D.ttkN++; }
+        // registra a RAJADA INTEIRA que matou: quem, com o quê, a que distância e quando.
+        D.ev.push({ map: mapId, janela: +(g.time - D.firstHit).toFixed(2), n: D.burst.length,
+          quantosBots: new Set(D.burst.map(h => h.by)).size, hits: D.burst.slice(-9) });
+        D.firstHit = 0; D.burst = [];
+      }
       return k0(ent, ...a);
     };
   } else {
@@ -193,6 +207,7 @@ function runMap(mapId, textures, seed) {
       P.yaw = Math.atan2(tx, tz);
     }
     g.update(DT);
+    if (DUEL) { for (const b of g.bots) if (b.alive && b.target && b.target.isPlayer) { D.eng = D.eng || []; D.eng.push(+b.pos.distanceTo(g.player.pos).toFixed(1)); } }
     if (i % SAMPLE) continue;
     const dts = DT * SAMPLE;
     for (const b of g.bots) {
@@ -205,20 +220,20 @@ function runMap(mapId, textures, seed) {
       const fwd = (mx * Math.sin(b.yaw) + mz * Math.cos(b.yaw)) / dts;
       const lat = (mx * Math.cos(b.yaw) - mz * Math.sin(b.yaw)) / dts;
       const H = 0.35;   // histerese: abaixo disso é tremor, não decisão
-      if (Math.abs(lat) > H) { const sg = Math.sign(lat); if (s.lat && sg !== s.lat) { s.latF++; if (b.target) s.latFc++; } s.lat = sg; }
+      let _dyq = b.yaw - s.ly; while (_dyq > Math.PI) _dyq -= Math.PI * 2; while (_dyq < -Math.PI) _dyq += Math.PI * 2;
+      if (Math.abs(lat) > H) { const sg = Math.sign(lat); if (s.lat && sg !== s.lat) { s.latF++; if (b.target) s.latFc++; globalThis.__FLIP = globalThis.__FLIP || []; globalThis.__FLIP.push({ dy: +Math.abs(_dyq).toFixed(2), spd: +spd.toFixed(2), tgt: !!b.target, side: g.time < (b._sideUntil || 0), esc: g.time < (b._escapeUntil || 0), np: !b.path }); } s.lat = sg; }
       if (Math.abs(fwd) > H) { const sg = Math.sign(fwd); if (s.fwd && sg !== s.fwd) { s.fwdF++; if (b.target) s.fwdFc++; } s.fwd = sg; }
       let dy = b.yaw - s.ly; while (dy > Math.PI) dy -= Math.PI * 2; while (dy < -Math.PI) dy += Math.PI * 2;
-      /* 'segurando o ponto de captura' NÃO é bot travado — é o comportamento certo.
-         Nem o COUNTDOWN de round: entre `_startRound()` e o fim da contagem (3 s) o jogo
-         inteiro fica congelado de propósito — `_updateBot` retorna cedo e NINGUÉM anda, nem
-         o jogador. Medido em botdiag: 90% das amostras que contavam como "bot travado" eram
-         exatamente esses frames de countdown, e como o denominador só conta amostras SEM
-         alvo (durante o countdown nenhum bot tem alvo, durante o jogo metade tem), o peso
-         delas era desproporcional. Contar isso como travamento é medir o bot pelo relógio
-         da partida, não pela navegação. */
-      const roaming = !b.target && b._ctfMoving !== 0 && g.state === 'live';
+      // 'segurando o ponto de captura' NÃO é bot travado — é o comportamento certo.
+      const roaming = !b.target && b._ctfMoving !== 0;
       if (spd < 0.5) { s.spin += Math.abs(dy); if (roaming) s.spinR += Math.abs(dy); }
-      if (roaming) { s.nR++; if (spd < 0.5) s.stuck++; }
+      if (roaming) { s.nR++; if (spd < 0.5) { s.stuck++;
+        const _wp = g.world.waypoints.nodes;
+        const _n = b.path && b.path.length ? _wp[b.path[Math.min(b.pathIdx, b.path.length - 1)]] : null;
+        globalThis.__ST = globalThis.__ST || [];
+        globalThis.__ST.push({ np: !b.path, len: b.path ? b.path.length : 0, esc: g.time < (b._escapeUntil || 0),
+          side: g.time < (b._sideUntil || 0), reach: _n ? !!g._walkReach(b, _n) : null, live: g.state === 'live',
+          dn: _n ? +Math.hypot(_n.x - b.pos.x, _n.z - b.pos.z).toFixed(1) : -1, spd: +spd.toFixed(2) }); } }
       s.latAbs += Math.abs(lat) * dts; s.mvAbs += d;
       s.n++; s.path += d;
       s.lp = { x: b.pos.x, z: b.pos.z }; s.ly = b.yaw;
@@ -231,16 +246,18 @@ function runMap(mapId, textures, seed) {
     net += Math.hypot(b.pos.x - s.x0, b.pos.z - s.z0);
   }
   const nb = g.bots.length, mins = SECS / 60;
+  if (DUEL && process.env.SIM_ENG === '1') {
+    const e = (D.eng || []).sort((a, b) => a - b);
+    const q = (f) => e.length ? e[Math.floor(f * (e.length - 1))] : 0;
+    console.error(JSON.stringify({ map: mapId, engFrames: e.length, p10: q(0.1), mediana: q(0.5), p90: q(0.9) }));
+  }
+  if (DUEL && process.env.SIM_EV === '1') { for (const e of D.ev) console.error(JSON.stringify(e)); }
   if (DUEL) return {
     map: mapId, bots: nb, tirosBot: D.shots, acertos: D.hits,
     taxaAcerto: +(D.hits / Math.max(1, D.shots)).toFixed(3),
     fracCabeca: +(D.hs / Math.max(1, D.hits)).toFixed(3),
     mortesPorMin: +(D.deaths / (SECS / 60)).toFixed(2),
-    janelaAteMorrer: +(D.ttk / Math.max(1, D.ttkN)).toFixed(2),
-    // SOMAS CRUAS da janela (ver o comentário do pooling lá embaixo): sem elas a média de
-    // médias contava "0 s" para toda semente/mapa em que NINGUÉM MORREU — ou seja, o caso
-    // mais justo possível pontuava como o mais injusto, e melhorar a justiça PIORAVA o número.
-    ttkSum: D.ttk, ttkN: D.ttkN,
+    janelaAteMorrer: +(D.ttk / Math.max(1, D.ttkN)).toFixed(2), ttkSum: D.ttk, ttkN: D.ttkN,
   };
   return {
     map: mapId, bots: nb,
@@ -258,7 +275,7 @@ function runMap(mapId, textures, seed) {
 
 const textures = initTextures();
 const ids = ONLY === 'all' ? ['awp_map', 'fy_pool_day', 'fy_havan', 'fy_ferrovelho'] : [ONLY];
-const SEEDS = [12345, 777, 4242];
+const SEEDS = (process.env.SIM_SEEDS || '12345,777,4242').split(',').map(Number);
 const out = [];
 for (const id of ids) {
   const runs = [];
@@ -266,21 +283,27 @@ for (const id of ids) {
   const ok = runs.filter(r => !r.err);
   if (!ok.length) { out.push(runs[0]); continue; }
   const m = (k) => +(ok.reduce((a, r) => a + r[k], 0) / ok.length).toFixed(3);
-  if (DUEL) {
-    // JANELA = média POOLED (soma dos tempos / número de mortes), não média de médias:
-    // semente sem morte não tem amostra de "tempo até morrer" e não pode entrar como zero.
-    const ts = ok.reduce((a, r) => a + r.ttkSum, 0), tn = ok.reduce((a, r) => a + r.ttkN, 0);
-    out.push({ map: id, tirosBot: m('tirosBot'), acertos: m('acertos'), taxaAcerto: m('taxaAcerto'), fracCabeca: m('fracCabeca'), mortesPorMin: m('mortesPorMin'), janelaAteMorrer: +(tn ? ts / tn : 0).toFixed(2), ttkSum: ts, ttkN: tn }); continue;
-  }
+  if (DUEL) { const ts = ok.reduce((a, r) => a + r.ttkSum, 0), tn = ok.reduce((a, r) => a + r.ttkN, 0);
+    out.push({ map: id, tirosBot: m('tirosBot'), acertos: m('acertos'), taxaAcerto: m('taxaAcerto'), fracCabeca: m('fracCabeca'), mortesPorMin: m('mortesPorMin'), janelaAteMorrer: +(tn ? ts / tn : 0).toFixed(2), ttkSum: ts, ttkN: tn }); continue; }
   out.push({ map: id, bots: ok[0].bots, latFlips: m('latFlips'), latFlipsCombat: m('latFlipsCombat'), latShare: m('latShare'), fwdFlips: m('fwdFlips'), fwdFlipsCombat: m('fwdFlipsCombat'), spinTurns: m('spinTurns'), spinRoam: m('spinRoam'), stuckPct: m('stuckPct'), eff: m('eff') });
+}
+if (process.env.SIM_FLIP === '1') {
+  const F = globalThis.__FLIP || [];
+  const n = F.length || 1;
+  const pc = (f) => Math.round(100 * F.filter(f).length / n);
+  console.error('FLIPS', n, '| girando>0.25rad', pc(x => x.dy > 0.25) + '%', '| girando>0.5rad', pc(x => x.dy > 0.5) + '%',
+    '| em combate', pc(x => x.tgt) + '%', '| no slide', pc(x => x.side) + '%', '| em escape', pc(x => x.esc) + '%', '| sem path', pc(x => x.np) + '%',
+    '| dy mediana', F.map(x => x.dy).sort((a, b) => a - b)[Math.floor(n / 2)]);
+}
+if (process.env.SIM_STUCK === '1') {
+  const F = globalThis.__ST || []; const n = F.length || 1;
+  const pc = (f) => Math.round(100 * F.filter(f).length / n);
+  console.error('STUCK', n, '| sem path', pc(x => x.np) + '%', '| path len<=1', pc(x => x.len <= 1) + '%',
+    '| no escape', pc(x => x.esc) + '%', '| no slide', pc(x => x.side) + '%', '| no inalcancavel', pc(x => x.reach === false) + '%',
+    '| fora do live', pc(x => !x.live) + '%', '| dn<1.5', pc(x => x.dn >= 0 && x.dn < 1.5) + '%', '| spd<0.1', pc(x => x.spd < 0.1) + '%', '| dn mediana', F.map(x => x.dn).sort((a, b) => a - b)[Math.floor(n / 2)]);
 }
 console.log(JSON.stringify(out, null, 1));
 const avg = (k) => +(out.filter(o => !o.err).reduce((a, o) => a + o[k], 0) / Math.max(1, out.filter(o => !o.err).length)).toFixed(3);
-if (DUEL) {
-  const ok = out.filter(o => !o.err);
-  const ts = ok.reduce((a, o) => a + o.ttkSum, 0), tn = ok.reduce((a, o) => a + o.ttkN, 0);
-  console.log('MEDIA taxaAcerto', avg('taxaAcerto'), '| fracCabeca', avg('fracCabeca'), '| mortes/min', avg('mortesPorMin'),
-    '| janela ate morrer (s)', +(tn ? ts / tn : 0).toFixed(3), '| mortes amostradas', tn);
-  process.exit(0);
-}
+if (DUEL) { const okd = out.filter(o => !o.err); const ts = okd.reduce((a, o) => a + o.ttkSum, 0), tn = okd.reduce((a, o) => a + o.ttkN, 0);
+  console.log('MEDIA taxaAcerto', avg('taxaAcerto'), '| fracCabeca', avg('fracCabeca'), '| mortes/min', avg('mortesPorMin'), '| janela ate morrer (s)', +(tn ? ts / tn : 0).toFixed(3), '| mortes amostradas', tn); process.exit(0); }
 console.log('MEDIA latFlips/min', avg('latFlips'), '| fwdFlips/min', avg('fwdFlips'), '| latShare', avg('latShare'), '| spin voltas/min', avg('spinTurns'), '| spinRoam', avg('spinRoam'), '| stuck%', avg('stuckPct'), '| eff', avg('eff'));
