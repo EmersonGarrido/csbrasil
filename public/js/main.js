@@ -343,7 +343,7 @@ async function startGame(team, charId, enemyFaction) {
     renderer, textures, sfx, settings,
     playerCharId: charId, playerTeam: side, playerFaction: faction, enemyFaction: enemyFac, mapId: currentMap,
     nickname: $('nick-input').value, testMode,
-    ctf: matchMode === 'ctf' || !!MAPS[currentMap].ctfOnly,   // ctfOnly nunca entra em rounds, mesmo se o modo ficou pra trás
+    ctf: matchMode === 'ctf',   // o modo agora é 100% escolha do jogador (ctfMode só define o PADRÃO ao trocar de mapa)
     onMatchEnd: recordMatchStats,
   });
   window.__game = game;
@@ -421,7 +421,7 @@ const ui = {
   back()  { try { sfx.ensure(); sfx.duck(0.5, 0.1); sfx._beep('square', 560, 400, .06, .10, 0, true); } catch {} },
 };
 let matchMode = 'rounds';   // 'rounds' | 'ctf' — lido em startGame (ctf)
-if (MAPS[currentMap].ctfOnly) matchMode = 'ctf';   // mapas ctfOnly (Havan/Ferro Velho) forçam CTF — sem query string
+if (MAPS[currentMap].ctfMode) matchMode = 'ctf';   // Loja H / Ferro Velho ABREM em CTF (geometria feita em volta das bandeiras), mas dá pra trocar
 const menuSetup = $('menu-setup');
 const csItems = [...document.querySelectorAll('.cs-item')];
 // Kill-switch de UI: ?ui=legacy volta o scrim do menu e o HUD ao visual da rodada 1
@@ -542,9 +542,24 @@ function setMapThumb() {
 // (quantos mapas existem, qual é este) nem que Havan/Ferro Velho SÃO CTF por natureza.
 function setMapMode() {
   const m = $('map-mode');
-  if (m) m.textContent = (MAPS[currentMap].ctfOnly || matchMode === 'ctf') ? 'CAPTURE THE FLAG' : 'ROUNDS';
+  if (m) {
+    m.textContent = matchMode === 'ctf' ? 'CAPTURE THE FLAG' : 'ROUNDS';
+    m.dataset.mode = matchMode;
+  }
   const d = $('map-dots');
   if (d) d.innerHTML = MAP_IDS.map((_, i) => `<i class="${i === mapIdx ? 'on' : ''}"></i>`).join('');
+}
+// O badge de modo virou BOTÃO: pedido do dono ("os mapas todos podem ser rounds ou CTF,
+// mas tem uns que forçam ser CTF"). Antes ele era um <span> informativo e Loja H/Ferro Velho
+// eram prisão de CTF. Agora o mapa só define o PADRÃO e o jogador alterna aqui.
+{
+  const mm = $('map-mode');
+  if (mm) mm.addEventListener('click', () => {
+    matchMode = matchMode === 'ctf' ? 'rounds' : 'ctf';
+    ui.click();
+    setMapMode();
+    const st = $('setup-step'); if (st) st.textContent = SETUP_STEPS[matchMode] || 'PASSO 1 DE 3 · PARTIDA';
+  });
 }
 let mapIdx = Math.max(0, MAP_IDS.indexOf(currentMap));
 function stepMap(dir) {
@@ -554,7 +569,9 @@ function stepMap(dir) {
   settings.map = currentMap; saveSettings();
   mapNameEl.textContent = MAPS[currentMap].name;
   setMapThumb();
-  if (MAPS[currentMap].ctfOnly) matchMode = 'ctf';   // Havan/Ferro Velho: CTF automático, sem ?ctf=1
+  // troca de mapa aplica o PADRÃO do mapa (Loja H/Ferro Velho abrem em CTF, o resto em rounds);
+  // o jogador continua livre pra alternar depois no badge de modo
+  matchMode = MAPS[currentMap].ctfMode ? 'ctf' : 'rounds';
   setMapMode();
   rebuildMenuBackdrop();
 }

@@ -48,6 +48,9 @@ for fn in sorted(os.listdir(OUT)):
     hist = g.histogram()
     tot = sum(hist)
     r['lumaMedia'] = round(sum(i * hist[i] for i in range(256)) / tot, 1)
+    # C9 da BAR-CONSISTENCIA: FAIL se >60% da tela esta coberta por mascara/preto.
+    # luma < 12 = preto de mascara (o mapa mais escuro deste jogo nao chega perto disso).
+    r['pctPreto'] = round(100.0 * sum(hist[:12]) / tot, 1)
     # centro da tela: 41x41 em volta do crosshair — precisa ter contraste (mira visivel)
     cw = g.crop((W // 2 - 20, H // 2 - 20, W // 2 + 21, H // 2 + 21))
     ch = cw.histogram()

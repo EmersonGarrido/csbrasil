@@ -311,6 +311,12 @@ function tintaTex(color) {
 }
 // LETREIRO HAVAN: caixa azul com letras AMARELAS (a identidade nº1 da loja, e o que
 // faltava — o logo antigo era azul sobre branco e sumia na fachada branca).
+// NOME DA LOJA — pedido do dono (31/07): "vamos tirar o nome Havan do mapa e por loja H,
+// e no prédio por loja H também". Uma constante só, usada no letreiro da fachada, nos
+// letreiros das alas e na parede do fundo, pra não sobrar nenhum "HAVAN" perdido numa
+// textura. O mapa segue sendo a paródia da loja de rodovia com colunata e estátua.
+const LOJA_NOME = 'LOJA H';
+
 function letreiroTex(txt, w, h) {
   const c = document.createElement('canvas'); c.width = w; c.height = h; const x = c.getContext('2d');
   x.fillStyle = '#1f2a70'; x.fillRect(0, 0, w, h);
@@ -617,7 +623,7 @@ export function buildHavan(scene, T) {
       const tri = new THREE.Shape(); tri.moveTo(-13, 0); tri.lineTo(13, 0); tri.lineTo(0, 3.8); tri.closePath();
       const ped = new THREE.Mesh(new THREE.ExtrudeGeometry(tri, { depth: 1.6, bevelEnabled: false }), plaster);
       ped.position.set(0, 5.75, SF + 0.1); ped.castShadow = true; deco(ped);
-      const map = letreiroTex('HAVAN', 1024, 256);
+      const map = letreiroTex(LOJA_NOME, 1024, 256);
       // emissive: o letreiro é luminoso (é de acrílico retroiluminado na loja real) —
       // em quality low cai pra Basic, que não paga o custo de emissive no shader
       const mat = _q === 'low' ? new THREE.MeshBasicMaterial({ map })
@@ -627,7 +633,7 @@ export function buildHavan(scene, T) {
       // letreiros menores nas alas laterais: um canvas só, o mesmo material nos dois lados
       // (eram duas rasterizações idênticas do mesmo texto)
       if (DECO) {
-        const alaMat = new THREE.MeshBasicMaterial({ map: letreiroTex('HAVAN', 512, 128) });
+        const alaMat = new THREE.MeshBasicMaterial({ map: letreiroTex(LOJA_NOME, 512, 128) });
         for (const sx of [-1, 1]) {
           const m2 = new THREE.Mesh(new THREE.BoxGeometry(7.5, 1.5, 0.25), alaMat);
           m2.position.set(sx * 33, 4.0, SF + 0.72); deco(m2);

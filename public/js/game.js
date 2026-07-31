@@ -1502,6 +1502,10 @@ export class Game {
     this.player.scoped = false; this.player.reloadUntil = 0;
     for (const d of this.drops) this.scene.remove(d.mesh);
     this.drops = [];
+    // mesas do armário do round anterior (senão empilha uma por round)
+    if (!this._rackFurniture) this._rackFurniture = [];
+    for (const f of this._rackFurniture) this.scene.remove(f);
+    this._rackFurniture = [];
     // FULL arsenal available AT each respawn — no map-wide scatter. Organized in rows by
     // category (snipers → rifles → bullpups/SMG → sidearms) like a spawn weapon rack.
     const rackRows = [
@@ -1510,21 +1514,45 @@ export class Game {
       ['tavor', 'famas', 'p90', 'mp5', 'uzi', 'shotgun', 'lmg'],   // bullpups / SMG / shotgun / LMG
       ['deagle', 'revolver38', 'pistol'],                        // sidearms
     ].map(row => row.filter(w => this._pickupAllowed(w)));
+    /* ARMÁRIO ATRÁS DO SPAWN, EM CIMA DE MESA (P1, 31/07).
+       O dono, depois de jogar: as armas largadas apareciam em quase todo screenshot e
+       liam como lixo no chão — em fy_pool_day dá pra contar 10 espalhadas na areia, na
+       linha de tiro. Eram 26 armas × 2 times = ~52 props deitados no chão, e o armário
+       ficava `inward`, ou seja, ENTRE o spawn e o centro do mapa: exatamente a faixa de
+       0-2 m das linhas de tiro que o critério C4 da régua manda deixar limpa.
+       Três mudanças, todas de posição (nenhuma arma foi removida do arsenal):
+       (a) `inward` → `back`: o armário passa pra TRÁS do spawn, fora de qualquer duelo;
+       (b) footprint de ±8 m → ±5,5 m e 4 fileiras → 2 (13 armas por fileira);
+       (c) as armas sobem para 0,95 m em cima de uma MESA de verdade, em vez de deitadas
+           no chão — é o que faz ler como armário e não como sucata. */
     for (const team of ['P', 'B']) {
       const spawns = this.world.spawns[team] || [];
       const sz = spawns.length ? spawns[0].z : 0;
-      const inward = sz > 0 ? -1 : 1;                          // toward map center, in front of spawn
-      rackRows.forEach((row, r) => {
-        const n = row.length;
+      const back = sz > 0 ? 1 : -1;                            // pra FORA do mapa, atrás de quem nasce
+      const flat = rackRows.flat();
+      const perRow = Math.ceil(flat.length / 2);
+      const HW = 5.5, TOP = 0.95;
+      for (let r = 0; r < 2; r++) {
+        const row = flat.slice(r * perRow, (r + 1) * perRow);
+        if (!row.length) continue;
+        const rz = sz + back * (2.0 + r * 1.25);
         row.forEach((w, c) => {
-          // Armário COMPACTO (±8m) na frente do spawn: antes espalhava ±18m e as armas das
-          // pontas (m400/lmg/etc.) caíam a ~27m, fora do campo de visão — "não achei a M400".
-          // Agora todas ficam a ≤~17m e dentro do FOV de quem nasce (spawns em x∈[-9..9]).
-          const HW = 8;
-          const gx = n > 1 ? -HW + (c * 2 * HW) / (n - 1) : 0;
-          this._dropWeapon(gx, sz + inward * (2.2 + r * 1.7), w, true);
+          const gx = row.length > 1 ? -HW + (c * 2 * HW) / (row.length - 1) : 0;
+          this._dropWeapon(gx, rz, w, true, TOP);
         });
-      });
+        // a mesa: tampo + dois cavaletes. Sem colisão — o jogador atravessa e pega a arma
+        // andando por cima; colidir aqui só criaria trava de spawn.
+        const top = new THREE.Mesh(new THREE.BoxGeometry(2 * HW + 1.2, 0.08, 0.9),
+          new THREE.MeshStandardMaterial({ color: 0x3a3f45, roughness: 0.85, metalness: 0.1 }));
+        top.position.set(0, TOP - 0.05, rz); top.receiveShadow = true; top.castShadow = true;
+        this.scene.add(top); this._rackFurniture.push(top);
+        for (const sx of [-HW + 0.2, HW - 0.2]) {
+          const leg = new THREE.Mesh(new THREE.BoxGeometry(0.12, TOP - 0.05, 0.7),
+            new THREE.MeshStandardMaterial({ color: 0x2b2f34, roughness: 0.9 }));
+          leg.position.set(sx, (TOP - 0.05) / 2, rz); leg.castShadow = true;
+          this.scene.add(leg); this._rackFurniture.push(leg);
+        }
+      }
     }
     for (const k in this.vm.models) this.vm.models[k].visible = k === this.player.weapon;
     // viewmodel estático Tripo por classe (mesma regra do _switchWeapon, agora num método
@@ -3635,12 +3663,13 @@ export class Game {
     return true;
   }
   // CS: morto larga a arma no chão
-  _dropWeapon(x, z, weapon, rack = false) {
+  _dropWeapon(x, z, weapon, rack = false, y = 0.09) {
     const mesh = weaponModel(weapon) || buildRifle();  // real GLB on the ground
     // lay it FLAT on its side (roll 90° about the barrel) so it rests on the ground
     // instead of standing on its belly. Rack drops (spawn weapon rows) get an aligned
     // yaw so they read as a tidy line; death drops/scatter get a random yaw.
-    mesh.position.set(x, 0.09, z);
+    // `y` existe pro armário: em cima da mesa (0,95 m) em vez de no chão.
+    mesh.position.set(x, y, z);
     mesh.rotation.set(0, rack ? (Math.random() - 0.5) * 0.18 : Math.random() * Math.PI * 2, Math.PI / 2);
     mesh.traverse(o => { if (o.isMesh) o.castShadow = true; });
     this.scene.add(mesh);

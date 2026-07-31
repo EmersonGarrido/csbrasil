@@ -694,9 +694,18 @@ html[data-ui="legacy"] .cs-vignette{
 .map-arrows{position:absolute;top:44%;left:0;right:0;z-index:3;transform:translateY(-50%);
   display:flex;justify-content:space-between;padding:0 var(--s-1);pointer-events:none}
 .map-arrows .map-arrow{height:42px;width:28px;pointer-events:auto;background:rgba(5,8,11,.7)}
-#map-mode{position:absolute;top:var(--s-2);left:var(--s-2);z-index:2;font-family:var(--mono);
+/* Virou BOTÃO (era <span>): o mapa define o padrão, o jogador alterna rounds↔CTF.
+   Precisa PARECER clicável — o defeito de UI mais comum é um controle que muda o
+   jogo e não avisa que é um controle. Daí o cursor, o ▸, a borda e o hover. */
+#map-mode{position:absolute;top:var(--s-2);left:var(--s-2);z-index:3;font-family:var(--mono);
   font-size:var(--fs-50);letter-spacing:var(--tr-2);color:var(--bg-900);background:var(--am);
-  padding:2px var(--s-2);text-transform:uppercase}
+  padding:2px var(--s-2);text-transform:uppercase;border:0;cursor:pointer;
+  display:inline-flex;align-items:center;gap:6px;transition:filter var(--t),transform var(--t)}
+#map-mode::after{content:'⇄';font-size:.92em;opacity:.72}
+#map-mode:hover{filter:brightness(1.12)}
+#map-mode:active{transform:translateY(1px)}
+#map-mode:focus-visible{outline:2px solid var(--bg-900);outline-offset:2px}
+#map-mode[data-mode="ctf"]{background:var(--br-faixa,#2fb85f);color:#04150a}
 #map-dots{position:absolute;top:var(--s-2);right:var(--s-2);z-index:2;display:flex;gap:5px}
 #map-dots i{width:6px;height:6px;background:rgba(255,255,255,.32);display:block;transition:background var(--t)}
 #map-dots i.on{background:var(--br-faixa)}
