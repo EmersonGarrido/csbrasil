@@ -19,3 +19,11 @@ dist/
 # transferencia para o container de eval (gauntlet) — nao versionar
 xferwork/
 --help/
+
+# skills instaladas por `npx skills add` sao symlinks para .agents/skills/ —
+# nao versionar a copia (a .claude/skills/gauntlet-fps, que e do projeto, fica)
+.claude/skills/fps-shooter
+.claude/skills/game-feel
+.claude/skills/game-ui-ux
+.claude/skills/gameplay-mechanics
+.claude/skills/level-design
