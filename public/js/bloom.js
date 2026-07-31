@@ -36,17 +36,34 @@ const QP = () => new URLSearchParams(location.search);
    simula): em hdr=0 vale `floor`, e some sozinho conforme hdr cresce — não achata highlight.
    Override pra tuning do lead: ?exp=1.7&floor=0.014
    ================================================================ */
-// Calibrado invertendo a curva ANTIGA sobre os L* medidos pelo crítico e reaplicando a
-// nova (tools ad-hoc, ver relatório): L* médio esperado awp_map 8.4→37.5, havan 26.6→49.6,
-// ferrovelho 22.5→46.9, pool_day 45.9→62.2; sombra profunda 0.4→23.4 (alvo: < 1 % em L*<3).
+// RECALIBRAÇÃO R8 — a R7 calibrou olhando o frame MAIS ESCURO de cada mapa e inverteu a
+// ordem de exposição entre eles: o awp_map tinha um frame de spawn bugado (L* 8,4) que não
+// era exposição, era bug — e a média real do mapa era 25,9. Resultado medido nos 32 frames
+// da r1: awp_map 50,3 (estourado) e o Piscinão — praia, céu aberto, meio-dia — virou o mais
+// ESCURO dos quatro com 40,5. Além disso o piso 0.016/0.013 matou o preto: 0,00 % do frame
+// abaixo de L* 3 em TODOS os mapas (o alvo era < 1 %, não zero) e p1 subindo pra 13-20.
+//
+// Agora a calibração é NUMÉRICA e pela MÉDIA dos 8 frames de cada mapa: `tools/eval/tone_calib.py`
+// inverte este mesmo composite em cima dos PNGs de /root/shots/r1 (matriz, AgX e piso todos
+// invertidos analiticamente — o round-trip bate a média medida com erro < 0,1 L*), recupera o
+// HDR linear da cena e resolve exposição + piso pra bater dois alvos ao mesmo tempo:
+//   exposição -> L* médio alvo do mapa   |   piso -> ~1 % dos pixels abaixo de L* 3.
+// Previsão (média dos 8 frames): pool_day 48,1 > havan 46,0 > awp_map 44,1 > ferrovelho 42,0,
+// com p1 ≈ 3 e blk 0,86-1,03 % em todos. `expAces` é só o fallback de ?lowtone=0.
 const LOOKS = {
-  awp_map:       { exposure: 2.00, floor: 0.016 },   // Brasília: o frame mais crushado medido
-  praca_old:     { exposure: 1.90, floor: 0.014 },
-  fy_pool_day:   { exposure: 1.10, floor: 0.013 },   // Piscinão: céu grande, já é o mais claro
-  fy_havan:      { exposure: 1.45, floor: 0.010 },
-  fy_ferrovelho: { exposure: 1.55, floor: 0.012 },
+  awp_map:       { exposure: 1.63, floor: 0.0048, expAces: 1.70 },   // Brasília, meio-dia seco
+  praca_old:     { exposure: 1.63, floor: 0.0048, expAces: 1.70 },
+  fy_pool_day:   { exposure: 1.92, floor: 0.0039, expAces: 1.91 },   // Piscinão: TEM que ser o mais claro
+  fy_havan:      { exposure: 1.24, floor: 0.0057, expAces: 1.28 },
+  fy_ferrovelho: { exposure: 1.66, floor: 0.0041, expAces: 1.76 },
 };
-const DEFAULT_LOOK = { exposure: 1.55, floor: 0.012 };
+// id desconhecido cai no awp_map em maps.js (DEFAULT_MAP) — o look padrão tem que ser o
+// MESMO, senão o mapa que roda e a curva que é aplicada divergem.
+const DEFAULT_LOOK = { exposure: 1.63, floor: 0.0048, expAces: 1.70 };
+// saturação do AgX (uLook.z). A R7 baixou 1.05→1.02 E empurrou a exposição pro ombro do AgX,
+// que dessatura por construção — somados, derrubaram a saturação HSV medida em 30-64 %
+// (ferro velho 0,54→0,27). Com a exposição de volta ao lugar, 1.12 devolve 21-42 % disso.
+const LOOK_SAT = 1.12;
 
 function currentLook() {
   let id = null;
@@ -57,16 +74,23 @@ function currentLook() {
   const q = QP();
   const exp = parseFloat(q.get('exp'));
   const flo = parseFloat(q.get('floor'));
+  const sat = parseFloat(q.get('sat'));
   return {
     exposure: isFinite(exp) ? exp : base.exposure,
     floor: isFinite(flo) ? flo : base.floor,
+    sat: isFinite(sat) ? sat : LOOK_SAT,
+    expAces: isFinite(exp) ? exp : base.expAces,
   };
 }
 
 /* ================================================================
-   SSAO — half-res, 10 amostras, reconstrução por inverse projection
+   SSAO — half-res, reconstrução por inverse projection
+   R8: nº de amostras agora depende da qualidade (10 em 'high', 6 em 'med'). O passe custava
+   15 taps de textura por pixel de meia-res e o tempo até jogar subiu 35 % na r1; 6 amostras
+   com o mesmo blur bilateral mantêm o gradiente de contato e cortam ~40 % do custo do passe.
    ================================================================ */
-const SSAO_SAMPLES = 10;
+const SSAO_SAMPLES_HIGH = 10;
+const SSAO_SAMPLES_MED = 6;
 
 // kernel hemisférico determinístico (LCG com seed fixa: mesmo AO todo boot, sem surpresa)
 function makeKernel(n) {
@@ -97,11 +121,13 @@ const SSAO_COMMON = /* glsl */`
   }
 `;
 
-const SSAO_FRAG = /* glsl */`
+// fábrica: o nº de amostras é constante de compilação no GLSL ES 1.00 (loop bem-comportado
+// e tamanho do array de uniform), então o shader é gerado por qualidade.
+const ssaoFrag = (N) => /* glsl */`
   uniform sampler2D tDepth;
   uniform vec2 uTexel;      // 1/resolução do buffer de AO (meia res)
   uniform vec4 uAo;         // x raio(m), y falloff(m), z power, w bias(m)
-  uniform vec3 uKernel[ ${SSAO_SAMPLES} ];
+  uniform vec3 uKernel[ ${N} ];
   varying vec2 vUv;
   ${SSAO_COMMON}
   float owHash12( vec2 p ) {
@@ -138,7 +164,7 @@ const SSAO_FRAG = /* glsl */`
     // vira acne/banda no chão em ângulo rasante
     float bias = uAo.w * ( 1.0 + 0.04 * ( -p.z ) );
     float occ = 0.0;
-    for ( int i = 0; i < ${SSAO_SAMPLES}; i++ ) {
+    for ( int i = 0; i < ${N}; i++ ) {
       vec3 sp = p + ( tbn * uKernel[ i ] ) * radius;
       vec4 off = uProj * vec4( sp, 1.0 );
       // sem continue: GLSL ES 1.00 exige loop bem-comportado pra indexar uniform array
@@ -150,7 +176,7 @@ const SSAO_FRAG = /* glsl */`
       float range = smoothstep( 0.0, 1.0, uAo.y / max( 1e-4, abs( p.z - sz ) ) );
       occ += step( bias, diff ) * range;
     }
-    float ao = 1.0 - occ / float( ${SSAO_SAMPLES} );
+    float ao = 1.0 - occ / float( ${N} );
     ao = pow( clamp( ao, 0.0, 1.0 ), uAo.z );
     // g = depth linear normalizado em 20 m — chave do blur bilateral (8 bits ≈ 8 cm)
     gl_FragColor = vec4( ao, clamp( -p.z / 20.0, 0.0, 1.0 ), 0.0, 1.0 );
@@ -208,9 +234,10 @@ class SSAOPass extends Pass {
     const rtOpt = { depthBuffer: false, stencilBuffer: false, type: THREE.UnsignedByteType, format: THREE.RGBAFormat };
     this.aoRT = new THREE.WebGLRenderTarget(1, 1, rtOpt);
     this.blurRT = new THREE.WebGLRenderTarget(1, 1, rtOpt);
-    const kernel = makeKernel(SSAO_SAMPLES);
+    const nSamples = Math.max(4, Math.round(opts.samples || SSAO_SAMPLES_MED));
+    const kernel = makeKernel(nSamples);
     this.ssaoMat = new THREE.ShaderMaterial({
-      name: 'ssao', vertexShader: SSAO_VERT, fragmentShader: SSAO_FRAG, depthTest: false, depthWrite: false,
+      name: 'ssao', vertexShader: SSAO_VERT, fragmentShader: ssaoFrag(nSamples), depthTest: false, depthWrite: false,
       uniforms: {
         tDepth: { value: null },
         uTexel: { value: new THREE.Vector2(1, 1) },
@@ -276,8 +303,9 @@ const COMPOSITE = {
     // x CA, y vinheta (0.28 → 0.14: a 0.28 os cantos perdiam ~1 stop em luz LINEAR), z grain, w time
     uLens: { value: new THREE.Vector4(0.0016, 0.14, 0.0, 0) },
     // x agx slope, y power (1.25 → 1.00: era gama pós-log2, crushava o meio-tom), z sat, w exposure
-    uLook: { value: new THREE.Vector4(1.0, 1.0, 1.02, 1.55) },
-    uFloor: { value: 0.012 },   // piso de ambiente aditivo suave (linear)
+    // z 1.02 → 1.12 (LOOK_SAT): ver comentário da tabela LOOKS — a r1 dessaturou 30-64 %.
+    uLook: { value: new THREE.Vector4(1.0, 1.0, LOOK_SAT, 1.63) },
+    uFloor: { value: 0.0048 },   // piso de ambiente aditivo suave (linear) — sobrescrito por mapa
   },
   vertexShader: SSAO_VERT,
   fragmentShader: /* glsl */`
@@ -355,6 +383,9 @@ const COMPOSITE = {
       // PISO DE AMBIENTE (soft): vale uFloor quando hdr=0 e desaparece sozinho quando
       // hdr >> uFloor. É o bounce/GI que o jogo não simula — sem ele 22.7 % do frame
       // ficava em L* < 3 (preto sem informação). max() puro criava degrau visível.
+      // O alvo é ~1 % em L*<3, NÃO zero: sem nenhuma âncora de preto a imagem fica leitosa
+      // e o subteto de madeira do quiosque lia tão claro quanto o exterior (fisicamente
+      // impossível). Por isso o piso caiu de 0.010-0.016 para 0.0039-0.0057.
       hdr += uFloor * uFloor / ( hdr + vec3( uFloor ) );
       hdr *= uLook.w;
       // vinheta cos⁴ em LUZ LINEAR (transmissão da lente — antes da curva de tom)
@@ -386,12 +417,17 @@ const COMPOSITE = {
    O composer renderiza em RT HDR — o antialias:true do canvas NÃO vale ali, então a
    imagem serrilhava em toda aresta. FXAA console (5 taps) + unsharp reaproveitando os
    mesmos taps: custo ~0.3 ms em 1080p.
+   R8: o passe agora só existe em quality 'high' (ou ?fxaa=1). Em 'med' ele custava um
+   passe fullscreen inteiro E borrava TEXTO DE MUNDO — a placa "SAUNA" do Piscinão saía
+   mole na r1 e nítida no baseline: FXAA não distingue aresta de serrilhado de aresta de
+   letra, e o sharpen de 0.22 depois amplificava o halo em vez de devolver a definição.
+   Sharpen 0.22 → 0.12 (e 0.10 quando forçado em 'med', onde não há supersampling).
    ================================================================ */
 const AA_SHARPEN = {
   uniforms: {
     tDiffuse: { value: null },
     uTexel: { value: new THREE.Vector2(1 / 1280, 1 / 720) },
-    uAa: { value: new THREE.Vector3(1.0, 0.22, 0.035) },   // x fxaa on/off, y sharpen, z grain
+    uAa: { value: new THREE.Vector3(1.0, 0.12, 0.035) },   // x fxaa on/off, y sharpen, z grain
     uTime: { value: 0 },
   },
   vertexShader: SSAO_VERT,
@@ -448,12 +484,19 @@ const AA_SHARPEN = {
 
 /* ================================================================
    FOCO DINÂMICO DO SHADOW MAP DO SOL
-   A shadow camera dos mapas cobre ~120 m com 2048² = 5.9 cm/texel (e 12.8 cm nos mapas
-   grandes). Ninguém olha 120 m de sombra nítida — o que importa é o raio de combate.
-   Aqui a ortho segue o jogador com raio de 22 m (2 × 22 / 2048 ≈ 2.1 cm/texel, ~6× melhor),
-   com SNAP AO TEXEL (senão a sombra "ferve" quando o jogador anda) e bias/normalBias
-   recalibrados pro novo extent (o bias antigo, tunado pra 120 m, viraria peter-panning).
-   Kill-switch: ?shadowfocus=0
+   A shadow camera dos mapas cobre 84-120 m com 2048² = 4.1-5.9 cm/texel (e 12.8 cm no
+   baseline antigo). A ortho segue o jogador, com SNAP AO TEXEL (senão a sombra "ferve"
+   quando o jogador anda).
+   R8 — DUAS REGRESSÕES CORRIGIDAS AQUI:
+    (1) raio 26 m → 45 m. Com 26 m NADA além de 26 m projetava sombra, e a sombra aparecia
+        de estalo conforme o jogador andava — em mapas com sightline de 60-80 m isso é
+        visível o tempo todo. 45 m dá 2 × 45 / 2048 ≈ 4.4 cm/texel, ainda ~3× melhor que os
+        12.8 cm do baseline, e cobre o corredor de disputa inteiro.
+    (2) o bias de cada mapa era SOBRESCRITO por -0.00008 (tunado pros 26 m). Agora o bias
+        que o mapa ajustou é PRESERVADO e só escalado pela razão entre o novo extent e o
+        original (±45 vs ±42..±60 — mesma ordem de grandeza, o bias original vale). Sem
+        isso o Ferro Velho (-0.0006) e a Havan (-0.0004) perdiam a calibração deles.
+   Kill-switch: ?shadowfocus=0 (desliga tudo) · ?shadowr=NN (raio)
    ================================================================ */
 const _sfV = {
   center: new THREE.Vector3(), fwd: new THREE.Vector3(), dir: new THREE.Vector3(),
@@ -478,14 +521,27 @@ export function focusSunShadow(scene, camera, radius) {
       st.dist = Math.max(20, st.dir.length());
       st.dir.normalize();
       if (l.shadow.mapSize.width < 2048) { l.shadow.mapSize.set(2048, 2048); l.shadow.map = null; }
-      l.shadow.bias = -0.00008;      // extent 6× menor => bias 5× menor (senão peter-panning)
-      l.shadow.normalBias = 0.03;    // 3 cm: mata o acne sem descolar o contato
+      // guarda o que o MAPA tunou, pra escalar em vez de jogar fora
+      st.r0 = Math.max(4, Math.abs(l.shadow.camera.right) || 60);
+      st.bias0 = l.shadow.bias;
+      st.nbias0 = l.shadow.normalBias;
     }
     scene.userData.__sf = st || false;
   }
   if (!st) return;
-  if (_sfR === null) { const r = parseFloat(QP().get('shadowr')); _sfR = isFinite(r) ? r : 26; }
-  const l = st.light, R = radius || _sfR;
+  if (_sfR === null) { const r = parseFloat(QP().get('shadowr')); _sfR = isFinite(r) ? r : 45; }
+  // nunca ALARGAR além do que o mapa escolheu (o Piscinão já usa ±42): o foco existe pra
+  // ganhar texel, não pra desfazer a tunagem de quem montou o mapa.
+  const l = st.light, R = radius || Math.min(_sfR, st.r0);
+  if (!st.tuned) {
+    st.tuned = true;
+    // bias escala com o extent (o erro de profundidade por texel é proporcional ao tamanho
+    // do texel em metros). Clamp em 0.35 pra nunca virar acne se algum mapa vier com ortho
+    // gigante; nunca aumenta o bias do mapa (min 1.0), senão vira peter-panning.
+    const k = Math.min(1, Math.max(0.35, R / st.r0));
+    l.shadow.bias = (st.bias0 || -0.0004) * k;
+    if (!(st.nbias0 > 0)) l.shadow.normalBias = 0.03;   // 3 cm só se o mapa não tinha nenhum
+  }
   const v = _sfV;
   camera.getWorldDirection(v.fwd); v.fwd.y = 0;
   if (v.fwd.lengthSq() > 1e-6) v.fwd.normalize(); else v.fwd.set(0, 0, -1);
@@ -511,6 +567,68 @@ export function focusSunShadow(scene, camera, radius) {
   }
 }
 
+/* ================================================================
+   CAMINHO SEM PÓS-PROCESSAMENTO (quality 'low' ou ?bloom=0)
+   PORQUÊ: com o composer pulado, 'low' ficava sem AgX, sem piso de ambiente e com ACES
+   @1.25 — ou seja, OUTRO JOGO. Medido: com ACES na mesma média de L*, 1,9-5,7 % do frame
+   cai abaixo de L* 3 (contra ~1 % no AgX) e o desvio-padrão sobe de 21-27 para 27-34.
+   Não dá pra rodar um passe de composite em 'low', mas dá pra rodar a MESMA curva dentro
+   do material: o r160 vendorizado já tem AgX no chunk de tonemapping, e o hook
+   CustomToneMapping deixa injetar piso + AgX + saturação sem nenhum passe extra.
+   O chunk só é compilado quando toneMapping !== NoToneMapping — com o composer ligado
+   (que força NoToneMapping) este código nem entra no shader.
+   Kill-switch: ?lowtone=0 → volta pro ACES do three, com a exposição equivalente medida.
+   ================================================================ */
+const CUSTOM_AGX_STUB = 'vec3 CustomToneMapping( vec3 color ) { return color; }';
+const CUSTOM_AGX_SRC = /* glsl */`vec3 CustomToneMapping( vec3 color ) {
+  const mat3 OWL_R2020 = mat3(
+    vec3( 0.6274, 0.0691, 0.0164 ), vec3( 0.3293, 0.9195, 0.0880 ), vec3( 0.0433, 0.0113, 0.8956 ) );
+  const mat3 OWL_SRGB = mat3(
+    vec3( 1.6605, -0.1246, -0.0182 ), vec3( -0.5876, 1.1329, -0.1006 ), vec3( -0.0728, -0.0083, 1.1187 ) );
+  const mat3 OWL_INSET = mat3(
+    vec3( 0.856627153315983, 0.137318972929847, 0.11189821299995 ),
+    vec3( 0.0951212405381588, 0.761241990602591, 0.0767994186031903 ),
+    vec3( 0.0482516061458583, 0.101439036467562, 0.811302368396859 ) );
+  const mat3 OWL_OUTSET = mat3(
+    vec3( 1.1271005818144368, -0.1413297634984383, -0.14132976349843826 ),
+    vec3( -0.11060664309660323, 1.157823702216272, -0.11060664309660294 ),
+    vec3( -0.016493938717834573, -0.016493938717834257, 1.2519364065950405 ) );
+  color = max( color, vec3( 0.0 ) );
+  color += ( OWL_FLOOR * OWL_FLOOR ) / ( color + vec3( OWL_FLOOR ) );
+  color *= toneMappingExposure;
+  color = OWL_INSET * ( OWL_R2020 * color );
+  color = max( color, vec3( 1e-10 ) );
+  color = clamp( ( log2( color ) + 12.47393 ) / 16.499999, 0.0, 1.0 );
+  float owlL = dot( color, vec3( 0.2126, 0.7152, 0.0722 ) );
+  color = clamp( owlL + OWL_SAT * ( color - owlL ), 0.0, 1.0 );
+  vec3 owlA = color * color;
+  vec3 owlB = owlA * owlA;
+  color = 15.5 * owlB * owlA - 40.14 * owlB * color + 31.96 * owlB
+        - 6.868 * owlA * color + 0.4298 * owlA + 0.1191 * color - 0.00232;
+  color = OWL_OUTSET * color;
+  color = pow( max( color, vec3( 0.0 ) ), vec3( 2.2 ) );
+  return clamp( OWL_SRGB * color, 0.0, 1.0 );
+}`;
+let _noPostDone = false;
+export function applyNoPostTone(renderer) {
+  if (!renderer || _noPostDone) return;
+  _noPostDone = true;
+  const look = currentLook();
+  const chunk = THREE.ShaderChunk && THREE.ShaderChunk.tonemapping_pars_fragment;
+  // degradação segura: se o vendor mudar e o stub sumir, ou com ?lowtone=0, cai no ACES do
+  // three com a exposição equivalente medida (mesma média de L*, sombra mais fechada).
+  if (QP().get('lowtone') === '0' || typeof chunk !== 'string' || chunk.indexOf(CUSTOM_AGX_STUB) < 0) {
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = look.expAces;
+    return;
+  }
+  THREE.ShaderChunk.tonemapping_pars_fragment = chunk.replace(CUSTOM_AGX_STUB,
+    CUSTOM_AGX_SRC.replace(/OWL_FLOOR/g, look.floor.toFixed(5))
+                  .replace(/OWL_SAT/g, look.sat.toFixed(3)));
+  renderer.toneMapping = THREE.CustomToneMapping;
+  renderer.toneMappingExposure = look.exposure;
+}
+
 /* ================================================================ */
 export function enableLightBloom(renderer, opts = {}) {
   const composers = new Map();
@@ -520,7 +638,9 @@ export function enableLightBloom(renderer, opts = {}) {
   const quality = opts.quality || 'med';
   // SSAO: só em med/high (gate de custo) e desligável por ?ao=0. ?ao=1 força mesmo em low.
   const aoOn = qp.get('ao') === '1' || (qp.get('ao') !== '0' && (quality === 'med' || quality === 'high'));
-  const aaOn = qp.get('fxaa') !== '0';
+  // AA/sharpen: passe fullscreen inteiro só pra isso. Em 'med' ele borrava texto de mundo
+  // (a placa "SAUNA") e pesava no tempo até jogar — agora é exclusivo de 'high'. ?fxaa=1 força.
+  const aaOn = qp.get('fxaa') === '1' || (qp.get('fxaa') !== '0' && quality === 'high');
   const useComposite = qp.get('post') !== 'output';
 
   const patched = (scene, camera) => {
@@ -559,7 +679,11 @@ export function enableLightBloom(renderer, opts = {}) {
       cp.setSize(innerWidth, innerHeight);
       cp._w = innerWidth; cp._h = innerHeight;
       cp.addPass(new RenderPass(scene, camera));
-      if (aoOn) {
+      // SSAO só na cena de JOGO (a que tem vmPass). O backdrop do menu é um mapa orbitando
+      // ao longe — ninguém lê contato de prop ali, e o passe custava mais um programa +
+      // 2 render targets compilados ANTES de a partida começar (o harness estourou 300 s
+      // na Havan). ?ao=1 força em todas as cenas.
+      if (aoOn && (scene.userData.vmPass || qp.get('ao') === '1')) {
         attachDepth(cp);
         // SSAO ANTES do vmPass: o RenderPass do viewmodel faz clearDepth e apagaria o
         // depth do mundo. Antes do bloom também, pra o AO não virar fonte de brilho.
@@ -567,6 +691,7 @@ export function enableLightBloom(renderer, opts = {}) {
           radius: parseFloat(qp.get('aoradius')) || 0.6,
           strength: parseFloat(qp.get('aostr')) || (quality === 'high' ? 1.0 : 0.85),
           power: 1.35,
+          samples: parseInt(qp.get('aosamples'), 10) || (quality === 'high' ? SSAO_SAMPLES_HIGH : SSAO_SAMPLES_MED),
         });
         ss.setSize(innerWidth * renderer.getPixelRatio(), innerHeight * renderer.getPixelRatio());
         cp.addPass(ss); cp._ssao = ss;
@@ -587,12 +712,13 @@ export function enableLightBloom(renderer, opts = {}) {
         const comp = new ShaderPass(COMPOSITE);
         const look = currentLook();
         comp.uniforms.uLook.value.w = look.exposure;
+        comp.uniforms.uLook.value.z = look.sat;
         comp.uniforms.uFloor.value = look.floor;
         comp.uniforms.uLens.value.z = aaOn ? 0.0 : 0.035;   // grain vai pro passe de AA quando houver
         cp.addPass(comp); cp._composite = comp;
         if (aaOn) {
           const aa = new ShaderPass(AA_SHARPEN);
-          aa.uniforms.uAa.value.set(1.0, quality === 'high' ? 0.24 : 0.18, 0.035);
+          aa.uniforms.uAa.value.set(1.0, quality === 'high' ? 0.12 : 0.10, 0.035);
           aa.uniforms.uTexel.value.set(1 / (innerWidth * renderer.getPixelRatio()), 1 / (innerHeight * renderer.getPixelRatio()));
           cp.addPass(aa); cp._aa = aa;
         }

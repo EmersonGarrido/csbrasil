@@ -1,6 +1,225 @@
 // 8 fictional satirical archetypes — procedural low-poly meshes.
 import * as THREE from 'three';
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   CLAREZA COMPETITIVA DO PERSONAGEM  (critério C1 do BAR + A2 p/ personagens)
+
+   PORQUÊ ISTO EXISTE: o baseline mediu ΔL* silhueta-vs-fundo = 10,8 em
+   fy_havan-169-b (alvo ≥ 20) e os bots não tinham NENHUMA sombra de contato —
+   liam como adesivo colado no chão. A régua não aceita "o mapa está bem
+   iluminado" como resposta: ela exige um mecanismo ATIVO no personagem.
+
+   Três mecanismos, compartilhados pelos personagens GLB (glbchars.js) e pelos
+   procedurais de fallback (buildCharacter, mais abaixo):
+     1. sombra de contato (plano + alpha radial)                  -> A2
+     2. rim/fresnel por time modulado pela DISTÂNCIA              -> C1
+     3. clamp de ambiente NO MATERIAL (receita VALORANT)          -> C1 no pior canto
+   ═══════════════════════════════════════════════════════════════════════════ */
+const _cqp = new URLSearchParams(location.search);
+const _cnum = (k, d) => { const v = parseFloat(_cqp.get(k)); return isNaN(v) ? d : v; };
+// Qualidade lida do MESMO localStorage do menu (main.js:17-18). Lida UMA vez, na
+// construção do material: trocar a qualidade no meio da partida não recompila shader,
+// e recompilar 8 personagens em SwiftShader travaria o frame.
+let _lowQ = false;
+try { _lowQ = JSON.parse(localStorage.getItem('awpbr_settings') || '{}').quality === 'low'; } catch { /* padrão: médio */ }
+
+export const CHAR_FX = {
+  on:      _cqp.get('charfx') !== '0',                 // kill-switch geral da injeção de shader
+  rim:     _cqp.get('rim') !== '0',                    // kill-switch do rim (pedido explícito da tarefa)
+  shadow:  _cqp.get('cshadow') !== '0',                // kill-switch da sombra de contato
+  recv:    _cqp.get('charrecv') !== '0' && !_lowQ,     // personagem RECEBE a sombra do sol (off em low)
+  mats:    _cqp.get('charmat') !== '0',                // kill-switch da correção do material do GLB
+  low:     _lowQ,
+  floor:   _cnum('charfloor', 0.13),                   // piso de luminância LINEAR (clamp de ambiente)
+  rimNear: _cnum('rimnear', 0.10),                     // rim a queima-roupa: discreto, não vira fantasma
+  rimFar:  _cnum('rimfar', 0.45),                      // rim a 38 m+: é longe que o inimigo some no fundo
+  rimPow:  _cnum('rimpow', 2.4),                       // expoente do fresnel (banda do contorno)
+  sss:     _lowQ ? 0 : _cnum('charsss', 0.30),         // subsurface falso na pele (0 em low)
+  csOp:    _cnum('csop', 0.45),                        // opacidade da sombra de contato
+};
+
+// Paleta de rim = a MESMA que o jogo já usa no radar/killfeed (`_teamColor`,
+// game.js:2602-2607): P vermelho, B verde, U azul. Puxada 45% pro branco de
+// propósito — o C1 mede LUMINÂNCIA (ΔL*), então o contorno precisa ser CLARO
+// antes de ser colorido; um rim verde-escuro num fundo escuro não separa nada.
+const TEAM_RIM = { P: 0xff5555, B: 0x55dd66, U: 0x4aa3ff };
+export function charRimColor(def) {
+  const c = new THREE.Color(TEAM_RIM[(def && def.team) || 'P'] || 0xffffff);
+  return c.lerp(new THREE.Color(0xffffff), 0.45);
+}
+
+// ── shader: declarações. Os dois trechos injetados vivem no MESMO main(), mas
+// separados por vários #include; por isso csMaxC/csSkinM são globais do shader.
+const CS_PARS = `
+uniform vec3 csRimColor;
+uniform float csRimNear;
+uniform float csRimFar;
+uniform float csRimPow;
+uniform float csFloor;
+uniform float csSss;
+float csMaxC;
+float csSkinM;
+`;
+
+// ── shader: rugosidade POR REGIÃO, injetada logo após <roughnessmap_fragment>
+// (aí diffuseColor já foi amostrado do atlas e roughnessFactor já existe).
+const CS_REGION = `
+	// Os GLB do Meshy trazem UM material por personagem (um atlas só) — não existe
+	// slot separado de pele/tecido/metal. Classificamos pelo MATIZ do texel:
+	// pele = R>G>B com saturação média; texel escuro = tecido, mais fosco.
+	{
+		float mxc = max(diffuseColor.r, max(diffuseColor.g, diffuseColor.b));
+		float mnc = min(diffuseColor.r, min(diffuseColor.g, diffuseColor.b));
+		float sat = mxc > 1e-4 ? (mxc - mnc) / mxc : 0.0;
+		csMaxC = mxc;
+		csSkinM = step(diffuseColor.g, diffuseColor.r) * step(diffuseColor.b, diffuseColor.g)
+			* smoothstep(0.09, 0.20, sat) * (1.0 - smoothstep(0.42, 0.60, sat))
+			* smoothstep(0.10, 0.20, mxc);
+		roughnessFactor = mix(roughnessFactor, 0.52, csSkinM * 0.85);
+		roughnessFactor = mix(roughnessFactor, 0.96, (1.0 - smoothstep(0.04, 0.26, mxc)) * 0.6);
+		roughnessFactor = clamp(roughnessFactor, 0.08, 1.0);
+	}
+`;
+
+// ── shader: clareza, injetada ANTES de <opaque_fragment> — ou seja, ainda em
+// linear e ANTES do ACES: o rim é comprimido pelo ombro filmico em vez de clipar
+// (critérios A3/A5), e o fog continua sendo aplicado por igual em cima.
+const CS_CLARITY = `
+	{
+		float csDist = length(vViewPosition);      // metros até a câmera
+		vec3  csV    = normalize(vViewPosition);   // fragmento -> câmera
+		// 1) CLAMP DE AMBIENTE (receita VALORANT): piso de luminância NO PERSONAGEM,
+		//    nunca na cena — o inimigo não pode sumir dentro de uma sombra, e o mapa
+		//    mantém o contraste que o artista desenhou. Sobe com a distância porque
+		//    é longe que o haze/fog come a silhueta.
+		float csLum = dot(outgoingLight, vec3(0.2126, 0.7152, 0.0722));
+		float csFlr = csFloor * mix(1.0, 1.6, smoothstep(10.0, 45.0, csDist));
+		// Albedo normalizado pelo canal máximo: preserva o MATIZ do material e mata só
+		// o VALOR. Sem isso o emo/black metal (albedo ~0.03) não receberia piso nenhum
+		// — justamente quem mais precisa. 60% material + 40% neutro.
+		vec3 csTint = mix(vec3(1.0), diffuseColor.rgb / max(csMaxC, 1e-3), 0.6);
+		outgoingLight += csTint * max(0.0, csFlr - csLum);
+		// 2) RIM/FRESNEL por time, CRESCENDO com a distância (Riot: personagem longe
+		//    é clareado e ganha mais fresnel). csUpW prioriza os rasantes VOLTADOS
+		//    PRA CIMA (ombro/cabeça/braço), onde está a informação de combate.
+		float csF   = pow(1.0 - clamp(dot(normal, csV), 0.0, 1.0), csRimPow);
+		vec3  csUp  = normalize((viewMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz);
+		float csUpW = mix(0.5, 1.5, clamp(dot(normal, csUp) * 0.5 + 0.5, 0.0, 1.0));
+		float csK   = mix(csRimNear, csRimFar, smoothstep(5.0, 38.0, csDist));
+		outgoingLight += csRimColor * (csF * csUpW * csK);
+`;
+// Fechamento + subsurface falso. Separado porque em quality low o SSS é CORTADO do
+// shader (não só zerado): instrução que não existe é instrução que não custa.
+const CS_SSS = `
+		// 3) SUBSURFACE FALSO na pele: luz vazando na borda, quente e DESSATURADA de
+		//    propósito — pele rosa-chiclete é o erro clássico do SSS falso.
+		outgoingLight += vec3(0.40, 0.17, 0.12) * (csSkinM * csSss * csF);
+`;
+const CS_END = `	}
+`;
+
+// Instala a injeção num MeshStandardMaterial de personagem. Idempotente.
+export function applyCharFX(mat, rimColor) {
+  if (!CHAR_FX.on || !mat || !mat.isMeshStandardMaterial || mat.userData.csFx) return mat;
+  mat.userData.csFx = true;
+  const rimOn = CHAR_FX.rim;
+  const u = {
+    csRimColor: { value: new THREE.Color(rimColor || 0xffffff) },
+    csRimNear:  { value: rimOn ? CHAR_FX.rimNear : 0 },
+    csRimFar:   { value: rimOn ? CHAR_FX.rimFar : 0 },
+    csRimPow:   { value: CHAR_FX.rimPow },
+    csFloor:    { value: CHAR_FX.floor },
+    csSss:      { value: CHAR_FX.sss },
+  };
+  mat.userData.csUniforms = u;   // tuning ao vivo sem recompilar
+  mat.onBeforeCompile = (shader) => {
+    Object.assign(shader.uniforms, u);
+    shader.fragmentShader = CS_PARS + shader.fragmentShader
+      .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n' + CS_REGION)
+      .replace('#include <opaque_fragment>', CS_CLARITY + (CHAR_FX.low ? '' : CS_SSS) + CS_END + '\n#include <opaque_fragment>');
+  };
+  // Sem chave própria o three pode reaproveitar o programa de um material SEM a
+  // injeção (a chave de cache padrão não enxerga onBeforeCompile). Constante de
+  // propósito: todos os personagens compartilham UM programa, só os uniforms mudam.
+  mat.customProgramCacheKey = () => 'csCharFx1' + (CHAR_FX.low ? 'L' : 'H');
+  mat.needsUpdate = true;
+  return mat;
+}
+
+// Corrige o material que o Meshy/Mint exporta nos GLB. PORQUÊ: os arquivos vêm com
+// `pbrMetallicRoughness` SEM metallicFactor/roughnessFactor (o glTF manda assumir
+// 1.0/1.0 = metal cru e fosco, que não tem difusa nenhuma) E com emissiveFactor
+// [1,1,1] + emissiveTexture apontando pro próprio baseColor. Resultado: o personagem
+// é praticamente UNLIT — luz nenhuma o toca, sombra nenhuma o escurece. É a causa
+// direta do "chapado" (braço de pele rosa lisa do emo, ET verde uniforme). Aqui:
+// metal 0, roughness real, emissivo zerado — o piso de luminância passa a vir do
+// clamp de ambiente no shader, que é controlável e não achata o volume.
+export function upgradeCharMaterial(src, rimColor) {
+  const m = new THREE.MeshStandardMaterial({
+    map: src.map || null,
+    color: src.color ? src.color.clone() : new THREE.Color(0xffffff),
+    metalness: 0.0,
+    roughness: 0.86,
+    side: src.side,
+    transparent: !!src.transparent,
+    alphaTest: src.alphaTest || 0,
+    alphaMap: src.alphaMap || null,
+    normalMap: src.normalMap || null,
+    vertexColors: !!src.vertexColors,
+  });
+  if (src.normalScale && m.normalScale) m.normalScale.copy(src.normalScale);
+  m.envMapIntensity = 0.85;          // não briga com o IBL do mapa; só o suficiente p/ ter forma
+  m.name = src.name || 'char';
+  m.userData.csSrcEmissive = true;
+  // Se a injeção estiver desligada (?charfx=0) o clamp não existe: devolve um resto
+  // de emissivo pro personagem não afundar em preto na sombra. Degradação segura.
+  if (!CHAR_FX.on) { m.emissive = new THREE.Color(0xffffff); m.emissiveMap = m.map; m.emissiveIntensity = 0.10; }
+  return applyCharFX(m, rimColor);
+}
+
+/* ── SOMBRA DE CONTATO ──────────────────────────────────────────────────────
+   Um plano com alpha radial sob os pés. PORQUÊ e não o shadow map: a câmera de
+   sombra do sol cobre 160 m em 2048² (~12,8 cm/texel, ARCH/BAR §3.5) — nessa
+   resolução NÃO existe sombra de contato, e é exatamente por isso que os bots
+   aparecem "colados" na areia do Piscinão e no barro do Ferro Velho. Isto custa
+   2 triângulos por personagem e resolve o A2 independentemente do shadow map. */
+let _csTex = null, _csGeo = null;
+function contactShadowTexture() {
+  if (_csTex) return _csTex;
+  const S = 96;
+  const c = document.createElement('canvas'); c.width = c.height = S;
+  const x = c.getContext('2d');
+  // Núcleo quase opaco + cauda longa: sombra de contato real tem miolo escuro sob o
+  // pé e abre rápido. Um gradiente linear puro lê como borrão de Photoshop.
+  const g = x.createRadialGradient(S / 2, S / 2, 0, S / 2, S / 2, S / 2);
+  g.addColorStop(0.00, 'rgba(0,0,0,1)');
+  g.addColorStop(0.30, 'rgba(0,0,0,0.86)');
+  g.addColorStop(0.60, 'rgba(0,0,0,0.34)');
+  g.addColorStop(1.00, 'rgba(0,0,0,0)');
+  x.fillStyle = g; x.fillRect(0, 0, S, S);
+  _csTex = new THREE.CanvasTexture(c);
+  _csTex.colorSpace = THREE.SRGBColorSpace;
+  return _csTex;
+}
+export function makeContactShadow(size = 0.9, opacity = CHAR_FX.csOp) {
+  if (!_csGeo) _csGeo = new THREE.PlaneGeometry(1, 1);
+  const m = new THREE.Mesh(_csGeo, new THREE.MeshBasicMaterial({
+    map: contactShadowTexture(), color: 0x000000,
+    transparent: true, opacity, depthWrite: false,
+    side: THREE.DoubleSide, toneMapped: false,
+  }));
+  m.rotation.x = -Math.PI / 2;
+  m.scale.set(size, size, 1);
+  m.position.y = 0.02;                 // 2 cm: some acima do z-fight sem descolar do piso
+  m.renderOrder = -1;                  // antes dos outros transparentes (fumaça, tracer)
+  m.castShadow = false; m.receiveShadow = false;
+  m.frustumCulled = false;
+  m.userData.noHit = true;
+  m.raycast = () => {};                // NUNCA absorve tiro: game.js raycasta o grupo inteiro
+  m.userData.csBase = size;
+  return m;
+}
+
 export const CHARACTERS = [
   { id: 'esquerdomacho', team: 'P', name: 'Esquerdomacho',
     blurb: 'Barba, tote bag e 47 bottons. Mira acadêmica: analisa a treta antes de atirar.',
@@ -102,13 +321,22 @@ export const CHAR_WEAPON = {
 export const charWeapon = (id) => CHAR_WEAPON[id] || 'ak';
 
 const matCache = new Map();
-function M(color) {
-  if (!matCache.has(color)) matCache.set(color, new THREE.MeshLambertMaterial({ color }));
-  return matCache.get(color);
+// Era MeshLambertMaterial em TUDO: sem especular, sem env map, sem rugosidade — o
+// personagem procedural não tinha como reagir à nova exposição do mapa. Agora é
+// Standard com rugosidade POR REGIÃO (pele lisa x tecido fosco x couro), e recebe a
+// mesma injeção de clareza dos GLB. O rim aqui é NEUTRO quente porque o cache é
+// global (compartilhado entre times e com as miniaturas do menu); a cor por time só
+// existe nos GLB, onde cada bot tem material próprio.
+function M(color, rough = 0.86) {
+  const k = `${color}|${rough}`;
+  if (!matCache.has(k)) {
+    matCache.set(k, applyCharFX(new THREE.MeshStandardMaterial({ color, roughness: rough, metalness: 0.0 }), 0xffe8d8));
+  }
+  return matCache.get(k);
 }
-function box(w, h, d, color, x = 0, y = 0, z = 0) {
-  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), M(color));
-  m.position.set(x, y, z); m.castShadow = true; return m;
+function box(w, h, d, color, x = 0, y = 0, z = 0, rough = 0.86) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), M(color, rough));
+  m.position.set(x, y, z); m.castShadow = true; m.receiveShadow = CHAR_FX.recv; return m;
 }
 
 // AWP-style rifle, pointing +Z. ~0.9m long.
@@ -131,12 +359,17 @@ export function buildCharacter(def) {
   const parts = {};
   const bulky = def.id === 'caminhoneiro';
 
+  // Sombra de contato antes de tudo: o fallback procedural sofria do mesmo A2 dos GLB.
+  // Na tela de seleção ela cai sobre o disco escuro do preview (main.js:248) e ancora
+  // o personagem ali também.
+  if (CHAR_FX.shadow) g.add(makeContactShadow(0.86));
+
   // legs (pivot at hip)
   for (const s of [-1, 1]) {
     const geo = new THREE.BoxGeometry(0.15, 0.78, 0.17); geo.translate(0, -0.39, 0);
-    const leg = new THREE.Mesh(geo, M(p.pants)); leg.castShadow = true;
+    const leg = new THREE.Mesh(geo, M(p.pants)); leg.castShadow = true; leg.receiveShadow = CHAR_FX.recv;
     leg.position.set(0.11 * s, 0.78, 0);
-    leg.add(box(0.16, 0.1, 0.26, p.boots, 0, -0.73, 0.04));           // boot
+    leg.add(box(0.16, 0.1, 0.26, p.boots, 0, -0.73, 0.04, 0.62));     // boot (couro: menos fosco)
     g.add(leg); parts[s < 0 ? 'legL' : 'legR'] = leg;
   }
   // torso
@@ -146,16 +379,17 @@ export function buildCharacter(def) {
   torso.add(chest);
   g.add(torso); parts.torso = torso; parts.chest = chest;
 
-  // head (pivot at neck)
+  // head (pivot at neck) — pele com rugosidade mais baixa que o tecido (0.55): é a
+  // diferença que faz o rosto ter volume em vez de ler como papel colorido.
   const head = new THREE.Group(); head.position.y = 1.38;
-  head.add(box(0.26, 0.28, 0.26, p.skin, 0, 0.14, 0));
+  head.add(box(0.26, 0.28, 0.26, p.skin, 0, 0.14, 0, 0.55));
   g.add(head); parts.head = head;
 
   // arms holding rifle forward (pivot at shoulder)
   for (const s of [-1, 1]) {
     const geo = new THREE.BoxGeometry(0.11, 0.5, 0.13); geo.translate(0, -0.25, 0);
     const arm = new THREE.Mesh(geo, M(def.id === 'senhora' ? 0xffd23f : p.shirt));
-    arm.castShadow = true;
+    arm.castShadow = true; arm.receiveShadow = CHAR_FX.recv;
     arm.position.set((torsoW / 2 + 0.06) * s, 0.52, 0);
     arm.rotation.x = -1.35;                                            // forward hold
     arm.rotation.z = -0.12 * s;

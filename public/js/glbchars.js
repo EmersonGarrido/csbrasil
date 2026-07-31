@@ -11,7 +11,7 @@ import * as THREE from 'three';
 import { VERSION } from './version.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone as skeletonClone } from 'three/addons/utils/SkeletonUtils.js';
-import { buildRifle } from './characters.js';
+import { buildRifle, CHAR_FX, charRimColor, upgradeCharMaterial, makeContactShadow } from './characters.js';
 import { weaponModel, preloadWeapons, ONE_HANDED, gripPoints } from './weapons.js';
 import { solveCCDIK } from './handik.js';
 
@@ -170,10 +170,36 @@ export function buildCharacterModel(def, opts = {}) {
   model.scale.setScalar(s);
   model.position.y = -bbox.min.y * s;
   model.rotation.y = FACING_OFFSET;
-  model.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.frustumCulled = false; } });
+  // Materiais: CLONE POR PERSONAGEM. skeletonClone compartilha o material com o
+  // template do cache (_base), e o fparms.js clona ESSE MESMO template pros braços de
+  // 1ª pessoa — mutar o material aqui vazaria pro viewmodel já validado. Cada bot
+  // ganha seu material, com a cor de rim do time dele.
+  const rimCol = charRimColor(def);
+  model.traverse((o) => {
+    if (!o.isMesh) return;
+    o.castShadow = true;
+    // receiveShadow: sem isto a sombra do sol NUNCA escurecia o personagem — parte do
+    // motivo de ele ler como adesivo. O clamp de ambiente (characters.js) é o que
+    // impede que essa sombra o faça sumir. Desligado em quality low e com ?charrecv=0.
+    o.receiveShadow = CHAR_FX.recv;
+    o.frustumCulled = false;
+    if (!CHAR_FX.mats || !o.material) return;
+    o.material = Array.isArray(o.material)
+      ? o.material.map((m) => upgradeCharMaterial(m, rimCol))
+      : upgradeCharMaterial(o.material, rimCol);
+  });
 
   const group = new THREE.Group();
   group.add(model);
+
+  // Sombra de contato (A2). Ancorada no GRUPO, não no modelo: game.js crava
+  // `g.position.y = world.groundHeightAt(x,z)` TODO quadro (game.js:3791-3792), ou
+  // seja, a origem do grupo JÁ está no piso por construção. Um raycast por bot por
+  // quadro contra a cena inteira (sem BVH, em SwiftShader de 2 CPUs) repetiria essa
+  // conta e custaria caro sem acrescentar informação — o acompanhamento do piso vem
+  // de graça; o "sumir no ar" vem do estado de pulo, tratado no CharController.
+  const shadow = CHAR_FX.shadow ? makeContactShadow() : null;
+  if (shadow) group.add(shadow);
 
   // Head hitbox: an invisible (unrendered) but raycastable box tracked to the head bone
   // each frame, so headshots stay accurate through the animation.
@@ -225,6 +251,7 @@ export function buildCharacterModel(def, opts = {}) {
   for (const name of [...STATES, ...OPT_STATES]) if (clips[name]) actions[name] = mixer.clipAction(clips[name]);
 
   const ctrl = new CharController(mixer, actions, group, headBone, head);
+  ctrl.shadow = shadow;   // antes do settle loop abaixo (ctrl.update já a atualiza)
   // Arma de 1 mão (pistol/deagle/revolver38/knife): usa idle1h/walk1h quando carregados.
   ctrl.oneHanded = !!(opts.weaponId && ONE_HANDED.has(opts.weaponId));
 
@@ -282,6 +309,7 @@ class CharController {
     this.mixer = mixer; this.actions = actions;
     this.group = group; this.headBone = headBone; this.head = head;
     this.cur = null; this.dead = false; this.shooting = false; this.crouch = false; this.jumping = false;
+    this.shadow = null; this._airK = 0;   // sombra de contato + fator "está no ar" (0..1, suavizado)
     this.oneHanded = false; // arma de 1 mão: idle/walk trocam p/ idle1h/walk1h (setado em buildCharacterModel)
     this._loco = 'idle'; // current locomotion state (hysteresis memory for walk/run choice)
     mixer.addEventListener('finished', (e) => {
@@ -409,6 +437,21 @@ class CharController {
     if (this.headBone) {
       this.group.updateMatrixWorld(true);
       this.head.position.copy(this.group.worldToLocal(this.headBone.getWorldPosition(_v)));
+    }
+    // Sombra de contato: reage ao estado do corpo. No pulo ela ABRE e desbota (penumbra
+    // que cresce com a distância do contato, critério A4); agachado ela FECHA e escurece
+    // (o corpo está mais perto do chão); morto, alivia — o corpo tombou e a mancha sob
+    // o eixo do grupo deixaria de fazer sentido se ficasse cheia.
+    if (this.shadow) {
+      const air = this.jumping ? 1 : 0;
+      this._airK += (air - this._airK) * Math.min(1, dt * 8);
+      const k = 1 - this._airK;
+      const s = this.shadow, base = s.userData.csBase || 0.9;
+      const tight = this.crouch ? 0.82 : 1.0;
+      const sc = base * tight * (1 + this._airK * 0.6);
+      s.scale.set(sc, sc, 1);
+      s.material.opacity = CHAR_FX.csOp * (0.12 + 0.88 * k) * (this.crouch ? 1.15 : 1) * (this.dead ? 0.5 : 1);
+      s.visible = s.material.opacity > 0.02;
     }
     // IK da mão de apoio (FASE 2): palma L no guarda-mão da arma montada (só 2 mãos).
     // Roda depois do mixer/pose — corrige o contato por arma sem tocar na orientação.

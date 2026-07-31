@@ -315,13 +315,15 @@
     </label>
     <!-- A mira sai do sistema de cor do HUD: quem escolhe é o jogador (CS2/Valorant). -->
     <label class="set-row">Cor da mira
+      <!-- Ciano é o PADRÃO e por isso vem primeiro: é o único matiz que nenhum cenário
+           dos 4 mapas ocupa. "Branca" desceu porque some na parede do awp_map (1,28:1). -->
       <select id="set-xhair">
-        <option value="#e9f1f3">Branca</option>
+        <option value="#4fe8e0">Ciano (padrão)</option>
         <option value="#46e08a">Verde</option>
-        <option value="#39d6e0">Ciano</option>
         <option value="#ffc93f">Amarela</option>
         <option value="#ff4d4d">Vermelha</option>
         <option value="#ff5cf0">Magenta</option>
+        <option value="#e9f1f3">Branca</option>
       </select>
     </label>
     <button id="settings-back" class="btn">SALVAR &amp; VOLTAR</button>

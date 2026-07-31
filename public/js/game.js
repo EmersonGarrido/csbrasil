@@ -219,10 +219,17 @@ const SHOTGUN_VM = {
 // (fov vertical 70). Em telas mais altas (MacBook 3024×1964 ≈ 1.54:1) o FOV horizontal
 // encolhia e o VM invadia a tela; aqui o vertical abre p/ compensar — em 16:9 retorna
 // exatamente 70 (comportamento de referência inalterado).
-// GUNFEEL: V0 70→62. O viewmodel do CS2/Valorant é MAIS FECHADO que o mundo — é isso que
-// dá peso à arma e mata a distorção do antebraço na borda (o "tubo aberto" que o crítico
-// viu na Havan é agravado por lente larga). Compensado por VM_SHRINK 0.72→0.64, então o
-// tamanho aparente sobe só ~3% — não é uma volta às "armas gigantes". ?vmwide=1 reverte.
+// GUNFEEL: V0 70→62. O viewmodel do CS2/Valorant é MAIS FECHADO que o mundo — lente
+// fechada = menos distorção de perspectiva na borda do quadro (é ela que abria o
+// antebraço em "tubo"). Par NEUTRO em tamanho aparente com VM_SHRINK 0.72→0.62:
+//   (0.62/1.0683) ÷ (0.72/1.2448) = 1.003   [H = tan(V0/2)·16/9 = meia-tangente
+// HORIZONTAL, constante em qualquer aspecto por construção desta função]
+// — a arma NÃO cresce na tela, a regra do dono continua valendo. O que a lente fechada
+// muda é só o MAPEAMENTO: um ponto a x/|z| fixo anda ~+3,3%W p/ a direita e ~+4%H p/
+// baixo — e é exatamente esse deslocamento que leva a borda esquerda do VM da AK de
+// 0,600 (baseline, à esquerda da régua CS2) para 0,634 (dentro de 0,62–0,65).
+// CORREÇÃO R2: a doc dizia 0.64, o código sempre teve 0.62. ?vmwide=1 reverte o PAR
+// inteiro (70 + 0.72) — nunca mexa em um sem o outro, senão a arma cresce/encolhe.
 function vmFovForAspect(aspect) {
   const REF = 16 / 9, V0 = (new URLSearchParams(location.search).get('vmwide') === '1' ? 70 : 62) * Math.PI / 180;
   const halfH = Math.atan(Math.tan(V0 / 2) * REF);
@@ -257,12 +264,28 @@ export function vmPreloadClasses(weaponId) {
 // tan35/tan31 = 1.165; 0.62/0.72 = 0.861 → tamanho aparente 1.003). Medido em captura A/B
 // 1600×900: a arma NÃO cresce na tela (a regra do dono continua valendo), só ganha a
 // perspectiva mais fechada, que é o que tira a distorção do antebraço na borda.
+// Só faz sentido junto com V0=62: ?vmwide=1 troca os DOIS de volta (70 + 0.72).
 const VM_SHRINK = new URLSearchParams(location.search).get('vmwide') === '1' ? 0.72 : 0.62;
-// EIXO do viewmodel (GUNFEEL): o crítico mediu a arma 23–27° fora da linha de mira
-// (atan(0.18/0.42)=23.2° no rifle, 26.6° na pistola) — é a causa medida do "mira num lugar,
-// a arma aponta pro outro". Referência CS2/Valorant: 11–14° à direita, 7–9° abaixo. VMP(novo,
-// antigo) troca as duas tabelas de uma vez; ?vmaxis=0 volta ao enquadramento anterior.
-const VMP = (n, o) => (new URLSearchParams(location.search).get('vmaxis') === '0' ? o : n);
+// EIXO do viewmodel — CALIBRAÇÃO R2 (conserto de regressão).
+// A rodada 1 leu pos.x como se fosse um ÂNGULO DE MIRA e o cortou pela metade (ak
+// 0.19→0.092, "27° → 14°"). pos.x NÃO aponta o cano: ele diz de QUE ÂNGULO a câmera
+// enxerga a arma. Quem alinha o cano ao crosshair é o YAW (≤0.09 em todas desde o
+// G2-R14A) — esse continua corrigido e intocado. Com x/|z| em 0.25 o olho passa a
+// olhar quase PELA linha do cano e a silhueta colapsa; medido nas capturas da r1:
+//   • cano + bloco de gás + alça + BOCA da AK somem por escorço atrás da mão esquerda
+//     em 100% dos frames (quebra o `_vmMuzzleCls`: a origem do flash/tracer sai do quadro);
+//   • a coronha, que antes seguia o receiver pra direita, passa a se projetar POR CIMA
+//     dele e lê como um bloco de madeira solto;
+//   • o antebraço deixa de sair pela borda (0,999 → 0,957) e vira um toco/cotovelo;
+//   • o VM cruza a linha central (borda esq 0,600 → 0,518).
+// Aritmética do enquadramento — sx_origem = 0,5 + 0,5·(x/|z|)/H, com H = tan(V0/2)·16/9.
+// Com V0=62 (H = 1,0683) a régua do dono "borda esquerda em 62–65%W" exige
+// x/|z| ≈ 0,47–0,54 → 25–28°, que é EXATAMENTE a tabela anterior à r1. Os dois alvos
+// dados (14° e 62–65%W) são incompatíveis; o alvo de enquadramento é o que o dono vê.
+// Logo o DEFAULT volta a ser a tabela calibrada (2º argumento) e a lente fechada faz o
+// trabalho de empurrar tudo para a direita. ?vmaxis=1 traz de volta a tabela estreita
+// da rodada 1 (A/B). Cai bem em quality 'low': é só transform, custo zero.
+const VMP = (n, o) => (new URLSearchParams(location.search).get('vmaxis') === '1' ? n : o);
 // GUN-SPACE e attachments: public/js/vmattach.js (medidas em tools/g2-gunspace.mjs).
 
 // Dificuldade por bot: o SORTEIO fica (variedade dentro da partida — nem todo inimigo é
@@ -950,8 +973,12 @@ export class Game {
             // — regressão funcional. Agora yaw ≤0.09 em TODAS (cano colado na linha de mira;
             // a identidade vem do modelo/textura/attachments, não do ângulo). Escala global
             // -28% via VM_SHRINK (dono: "armas tomam a maior parte da tela").
-            // GUNFEEL: pos recalculado para 14° à direita / 8.4° abaixo do eixo de mira
-            // (x = |z|·tan14, y = -|z|·tan8.4). Os yaws ≤0.09 continuam intocados.
+            // GUNFEEL (r1): pos recalculado para 14° à direita / 8.4° abaixo do eixo de
+            // mira (x = |z|·tan14, y = -|z|·tan8.4). CALIBRAÇÃO R2: esse recálculo é o
+            // 1º argumento do VMP e virou opt-in (?vmaxis=1) — ele colapsava a silhueta
+            // (ver o bloco do VMP lá em cima). O 2º argumento, ATIVO, é a tabela cujo
+            // x/|z| ≈ 0,43–0,53 (23–28°) — o ângulo de onde a arma LÊ. Os yaws ≤0.09
+            // (o que realmente cola o cano no crosshair) continuam intocados nos dois.
             rifle:   { yaw: 0.08, roll: -0.071, pitch: 0.065, pos: VMP([0.105, -0.089, -0.42], [0.18, -0.08, -0.42]), scale: 0.45 },
             // pistola: era 26.6°/26.6° e a arma ocupava 0.5% da tela contra 3.4% do antebraço
             // (7× a arma, com o TUBO ABERTO do braço visível). scale 0.26→0.40 e 28% mais
@@ -962,7 +989,15 @@ export class Game {
             // escala sem descer o eixo piora. Meio-termo: +15% de arma, eixo horizontal
             // corrigido (15°) e o braço mantido BAIXO (25°, quase o valor antigo) pra sair
             // por baixo do quadro como no CS.
-            pistol:  { yaw: -0.07, roll: -0.06, pitch: 0.01, pos: VMP([0.078, -0.135, -0.29], [0.15, -0.15, -0.30]), scale: VMP(0.30, 0.26) },
+            // CALIBRAÇÃO R2 — o revólver: com x/|z|=0.27 (15°) a câmera olhava quase pela
+            // linha do cano e a .38 virava um bloco cinza-azulado (só a face da boca e um
+            // naco de slide). O flanco — tambor, haste ejetora, guarda-mato — só existe se
+            // a câmera vir a arma DE LADO, e isso é x/|z| (0.50 = 26.6°, restaurado). Aqui
+            // o eixo vertical também volta ao valor calibrado (y -0.15): com V0=62 ele
+            // desce ~5%H a mais, o que enterra de vez a seção aberta do antebraço ("tubo")
+            // sob a borda de baixo. Escala 0.26→0.28 (+8% linear / +16% de área, não os
+            // +15%/+34% da r1): a .38 precisa de massa pra ler, mas o mesh é ~85% braço.
+            pistol:  { yaw: -0.07, roll: -0.06, pitch: 0.01, pos: VMP([0.078, -0.135, -0.29], [0.15, -0.15, -0.30]), scale: VMP(0.30, 0.28) },
             awp:     { yaw: 0.08, roll: -0.053, pitch: 0.012, pos: VMP([0.100, -0.091, -0.43], [0.17, -0.10, -0.43]), scale: 0.46 },
             shotgun: { yaw: 0.08, roll: -0.078, pitch: 0.037, pos: VMP([0.110, -0.094, -0.44], [0.19, -0.09, -0.44]), scale: 0.42 },
             // AK dedicada (G2-R7): gun-space próprio quase sem cant — deltas distintos da

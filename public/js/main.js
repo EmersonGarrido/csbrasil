@@ -22,17 +22,19 @@ const NICK_KEY = 'awpbr_nick';
 const SOCIAL_KEY = 'awpbr_social';
 
 /* ---------------- renderer ---------------- */
+// Import extra (top-level, legal em ESM) em vez de mexer no bloco de imports lá de cima:
+// o tom do caminho SEM pós mora no bloom.js, que é o dono da tabela de exposição/piso por mapa.
+import { applyNoPostTone } from './bloom.js';
 const container = document.getElementById('game-container');
 const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
 renderer.setSize(innerWidth, innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-// Tonemap: ACES 1.06 é o caminho SEM pós (quality low / ?bloom=0). Com o composer ligado
-// three já força NoToneMapping nos materiais (só aplica tonemap quando o alvo é null), e
-// quem faz a curva é o AgX do bloom.js — deixamos NoToneMapping EXPLÍCITO nesse caso pra
-// não haver a menor chance de tonemap duplo (que achata o meio-tom e crusha a sombra).
-// No caminho sem pós a exposição sobe 1.06 → 1.25: o crítico mediu 22.7 % do frame em
-// L* < 3, e ali não existe o piso de ambiente do composite pra segurar a sombra.
+// Tonemap. Com o composer ligado three já força NoToneMapping nos materiais (só aplica
+// tonemap quando o alvo é null) e quem faz a curva é o AgX do bloom.js — deixamos
+// NoToneMapping EXPLÍCITO nesse caso pra não haver a menor chance de tonemap duplo.
+// Estes dois valores são só o ESTADO INICIAL: quem manda no caminho sem pós é o
+// applyNoPostTone() logo abaixo. Ver o bloco de comentário dele no bloom.js.
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.25;
 container.appendChild(renderer.domElement);
@@ -46,6 +48,12 @@ container.appendChild(renderer.domElement);
   else if (_bloomOn) {
     enableLightBloom(renderer, { quality: settings.quality });
     if (_qp.get('post') !== 'output') renderer.toneMapping = THREE.NoToneMapping;   // AgX manda
+  } else {
+    // 'low' / ?bloom=0: MESMA exposição por mapa e MESMO piso de ambiente do composite,
+    // aplicados dentro do material (zero passe fullscreen). Sem isso 'low' era outro jogo:
+    // ~1 stop mais escuro e com curva de tom diferente (ACES crusha a sombra que o piso do
+    // AgX segura). Kill-switch: ?lowtone=0 volta pro ACES puro.
+    applyNoPostTone(renderer);
   }
 }
 
@@ -416,6 +424,10 @@ let matchMode = 'rounds';   // 'rounds' | 'ctf' — lido em startGame (ctf)
 if (MAPS[currentMap].ctfOnly) matchMode = 'ctf';   // mapas ctfOnly (Havan/Ferro Velho) forçam CTF — sem query string
 const menuSetup = $('menu-setup');
 const csItems = [...document.querySelectorAll('.cs-item')];
+// Kill-switch de UI: ?ui=legacy volta o scrim do menu e o HUD ao visual da rodada 1
+// (vinheta de coluna inteira, HUD sem plaquinha nem scrim de canto). Serve de degradação
+// segura se o tratamento novo regredir em algum wallpaper/mapa.
+if (params.get('ui') === 'legacy') document.documentElement.dataset.ui = 'legacy';
 // aria-current = "o painel aberto veio DAQUI". Antes nenhum item tinha estado de seleção.
 function markCurrent(act) {
   for (const it of csItems) {
@@ -459,7 +471,34 @@ $('cs-menu').addEventListener('keydown', (e) => {
   if (n < 0) return;
   e.preventDefault(); csItems[n].focus(); ui.hover();
 });
-$('setup-back').onclick = () => { ui.back(); menuSetup.classList.remove('open'); markCurrent(null); applyHomeWall(); };
+// Fechar o setup tinha UMA saída só: o botão VOLTAR. Enquanto ele estava aberto a coluna
+// da esquerda ficava inerte (ver style.css, bloco `:has(.cs-setup.open)`), então quem
+// clicasse em SINGLE PLAYER ficava preso ali. Agora são três saídas — botão, ESC e clique
+// fora — e a nav continua clicável. `back` = tocar o som só quando foi gesto do jogador.
+function closeSetup(back) {
+  if (!menuSetup.classList.contains('open')) return false;
+  if (back) ui.back();
+  menuSetup.classList.remove('open');
+  markCurrent(null);
+  applyHomeWall();
+  return true;
+}
+$('setup-back').onclick = () => { closeSetup(true); };
+// ESC no menu = voltar um passo. Num jogo de PC, ESC é o botão de voltar universal;
+// não ter isso no menu é inconsistente com o próprio jogo (ESC pausa a partida).
+// no window (não no #main-menu): depois de um clique no wallpaper o foco volta pro <body>
+// e um listener preso ao container nunca receberia a tecla.
+addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape') return;
+  if ($('main-menu').classList.contains('hidden')) return;
+  if (closeSetup(true)) { e.preventDefault(); csItems[0]?.focus(); }
+});
+// Clique no wallpaper (fora do painel e fora da nav) também fecha — comportamento de
+// qualquer painel docado; sem isso o jogador tenta e não acontece nada.
+$('main-menu').addEventListener('pointerdown', (e) => {
+  if (e.target.closest('.cs-setup') || e.target.closest('.cs-left')) return;
+  closeSetup(true);
+});
 
 /* ---------------- menu wiring ---------------- */
 // JOGAR sem nick era um SHAKE depois do clique; agora é ESTADO (aria-disabled), atualizado
@@ -937,13 +976,17 @@ volEl.oninput = () => { settings.vol = +volEl.value; sfx.setVolume(settings.vol)
 qualEl.onchange = () => { settings.quality = qualEl.value; saveSettings(); if (game) game.applySettings(); };
 // Cor da mira: a mira sai do sistema de cor do HUD (ciano = sistema, âmbar = objetivo,
 // vermelho = crítico) e passa a ser escolha do jogador — puro CSS var, sem custo por frame.
+// PADRÃO = CIANO, não branco. O branco foi medido em 1,28:1 contra a parede clara do
+// awp_map (janela de 44×42 px em volta da mira) — invisível. O ciano é o único matiz que
+// nenhum dos 4 cenários ocupa. Mantido em UM lugar só (XHAIR_DEF) pra não divergir do CSS.
+const XHAIR_DEF = '#4fe8e0';
 const xhairEl = $('set-xhair');
 function applyXhair() {
-  document.documentElement.style.setProperty('--xhair', settings.xhair || '#e9f1f3');
+  document.documentElement.style.setProperty('--xhair', settings.xhair || XHAIR_DEF);
 }
 if (xhairEl) {
-  xhairEl.value = settings.xhair || '#e9f1f3';
-  if (!xhairEl.value) xhairEl.value = '#e9f1f3';   // valor salvo fora da lista → volta pro branco
+  xhairEl.value = settings.xhair || XHAIR_DEF;
+  if (!xhairEl.value) xhairEl.value = XHAIR_DEF;   // valor salvo fora da lista (ex.: o ciano antigo #39d6e0) → volta pro padrão
   xhairEl.onchange = () => { settings.xhair = xhairEl.value; applyXhair(); saveSettings(); ui.click(); };
 }
 applyXhair();
@@ -1010,12 +1053,22 @@ updLabels();
   }
   o.globalAlpha = 1;
 
-  // fundo: faixa de sinaleiro (amarelo/preto) atrás do bloco, cortada em ângulo
+  // Fundo: brilho quente de tinta atrás do bloco.
+  // BUG CONSERTADO (R2): era um createLinearGradient HORIZONTAL pintado num
+  // fillRect(-400,-142,800,284) girado -0,02 rad. Um gradiente 1D só esmaece no eixo em
+  // que ele existe — no eixo vertical o alpha era constante até a borda do retângulo, e o
+  // retângulo tinha aresta dura. Resultado visível em menu-00-splash.png: um painel
+  // retangular INCLINADO atrás do wordmark, com topo e base marcados.
+  // Agora é um gradiente RADIAL: o alpha cai em todas as direções e chega a 0 (raio 400 →
+  // 168px no eixo Y depois do scale) ANTES da borda do fillRect (176px), então não existe
+  // nenhuma aresta pra ver. A rotação saiu junto: sem aresta, ela não tinha o que inclinar.
   x.save();
-  x.translate(W / 2, 180); x.rotate(-0.02);
-  const hz = x.createLinearGradient(-380, 0, 380, 0);
-  hz.addColorStop(0, 'rgba(255,201,63,0)'); hz.addColorStop(.5, 'rgba(255,201,63,.14)'); hz.addColorStop(1, 'rgba(255,201,63,0)');
-  x.fillStyle = hz; x.fillRect(-400, -142, 800, 284);
+  x.translate(W / 2, 180); x.scale(1, 0.42);   // scale = elipse deitada (canvas só faz radial circular)
+  const hz = x.createRadialGradient(0, 0, 30, 0, 0, 400);
+  hz.addColorStop(0, 'rgba(255,201,63,.17)');
+  hz.addColorStop(.55, 'rgba(255,201,63,.075)');
+  hz.addColorStop(1, 'rgba(255,201,63,0)');
+  x.fillStyle = hz; x.fillRect(-420, -420, 840, 840);
   x.restore();
   x.drawImage(off, 0, 0);
 

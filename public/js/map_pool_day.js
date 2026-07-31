@@ -209,16 +209,20 @@ function lockerTex(hex = '#2c6e7a', seed = 31) {
 function rippleTex(rx, rz) {
   const S = 256, c = document.createElement('canvas'); c.width = c.height = S;
   const x = c.getContext('2d');
-  x.fillStyle = '#33513f'; x.fillRect(0, 0, S, S);
+  x.fillStyle = '#2e4a37'; x.fillRect(0, 0, S, S);   // verde-musgo, hue ~137 (nunca hue 209)
   let seed = 29; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
-  for (let i = 0; i < 34; i++) {   // plumas de sedimento (mais claras, esverdeado-barrento)
-    x.fillStyle = `rgba(${96 + rnd() * 34 | 0},${112 + rnd() * 26 | 0},${78 + rnd() * 22 | 0},${0.1 + rnd() * 0.18})`;
+  // plumas de sedimento com CONTRASTE BAIXO de propósito: manchas claras demais liam
+  // como "objeto claro visível no fundo" — e fundo visível reprova o mapa na régua.
+  for (let i = 0; i < 34; i++) {
+    x.fillStyle = `rgba(${68 + rnd() * 26 | 0},${90 + rnd() * 22 | 0},${60 + rnd() * 18 | 0},${0.08 + rnd() * 0.14})`;
     x.beginPath(); x.ellipse(rnd() * S, rnd() * S, 16 + rnd() * 44, 9 + rnd() * 26, rnd() * 3, 0, 7); x.fill();
   }
   for (let i = 0; i < 26; i++) {   // poças escuras (fundo mais profundo / sombra de nuvem)
-    x.fillStyle = `rgba(16,38,28,${0.1 + rnd() * 0.18})`;
+    x.fillStyle = `rgba(14,34,24,${0.12 + rnd() * 0.2})`;
     x.beginPath(); x.ellipse(rnd() * S, rnd() * S, 12 + rnd() * 36, 7 + rnd() * 20, rnd() * 3, 0, 7); x.fill();
   }
+  // sedimento MIÚDO em suspensão: mata a chapa de cor sem criar forma legível
+  for (let i = 0; i < 600; i++) { x.fillStyle = `rgba(${54 + rnd() * 40 | 0},${76 + rnd() * 34 | 0},${52 + rnd() * 26 | 0},${rnd() * 0.3})`; x.fillRect(rnd() * S, rnd() * S, 1.6, 1.6); }
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;   // sem NearestFilter: água turva não pode pixelar
   t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rx, rz); return t;
 }
@@ -536,14 +540,58 @@ function paintTex(txt, col = 'rgba(200,40,40,0.85)', px = 46) {
     else x.fillText(txt, 0, px * 0.35);
   });
 }
+// LETREIRO PINTADO À MÃO (critério D4). Placa de quiosque/balneário no Brasil é esmalte
+// sintético a pincel, sem gabarito: baseline balança, o espacejamento é desigual e o
+// pintor APERTA as letras quando percebe que não vai caber. Por isso o texto é desenhado
+// letra a letra com jitter próprio, e cada letra leva sombra projetada + contorno escuro
+// (o par sombra/contorno é o que dá corpo ao bastão pesado). Uma fillText centralizada
+// com fonte digital — o que existia aqui — reprova por definição.
+function handText(x, txt, cx, cy, size, maxW, fg, seed) {
+  let s = seed || 7; const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647;
+  const chars = [...txt];
+  x.font = `900 ${size}px "Arial Black",Impact,sans-serif`;
+  const adv = chars.map(ch => x.measureText(ch).width + size * (0.03 + rnd() * 0.10));
+  const total = adv.reduce((a, b) => a + b, 0);
+  const k = total > maxW ? maxW / total : 1;   // condensa (o "aperto no fim da linha")
+  let px = cx - total * k / 2;
+  x.textAlign = 'center'; x.textBaseline = 'alphabetic'; x.lineJoin = 'round';
+  for (let i = 0; i < chars.length; i++) {
+    const dy = (rnd() - 0.5) * size * 0.13;                 // baseline IRREGULAR
+    x.save();
+    x.translate(px + adv[i] * k * 0.5, cy + dy);
+    x.rotate((rnd() - 0.5) * 0.08);
+    x.scale(k * (0.93 + rnd() * 0.14), 0.95 + rnd() * 0.12);   // largura/altura desiguais
+    x.fillStyle = 'rgba(18,12,8,0.5)'; x.fillText(chars[i], size * 0.07, size * 0.08);   // sombra
+    // contorno proporcional, mas fino nos corpos pequenos: bastão de 20px com contorno de
+    // 15% fecha os contra-formas e a linha de apoio vira borrão
+    x.lineWidth = size * (size > 30 ? 0.15 : 0.085); x.strokeStyle = '#241610'; x.strokeText(chars[i], 0, 0);
+    x.fillStyle = fg; x.fillText(chars[i], 0, 0);
+    x.restore();
+    px += adv[i] * k;
+  }
+}
 function signTexture(bg, fg, title, sub) {
   const c = document.createElement('canvas'); c.width = 512; c.height = 128;
   const x = c.getContext('2d');
+  let s = 17 + title.length * 13; const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647;
   x.fillStyle = bg; x.fillRect(0, 0, 512, 128);
-  x.strokeStyle = fg; x.lineWidth = 8; x.strokeRect(6, 6, 500, 116);
-  x.textAlign = 'center'; x.fillStyle = fg;
-  x.font = 'bold 44px "Arial Black",Impact,sans-serif'; x.fillText(title, 256, 60);
-  if (sub) { x.font = 'bold 20px Arial,sans-serif'; x.fillText(sub, 256, 96); }
+  // pincelada: esmalte a rolinho/pincel nunca cobre parelho — deixa faixas de carga
+  for (let i = 0; i < 44; i++) {
+    x.fillStyle = `rgba(${rnd() > 0.5 ? '255,252,240' : '0,0,0'},${0.03 + rnd() * 0.06})`;
+    x.fillRect(0, rnd() * 128, 512, 1 + rnd() * 5);
+  }
+  // moldura torta (feita à mão livre, não com régua)
+  x.strokeStyle = fg; x.lineWidth = 6; x.globalAlpha = 0.8; x.beginPath();
+  x.moveTo(10 + rnd() * 5, 9 + rnd() * 5); x.lineTo(503 - rnd() * 6, 7 + rnd() * 6);
+  x.lineTo(502 - rnd() * 6, 121 - rnd() * 6); x.lineTo(9 + rnd() * 5, 119 - rnd() * 5);
+  x.closePath(); x.stroke(); x.globalAlpha = 1;
+  handText(x, title, 256, sub ? 66 : 86, sub ? 50 : 64, 452, fg, 31 + title.length * 7);
+  if (sub) handText(x, sub, 256, 110, 21, 468, fg, 53 + sub.length * 3);
+  // desgaste de sol e maresia por cima da tinta (D2: nada é recém-pintado no Piscinão)
+  for (let i = 0; i < 22; i++) {
+    x.fillStyle = `rgba(238,232,214,${0.04 + rnd() * 0.1})`;
+    x.beginPath(); x.ellipse(rnd() * 512, rnd() * 128, 4 + rnd() * 26, 3 + rnd() * 12, rnd() * 3, 0, 7); x.fill();
+  }
   return mkTex(c, 1, 1, true);
 }
 
@@ -566,6 +614,7 @@ export function buildPoolDay(scene, T) {
   const WATER_FX = QP.get('water') !== '0';    // ?water=0 → material simples (fallback do shader)
   const FAVELA = QP.get('favela') !== '0';     // ?favela=0 → sem o fundo de lajes/caixa d'água
   const CROWD = QP.get('crowd') !== '0';       // ?crowd=0 → sem banhistas extras
+  const CONTACT_ON = QP.get('ao') !== '0';     // ?ao=0 → sem os discos de sombra de contato
   const NFAV = LOWQ ? 6 : 14;                  // nº de lajes 3D atrás do muro
 
   // Standard (não Lambert) pra receber o env map IBL (scene.environment) — padrão visual v2.
@@ -592,6 +641,20 @@ export function buildPoolDay(scene, T) {
     m.position.set(x, y, z); m.rotation.y = ry; m.rotation.x = rx;
     m.receiveShadow = true; root.add(m); return m;
   }
+  // SOMBRA DE CONTATO (A2 da régua). O shadow map cobre 160 m: cada texel vale ~13 cm, ou
+  // seja, os 10-20 cm colados no pé do prop simplesmente não existem no mapa de sombra e o
+  // objeto lê como adesivo sobre a areia. Cada prop registra aqui um disco de contato e no
+  // fim tudo vira UM InstancedMesh (1 draw call pros ~70 discos). ?ao=0 desliga.
+  const CONTACT = [];
+  const contact = (x, z, r) => {
+    if (!CONTACT_ON) return;
+    // dois vetos: dentro da lagoa (o disco flutuaria sobre a lâmina d'água) e fora do muro
+    // (sem plano de chão atrás, um decal de multiply escurece o céu). OUTX/OUTZ só existem
+    // depois daqui, mas contact() só é chamado bem mais pra frente — closure resolve.
+    if (Math.abs(x) < OUTX + 0.4 && Math.abs(z) < OUTZ + 0.4) return;
+    if (Math.abs(x) > HALF_X - 0.4 || Math.abs(z) > HALF_Z - 0.4) return;
+    CONTACT.push([x, z, r]);
+  };
 
   const TEX = {
     sand: sandTex(14, 20),
@@ -613,7 +676,9 @@ export function buildPoolDay(scene, T) {
   // variantes PINTADAS (verde/azul/branco) pros blocos — nem tudo é o mesmo bege
   const bandedOf = (base, rx = 1) => { const t = bandTex(rx, base); return [lam({ map: t }), lam({ map: t }), MAT.concrete, MAT.concrete, lam({ map: t }), lam({ map: t })]; };
   const bandedSides = bandedOf('#b9b3a6');
-  const bandedGreen = bandedOf('#6a8a5c'), bandedBlue = bandedOf('#7ba3c4'), bandedWhite = bandedOf('#d5d0c2');
+  // bandedBlue mantém o nome, mas o tom saiu do azul-piscina pro cinza-esverdeado: nenhum
+  // bloco do mapa pode competir com a lagoa pela leitura de "isso aqui é água".
+  const bandedGreen = bandedOf('#6a8a5c'), bandedBlue = bandedOf('#7d938c'), bandedWhite = bandedOf('#d5d0c2');
 
   /* ---------------- LAGOA central (recessed, bordas em rampa) ---------------- */
   const POOL = { cx: 0, cz: 0, hx: 12, hz: 15, m: 3, depth: 1.4 };
@@ -658,8 +723,8 @@ export function buildPoolDay(scene, T) {
     // fundo/rampas ficam escondidos (só os 15cm de rampa que sobram do plano leem como
     // areia molhada na linha d'água).
     const waterMat = new THREE.MeshPhongMaterial({
-      map: rippleTex(3, 4), color: 0x3d5946,
-      specular: 0x86a096, shininess: 70,   // brilho de água TURVA: reflete, mas não é espelho
+      map: rippleTex(3, 4), color: 0x35513c,   // verde-oliva escuro: hue 133, não os 209 do cobalto
+      specular: 0x7e9086, shininess: 70,   // brilho de água TURVA: reflete, mas não é espelho
       normalMap: waterNormalTex(LOWQ ? 3 : 5),
       normalScale: new THREE.Vector2(0.9, 0.9),
     });
@@ -694,21 +759,35 @@ export function buildPoolDay(scene, T) {
         // distância à margem EM METROS (o plano é retangular, uv normalizado engana)
         vec2 dE = ( vec2( 0.5 ) - abs( vWuv - vec2( 0.5 ) ) ) * 2.0 * uExt;
         float dEdge = min( dE.x, dE.y );
+        // VARIAÇÃO DE COR POR REGIÃO. A lagoa tem 1,40 m no miolo e centímetros na rampa,
+        // mas a água é OPACA — então a profundidade não pode aparecer por transparência
+        // (fundo visível é reprovação automática). Aparece por COR: miolo mais escuro e
+        // mais verde-musgo, beira mais clara e barrenta.
+        float deep = smoothstep( 1.5, 9.0, dEdge );
+        outgoingLight *= mix( vec3( 1.14, 1.07, 0.93 ), vec3( 0.74, 0.86, 0.75 ), deep );
         vec3 Vv = normalize( vViewPosition );
-        float fres = pow( 1.0 - clamp( dot( Vv, normal ), 0.0, 1.0 ), 3.0 );
-        // REFLEXO BARATO DO CÉU: gradiente de 2 cores indexado pelo próprio fresnel —
-        // razante pega o haze quente do horizonte, de cima pega o azul do zênite.
-        // Custa 0 texture fetch e 0 render target (cubemap aqui mataria o orçamento).
-        vec3 skyCol = mix( vec3( 0.40, 0.57, 0.71 ), vec3( 0.87, 0.86, 0.78 ), fres );
-        outgoingLight = mix( outgoingLight, skyCol, fres * 0.55 );
+        // expoente 4 (era 3) + peso 0.42 (era 0.55): o reflexo do céu fica SÓ na rasante.
+        // Reflexo de céu espalhado por toda a lâmina é o que transforma água salobra em
+        // "piscina de clube" — foi exatamente o hue 209 que o crítico mediu.
+        float fres = pow( 1.0 - clamp( dot( Vv, normal ), 0.0, 1.0 ), 4.0 );
+        // REFLEXO BARATO DO CÉU: gradiente de 2 cores indexado pelo próprio fresnel. A
+        // Guanabara devolve o HAZE QUENTE do horizonte, não o azul do zênite — por isso o
+        // tom baixo é cinza-esverdeado e não azul. 0 texture fetch, 0 render target.
+        vec3 skyCol = mix( vec3( 0.44, 0.52, 0.52 ), vec3( 0.86, 0.85, 0.77 ), fres );
+        outgoingLight = mix( outgoingLight, skyCol, fres * 0.42 );
         // margem RASA: areia em suspensão deixa a água barrenta — NUNCA transparente
         float murk = 1.0 - smoothstep( 0.0, 5.0, dEdge );
-        outgoingLight = mix( outgoingLight, outgoingLight * vec3( 1.28, 1.14, 0.84 ), murk * 0.75 );
+        outgoingLight = mix( outgoingLight, outgoingLight * vec3( 1.24, 1.12, 0.86 ), murk * 0.7 );
+        float wob = texture2D( normalMap, vWuv * 7.0 + vec2( uTime * 0.02, -uTime * 0.016 ) ).x - 0.5;
+        // LINHA DE SUJEIRA: a faixa marrom-esverdeada de escuma, limo e óleo que se
+        // acumula onde a marola bate na areia. Fica ENTRE a água e a espuma branca — sem
+        // ela a borda lê como piscina lavada.
+        float scum = ( 1.0 - smoothstep( 0.4, 2.6, dEdge + wob * 2.0 ) ) * smoothstep( 0.0, 0.6, dEdge );
+        outgoingLight = mix( outgoingLight, vec3( 0.29, 0.29, 0.20 ), clamp( scum, 0.0, 1.0 ) * 0.5 );
         // ESPUMA na linha d'água, com a borda quebrada pela própria marola (senão vira
         // uma moldura geométrica em volta do retângulo)
-        float wob = texture2D( normalMap, vWuv * 7.0 + vec2( uTime * 0.02, -uTime * 0.016 ) ).x - 0.5;
-        float foam = 1.0 - smoothstep( 0.15, 1.25, dEdge + wob * 2.2 );
-        outgoingLight = mix( outgoingLight, vec3( 0.89, 0.91, 0.86 ), clamp( foam, 0.0, 1.0 ) * 0.8 );
+        float foam = 1.0 - smoothstep( 0.15, 1.15, dEdge + wob * 2.2 );
+        outgoingLight = mix( outgoingLight, vec3( 0.86, 0.88, 0.81 ), clamp( foam, 0.0, 1.0 ) * 0.8 );
         #include <opaque_fragment>`);
     };
     const water = new THREE.Mesh(new THREE.PlaneGeometry(OUTX * 2 - 0.3, OUTZ * 2 - 0.3), waterMat);
@@ -747,17 +826,31 @@ export function buildPoolDay(scene, T) {
     }
     // boias/pneus na água (decorativo) — leve inclinação pra ler como BÓIA (anel c/ furo)
     // em ângulo rasante; antes planas, liam como "disco bege flutuando" (crítico R6)
-    const floaty = (x, z, col, r = 0.95) => {
-      const t = new THREE.Mesh(new THREE.TorusGeometry(r, 0.3, 8, 18), col);
-      t.rotation.x = Math.PI / 2; t.rotation.y = ((x * 13 + z * 7) % 10) / 10 * 0.5 - 0.25;
-      t.position.set(x, -0.06, z); root.add(t);
-    };
-    floaty(-5, 5, MAT.foam); floaty(4, -4, MAT.foam2, 1.15); floaty(6, 7, MAT.foam2, 0.8);
-    floaty(-6, -7, MAT.foam); floaty(1, 9, MAT.foam2, 0.85); floaty(-2, -10, MAT.foam);
-    // + bóias: são os únicos pontos SATURADOS sobre a água verde-opaca; poucas demais e a
-    // lagoa lê como mancha morta no meio do mapa
-    floaty(8, -9, MAT.foam, 1.0); floaty(-9, 10, MAT.foam2, 0.9); floaty(10, 3, MAT.foam, 0.75);
-    floaty(-10, -2, MAT.foam2, 1.05); floaty(0, -14, MAT.foam, 0.9); floaty(5, 13, MAT.foam2, 0.8);
+    // BÓIAS. Eram 12 THREE.Mesh = 12 draw calls; viram UM InstancedMesh com cor por
+    // instância. Com o orçamento liberado dá pra quase dobrar a quantidade — e "muita
+    // gente e muita bóia na água" é literalmente o assunto do lugar num domingo. São
+    // também os únicos pontos saturados sobre a água verde-opaca (affordance de C2:
+    // saturação só onde há função/vida, nunca no cenário).
+    {
+      const spec = [[-5, 5, 0.95, 0], [4, -4, 1.15, 1], [6, 7, 0.8, 1], [-6, -7, 0.95, 0],
+        [1, 9, 0.85, 1], [-2, -10, 0.95, 0], [8, -9, 1.0, 0], [-9, 10, 0.9, 1],
+        [10, 3, 0.75, 0], [-10, -2, 1.05, 1], [0, -14, 0.9, 0], [5, 13, 0.8, 1],
+        [-7, -3, 0.85, 2], [7, 0, 1.0, 2], [-3, 14, 0.9, 2], [9, -13, 0.8, 0],
+        [-11, 4, 0.95, 1], [2, -7, 1.1, 2], [-4, -13, 0.8, 0], [11, 8, 0.9, 2],
+        [-8, -12, 1.0, 1], [3, 2, 0.85, 2]];
+      const cols = [new THREE.Color(0xffd23f), new THREE.Color(0xff6a8a), new THREE.Color(0x3fb0c8)];
+      const bim = new THREE.InstancedMesh(new THREE.TorusGeometry(1, 0.3, 6, 14), lam({ roughness: 0.75 }), spec.length);
+      const d0 = new THREE.Object3D();
+      spec.forEach(([bx, bz, r, ci], i) => {
+        d0.position.set(bx, -0.06, bz);
+        d0.rotation.set(Math.PI / 2, ((bx * 13 + bz * 7) % 10) / 10 * 0.5 - 0.25, 0);
+        d0.scale.setScalar(r); d0.updateMatrix(); bim.setMatrixAt(i, d0.matrix);
+        bim.setColorAt(i, cols[ci]);
+      });
+      bim.instanceColor.needsUpdate = true;
+      bim.frustumCulled = false;   // bounding sphere de InstancedMesh some com a lagoa inteira
+      root.add(bim);
+    }
   }
 
   /* ---------------- plataforma de salto (marco alto num canto da lagoa) ---------------- */
@@ -814,7 +907,11 @@ export function buildPoolDay(scene, T) {
     addBox(18, 0.4, 5, MAT.pergo, 0, 3.0, ez, { collide: false });
     // faixa pintada de clube nas paredes do corredor (identidade visual + quebra a lisura)
     for (const sx of [-1, 1]) {
-      addPlane(15.6, 0.5, lam({ map: stripeTex(s < 0 ? '#1b5f9e' : '#2fa060', 19 + s) }), sx * 8.19, 1.45, s * (HALF_Z - 11), sx > 0 ? -Math.PI / 2 : Math.PI / 2);
+      // faixa de identidade do lado (P/B). Azul mais escuro e menos saturado que o antigo
+      // #1b5f9e: uma faixa horizontal de azul vivo na altura do olho, num mapa de piscinão,
+      // some com a leitura de "tinta" e vira "lâmina d'água". Aqui ela ainda cumpre a
+      // função de dizer de que lado o corredor está, que é o que justifica a cor.
+      addPlane(15.6, 0.5, lam({ map: stripeTex(s < 0 ? '#2d5670' : '#2fa060', 19 + s) }), sx * 8.19, 1.45, s * (HALF_Z - 11), sx > 0 ? -Math.PI / 2 : Math.PI / 2);
     }
     // porta do VESTIÁRIO (decal na parede do corredor) + placa — identidade de clube
     {
@@ -894,23 +991,27 @@ export function buildPoolDay(scene, T) {
   for (const [x, z, ry] of [[-14, 26, 0.4], [14, -26, Math.PI + 0.4]]) {
     if (!gprop('churrasqueira', x, z, 2.2, ry)) addBox(1.4, 2.2, 1.0, MAT.concrete, x, 0, z, { ry });
     colliders.push({ minX: x - 0.8, maxX: x + 0.8, minY: 0, maxY: 2.2, minZ: z - 0.6, maxZ: z + 0.6 });
+    contact(x, z, 1.0);
   }
   // mesas de plástico c/ guarda-sol no deck (cover baixo espalhado) + 2 clusters na chapa
   // bege a LESTE, entre a prainha e o muro (crítico R6: "trecho pelado residual")
   for (const [x, z, ry] of [[18, 6, 0], [18, -8, 1.1], [-18, 10, 2.2], [-18, -12, 0.6], [17, 16.5, 0.8], [17, -16.5, 2.6]]) {
     if (!gprop('mesa_guardasol', x, z, 2.3, ry)) addBox(1.8, 2.3, 1.8, MAT.white, x, 0, z, { ry });
     colliders.push({ minX: x - 0.9, maxX: x + 0.9, minY: 0, maxY: 1.0, minZ: z - 0.9, maxZ: z + 0.9 });
+    contact(x, z, 1.45);
   }
   // coolers do lado das mesas — 3→6: "isopor por todo lado" é assinatura do Piscinão em
   // dia de calor, e são cover baixo que não estraga LOS (h=0.55)
   for (const [x, z] of [[17, 4], [-17, 8], [19, -10], [-19, -18], [20, 19], [-15.5, 30]]) {
     if (!gprop('cooler', x, z, 0.55)) addBox(0.6, 0.55, 0.4, MAT.white, x, 0, z);
     colliders.push({ minX: x - 0.35, maxX: x + 0.35, minY: 0, maxY: 0.55, minZ: z - 0.25, maxZ: z + 0.25 });
+    contact(x, z, 0.5);
   }
   // mesas perto dos spawns (props de clube na zona morta — crítico: "spawn é areia + caixas")
   for (const [x, z, ry] of [[-13, 26, 0.7], [13, -26, 2.4]]) {
     if (!gprop('mesa_guardasol', x, z, 2.3, ry)) addBox(1.8, 2.3, 1.8, MAT.white, x, 0, z, { ry });
     colliders.push({ minX: x - 0.9, maxX: x + 0.9, minY: 0, maxY: 1.0, minZ: z - 0.9, maxZ: z + 0.9 });
+    contact(x, z, 1.45);
   }
   // toalhas estendidas na areia (decals de primeira-leitura)
   {
@@ -926,9 +1027,11 @@ export function buildPoolDay(scene, T) {
   for (const [x, z, ry] of [[-12.5, -(HALF_Z - 10), 0.9], [12.5, HALF_Z - 10, 2.6], [-18.5, 24, 1.4]]) {
     if (!gprop('caixa_som', x, z, 1.6, ry)) addBox(0.8, 1.6, 0.8, MAT.kiosk, x, 0, z, { ry });
     colliders.push({ minX: x - 0.5, maxX: x + 0.5, minY: 0, maxY: 1.6, minZ: z - 0.5, maxZ: z + 0.5 });
+    contact(x, z, 0.62);
   }
   // placa de regras na entrada leste + boias novas na água
   if (!gprop('placa_piscina', 13, HALF_Z - 10, 1.7, Math.PI)) addBox(1.6, 1.7, 0.3, MAT.kiosk, 13, 0, HALF_Z - 10);
+  contact(13, HALF_Z - 10, 0.85);
   colliders.push({ minX: 12.2, maxX: 13.8, minY: 0, maxY: 1.7, minZ: HALF_Z - 10.3, maxZ: HALF_Z - 9.7 });
   gprop('boia', 3, 2, 0.5, 0.4, -0.1); gprop('boia', -4, -5, 0.5, 2.1, -0.1);   // flutuando, sem collider
 
@@ -1048,6 +1151,7 @@ export function buildPoolDay(scene, T) {
         shirt.forEach(m => { m.flatShading = true; });
         for (const [sx3, sz3, si] of [[-20.5, 17, 0], [-19.4, 15.6, 1], [20.6, -19, 2], [19.2, -17.6, 0],
           [-21, -26, 1], [21, 27, 2], [-17.5, -30, 0], [17.6, 31, 1]]) {
+          contact(sx3, sz3, 0.45);   // banhista sentado na canga também precisa colar na areia
           const torso = new THREE.Mesh(new THREE.IcosahedronGeometry(0.34, 0), shirt[si]);
           torso.scale.set(0.9, 1.0, 0.7); torso.position.set(sx3, 0.42, sz3); torso.castShadow = true; root.add(torso);
           const hd = new THREE.Mesh(new THREE.IcosahedronGeometry(0.14, 0), skin[si]);
@@ -1191,6 +1295,7 @@ export function buildPoolDay(scene, T) {
       m.position.set(s * -7.9, 0.9, s * (HALF_Z - 8.5));
       m.castShadow = m.receiveShadow = true; root.add(m);
       colliders.push({ minX: s * -7.9 - 0.2, maxX: s * -7.9 + 0.2, minY: 0, maxY: 1.8, minZ: s * (HALF_Z - 8.5) - 0.8, maxZ: s * (HALF_Z - 8.5) + 0.8 });
+      contact(s * -7.9, s * (HALF_Z - 8.5), 0.95);
     }
     // banco de madeira na parede oposta
     {
@@ -1202,6 +1307,7 @@ export function buildPoolDay(scene, T) {
         leg.position.set(s * 7.75, 0.2, s * (HALF_Z - 9.5) + dz); root.add(leg);
       }
       colliders.push({ minX: s * 7.75 - 0.25, maxX: s * 7.75 + 0.25, minY: 0, maxY: 0.48, minZ: s * (HALF_Z - 9.5) - 1.0, maxZ: s * (HALF_Z - 9.5) + 1.0 });
+      contact(s * 7.75, s * (HALF_Z - 9.5), 0.85);
     }
     // lixeira de tambor verde na saída do corredor
     {
@@ -1210,6 +1316,7 @@ export function buildPoolDay(scene, T) {
       const rim = new THREE.Mesh(new THREE.TorusGeometry(0.3, 0.03, 6, 14), MAT.steel);
       rim.rotation.x = Math.PI / 2; rim.position.set(s < 0 ? -9.4 : 9.4, 0.72, s * (HALF_Z - 11)); root.add(rim);
       colliders.push({ minX: (s < 0 ? -9.4 : 9.4) - 0.32, maxX: (s < 0 ? -9.4 : 9.4) + 0.32, minY: 0, maxY: 0.72, minZ: s * (HALF_Z - 11) - 0.32, maxZ: s * (HALF_Z - 11) + 0.32 });
+      contact(s < 0 ? -9.4 : 9.4, s * (HALF_Z - 11), 0.42);
     }
     // placa de regras do balneário na parede do corredor
     addPlane(3.0, 0.75, signTexture('#7a2020', '#f2e8d8', 'REGRAS DO BALNEÁRIO', 'PROIBIDO CORRER · CHUVEIRO OBRIGATÓRIO'), s * 8.19, 2.1, s * (HALF_Z - 16), s * Math.PI / 2);
@@ -1309,6 +1416,9 @@ export function buildPoolDay(scene, T) {
       // guarda-sol de praia NUNCA está a prumo: inclina pro sol e cada um pro seu lado.
       // Um campo de cones perfeitamente verticais é o tell nº1 de cenário de maquete.
       const tilt = (urnd() - 0.5) * 0.42, spin = urnd() * 6.3;
+      // disco de contato deslocado no sentido do tombo: sombra de guarda-sol torto não
+      // fica concêntrica ao mastro, e é justamente o descentramento que cola o prop no chão
+      contact(x - Math.cos(spin) * tilt * 2.2, z + Math.sin(spin) * tilt * 2.2, 1.35);
       const lean = new THREE.Group(); lean.position.set(x, 0, z);
       lean.rotation.y = spin; lean.rotation.z = tilt; root.add(lean);
       const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 2.3, 6), MAT.steel);
@@ -1330,6 +1440,8 @@ export function buildPoolDay(scene, T) {
     const trunkMat = lam({ color: 0x5a4632, roughness: 0.9 });
     const tree = (x, z, s = 1) => {
       const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.14 * s, 0.2 * s, 2.6 * s, 7), trunkMat);
+      // sem disco de contato aqui: estas árvores ficam FORA do muro, onde não existe plano
+      // de chão — um decal de multiply sem geometria atrás escureceria o próprio céu
       trunk.position.set(x, 1.3 * s, z); trunk.castShadow = true; root.add(trunk);
       for (let i = 0; i < 3; i++) {
         const b = new THREE.Mesh(new THREE.IcosahedronGeometry((1.1 + i * 0.4) * s * 0.75, 0), leafMat);
@@ -1350,6 +1462,7 @@ export function buildPoolDay(scene, T) {
       addBox(2.2, 0.2, 2.2, MAT.white, tx, 3.2, tz, { collide: false });
       addBox(2.4, 0.24, 2.4, MAT.guard, tx, 4.5, tz, { collide: false });
     }
+    contact(tx, tz, 1.6);
     const tbase = addBox(1.7, 1.3, 1.7, MAT.guard, tx, 0, tz);   // collider da base
     if (usedGLB) tbase.visible = false;
   }
@@ -1391,17 +1504,27 @@ export function buildPoolDay(scene, T) {
         p.position.set(px2, WALL_H / 2, pz2); p.castShadow = p.receiveShadow = true; root.add(p);
       }
     }
-    const paints = { G: '#6a8a5c', W: '#d5d0c2', B: '#7ba3c4' };   // verde / branco / azul
+    // PALETA do muro. O azul-piscina (#7ba3c4) SAIU: uma faixa horizontal contínua de azul
+    // saturado, na altura do olho, dando a volta no mapa inteiro — num mapa chamado
+    // "Piscinão" — lê como LÂMINA D'ÁGUA. Foi literalmente essa faixa que o crítico mediu
+    // como "água azul cobalto com objetos claros no fundo" (os claros eram o descascado da
+    // tinta). Entram amarelo-ovo e rosa-terracota, cores de reboco de subúrbio carioca; o
+    // azul volta só como acento cinza-esverdeado escuro, uma vez por trecho.
+    const paints = { G: '#6a8a5c', W: '#d5d0c2', A: '#c5aa78', R: '#b58a76', B: '#5f7480' };
     let pseed = 41;
-    const paint = (key, x, z, ry) => {
-      const m = new THREE.Mesh(new THREE.PlaneGeometry(9.6, 2.0), lam({ map: paintWallTex(paints[key], pseed += 7) }));
-      m.position.set(x, 2.28, z); m.rotation.y = ry; m.receiveShadow = true; root.add(m);
+    // altura e pé VARIÁVEIS por trecho: banda contínua na mesma cota é o que produz a
+    // leitura de "linha d'água". Topo serrilhado mata a leitura e ainda ajuda o B7.
+    const paint = (key, x, z, ry, i) => {
+      const h = 1.75 + ((i * 5) % 3) * 0.22;
+      const y0 = 0.85 + ((i * 3) % 2) * 0.12;
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(9.6, h), lam({ map: paintWallTex(paints[key], pseed += 7) }));
+      m.position.set(x, y0 + h / 2, z); m.rotation.y = ry; m.receiveShadow = true; root.add(m);
     };
     const S5 = [-19.2, -9.6, 0, 9.6, 19.2], E7 = [-28.8, -19.2, -9.6, 0, 9.6, 19.2, 28.8];
-    ['G', 'B', 'W', 'G', 'B'].forEach((k, i) => paint(k, S5[i], iS - 0.02, Math.PI));
-    ['W', 'G', 'B', 'W', 'G'].forEach((k, i) => paint(k, S5[i], iN + 0.02, 0));
-    ['B', 'W', 'G', 'W', 'B', 'G', 'W'].forEach((k, i) => paint(k, iE - 0.02, E7[i], -Math.PI / 2));
-    ['G', 'W', 'B', 'W', 'G', 'W', 'B'].forEach((k, i) => paint(k, iW + 0.02, E7[i], Math.PI / 2));
+    ['G', 'A', 'W', 'R', 'G'].forEach((k, i) => paint(k, S5[i], iS - 0.02, Math.PI, i));
+    ['W', 'G', 'A', 'W', 'R'].forEach((k, i) => paint(k, S5[i], iN + 0.02, 0, i + 1));
+    ['A', 'W', 'G', 'R', 'W', 'G', 'B'].forEach((k, i) => paint(k, iE - 0.02, E7[i], -Math.PI / 2, i + 2));
+    ['G', 'W', 'R', 'W', 'A', 'B', 'W'].forEach((k, i) => paint(k, iW + 0.02, E7[i], Math.PI / 2, i + 3));
   }
   // grafites/murais em escala arquitetônica por cima da pintura
   if (T.graffiti && T.graffiti.length) {
@@ -1576,22 +1699,37 @@ export function buildPoolDay(scene, T) {
   /* ---------------- kiosk helper (usado nos corredores) ---------------- */
   function kioskAt(x, z) {
     const counter = addBox(3.2, 1.2, 1.6, MAT.kiosk, x, 0, z);   // collider sempre
+    contact(x, z, 2.3); contact(x + 1.9, z - 0.9, 0.28);         // balcão + pé do mastro
     // BANDEIRA DO QUIOSQUE (cerveja/refri) — marco vertical colorido de 4m que dá
     // affordance de "aqui tem quiosque" de longe. Fica fora do if do GLB de propósito.
     {
+      const mx = x + 1.9, mz = z - 0.9;
       const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 4.2, 6), MAT.steel);
-      mast.position.set(x + 1.9, 2.1, z - 0.9); mast.castShadow = true; root.add(mast);
+      mast.position.set(mx, 2.1, mz); mast.castShadow = true; root.add(mast);
       const fc = document.createElement('canvas'); fc.width = 96; fc.height = 64;
       const fx2 = fc.getContext('2d');
-      const bandas = [['#e2231a', '#ffd400'], ['#0b6b3a', '#f2f2f2'], ['#1b5f9e', '#ffd400']];
+      // PALETA: o par azul-cobalto + amarelo saiu. Num mapa de favela carioca ele lia como
+      // BANDEIRA DA SUÉCIA — campo azul com faixa amarela grossa é leitura imediata, e
+      // fidelidade errada custa mais caro que decoração faltando. Ficam só pares que
+      // existem de fato em bandeirinha de quiosque de cerveja/refri brasileira.
+      const bandas = [['#c8291f', '#f0c22a'], ['#14663c', '#efe9dc'], ['#b81f2a', '#efe9dc'], ['#d99a1c', '#a3231d']];
       const bb = bandas[(Math.abs(x * 7 + z * 3) | 0) % bandas.length];
       fx2.fillStyle = bb[0]; fx2.fillRect(0, 0, 96, 64);
       fx2.fillStyle = bb[1]; fx2.fillRect(0, 26, 96, 12);
       fx2.fillStyle = 'rgba(0,0,0,0.18)'; for (let i = 0; i < 6; i++) fx2.fillRect(i * 16, 0, 4, 64);   // vinco do pano
+      const fgr = fx2.createLinearGradient(0, 0, 96, 0);   // a ponta é sempre a mais queimada de sol
+      fgr.addColorStop(0, 'rgba(252,248,236,0)'); fgr.addColorStop(1, 'rgba(252,248,236,0.3)');
+      fx2.fillStyle = fgr; fx2.fillRect(0, 0, 96, 64);
       const ft = new THREE.CanvasTexture(fc); ft.colorSpace = THREE.SRGBColorSpace;
+      // PIVÔ NO MASTRO: o pano é filho de um grupo ancorado no mastro e deslocado meia
+      // largura pra fora. Antes o plano tinha pivô próprio a 0,7 m de distância e girava
+      // em torno de si mesmo — a bainha descolava e o pano lia como bandeira FLUTUANDO.
+      const pivot = new THREE.Group(); pivot.position.set(mx, 3.7, mz); pivot.rotation.y = 0.25; root.add(pivot);
+      // Standard e não Basic: com Basic o pano ignorava a luz e virava o objeto mais claro
+      // e mais saturado do frame inteiro — sozinho ele estourava o C2 da régua.
       const flag = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 0.9),
-        new THREE.MeshBasicMaterial({ map: ft, side: THREE.DoubleSide }));
-      flag.position.set(x + 2.6, 3.7, z - 0.9); flag.rotation.y = 0.25; root.add(flag);
+        lam({ map: ft, side: THREE.DoubleSide, roughness: 0.88 }));
+      flag.position.set(0.7, 0, 0); flag.castShadow = true; pivot.add(flag);
     }
     if (gprop('quiosque', x, z, 3.0)) { counter.visible = false; return; }   // GLB Mint por cima
     addBox(3.6, 0.26, 2.1, MAT.thatch, x, 2.4, z, { collide: false });
@@ -1713,6 +1851,33 @@ export function buildPoolDay(scene, T) {
   // pistolas perto dos spawns
   for (const s of [-1, 1]) { const z = (HALF_Z - 7) * s; ['deagle', 'pistol', 'pistol', 'deagle'].forEach((k, i) => place(k, [-6, -2, 2, 6][i], z, s > 0 ? Math.PI : 0)); }
   place('awp', -3, nZ + 3, 0); place('ak', 3, nZ + 3, 0); place('m4', -3, sZ - 3, Math.PI); place('shotgun', 3, sZ - 3, Math.PI);
+
+  /* ---------------- SOMBRA DE CONTATO: um InstancedMesh pra tudo ----------------
+     Disco com MultiplyBlending (branco = neutro nas quinas do quad), gradiente forte no
+     centro e queda rápida: é o "gradiente escuro de 5-20 cm sob cada prop apoiado" que a
+     régua chama de defeito nº1 diagnosticável em WebGL. Sem depthWrite pra não brigar com
+     os decals de areia; fog ligado pra a sombra sumir junto com o haze ao longe. */
+  if (CONTACT.length) {
+    const ct = decalTex((x, S) => {
+      const g = x.createRadialGradient(S / 2, S / 2, S * 0.04, S / 2, S / 2, S * 0.5);
+      g.addColorStop(0, 'rgb(104,92,70)'); g.addColorStop(0.38, 'rgb(158,144,116)');
+      g.addColorStop(0.72, 'rgb(226,220,206)'); g.addColorStop(1, 'rgb(255,255,255)');
+      x.fillStyle = g; x.fillRect(0, 0, S, S);
+    });
+    const im = new THREE.InstancedMesh(
+      new THREE.PlaneGeometry(1, 1),
+      new THREE.MeshBasicMaterial({ map: ct, blending: THREE.MultiplyBlending, transparent: true, depthWrite: false }),
+      CONTACT.length);
+    const d = new THREE.Object3D();
+    CONTACT.forEach(([cx2, cz2, r], i) => {
+      // micro-escada em y: dois discos sobrepostos no mesmo plano dão z-fight cintilante
+      d.position.set(cx2, 0.021 + (i % 6) * 0.0009, cz2);
+      d.rotation.set(-Math.PI / 2, 0, (cx2 * 13 + cz2 * 7) % 6.283);
+      d.scale.set(r * 2.1, r * 2.1, 1); d.updateMatrix(); im.setMatrixAt(i, d.matrix);
+    });
+    im.frustumCulled = false;   // bounding sphere de InstancedMesh some com o mapa inteiro
+    root.add(im);
+  }
 
   return {
     root, colliders, occluders, groundHeightAt, slowAt, spawns, sun, hemi, pickups,

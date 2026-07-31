@@ -58,7 +58,10 @@
   --sh-1:0 2px 10px rgba(0,0,0,.45);
   --sh-2:0 10px 34px rgba(0,0,0,.6);
   --sh-text:0 1px 3px rgba(0,0,0,.85);
-  --sh-hud:0 1px 2px rgba(0,0,0,.9),0 0 7px rgba(0,0,0,.5);   /* AA garantido sobre céu claro */
+  /* Contorno, não só sombra: um blur de 2px em preto .95 encosta no glifo e vira a
+     "cor de fundo" real do texto. Sobre areia do Piscinão (L*~78) ou parede branca do
+     awp_map a sombra difusa antiga não movia a agulha — o halo colado move. */
+  --sh-hud:0 0 2px rgba(0,0,0,.95),0 1px 3px rgba(0,0,0,.9),0 0 10px rgba(0,0,0,.55);
   --scrim:rgba(5,8,11,.82);
 
   /* ---- estados ---- */
@@ -68,8 +71,13 @@
   /* ---- movimento: nada acima de 180ms na UI ---- */
   --t-fast:90ms; --t:140ms; --t-slow:180ms; --ease:cubic-bezier(.2,.8,.2,1);
 
-  /* ---- mira: fora do sistema de cor, configurável em CONFIGURAÇÕES ---- */
-  --xhair:#e9f1f3;
+  /* ---- mira: fora do sistema de cor, configurável em CONFIGURAÇÕES ----
+     PADRÃO = CIANO, não branco. Medição na janela 44×42 px em volta da mira:
+     branco #e9f1f3 no awp_map (parede branca) deu 1,28:1 — a mira SOME. O ciano
+     é o único matiz que nenhuma superfície dos 4 mapas ocupa (concreto, areia,
+     ferrugem, asfalto, céu), então ele não compete com o cenário em NENHUM deles.
+     O contorno preto (abaixo) cobre o caso oposto, fundo escuro. */
+  --xhair:#4fe8e0;
 
   /* ---- aliases legados (regras antigas e estilos inline do JS ainda consomem) ---- */
   --red:var(--team-p); --red-dark:#8f1d1d; --green:var(--team-b); --yellow:var(--br-faixa);
@@ -122,16 +130,19 @@ body{font-family:var(--font);font-weight:600;color:var(--ink1)}
 .corner-links{position:absolute;top:18px;right:18px;display:flex;gap:8px;z-index:2}
 .corner-btn{font-family:var(--mono);font-size:11px;letter-spacing:1px;text-decoration:none;
   color:var(--cs);background:rgba(8,14,18,.8);border:1px solid var(--line);padding:7px 11px;clip-path:var(--cut-sm)}
-.corner-btn:hover{border-color:var(--cs);color:#fff}
+.corner-btn:hover,.corner-btn:focus-visible{border-color:var(--cs);color:#fff}
 
 /* ---------- buttons & inputs ---------- */
 .btn{font-family:var(--font);font-weight:700;font-size:var(--fs-400);letter-spacing:var(--tr-3);color:var(--ink-100);cursor:pointer;
   background:var(--bg-700);border:1px solid var(--line);clip-path:var(--cut);
   padding:var(--s-3) var(--s-6);transition:background var(--t) var(--ease),border-color var(--t) var(--ease),color var(--t) var(--ease);
   text-transform:uppercase}
-.btn:hover{background:var(--bg-600);border-color:var(--sys);color:#fff}
+/* Todo estado de hover ganha o gêmeo :focus-visible. Um anel de foco sozinho diz "estou
+   aqui", mas não repete a MESMA leitura do mouse — quem navega no teclado ficava vendo
+   uma UI diferente da que vê quem usa mouse. */
+.btn:hover,.btn:focus-visible{background:var(--bg-600);border-color:var(--sys);color:#fff}
 .btn-big{font-size:var(--fs-600);padding:var(--s-4) var(--s-8);border-color:var(--br-faixa);color:var(--br-faixa)}
-.btn-big:hover{background:var(--br-faixa);color:var(--bg-900)}
+.btn-big:hover,.btn-big:focus-visible{background:var(--br-faixa);color:var(--bg-900)}
 .btn-back{position:absolute;top:26px;left:26px;font-size:13px;padding:9px 20px;z-index:5}
 .menu-buttons{display:flex;flex-direction:column;gap:16px;align-items:center;z-index:1;width:min(760px,95vw)}
 .profile-card{width:100%;background:var(--panel);border:1px solid var(--line);clip-path:var(--cut);
@@ -150,7 +161,7 @@ body{font-family:var(--font);font-weight:600;color:var(--ink1)}
   background:#0a141a;border:1px solid var(--line);color:var(--cs);padding:9px 10px;outline:none;width:100%}
 .social-item input.invalid{border-color:var(--red)!important;animation:shake .3s}
 .social-del{background:transparent;border:1px solid var(--line);color:var(--ink3);cursor:pointer;width:34px;height:34px;font-size:13px}
-.social-del:hover{border-color:var(--red);color:var(--red)}
+.social-del:hover,.social-del:focus-visible{border-color:var(--red);color:var(--red)}
 #nick-input,#social-input,#social-net{font-family:var(--mono);font-size:var(--fs-300);letter-spacing:var(--tr-1);text-align:center;
   background:var(--bg-800);border:1px solid var(--line);color:var(--ink-100);padding:10px 12px;outline:none;width:100%;
   transition:border-color var(--t) var(--ease)}
@@ -180,7 +191,7 @@ body{font-family:var(--font);font-weight:600;color:var(--ink1)}
 .dd-item{display:flex;align-items:center;gap:10px;width:100%;cursor:pointer;text-align:left;
   font-family:var(--mono);font-size:var(--fs-200);letter-spacing:var(--tr-1);color:var(--ink-200);
   background:transparent;border:0;padding:10px 12px;transition:background var(--t) var(--ease),color var(--t) var(--ease)}
-.dd-item:hover{background:var(--bg-600);color:#fff}
+.dd-item:hover,.dd-item:focus-visible{background:var(--bg-600);color:#fff}
 .dd-item svg,.dd-cur svg{flex:0 0 auto}
 .dd-cur{display:flex;align-items:center;gap:10px}
 .map-label{display:flex;flex-direction:column;gap:var(--s-2);font-size:var(--fs-100);font-weight:700;
@@ -189,14 +200,14 @@ body{font-family:var(--font);font-weight:600;color:var(--ink1)}
   background:#0a141a;border:1px solid var(--line);color:var(--cs);padding:10px 12px;outline:none;cursor:pointer;width:100%}
 .btn-ghost{font-family:var(--mono);font-size:12px;letter-spacing:1px;cursor:pointer;width:100%;
   background:transparent;border:1px dashed var(--line);color:var(--ink3);padding:10px}
-.btn-ghost:hover{border-color:var(--cs);color:var(--cs)}
+.btn-ghost:hover,.btn-ghost:focus-visible{border-color:var(--cs);color:var(--cs)}
 #avatar-note{font-size:12px;color:var(--cs);min-height:13px}
 .menu-secondary{display:flex;gap:10px;width:100%}
 .menu-secondary .btn{flex:1;padding:10px 8px;font-size:14px;letter-spacing:1.5px}
 #btn-jogar{font-size:var(--fs-600);padding:15px;letter-spacing:5px;width:100%;position:sticky;bottom:6px;z-index:5;
   border-color:var(--br-faixa);color:var(--br-faixa);background:#141810;
   transition:background var(--t) var(--ease),color var(--t) var(--ease),opacity var(--t) var(--ease)}
-#btn-jogar:hover{background:var(--br-faixa);color:var(--bg-900);border-color:var(--br-faixa)}
+#btn-jogar:hover,#btn-jogar:focus-visible{background:var(--br-faixa);color:var(--bg-900);border-color:var(--br-faixa)}
 /* Sem nick, JOGAR é ESTADO desabilitado — não um shake depois do clique. */
 #btn-jogar[aria-disabled="true"]{opacity:var(--op-disabled);filter:saturate(.25);cursor:not-allowed}
 #btn-jogar[aria-disabled="true"]:hover{background:#141810;color:var(--br-faixa)}
@@ -205,7 +216,7 @@ body{font-family:var(--font);font-weight:600;color:var(--ink1)}
   display:flex;align-items:center;justify-content:center;
   background:rgba(5,8,11,.72);color:var(--ink-300);font-size:var(--fs-400);pointer-events:auto;clip-path:var(--cut-sm);
   transition:color var(--t) var(--ease),border-color var(--t) var(--ease)}
-#hud-actions button:hover{border-color:var(--sys);color:var(--sys)}
+#hud-actions button:hover,#hud-actions button:focus-visible{border-color:var(--sys);color:var(--sys)}
 .set-row input[type=checkbox]{width:18px;height:18px;accent-color:var(--yellow)}
 .rank-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px 26px;font-family:var(--mono);font-size:14px;color:var(--ink2)}
 .rank-stats b{color:var(--yellow);font-size:26px;display:block;text-align:center}
@@ -261,7 +272,7 @@ body{font-family:var(--font);font-weight:600;color:var(--ink1)}
   font-family:var(--font);font-weight:600;font-size:var(--fs-400);letter-spacing:var(--tr-1);
   transition:background var(--t) var(--ease),border-color var(--t) var(--ease),color var(--t) var(--ease)}
 .char-row img{width:52px;height:52px;border:1px solid var(--line);background:var(--bg-700);image-rendering:auto}
-.char-row:hover{background:var(--bg-600);border-color:var(--line-2);color:var(--ink-100)}
+.char-row:hover,.char-row:focus-visible{background:var(--bg-600);border-color:var(--line-2);color:var(--ink-100)}
 /* SELECIONADO: barra interna + fundo, não só uma borda de 1px que somia no hover */
 .char-row.sel,.char-row[aria-selected="true"]{background:#16303a;border-color:var(--sys);color:#fff;
   box-shadow:inset 3px 0 0 var(--sys)}
@@ -295,24 +306,47 @@ body{font-family:var(--font);font-weight:600;color:var(--ink1)}
 
 /* ---------- HUD ---------- */
 #hud{position:fixed;inset:0;z-index:20;pointer-events:none;font-family:var(--font);font-weight:600}
+/* SCRIM DE CANTO DO HUD (CS2/Valorant): em vez de encaixotar cada bloco, escurece-se a
+   ZONA da tela onde o HUD mora. Motivo medido: no Piscinão o "100 HP" fica sobre areia
+   clara e no awp_map o relógio fica sobre parede branca — texto claro sobre fundo claro.
+   z-index:-1 mantém o scrim atrás do conteúdo do próprio #hud (que já é stacking context
+   por causa do z-index:20) e na frente do canvas. Custo: 2 gradientes estáticos, nenhum
+   blur — seguro em quality 'low' e em SwiftShader. Kill-switch: ?ui=legacy. */
+/* Raios/stops calibrados, não chutados: com 42%×34% e .84 → .48 (46%) → 0 (80%), em
+   1600×900 sobre a areia do Piscinão (RGB 214,196,164 = o pior fundo dos 4 mapas) todo
+   texto do canto fica >= 4,7:1. Sem o scrim, "100" dava 1,49:1 e o rótulo "HP" 1,14:1. */
+#hud::before{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;
+  background:
+    radial-gradient(42% 34% at 0% 100%,rgba(5,8,11,.84) 0%,rgba(5,8,11,.48) 46%,rgba(5,8,11,0) 80%),
+    radial-gradient(42% 34% at 100% 100%,rgba(5,8,11,.84) 0%,rgba(5,8,11,.48) 46%,rgba(5,8,11,0) 80%)}
+html[data-ui="legacy"] #hud::before{display:none}
 #radar{position:absolute;top:14px;left:14px;opacity:.92;border-radius:50%;
   box-shadow:0 0 0 1px rgba(120,220,220,.10),0 2px 10px rgba(0,0,0,.45)}
-#radio-log{position:absolute;top:172px;left:14px;font-size:13px;color:var(--cs);text-shadow:0 1px 2px #000}
+#radio-log{position:absolute;top:172px;left:14px;font-size:13px;color:var(--cs);text-shadow:var(--sh-hud)}
 .radio-line{animation:kfFade 4.2s forwards;margin-bottom:2px}
 #radio-menu{position:absolute;top:200px;left:14px;background:rgba(11,17,22,.92);border:1px solid var(--line);padding:10px 16px;min-width:220px}
 .radio-title{color:var(--yellow);font-size:12px;letter-spacing:2px;margin-bottom:6px;border-bottom:1px solid var(--line);padding-bottom:4px}
 .radio-item{color:var(--cs);font-size:14px;padding:2px 0}
 /* Mira: FORA do sistema de cor (não é "sistema", nem "objetivo", nem "crítico").
-   Branco por padrão com contorno preto — legível em céu claro e em sombra —,
-   e a cor é escolhida pelo jogador em CONFIGURAÇÕES (var --xhair no <html>).
-   O gap (--ch) é escrito pelo game.js a cada frame = spread dinâmico real. */
+   CIANO por padrão (ver --xhair), e a cor é escolhida pelo jogador em CONFIGURAÇÕES.
+   O gap (--ch) é escrito pelo game.js a cada frame = spread dinâmico real.
+
+   CONTORNO ADAPTATIVO em duas camadas, sem shader e sem ler pixel:
+     miolo claro/saturado  -> resolve fundo ESCURO;
+     anel preto de 1,5px colado (sem blur) -> resolve fundo CLARO;
+     halo preto difuso de 6px -> resolve fundo de MÉDIO tom e ruidoso (mato, sucata).
+   Como as três camadas são concêntricas, sempre existe uma aresta de ΔL* alto entre a
+   mira e o que estiver atrás dela, qualquer que seja o fundo. Era 1px .85 — o anel fino
+   sumia no antialias em 1600×900 e o ganho medido não cobria a parede branca. */
 #crosshair{position:absolute;left:50%;top:50%;width:0;height:0;--ch:6px}
-#crosshair i{position:absolute;background:var(--xhair);box-shadow:0 0 0 1px rgba(0,0,0,.85),0 0 5px rgba(0,0,0,.6)}   /* contorno escuro = visível em fundo claro (reclamação do dono) */
+#crosshair i{position:absolute;background:var(--xhair);
+  box-shadow:0 0 0 1.5px rgba(0,0,0,.92),0 0 6px rgba(0,0,0,.6)}
 #crosshair i:nth-child(1){left:-1px;top:calc(-9px - var(--ch));width:2px;height:9px}
 #crosshair i:nth-child(2){left:-1px;top:var(--ch);width:2px;height:9px}
 #crosshair i:nth-child(3){left:calc(-9px - var(--ch));top:-1px;width:9px;height:2px}
 #crosshair i:nth-child(4){left:var(--ch);top:-1px;width:9px;height:2px}
-#crosshair b{position:absolute;left:-1px;top:-1px;width:2px;height:2px;background:var(--xhair);box-shadow:0 0 0 1px rgba(0,0,0,.85)}
+#crosshair b{position:absolute;left:-1px;top:-1px;width:2px;height:2px;background:var(--xhair);
+  box-shadow:0 0 0 1.5px rgba(0,0,0,.92),0 0 5px rgba(0,0,0,.55)}
 /* ADS de rifle (R7.6): variante fina de precisão — braços 1px mais longos, gap mínimo */
 #crosshair.prec i:nth-child(1),#crosshair.prec i:nth-child(2){left:-.5px;width:1px;height:12px}
 #crosshair.prec i:nth-child(1){top:calc(-12px - var(--ch))}
@@ -374,13 +408,21 @@ body{font-family:var(--font);font-weight:600;color:var(--ink1)}
    não tinha line-height, então o Rajdhani em `normal` (~1.55em) empurrava o
    bloco pra ~80px enquanto #ctf-hud estava fixo em 62px — e o valor mudava se
    a fonte caísse pro Arial Narrow. Agora cada linha tem line-height fixo e a
-   soma é conferível: 14 (top) + 32 + 5 + 15.6 ≈ 67px → CTF em 76px. */
+   soma é conferível: 14 (top) + 32 + 5 + 15.6 ≈ 67px → CTF em 76px.
+   ATUALIZAÇÃO: #hud-mid ganhou uma plaquinha (padding 1px em cima + 2px embaixo),
+   então a soma vira 14 + 1 + 32 + 5 + 15.6 + 2 ≈ 70px — ainda 6px acima do CTF
+   em 76px. Se alguém aumentar esse padding, o topo do #ctf-hud tem que subir junto. */
 #hud-top{position:absolute;top:14px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:var(--s-5)}
 .team-score{font-size:var(--fs-300);font-weight:700;letter-spacing:var(--tr-2);line-height:var(--lh-snug);
   padding:var(--s-1) var(--s-3);background:rgba(5,8,11,.72);clip-path:var(--cut-sm);text-shadow:var(--sh-hud)}
 .ts-p{color:#ff9a9a;border:1px solid var(--team-p);border-left-width:3px}
 .ts-b{color:#a9f0b6;border:1px solid var(--team-b);border-right-width:3px}
-#hud-mid{text-align:center}
+/* Plaquinha do bloco central: MESMO tratamento das .team-score (rgba .72 + chanfro), então
+   o topo do HUD lê como uma família só. Sem ela, "1:39" (branco) sobre a parede branca do
+   awp_map dava ~1,1:1 — e o scrim de canto não alcança o centro do topo.
+   Padding só 1px/2px na vertical: a altura do bloco entra na soma documentada acima. */
+#hud-mid{text-align:center;padding:1px var(--s-3) 2px;background:rgba(5,8,11,.72);clip-path:var(--cut-sm)}
+html[data-ui="legacy"] #hud-mid{padding:0;background:none;clip-path:none}
 #round-time{font-size:var(--fs-700);line-height:var(--lh-tight);font-weight:700;color:var(--ink-100);
   font-family:var(--font);font-variant-numeric:tabular-nums;text-shadow:var(--sh-hud)}
 #round-time.ctf{font-size:var(--fs-300);letter-spacing:var(--tr-3);color:var(--am)}   /* CTF: o timer não é a informação — não pode ser o maior tipo do topo */
@@ -421,22 +463,25 @@ body{font-family:var(--font);font-weight:600;color:var(--ink1)}
 #hp-num{font-size:var(--fs-800);line-height:var(--lh-tight);font-weight:700;color:var(--ink-100);
   font-family:var(--font);font-variant-numeric:tabular-nums;text-shadow:var(--sh-hud);
   transition:color var(--t-fast)}
+/* Rótulos pequenos do HUD subiram de --ink-300 (5,5:1 só sobre --bg-800) para --ink-200
+   (10,8:1): sobre a areia clara do Piscinão o ink-300 caía abaixo de AA e nenhum scrim
+   de canto salva 12px de texto. A hierarquia continua vindo do TAMANHO (44px × 12px). */
 #hp-num::after{content:'HP';display:inline-block;margin-left:6px;font-size:var(--fs-100);
-  letter-spacing:var(--tr-2);color:var(--ink-300);vertical-align:.32em}   /* rótulo: o número sozinho não diz o que é */
+  letter-spacing:var(--tr-2);color:var(--ink-200);vertical-align:.32em}   /* rótulo: o número sozinho não diz o que é */
 #hp-num.low{color:var(--crit)}
 #hp-bar{width:200px;height:6px;background:rgba(5,8,11,.8);border:1px solid var(--line);overflow:hidden;margin-top:var(--s-1);clip-path:var(--cut-sm)}
 #hp-fill{height:100%;width:100%;background:var(--ink-100);transition:width var(--t),background var(--t-fast)}
 #hp-fill.low{background:var(--crit)}
 #hud-bottom-right{position:absolute;right:26px;bottom:20px;text-align:right}
-#weapon-name{font-size:var(--fs-200);font-weight:700;letter-spacing:var(--tr-2);color:var(--ink-300);
+#weapon-name{font-size:var(--fs-200);font-weight:700;letter-spacing:var(--tr-2);color:var(--ink-200);
   margin-bottom:var(--s-1);text-transform:uppercase;text-shadow:var(--sh-hud)}
 #ammo{font-size:var(--fs-800);line-height:var(--lh-tight);font-weight:700;color:var(--ink-100);
   font-family:var(--font);font-variant-numeric:tabular-nums;text-shadow:var(--sh-hud)}
 #ammo-mag{transition:color var(--t-fast)}
 #ammo-mag.empty{color:var(--crit)}
 .ammo-sep{color:var(--ink-400);margin:0 var(--s-2);font-size:var(--fs-600)}
-#ammo-reserve{font-size:var(--fs-600);color:var(--ink-300)}
-#smoke-count{font-size:var(--fs-200);color:var(--ink-300);letter-spacing:var(--tr-1);text-shadow:var(--sh-hud)}
+#ammo-reserve{font-size:var(--fs-600);color:var(--ink-200)}
+#smoke-count{font-size:var(--fs-200);color:var(--ink-200);letter-spacing:var(--tr-1);text-shadow:var(--sh-hud)}
 #reload-note{font-size:var(--fs-200);font-weight:700;letter-spacing:var(--tr-2);color:var(--am);animation:blink .5s steps(2) infinite}
 @keyframes blink{50%{opacity:.25}}
 #round-banner{position:absolute;left:0;right:0;top:30%;text-align:center;
@@ -504,7 +549,7 @@ body{font-family:var(--font);font-weight:600;color:var(--ink1)}
   background:var(--bg-800);border:1px solid var(--line);color:var(--ink-200);height:40px;
   display:flex;align-items:center;justify-content:center;padding:0;clip-path:var(--cut-sm);
   transition:background var(--t) var(--ease),border-color var(--t) var(--ease),color var(--t) var(--ease)}
-.map-arrow:hover{border-color:var(--sys);color:#fff;background:var(--bg-600)}
+.map-arrow:hover,.map-arrow:focus-visible{border-color:var(--sys);color:#fff;background:var(--bg-600)}
 .map-arrow:active{transform:translateY(1px)}
 
 #bots-select,#diff-select{font-family:var(--mono);font-size:var(--fs-200);letter-spacing:var(--tr-1);text-align:center;
@@ -522,20 +567,45 @@ body{font-family:var(--font);font-weight:600;color:var(--ink1)}
 #main-menu.cs-screen{display:block;padding:0;gap:0;overflow:hidden}
 .cs-wallpaper{position:absolute;inset:0;z-index:0;background:#05090c center/cover no-repeat}
 /* Scrim que NASCE na borda da tela e morre em nada (CS2/Valorant). O texto passa a
-   depender do scrim, não de um card — por isso o painel de nav pode perder a caixa. */
+   depender do scrim, não de um card — por isso o painel de nav pode perder a caixa.
+
+   CORREÇÃO R2: o scrim horizontal era `linear-gradient(90deg, .74 -> 0 48%)`, ou seja,
+   cobria a COLUNA ESQUERDA INTEIRA, de cima a baixo. Só que o logo do jogo está pintado
+   no canto SUPERIOR esquerdo do wallpaper — medido na caixa (60,30)-(520,360) do
+   menu-01-main.png: -38% de brilho e -23% de saturação contra a baseline. O scrim
+   apagava a própria marca.
+   Agora ele é uma ELIPSE ancorada no canto INFERIOR esquerdo, onde a lista de fato mora.
+   Conferência geométrica em 1600×900: o ponto mais próximo do logo (60,360) fica a
+   r = 0,81 do centro da elipse (raios 120%W × 74%H) — além do stop de 76%, logo alpha 0.
+   O logo volta intacto e a lista continua com fundo. */
 .cs-vignette{position:absolute;inset:0;z-index:1;pointer-events:none;
   background:
     linear-gradient(0deg,rgba(5,8,11,.88) 0%,rgba(5,8,11,0) 42%),
-    linear-gradient(90deg,rgba(5,8,11,.74) 0%,rgba(5,8,11,0) 48%),
+    radial-gradient(120% 74% at 0% 100%,rgba(5,8,11,.64) 0%,rgba(5,8,11,.36) 44%,rgba(5,8,11,0) 76%),
     var(--lambe)}                                   /* textura de lambe-lambe: 1px de papel, quase subliminar */
+/* kill-switch ?ui=legacy: volta o scrim da rodada 1 (caso a elipse regrida em algum wallpaper) */
+html[data-ui="legacy"] .cs-vignette{
+  background:
+    linear-gradient(0deg,rgba(5,8,11,.88) 0%,rgba(5,8,11,0) 42%),
+    linear-gradient(90deg,rgba(5,8,11,.74) 0%,rgba(5,8,11,0) 48%),
+    var(--lambe)}
 .cs-left{position:absolute;z-index:3;left:min(4vw,64px);bottom:6vh;
   display:flex;flex-direction:column;align-items:flex-start;gap:var(--s-3);max-width:52vw}
 /* Trilho de acento no lugar do retângulo cinza: caixa FECHADA sobre foto lê como
    "widget colado". Sem border nos 4 lados, gradiente termina em 0 (não em .25, que
-   criava uma aresta dura de opacidade no lado direito). */
+   criava uma aresta dura de opacidade no lado direito).
+
+   CORREÇÃO R2: o gradiente ia de .70 (55%) direto a 0 (100%), mas a caixa de texto útil
+   vai até ~88% da largura (460 - 64 de padding-right). Resultado: "CAPTURE THE FLAG" e
+   "CONFIGURAÇÕES" terminavam com alpha ~0,25 em cima do capacete do alien do wallpaper —
+   sem fundo garantido. Agora o piso só começa a cair depois de 86%, ou seja, DEPOIS do
+   fim do texto. Com alpha .60 sob o glifo mais claro do wallpaper (amarelo do canarinho,
+   L~200) o contraste do --ink-200 fica ~4,9:1 = AA. A borda direita continua morrendo em
+   0, então não volta a ser um retângulo. */
 .cs-menu{position:relative;display:flex;flex-direction:column;gap:var(--s-1);width:min(460px,90vw);
   padding:var(--s-4) var(--s-8) var(--s-4) var(--s-4);border:0;
-  background:linear-gradient(90deg,rgba(5,8,11,.90) 0%,rgba(5,8,11,.70) 55%,rgba(5,8,11,0) 100%)}
+  background:linear-gradient(90deg,rgba(5,8,11,.92) 0%,rgba(5,8,11,.86) 60%,
+             rgba(5,8,11,.60) 86%,rgba(5,8,11,0) 100%)}
 /* único elemento com aresta = o trilho. Faixa amarelo/preto de sinaleiro de rua:
    é a identidade BR entrando por linguagem visual de via pública, não por bandeirinha. */
 .cs-menu::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--hazard)}
@@ -571,8 +641,23 @@ body{font-family:var(--font);font-weight:600;color:var(--ink1)}
 /* painel de setup (perfil + partida), desliza da direita sobre o wallpaper */
 /* painel de setup: SUBSTITUI o menu principal (a nav esmaece) e fica docado à direita,
    em altura cheia — pedido do dono ("o menu do jogo substitui o principal, tudo à direita") */
-.cs-left{transition:opacity .22s,transform .22s}
-#main-menu:has(.cs-setup.open) .cs-left{opacity:0;pointer-events:none;transform:translateX(-18px)}
+.cs-left{transition:opacity .22s,transform .22s,filter .22s}
+/* ARMADILHA CONSERTADA (R2). Antes: `opacity:0;pointer-events:none` na nav inteira quando
+   o setup abria. Consequência real, não teórica — depois de clicar em SINGLE PLAYER, os
+   outros 5 itens continuavam OCUPANDO a tela (opacity 0 não tira do layout) mas nenhum
+   clique chegava neles; a única saída era o botão VOLTAR. Foi exatamente isso que fez o
+   harness estourar 6 s em ctf/config/ranking/sobre e passar só em 'sp'.
+   E não havia motivo de layout: o painel de setup ocupa x >= 900px em 1600 (min(700px,62vw)
+   ancorado à direita) e a nav termina em ~896px — os dois NUNCA se sobrepõem.
+   Agora a nav RECUA (é o painel que tem o foco visual, como o dono pediu) mas continua
+   viva: dá pra pular de SINGLE PLAYER pra CAPTURE THE FLAG num clique, como em CS2.
+   O item de origem fica em destaque total por causa do [aria-current]. */
+#main-menu:has(.cs-setup.open) .cs-left{opacity:.40;filter:saturate(.5)}
+/* mouse ou foco de teclado na coluna = ela acorda inteira (opacidade é herdada pelo
+   subtree, então o estado tem que morar no container, não em cada .cs-item) */
+#main-menu:has(.cs-setup.open) .cs-left:hover,
+#main-menu:has(.cs-setup.open) .cs-left:focus-within{opacity:1;filter:none}
+#main-menu:has(.cs-setup.open) .cs-left .footnote{opacity:0}   /* só o texto legal some de vez */
 .cs-setup{position:absolute;z-index:4;right:0;top:0;bottom:0;width:min(700px,62vw);
   display:flex;flex-direction:column;justify-content:center;
   padding:42px min(4vw,56px) 42px 30px;overflow-y:auto;

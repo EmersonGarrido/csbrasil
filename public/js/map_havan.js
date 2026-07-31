@@ -185,36 +185,74 @@ function caneluraTex() {
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
   t.wrapS = t.wrapT = THREE.RepeatWrapping; return t;
 }
-// MURO do estacionamento (crítico: "paredão cinza liso"): bloco de concreto pintado,
-// juntas horizontais/verticais, encardido de chuva embaixo e faixa azul Havan no topo.
-function muroTex(rx, seed0) {
-  const S = 256, c = document.createElement('canvas'); c.width = c.height = S; const x = c.getContext('2d');
+/* ===== MURO DO ESTACIONAMENTO — reescrito (B1 / B5 / B6) =====
+   MEDIÇÃO DA R1: 77,8% dos blocos 16×16 do frame com desvio-padrão de L* < 2. O muro
+   ganhou blocos e faixa azul na rodada 1, mas continuava chapado. Três causas, todas de
+   calibração e não de conteúdo:
+     (a) ESCALA. `repeat.set(19, 1)` sobre uma parede de 78 × 3 m dava um tile de
+         4,1 × 3,0 m; o "bloco" desenhado tinha ~1,0 m de largura, quando o bloco de
+         concreto real tem 39 × 19 cm. Sem a frequência certa, junta nenhuma aparece.
+     (b) AMPLITUDE. A variação por bloco estava em alpha 0,05–0,14 sobre um fundo quase
+         branco — depois do ACES vira ruído abaixo do quantum de 8 bits.
+     (c) AUSÊNCIA DE MICRO-DETALHE. Sem agregado, sem relevo, sem dano: nada acontece
+         entre 1 cm e 40 cm, que é exatamente a banda que o B5 mede.
+   AGORA: tile de 2,0 × 1,0 m em 512×256 = **256 px/m** nos dois eixos (alvo de playspace
+   do BAR §1.8), 5 × 5 blocos de 40 × 20 cm com junta rebaixada e lábio claro (o mesmo
+   canvas serve de bumpMap), tom por bloco com amplitude de verdade, agregado fino,
+   eflorescência, escorrimento a partir das juntas e lascas de batida de carrinho.
+   A FAIXA AZUL saiu daqui: com repeat.y = 3 ela apareceria três vezes na altura do muro
+   — virou geometria (ver o bloco do estacionamento). O encardido da base também saiu,
+   pelo mesmo motivo, e virou AO de vértice na geometria do muro. */
+function muroTex(seed0) {
+  const W = 512, H = 256, c = document.createElement('canvas'); c.width = W; c.height = H;
+  const x = c.getContext('2d');
   let seed = seed0 || 3; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
-  x.fillStyle = '#e7e3d8'; x.fillRect(0, 0, S, S);
-  const rows = 8, rh = S / rows;
-  for (let r = 0; r < rows; r++) {                  // blocos 40cm com meia-junta alternada
-    for (let i = -1; i < 4; i++) {
-      x.globalAlpha = 0.05 + rnd() * 0.09; x.fillStyle = rnd() > 0.5 ? '#d3cfc2' : '#f5f2e9';
-      x.fillRect(i * 64 + (r % 2) * 32, r * rh, 64, rh);
+  x.fillStyle = '#b4b0a2'; x.fillRect(0, 0, W, H);                     // argamassa no fundo da junta
+  const COLS = 5, ROWS = 5, bw = W / COLS, bh = H / ROWS, j = 3;
+  for (let r = 0; r < ROWS; r++) {
+    const off = (r % 2) * bw * 0.5;                                     // meia-junta alternada
+    for (let i = -1; i <= COLS; i++) {
+      const bx = i * bw + off, by = r * bh;
+      // tom por bloco: bloco pintado nunca sai igual ao vizinho — é daqui que vem o
+      // desvio-padrão de L* ≥ 6 que o B1 cobra
+      const v = 0.84 + rnd() * 0.30, warm = rnd() * 14;
+      x.fillStyle = `rgb(${Math.min(255, 226 * v) | 0},${Math.min(255, 221 * v - warm * 0.25) | 0},${Math.min(255, 205 * v - warm) | 0})`;
+      x.fillRect(bx + j, by + j, bw - j * 2, bh - j * 2);
+      // lábio claro em cima + sombra embaixo/direita = relevo de junta rebaixada.
+      // Como o mesmo canvas entra como bumpMap, isso vira relevo de verdade no shader.
+      x.fillStyle = 'rgba(255,255,252,0.34)'; x.fillRect(bx + j, by + j, bw - j * 2, 2);
+      x.fillStyle = 'rgba(88,84,74,0.36)'; x.fillRect(bx + j, by + bh - j - 2.5, bw - j * 2, 2.5);
+      x.fillStyle = 'rgba(88,84,74,0.24)'; x.fillRect(bx + bw - j - 2, by + j, 2, bh - j * 2);
+      if (rnd() > 0.88) {                                               // lasca de batida (carrinho/caçamba)
+        x.fillStyle = 'rgba(146,140,126,0.92)';
+        const cw = 6 + rnd() * 14, ch = 4 + rnd() * 8;
+        x.fillRect(bx + (rnd() > 0.5 ? bw - j - cw : j), by + bh - j - ch, cw, ch);
+      }
     }
   }
-  x.globalAlpha = 1; x.strokeStyle = 'rgba(160,156,144,0.7)'; x.lineWidth = 1;
-  for (let r = 0; r <= rows; r++) { x.beginPath(); x.moveTo(0, r * rh); x.lineTo(S, r * rh); x.stroke(); }
-  for (let r = 0; r < rows; r++) for (let i = -1; i < 4; i++) {
-    const px = i * 64 + (r % 2) * 32; x.beginPath(); x.moveTo(px, r * rh); x.lineTo(px, (r + 1) * rh); x.stroke();
+  // AGREGADO fino do bloco de concreto: é o que existe na escala de centímetros (B5)
+  for (let i = 0; i < 8000; i++) {
+    const v = rnd();
+    x.fillStyle = v > 0.62 ? 'rgba(255,253,246,0.30)' : v > 0.31 ? 'rgba(116,112,100,0.26)' : 'rgba(174,168,154,0.22)';
+    x.fillRect(rnd() * W, rnd() * H, 1, rnd() > 0.87 ? 2 : 1);
   }
-  x.fillStyle = '#2f3a8c'; x.fillRect(0, 0, S, rh * 0.9);              // faixa azul Havan no topo
-  x.fillStyle = '#f4c020'; x.fillRect(0, rh * 0.9, S, 4);              // filete amarelo
-  const g = x.createLinearGradient(0, S * 0.62, 0, S);                 // encardido/limo na base
-  g.addColorStop(0, 'rgba(96,100,86,0)'); g.addColorStop(1, 'rgba(78,84,68,0.5)');
-  x.fillStyle = g; x.fillRect(0, S * 0.62, S, S * 0.38);
-  for (let i = 0; i < 20; i++) {                                        // escorrimento vertical
-    x.globalAlpha = 0.06 + rnd() * 0.1; x.fillStyle = '#8d8f7e';
-    const px = rnd() * S; x.fillRect(px, rh, 1 + rnd() * 4, S * (0.3 + rnd() * 0.6));
+  // EFLORESCÊNCIA (salitre branco) e mancha de umidade: manchas grandes sem contorno
+  for (let i = 0; i < 24; i++) {
+    const px = rnd() * W, py = rnd() * H, r = 20 + rnd() * 62;
+    const g = x.createRadialGradient(px, py, 0, px, py, r);
+    g.addColorStop(0, rnd() > 0.45 ? 'rgba(255,254,250,0.28)' : 'rgba(118,120,100,0.26)');
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    x.fillStyle = g; x.beginPath(); x.arc(px, py, r, 0, 6.3); x.fill();
   }
-  x.globalAlpha = 1;
+  // ESCORRIMENTO DE CHUVA: sempre nasce numa junta horizontal e sempre desce
+  for (let i = 0; i < 28; i++) {
+    const px = rnd() * W, py = ((rnd() * ROWS) | 0) * bh;
+    const g = x.createLinearGradient(0, py, 0, py + 26 + rnd() * 120);
+    g.addColorStop(0, `rgba(102,100,86,${0.14 + rnd() * 0.2})`); g.addColorStop(1, 'rgba(102,100,86,0)');
+    x.fillStyle = g; x.fillRect(px, py, 1 + rnd() * 4, 26 + rnd() * 120);
+  }
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
-  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rx, 1); return t;
+  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 4; return t;
 }
 // TINTA DE DEMARCAÇÃO gasta: faixa branca com falhas (o alpha come pedaços da linha).
 // Usada como plano fino no asfalto em vez de caixinhas cinza chapadas.
@@ -249,6 +287,20 @@ export function buildHavan(scene, T) {
   const colliders = [], occluders = [], pickups = [], doors = [];
   const root = new THREE.Group(); scene.add(root);
   const lam = (o) => new THREE.MeshStandardMaterial({ roughness: 0.9, metalness: 0, ...o });
+  /* ===== TEXTURAS CANVAS COMPARTILHADAS (custo de carga — item 7 da revisão) =====
+     A r1 saiu de 12 para 26 texturas canvas e o mapa estourou o teto de 300 s do harness
+     (268 s → 343 s). Rasterizar canvas debaixo de SwiftShader é caro, e boa parte delas
+     era literalmente a MESMA imagem gerada de novo (muro lateral, pilarete, letreiro das
+     alas, 7 manchas de óleo idênticas, 8 banners que são 4).
+     REGRA daqui pra frente: UM canvas por imagem. Variação de escala/posição vem de
+     `clone()`, que compartilha o `source` — logo é UMA textura na GPU também, e nenhuma
+     rasterização a mais. Nada disso muda o que aparece na tela. */
+  const MURO_TEX = muroTex(3);
+  const REBOCO_TEX = reboco(3, 3);
+  const reTile = (t, rx, rz) => { const c = t.clone(); c.repeat.set(rx, rz); return c; };
+  // repeat calculado pra dar 2,0 × 1,0 m por tile nas duas paredes (= 256 px/m)
+  const muroMap = reTile(MURO_TEX, (2 * HALF_X + 2) / 2, 3);      // fundo: 78 m → 39 tiles
+  const muroSMap = reTile(MURO_TEX, (HALF_Z - -6) / 2, 3);        // laterais: 64 m → 32 tiles
   const MAT = {
     lot: lam({ map: asfaltoTex(13, 11) }),   // v4: asfalto com brita+recape (as "bolhas" sumiram)
     // piso da loja: porcelanato POLIDO — roughness baixa dá o brilho de espelho sob a
@@ -259,10 +311,12 @@ export function buildHavan(scene, T) {
     shelf: lam({ color: 0xb9bec4 }), goods: lam({ color: 0xe07a3a }), rack: lam({ color: 0x3a3f45 }),
     caixa: lam({ color: 0xdfe4e8 }), glass: lam({ color: 0x9fd0e8, transparent: true, opacity: 0.4 }),
     steel: lam({ color: 0x8a9096 }), mez: lam({ color: 0xc7ccd2 }), curb: lam({ color: 0xd8d2c0 }),
-    // muro do estacionamento: era 0xe6e3da CHAPADO = o "paredão cinza liso" da crítica.
-    // Agora bloco de concreto pintado c/ juntas, encardido e faixa azul/amarela Havan.
-    muro: lam({ map: muroTex(19, 3) }),
-    muroS: lam({ map: muroTex(16, 11) }),   // laterais (repeat próprio p/ não esticar a junta)
+    // muro do estacionamento: bloco de concreto pintado na escala real (40 × 20 cm).
+    // O MESMO canvas entra como bumpMap: a junta rebaixada vira relevo no shader sem
+    // custo de textura nova, que é o que dá micro-detalhe a < 2 m da câmera (B5).
+    // vertexColors: o encardido/AO da base vem da geometria (ver bakeMuroAO).
+    muro: lam({ map: muroMap, bumpMap: muroMap, bumpScale: 0.45, roughness: 0.93, vertexColors: true }),
+    muroS: lam({ map: muroSMap, bumpMap: muroSMap, bumpScale: 0.45, roughness: 0.93, vertexColors: true }),
     paintW: new THREE.MeshBasicMaterial({ map: tintaTex('#e8e6dd'), transparent: true, depthWrite: false }),
     paintY: new THREE.MeshBasicMaterial({ map: tintaTex('#e0b028'), transparent: true, depthWrite: false }),
   };
@@ -344,7 +398,7 @@ export function buildHavan(scene, T) {
   // HAVAN azul, 10 colunas (base + fuste + capitel simples) e banners coloridos.
   {
     // reboco branco TEXTURIZADO (era cor chapada = "paredão liso"): mottle + escorrimento
-    const plaster = lam({ map: reboco(3, 3), roughness: 0.85 });
+    const plaster = lam({ map: REBOCO_TEX, roughness: 0.85 });   // canvas de reboco ÚNICO no mapa
     const plasterCol = lam({ map: caneluraTex(), roughness: 0.8 });   // fuste canelado
     const FZ = SF + 0.5;   // face frontal da parede da fachada (z=-5.5)
     // reboco branco por cima do ACM azul (frente da loja + fechos laterais de corredor)
@@ -366,17 +420,25 @@ export function buildHavan(scene, T) {
       ech.position.set(x, 4.61, z); ech.castShadow = true; root.add(ech);
       addBox(1.0, 0.26, 1.0, plaster, x, 4.72, z, { collide: false });                  // ábaco do capitel sob a cornija
     }
-    // BANNERS verticais coloridos pendurados entre as colunas (painéis das fotos)
+    /* BANNERS verticais entre as colunas. Eram 8 canvas de 256×512 pra 4 imagens (o laço
+       de sx repetia os mesmos 4 rótulos). Agora é UM atlas 1024×512 com as 4 tiras lado a
+       lado; cada banner é um clone com repeat 0,25 e offset — mesmo `source`, uma textura
+       na GPU, 1 rasterização em vez de 8. */
     const bannerDefs = [['#2f3a8c', 'OFERTAS'], ['#c8342e', 'ELETRO'], ['#e9a614', 'MERCADO'], ['#2e7d4f', 'MODA']];
+    const bannerAtlas = (() => {
+      const c = document.createElement('canvas'); c.width = 1024; c.height = 512; const x2 = c.getContext('2d');
+      bannerDefs.forEach(([bg, label], i) => {
+        const ox = i * 256;
+        x2.fillStyle = bg; x2.fillRect(ox, 0, 256, 512);
+        x2.fillStyle = 'rgba(255,255,255,0.18)'; x2.fillRect(ox, 0, 256, 36); x2.fillRect(ox, 476, 256, 36);
+        x2.fillStyle = '#ffffff'; x2.textAlign = 'center';
+        x2.save(); x2.translate(ox + 128, 256); x2.rotate(-Math.PI / 2);
+        x2.font = 'bold 76px "Arial Black",Impact,sans-serif'; x2.fillText(label, 0, 27); x2.restore();
+      });
+      const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+    })();
     for (const sx of [-1, 1]) [7.5, 12.5, 17.5, 22.5].forEach((bx, i) => {
-      const [bg, label] = bannerDefs[i % bannerDefs.length];
-      const c = document.createElement('canvas'); c.width = 256; c.height = 512; const x2 = c.getContext('2d');
-      x2.fillStyle = bg; x2.fillRect(0, 0, 256, 512);
-      x2.fillStyle = 'rgba(255,255,255,0.18)'; x2.fillRect(0, 0, 256, 36); x2.fillRect(0, 476, 256, 36);
-      x2.fillStyle = '#ffffff'; x2.textAlign = 'center';
-      x2.save(); x2.translate(128, 256); x2.rotate(-Math.PI / 2);
-      x2.font = 'bold 76px "Arial Black",Impact,sans-serif'; x2.fillText(label, 0, 27); x2.restore();
-      const t2 = new THREE.CanvasTexture(c); t2.colorSpace = THREE.SRGBColorSpace;
+      const t2 = bannerAtlas.clone(); t2.repeat.set(0.25, 1); t2.offset.set(i * 0.25, 0);
       const b = new THREE.Mesh(new THREE.PlaneGeometry(1.9, 2.9),
         new THREE.MeshStandardMaterial({ map: t2, roughness: 0.8, side: THREE.DoubleSide }));
       b.position.set(sx * bx, 3.35, SF + 1.9); b.castShadow = true; root.add(b);
@@ -409,11 +471,14 @@ export function buildHavan(scene, T) {
         : new THREE.MeshStandardMaterial({ map, emissiveMap: map, emissive: 0xffffff, emissiveIntensity: 0.55, roughness: 0.6 });
       const s = new THREE.Mesh(new THREE.BoxGeometry(12, 3.0, 0.35), mat);
       s.position.set(0, 6.85, SF + 1.85); s.castShadow = true; root.add(s);
-      // letreiros menores nas alas laterais (repetição do logo, como na loja real)
-      if (DECO) for (const sx of [-1, 1]) {
-        const m2 = new THREE.Mesh(new THREE.BoxGeometry(7.5, 1.5, 0.25),
-          new THREE.MeshBasicMaterial({ map: letreiroTex('HAVAN', 512, 128) }));
-        m2.position.set(sx * 33, 4.0, SF + 0.72); root.add(m2);
+      // letreiros menores nas alas laterais: um canvas só, o mesmo material nos dois lados
+      // (eram duas rasterizações idênticas do mesmo texto)
+      if (DECO) {
+        const alaMat = new THREE.MeshBasicMaterial({ map: letreiroTex('HAVAN', 512, 128) });
+        for (const sx of [-1, 1]) {
+          const m2 = new THREE.Mesh(new THREE.BoxGeometry(7.5, 1.5, 0.25), alaMat);
+          m2.position.set(sx * 33, 4.0, SF + 0.72); root.add(m2);
+        }
       }
     }
   }
@@ -432,7 +497,16 @@ export function buildHavan(scene, T) {
   }
   // teto (alto, sem colisão) — DoubleSide: antes virado só pra cima = céu aparecendo DENTRO da loja
   { const t = new THREE.Mesh(new THREE.PlaneGeometry(2 * SW, SF - SB), new THREE.MeshStandardMaterial({ map: tileTex('#c7ccd2', '#aab1b8', 6, 8, 5), roughness: 0.9, side: THREE.DoubleSide }));
-    t.rotation.x = -Math.PI / 2; t.position.set(0, 6.2, (SF + SB) / 2); t.receiveShadow = true; root.add(t); }
+    t.rotation.x = -Math.PI / 2; t.position.set(0, 6.2, (SF + SB) / 2); t.receiveShadow = true;
+    /* IDENTIDADE DE INTERIOR (item 9): o teto não estava marcado como castShadow, então o
+       SOL atravessava a laje e iluminava o chão da loja igual ao estacionamento — com a
+       mesma luz nos dois lados não existe "entrei na loja", e as fluorescentes frias que a
+       r1 instalou não tinham contra o que contrastar. Com o teto tapando o sol, o interior
+       passa a ser iluminado SÓ pela fluorescente fria, o porcelanato polido reflete essas
+       calhas e o vão da porta vira um retângulo quente — que é exatamente a leitura que se
+       quer. Custa 1 quad a mais no shadow map. ?teto=0 volta ao comportamento anterior. */
+    if (QP.get('teto') !== '0') t.castShadow = true;
+    root.add(t); }
 
   // PORTA COM SENSOR (2 folhas de vidro no vão; game.js abre ao chegar perto — ver world.doors)
   {
@@ -499,7 +573,10 @@ export function buildHavan(scene, T) {
       const tb = new THREE.Mesh(new THREE.BoxGeometry(2 * SW - 6.4, 0.06, 0.2), tubeMat);
       tb.position.set(0, 5.95, tz); root.add(tb);
     }
-    const pt = new THREE.PointLight(0xcfe0ff, 48, 34, 1.6); pt.position.set(0, 5.4, z); root.add(pt);
+    // +12%: com o teto agora tapando o sol (ver acima), a fluorescente passou a ser a
+    // ÚNICA fonte de dentro — o interior tem que continuar legível pro C1 (silhueta do
+    // inimigo contra a gôndola), não virar caverna.
+    const pt = new THREE.PointLight(0xcfe0ff, 54, 34, 1.6); pt.position.set(0, 5.4, z); root.add(pt);
   }
 
   // FECHA OS CORREDORES LATERAIS (x 28..38 ao longo da loja = "corredores sem sentido"):
@@ -538,20 +615,27 @@ export function buildHavan(scene, T) {
   // de seção + pôsteres de oferta — a fantasia da loja, sem redesenhar o mapa
   {
     addBox(2 * SW - 2, 0.5, 0.1, MAT.trim, 0, 3.85, SB + 0.56, { collide: false });   // faixa amarela
-    const secSign = (title) => {
-      const c = document.createElement('canvas'); c.width = 512; c.height = 128;
+    // LETREIROS DE SEÇÃO: eram 4 canvas de 512×128. Viraram UM atlas 512×512 com as 4
+    // faixas empilhadas; cada placa é um clone com repeat (1, 0,25) e offset em V.
+    // (V do UV cresce pra cima e a linha 0 do canvas é o topo, daí o 0.75 - i*0.25.)
+    const SECOES = [['ELETRO', -19], ['CAMA MESA BANHO', -6], ['MERCADO', 7], ['MODA', 19]];
+    const secAtlas = (() => {
+      const c = document.createElement('canvas'); c.width = 512; c.height = 512;
       const x = c.getContext('2d');
-      x.fillStyle = '#2f3a8c'; x.fillRect(0, 0, 512, 128);
+      x.fillStyle = '#2f3a8c'; x.fillRect(0, 0, 512, 512);
       x.textAlign = 'center'; x.fillStyle = '#f4c020';
-      let px = 56; x.font = `bold ${px}px "Arial Black",Impact,sans-serif`;
-      while (x.measureText(title).width > 466 && px > 24) { px -= 4; x.font = `bold ${px}px "Arial Black",Impact,sans-serif`; }
-      x.fillText(title, 256, 82);
+      SECOES.forEach(([title], i) => {
+        let px = 56; x.font = `bold ${px}px "Arial Black",Impact,sans-serif`;
+        while (x.measureText(title).width > 466 && px > 24) { px -= 4; x.font = `bold ${px}px "Arial Black",Impact,sans-serif`; }
+        x.fillText(title, 256, i * 128 + 82);
+      });
       const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
-    };
-    for (const [t2, x] of [['ELETRO', -19], ['CAMA MESA BANHO', -6], ['MERCADO', 7], ['MODA', 19]]) {
-      const s = new THREE.Mesh(new THREE.PlaneGeometry(10, 1.4), new THREE.MeshBasicMaterial({ map: secSign(t2) }));
+    })();
+    SECOES.forEach(([t2, x], i) => {
+      const tex = secAtlas.clone(); tex.repeat.set(1, 0.25); tex.offset.set(0, 0.75 - i * 0.25);
+      const s = new THREE.Mesh(new THREE.PlaneGeometry(10, 1.4), new THREE.MeshBasicMaterial({ map: tex }));
       s.position.set(x, 2.55, SB + 0.56); root.add(s);
-    }
+    });
     if (T.posters && T.posters.length) for (let i = 0; i < 4; i++) {   // pôsteres de oferta
       const p = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 2.0), lam({ map: T.posters[i % T.posters.length] }));
       p.position.set(-12.5 + i * 8.4, 1.3, SB + 0.56); root.add(p);
@@ -575,28 +659,80 @@ export function buildHavan(scene, T) {
 
   // ===== ESTACIONAMENTO (z ∈ [-6, HALF_Z]) — v2: o dobro de área =====
   const wZ = HALF_Z + 0.5;
-  addBox(2 * HALF_X + 2, 3, 1, MAT.muro, 0, 0, wZ);                 // muro do fundo do estacionamento
-  addBox(1, 3, HALF_Z - SF, MAT.muroS, -(HALF_X + 0.5), 0, (wZ + SF) / 2);
-  addBox(1, 3, HALF_Z - SF, MAT.muroS, (HALF_X + 0.5), 0, (wZ + SF) / 2);
+  /* AO DE VÉRTICE NO MURO (BAR §3.1c e critério A1: "queda monotônica de ΔL* ≥ 8 nos
+     ~15 cm antes da junção parede–chão"). O muro é a superfície que o jogador mais encosta
+     o corpo no mapa e era justamente onde não havia contato nenhum — a parede simplesmente
+     encostava no asfalto sem escurecer. Escurecer os vértices de baixo custa ZERO textura e
+     ZERO draw call, e ainda devolve o encardido de rodapé que tive que tirar da textura
+     (ele repetiria três vezes com repeat.y = 3). */
+  const bakeMuroAO = (geo, h) => {
+    const pos = geo.attributes.position, n = pos.count, col = new Float32Array(n * 3);
+    for (let i = 0; i < n; i++) {
+      const y = pos.getY(i) + h / 2;                                  // 0 = base do muro
+      const k = Math.pow(Math.min(1, y / (h * 0.34)), 0.6);           // só os 34% de baixo
+      // amplitude calibrada pelo A1: entre 0 e 15 cm dá ΔL* ≈ 9 num concreto claro
+      const v = 0.42 + 0.58 * k;
+      col[i * 3] = v; col[i * 3 + 1] = v * 0.99; col[i * 3 + 2] = v * 0.95;   // sombra levemente quente
+    }
+    geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  };
+  // mesmo mesh, mesmo collider e mesmo occluder do addBox — só a geometria é subdividida
+  // em 8 faixas de altura pra o gradiente de AO ter onde interpolar
+  const muroBox = (w, h, d, mat, mx, mz) => {
+    const geo = new THREE.BoxGeometry(w, h, d, 1, 8, 1); bakeMuroAO(geo, h);
+    const m = new THREE.Mesh(geo, mat); m.position.set(mx, h / 2, mz);
+    m.castShadow = m.receiveShadow = true; root.add(m);
+    colliders.push({ minX: mx - w / 2, maxX: mx + w / 2, minY: 0, maxY: h, minZ: mz - d / 2, maxZ: mz + d / 2 });
+    occluders.push(m); return m;
+  };
+  muroBox(2 * HALF_X + 2, 3, 1, MAT.muro, 0, wZ);                   // muro do fundo do estacionamento
+  muroBox(1, 3, HALF_Z - SF, MAT.muroS, -(HALF_X + 0.5), (wZ + SF) / 2);
+  muroBox(1, 3, HALF_Z - SF, MAT.muroS, (HALF_X + 0.5), (wZ + SF) / 2);
+  /* FAIXA AZUL HAVAN + FILETE DOURADO: a r1 acertou em pôr a marca no muro e isso fica.
+     Só saiu da TEXTURA (onde repetiria 3× na altura) e virou geometria — 6 caixas rasas,
+     sem collider, sem cast de sombra, sem textura nenhuma. Sobressai 3 cm da parede, que
+     é como faixa pintada sobre rufo lê de verdade. */
+  {
+    const azul = lam({ color: 0x2f3a8c, roughness: 0.68 });
+    const BY = 2.56, BH = 0.44;   // BY = base da faixa; topo bate exatamente no rufo (y=3)
+    addBox(2 * HALF_X + 2.16, BH, 1.06, azul, 0, BY, wZ, { collide: false, cast: false });
+    addBox(2 * HALF_X + 2.18, 0.08, 1.08, MAT.trim, 0, BY - 0.08, wZ, { collide: false, cast: false });
+    for (const sx of [-1, 1]) {
+      addBox(1.06, BH, HALF_Z - SF, azul, sx * (HALF_X + 0.5), BY, (wZ + SF) / 2, { collide: false, cast: false });
+      addBox(1.08, 0.08, HALF_Z - SF, MAT.trim, sx * (HALF_X + 0.5), BY - 0.08, (wZ + SF) / 2, { collide: false, cast: false });
+    }
+  }
   // RITMO NO MURO (crítico: "paredão liso" — 64m de parede sem nenhuma quebra de massa):
   // pilaretes salientes a cada 8m + rufo de coroamento. Tudo collide:false: a caixa de
   // colisão do muro continua exatamente a mesma, só a silhueta melhora.
   if (DECO) {
-    const cap = lam({ color: 0xbdb9ab, roughness: 0.85 });
-    // pilarete usa reboco (não a textura de bloco do muro): numa face de 0.9m o repeat 19
-    // do muro viraria mosaico de formiguinha
-    const pil = lam({ map: reboco(1, 2), roughness: 0.87 });
+    // rufo de coroamento: era `color` chapado numa faixa de 78 m. Ganha o reboco (clone da
+    // MESMA imagem, nenhum canvas novo) pra não virar mais uma barra lisa no topo do frame.
+    const cap = lam({ map: reTile(REBOCO_TEX, 26, 1), color: 0xd2cdbd, roughness: 0.85 });
+    /* PILARETE — este é o "coluna cinza solta no meio do estacionamento" do relatório:
+       `reboco(1,2)` numa face de 0,9 m dá uma mancha branca praticamente uniforme, e como
+       o reboco (#f7f4ec) é bem MAIS CLARO que o bloco do muro, ele lia como uma peça de
+       outro material largada ali — geometria órfã.
+       Correção: é a MESMA alvenaria do muro (clone da textura, repeat calculado pra o
+       bloco sair em 40 × 20 cm também numa face de 0,9 m), com um capitel que avança e um
+       plinto na base. Vira pilastra do muro, que é o que ela sempre quis ser. */
+    const pil = lam({ map: reTile(MURO_TEX, 0.45, 3.1), bumpMap: reTile(MURO_TEX, 0.45, 3.1), bumpScale: 0.4, roughness: 0.93 });
     addBox(2 * HALF_X + 2.4, 0.22, 1.4, cap, 0, 3, wZ, { collide: false });
     for (const sx of [-1, 1]) addBox(1.4, 0.22, HALF_Z - SF, cap, sx * (HALF_X + 0.5), 3, (wZ + SF) / 2, { collide: false });
     // passo maior em quality low: metade dos pilaretes, mesma leitura, metade dos draw calls
     const PSTEP = DECO_HI ? 8 : 16;
+    // capitel EM CIMA + plinto EMBAIXO: sem a base, a pilastra "flutua" (critério A2 —
+    // todo objeto apoiado precisa de escurecimento encostado no chão) e volta a ler como
+    // peça solta. O plinto é o mesmo concreto do rufo, 20 cm mais largo que o fuste.
     for (let pz = SF + 4; pz < wZ; pz += PSTEP) for (const sx of [-1, 1]) {
       addBox(0.5, 3.1, 0.9, pil, sx * (HALF_X - 0.1), 0, pz, { collide: false });
       addBox(0.75, 0.18, 1.15, cap, sx * (HALF_X - 0.1), 3.1, pz, { collide: false });
+      addBox(0.66, 0.3, 1.06, cap, sx * (HALF_X - 0.1), 0, pz, { collide: false, cast: false });
     }
     for (let px = -HALF_X + 4; px <= HALF_X - 4; px += PSTEP) {
       addBox(0.9, 3.1, 0.5, pil, px, 0, wZ - 0.4, { collide: false });
       addBox(1.15, 0.18, 0.75, cap, px, 3.1, wZ - 0.4, { collide: false });
+      addBox(1.06, 0.3, 0.66, cap, px, 0, wZ - 0.4, { collide: false, cast: false });
     }
   }
   // Estátua da Liberdade (centro do estacionamento — bandeira + marco).
@@ -657,16 +793,20 @@ export function buildHavan(scene, T) {
     const zm = lam({ map: zebra, roughness: 0.85 });
     for (const bz of [23, 41]) addBox(19, 0.1, 0.75, zm, 0, 0, bz, { collide: false, cast: false });
   }
-  // manchas de óleo: gradiente radial (a borda dura do CircleGeometry lia como "adesivo")
-  for (const [x, z, r, sd] of [[-14, 26, 1.9, 1], [8, 40, 1.3, 2], [22, 16, 2.1, 3], [-26, 46, 1.5, 4], [4, 8, 1.2, 5], [-19, 12, 1.6, 6], [30, 38, 1.4, 7]]) {
+  // manchas de óleo: gradiente radial (a borda dura do CircleGeometry lia como "adesivo").
+  // As 7 manchas eram 7 canvas com EXATAMENTE o mesmo gradiente — agora um material só;
+  // a variação já vinha do tamanho e da rotação do plano, não da imagem.
+  {
     const S = 64, c = document.createElement('canvas'); c.width = c.height = S; const cx = c.getContext('2d');
     const g = cx.createRadialGradient(S / 2, S / 2, 0, S / 2, S / 2, S / 2);
     g.addColorStop(0, 'rgba(14,15,18,0.85)'); g.addColorStop(0.55, 'rgba(20,22,26,0.45)'); g.addColorStop(1, 'rgba(20,22,26,0)');
     cx.fillStyle = g; cx.fillRect(0, 0, S, S);
     const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
-    const p = new THREE.Mesh(new THREE.PlaneGeometry(r * 2, r * 2 * (0.7 + (sd % 3) * 0.15)),
-      new THREE.MeshBasicMaterial({ map: t, transparent: true, depthWrite: false }));
-    p.rotation.x = -Math.PI / 2; p.rotation.z = sd; p.position.set(x, 0.016, z); p.renderOrder = 1; root.add(p);
+    const oilMat = new THREE.MeshBasicMaterial({ map: t, transparent: true, depthWrite: false });
+    for (const [x, z, r, sd] of [[-14, 26, 1.9, 1], [8, 40, 1.3, 2], [22, 16, 2.1, 3], [-26, 46, 1.5, 4], [4, 8, 1.2, 5], [-19, 12, 1.6, 6], [30, 38, 1.4, 7]]) {
+      const p = new THREE.Mesh(new THREE.PlaneGeometry(r * 2, r * 2 * (0.7 + (sd % 3) * 0.15)), oilMat);
+      p.rotation.x = -Math.PI / 2; p.rotation.z = sd; p.position.set(x, 0.016, z); p.renderOrder = 1; root.add(p);
+    }
   }
   // CARRINHOS DE COMPRAS espalhados + baia de devolução (a assinatura de estacionamento
   // de loja: carrinho abandonado atravessado na vaga)
@@ -766,8 +906,16 @@ export function buildHavan(scene, T) {
   // + rebote do asfalto quente vindo de baixo, contra a fluorescente FRIA lá dentro.
   scene.background = T.sky || new THREE.Color(0x9fb8cc);
   if (QP.get('nofog') !== '1') scene.fog = new THREE.Fog(0xb9c8d2, 85, 210);   // haze de calor, não névoa
-  const hemi = new THREE.HemisphereLight(0xcfe0f5, 0x6d6455, 1.15); scene.add(hemi);
-  const sun = new THREE.DirectionalLight(0xfff0d2, 1.65); sun.position.set(18, 55, 20); sun.castShadow = true;
+  /* RAZÃO SOL/HEMI (item 8 da revisão; alvo: ΔL* sol↔sombra ≥ 26 no asfalto).
+     Estava sol 1,65 / hemi 1,15 — razão 1,43. Com o sol quase a pino (elevação ~65°, ou
+     seja N·L ≈ 0,90 no chão), o asfalto iluminado ficava só ~3,1× a sombra, que depois do
+     ACES vira ΔL* na casa dos 20: sombra "lavada", o mapa inteiro num degrau de valor só.
+     Agora 2,02 / 0,82 → razão 2,46 e ~4,9× de contraste no chão, que cai perto de ΔL* 30.
+     O hemi NÃO vai a zero de propósito: o A3 proíbe sombra chapada em preto, e a sombra
+     precisa continuar azulada (A6) — ela ainda recebe hemi + o IBL do PMREM do game.js.
+     Meio-dia de cidade média brasileira é exatamente isto: sombra curta, dura e legível. */
+  const hemi = new THREE.HemisphereLight(0xcfe0f5, 0x6d6455, 0.82); scene.add(hemi);
+  const sun = new THREE.DirectionalLight(0xfff0d2, 2.02); sun.position.set(18, 55, 20); sun.castShadow = true;
   sun.shadow.mapSize.set(_q === 'low' ? 1024 : 2048, _q === 'low' ? 1024 : 2048); sun.shadow.camera.left = -60; sun.shadow.camera.right = 60; sun.shadow.camera.top = 60; sun.shadow.camera.bottom = -60; sun.shadow.camera.far = 200; sun.shadow.bias = -0.0004;
   scene.add(sun);
 

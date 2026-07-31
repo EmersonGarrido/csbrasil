@@ -184,6 +184,20 @@ const RUST_STAGE = [
 // tinta calcinada: vermelho→rosa-salmão, azul→cinza-azulado leitoso, amarelo/verde/bege gizados
 const PAINT_DEAD = ['#c98d84', '#93a5ae', '#c3ab63', '#8ea38a', '#bfae9d', '#b06e63'];
 
+/* HASH DE AVALANCHE (xorshift-multiply, estilo murmur finalizer).
+   PORQUÊ: o sorteio de estágio usava `(i * 40503) % 3` e 40503 = 3 × 13501 — ou seja, é
+   DIVISÍVEL POR 3 e o resultado dava SEMPRE 0. Na prática TODAS as carcaças saíam no
+   estágio "laranja vivo": exatamente o "chapado" que o BAR §4.4 manda evitar e o que a
+   medição de D2 acusou. Um multiplicador sozinho não embaralha bit baixo; misturar os
+   bits altos de volta (xor-shift + imul) distribui os 3 estágios quase uniformemente e
+   continua 100% determinístico (mesmo pátio a cada boot). */
+function mix32(n) {
+  let v = (n * 2654435761) >>> 0;
+  v ^= v >>> 15; v = Math.imul(v, 2246822519) >>> 0;
+  v ^= v >>> 13; v = Math.imul(v, 3266489917) >>> 0;
+  return (v ^ (v >>> 16)) >>> 0;
+}
+
 function rustStageTex(stage, seed = 7, paint = null, rx = 1, rz = 1) {
   const S = 256, c = document.createElement('canvas'); c.width = c.height = S; const x = c.getContext('2d');
   const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
@@ -455,8 +469,8 @@ export function buildFerroVelho(scene, T) {
       RUST_POOL.push(lam({ map: rustStageTex(s, 101 + s * 37 + v * 913, paint), roughness: P.rough, metalness: P.metal }));
     }
   }
-  // hash inteiro → índice do pool (Knuth): peças vizinhas caem em estágios diferentes
-  const rustMat = (i) => RUST_POOL[((i * 2654435761) >>> 0) % RUST_POOL.length];
+  // hash de avalanche → índice do pool: peças vizinhas caem em estágios diferentes
+  const rustMat = (i) => RUST_POOL[mix32(i) % RUST_POOL.length];
   let _rc = 0; const nextRust = () => rustMat(_rc++);   // contador de peça (fallbacks sem GLB)
   function addBox(w, h, d, mat, x, y, z, opts = {}) {
     const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
@@ -477,11 +491,16 @@ export function buildFerroVelho(scene, T) {
   let _pv = 0;
   const vary = (o) => {
     const i = ++_pv;
-    const s = (i * 2654435761 % 97) / 97;
-    const st = ((i * 40503) >>> 0) % 3;
-    const painted = ((i * 22695477) >>> 0) % 5 < 2;   // ~40% guardam tinta calcinada
-    const tint = painted ? new THREE.Color(PAINT_DEAD[((i * 69069) >>> 0) % PAINT_DEAD.length]) : STAGE_TINT[st];
-    const k = painted ? 0.5 : 0.62;
+    // um único hash de avalanche alimenta TODAS as decisões da peça, cada uma lendo uma
+    // faixa de bits diferente — assim estágio, tinta e jitter não ficam correlacionados
+    const h = mix32(i);
+    const s = (h % 97) / 97;
+    const st = (h >>> 7) % 3;
+    const painted = (h >>> 13) % 5 < 2;   // ~40% guardam tinta calcinada
+    const tint = painted ? new THREE.Color(PAINT_DEAD[(h >>> 19) % PAINT_DEAD.length]) : STAGE_TINT[st];
+    // sem tinta, o lerp vai mais fundo: é o que separa "laranja vivo" de "marrom-crosta"
+    // de "metal com véu" à distância de jogo (BAR §4.4, os TRÊS estágios)
+    const k = painted ? 0.5 : 0.72;
     o.traverse((m) => {
       if (!m.isMesh || !m.material) return;
       m.material = m.material.clone();   // clone(true) compartilha material entre instâncias
@@ -499,6 +518,20 @@ export function buildFerroVelho(scene, T) {
   // collider AABB por footprint (props só entram em ry 0 ou π/2, então o AABB é exato)
   const collide = (x, z, hw, hd, h) => colliders.push({ minX: x - hw, maxX: x + hw, minY: 0, maxY: h, minZ: z - hd, maxZ: z + hd });
 
+  /* ===== TERRENO VIZINHO (regressão medida: "massa branca/cinza gigante em ~25% do frame")
+     O chão do pátio termina em x=±32 / z=±36. Além dessa borda não havia NADA: o frame
+     mostrava o fundo do céu abaixo da linha do horizonte — um chapado sem textura, que é
+     reprovação direta em B6 ("nenhuma área ampla de cor plana sem textura") e o que fazia
+     as pilhas do anel externo e os cartões de skyline parecerem recortes flutuando.
+     Solução mais barata possível: UM avental de 360 m com a MESMA terra num tiling grosso
+     (fundo/não-jogável = 64–128 px/m pelo BAR §1.8), puxado pra cor da névoa. Fica 8 cm
+     abaixo do piso do pátio (sem z-fight), não recebe sombra, não tem collider:
+     1 draw call, 2 triângulos, e o mundo deixa de "acabar". ===== */
+  {
+    const apron = MAT.dirt.map.clone(); apron.needsUpdate = true; apron.repeat.set(100, 100);
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(360, 360), lam({ map: apron, color: 0xc0ab8c }));
+    m.rotation.x = -Math.PI / 2; m.position.set(0, -0.08, 0); root.add(m);
+  }
   // ===== chão de terra + poças de óleo =====
   addFloor(HALF_X * 2, HALF_Z * 2, 0, 0, MAT.dirt);
   for (const [x, z, r] of [[-8, 12, 2.4], [10, -6, 1.8], [-16, -14, 2.0], [6, 24, 1.5], [18, 12, 2.2], [-24, 26, 1.7]]) {
@@ -635,14 +668,20 @@ export function buildFerroVelho(scene, T) {
     // trilho no chão (o portão é de correr, não de bater)
     const rail = new THREE.Mesh(new THREE.BoxGeometry(15, 0.06, 0.14), lam({ color: 0x4a4a48, metalness: 0.7, roughness: 0.4 }));
     rail.position.set(0, 0.03, HALF_Z - 0.75); rail.receiveShadow = true; root.add(rail);
-    // corrente + cadeado pendurados na folha oeste
+    /* CORRENTE + CADEADO — regressão medida: pendurados em x=-4,6 / z=33,1 eles caíam
+       EXATAMENTE no meio do vão do portão, a ~1,5 m da câmera de quem nasce no spawn P.
+       Numa pilha de 7 elos a 1,5 m isso vira uma coluna preta de ~320 px ocluindo o bot
+       que corre — obstrução de linha de tiro pura (BAR §2.3, "zero ruído visual na linha
+       de tiro"). Realocados pra ponta EXTERNA da folha oeste já recolhida (x=-6,7 /
+       z=34,9), encostados na cerca: continuam contando a história do portão trancado, mas
+       fora do vão e fora do eixo de saída do spawn. */
     const chain = lam({ color: 0x565049, metalness: 0.7, roughness: 0.5 });
-    for (let i = 0; i < 7; i++) {
+    for (let i = 0; i < 6; i++) {
       const l = new THREE.Mesh(new THREE.TorusGeometry(0.055, 0.017, 4, 8), chain);
-      l.position.set(-4.6 + i * 0.02, 1.35 - i * 0.09, HALF_Z - 2.9); l.rotation.y = i % 2 ? 1.57 : 0; root.add(l);
+      l.position.set(-6.72 + i * 0.02, 1.12 - i * 0.09, HALF_Z - 1.1); l.rotation.y = i % 2 ? 1.57 : 0; root.add(l);
     }
     const lock = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.16, 0.05), lam({ color: 0x6d6a60, metalness: 0.6, roughness: 0.5 }));
-    lock.position.set(-4.5, 0.68, HALF_Z - 2.9); root.add(lock);
+    lock.position.set(-6.64, 0.5, HALF_Z - 1.1); root.add(lock);
   }
   /* PLACA PINTADA À MÃO do portão — o hero prop de identidade do mapa.
      Campo vermelho, letra creme com contorno e sombra preta, baseline irregular,
@@ -653,15 +692,39 @@ export function buildFerroVelho(scene, T) {
       { t: 'COMPRA-SE FERRO • COBRE • ALUMÍNIO', size: 0.58, color: '#f2c23a', cond: 0.7 },
       { t: 'BATERIA • MOTOR — FONE 3255-4180', size: 0.58, color: '#f2c23a', cond: 0.7 },
     ], { bg: '#a8241c', w: 1024, h: 288, seed: 4242 });
-    const s = new THREE.Mesh(new THREE.PlaneGeometry(14, 3.4), new THREE.MeshBasicMaterial({ map: tex, transparent: true }));
-    s.position.set(0, 4.9, HALF_Z + 0.12); root.add(s);
+    /* CALIBRAÇÃO (regressão medida na r1): a placa era 14 × 3,4 m com o centro em y=4,9 —
+       base em y=3,2. Três defeitos de uma vez:
+         (a) atravessava as chapas de zinco da cerca, que chegam a 4,15 m de altura;
+         (b) com 14 m ela invadia x=±7, ou seja, entrava no muro sul (que começa em |x|=5);
+         (c) de qualquer posição perto do portão ocupava ~18% do frame NUMA SIGHTLINE,
+             com o texto esticado e ilegível — reprovação em C4 e em D4 ao mesmo tempo.
+       Agora: 8,6 m (cabe INTEIRA no vão do portão, x∈[-4,3;4,3], sem tocar o muro) e base
+       em y=4,42 — acima da chapa mais alta da cerca e da linha do arame. A placa continua
+       sendo o marco do spawn P, só que lida como letreiro no alto do portão, e não como
+       parede vermelha no meio da tela. */
+    // 8,6 / 2,42 mantém a proporção exata do canvas (1024×288): letra pintada esticada é
+    // justamente o que reprova em D4, então a placa nunca pode fugir do aspecto da imagem
+    const SW = 8.6, SH = 2.42, SY = 5.62;   // largura / altura / centro em y
+    const s = new THREE.Mesh(new THREE.PlaneGeometry(SW, SH), new THREE.MeshBasicMaterial({ map: tex, transparent: true }));
+    s.position.set(0, SY, HALF_Z + 0.08); root.add(s);
     // verso (quem já está dentro do pátio também vê a placa — marco do spawn P)
-    const s2 = s.clone(); s2.position.z = HALF_Z - 0.12; s2.rotation.y = Math.PI; root.add(s2);
-    addBox(0.3, 6.2, 0.3, MAT.zincOld, -7.2, 0, HALF_Z - 0.4); addBox(0.3, 6.2, 0.3, MAT.zincOld, 7.2, 0, HALF_Z - 0.4);
-    // seta pintada à mão apontando pra dentro (affordance de rota, BAR §2.5)
-    const arrow = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 1.1),
+    const s2 = s.clone(); s2.position.z = HALF_Z - 0.30; s2.rotation.y = Math.PI; root.add(s2);
+    /* MASTROS DO PORTAL: sobem do chão até acima da placa e dão a ela um suporte visível
+       (placa flutuando lê como decal colado). collide:false de propósito — eles ficam em
+       z=35,9 e o `bounds` do mapa trava o jogador em z≤35,5, então são inalcançáveis:
+       zero efeito em colisão, LOS ou A*. */
+    for (const px of [-4.62, 4.62]) {
+      addBox(0.26, SY + SH / 2 + 0.25, 0.26, MAT.zincOld, px, 0, HALF_Z - 0.1, { collide: false });
+    }
+    // travessa de cantoneira ligando os dois mastros por cima da placa
+    addBox(SW + 1.1, 0.16, 0.16, MAT.zincOld, 0, SY + SH / 2 + 0.06, HALF_Z - 0.1, { collide: false });
+    /* SETA pintada à mão: era 3,4 × 1,1 m a 2,3 m do spawn e na altura do olho — sozinha
+       tomava metade do frame nos prints de spawn. Encolhida e realocada pro muro (x=-9,2,
+       onde há chapa atrás), acima da linha de tiro: continua dando a affordance de rota
+       (BAR §2.5) sem competir com a silhueta de ninguém. */
+    const arrow = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 0.75),
       new THREE.MeshBasicMaterial({ map: handSignTex([{ t: '↓ ENTRADA', size: 0.86, color: '#1b1b1b', outline: '#f5e9b8', shadow: '#f5e9b8', cond: 0.78 }], { bg: '#e8c22a', w: 512, h: 160, seed: 77 }), transparent: true }));
-    arrow.position.set(-6.6, 2.6, HALF_Z - 0.72); arrow.rotation.y = Math.PI; root.add(arrow);
+    arrow.position.set(-9.2, 3.62, HALF_Z - 0.62); arrow.rotation.y = Math.PI; root.add(arrow);
   }
 
   // ===== FUNDO DO PÁTIO (crítico gauntlet: "horizonte vazio"): silhueta de pilhas FORA do
@@ -1239,40 +1302,89 @@ export function buildFerroVelho(scene, T) {
     }
     // SILHUETAS atrás dos muros em 2 camadas (opcional do crítico: skyline c/ haze) —
     // galpões, caixas d'água e árvores; camada 2 mais longe e mais "lavada" (sem fog no ferro)
-    const skyCardTex = (kind, tint, seed) => {
-      const c = document.createElement('canvas'); c.width = 256; c.height = 128;
+    /* ===== CARTÕES DE SKYLINE — reescritos (B6/B7) =====
+       O crítico mediu "silhuetas de casas cinza chapadas": cada cartão era literalmente
+       um `fillRect` de UMA cor, sem telhado, sem janela, sem contato com o chão. Um
+       retângulo de cor plana com >5% do frame é reprovação automática em B6.
+       Agora o canvas é desenhado em ESCALA DE CINZA com volume de verdade (parede clara ×
+       empena escura × beiral, fiada de janelas, escorrimento de chuva, faixa de contato) e
+       a COR do cartão vem do `material.color`, que multiplica o map. Consequência boa de
+       graça: os 10 cartões passam a sair de 4 canvas em vez de 10 (menos custo de carga),
+       e espelhar no U dobra as variações — `clone()` compartilha o `source`, então
+       continua UMA textura na GPU. */
+    const skyTexCache = {};
+    const skyCardTex = (kind, seed) => {
+      const key = kind + '_' + seed;
+      if (skyTexCache[key]) return skyTexCache[key];
+      const W = 256, H = 128, c = document.createElement('canvas'); c.width = W; c.height = H;
       const x = c.getContext('2d');
-      const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
-      x.fillStyle = tint;
-      if (kind === 'sheds') {   // galpões c/ telhado de água
-        for (const [bx, bw, bh] of [[4, 84, 52], [96, 70, 68], [176, 76, 44]]) {
-          x.fillRect(bx, 128 - bh, bw, bh);
-          x.beginPath(); x.moveTo(bx - 4, 128 - bh); x.lineTo(bx + bw / 2, 128 - bh - 16); x.lineTo(bx + bw + 4, 128 - bh); x.fill();
+      let sd = seed; const rnd = () => (sd = (sd * 16807) % 2147483647) / 2147483647;
+      // cinza levemente quente: o tint do material faz o resto (terra/mato/haze)
+      const g = (v, a = 1) => `rgba(${Math.min(255, v) | 0},${Math.min(255, v * 0.975) | 0},${Math.min(255, v * 0.925) | 0},${a})`;
+      const base = H - 2;
+      if (kind === 'sheds') {
+        let bx = 2 + rnd() * 8;
+        while (bx < W - 24) {
+          const bw = 34 + rnd() * 46, bh = 32 + rnd() * 44, tone = 172 + rnd() * 52;
+          x.fillStyle = g(tone); x.fillRect(bx, base - bh, bw, bh);                    // parede ao sol
+          x.fillStyle = g(tone * 0.70);                                                // empena/telhado de água
+          x.beginPath(); x.moveTo(bx - 4, base - bh); x.lineTo(bx + bw * 0.5, base - bh - 8 - rnd() * 11); x.lineTo(bx + bw + 4, base - bh); x.fill();
+          x.fillStyle = g(tone * 0.82); x.fillRect(bx, base - bh, bw, 3);              // beiral
+          for (let r = 0; r < 1 + ((rnd() * 3) | 0); r++) {                             // fiadas de janela
+            const wy = base - bh + 11 + r * 14; if (wy > base - 8) break;
+            for (let k = 0; bx + 7 + k * 11 < bx + bw - 7; k++) {
+              if (rnd() > 0.76) continue;
+              x.fillStyle = g(tone * (rnd() > 0.5 ? 0.5 : 0.66));
+              x.fillRect(bx + 7 + k * 11, wy, 6, 8);
+            }
+          }
+          for (let s2 = 0; s2 < 4; s2++) {                                              // escorrimento de chuva
+            x.fillStyle = g(tone * 0.62, 0.35 + rnd() * 0.3);
+            x.fillRect(bx + 3 + rnd() * (bw - 6), base - bh + 4, 1 + rnd() * 3, bh * (0.25 + rnd() * 0.6));
+          }
+          x.fillStyle = g(tone * 0.48, 0.55); x.fillRect(bx, base - 3, bw, 3);          // sombra de contato
+          bx += bw + 2 + rnd() * 12;
         }
-        x.beginPath(); x.arc(210, 128 - 74, 9, 0, 7); x.fill(); x.fillRect(208.5, 128 - 74, 3, 74);   // caixa d'água
-      } else {   // árvores + tanque em torre
-        for (const [tx, tr] of [[36, 30], [120, 36], [205, 26]]) {
-          x.fillRect(tx - 3, 128 - 36, 6, 36);
-          for (let i = 0; i < 6; i++) { x.beginPath(); x.ellipse(tx + (rnd() - 0.5) * tr, 128 - 40 - rnd() * tr * 0.8, tr * (0.4 + rnd() * 0.4), tr * (0.3 + rnd() * 0.3), 0, 0, 7); x.fill(); }
+        const tx = 30 + rnd() * 190;                                                    // caixa d'água em torre
+        x.fillStyle = g(140); x.fillRect(tx - 2, base - 96, 4, 96);
+        x.fillStyle = g(190); x.fillRect(tx - 10, base - 110, 20, 14);
+        x.fillStyle = g(130); x.fillRect(tx - 10, base - 110, 20, 3);
+      } else {
+        for (const [ttx, tr] of [[30 + rnd() * 14, 26 + rnd() * 12], [112 + rnd() * 18, 30 + rnd() * 12], [196 + rnd() * 16, 22 + rnd() * 12]]) {
+          x.fillStyle = g(120); x.fillRect(ttx - 3, base - 34, 6, 34);                  // tronco
+          for (let i = 0; i < 9; i++) {                                                 // copa em 2 tons (volume)
+            const lit = rnd() > 0.45;
+            x.fillStyle = g(lit ? 205 : 138, 0.95);
+            x.beginPath(); x.ellipse(ttx + (rnd() - 0.5) * tr, base - 38 - rnd() * tr * 0.85,
+              tr * (0.34 + rnd() * 0.36), tr * (0.26 + rnd() * 0.3), rnd() * 3, 0, 7); x.fill();
+          }
         }
-        x.beginPath(); x.arc(162, 128 - 92, 10, 0, 7); x.fill();
-        for (const dx of [-7, 7]) { x.save(); x.translate(162 + dx, 128 - 80); x.rotate(dx > 0 ? 0.12 : -0.12); x.fillRect(-1.5, 0, 3, 80); x.restore(); }
+        // um barracão baixo entre as árvores + poste: quebra o "mato só" e dá escala
+        const sx0 = 132 + rnd() * 40, sw = 38, sh = 24;
+        x.fillStyle = g(196); x.fillRect(sx0, base - sh, sw, sh);
+        x.fillStyle = g(132); x.fillRect(sx0 - 3, base - sh - 4, sw + 6, 5);
+        x.fillStyle = g(150, 0.5); x.fillRect(sx0, base - 3, sw, 3);
+        x.fillStyle = g(115); x.fillRect(72, base - 74, 3, 74);
+        for (const dy of [66, 60]) x.fillRect(66, base - dy, 15, 2);
       }
       const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
-      t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping; return t;
+      t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
+      skyTexCache[key] = t; return t;
     };
-    const skyCard = (kind, tint, seed, x, z, ry, w, h) => {
+    const skyCard = (kind, seed, tint, x, z, ry, w, h, mirror) => {
+      const t = skyCardTex(kind, seed).clone();
+      if (mirror) { t.repeat.x = -1; t.offset.x = 1; }   // espelho: u'=1-u, nunca sai de [0,1]
       const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h),
-        new THREE.MeshBasicMaterial({ map: skyCardTex(kind, tint, seed), transparent: true, alphaTest: 0.05 }));
+        new THREE.MeshBasicMaterial({ map: t, color: new THREE.Color(tint), transparent: true, alphaTest: 0.05 }));
       m.position.set(x, h / 2 - 0.3, z); m.rotation.y = ry; root.add(m);
     };
     // camada 1 (perto, mais escura) — entre as pilhas do anel externo
-    skyCard('sheds', '#6f6252', 13, -14, -47, 0, 26, 9); skyCard('trees', '#5f6a52', 24, 18, -48, 0, 22, 8);
-    skyCard('trees', '#5f6a52', 35, -46, 16, Math.PI / 2, 22, 8); skyCard('sheds', '#6f6252', 46, 47, -12, -Math.PI / 2, 26, 9);
-    skyCard('sheds', '#6f6252', 57, 10, 47, Math.PI, 24, 8); skyCard('trees', '#5f6a52', 68, -20, 48, Math.PI, 22, 8);
-    // camada 2 (longe, lavada de haze)
-    skyCard('sheds', '#a3937c', 79, 6, -60, 0, 34, 12); skyCard('trees', '#a89f88', 91, -58, -20, Math.PI / 2, 30, 11);
-    skyCard('sheds', '#a3937c', 103, 60, 22, -Math.PI / 2, 32, 12); skyCard('trees', '#a89f88', 115, -8, 60, Math.PI, 30, 11);
+    skyCard('sheds', 13, '#8a7c69', -14, -47, 0, 26, 9); skyCard('trees', 24, '#79876a', 18, -48, 0, 22, 8, true);
+    skyCard('trees', 41, '#79876a', -46, 16, Math.PI / 2, 22, 8); skyCard('sheds', 29, '#8a7c69', 47, -12, -Math.PI / 2, 26, 9, true);
+    skyCard('sheds', 13, '#847767', 10, 47, Math.PI, 24, 8, true); skyCard('trees', 24, '#727f64', -20, 48, Math.PI, 22, 8);
+    // camada 2 (longe, lavada de haze — tint puxado pra cor da névoa 0xd9b98c)
+    skyCard('sheds', 29, '#c6b79c', 6, -60, 0, 34, 12); skyCard('trees', 41, '#c2bda4', -58, -20, Math.PI / 2, 30, 11, true);
+    skyCard('sheds', 13, '#c6b79c', 60, 22, -Math.PI / 2, 32, 12, true); skyCard('trees', 24, '#c2bda4', -8, 60, Math.PI, 30, 11);
     // chapas de zinco grandes no muro SUL do spawn (opcional do crítico: "2 chapas marrom-chapadas")
     for (const px of [-16.5, 16.5]) {
       const m = new THREE.Mesh(new THREE.PlaneGeometry(11, 3.0), lam({ map: zincTex(4.5, 1.2) }));

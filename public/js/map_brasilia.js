@@ -89,31 +89,36 @@ export function buildBrasilia(scene, T) {
     }
     return c;
   }
-  // Concreto branco tratado: fosco COM escorrimento cinza-esverdeado descendo das juntas —
-  // é isso que diferencia "concreto branco de Brasília" de "caixa branca de render".
-  function escorrimentoTex() {
-    const c = cvs(256, 512), x = c.getContext('2d');
-    x.fillStyle = '#e6e5dc'; x.fillRect(0, 0, 256, 512);
-    for (let jy = 0; jy < 512; jy += 128) {   // juntas horizontais entre painéis
-      x.fillStyle = 'rgba(120,124,116,.35)'; x.fillRect(0, jy, 256, 2);
-      for (let i = 0; i < 22; i++) {         // escorrimento saindo da junta
-        const px = Math.random() * 256, w = 2 + Math.random() * 7, h = 20 + Math.random() * 90;
-        const g = x.createLinearGradient(0, jy, 0, jy + h);
-        g.addColorStop(0, 'rgba(120,130,120,.35)'); g.addColorStop(1, 'rgba(120,130,120,0)');
-        x.fillStyle = g; x.fillRect(px, jy, w, h);
-      }
-    }
-    return c;
-  }
   // Calçada portuguesa (pedra preta e branca) — o piso que diz "praça brasileira".
+  // CALIBRAÇÃO r2 (critério C4): a versão anterior usava preto #2a2a2c sobre branco #e8e4d8
+  // com pedra de 3–5 px. Isso é ruído de altíssima frequência E altíssimo contraste; contra
+  // esse chão a silhueta do inimigo simplesmente não lê, e o serrilhado aparece já a 10 m.
+  // Agora: pedra ~2× maior (o desenho da onda fica legível) e amplitude de L* cortada a ~1/3
+  // (escuro #6f6c66 contra claro #c4bfb3, não preto contra branco). Continua sendo pedra
+  // portuguesa — só parou de competir com o jogador. Além disso ela sai da lane central e
+  // vai só para as calçadas laterais (ver o piso, mais abaixo).
   function portuguesaTex() {
-    const c = cvs(128, 128), x = c.getContext('2d');
-    x.fillStyle = '#d7d2c6'; x.fillRect(0, 0, 128, 128);
-    for (let i = 0; i < 900; i++) {   // pedras irregulares
-      const px = Math.random() * 128, py = Math.random() * 128;
-      const dark = ((px / 128) * 3 + Math.sin(py * 0.12) * 0.7) % 2 < 0.85;
-      x.fillStyle = dark ? `rgba(42,42,44,${0.6 + Math.random() * 0.35})` : `rgba(232,228,216,${0.5 + Math.random() * 0.4})`;
-      x.fillRect(px, py, 3 + Math.random() * 2, 3 + Math.random() * 2);
+    const S = LOWQ ? 128 : 256;
+    const c = cvs(S, S), x = c.getContext('2d');
+    const k = S / 256;
+    x.fillStyle = '#a9a49a'; x.fillRect(0, 0, S, S);   // argamassa/rejunte, tom médio
+    for (let i = 0; i < 1500 * k * k; i++) {
+      const px = Math.random() * S, py = Math.random() * S;
+      // desenho de ONDA (o padrão clássico do calçadão): faixas senoidais largas
+      const band = ((px / S) * 2.5 + Math.sin((py / S) * 6.0) * 0.55) % 1;
+      const dark = band < 0.42;
+      const j = Math.random() * 18 | 0;
+      x.fillStyle = dark ? `rgb(${105 + j},${102 + j},${96 + j})` : `rgb(${190 + j},${185 + j},${175 + j})`;
+      const w = (6 + Math.random() * 3) * k;
+      x.beginPath(); x.ellipse(px, py, w * 0.5, w * 0.45, Math.random() * 3, 0, 7); x.fill();
+    }
+    // desgaste: manchas largas e de baixa frequência (quebram o tile sem virar ruído)
+    for (let i = 0; i < 26; i++) {
+      const px = Math.random() * S, py = Math.random() * S, r = (18 + Math.random() * 46) * k;
+      const g = x.createRadialGradient(px, py, 1, px, py, r);
+      g.addColorStop(0, i % 3 ? 'rgba(150,145,132,.30)' : 'rgba(96,92,84,.26)');
+      g.addColorStop(1, 'rgba(0,0,0,0)');
+      x.fillStyle = g; x.beginPath(); x.arc(px, py, r, 0, 7); x.fill();
     }
     return c;
   }
@@ -128,14 +133,261 @@ export function buildBrasilia(scene, T) {
     return c;
   }
 
+  /* ---------------- r2: texturas que matam o "bloco branco chapado" (B6) ---------------- */
+  // O concreto de Niemeyer NÃO é liso: é concreto aparente moldado em TÁBUA de madeira, e a
+  // marca da forma (faixas horizontais de ~30 cm com veio de madeira e uma linha escura na
+  // emenda) fica pra sempre na superfície. Somado a isso: junta de dilatação vertical,
+  // escorrimento de chuva descendo de cada junta horizontal e bolha/mancha de cura.
+  // Esta textura é NEUTRA de propósito (quase branca) — quem decide se é concreto branco
+  // tratado ou concreto cru cinza é o `color` do material.
+  function concretoFormaTex() {
+    const S = LOWQ ? 256 : 512;
+    const c = cvs(S, S), x = c.getContext('2d'), k = S / 512;
+    x.fillStyle = '#efece4'; x.fillRect(0, 0, S, S);
+    const BW = 64 * k;                              // largura da tábua da forma (~36 cm no mundo)
+    for (let b = 0; b * BW < S; b++) {
+      const y0 = b * BW;
+      // cada tábua tem tom levemente diferente (madeira usada em ordem aleatória na obra)
+      x.fillStyle = `rgba(${b % 2 ? 205 : 220},${b % 2 ? 202 : 218},${b % 2 ? 193 : 208},${0.16 + Math.random() * 0.14})`;
+      x.fillRect(0, y0, S, BW);
+      // veio da madeira impresso no concreto (horizontal, baixa amplitude)
+      for (let i = 0; i < 26 * k; i++) {
+        x.strokeStyle = `rgba(${140 + Math.random() * 60 | 0},${138 + Math.random() * 58 | 0},${130 + Math.random() * 55 | 0},${0.05 + Math.random() * 0.10})`;
+        x.lineWidth = 1; const yy = y0 + Math.random() * BW;
+        x.beginPath(); x.moveTo(0, yy); x.bezierCurveTo(S * 0.3, yy + 2, S * 0.7, yy - 2, S, yy); x.stroke();
+      }
+      // emenda entre tábuas: linha escura fina + rebarba clara logo abaixo
+      x.fillStyle = 'rgba(108,110,102,.34)'; x.fillRect(0, y0, S, Math.max(1, 1.6 * k));
+      x.fillStyle = 'rgba(255,255,255,.16)'; x.fillRect(0, y0 + 2 * k, S, Math.max(1, 1 * k));
+      // ESCORRIMENTO: a água da chuva empoça na emenda e desce levando fuligem. É o sinal de
+      // idade nº 1 de fachada de concreto no Brasil (D2 estava em FAIL).
+      for (let i = 0; i < 9; i++) {
+        const px = Math.random() * S, w = (2 + Math.random() * 9) * k, h = (18 + Math.random() * 120) * k;
+        const g = x.createLinearGradient(0, y0, 0, y0 + h);
+        g.addColorStop(0, 'rgba(112,120,110,.32)'); g.addColorStop(0.35, 'rgba(120,126,116,.16)'); g.addColorStop(1, 'rgba(120,126,116,0)');
+        x.fillStyle = g; x.fillRect(px, y0, w, h);
+      }
+    }
+    // furos dos tirantes da forma (a cada 2 tábuas) — detalhe que só aparece de perto (B5)
+    for (let gy = BW; gy < S; gy += BW * 2) for (let gx = 40 * k; gx < S; gx += 96 * k) {
+      x.fillStyle = 'rgba(120,120,112,.42)'; x.beginPath(); x.arc(gx, gy + BW * 0.5, 2.4 * k, 0, 7); x.fill();
+      const g = x.createLinearGradient(0, gy + BW * 0.5, 0, gy + BW * 0.5 + 26 * k);
+      g.addColorStop(0, 'rgba(118,124,112,.26)'); g.addColorStop(1, 'rgba(118,124,112,0)');
+      x.fillStyle = g; x.fillRect(gx - 2.4 * k, gy + BW * 0.5, 4.8 * k, 26 * k);
+    }
+    // junta de DILATAÇÃO vertical (a cada ~2,9 m de mundo) + manchas largas de cura
+    x.fillStyle = 'rgba(96,98,92,.40)'; x.fillRect(S * 0.5 - 1.5 * k, 0, 3 * k, S);
+    x.fillStyle = 'rgba(255,255,255,.10)'; x.fillRect(S * 0.5 + 1.5 * k, 0, 2 * k, S);
+    for (let i = 0; i < 30; i++) {
+      const px = Math.random() * S, py = Math.random() * S, r = (30 + Math.random() * 90) * k;
+      const g = x.createRadialGradient(px, py, 1, px, py, r);
+      g.addColorStop(0, i % 2 ? 'rgba(196,196,186,.22)' : 'rgba(255,255,252,.20)');
+      g.addColorStop(1, 'rgba(0,0,0,0)');
+      x.fillStyle = g; x.beginPath(); x.arc(px, py, r, 0, 7); x.fill();
+    }
+    return c;
+  }
+  // Mármore branco polido (colunata do Planalto/STF): veio cinza suave. Precisa de textura
+  // porque roughness 0.25 sem mapa produz UM hotspot especular chapado — exatamente o que a
+  // métrica pegou no pior frame do jogo.
+  function marmoreTex() {
+    const S = LOWQ ? 128 : 256;
+    const c = cvs(S, S), x = c.getContext('2d'), k = S / 256;
+    x.fillStyle = '#f6f4ee'; x.fillRect(0, 0, S, S);
+    for (let i = 0; i < 22; i++) {   // veios
+      x.strokeStyle = `rgba(${170 + Math.random() * 40 | 0},${168 + Math.random() * 40 | 0},${162 + Math.random() * 40 | 0},${0.08 + Math.random() * 0.14})`;
+      x.lineWidth = (0.7 + Math.random() * 2.4) * k;
+      const y0 = Math.random() * S;
+      x.beginPath(); x.moveTo(-4, y0);
+      x.bezierCurveTo(S * 0.3, y0 + (Math.random() - 0.5) * 60 * k, S * 0.7, y0 + (Math.random() - 0.5) * 60 * k, S + 4, y0 + (Math.random() - 0.5) * 40 * k);
+      x.stroke();
+    }
+    for (let i = 0; i < 14; i++) {   // manchas amplas (variação de L* sem alta frequência)
+      const px = Math.random() * S, py = Math.random() * S, r = (24 + Math.random() * 70) * k;
+      const g = x.createRadialGradient(px, py, 1, px, py, r);
+      g.addColorStop(0, 'rgba(214,212,204,.24)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+      x.fillStyle = g; x.beginPath(); x.arc(px, py, r, 0, 7); x.fill();
+    }
+    return c;
+  }
+  // Piso de concreto da lane (substitui a pedra portuguesa na linha de tiro, critério C4/C3).
+  // ESCURO de propósito: o chão tem que ficar >= 6 pontos de L* abaixo das paredes brancas,
+  // senão o inimigo vira silhueta preta sobre fundo claro. Placas de 4 m com junta serrada,
+  // remendo, mancha de óleo e desgaste — variação BAIXA frequência, que é o que C4 permite.
+  function pisoConcTex() {
+    const S = LOWQ ? 256 : 512;
+    const c = cvs(S, S), x = c.getContext('2d'), k = S / 512;
+    x.fillStyle = '#7d7a72'; x.fillRect(0, 0, S, S);
+    for (let i = 0; i < 3200 * k * k; i++) {   // agregado fino (micro-detalhe p/ B5)
+      const v = 90 + Math.random() * 90 | 0;
+      x.fillStyle = `rgba(${v},${v - 2},${v - 8},${Math.random() * 0.16})`;
+      x.fillRect(Math.random() * S, Math.random() * S, 2 * k, 2 * k);
+    }
+    for (let i = 0; i < 34; i++) {   // manchas de cura / remendo (quebram o tile, B2)
+      const px = Math.random() * S, py = Math.random() * S, r = (26 + Math.random() * 96) * k;
+      const g = x.createRadialGradient(px, py, 1, px, py, r);
+      g.addColorStop(0, i % 3 ? 'rgba(150,146,136,.22)' : 'rgba(70,68,62,.24)');
+      g.addColorStop(1, 'rgba(0,0,0,0)');
+      x.fillStyle = g; x.beginPath(); x.arc(px, py, r, 0, 7); x.fill();
+    }
+    // junta serrada nas bordas do tile (o tile mede 4 m no mundo = placa de concreto real)
+    x.fillStyle = 'rgba(58,56,52,.55)'; x.fillRect(0, 0, S, 3 * k); x.fillRect(0, 0, 3 * k, S);
+    x.fillStyle = 'rgba(255,255,255,.10)'; x.fillRect(0, 3 * k, S, 2 * k); x.fillRect(3 * k, 0, 2 * k, S);
+    // trinca fina saindo da junta + sujeira acumulada nela
+    for (let i = 0; i < 5; i++) {
+      x.strokeStyle = 'rgba(52,50,46,.42)'; x.lineWidth = 1.2 * k;
+      let px = Math.random() * S, py = 3 * k;
+      x.beginPath(); x.moveTo(px, py);
+      for (let s = 0; s < 6; s++) { px += (Math.random() - 0.5) * 26 * k; py += (14 + Math.random() * 26) * k; x.lineTo(px, py); }
+      x.stroke();
+    }
+    return c;
+  }
+  // Alpha de folhagem/flor de ipê para billboard cruzado — massa irregular de flor amarela.
+  function florIpeTex() {
+    const S = LOWQ ? 128 : 256;
+    const c = cvs(S, S), x = c.getContext('2d');
+    const tones = ['#f4cf2e', '#e8b81a', '#f7dc63', '#c9930d', '#ffe98a'];
+    for (let i = 0; i < 340; i++) {
+      // cachos concentrados no centro, esgarçando na borda -> silhueta recortada, não hexágono
+      const a = Math.random() * Math.PI * 2, rr = Math.pow(Math.random(), 0.62) * S * 0.47;
+      const px = S / 2 + Math.cos(a) * rr, py = S / 2 + Math.sin(a) * rr * 0.92;
+      x.fillStyle = tones[(Math.random() * tones.length) | 0];
+      x.globalAlpha = 0.75 + Math.random() * 0.25;
+      const r = (S / 256) * (5 + Math.random() * 11) * (1 - rr / (S * 0.62));
+      x.beginPath(); x.arc(px, py, Math.max(1.5, r), 0, 7); x.fill();
+    }
+    x.globalAlpha = 1;
+    for (let i = 0; i < 26; i++) {   // galhinho escuro aparecendo entre as flores
+      x.strokeStyle = 'rgba(74,58,40,.75)'; x.lineWidth = 1 + Math.random() * 2;
+      const a = Math.random() * Math.PI * 2;
+      x.beginPath(); x.moveTo(S / 2, S * 0.62);
+      x.lineTo(S / 2 + Math.cos(a) * S * 0.36, S * 0.62 + Math.sin(a) * S * 0.3); x.stroke();
+    }
+    return c;
+  }
+  // Tufo de mato — vai nas rachaduras e no pé do meio-fio (D2: "mato em rachadura").
+  function matoTex() {
+    const S = 64;
+    const c = cvs(S, S), x = c.getContext('2d');
+    for (let i = 0; i < 40; i++) {
+      const bx2 = 8 + Math.random() * 48, h = 22 + Math.random() * 38;
+      x.strokeStyle = ['#5d6b34', '#77843f', '#8d8a4a', '#4a5a2c'][(Math.random() * 4) | 0];
+      x.lineWidth = 1 + Math.random() * 1.6;
+      x.beginPath(); x.moveTo(bx2, S);
+      x.quadraticCurveTo(bx2 + (Math.random() - 0.5) * 14, S - h * 0.6, bx2 + (Math.random() - 0.5) * 26, S - h);
+      x.stroke();
+    }
+    return c;
+  }
+
+  // Tinta de sinalização DESGASTADA: faixa de pedestre e seta apagam onde o pneu passa.
+  // Tinta branca 100% opaca e inteira é o "recém-construído" que o D2 reprova.
+  function faixaTex() {
+    const c = cvs(64, 128), x = c.getContext('2d');
+    x.fillStyle = '#e6e3d8'; x.fillRect(0, 0, 64, 128);
+    x.globalCompositeOperation = 'destination-out';
+    for (let i = 0; i < 70; i++) {   // buracos de desgaste, maiores no meio (trilha do pneu)
+      const px = Math.random() * 64, py = Math.random() * 128;
+      const r = (1 + Math.random() * 7) * (1 - Math.abs(py - 64) / 90);
+      x.globalAlpha = 0.35 + Math.random() * 0.6;
+      x.beginPath(); x.arc(px, py, Math.max(0.6, r), 0, 7); x.fill();
+    }
+    x.globalAlpha = 1; x.globalCompositeOperation = 'source-over';
+    return c;
+  }
+  // Mancha de óleo / escorrimento no piso — decal solto que quebra a leitura do tile (B2/B4).
+  function manchaTex() {
+    const c = cvs(128, 128), x = c.getContext('2d');
+    for (let i = 0; i < 16; i++) {
+      const px = 24 + Math.random() * 80, py = 24 + Math.random() * 80, r = 12 + Math.random() * 34;
+      const g = x.createRadialGradient(px, py, 1, px, py, r);
+      g.addColorStop(0, `rgba(${30 + Math.random() * 40 | 0},${28 + Math.random() * 36 | 0},${24 + Math.random() * 30 | 0},${0.30 + Math.random() * 0.35})`);
+      g.addColorStop(1, 'rgba(0,0,0,0)');
+      x.fillStyle = g; x.beginPath(); x.arc(px, py, r, 0, 7); x.fill();
+    }
+    return c;
+  }
+  // Placa de sinalização OFICIAL brasileira (D4: "sinalização oficial em Brasília"): placa
+  // indicativa verde do DNIT, letra branca em caixa alta, seta. Nada de fonte decorativa.
+  function placaTex(txt) {
+    const c = cvs(512, 128), x = c.getContext('2d');
+    x.fillStyle = '#1d6b3f'; x.fillRect(0, 0, 512, 128);
+    x.strokeStyle = '#f2f2ee'; x.lineWidth = 5; x.strokeRect(9, 9, 494, 110);
+    x.fillStyle = '#f2f2ee'; x.textAlign = 'center'; x.textBaseline = 'middle';
+    x.font = 'bold 44px sans-serif'; x.fillText(txt, 246, 62);
+    x.beginPath(); x.moveTo(430, 62); x.lineTo(470, 62); x.lineTo(458, 48);   // seta
+    x.moveTo(470, 62); x.lineTo(458, 76); x.lineWidth = 6; x.strokeStyle = '#f2f2ee'; x.stroke();
+    // sujeira de chuva escorrendo da moldura (a placa está lá desde os anos 60)
+    for (let i = 0; i < 26; i++) {
+      const px = Math.random() * 512, h = 10 + Math.random() * 60;
+      const g = x.createLinearGradient(0, 0, 0, h);
+      g.addColorStop(0, 'rgba(20,26,20,.28)'); g.addColorStop(1, 'rgba(20,26,20,0)');
+      x.fillStyle = g; x.fillRect(px, 0, 2 + Math.random() * 5, h);
+    }
+    return c;
+  }
+
+  /* ---------------- TRIPLANAR: o conserto de raiz do B6 ---------------- */
+  // Os landmarks são GLB do Mint com UV desconhecido (e às vezes degenerado), e as caixas
+  // procedurais são BoxGeometry, onde uma face de 13 × 11 m recebe UM tile esticado. Nos dois
+  // casos o resultado é o mesmo: parede branca lisa. Projetar a textura pelo MUNDO (triplanar)
+  // resolve os dois de uma vez e ainda garante texel density constante (B3) em qualquer
+  // superfície, inclusive nas inclinadas do Panteão. `?tri=0` volta ao mapeamento por UV.
+  const TRI = QP.get('tri') !== '0';
+  function triplanar(mat, tex, scale) {
+    mat.map = tex;   // fallback por UV se o patch de shader for desligado
+    if (!TRI) return mat;
+    mat.onBeforeCompile = (sh) => {
+      sh.uniforms.uTriScale = { value: scale };
+      sh.vertexShader = sh.vertexShader
+        .replace('#include <common>', '#include <common>\nvarying vec3 vTriP;\nvarying vec3 vTriN;')
+        .replace('#include <worldpos_vertex>', `#include <worldpos_vertex>
+  vec4 triWP = vec4( transformed, 1.0 );
+  vec3 triON = objectNormal;
+  #ifdef USE_INSTANCING
+    triWP = instanceMatrix * triWP;
+    triON = mat3( instanceMatrix ) * triON;
+  #endif
+  triWP = modelMatrix * triWP;
+  vTriP = triWP.xyz;
+  vTriN = normalize( mat3( modelMatrix ) * triON );`);
+      sh.fragmentShader = sh.fragmentShader
+        .replace('#include <common>', '#include <common>\nuniform float uTriScale;\nvarying vec3 vTriP;\nvarying vec3 vTriN;\nfloat gTriL;')
+        .replace('#include <map_fragment>', `
+  vec3 triW = pow( abs( vTriN ), vec3( 4.0 ) );
+  triW /= max( 1e-4, triW.x + triW.y + triW.z );
+  vec4 triC = texture2D( map, vTriP.zy * uTriScale ) * triW.x
+            + texture2D( map, vTriP.xz * uTriScale ) * triW.y
+            + texture2D( map, vTriP.xy * uTriScale ) * triW.z;
+  gTriL = triC.g;
+  diffuseColor *= triC;`)
+        // O hotspot especular chapado morre aqui: a rugosidade passa a variar com a sujeira.
+        // Escorrimento (pixel escuro) = superfície selada/mais lisa; concreto limpo = mais fosco.
+        .replace('#include <roughnessmap_fragment>',
+          'float roughnessFactor = clamp( roughness * ( 0.62 + 0.62 * gTriL ), 0.04, 1.0 );');
+    };
+    mat.customProgramCacheKey = () => 'briTri' + scale.toFixed(4);
+    return mat;
+  }
+
   /* ---------------- os QUATRO brancos de Brasília (BAR §4.1) ---------------- */
   // "Branco não é um branco só": mármore polido, concreto branco tratado, concreto aparente
   // cru e granito preto nas bases. Usar um material só é o erro que apaga a informação.
+  // Texturas compartilhadas: uma instância só, reaproveitada por todos os materiais de
+  // concreto (o triplanar é que decide a escala, então não precisa de clone por objeto).
+  const TX_FORMA = ctex(concretoFormaTex()), TX_MARM = ctex(marmoreTex());
   const MAT = {
-    marmore: lam({ color: 0xf4f2ec, roughness: 0.25, metalness: 0.02 }),          // colunata Planalto/STF
-    concBranco: lam({ color: 0xe4e3da, roughness: 0.85, map: ctex(escorrimentoTex(), 1, 1) }),
-    concCru: lam({ color: 0x9a9a94, roughness: 0.9 }),                            // Panteão
-    granitoPreto: lam({ color: 0x2a2c2e, roughness: 0.4, metalness: 0.05 }),      // bases e soleiras
+    // r2: mármore GANHOU MAPA. Sem mapa, roughness 0.25 = um único hotspot especular
+    // chapado — foi literalmente o que a métrica B6 marcou no pior frame do jogo.
+    marmore: triplanar(lam({ color: 0xe9e7de, roughness: 0.30, metalness: 0.02 }), TX_MARM, 0.55),
+    // Concreto branco TRATADO: fosco, com marca de forma e escorrimento nas juntas.
+    concBranco: triplanar(lam({ color: 0xdedcd2, roughness: 0.88 }), TX_FORMA, 0.34),
+    // Concreto aparente CRU (Panteão): mesma marca de forma, mas cinza e mais rugoso —
+    // o contraste com o branco polido é o assunto do edifício.
+    concCru: triplanar(lam({ color: 0x93938c, roughness: 0.96 }), TX_FORMA, 0.42),
+    // granito preto tem veio também; sem mapa ele vira outro plano chapado (escuro, mas chapado)
+    granitoPreto: triplanar(lam({ color: 0x33353a, roughness: 0.42, metalness: 0.05 }), TX_MARM, 0.9),
     corten: lam({ color: 0x7a4a32, roughness: 0.7, metalness: 0.5 }),             // mastro
     vidroFume: lam({ color: 0x2b3237, roughness: 0.14, metalness: 0.55 }),        // fachadas dos ministérios
     aco: lam({ color: 0x9aa0a6, roughness: 0.5, metalness: 0.6 }),
@@ -145,6 +397,23 @@ export function buildBrasilia(scene, T) {
     bronze: lam({ color: 0x5d6b4e, roughness: 0.55, metalness: 0.45 }),           // pátina verde-escura
   };
   const invis = new THREE.MeshBasicMaterial({ visible: false });
+  // Materiais r2: piso da lane, mato de rachadura e as três massas de flor do ipê.
+  const TX_PISO = ctex(pisoConcTex(), 1, 1);
+  MAT.pisoConc = lam({ map: tiledLocal(TX_PISO, 3, 60), color: 0xc6c3ba, roughness: 0.94 });
+  MAT.pisoCalcada = lam({ map: ctex(portuguesaTex(), 1.4, 84), color: 0xb6b2a8, roughness: 0.9 });
+  // Guia/meio-fio e props pequenos: triplanar de escala fina (tile ~85 cm) — assim uma peça
+  // de 1,5 m recebe textura na densidade certa em vez de 60 tiles espremidos.
+  MAT.guia = triplanar(lam({ color: 0xc9c6bb, roughness: 0.92 }), TX_FORMA, 1.18);
+  MAT.mato = lam({ map: ctex(matoTex(), 1, 1), transparent: false, alphaTest: 0.42, side: THREE.DoubleSide, roughness: 1 });
+  MAT.florIpe = [0xf0c81e, 0xd9a712, 0xfadb5c].map(c => lam({ color: c, roughness: 0.86, emissive: 0x1e1600 }));
+  MAT.folhaIpe = lam({ map: ctex(florIpeTex(), 1, 1), alphaTest: 0.45, side: THREE.DoubleSide, roughness: 0.88, emissive: 0x1a1200 });
+  MAT.tintaGasta = lam({ map: ctex(faixaTex(), 1, 1), transparent: true, roughness: 0.85, depthWrite: false });
+  MAT.mancha = lam({ map: ctex(manchaTex(), 1, 1), transparent: true, opacity: 0.9, roughness: 0.9, depthWrite: false });
+  function tiledLocal(tex, rx, ry) { const t = tex.clone(); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rx, ry); t.needsUpdate = true; return t; }
+  // Reveste um GLB do Mint com um dos nossos materiais. Os GLB de arquitetura vêm com UM
+  // material só (branco, roughness 1 do default do glTF) para o prédio inteiro — é a origem
+  // direta do "bloco branco liso". Com triplanar o UV do GLB deixa de importar.
+  function dressGLB(o, mat) { if (o) o.traverse(m => { if (m.isMesh) m.material = mat; }); return o; }
 
   // InstancedMesh helper: um draw call por família de prop repetido (postes, cones, grades…).
   const _m4 = new THREE.Matrix4(), _qt = new THREE.Quaternion(), _eu = new THREE.Euler(), _v3 = new THREE.Vector3(1, 1, 1);
@@ -174,9 +443,10 @@ export function buildBrasilia(scene, T) {
 
   // Place a Mint building GLB, normalized to targetH metres, and derive a footprint
   // collider from its real placed bounds. Returns the object (or null if not loaded).
-  function putBuilding(id, { x, z, targetH, ry = 0, solid = true, y = 0, occ = true }) {
+  function putBuilding(id, { x, z, targetH, ry = 0, solid = true, y = 0, occ = true, dress = null }) {
     const o = placeProp(id, { x, z, targetH, ry, y });
     if (!o) return null;
+    if (dress) dressGLB(o, dress);
     root.add(o); occluders.push(o);
     o.updateMatrixWorld(true);
     const bb = new THREE.Box3().setFromObject(o);
@@ -217,9 +487,17 @@ export function buildBrasilia(scene, T) {
   const cerrado = ctex(cerradoTex(), 54, 60);
   const ground = new THREE.Mesh(new THREE.PlaneGeometry(420, 460), lam({ map: cerrado, roughness: 1 }));
   ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; root.add(ground);
-  // Calçada portuguesa central (12 m) — piso da lane. Fica MAIS ESCURA que as paredes
-  // brancas dos ministérios de propósito: regra de clareza competitiva (chão < parede).
-  addPlane(12, 240, lam({ map: ctex(portuguesaTex(), 6, 120), roughness: 0.8, color: 0x9d9a91 }), 0, 0.03, 0, 0, -Math.PI / 2);
+  // PISO DA LANE (r2 — regressão C4). A rodada 1 colocou pedra portuguesa nos 12 m centrais,
+  // ou seja, EXATAMENTE na linha de tiro principal: padrão de altíssima frequência e alto
+  // contraste bem atrás do bot no crosshair. A pedra é certa pro lugar, errada pra banda de
+  // 0–2 m. Agora a lane é CONCRETO ESCURO com placa de 4 m e junta serrada (variação de
+  // baixa frequência, que é o que C4 permite) e a portuguesa migra pras calçadas laterais.
+  // O concreto também é o que garante C3: chão bem abaixo do L* das paredes brancas.
+  addPlane(12.4, 240, MAT.pisoConc, 0, 0.03, 0, 0, -Math.PI / 2);
+  // Calçadas de PEDRA PORTUGUESA nas laterais (fora dos meio-fios, |x| entre 6,2 e 10,4).
+  // Continua sendo a praça brasileira — só saiu de dentro do duelo.
+  for (const sx of [-1, 1])
+    addPlane(4.2, 240, MAT.pisoCalcada, sx * 8.3, 0.028, 0, 0, -Math.PI / 2);
   // Faixa de concreto sob os pilotis (a "calçada" dos ministérios) + meio-fio.
   for (const sx of [-1, 1]) {
     addPlane(MW + 10, 240, lam({ map: tiled(T.concreteDark, 4, 80), roughness: 0.9 }),
@@ -234,7 +512,8 @@ export function buildBrasilia(scene, T) {
       const lx = sx * (ROAD_IN + (ROAD_W / 6) * li);
       for (let z = -140; z <= 140; z += 9) dashes.push({ x: lx, y: 0.06, z, rx: -Math.PI / 2 });
     }
-    addInst(new THREE.PlaneGeometry(0.18, 4.5), MAT.pintBranca, dashes, { shadow: false });
+    // tinta DESGASTADA (r2/D2): a faixa da pista não é branca inteira, ela apaga na trilha do pneu
+    addInst(new THREE.PlaneGeometry(0.18, 4.5), MAT.tintaGasta, dashes, { shadow: false });
   }
 
   /* ---------------- LANDMARKS (Mint building models) ---------------- */
@@ -245,14 +524,14 @@ export function buildBrasilia(scene, T) {
   // feira e a "monumentalidade esmagadora" — que é O assunto de Brasília — sumia. 55 m a
   // 130 m de distância devolve o cartão-postal sem invadir o campo de jogo.
   const CONG_H = BIG ? 55 : 22, CONG_Z = BIG ? 152 : 78;
-  putBuilding('congresso', { x: 0, z: CONG_Z, targetH: CONG_H, ry: Math.PI });
+  putBuilding('congresso', { x: 0, z: CONG_Z, targetH: CONG_H, ry: Math.PI, dress: MAT.concBranco });
   // Catedral (crown) at the SOUTH end + stained glass BETWEEN the ribs (the Mint model
   // has no glass). The glass profile is fitted 0.3–0.5m INSIDE the measured rib envelope
   // (ribs run r≈10.3 @ base → r≈3.4 @ rim y≈9.5, see tools: measure-catedral) so the
   // white ribs stay visible outside the glass, like the real Niemeyer crown.
   // Catedral: 40 m no real. 30 m recuada a -108 (era 13 m a -76, "minúscula no fundo").
   const CAT_H = BIG ? 30 : 13, CAT_Z = BIG ? -108 : -76, CAT_S = CAT_H / 13;
-  putBuilding('catedral', { x: 0, z: CAT_Z, targetH: CAT_H, ry: 0, occ: false });   // cone: AABB bloquearia bala nos cantos
+  putBuilding('catedral', { x: 0, z: CAT_Z, targetH: CAT_H, ry: 0, occ: false, dress: MAT.concBranco });   // cone: AABB bloquearia bala nos cantos
   {
     // O perfil do vitral foi medido pra targetH 13; escala junto com a coroa (CAT_S).
     const profile = [[9.6, 0.3], [9.35, 1], [8.35, 2], [7.3, 3], [6.3, 4], [4.6, 5],
@@ -299,6 +578,11 @@ export function buildBrasilia(scene, T) {
       addPlane(pw - 1.6, pd - 1.6, MAT.agua, pcx, PL + 0.14, pcz, 0, -Math.PI / 2);
       const b = placeProp('palacio', { x: px, z: PAL_Z, targetH: PAL_H, ry, y: PL + 0.16 });
       if (b) {
+        // ORIGEM DO PIOR FRAME DO JOGO: este GLB é UMA malha com UM material branco liso, e
+        // a 10 m de altura por ~35 m de lado ele vira uma parede de 45% do frame com desvio
+        // de L* zero (B6 = 67,3). Reveste com concreto de marca de forma (triplanar) e, logo
+        // abaixo, quebra o plano com brise vertical, faixa de vidro e embasamento de granito.
+        dressGLB(b, MAT.concBranco);
         root.add(b); occluders.push(b);
         b.updateMatrixWorld(true);
         const bb2 = new THREE.Box3().setFromObject(b);
@@ -316,6 +600,42 @@ export function buildBrasilia(scene, T) {
           addInst(new THREE.CylinderGeometry(0.28, 0.85, PAL_H * 0.82, 8, 1, false), MAT.marmore,
             cols.map(c => ({ ...c, y: c.y + PAL_H * 0.41 })), { occlude: true });
         }
+        // QUEBRA DE PLANO (r2). Nenhuma textura salva uma parede de 35 × 10 m sem relevo:
+        // o que faz uma fachada modernista brasileira ler é a sombra própria do brise e da
+        // laje de coroamento. Aqui entram os QUATRO materiais que o BAR pede na mesma
+        // fachada — granito preto no embasamento, vidro fumê na faixa, mármore no brise e
+        // na cornija, concreto de forma no fundo — em vez de "um branco só".
+        if (BIG && DETAIL > 0) {
+          const y0 = bb2.min.y, y1 = bb2.max.y, HH = Math.max(2, y1 - y0);
+          const x0 = bb2.min.x, x1 = bb2.max.x, z0 = bb2.min.z, z1 = bb2.max.z;
+          const W = x1 - x0, D = z1 - z0;
+          // embasamento de granito preto: a "linha de terra" do edifício. Também é o
+          // gradiente de contato que faltava na junção parede–chão (critério A1).
+          addBox(W + 0.5, 0.95, D + 0.5, MAT.granitoPreto, (x0 + x1) / 2, y0 - 0.02, (z0 + z1) / 2, { collide: false, cast: false });
+          // laje de coroamento em mármore, com balanço de 1,3 m (cobre a colunata, como no
+          // Planalto real) -> sombra dura e horizontal no topo da
+          // fachada ao meio-dia (é essa faixa escura que mata o "chapado" no frame).
+          addBox(W + 2.6, 0.60, D + 2.6, MAT.marmore, (x0 + x1) / 2, y1 - 0.38, (z0 + z1) / 2, { collide: false });
+          // faixa de VIDRO FUMÊ na altura do peitoril: caixa escura entre lajes brancas.
+          const gy = y0 + HH * 0.52, gh = HH * 0.34;
+          for (const [fw, fx, fz, fry] of [[D - 1.2, x0 - 0.06, (z0 + z1) / 2, -Math.PI / 2],
+            [D - 1.2, x1 + 0.06, (z0 + z1) / 2, Math.PI / 2],
+            [W - 1.2, (x0 + x1) / 2, z0 - 0.06, Math.PI], [W - 1.2, (x0 + x1) / 2, z1 + 0.06, 0]])
+            addPlane(fw, gh, MAT.vidroFume, fx, gy, fz, fry);
+          // brise vertical de mármore nas quatro faces (o "quebra-sol" de Niemeyer).
+          const finsX = [], finsZ = [], step = LOWQ ? 4.2 : 2.6;
+          const finH = Math.max(1.2, HH - 1.7), finY = y0 + 0.95 + finH / 2;   // o brise NASCE em cima do embasamento
+          for (let t = step * 0.5; t < D - 0.4; t += step) {
+            finsX.push({ x: x0 - 0.28, y: finY, z: z0 + t });
+            finsX.push({ x: x1 + 0.28, y: finY, z: z0 + t });
+          }
+          for (let t = step * 0.5; t < W - 0.4; t += step) {
+            finsZ.push({ x: x0 + t, y: finY, z: z0 - 0.28 });
+            finsZ.push({ x: x0 + t, y: finY, z: z1 + 0.28 });
+          }
+          addInst(new THREE.BoxGeometry(0.62, finH, 0.30), MAT.marmore, finsX, { occlude: false });
+          addInst(new THREE.BoxGeometry(0.30, finH, 0.62), MAT.marmore, finsZ, { occlude: false });
+        }
         // (o poster do Dollynho saiu do Palácio do Planalto — agora vai só nas fachadas
         //  dos ministérios, abaixo; o Planalto fica limpo, como na Brasília real)
       }
@@ -327,7 +647,7 @@ export function buildBrasilia(scene, T) {
   const ministries = [];
   const pilCols = [];
   for (const sx of [-1, 1]) for (const mz of MZ) {
-    const b = putBuilding('ministerio', { x: sx * MIN_CX, z: mz, targetH: MIN_H, ry: Math.PI / 2, y: PILOTI, solid: !BIG, occ: false });
+    const b = putBuilding('ministerio', { x: sx * MIN_CX, z: mz, targetH: MIN_H, ry: Math.PI / 2, y: PILOTI, solid: !BIG, occ: false, dress: MAT.concBranco });
     ministries.push(b);
     if (!b) continue;
     b.updateMatrixWorld(true);
@@ -450,9 +770,20 @@ export function buildBrasilia(scene, T) {
       for (const s of [-1, 1]) {   // as duas "asas" inclinadas que fazem a pomba
         const wing = new THREE.Mesh(new THREE.BoxGeometry(0.9, 13, 11), MAT.concCru);
         wing.position.set(s * 3.4, 6.5, 0); wing.rotation.z = s * 0.30; g.add(wing);
+        // r2: a asa era uma chapa de 13 × 11 m de cor lisa — o outro candidato ao "muro
+        // branco" que a métrica B6 pegou. Além da textura de forma (triplanar), ganha
+        // FRISOS horizontais a cada 3,2 m: cada friso projeta uma sombra fina ao meio-dia,
+        // e é essa sombra que faz uma superfície grande ler como concreto, não placeholder.
+        for (let fy = -4.4; fy < 5.6; fy += 3.2) {
+          const fr = new THREE.Mesh(new THREE.BoxGeometry(1.14, 0.18, 11.2), MAT.concCru);
+          fr.position.set(0, fy, 0); wing.add(fr);   // filho da asa: acompanha a inclinação
+        }
       }
       const beak = new THREE.Mesh(new THREE.BoxGeometry(6.5, 0.8, 3), MAT.concCru);
       beak.position.set(0, 11.5, 0); beak.rotation.z = 0.12; g.add(beak);
+      // embasamento de granito preto: separa o volume do chão e dá o gradiente de contato (A1)
+      const emb = new THREE.Mesh(new THREE.BoxGeometry(15.6, 0.42, 12.6), MAT.granitoPreto);
+      emb.position.y = 0.21; g.add(emb);
       g.traverse(o => { if (o.isMesh) { o.castShadow = !LOWQ; o.receiveShadow = true; } });
       col(px - 7, px + 7, 0, 12, pz - 6, pz + 6);
       occBox(14, 12, 12, px, 0, pz);
@@ -586,8 +917,37 @@ export function buildBrasilia(scene, T) {
     const Zs = [];
     for (let z = -64; z <= 64; z += 8 * every) Zs.push(z);
 
-    // Meio-fio da calçada portuguesa (guia de concreto) — 1 box longo por lado, barato.
-    for (const sx of [-1, 1]) addBox(0.35, 0.18, 240, MAT.pintBranca, sx * 6.2, 0, 0, { collide: false, cast: false });
+    // MEIO-FIO / GUIA (r2). Era UM box de 240 m: uma aresta perfeitamente reta de ponta a
+    // ponta, que é justo o que o critério B7 reprova. Agora são guias de 1,5 m (a peça real
+    // de concreto pré-moldado) com desnível e giro milimétricos, junta visível entre elas e
+    // pintura branca desbotada — a linha continua guiando o olho, mas parou de ser um traço
+    // de CAD. Duas fileiras: guia interna (lane) e externa (fim da calçada portuguesa).
+    const guias = [], guiaTopo = [];
+    for (const sx of [-1, 1]) for (const gx of [6.2, 10.4]) {
+      for (let z = -118; z <= 118; z += 1.52) {
+        const jt = ((z * 7.3) % 1 + 1) % 1;                    // ruído determinístico por peça
+        guias.push({ x: sx * gx, y: 0.085 + jt * 0.012, z, ry: (jt - 0.5) * 0.012 });
+        if (jt > 0.62) guiaTopo.push({ x: sx * gx, y: 0.175, z, rx: -Math.PI / 2 });   // trecho repintado
+      }
+    }
+    addInst(new THREE.BoxGeometry(0.34, 0.19, 1.46), MAT.guia, guias, { shadow: false });
+    addInst(new THREE.PlaneGeometry(0.3, 1.4), MAT.pintBranca, guiaTopo, { shadow: false });
+
+    // MATO NA RACHADURA (D2 estava em FAIL: "tudo recém-construído"). Tufo de capim
+    // brotando na junta entre a guia e o piso — o sinal de abandono mais barato e mais
+    // brasileiro que existe. Billboard cruzado com alphaTest; não projeta sombra.
+    if (!LOWQ) {
+      const tufos = [];
+      for (const sx of [-1, 1]) for (const gx of [6.05, 10.55]) {
+        for (let z = -112; z <= 112; z += 3.1) {
+          if (((z * 3.7 + gx) % 1 + 1) % 1 > 0.42) continue;   // esparso, não um canteiro
+          const a = ((z * 11.1) % 1) * 3;
+          tufos.push({ x: sx * gx, y: 0.17, z, ry: a });
+          tufos.push({ x: sx * gx, y: 0.17, z, ry: a + 1.57 });
+        }
+      }
+      addInst(new THREE.PlaneGeometry(0.44, 0.34), MAT.mato, tufos, { shadow: false });
+    }
 
     // Postes de iluminação: mastro galvanizado 9 m + braço + luminária. Marcam a lane e dão
     // ritmo vertical ao vazio (o vazio é o assunto, mas vazio SEM ritmo lê como cena inacabada).
@@ -634,12 +994,13 @@ export function buildBrasilia(scene, T) {
     // Faixa de pedestre atravessando o eixo (tinta branca desgastada).
     const zebra = [];
     for (const fz of [18, -26]) for (let i = -6; i <= 6; i++) zebra.push({ x: i * 0.95, y: 0.05, z: fz, rx: -Math.PI / 2 });
-    addInst(new THREE.PlaneGeometry(0.5, 4), MAT.pintBranca, zebra, { shadow: false });
+    addInst(new THREE.PlaneGeometry(0.5, 4), MAT.tintaGasta, zebra, { shadow: false });
 
     // PALMEIRA-IMPERIAL em fileira: tronco cinza liso e alto, copa pequena no topo.
     // A fileira é o que dá a leitura de "eixo" — e serve de referência de distância.
     const troncos = [], frondes = [];
-    const palmMat = lam({ color: 0x9a958a, roughness: 0.85 });
+    // tronco de 14 m com cor chapada também entrava no B6; triplanar em escala fina resolve
+    const palmMat = triplanar(lam({ color: 0xa39d91, roughness: 0.88 }), TX_FORMA, 1.6);
     const leafMat = lam({ color: 0x3f5a2c, roughness: 0.9, side: THREE.DoubleSide });
     for (const sx of [-1, 1]) for (let i = 0; i < (DETAIL === 2 ? 7 : 4); i++) {
       const x = sx * 18, z = -52 + i * (DETAIL === 2 ? 18 : 32);
@@ -656,17 +1017,79 @@ export function buildBrasilia(scene, T) {
     // IPÊ-AMARELO florido (ago–set): galhos NUS cobertos de flor amarela intensa. O BAR diz
     // que é "o único ponto de cor saturada legítimo da cena" — logo, o melhor marcador de
     // affordance disponível. Vão nos chokepoints, de propósito.
-    const ipeTr = [], ipeCopa = [];
-    const ipeMat = lam({ color: 0x5a4a38, roughness: 0.95 });
-    const florMat = lam({ color: 0xf2c414, roughness: 0.85, emissive: 0x3a2c00 });
-    for (const [tx, tz] of [[-11, -14], [12, 14], [-5, 46]]) {
-      if (!freeSpot(tx, tz, 2.4)) continue;
-      ipeTr.push({ x: tx, y: 2.4, z: tz }); col(tx - 0.4, tx + 0.4, 0, 5, tz - 0.4, tz + 0.4);
-      for (let k = 0; k < 4; k++)
-        ipeCopa.push({ x: tx + (k % 2 ? 1.1 : -1.1), y: 5.2 + (k > 1 ? 1.1 : 0), z: tz + (k > 1 ? 1 : -1), sx: 1, sy: 0.75, sz: 1 });
+    // r2 — REFEITO. Antes eram 4 icosaedros de face única com UMA cor chapada: um sólido
+    // convexo facetado, o pior asset do mapa, e logo o ponto de cor que mais chama atenção.
+    // Agora: fuste + 5 GALHOS em leque (o ipê florido tem galho NU aparecendo), 9 massas
+    // irregulares de flor em 3 TONS diferentes (silhueta recortada, variação de valor) e
+    // 3 billboards cruzados com textura de cacho e alphaTest — é o alpha que dá a borda
+    // esgarçada que nenhum poliedro convexo consegue dar.
+    const ipeTr = [], ipeGalho = [], ipeCopa = [[], [], []], ipeFolha = [];
+    const ipeMat = lam({ color: 0x6b5a44, roughness: 0.95 });
+    // ruído determinístico: cada árvore precisa ser DIFERENTE, mas igual em todo carregamento
+    const hash = (n) => { const s = Math.sin(n * 127.1) * 43758.5453; return s - Math.floor(s); };
+    for (const [ti, [tx, tz]] of [[-11, -14], [12, 14], [-5, 46], [9, -40]].entries()) {
+      if (!freeSpot(tx, tz, 2.6)) continue;
+      const S0 = ti * 17.3 + 3.1;
+      ipeTr.push({ x: tx, y: 2.35, z: tz, rz: (hash(S0) - 0.5) * 0.07 });
+      col(tx - 0.4, tx + 0.4, 0, 5, tz - 0.4, tz + 0.4);
+      for (let g = 0; g < 5; g++) {
+        const a = (g / 5) * Math.PI * 2 + hash(S0 + g) * 0.8, len = 2.1 + hash(S0 + g + 40) * 1.2;
+        ipeGalho.push({ x: tx + Math.cos(a) * len * 0.34, y: 4.55 + hash(S0 + g + 9) * 0.55,
+          z: tz + Math.sin(a) * len * 0.34, ry: -a, rz: 0.8 + hash(S0 + g + 5) * 0.4, sy: len / 2.4 });
+      }
+      for (let k = 0; k < 9; k++) {
+        const a = (k / 9) * Math.PI * 2 + hash(S0 + k + 20) * 1.3, r = 0.7 + hash(S0 + k + 30) * 1.9;
+        const s = 0.72 + hash(S0 + k + 40) * 0.95;
+        ipeCopa[k % 3].push({ x: tx + Math.cos(a) * r, y: 5.25 + hash(S0 + k + 50) * 1.5, z: tz + Math.sin(a) * r,
+          sx: s * (0.85 + hash(S0 + k + 60) * 0.5), sy: s * (0.52 + hash(S0 + k + 70) * 0.3),
+          sz: s * (0.85 + hash(S0 + k + 80) * 0.5), rx: hash(S0 + k + 90) * 3, ry: hash(S0 + k + 95) * 3 });
+      }
+      if (!LOWQ) for (let b = 0; b < 3; b++) ipeFolha.push({ x: tx, y: 5.85, z: tz, ry: b * 1.047 + hash(S0 + b) * 0.3 });
     }
-    addInst(new THREE.CylinderGeometry(0.22, 0.38, 4.8, 6), ipeMat, ipeTr, { occlude: false });
-    addInst(new THREE.IcosahedronGeometry(1.7, 0), florMat, ipeCopa);
+    addInst(new THREE.CylinderGeometry(0.2, 0.42, 4.7, 8), ipeMat, ipeTr, { occlude: false });
+    addInst(new THREE.CylinderGeometry(0.05, 0.14, 2.4, 5), ipeMat, ipeGalho, { shadow: false });
+    ipeCopa.forEach((list, i) => addInst(new THREE.IcosahedronGeometry(1.15, 1), MAT.florIpe[i], list));
+    addInst(new THREE.PlaneGeometry(5.4, 3.6), MAT.folhaIpe, ipeFolha, { shadow: false });
+
+    /* ------- SINAIS DE IDADE + densidade secundária (critério D2, que estava em FAIL) ------- */
+    // Brasília tem 65 anos e o mapa parecia entregue ontem. Tudo aqui é decal ou InstancedMesh:
+    // não muda colisão, não muda rota de bot, e some com ?props=0.
+    {
+      // remendo de asfalto e mancha de óleo nas pistas do Eixo + escorrimento no piso da lane
+      const decals = [];
+      for (let i = 0; i < (LOWQ ? 26 : 64); i++) {
+        const h = hash(i * 3.77), h2 = hash(i * 9.13 + 5), h3 = hash(i * 4.51 + 11);
+        const onRoad = h3 > 0.45;
+        const x = onRoad ? (h2 > 0.5 ? 1 : -1) * (ROAD_IN + h * ROAD_W) : (h - 0.5) * 20;
+        const s = onRoad ? 1.6 + h2 * 3.4 : 1.0 + h2 * 2.6;
+        decals.push({ x, y: onRoad ? 0.055 : 0.045, z: (h2 - 0.5) * 210, rx: -Math.PI / 2, ry: h3 * 3.1, sx: s, sy: s * (0.6 + h * 0.8) });
+      }
+      addInst(new THREE.PlaneGeometry(1, 1), MAT.mancha, decals, { shadow: false });
+
+      // BANCO de concreto do mobiliário urbano dos anos 60 (bloco maciço sobre dois apoios).
+      // Cobertura baixa de verdade nas laterais, longe do miolo do duelo.
+      const bancoT = [], bancoP = [];
+      for (const [bx2, bz2] of [[8.6, 34], [-8.6, 34], [8.6, -12], [-8.6, -12], [8.6, 58], [-8.6, -58]]) {
+        if (!freeSpot(bx2, bz2, 1.4)) continue;
+        bancoT.push({ x: bx2, y: 0.46, z: bz2 });
+        for (const d of [-0.75, 0.75]) bancoP.push({ x: bx2, y: 0.21, z: bz2 + d });
+        col(bx2 - 0.32, bx2 + 0.32, 0, 0.55, bz2 - 1.1, bz2 + 1.1);
+      }
+      addInst(new THREE.BoxGeometry(0.58, 0.16, 2.3), MAT.guia, bancoT, { occlude: false });
+      addInst(new THREE.BoxGeometry(0.44, 0.42, 0.36), MAT.concCru, bancoP, { shadow: false });
+
+      // PLACA INDICATIVA OFICIAL (critério D4). Poste galvanizado + chapa verde do DNIT.
+      const placas = [['ESPLANADA', -12.6, 30, 1], ['PRAÇA DOS TRÊS PODERES', 12.6, -30, -1]];
+      const placaPost = [];
+      for (const [txt, sx2, sz2, sg] of placas) {
+        if (!freeSpot(sx2, sz2, 1)) continue;
+        placaPost.push({ x: sx2, y: 1.5, z: sz2 });
+        const pm = lam({ map: ctex(placaTex(txt), 1, 1), side: THREE.DoubleSide, roughness: 0.75 });
+        addPlane(2.6, 0.65, pm, sx2, 2.55, sz2, sg > 0 ? Math.PI / 2 : -Math.PI / 2);
+        col(sx2 - 0.12, sx2 + 0.12, 0, 3, sz2 - 0.12, sz2 + 0.12);
+      }
+      addInst(new THREE.CylinderGeometry(0.06, 0.08, 3, 6), MAT.aco, placaPost, { occlude: false });
+    }
   }
 
   /* ---------------- lighting & sky ---------------- */

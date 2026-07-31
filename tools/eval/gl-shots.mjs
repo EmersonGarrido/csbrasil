@@ -16,6 +16,7 @@ const browser = await chromium.launch({
   args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--headless=new', '--mute-audio', '--no-sandbox'],
 });
 const log = [];
+const metrics = [];
 const ASPECTS = { '169': [1600, 900], '32': [1500, 1000] };
 
 async function menuShots() {
@@ -66,19 +67,42 @@ async function gameShots() {
       const errs = [];
       page.on('pageerror', e => errs.push(e.message));
       page.on('console', m => { if (m.type() === 'error') errs.push(m.text()); });
+      const t0 = Date.now();
+      let tLive = null;
       try {
         await page.goto(`${BASE}/?debug=1&map=${map}&auto=${auto}`, { waitUntil: 'domcontentloaded', timeout: 180000 });
         await page.waitForFunction(() => window.__game && window.__game.state === 'live', null, { timeout: 900000 });
+        tLive = (Date.now() - t0) / 1000;
         await page.waitForTimeout(6000);
-        await page.screenshot({ path: `${OUT}/game-${map}-${aName}-a.png` });
+        await page.screenshot({ path: `${OUT}/game-${map}-${aName}-a.png`, timeout: 120000 });
         // olha em volta: 3 yaws
         for (let i = 1; i <= 3; i++) {
           await page.evaluate((k) => { const g = window.__game; if (g && g.player) { g.player.yaw = (g.player.yaw || 0) + k * 1.6; } }, i);
           await page.waitForTimeout(1500);
-          await page.screenshot({ path: `${OUT}/game-${map}-${aName}-${'bcd'[i - 1]}.png` });
+          await page.screenshot({ path: `${OUT}/game-${map}-${aName}-${'bcd'[i - 1]}.png`, timeout: 120000 });
         }
+        // 30s de jogo antes de medir
+        const liveMs = Date.now() - (t0 + tLive * 1000);
+        if (liveMs < 30000) await page.waitForTimeout(30000 - liveMs);
+        const m = await page.evaluate(() => {
+          const g = window.__game, r = g && g.renderer, i = r && r.info;
+          return {
+            calls: i ? i.render.calls : null, tris: i ? i.render.triangles : null,
+            textures: i ? i.memory.textures : null, geometries: i ? i.memory.geometries : null,
+            programs: i && i.programs ? i.programs.length : null,
+            heapMB: performance.memory ? +(performance.memory.usedJSHeapSize / 1048576).toFixed(1) : null,
+            state: g ? g.state : null,
+          };
+        });
+        metrics.push({ map, aspect: aName, tLive, ...m });
       } catch (e) { errs.push('[fatal] ' + e.message.split('\n')[0]); }
-      if (errs.length) log.push(`[${map} ${aName}] ` + errs.slice(0, 6).join(' | '));
+      if (!metrics.some(x => x.map === map && x.aspect === aName)) metrics.push({ map, aspect: aName, tLive, fatal: true });
+      if (errs.length) {
+        log.push(`[${map} ${aName}] ` + errs.slice(0, 6).join(' | '));
+        writeFileSync(`${OUT}/_errs-${map}-${aName}.txt`, errs.join('\n'));
+      }
+      writeFileSync(`${OUT}/_metrics.json`, JSON.stringify(metrics, null, 2));
+      console.log('[done] ' + JSON.stringify(metrics[metrics.length - 1]));
       await page.close();
     }
   }
@@ -86,6 +110,7 @@ async function gameShots() {
 
 if (SET === 'menu' || SET === 'all') await menuShots();
 if (SET === 'game' || SET === 'all') await gameShots();
+writeFileSync(`${OUT}/_metrics.json`, JSON.stringify(metrics, null, 2));
 writeFileSync(`${OUT}/_log.txt`, log.join('\n') || 'sem erros');
 console.log(log.join('\n') || 'sem erros');
 await browser.close();

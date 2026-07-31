@@ -214,13 +214,39 @@ export function buildVmAttachment(cls, kind) {
     // gatilho — "a arma é 6% da massa visual do quadro". O tambor saiu de t=0.68 (longe,
     // atrás da mão no framing novo) pra t=0.56 e ganhou CANELURAS (6 faces), martelo e
     // guarda-mato: são esses 3 traços que fazem um .38 ler como revólver de primeira.
+    // CALIBRAÇÃO R2 — dois defeitos, nesta ordem de gravidade:
+    //  (1) EIXO ERRADO. O tambor estava com rot [0,0,π/2], que gira o eixo do cilindro
+    //      para o LATERAL (gun-space X). Tambor de revólver gira em torno de um eixo
+    //      PARALELO À ALMA — é [π/2,0,0], a mesma convenção do supressor/luneta neste
+    //      arquivo. Deitado de través ele lia como um caroço, nunca como tambor.
+    //  (2) OCLUSÃO. t=0.56 cai em cima do punho no enquadramento do FP; o tambor ia
+    //      inteiro pra trás da mão. Foi pra 0.72 (à frente do punho, na altura em que
+    //      o frame do .38 realmente aparece) e o martelo/guarda-mato/gatilho subiram
+    //      junto, pra não ficarem enterrados no antebraço.
+    // Bônus de leitura DE FRENTE (a câmera vê a .38 quase pela linha da alma): haste
+    // ejetora + lug embaixo do cano e massa de mira em cima — a silhueta de dois
+    // andares na boca é o tell do .38 que sobrevive ao escorço.
+    // ?rev38=0 volta ao layout da rodada 1 (A/B do dono).
     const blued = mat(0x2b3038, 0.45, 0.55);
-    add(cyl(0.078, 0.078, 0.175, blued, 6), 0.56, 0.0, 0.012, [0, 0, Math.PI / 2]);      // tambor caneluado
-    add(cyl(0.022, 0.022, 0.20, steel, 8), 0.56, 0.0, 0.012, [0, 0, Math.PI / 2]);       // eixo/haste ejetora
-    add(box(0.030, 0.055, 0.045, blued), 0.30, 0.115, 0, [0.5, 0, 0]);                   // martelo (cão) armado
-    const guard = new THREE.Mesh(new THREE.TorusGeometry(0.055, 0.011, 6, 12, 3.1), blued);
-    add(guard, 0.40, -0.085, 0, [0, Math.PI / 2, 0.4]);                                   // guarda-mato
-    add(box(0.012, 0.040, 0.014, steel), 0.41, -0.055, 0, [0.25, 0, 0]);                  // gatilho
+    const r2 = (typeof location === 'undefined') || new URLSearchParams(location.search).get('rev38') !== '0';
+    if (!r2) {
+      add(cyl(0.078, 0.078, 0.175, blued, 6), 0.56, 0.0, 0.012, [0, 0, Math.PI / 2]);
+      add(cyl(0.022, 0.022, 0.20, steel, 8), 0.56, 0.0, 0.012, [0, 0, Math.PI / 2]);
+      add(box(0.030, 0.055, 0.045, blued), 0.30, 0.115, 0, [0.5, 0, 0]);
+      const g0 = new THREE.Mesh(new THREE.TorusGeometry(0.055, 0.011, 6, 12, 3.1), blued);
+      add(g0, 0.40, -0.085, 0, [0, Math.PI / 2, 0.4]);
+      add(box(0.012, 0.040, 0.014, steel), 0.41, -0.055, 0, [0.25, 0, 0]);
+    } else {
+      add(cyl(0.082, 0.082, 0.22, blued, 6), 0.72, 0.0, 0.018, [Math.PI / 2, 0, 0]);      // tambor caneluado, COAXIAL à alma
+      add(cyl(0.090, 0.090, 0.020, steel, 6), 0.615, 0.0, 0.018, [Math.PI / 2, 0, 0]);    // escudo de recuo (face traseira do tambor)
+      add(cyl(0.020, 0.020, 0.28, steel, 8), 0.86, -0.052, 0, [Math.PI / 2, 0, 0]);       // haste ejetora sob o cano
+      add(box(0.034, 0.046, 0.26, blued), 0.87, -0.050, 0);                               // lug/underlug — 2º andar na boca
+      add(box(0.014, 0.030, 0.030, blued), 0.985, 0.052, 0);                              // massa de mira na ponta
+      add(box(0.030, 0.058, 0.045, blued), 0.56, 0.105, 0, [0.5, 0, 0]);                  // martelo (cão) armado
+      const guard = new THREE.Mesh(new THREE.TorusGeometry(0.055, 0.011, 6, 12, 3.1), blued);
+      add(guard, 0.61, -0.088, 0, [0, Math.PI / 2, 0.4]);                                 // guarda-mato
+      add(box(0.012, 0.040, 0.014, steel), 0.62, -0.058, 0, [0.25, 0, 0]);                // gatilho
+    }
   } else if (kind === 'tacguard') {
     // MD97: handguard TÁTICO ventilado sobre o pump (crítico R3: M3 madeira × MD97
     // militar tinham a mesma silhueta) — caixa com slots cobrindo o pump de madeira
@@ -300,9 +326,20 @@ export function buildVmAttachment(cls, kind) {
     // deslocado lateralmente pro lado da câmera, alargando a silhueta)
     // GUNFEEL: alinhado ao tambor novo (t 0.58→0.56) e um pouco mais pra fora (s 0.075→0.085)
     // — no framing da pistola (arma 54% maior e 28% mais perto) ele passava por dentro da mão.
-    add(cyl(0.07, 0.07, 0.15, mat(0x2b3038, 0.45, 0.55), 6), 0.56, 0.04, 0.085, [0, 0, Math.PI / 2]);
-    add(box(0.028, 0.028, 0.075, mat(0x2b3038, 0.45, 0.55)), 0.56, 0.04, 0.03);   // grua
-    add(cyl(0.02, 0.02, 0.05, steel, 8), 0.56, 0.04, 0.085, [0, 0, Math.PI / 2]); // eixo
+    // CALIBRAÇÃO R2: acompanha o drum2 — coaxial à alma ([π/2,0,0], não [0,0,π/2]) e em
+    // t=0.72, à frente do punho. É esta peça que ALARGA a silhueta pro lado da câmera:
+    // sem ela a .38 fica com a largura do frame sólido do mesh de pistola e lê como slide.
+    const rv = mat(0x2b3038, 0.45, 0.55);
+    const r2s = (typeof location === 'undefined') || new URLSearchParams(location.search).get('rev38') !== '0';
+    if (!r2s) {
+      add(cyl(0.07, 0.07, 0.15, rv, 6), 0.56, 0.04, 0.085, [0, 0, Math.PI / 2]);
+      add(box(0.028, 0.028, 0.075, rv), 0.56, 0.04, 0.03);
+      add(cyl(0.02, 0.02, 0.05, steel, 8), 0.56, 0.04, 0.085, [0, 0, Math.PI / 2]);
+    } else {
+      add(cyl(0.076, 0.076, 0.20, rv, 6), 0.72, 0.005, 0.082, [Math.PI / 2, 0, 0]);   // tambor deslocado pro lado da câmera
+      add(box(0.075, 0.030, 0.060, rv), 0.615, 0.005, 0.050);                          // grua (liga o tambor ao frame)
+      add(cyl(0.024, 0.024, 0.055, steel, 8), 0.72, 0.005, 0.082, [Math.PI / 2, 0, 0]);// eixo do tambor (haste ejetora fica no drum2, s=0 — não duplica)
+    }
   } else if (kind === 'shells') {
     add(box(0.028, 0.055, 0.17, dark), 0.30, 0.06, 0.075);
     const shell = mat(0xa8232a, 0.55, 0.1);
