@@ -63,6 +63,29 @@ const GUN_ROT = _num3(qp.get('gunrot'), [90, 0, 0]).map((d) => d * Math.PI / 180
 const GUN_SCALE = parseFloat(qp.get('guns')) || 1.0;
 const TP_FLIP_Y = new Set(['p90']);   // armas que precisam de +180° só na 3ª pessoa (mount)
 
+// ── MOUNT V2 (rodada de CONSISTÊNCIA) ───────────────────────────────────────
+// O mount antigo tirava a direção do cano da linha ANTEBRAÇO->MÃO. Medido rig a rig
+// (tools/eval/tp-mount-probe.mjs) esse vetor dá, no clipe de idle:
+//   • pitch entre -21° e -35° em TODOS os 27 personagens  -> toda arma apontada pro chão
+//   • yaw de 63° no coach                                  -> a "arma pra trás" que o dono viu
+// Ou seja: o defeito não era de um personagem, era do método. A direção do cano agora
+// vem do CORPO (frente do personagem), que é o que CS 1.6/ev.io/VALORANT fazem: em 3ª
+// pessoa a arma aponta pra onde o boneco olha, ponto. Só o ângulo de porte (leve
+// inclinação) é constante, e ele é o mesmo pra todo mundo — consistência antes de tudo.
+// Kill-switch: ?tpmount=0 volta ao algoritmo antigo (linha do antebraço).
+const TP_MOUNT_V2 = qp.get('tpmount') !== '0';
+const _tpc = (qp.get('tpcarry') || '').split(',').map(Number);
+const TP_CARRY_PITCH = ((_tpc.length === 2 && !isNaN(_tpc[0]) ? _tpc[0] : -6)) * Math.PI / 180;  // cano levemente pro chão (porte)
+const TP_CARRY_YAW = ((_tpc.length === 2 && !isNaN(_tpc[1]) ? _tpc[1] : 4)) * Math.PI / 180;     // levemente cruzando o corpo
+const TP_CLEAR = parseFloat(qp.get('tpclear')) || 0.06;   // folga mínima entre o grip e a superfície do corpo (m)
+// O empurrão só entra quando a palma está ENTERRADA de verdade. Medido: humano típico
+// tem a palma 3-10 cm dentro do volume do quadril na pose de idle (braço encostado no
+// corpo) e mesmo assim a arma lê bem; o Dollynho está 25 cm dentro da garrafa e o Ancap
+// 12 cm dentro da túnica. A tolerância abaixo separa os dois casos. Teto baixo de
+// propósito: arma longe da mão é mão solta (C7), que é pior que um encosto na roupa.
+const TP_BURIED_TOL = 0.10;
+const TP_CLEAR_MAX = 0.20;
+
 const loader = new GLTFLoader();
 const loadGLB = (url) => new Promise((res, rej) => loader.load(url, res, undefined, rej));
 
@@ -107,6 +130,49 @@ export function measurePalmLocal(model, hand, curl) {
   const toLocal = new THREE.Matrix4().copy(sk.skeleton.boneInverses[hi]).multiply(sk.bindMatrix);
   return c.applyMatrix4(toLocal);
 }
+
+// Perfil de RAIO DO TRONCO por altura, medido nos vértices (bind), sem braços/mãos.
+// PORQUÊ: em mascote de braço-toco a palma nasce DENTRO do volume do corpo e a arma
+// montada nela fica enterrada na malha — foi assim que o Dollynho apareceu "sem arma
+// nenhuma" (a palma dele está 25 cm dentro da garrafa; o 2º pior é o Ancap com 12 cm,
+// e o humano típico está FORA por 3-10 cm). Com o perfil dá pra empurrar a arma pra
+// fora só de quem precisa, na medida exata, em vez de chutar offset por personagem.
+// Espaço: com o GLTFLoader do three o bind é IDENTIDADE, então a posição crua do
+// vértice já está no espaço local do `model` (o mesmo de model.worldToLocal).
+// Cache por id: o custo (uma passada com stride) é pago uma vez por personagem.
+const _torsoCache = new Map();
+const BUCKET = 0.05;
+function torsoProfile(id, model) {
+  if (_torsoCache.has(id)) return _torsoCache.get(id);
+  let sk = null;
+  model.traverse((o) => { if (o.isSkinnedMesh && !sk) sk = o; });
+  let prof = null;
+  if (sk) {
+    const bones = sk.skeleton.bones;
+    const arm = new Set();
+    bones.forEach((b, i) => { if (/arm|hand|shoulder|clavicle|curl/i.test(b.name)) arm.add(i); });
+    const pos = sk.geometry.attributes.position, si = sk.geometry.attributes.skinIndex, sw = sk.geometry.attributes.skinWeight;
+    const at = (a, i, k) => (k === 0 ? a.getX(i) : k === 1 ? a.getY(i) : k === 2 ? a.getZ(i) : a.getW(i));
+    const r = new Float32Array(64);
+    for (let i = 0; i < pos.count; i += 3) {
+      if (si && sw) { let w = 0; for (let k = 0; k < 4; k++) if (arm.has(at(si, i, k))) w += at(sw, i, k); if (w > 0.3) continue; }
+      const y = pos.getY(i), b = Math.floor(y / BUCKET);
+      if (b < 0 || b >= 64) continue;
+      const rad = Math.hypot(pos.getX(i), pos.getZ(i));
+      if (rad > r[b]) r[b] = rad;
+    }
+    prof = r;
+  }
+  _torsoCache.set(id, prof);
+  return prof;
+}
+const torsoRadiusAt = (prof, y) => {
+  if (!prof) return 0;
+  const b = Math.floor(y / BUCKET);
+  let m = 0;
+  for (let k = b - 1; k <= b + 1; k++) if (k >= 0 && k < 64 && prof[k] > m) m = prof[k];
+  return m;
+};
 
 // Preload shared clips + base meshes for the given character ids. Safe to call once
 // before a match; already-loaded assets are skipped. Failures are swallowed per-asset
@@ -240,17 +306,25 @@ export function buildCharacterModel(def, opts = {}) {
     const authored = Math.max(asz.x, asz.y, asz.z) || 1;
     const mount = new THREE.Group();
     handBone.add(mount); mount.add(gun);
-    // Orientation is computed AFTER the controller is created (below), aiming the barrel
-    // from the right hand to the left hand in the settled hold pose — rig-independent.
-    // Meshy rigs have wildly different hand-bone world scales (~70x apart), so a fixed
-    // or clamped compensation makes weapons either microscopic or giant. Instead, measure
-    // the mounted world size and rescale so the weapon always renders at its real length.
-    // This is self-correcting: it can never balloon or shrink to a speck.
+    // Orientation is computed AFTER the controller is created (below).
     group.updateMatrixWorld(true);
-    const wsz = new THREE.Vector3(); new THREE.Box3().setFromObject(gun).getSize(wsz);
-    const worldLen = Math.max(wsz.x, wsz.y, wsz.z) || authored;
-    mount.scale.setScalar(GUN_SCALE * authored / worldLen); // -> mount space ~= world meters
-    gun.position.set(GUN_POS[0], GUN_POS[1], GUN_POS[2]);
+    if (TP_MOUNT_V2) {
+      // ESCALA: direto da escala de mundo do OSSO (exata e independente de giro).
+      // A conta antiga comparava o tamanho da arma solta com a AABB dela já pendurada
+      // no osso — e AABB é alinhada aos eixos do MUNDO, então ela ENCOLHE quando o osso
+      // está girado. Medido: erro de -12% (uzi no reggae) a +7% (ak no coach), ou seja,
+      // até 19% de diferença de tamanho da MESMA arma entre dois personagens. Aqui a
+      // arma renderiza exatamente no comprimento real dela em qualquer rig.
+      const e = handBone.matrixWorld.elements;
+      const boneScale = Math.hypot(e[0], e[1], e[2]) || 1;   // ~0.0101-0.0116 nestes rigs
+      mount.scale.setScalar(GUN_SCALE / boneScale);
+      gun.position.set(0, 0, 0);   // o grip já é a origem do weaponModel; quem posiciona é o mount
+    } else {
+      const wsz = new THREE.Vector3(); new THREE.Box3().setFromObject(gun).getSize(wsz);
+      const worldLen = Math.max(wsz.x, wsz.y, wsz.z) || authored;
+      mount.scale.setScalar(GUN_SCALE * authored / worldLen); // -> mount space ~= world meters
+      gun.position.set(GUN_POS[0], GUN_POS[1], GUN_POS[2]);
+    }
     gun.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.frustumCulled = false; o.userData.noHit = true; } });
   }
 
@@ -265,36 +339,61 @@ export function buildCharacterModel(def, opts = {}) {
   ctrl.oneHanded = !!(opts.weaponId && ONE_HANDED.has(opts.weaponId));
 
   if (handBone && withWeapon) {
-    // Aim the mount from the walk cycle's natural hold: average the forearm->hand line
-    // across the loop (the walk holds the gun with both hands on it). Pose-independent,
-    // works for rifle and pistol rigs. (The shoot pose is pistol-flavored and unreliable.)
-    ctrl._to('walk');
-    const dirAvg = new THREE.Vector3();
-    const gripP = handBone.getWorldPosition(new THREE.Vector3());
-    if (rforeBone) {
-      const elbowP = rforeBone.getWorldPosition(new THREE.Vector3());
-      for (let i = 0; i < 8; i++) {
-        ctrl.update(1 / 24, 0, false, 0);
-        model.updateMatrixWorld(true);
-        const hp = handBone.getWorldPosition(new THREE.Vector3());
-        const ep = rforeBone.getWorldPosition(new THREE.Vector3());
-        const d = hp.sub(ep);
-        if (d.lengthSq() > 1e-6) dirAvg.add(d.normalize());
+    // A pose tem que estar ASSENTADA antes de medir qualquer coisa: o mixer acabou de
+    // ser criado e o modelo ainda está na pose de bind (braços abertos). Medir antes
+    // disso é a origem clássica dos mounts errados neste projeto. (O código antigo
+    // pedia 'walk' e logo em seguida chamava update(...,moving=0,...), que devolve o
+    // controlador pra 'idle' — ele media, na prática, um BLEND no meio da transição,
+    // e blend de transição é diferente em cada rig: daí a aleatoriedade dos defeitos.)
+    for (let i = 0; i < 10; i++) ctrl.update(1 / 30, 0, false, 0);
+    model.updateMatrixWorld(true);
+    const mount = handBone.children.find((c) => c.isGroup);
+    let curlR = null, curlL = null;
+    model.traverse(o => { if (o.isBone) { if (o.name === 'Curl_R') curlR = o; if (o.name === 'Curl_L') curlL = o; } });
+    if (TP_MOUNT_V2 && mount) {
+      // 1) ORIENTAÇÃO: cano na direção do CORPO + ângulo de porte fixo (igual pra todos).
+      const bodyQ = model.getWorldQuaternion(new THREE.Quaternion());
+      const carry = new THREE.Quaternion().setFromEuler(new THREE.Euler(TP_CARRY_PITCH, TP_CARRY_YAW, 0, 'YXZ'));
+      const desired = bodyQ.multiply(carry);
+      const handQ = handBone.getWorldQuaternion(new THREE.Quaternion());
+      mount.quaternion.copy(handQ.invert().multiply(desired));
+      // 2) POSIÇÃO: no centro medido da PALMA, não na origem do osso (que é o PULSO).
+      // É a diferença entre "a mão segura a arma" e "a arma flutua perto da mão" (C7).
+      const palmLocal = measurePalmLocal(model, handBone, curlR);
+      const palmW = handBone.localToWorld(palmLocal.clone());
+      // 3) FOLGA: se a palma nasce dentro da silhueta do corpo, empurra a arma pra fora
+      // na medida exata (Dollynho: 25 cm dentro da garrafa; humano típico: 0).
+      const palmM = model.worldToLocal(palmW.clone());
+      const prof = torsoProfile(def.id, model);
+      const rNow = Math.hypot(palmM.x, palmM.z);
+      const need = Math.min(TP_CLEAR_MAX, torsoRadiusAt(prof, palmM.y) + TP_CLEAR - rNow - TP_BURIED_TOL);
+      if (need > 0.005) {
+        // Direção do empurrão: frente do corpo + um pouco pra direita. Usar a direção
+        // da própria palma não serve nos mascotes — lá o raio é ~0 e a direção é ruído.
+        palmM.x += need * 0.33; palmM.z += need * 0.94;
+        if (qp.get('chartune')) console.log(`[glbchars] ${def.id}: arma empurrada ${need.toFixed(3)} m pra fora do corpo`);
       }
+      mount.position.copy(handBone.worldToLocal(model.localToWorld(palmM)));
+    } else if (mount) {
+      // --- caminho antigo (?tpmount=0): direção do cano pela linha antebraço->mão ---
+      const dirAvg = new THREE.Vector3();
+      if (rforeBone) {
+        for (let i = 0; i < 8; i++) {
+          ctrl.update(1 / 24, 0, false, 0);
+          model.updateMatrixWorld(true);
+          const d = handBone.getWorldPosition(new THREE.Vector3()).sub(rforeBone.getWorldPosition(new THREE.Vector3()));
+          if (d.lengthSq() > 1e-6) dirAvg.add(d.normalize());
+        }
+      }
+      let dir = dirAvg.lengthSq() > 1e-6 ? dirAvg.normalize() : null;
+      if (!dir) dir = new THREE.Vector3(0, 0, 1).applyQuaternion(group.getWorldQuaternion(new THREE.Quaternion()));
+      const lookM = new THREE.Matrix4().lookAt(new THREE.Vector3(), dir.clone().negate(), new THREE.Vector3(0, 1, 0));
+      const desired = new THREE.Quaternion().setFromRotationMatrix(lookM);
+      mount.quaternion.copy(handBone.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(desired));
     }
-    let dir = dirAvg.lengthSq() > 1e-6 ? dirAvg.normalize() : null;
-    if (!dir) dir = new THREE.Vector3(0, 0, 1).applyQuaternion(group.getWorldQuaternion(new THREE.Quaternion()));
-    // Matrix4.lookAt orients -Z at the target; we want the gun's +Z (barrel) along dir.
-    const lookM = new THREE.Matrix4().lookAt(new THREE.Vector3(), dir.clone().negate(), new THREE.Vector3(0, 1, 0));
-    const desired = new THREE.Quaternion().setFromRotationMatrix(lookM);
-    const parentQ = handBone.getWorldQuaternion(new THREE.Quaternion());
-    const mount = handBone.children.find(c => c.isGroup);
-    mount.quaternion.copy(parentQ.invert().multiply(desired));
     // Grip curl: close the fingers onto the grip (the auto-skinned curl bones).
     // Two-handed weapons curl both hands; one-handed only the grip (right) hand.
     const twoHanded = !ONE_HANDED.has(opts.weaponId || 'awp');
-    let curlR = null, curlL = null;
-    model.traverse(o => { if (o.isBone) { if (o.name === 'Curl_R') curlR = o; if (o.name === 'Curl_L') curlL = o; } });
     if (curlR) { curlR.rotation.x += 0.5; }
     if (twoHanded && curlL) { curlL.rotation.x += 0.5; }
     // IK da mão de apoio (FASE 2): em armas de 2 mãos, o CharController trava a palma L

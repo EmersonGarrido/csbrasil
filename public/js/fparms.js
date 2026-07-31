@@ -20,11 +20,19 @@ import { clone as skeletonClone } from 'three/addons/utils/SkeletonUtils.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { VERSION } from './version.js';
 import { getSharedClips, measurePalmLocal } from './glbchars.js';
-import { gripPoints, ONE_HANDED } from './weapons.js';
+import { gripPoints, ONE_HANDED, weaponMetrics } from './weapons.js';
 import { solveCCDIK } from './handik.js';
 
 // Escape hatch p/ debug e A-B: ?fpoff=1 força o fallback procedural.
 export const FP_OFF = new URLSearchParams(location.search).get('fpoff') === '1';
+// ===== G3-R1: PIPELINE TRIPO APOSENTADO DO VIEWMODEL =====
+// O viewmodel de 1ª pessoa voltou a ser os 26 GLBs da Mint (um por arma, ~250 KB) montados
+// nos braços FP — ver game.js MINT_VM. Os 8 arms_*.glb da Tripo (18 MB cada) davam 8+5
+// aparências para 26 armas ("várias armas com visuais iguais") e eram a causa do OOM no
+// CTF da Havan. O código deles fica AQUI, íntegro, atrás do kill-switch ?tripovm=1 — o dono
+// consegue comparar A/B sem revert. Sem a flag NADA da Tripo é sequer baixado (nem os 6.7 MB
+// de textura-variante): é o preload/lazy-load inteiro que some.
+export const TRIPO_VM = new URLSearchParams(location.search).get('tripovm') === '1';
 
 const qp = new URLSearchParams(location.search);
 const _n3 = (s, d) => { const p = (s || '').split(',').map(Number); return p.length === 3 && p.every((n) => !isNaN(n)) ? p : d; };
@@ -48,6 +56,12 @@ const R_ROT_W = { knife: _deg3(qp.get('fprrot_knife'), [0, 0, 0]) };
 const R_OFF_W = { knife: _n3(qp.get('fpr_knife'), [0, -0.01, 0.02]) };
 const BODY_Y = parseFloat(qp.get('fpy')) || -1.48;
 const BODY_Z = parseFloat(qp.get('fpz')) || 0.02;
+// Guarda-mão: fração do caminho grip→boca onde a mão de apoio agarra, e o quanto ela desce
+// abaixo da linha do cano (metros reais). 0.42 é a posição de handguard de rifle; abaixo de
+// ~0.3 a mão encosta no grip, acima de ~0.6 ela passa do guarda-mão e "flutua no cano".
+// Verificado arma a arma (alcance do ombro esquerdo) em tools/eval/vm-mint-audit.mjs.
+const FORE_T = parseFloat(qp.get('fpforet')) || 0.42;
+const FORE_DROP = 0.030;
 const FROZEN_T = 0.6;          // ponto do clipe idle congelado (pose base do rifle-hold)
 const TARGET_HEIGHT = 1.72;    // mesma normalização dos bots (glbchars.js)
 // Escala global do corpo FP (proporção na tela: 1.0 deixava as mãos grandes demais,
@@ -56,6 +70,7 @@ const FP_SCALE = parseFloat(qp.get('fps')) || 0.93;
 
 const _t = new THREE.Vector3();
 const _eff = new THREE.Vector3();
+const _sh = new THREE.Vector3();
 const _qg = new THREE.Quaternion(), _qp = new THREE.Quaternion(), _qf = new THREE.Quaternion();
 
 // Asset dedicado: carregado 1× via preloadFPArms (startGame), clonado por build.
@@ -88,6 +103,7 @@ export function getStaticVmTex(name) { return _texTpls[name] || null; }
 // classes do loadout inicial + as texturas de variante (6.7MB, leves).
 const _staticPromises = {};
 export function loadStaticVm(cls) {
+  if (!TRIPO_VM) return Promise.resolve(null);   // sem ?tripovm=1 os heróis Tripo nem são baixados
   if (_staticTpls[cls]) return Promise.resolve(_staticTpls[cls]);
   if (!_staticPromises[cls]) {
     _staticPromises[cls] = new Promise((res, rej) => _loader.load(`models/fpvm/arms_${cls}.glb?v=${VERSION}`, res, undefined, rej))
@@ -98,6 +114,7 @@ export function loadStaticVm(cls) {
 }
 let _texLoading = null;
 export function preloadStaticVm(classes = ['rifle', 'pistol', 'knife']) {
+  if (!TRIPO_VM) return Promise.resolve([]);   // idem: nem as texturas-variante sobem
   if (!_texLoading) {
     // variantes de textura (snipers/lift rifle/lâmina da faca) — carrega junto
     const tl = new THREE.TextureLoader();
@@ -121,6 +138,16 @@ export function preloadStaticVm(classes = ['rifle', 'pistol', 'knife']) {
   return Promise.all([_texLoading, ...classes.map(loadStaticVm)]);
 }
 export function getStaticVm(cls = 'rifle') { return _staticTpls[cls] || null; }
+
+// Alcance de uma cadeia braço→antebraço→mão (+ offset da palma), em metros de MUNDO, medido
+// na pose já normalizada. Soma dos segmentos = o máximo que o CCD consegue esticar.
+function _reach(sh, arm, fore, hand, palm) {
+  if (!arm || !fore || !hand) return 0.55;
+  const V = (o) => new THREE.Vector3().setFromMatrixPosition(o.matrixWorld);
+  const a = V(arm), f = V(fore), h = V(hand);
+  const p = palm ? palm.clone().applyMatrix4(hand.matrixWorld) : h;
+  return (sh ? V(sh).distanceTo(a) : 0) + a.distanceTo(f) + f.distanceTo(h) + h.distanceTo(p);
+}
 
 // Orienta a mão com rotação fixa no espaço da arma (transplante da pose congelada do
 // rifle-hold: anatomicamente correta por construção). A posição vem do IK; a rotação
@@ -237,6 +264,11 @@ export function buildFPArms(def) {
     curlR: null, curlL: null,
     curlBaseR: 0, curlBaseL: 0,
     qFixR, qFixL,
+    // ALCANCE REAL de cada braço, medido na pose congelada (mundo, metros). O poseToWeapon
+    // usa isso pra NUNCA pedir ao IK um alvo que ele não alcança — alvo inalcançável = CCD
+    // parando no limite = mão flutuando no ar, que é o defeito nº1 relatado pelo dono.
+    reachR: _reach(rSh, rArm, rFore, rHand, palmR),
+    reachL: _reach(lSh, lArm, lFore, lHand, palmL),
     _tgtR: new THREE.Vector3(), _tgtL: new THREE.Vector3(),
     _errR: 0, _errL: null,
     // Métrica objetiva (convenção "medir, não olhar"): distância efetor→alvo IK por mão.
@@ -259,6 +291,33 @@ export function poseToWeapon(arms, weaponGroup, weaponId) {
   rw.updateWorldMatrix(true, false);
   rw.getWorldQuaternion(_qg);
   const gp = gripPoints(weaponId);
+  // GUARDA-MÃO MEDIDO (G3-R1). O gp.fore vinha de `len·(1-gripZ)` — o lado da CORONHA, não
+  // o do cano (gripZ é medido a partir da boca, ver weapons.js) — e ainda misturava metros
+  // com unidades locais do wrap: em algumas armas a mão de apoio caía atrás do grip ou no
+  // ar à frente da boca. Aqui o alvo é uma fração do caminho grip→BOCA REAL do GLB, já no
+  // espaço local do rw (por isso o /norm), então vale pra qualquer arma e qualquer escala.
+  const met = weaponMetrics(weaponId);
+  if (gp.fore && met) {
+    const k = 1 / (met.norm || 1);
+    // ALCANCE: em armas longas (awp/mosin/g3/carbine) o guarda-mão a 42% do caminho fica
+    // ALÉM do braço esquerdo — medido em vm-mint-audit.mjs, folga negativa. Quando isso
+    // acontece o CCD para no limite e a mão fica FLUTUANDO fora da madeira (a reclamação
+    // literal do dono). A correção é deslizar o alvo PELO EIXO DA ARMA em direção ao grip
+    // até caber no braço: a mão continua agarrando a arma, só mais atrás. Nunca soltar.
+    // âncora = RAIZ da cadeia CCD (bones[0] = ombro): é dela que sai todo o alcance.
+    const armL = arms.chainL.bones[0] || arms.chainL.end;
+    armL.updateWorldMatrix(true, false);
+    _sh.setFromMatrixPosition(armL.matrixWorld);
+    const reach = (arms.reachL || 0.55) * 0.94;
+    let t = FORE_T;
+    for (let i = 0; i < 7 && t > 0.14; i++) {
+      _t.set(met.muzzle.x * k * t, met.muzzle.y * k * t - FORE_DROP * k, met.muzzle.z * k * t);
+      if (rw.localToWorld(_t).distanceTo(_sh) <= reach) break;
+      t -= 0.045;
+    }
+    gp.fore.set(met.muzzle.x * k * t, met.muzzle.y * k * t - FORE_DROP * k, met.muzzle.z * k * t);
+    arms._foreT = t;   // exposto p/ debug/telemetria (qual fração coube nesta arma)
+  }
 
   // Correção manual de orientação por arma (espaço da arma, ver R_ROT/L_ROT): composta
   // por frame. A faca segura o cabo na horizontal ("hammer grip"), não o grip vertical.

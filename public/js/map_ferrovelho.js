@@ -1517,7 +1517,15 @@ export function buildFerroVelho(scene, T) {
      furos do telhado de fibrocimento e dos vãos entre as pilhas. É o truque clássico de
      "light shaft" em geometria: um cone aberto, sem depthWrite, com opacidade baixinha.
      Custa 6 tris-quads e nenhum passe extra. ?rays=0 desliga; fora em 'low'. */
-  if (!LOWQ && QP.get('rays') !== '0') {
+  /* R10 — DESLIGADO POR PADRÃO (opt-in com ?rays=1). A R9 consertou a DIREÇÃO do cone,
+     mas o defeito de raiz é outro: god ray é efeito de recinto fechado (feixe cortando
+     poeira dentro de um galpão). Num pátio a céu aberto ao meio-dia não há nada na frente
+     pra ocluir o cone, então ele lê como uma CUNHA TRANSLÚCIDA atravessando o quadro —
+     confirmado pelo dono em jogo e visível em /root/shots/r3b/game-fy_ferrovelho-32-b.png,
+     mesmo depois do fix de direção. Régua nova (BAR-CONSISTENCIA §5): efeito que o jogador
+     percebe como bug vale menos que a beleza que ele adiciona. Volta se um dia o mapa
+     ganhar um galpão coberto de verdade. */
+  if (!LOWQ && QP.get('rays') === '1') {
     const rayMat = new THREE.MeshBasicMaterial({ color: 0xffd9a0, transparent: true, opacity: 0.075, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: false });
     const dir = new THREE.Vector3(-46, 20, 32).normalize();
     /* BUG CORRIGIDO NA R9 — "riscos diagonais branco-claros no céu".

@@ -348,3 +348,72 @@ export function buildVmAttachment(cls, kind) {
   grp.traverse((o) => { if (o.isMesh) { o.castShadow = false; o.frustumCulled = false; } });
   return grp;
 }
+
+/* ===================== ENQUADRAMENTO DO VIEWMODEL MINT (G3-R1) =====================
+   PORQUÊ existe: os 26 GLBs da Mint voltaram a ser a fonte do viewmodel de 1ª pessoa
+   (antes: 8 GLBs-herói Tripo de 18 MB + kit de textura-variante sobre ~5 malhas base —
+   "várias armas com visuais iguais"). Enquadrar 26 armas com uma TABELA POR ARMA seria
+   26 chances de errar; aqui o enquadramento é DERIVADO do que weapons.js já mede
+   (len / gripZ / vm) e de 5 números por CLASSE. Uma arma nova entra sem tuning.
+
+   O modelo (câmera do VM na origem olhando -Z, grip do GLB na origem do grupo):
+     back = escalaVM · |bboxMin.z|            coronha atrás do grip, em metros
+     fwd  = escalaVM · bocaZ                  cano à frente do grip = gripZ·len (gripZ é
+                                              medido A PARTIR DA BOCA — ver weapons.js)
+     Zg   = max(back + clear, minz, fwd/fwdTan)
+                                              profundidade do grip. 1ª cláusula: a coronha
+                                              NUNCA cruza a lente (era isso que dava "arma
+                                              cortada"/geometria invertida). 3ª cláusula:
+                                              teto de segurança do ângulo que o cano ocupa
+                                              (não morde em nenhuma das 26 hoje; existe pra
+                                              uma arma futura de cano absurdo não explodir).
+     gx   = Zg · tanH                         => o GRIP CAI SEMPRE NO MESMO PIXEL, arma
+                                              qualquer (é a CONSISTÊNCIA que o dono pediu)
+     gy   = -gx · tanBarrel                   => o ângulo do cano na tela é atan(|gy|/gx),
+                                              INDEPENDENTE do aspecto (provado em
+                                              tools/eval/vm-mint-audit.mjs) — 16:9 e 3:2
+                                              leem o mesmo ângulo, que é o bug 3:2 morto.
+   O que varia por arma é só o quanto o cano avança na tela = len·(1-gripZ) — que é
+   exatamente a identidade que a Mint traz (SMG curta, sniper longa).
+   Kill-switch: ?tripovm=1 volta ao pipeline Tripo inteiro (ver game.js).                */
+export const VM_FRAME = {
+  vmScale: 0.72,        // escala global do GLB no viewmodel (par com a lente V0=62 do vmFovForAspect)
+  tanBarrel: 0.2217,    // tan(12.5°) — alvo do dono: cano entre 11° e 14° na tela
+  adsPullZ: 0.02,       // ADS traz a arma 2 cm em direção à lente (sem cruzar a coronha)
+  cls: {
+    // tanH  = tangente do ângulo horizontal do grip (0.50 = 26.6°: é o que põe a borda
+    //         esquerda do VM em 0,62-0,65 W; abaixo disso a silhueta colapsa — regressão R1)
+    // clear = folga em metros entre a coronha e a lente
+    // minz  = profundidade mínima do grip (alcance do braço FP: ombro→grip ≤ 0,60 m)
+    // fwdTan = teto de (cano à frente do grip)/(profundidade do grip) — trava o tamanho
+    //         aparente das atarracadas sem achatar a identidade das longas
+    // roll   = cant (rad) em torno do EIXO DA CÂMERA. É de graça no que importa: girar em Z
+    //         não move a direção do cano (0,0,-1) nem 1 grau, então a arma continua apontada
+    //         exatamente pra mira — só mostra o topo do receiver, como no CS.
+    rifle:   { roll: -0.070, tanH: 0.600, clear: 0.040, minz: 0.345, fwdTan: 1.60 },
+    sniper:  { roll: -0.055, tanH: 0.600, clear: 0.040, minz: 0.360, fwdTan: 1.60 },
+    shotgun: { roll: -0.078, tanH: 0.600, clear: 0.040, minz: 0.345, fwdTan: 1.60 },
+    smg:     { roll: -0.085, tanH: 0.575, clear: 0.040, minz: 0.300, fwdTan: 1.60 },
+    pistol:  { roll: -0.050, tanH: 0.420, clear: 0.040, minz: 0.258, fwdTan: 1.60 },
+    knife:   { roll: 0, tanH: 0.500, clear: 0.040, minz: 0.230, fwdTan: 1.60 },
+  },
+  // A faca não tem cano: em vez do cant ela leva a pose CS clássica (lâmina atravessada,
+  // gume pra dentro do quadro). Euler XYZ em rad, aplicado ao grupo do viewmodel.
+  knifeRot: [-0.14, 0.42, -0.40],
+  // Exceções de tamanho aparente (3 em 26): armas ATARRACADAS cuja área na tela vem da
+  // GROSSURA do corpo, não do comprimento — nenhuma fórmula de len/gripZ as pega. zMul
+  // empurra a arma p/ o fundo. Medido em tools/eval/vm-mint-audit.mjs (16:9 e 3:2).
+  // As demais 23 NÃO têm entrada: a variação de área que sobra (5-10%) é identidade
+  // (uma AWP é longa e fina, uma UZI é um tijolo) e o dono pediu justamente isso.
+  zMul: { m92: 1.12, p90: 1.12, uzi: 1.12, famas: 1.08, tavor: 1.06 },
+  // classe de ENQUADRAMENTO (≠ STATIC_CLASS do pipeline Tripo, ≠ BALL_CLASS da balística)
+  classOf: {
+    ak: 'rifle', akm: 'rifle', m4: 'rifle', m92: 'rifle', g3: 'rifle', carbine: 'rifle',
+    scar: 'rifle', tavor: 'rifle', famas: 'rifle', lmg: 'rifle', md97: 'rifle',
+    mp5: 'smg', uzi: 'smg', p90: 'smg',
+    awp: 'sniper', mosin: 'sniper', rem700: 'sniper', m400: 'sniper', svd: 'sniper', g3sg1: 'sniper', sks: 'sniper',
+    shotgun: 'shotgun',
+    pistol: 'pistol', deagle: 'pistol', revolver38: 'pistol',
+    knife: 'knife',
+  },
+};

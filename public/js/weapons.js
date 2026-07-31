@@ -52,8 +52,20 @@ const CFG = {
   scar:      { len: 0.90, rot: [0, 90, 0], gripZ: 0.62 },
   tavor:     { len: 0.72, rot: [0, 270, 0], gripZ: 0.5 },   // +180: usuário confirmou invertido
   famas:     { len: 0.76, rot: [0, 90, 0], gripZ: 0.5 },
-  uzi:       { len: 0.60, rot: [0, 270, 0], gripZ: 0.58, vm: 0.72 },  // vm: encolhe no FP (estava grande)
-  p90:       { len: 0.52, rot: [0, 270, 0], gripZ: 0.55, vmRotY: Math.PI },  // vmRotY: flip 180 só no FP (estava invertida)
+  uzi:       { len: 0.47, rot: [0, 270, 0], gripZ: 0.58, vm: 0.72 },  // vm: encolhe no FP (estava grande)
+  // len 0.60 -> 0.47 (P0): o dono reportou "a uzi do hipster alternativo esta gigante, maior que
+  // o corpo dele". O mount NAO estava errado nesse personagem — a sonda de 3a pessoa mediu fator
+  // de escala 1,00 nele, o mais exato do elenco. O problema e a PROPORCAO do GLB: a uzi.glb tem
+  // 0,42 m de altura para 0,60 m de comprimento (razao altura/comprimento 0,69, contra 0,30 do AK
+  // e 0,36 da MP5 — a mais "alta" do arsenal inteiro). Como `len` normaliza pelo COMPRIMENTO, a
+  // altura vinha junto e a arma inteira lia gigante ao lado de um personagem magro. 0,47 m e o
+  // comprimento real de uma Uzi com a coronha dobrada; com ele a altura cai para ~0,33 m e a
+  // silhueta volta a ler como SMG compacta. gripZ/rot conferidos, seguem valendo.
+  // p90 rot 270→90 (G3-R1): a medição de seção transversal (tools/eval/vm-mint-audit.mjs)
+  // provou que com 270 a ponta +Z era a GROSSA (raio 0.053 vs 0.010) — a arma entrava de ré.
+  // O `vmRotY: Math.PI` que morava aqui era um curativo que consertava SÓ a 1ª pessoa e
+  // deixava a 3ª pessoa invertida; com o rot certo os dois caminhos usam a mesma verdade.
+  p90:       { len: 0.52, rot: [0, 90, 0], gripZ: 0.55 },
   // snipers semi-auto — herdam a malha (MODEL_ALIAS) e o rot/len do modelo reusado
   svd:       { len: 1.15, rot: [0, 270, 0], gripZ: 0.64, vm: 0.8 },   // modelo próprio (Mint); +180 (estava invertida)
   g3sg1:     { len: 1.12, rot: [0, 270, 0], gripZ: 0.58, vm: 0.85 },   // modelo do G3
@@ -94,6 +106,50 @@ export function gripPoints(id) {
   };
 }
 
+// MEDIÇÕES POR ARMA (G3-R1) — a 1ª pessoa voltou a usar estes 26 GLBs (um por arma) em vez
+// dos 8 heróis Tripo, e precisa de 3 números que NENHUMA tabela escrita à mão acerta:
+//   box    = caixa da arma no espaço do grupo (grip na origem, cano +Z, metros reais)
+//   muzzle = BOCA DO CANO de verdade (centroide dos vértices nos 2% mais avançados em +Z).
+//            É a origem do flash e do tracer: com uma constante herdada o clarão nascia a
+//            ~250 px da arma ("impacto na parede").
+//   sight  = ALÇA DE MIRA (topo do receiver na metade da frente). É o ponto que o ADS leva
+//            ao centro da tela — sem ele "miro e não vejo a arma nem a mira".
+// Medido UMA vez por arma e cacheado (weaponModel é chamado também por cada pickup do mapa).
+const _metrics = new Map();
+function measureGun(id, wrap) {
+  if (_metrics.has(id)) return _metrics.get(id);
+  wrap.updateMatrixWorld(true);
+  const pts = [];
+  const v = new THREE.Vector3();
+  wrap.traverse((o) => {
+    const pos = o.isMesh && o.geometry && o.geometry.attributes && o.geometry.attributes.position;
+    if (!pos) return;
+    const step = Math.max(1, Math.ceil(pos.count / 30000));   // teto de 30k pontos: a medida não melhora acima disso
+    for (let i = 0; i < pos.count; i += step) pts.push(v.fromBufferAttribute(pos, i).applyMatrix4(o.matrixWorld).clone());
+  });
+  const box = new THREE.Box3();
+  for (const p of pts) box.expandByPoint(p);
+  const L = Math.max(1e-4, box.max.z - box.min.z);
+  const cut = box.max.z - L * 0.02;
+  const mz = new THREE.Vector3(); let n = 0;
+  for (const p of pts) if (p.z >= cut) { mz.add(p); n++; }
+  if (n) mz.divideScalar(n); else mz.set(0, 0, box.max.z);
+  // alça: topo do corpo entre o grip (z=0) e 45% do caminho até a boca
+  const z1 = mz.z * 0.45;
+  let top = -1e9;
+  for (const p of pts) if (p.z >= 0 && p.z <= z1 && p.y > top) top = p.y;
+  let sx = 0, c = 0;
+  for (const p of pts) if (p.z >= 0 && p.z <= z1 && p.y > top - 0.012) { sx += p.x; c++; }
+  const sight = new THREE.Vector3(c ? sx / c : mz.x, top > -1e8 ? top : box.max.y, mz.z * 0.30);
+  // norm = escala de normalização do wrap no momento da medida. box/muzzle/sight estão em
+  // METROS REAIS (espaço do PAI do wrap); para usá-los com wrap.localToWorld é preciso
+  // dividir por norm, senão a escala entra DUAS vezes e o flash nasce longe do cano.
+  const m = { box: box.clone(), muzzle: mz.clone(), sight, norm: wrap.scale.x || 1 };
+  _metrics.set(id, m);
+  return m;
+}
+export function weaponMetrics(id) { return _metrics.get(id) || null; }
+
 // Returns a THREE.Group holding the weapon, scaled to real size, barrel pointing +Z,
 // grip roughly at the group origin (so it sits in a hand placed at origin).
 export function weaponModel(id) {
@@ -116,5 +172,6 @@ export function weaponModel(id) {
   const gripWorldZ = b2.max.z - (b2.max.z - b2.min.z) * cfg.gripZ;
   model.position.z -= gripWorldZ / s;
   wrap.traverse((o) => { if (o.isMesh) { o.castShadow = false; o.frustumCulled = false; } });
+  wrap.userData.metrics = measureGun(id, wrap);   // boca/alça/caixa medidas (ver measureGun)
   return wrap;
 }
