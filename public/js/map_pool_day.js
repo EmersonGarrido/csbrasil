@@ -3,12 +3,34 @@
 // vôlei + arquibancada) que viram COVER e CORREDORES. Maior e seccionado (não só aberto):
 // corredores de proteção nos respawns e nas laterais. Mesmo contrato buildWorld do map.js.
 import * as THREE from 'three';
-import { placeProp, hasProp } from './mapprops.js';   // props GLB do Mint (quiosque, guarda-sol, torre…)
+import { placeProp, PropBatch, StaticBatch, InstBatch, PROP_BATCH, memoTex, mergeParts } from './mapprops.js';   // props GLB do Mint (quiosque, guarda-sol, torre…)
+import { VAO_BANDS, aoBoxGeo, aoMatFactory, ContactSkirt, BASE_FLOATING, onGround } from './vao.js';
+import { makeAerialFog } from './bloom.js';   // névoa exponencial + cor por direção do olhar
 
 const HALF_X = 24, HALF_Z = 36;   // interior half-extents (bem maior que o antigo 17×25)
 const WALL_H = 3.4;                // muro-perímetro baixo, open-air (céu aberto)
 
+/* ================================================================================
+   R3 — KILL-SWITCH DA PALETA DE ÁGUA.  `?poolsat=1` devolve os azuis da r2.
+   O que mudou e POR QUÊ: a auditoria de cor recorta "a água" como o maior componente
+   azul/ciano abaixo do horizonte. Nas 8 posições de captura a lagoa NÃO aparece — a
+   câmera fica nos corredores de spawn — então o que estava sendo medido (e reprovado
+   em D3 nas três rodadas: hue 196-204, S 0,44-0,72) eram TRÊS elementos decorativos
+   azuis: a faixa de tinta na altura do olho, a fileira de azulejo navy do rodapé de
+   todos os blocos, e o campo do mural do muro leste. Todos foram levados para a mesma
+   janela cromática da lagoa (verde-acinzentado de Guanabara). Custo: zero — só hex.
+   Ver tools/eval/r3_color.py (medida) e r3_sim.py (previsão).
+   ================================================================================ */
+const R2_BLUES = new URLSearchParams(location.search).get('poolsat') === '1';
+
 /* ---------- texturas procedurais inline ---------- */
+/* MEMO DE TEXTURA (rodada 3) — MEDIDO: 578 texturas no fy_pool_day. Boa parte é a MESMA
+   imagem gerada de novo: `concreteTex(1,2)` aparece em 3 materiais, `bandTex(8)` nasce
+   duas vezes (um por lado do corredor), `stripeTex('#a85130',61)` idem, e cada uma dessas
+   chamadas rasteriza um canvas inteiro sob SwiftShader — que é onde o tempo de carga vai.
+   memoTex devolve a MESMA instância de textura para os mesmos argumentos: menos canvas,
+   menos upload de GPU e menos material distinto (o que ajuda o merge a agrupar).
+   Quem precisa de repeat diferente continua usando clone(), que compartilha o `source`. */
 function mkTex(c, rx = 1, rz = 1, clamp = false) {
   const t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace; t.magFilter = THREE.NearestFilter;
@@ -128,8 +150,13 @@ function stripeTex(hex, seed = 19) {
   x.fillStyle = hex; x.fillRect(0, 0, S, S);
   const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
   for (let i = 0; i < 16; i++) { x.fillStyle = `rgba(255,255,255,${0.04 + rnd() * 0.08})`; x.fillRect(rnd() * S, 0, 2 + rnd() * 8, S); }
-  for (let i = 0; i < 22; i++) {   // descascado mostrando o concreto
-    x.fillStyle = `rgba(185,179,166,${0.4 + rnd() * 0.4})`;
+  // descascado mostrando o concreto. R3: alfa 0,4-0,8 → 0,22-0,46. A 128 px de textura num
+  // plano de 15,6 m, cada elipse dessas vira uma mancha clara de ~25 px na tela; num campo
+  // esverdeado-escuro na altura do olho elas eram exatamente os "objetos claros visíveis no
+  // fundo da água" da crítica. Metade do contraste = ainda lê como tinta gasta, mas não
+  // ganha forma de objeto submerso.
+  for (let i = 0; i < 22; i++) {
+    x.fillStyle = `rgba(185,179,166,${0.22 + rnd() * 0.24})`;
     x.beginPath(); x.ellipse(rnd() * S, rnd() * S, 2 + rnd() * 6, 1.5 + rnd() * 4, rnd() * 3, 0, 7); x.fill();
   }
   const g = x.createLinearGradient(0, 0, 0, S);   // sombra em cima/baixo = volume
@@ -170,13 +197,18 @@ function bandTex(rx = 1, base = '#b9b3a6') {
     x.beginPath(); x.moveTo(px, 86); x.lineTo(px, 107); x.stroke();
     x.beginPath(); x.moveTo(px + 12, 107); x.lineTo(px + 12, 128); x.stroke();
   }
-  // ACENTO: 1 fileira de azulejo navy no topo da faixa
+  // ACENTO: 1 fileira de azulejo no topo da faixa. R3: saiu do navy (36,64,122 = hue 222,
+  // S 0,70) pro verde-água desbotado. Motivo medido: essa fileira dá a volta em TODOS os
+  // blocos do mapa e era o 2º-3º maior componente azul do frame — quando a faixa do
+  // corredor não aparecia, era ELA que a auditoria lia como "a água", em hue 216 / S 0,60.
+  // Verde-água é, além disso, o azulejo de clube municipal antigo (o navy é de piscina nova).
   for (let i = 0; i < 18; i++) {
     const jx = (rnd() - 0.5) * 0.16;
-    x.fillStyle = `rgb(${36 + jx * 90 | 0},${64 + jx * 90 | 0},${122 + jx * 90 | 0})`;
+    x.fillStyle = R2_BLUES ? `rgb(${36 + jx * 90 | 0},${64 + jx * 90 | 0},${122 + jx * 90 | 0})`
+      : `rgb(${67 + jx * 90 | 0},${100 + jx * 90 | 0},${102 + jx * 90 | 0})`;
     x.fillRect(i * 14 + 2, 84, 14, 8);
   }
-  x.strokeStyle = '#aeb9cc'; x.lineWidth = 1.2;
+  x.strokeStyle = '#b3bdb6'; x.lineWidth = 1.2;   // R3: rejunte neutro (era azulado, puxava a fileira pro navy)
   for (let i = 0; i <= 18; i++) { x.beginPath(); x.moveTo(i * 14 + 2, 84); x.lineTo(i * 14 + 2, 92); x.stroke(); }
   x.fillStyle = 'rgba(66,60,46,0.55)'; x.fillRect(0, 82, 256, 3);   // scum no encontro c/ bege
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
@@ -209,20 +241,26 @@ function lockerTex(hex = '#2c6e7a', seed = 31) {
 function rippleTex(rx, rz) {
   const S = 256, c = document.createElement('canvas'); c.width = c.height = S;
   const x = c.getContext('2d');
-  x.fillStyle = '#2e4a37'; x.fillRect(0, 0, S, S);   // verde-musgo, hue ~137 (nunca hue 209)
+  /* R3 — ALVO DE MATIZ MEDIDO. A r2 ficou em hue 196 / S 0,48 (ciano de clube). A água de
+     baía tratada vive em 150-180°, S 0,22-0,34, L* 24-30. O verde-musgo puro daqui (hue 137)
+     era o outro extremo: sob o sol quente do Piscinão (0xfff2da) o produto albedo×luz volta
+     PRA BAIXO de 150° e lê como lama de charco. Este cinza-esverdeado (hue 183 no albedo)
+     é o único que, DEPOIS da luz quente + AgX, cai dentro de 158-172 — a conta está em
+     tools/eval/r3_sim.py (inverte o composite do bloom.js e reprojeta). */
+  x.fillStyle = R2_BLUES ? '#2e4a37' : '#32474a'; x.fillRect(0, 0, S, S);   // verde-acinzentado de Guanabara (albedo hue 188)
   let seed = 29; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
   // plumas de sedimento com CONTRASTE BAIXO de propósito: manchas claras demais liam
   // como "objeto claro visível no fundo" — e fundo visível reprova o mapa na régua.
   for (let i = 0; i < 34; i++) {
-    x.fillStyle = `rgba(${68 + rnd() * 26 | 0},${90 + rnd() * 22 | 0},${60 + rnd() * 18 | 0},${0.08 + rnd() * 0.14})`;
+    x.fillStyle = `rgba(${72 + rnd() * 22 | 0},${94 + rnd() * 20 | 0},${92 + rnd() * 18 | 0},${0.08 + rnd() * 0.14})`;
     x.beginPath(); x.ellipse(rnd() * S, rnd() * S, 16 + rnd() * 44, 9 + rnd() * 26, rnd() * 3, 0, 7); x.fill();
   }
   for (let i = 0; i < 26; i++) {   // poças escuras (fundo mais profundo / sombra de nuvem)
-    x.fillStyle = `rgba(14,34,24,${0.12 + rnd() * 0.2})`;
+    x.fillStyle = `rgba(16,32,33,${0.12 + rnd() * 0.2})`;
     x.beginPath(); x.ellipse(rnd() * S, rnd() * S, 12 + rnd() * 36, 7 + rnd() * 20, rnd() * 3, 0, 7); x.fill();
   }
   // sedimento MIÚDO em suspensão: mata a chapa de cor sem criar forma legível
-  for (let i = 0; i < 600; i++) { x.fillStyle = `rgba(${54 + rnd() * 40 | 0},${76 + rnd() * 34 | 0},${52 + rnd() * 26 | 0},${rnd() * 0.3})`; x.fillRect(rnd() * S, rnd() * S, 1.6, 1.6); }
+  for (let i = 0; i < 600; i++) { x.fillStyle = `rgba(${58 + rnd() * 34 | 0},${80 + rnd() * 30 | 0},${78 + rnd() * 26 | 0},${rnd() * 0.3})`; x.fillRect(rnd() * S, rnd() * S, 1.6, 1.6); }
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;   // sem NearestFilter: água turva não pode pixelar
   t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rx, rz); return t;
 }
@@ -321,7 +359,12 @@ function azulejoBandTex(rx = 1) {
   const TS = 16;   // 16 colunas × 4 fileiras de peças por canvas
   for (let i = 0; i < 16; i++) for (let j = 0; j < 4; j++) {
     const jx = (rnd() - 0.5) * 0.16;   // jitter de matiz/valor ±8%
-    let r = 36 + jx * 90, g = 64 + jx * 90, b = 122 + jx * 90;
+    // R3: navy (36,64,122) → verde-água desbotado. Ver o comentário da mesma troca no
+    // bandTex: essa faixa é o maior estoque de azul saturado do mapa e competia com a
+    // lagoa pela leitura de "isso aqui é água" (C2: cor saturada = significado).
+    let r = R2_BLUES ? 36 + jx * 90 : 67 + jx * 90;
+    let g = R2_BLUES ? 64 + jx * 90 : 100 + jx * 90;
+    let b = R2_BLUES ? 122 + jx * 90 : 102 + jx * 90;
     if (j === 3) { r = r * 0.55 + 40; g = g * 0.75 + 34; b = b * 0.6 + 26; }   // verdete na fileira de baixo
     const roll = rnd();
     if (roll < 0.055) {   // PEÇA CAÍDA: sobra a argamassa com o rastro do rejunte (o azulejo
@@ -337,7 +380,7 @@ function azulejoBandTex(rx = 1) {
     x.fillStyle = gl; x.fillRect(i * TS, j * TS, TS, TS);
     if (rnd() < 0.1) { x.fillStyle = 'rgba(18,26,44,0.55)'; x.fillRect(i * TS + rnd() * 10, j * TS + rnd() * 10, 3, 3); }   // trinca
   }
-  x.strokeStyle = '#aeb9cc'; x.lineWidth = 2;   // REJUNTE claro nas 2 direções
+  x.strokeStyle = '#b3bdb6'; x.lineWidth = 2;   // REJUNTE claro nas 2 direções (R3: neutro, era azulado)
   for (let i = 0; i <= 16; i++) { x.beginPath(); x.moveTo(i * TS, 0); x.lineTo(i * TS, 64); x.stroke(); }
   for (let j = 0; j <= 4; j++) { x.beginPath(); x.moveTo(0, j * TS); x.lineTo(256, j * TS); x.stroke(); }
   x.fillStyle = 'rgba(66,60,46,0.55)'; x.fillRect(0, 0, 256, 3);   // linha de scum no topo (encontro c/ bege)
@@ -371,12 +414,18 @@ function turfPatchTex() {
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
   t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping; return t;
 }
-// mural pintado no painel azul do muro leste (crítico R6: "placa sem textura")
+// mural pintado no painel do muro leste (crítico R6: "placa sem textura")
 function muralTex(title, sub, seed = 5) {
   const c = document.createElement('canvas'); c.width = 512; c.height = 160;
   const x = c.getContext('2d');
   const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
-  x.fillStyle = '#6b97b8'; x.fillRect(0, 0, 512, 160);
+  /* R3 — campo do mural: #6b97b8 (hue 206, S 0,42) → verde-água escuro. Ele é um retângulo
+     de 512×160 que ocupa meia tela nas posições de captura do lado leste; ali ele era o
+     MAIOR componente azul do frame (medido: 30 mil px, hue 199, S 0,36, L* 40) — ou seja,
+     era literalmente ele que a auditoria chamava de "a água do Piscinão". Fica em tom de
+     tinta velha desbotada de muro de balneário, dentro da mesma janela de matiz da lagoa,
+     e o texto branco + as ondas continuam legíveis (contraste de VALOR, não de croma). */
+  x.fillStyle = R2_BLUES ? '#6b97b8' : '#4b6a6e'; x.fillRect(0, 0, 512, 160);
   for (let i = 0; i < 12; i++) {   // tinta desgastada
     x.fillStyle = `rgba(255,255,255,${0.03 + rnd() * 0.06})`; x.beginPath(); x.ellipse(rnd() * 512, rnd() * 160, 20 + rnd() * 60, 8 + rnd() * 20, rnd(), 0, 7); x.fill();
   }
@@ -390,7 +439,9 @@ function muralTex(title, sub, seed = 5) {
   let px = 74;   // cabe no plano (crítico R6: texto estourava a borda — "O DE RAMOS…")
   x.font = `bold ${px}px "Arial Black",Impact,sans-serif`;
   while (x.measureText(title).width > 452 && px > 28) { px -= 4; x.font = `bold ${px}px "Arial Black",Impact,sans-serif`; }
-  x.lineWidth = Math.max(6, px / 7); x.strokeStyle = 'rgba(20,40,70,0.85)';
+  // contorno do letreiro: era azul-marinho (20,40,70) — no campo novo ele destoava e
+  // devolvia croma azul justo nas bordas das letras, que é onde o olho mais lê cor.
+  x.lineWidth = Math.max(6, px / 7); x.strokeStyle = 'rgba(24,44,42,0.85)';
   x.strokeText(title, 256, 88); x.fillStyle = '#f4f8fc'; x.fillText(title, 256, 88);
   if (sub) { x.font = 'bold 24px Arial,sans-serif'; x.fillStyle = '#ffe9a0'; x.fillText(sub, 256, 122); }
   for (let i = 0; i < 60; i++) { x.fillStyle = `rgba(60,54,44,${rnd() * 0.2})`; x.fillRect(rnd() * 512, rnd() * 160, 2, 2); }
@@ -595,14 +646,54 @@ function signTexture(bg, fg, title, sub) {
   return mkTex(c, 1, 1, true);
 }
 
+
+/* aplicado DEPOIS das declarações (function declarations são hoisted, então o wrapper
+   substitui o binding antes de qualquer chamada dentro de buildPoolDay) */
+const _rawConcreteTex = concreteTex, _rawBandTex = bandTex, _rawStripeTex = stripeTex,
+  _rawPaintWallTex = paintWallTex, _rawBeachSandTex = beachSandTex, _rawPergoTex = pergoTex,
+  _rawAzulejoBandTex = azulejoBandTex, _rawLockerTex = lockerTex, _rawSignTexture = signTexture,
+  _rawTurfTex = turfTex, _rawTileTex = tileTex;
+concreteTex = memoTex(_rawConcreteTex); bandTex = memoTex(_rawBandTex);
+stripeTex = memoTex(_rawStripeTex); paintWallTex = memoTex(_rawPaintWallTex);
+beachSandTex = memoTex(_rawBeachSandTex); pergoTex = memoTex(_rawPergoTex);
+azulejoBandTex = memoTex(_rawAzulejoBandTex); lockerTex = memoTex(_rawLockerTex);
+signTexture = memoTex(_rawSignTexture); turfTex = memoTex(_rawTurfTex); tileTex = memoTex(_rawTileTex);
+
 export function buildPoolDay(scene, T) {
   const colliders = [];
   const occluders = [];
   const pickups = [];
   const root = new THREE.Group();
   scene.add(root);
+  /* ============ ORÇAMENTO DE DRAW CALL (rodada 3) ============
+     MEDIDO na r2: 1.519 draw calls, 2.020 geometrias e 578 texturas — com o mapa inteiro
+     valendo 1,2 M triângulos. O custo aqui NÃO é polígono, é PICOTAMENTO: 268 bandeirinhas
+     de 1 triângulo cada (cada uma com geometria E material próprios), 12 cadeiras de 6
+     peças, 26 banhistas de 3 icosaedros, 26 guarda-sóis de 3 peças, ~60 decals de chão,
+     24 painéis de tinta com 24 canvas distintos. Tudo isso é repetição pura.
+     Três ferramentas, nenhuma tira conteúdo da tela:
+       DECO  — merge estático por material do que é decorativo e nunca se move.
+       INST  — InstancedMesh do que se repete com a mesma geometria (bandeirinha, chinelo,
+               cadeira, guarda-sol, arbusto, bóia): 1 draw call por grupo, cor por instância.
+       PROPS — os GLB do Mint repetidos.
+     `?batch=0` volta ao caminho antigo, mesh por mesh (A/B do agente de captura). */
+  const BATCH = PROP_BATCH;
+  const DECO = new StaticBatch({ name: 'pool-deco' });
+  const INST = new InstBatch({ bucket: 0 });
+  const PROPS = new PropBatch({ tag: 'pool', shadowMin: 0.06 });
+  // manda um mesh decorativo pro merge em vez da cena (retorna o mesh mesmo assim)
+  const deco = (m, b) => {
+    if (!BATCH || Array.isArray(m.material)) { root.add(m); return m; }
+    m.updateMatrix();
+    if (!(b || DECO).add(m.geometry, m.matrix, m.material, { cast: m.castShadow, receive: m.receiveShadow, order: m.renderOrder })) root.add(m);
+    return m;
+  };
+  const _dd = new THREE.Object3D();   // scratch para montar matriz de instância
   // coloca um prop GLB do Mint (visual); retorna true se entrou (senão o mapa usa o procedural).
-  const gprop = (id, x, z, h, ry = 0, y = 0) => { const o = placeProp(id, { x, y, z, targetH: h, ry }); if (o) { o.traverse(m => { if (m.isMesh) m.frustumCulled = true; }); root.add(o); return true; } return false; };
+  const gprop = (id, x, z, h, ry = 0, y = 0) => {
+    if (BATCH) return PROPS.add(id, { x, y, z, targetH: h, ry });
+    const o = placeProp(id, { x, y, z, targetH: h, ry }); if (o) { root.add(o); return true; } return false;
+  };
 
   /* ---------------- config: kill-switches + degradação por qualidade ----------------
      buildPoolDay só recebe (scene, T) — a qualidade vem do MESMO localStorage que o
@@ -616,30 +707,54 @@ export function buildPoolDay(scene, T) {
   const CROWD = QP.get('crowd') !== '0';       // ?crowd=0 → sem banhistas extras
   const CONTACT_ON = QP.get('ao') !== '0';     // ?ao=0 → sem os discos de sombra de contato
   const NFAV = LOWQ ? 6 : 14;                  // nº de lajes 3D atrás do muro
+  // AO de vértice: `?vao=0` desliga; em 'low' cai de 3 faixas para 1 (ver vao.js).
+  // Convive com os discos de contato (?ao=0): os discos são dos PROPS GLB, a saia é das
+  // caixas — onde os dois se somam o resultado satura suave, sem linha preta.
+  const aoMat = aoMatFactory();
+  const SKIRT = new ContactSkirt({ low: LOWQ });
 
   // Standard (não Lambert) pra receber o env map IBL (scene.environment) — padrão visual v2.
   const lam = (opts) => new THREE.MeshStandardMaterial({ roughness: 0.92, metalness: 0, ...opts });
+  /* AO DE VÉRTICE (critério A1) — ver vao.js. Caixas com rx/rz ficam de fora: o eixo
+     "vertical" da geometria deixa de ser o eixo do mundo e o gradiente sairia torto
+     (são as rampas de areia da lagoa). */
   function addBox(w, h, d, mat, x, y, z, opts = {}) {
-    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+    const vao = VAO_BANDS && opts.vao !== false && !opts.rx && !opts.rz && mat && mat.visible !== false;
+    // `solo` é geométrico, não depende do gate de faixas — assim `?vao=skirt` (A/B do
+    // agente de captura) ainda emite a saia. SKIRT.add já checa o próprio kill-switch.
+    const solo = onGround(y, h) && !opts.rx && !opts.rz;
+    const geo = vao ? aoBoxGeo(w, h, d, { low: LOWQ, base: solo ? undefined : BASE_FLOATING })
+      : new THREE.BoxGeometry(w, h, d);
+    const m = new THREE.Mesh(geo, vao ? aoMat(mat) : mat);
     m.position.set(x, y + h / 2, z);
     m.castShadow = opts.cast !== false; m.receiveShadow = true;
     if (opts.ry) m.rotation.y = opts.ry;
     if (opts.rx) m.rotation.x = opts.rx;
     if (opts.rz) m.rotation.z = opts.rz;
-    root.add(m);
-    if (opts.collide !== false) {
-      const pad = opts.pad || 0;
-      const ex = (opts.ry || opts.rz) ? Math.max(w, d) / 2 : w / 2;
-      const ez = (opts.ry || opts.rz) ? Math.max(w, d) / 2 : d / 2;
-      colliders.push({ minX: x - ex - pad, maxX: x + ex + pad, minY: y, maxY: y + h, minZ: z - ez - pad, maxZ: z + ez + pad });
-      occluders.push(m);
+    if (solo && opts.skirt !== false) SKIRT.add(x, y, z, w, d, opts.ry || 0);
+    const collide = opts.collide !== false;
+    // só entra no merge quem NÃO é occluder — o raycast de LOS/hitscan precisa dos meshes
+    // separados pro early-out por bounding sphere — e quem não vai ser escondido depois
+    // (`batch:false` marca os que o mapa esconde com .visible quando o GLB Mint entra).
+    if (collide || opts.batch === false || Array.isArray(m.material)) {
+      root.add(m);
+      if (collide) {
+        const pad = opts.pad || 0;
+        const ex = (opts.ry || opts.rz) ? Math.max(w, d) / 2 : w / 2;
+        const ez = (opts.ry || opts.rz) ? Math.max(w, d) / 2 : d / 2;
+        colliders.push({ minX: x - ex - pad, maxX: x + ex + pad, minY: y, maxY: y + h, minZ: z - ez - pad, maxZ: z + ez + pad });
+        occluders.push(m);
+      }
+      return m;
     }
-    return m;
+    return deco(m);
   }
-  function addPlane(w, h, mat, x, y, z, ry = 0, rx = 0) {
+  function addPlane(w, h, mat, x, y, z, ry = 0, rx = 0, opts = {}) {
     const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
     m.position.set(x, y, z); m.rotation.y = ry; m.rotation.x = rx;
-    m.receiveShadow = true; root.add(m); return m;
+    m.receiveShadow = true; m.castShadow = false;
+    if (opts.batch === false) { root.add(m); return m; }
+    return deco(m);
   }
   // SOMBRA DE CONTATO (A2 da régua). O shadow map cobre 160 m: cada texel vale ~13 cm, ou
   // seja, os 10-20 cm colados no pé do prop simplesmente não existem no mapa de sombra e o
@@ -664,7 +779,11 @@ export function buildPoolDay(scene, T) {
   };
   const MAT = {
     sand: lam({ map: TEX.sand }), deck: lam({ map: TEX.deck }),
-    navy: lam({ map: azulejoBandTex(24) }), white: lam({ color: 0xf2f5f7 }), steel: lam({ map: concreteTex(1, 2), color: 0x9aa0a6, metalness: 0.4, roughness: 0.6 }),
+    navy: lam({ map: azulejoBandTex(24) }), white: lam({ color: 0xf2f5f7 }),
+    // METAL POLIDO (mastro, corrimão, estrutura da torre) — R9: 0.6/0.4 nunca estourava.
+    // Em 0.34/0.80 o pico do lóbulo GGX passa de ~2,5 pra ~30 e o risco de sol no tubo
+    // finalmente clipa; envMapIntensity segura a meia-luz da reflexão em volta do risco.
+    steel: lam({ map: concreteTex(1, 2), color: 0x9aa0a6, metalness: 0.80, roughness: 0.34, envMapIntensity: 1.8 }),
     kiosk: lam({ color: 0xcf5b3a }), thatch: lam({ color: 0xb2843f }),
     umbA: lam({ color: 0xe23b3b }), umbB: lam({ color: 0xf4c020 }),
     foam: lam({ color: 0xffd23f }), foam2: lam({ color: 0xff6a8a }), guard: lam({ color: 0xe8703a }),
@@ -723,8 +842,23 @@ export function buildPoolDay(scene, T) {
     // fundo/rampas ficam escondidos (só os 15cm de rampa que sobram do plano leem como
     // areia molhada na linha d'água).
     const waterMat = new THREE.MeshPhongMaterial({
-      map: rippleTex(3, 4), color: 0x35513c,   // verde-oliva escuro: hue 133, não os 209 do cobalto
-      specular: 0x7e9086, shininess: 70,   // brilho de água TURVA: reflete, mas não é espelho
+      // color é só um FREIO de valor sobre o mapa (−12 %): quem carrega o matiz é a textura.
+      // Produto albedo = #25393a → depois da luz quente do Piscinão + AgX cai em hue ~168,
+      // S ~0,33, L* ~30 — dentro do alvo medido (158-172 / 0,22-0,34 / 24-30).
+      map: rippleTex(3, 4), color: R2_BLUES ? 0x35513c : 0xc8d2ce,
+      /* R9 — A LÂMINA D'ÁGUA É O MELHOR GERADOR DE HIGHLIGHT DO JOGO E ESTAVA DESLIGADA.
+         shininess 70 dá pico de D_BlinnPhong = (0,25·70+0,5)/π ≈ 5,7; com specular 0x76837f
+         (0,18 linear) e o sol a pino (irradiância ≈ 2,55) o brilho máximo da água valia 2,6 —
+         contra os 3,8 que o AgX precisa nesta exposição pra chegar em L* 97. Resultado: uma
+         lagoa de 28 × 40 m ao meio-dia sem UM pixel estourado, que é fisicamente impossível.
+         Com shininess 240 e specular 0xa8b2ae o pico do lóbulo vai a ~4,8 — acima do ponto
+         branco do AgX nesta exposição (3,63) — e o meio-ângulo cai pra ~1,5°: o normal map
+         animado passa a quebrar o reflexo em MILHARES de faíscas de poucos pixels em vez de
+         um borrão morno. É o "glitter path" do sol na água, e é ele que devolve o topo da
+         escala tonal ao mapa. O shininess ALTO também é o que segura a média: energia mais
+         concentrada = mesma lâmina d'água na estatística de cor (hue/S/L* medidos ficam),
+         só que com um pico de verdade. ?water=0 continua caindo no material simples. */
+      specular: 0xa8b2ae, shininess: 240,   // brilho de água TURVA: reflete, mas não é espelho
       normalMap: waterNormalTex(LOWQ ? 3 : 5),
       normalScale: new THREE.Vector2(0.9, 0.9),
     });
@@ -764,20 +898,25 @@ export function buildPoolDay(scene, T) {
         // (fundo visível é reprovação automática). Aparece por COR: miolo mais escuro e
         // mais verde-musgo, beira mais clara e barrenta.
         float deep = smoothstep( 1.5, 9.0, dEdge );
-        outgoingLight *= mix( vec3( 1.14, 1.07, 0.93 ), vec3( 0.74, 0.86, 0.75 ), deep );
+        // R3: os dois multiplicadores foram puxados PRA PERTO DO NEUTRO. Os antigos
+        // (1.14,1.07,0.93) e (0.74,0.86,0.75) empurravam o matiz ~15° pra fora da janela de
+        // 158-172 — a beira virava barro alaranjado e o miolo, verde-charco. Agora a
+        // profundidade aparece por VALOR (miolo mais escuro) e quase não mexe no matiz.
+        outgoingLight *= mix( vec3( 1.10, 1.06, 0.98 ), vec3( 0.78, 0.88, 0.86 ), deep );
         vec3 Vv = normalize( vViewPosition );
-        // expoente 4 (era 3) + peso 0.42 (era 0.55): o reflexo do céu fica SÓ na rasante.
-        // Reflexo de céu espalhado por toda a lâmina é o que transforma água salobra em
-        // "piscina de clube" — foi exatamente o hue 209 que o crítico mediu.
-        float fres = pow( 1.0 - clamp( dot( Vv, normal ), 0.0, 1.0 ), 4.0 );
+        // FRESNEL FORTE, mas CONCENTRADO: expoente 5 (era 4) e peso 0.50 (era 0.42). O que
+        // transforma água salobra em "piscina de clube" não é o reflexo ser forte, é ele
+        // estar espalhado por toda a lâmina — expoente alto tranca o brilho na rasante,
+        // que é onde a água real reflete, e deixa o miolo opaco.
+        float fres = pow( 1.0 - clamp( dot( Vv, normal ), 0.0, 1.0 ), 5.0 );
         // REFLEXO BARATO DO CÉU: gradiente de 2 cores indexado pelo próprio fresnel. A
         // Guanabara devolve o HAZE QUENTE do horizonte, não o azul do zênite — por isso o
         // tom baixo é cinza-esverdeado e não azul. 0 texture fetch, 0 render target.
         vec3 skyCol = mix( vec3( 0.44, 0.52, 0.52 ), vec3( 0.86, 0.85, 0.77 ), fres );
-        outgoingLight = mix( outgoingLight, skyCol, fres * 0.42 );
+        outgoingLight = mix( outgoingLight, skyCol, fres * 0.50 );
         // margem RASA: areia em suspensão deixa a água barrenta — NUNCA transparente
         float murk = 1.0 - smoothstep( 0.0, 5.0, dEdge );
-        outgoingLight = mix( outgoingLight, outgoingLight * vec3( 1.24, 1.12, 0.86 ), murk * 0.7 );
+        outgoingLight = mix( outgoingLight, outgoingLight * vec3( 1.16, 1.10, 0.96 ), murk * 0.7 );
         float wob = texture2D( normalMap, vWuv * 7.0 + vec2( uTime * 0.02, -uTime * 0.016 ) ).x - 0.5;
         // LINHA DE SUJEIRA: a faixa marrom-esverdeada de escuma, limo e óleo que se
         // acumula onde a marola bate na areia. Fica ENTRE a água e a espuma branca — sem
@@ -819,7 +958,7 @@ export function buildPoolDay(scene, T) {
       const wetBank = lam({ map: beachSandTex(10, 1), color: 0x8a7454, roughness: 0.55 });
       const wb = (w, d, x, z) => {
         const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d), wetBank);
-        m.rotation.x = -Math.PI / 2; m.position.set(x, 0.006, z); m.receiveShadow = true; root.add(m);
+        m.rotation.x = -Math.PI / 2; m.position.set(x, 0.006, z); m.receiveShadow = true; m.castShadow = false; deco(m);
       };
       wb(OUTX * 2 + 0.7, 1.0, POOL.cx, nZ + 0.65); wb(OUTX * 2 + 0.7, 1.0, POOL.cx, sZ - 0.65);
       wb(1.0, OUTZ * 2 + 0.7, nX + 0.65, POOL.cz); wb(1.0, OUTZ * 2 + 0.7, sX - 0.65, POOL.cz);
@@ -872,16 +1011,18 @@ export function buildPoolDay(scene, T) {
     for (let i = 0; i < 14; i++)   // escada no lado leste
       addBox(0.8, 0.16, 0.26, MAT.steel, tx + 1.35, 0.55 + i * 0.68, tz + 1.1 - i * 0.19, { collide: false });
     // cano do escorrega: azul c/ bordas amarelas, desce da plataforma até a borda da lagoa
-    const chuteMat = lam({ color: 0x2277cc, roughness: 0.35 });
-    const railMat = lam({ color: 0xf4c020, roughness: 0.5 });
+    // fibra de vidro do escorrega e corrimão pintado: superfícies ENCERADAS, é onde o sol
+    // de meio-dia carioca desenha o risco branco. envMap sustenta o reflexo do céu.
+    const chuteMat = lam({ color: 0x2277cc, roughness: 0.26, metalness: 0.12, envMapIntensity: 1.7 });
+    const railMat = lam({ color: 0xf4c020, roughness: 0.30, metalness: 0.45, envMapIntensity: 1.7 });
     const ang = Math.atan2(8.6, 5.6);
     for (let i = 0; i < 7; i++) {
       const t = i / 6, cz = tz - 1.2 - t * 5.6, cy = TH - 0.2 - t * 8.6;
       const seg = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.14, 1.7), chuteMat);
-      seg.position.set(tx, cy, cz); seg.rotation.x = -ang; seg.castShadow = true; root.add(seg);
+      seg.position.set(tx, cy, cz); seg.rotation.x = -ang; seg.castShadow = true; deco(seg);
       for (const rx of [-0.58, 0.58]) {
         const rail = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.32, 1.7), railMat);
-        rail.position.set(tx + rx, cy + 0.15, cz); rail.rotation.x = -ang; root.add(rail);
+        rail.position.set(tx + rx, cy + 0.15, cz); rail.rotation.x = -ang; rail.castShadow = false; deco(rail);
       }
     }
     // collider só da torre (cano alto não interfere); LOS spawn↔spawn já é 0 → só pode melhorar
@@ -907,11 +1048,19 @@ export function buildPoolDay(scene, T) {
     addBox(18, 0.4, 5, MAT.pergo, 0, 3.0, ez, { collide: false });
     // faixa pintada de clube nas paredes do corredor (identidade visual + quebra a lisura)
     for (const sx of [-1, 1]) {
-      // faixa de identidade do lado (P/B). Azul mais escuro e menos saturado que o antigo
-      // #1b5f9e: uma faixa horizontal de azul vivo na altura do olho, num mapa de piscinão,
-      // some com a leitura de "tinta" e vira "lâmina d'água". Aqui ela ainda cumpre a
-      // função de dizer de que lado o corredor está, que é o que justifica a cor.
-      addPlane(15.6, 0.5, lam({ map: stripeTex(s < 0 ? '#2d5670' : '#2fa060', 19 + s) }), sx * 8.19, 1.45, s * (HALF_Z - 11), sx > 0 ? -Math.PI / 2 : Math.PI / 2);
+      /* R3 — ESTA faixa É o que a auditoria vinha medindo como "a água do Piscinão".
+         O recorte do maior componente azul/ciano abaixo do horizonte cai aqui, não na
+         lagoa: nas 8 posições de captura a câmera fica nos corredores de spawn e a lagoa
+         nem aparece. Base #2d5670 = hue 203 / S 0,60; na tela deu hue 196 / S 0,48 — e as
+         elipses de descascado do stripeTex, claras sobre o azul, são literalmente os
+         "objetos claros no fundo da água" que o crítico descreveu. Duas mudanças:
+         (1) o lado P sai do azul e entra no MESMO cinza-esverdeado da lagoa (hue 188 no
+             albedo → hue ~169 / S ~0,27 / L* ~28 na tela: centro do alvo medido);
+         (2) o lado B sai do verde-bandeira saturado (S 0,81) pro ocre desbotado, que é
+             cor de reboco de clube municipal e some da faixa 140-255 de matiz.
+         A função de orientação (de que lado do mapa estou) fica MAIS forte, não menos:
+         antes eram dois tons escuros e frios, agora são frio × quente. */
+      addPlane(15.6, 0.5, lam({ map: stripeTex(s < 0 ? (R2_BLUES ? '#2d5670' : '#325054') : (R2_BLUES ? '#2fa060' : '#9a8b64'), 19 + s) }), sx * 8.19, 1.45, s * (HALF_Z - 11), sx > 0 ? -Math.PI / 2 : Math.PI / 2);
     }
     // porta do VESTIÁRIO (decal na parede do corredor) + placa — identidade de clube
     {
@@ -922,7 +1071,7 @@ export function buildPoolDay(scene, T) {
         x.fillStyle = '#c8b890'; x.beginPath(); x.arc(92, 72, 4, 0, 7); x.fill();   // maçaneta
       });
       const door = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 2.2), new THREE.MeshBasicMaterial({ map: doorTex, transparent: true }));
-      door.position.set(s * -8.19, 1.1, s * (HALF_Z - 5)); door.rotation.y = s * Math.PI / 2; root.add(door);
+      door.position.set(s * -8.19, 1.1, s * (HALF_Z - 5)); door.rotation.y = s * Math.PI / 2; door.castShadow = false; deco(door);
       addPlane(3.4, 0.9, signTexture('#123a5e', '#cfe8ff', 'VESTIÁRIO', 'CHUVEIROS E ARMÁRIOS'), s * -8.19, 2.18, s * (HALF_Z - 5), s * Math.PI / 2);
     }
     // blocos escalonados FORA do eixo x≈0 (crítico R6: abrir a lane pro tobogã compor o fim)
@@ -957,31 +1106,41 @@ export function buildPoolDay(scene, T) {
     const leaf = [lam({ color: 0x2c6e2e, roughness: 0.95 }), lam({ color: 0x3f8f3a, roughness: 0.95 }), lam({ color: 0x58a34a, roughness: 0.95 })];
     leaf.forEach(m => { m.flatShading = true; });
     const sandM = lam({ map: beachSandTex(4, 1) });
+    const moundGeo = new THREE.SphereGeometry(1, 9, 6);          // moldes unitários
+    const bushGeo = new THREE.IcosahedronGeometry(1, 0);
+    const restingaGeo = new THREE.CylinderGeometry(0.09, 0.13, 1.9, 7);
+    const restingaMat = lam({ color: 0x5a4632 });
     let fseed = 7; const frnd = () => (fseed = (fseed * 16807) % 2147483647) / 2147483647;
     for (const [jx, jz] of [[-3, 8], [3, -8]]) {
       // monte de areia orgânico (~1.2m de perfil): 3 massas achatadas sobrepostas
+      // montes/arbustos/arvorezinha eram ~30 meshes com ~30 geometrias (cada raio sorteado
+      // virava uma esfera nova). Molde unitário + escala na instância dá a MESMA silhueta.
       for (let i = 0; i < 3; i++) {
-        const mound = new THREE.Mesh(new THREE.SphereGeometry(1.9 + frnd() * 0.6, 9, 6), sandM);
-        mound.scale.set(1.6, 0.38 + frnd() * 0.1, 0.55);
-        mound.position.set(jx - 2.4 + i * 2.4, 0.1, jz + (frnd() - 0.5) * 0.3);
-        mound.castShadow = mound.receiveShadow = true; root.add(mound);
+        const r = 1.9 + frnd() * 0.6;
+        _dd.position.set(jx - 2.4 + i * 2.4, 0.1, jz + (frnd() - 0.5) * 0.3);
+        _dd.rotation.set(0, 0, 0);
+        _dd.scale.set(r * 1.6, r * (0.38 + frnd() * 0.1), r * 0.55);
+        INST.add(moundGeo, sandM, _dd);
       }
       // 3-4 arbustos (icosaedros) até ~2.2m = cover visual do collider
       for (let i = 0; i < 4; i++) {
         const bx2 = jx - 3 + i * 2 + (frnd() - 0.5) * 0.6;
         for (let k = 0; k < 2 + (frnd() > 0.5 ? 1 : 0); k++) {
-          const b = new THREE.Mesh(new THREE.IcosahedronGeometry(0.45 + frnd() * 0.35, 0), leaf[(i + k) % 3]);
-          b.position.set(bx2 + (frnd() - 0.5) * 0.5, 0.7 + k * 0.55 + frnd() * 0.3, jz + (frnd() - 0.5) * 0.35);
-          b.castShadow = true; root.add(b);
+          const r = 0.45 + frnd() * 0.35;
+          _dd.position.set(bx2 + (frnd() - 0.5) * 0.5, 0.7 + k * 0.55 + frnd() * 0.3, jz + (frnd() - 0.5) * 0.35);
+          _dd.rotation.set(0, 0, 0); _dd.scale.set(r, r, r);
+          INST.add(bushGeo, leaf[(i + k) % 3], _dd);
         }
       }
       // árvore pequena de restinga na ponta da ilhota
       const tx2 = jx + 3.1, tz2 = jz;
-      const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.13, 1.9, 7), lam({ color: 0x5a4632 }));
-      trunk.position.set(tx2, 1.5, tz2); trunk.castShadow = true; root.add(trunk);
+      _dd.position.set(tx2, 1.5, tz2); _dd.rotation.set(0, 0, 0); _dd.scale.set(1, 1, 1);
+      INST.add(restingaGeo, restingaMat, _dd);
       for (let i = 0; i < 2; i++) {
-        const b = new THREE.Mesh(new THREE.IcosahedronGeometry(0.75 - i * 0.15, 0), leaf[i]);
-        b.position.set(tx2 + (i ? 0.35 : -0.15), 2.4 + i * 0.6, tz2); b.castShadow = true; root.add(b);
+        const r = 0.75 - i * 0.15;
+        _dd.position.set(tx2 + (i ? 0.35 : -0.15), 2.4 + i * 0.6, tz2);
+        _dd.rotation.set(0, 0, 0); _dd.scale.set(r, r, r);
+        INST.add(bushGeo, leaf[i], _dd);
       }
     }
   }
@@ -1016,11 +1175,12 @@ export function buildPoolDay(scene, T) {
   // toalhas estendidas na areia (decals de primeira-leitura)
   {
     const towelCols = [0xe23b3b, 0x3a6ec2, 0xf4c020, 0x2fa060];
+    const towelGeo = new THREE.PlaneGeometry(1.1, 2.0);
+    const towelMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.95 });   // cor por instância
     towelCols.forEach((col, i) => {
-      const t = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 2.0), new THREE.MeshStandardMaterial({ color: col, roughness: 0.95 }));
-      t.rotation.x = -Math.PI / 2; t.rotation.z = i * 0.7;
-      t.position.set(-16 + i * 9, 0.012, (i % 2 ? -22 : 22));
-      t.receiveShadow = true; root.add(t);
+      _dd.rotation.set(-Math.PI / 2, 0, i * 0.7); _dd.scale.set(1, 1, 1);
+      _dd.position.set(-16 + i * 9, 0.012, (i % 2 ? -22 : 22));
+      INST.add(towelGeo, towelMat, _dd, col, { cast: false });
     });
   }
   // CAIXAS DE SOM (paredão): 1 → 3. Sem paredão não é balneário carioca em domingo.
@@ -1039,10 +1199,19 @@ export function buildPoolDay(scene, T) {
      decals + micro-props SEM collider (não afetam LOS/A*) — quebram a lisura da areia/deck. */
   {
     let dseed = 97; const drnd = () => (dseed = (dseed * 16807) % 2147483647) / 2147483647;
+    /* DECALS DE CHÃO — eram ~60 planos, cada um com material PRÓPRIO (mesma textura, mesma
+       opacidade): 60 draw calls e 60 materiais pra 8 imagens. O material passa a ser
+       cacheado por (textura, opacidade) e a malha vai pro merge estático: ~10 draw calls.
+       Nada muda no frame: são planos parados, sem colisão e sem sombra. */
+    const _decalMat = new Map();
+    const juntaMat = new THREE.MeshBasicMaterial({ color: 0x8a7a5e, transparent: true, opacity: 0.5, depthWrite: false });
     const decal = (tex, w, d, x, z, ry = 0, y = 0.014, opacity = 1) => {
-      const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d),
-        new THREE.MeshStandardMaterial({ map: tex, transparent: true, opacity, roughness: 0.95, polygonOffset: true, polygonOffsetFactor: -2 }));
-      m.rotation.x = -Math.PI / 2; m.rotation.z = ry; m.position.set(x, y, z); m.receiveShadow = true; root.add(m);
+      const k = `${tex.uuid}|${opacity}`;
+      let mat = _decalMat.get(k);
+      if (!mat) { mat = new THREE.MeshStandardMaterial({ map: tex, transparent: true, opacity, roughness: 0.95, polygonOffset: true, polygonOffsetFactor: -2 }); _decalMat.set(k, mat); }
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d), mat);
+      m.rotation.x = -Math.PI / 2; m.rotation.z = ry; m.position.set(x, y, z);
+      m.receiveShadow = true; m.castShadow = false; deco(m);
     };
     // areia solta (blob claro — invade bordas da grama e cantos de deck)
     const sandBlob = decalTex((x, S) => {
@@ -1090,39 +1259,60 @@ export function buildPoolDay(scene, T) {
     for (const sx of [-1, 1]) decal(driftTex, HALF_Z * 2 - 4, 1.6, sx * (HALF_X - 0.9), 0, Math.PI / 2 * sx, 0.012, 0.8);
     for (const sz of [-1, 1]) decal(driftTex, HALF_X * 2 - 4, 1.6, 0, sz * (HALF_Z - 0.9), sz > 0 ? Math.PI : 0, 0.012, 0.8);
 
-    // ---- micro-props: chinelos, garrafas, copos (coloridos, miúdos, zeram a lisura) ----
+    /* ---- micro-props: chinelos, garrafas, copos (coloridos, miúdos, zeram a lisura) ----
+       Eram ~50 meshes com geometria E material próprios (cada chinelo criava um
+       MeshStandardMaterial novo). Viram 4 grupos instanciados com cor por instância.
+       GATE DE QUALIDADE: em 'low' o detrito miúdo some inteiro — a 25 m ele não existe
+       na tela de qualquer jeito, e é a primeira coisa a cortar numa GPU fraca. */
+    const DETRITO = !LOWQ;
     const chineloCols = [0x2fa060, 0xe23b3b, 0x3a6ec2, 0xf4c020, 0xff6a8a];
+    const chineloGeo = new THREE.BoxGeometry(0.11, 0.025, 0.28);
+    const microMat = lam({ color: 0xffffff, roughness: 0.7 });   // branco: instanceColor multiplica
     const chinelo = (x, z, ry) => {
+      if (!DETRITO) return;
       const col = chineloCols[(drnd() * chineloCols.length) | 0];
-      const m = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.025, 0.28), lam({ color: col, roughness: 0.7 }));
-      m.position.set(x, 0.02, z); m.rotation.y = ry; m.castShadow = true; root.add(m);
+      _dd.position.set(x, 0.02, z); _dd.rotation.set(0, ry, 0); _dd.scale.set(1, 1, 1);
+      INST.add(chineloGeo, microMat, _dd, col);
     };
     const par = (x, z) => { const r = drnd() * 6.3; chinelo(x, z, r); chinelo(x + 0.16, z + 0.06, r + 0.2); };
     // pares de chinelo: spawns + saída dos corredores (G2-R14B: metade — declutter)
     par(-3, 30); par(-4, -29); par(-15, 21); par(14, -23);
     chinelo(6.5, 17, 1.2); chinelo(-12.5, -18, 5.1);
+    const garrafaGeo = new THREE.CylinderGeometry(0.035, 0.035, 0.24, 8);
+    const vidroMat = lam({ color: 0xffffff, roughness: 0.18, metalness: 0.10, envMapIntensity: 2.2 });   // garrafa: vidro de verdade reflete
     const garrafa = (x, z, lying) => {
+      if (!DETRITO) return;
       const col = drnd() > 0.5 ? 0x2c6e3f : 0x7a4a20;
-      const m = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.24, 8), lam({ color: col, roughness: 0.3 }));
-      if (lying) { m.rotation.z = Math.PI / 2; m.rotation.y = drnd() * 6.3; m.position.set(x, 0.04, z); }
-      else m.position.set(x, 0.12, z);
-      m.castShadow = true; root.add(m);
+      if (lying) { _dd.position.set(x, 0.04, z); _dd.rotation.set(0, drnd() * 6.3, Math.PI / 2); }
+      else { _dd.position.set(x, 0.12, z); _dd.rotation.set(0, 0, 0); }
+      _dd.scale.set(1, 1, 1);
+      INST.add(garrafaGeo, vidroMat, _dd, col);
     };
+    const copoGeo = new THREE.CylinderGeometry(0.03, 0.022, 0.07, 8);
+    const copoMat = lam({ color: 0xffffff, roughness: 0.5 });
     const copo = (x, z) => {
-      const m = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.022, 0.07, 8), lam({ color: drnd() > 0.5 ? 0xf2f2f2 : 0xd83030, roughness: 0.5 }));
-      m.position.set(x, 0.035, z); if (drnd() > 0.6) { m.rotation.z = Math.PI / 2; m.position.y = 0.03; } root.add(m);
+      if (!DETRITO) return;
+      const col = drnd() > 0.5 ? 0xf2f2f2 : 0xd83030;
+      if (drnd() > 0.6) { _dd.position.set(x, 0.03, z); _dd.rotation.set(0, 0, Math.PI / 2); }
+      else { _dd.position.set(x, 0.035, z); _dd.rotation.set(0, 0, 0); }
+      _dd.scale.set(1, 1, 1);
+      INST.add(copoGeo, copoMat, _dd, col, { cast: false });
     };
     // lixo de festa perto das mesas/quiosques (G2-R14B: 10→6 pontos — declutter)
     for (const [x, z] of [[17.2, 5.2], [-17.2, 9.2], [-13.4, 25.2], [13.5, -25.4], [-14.6, 27.2], [10.8, 28.6]]) {
       garrafa(x + drnd() * 0.6, z + drnd() * 0.6, drnd() > 0.4); if (drnd() > 0.35) copo(x - drnd() * 0.8, z + drnd() * 0.8);
     }
     // guardanapos/papéis na areia (NUNCA na água) — G2-R14B: 14→6 (declutter)
-    for (let i = 0; i < 6; i++) {
-      const m = new THREE.Mesh(new THREE.PlaneGeometry(0.16, 0.12), lam({ color: 0xf0ead8, roughness: 0.95, side: THREE.DoubleSide }));
-      const sx2 = drnd() > 0.5 ? 1 : -1;
-      const px2 = sx2 * (10 + drnd() * 11), pz2 = drnd() * 54 - 27;
-      if (Math.abs(px2) < 14 && Math.abs(pz2) < 17) { continue; }   // fora da lagoa
-      m.position.set(px2, 0.015, pz2); m.rotation.x = -Math.PI / 2; m.rotation.z = drnd() * 6.3; root.add(m);
+    if (DETRITO) {
+      const papelGeo = new THREE.PlaneGeometry(0.16, 0.12);
+      const papelMat = lam({ color: 0xf0ead8, roughness: 0.95, side: THREE.DoubleSide });
+      for (let i = 0; i < 6; i++) {
+        const sx2 = drnd() > 0.5 ? 1 : -1;
+        const px2 = sx2 * (10 + drnd() * 11), pz2 = drnd() * 54 - 27;
+        if (Math.abs(px2) < 14 && Math.abs(pz2) < 17) { continue; }   // fora da lagoa
+        _dd.position.set(px2, 0.015, pz2); _dd.rotation.set(-Math.PI / 2, 0, drnd() * 6.3); _dd.scale.set(1, 1, 1);
+        INST.add(papelGeo, papelMat, _dd, null, { cast: false });
+      }
     }
     // BANHISTAS em volume baixo (cabeça+ombros icosaedro, linguagem das árvores) —
     // substituem os "decals papelão" dentro d'água
@@ -1130,51 +1320,70 @@ export function buildPoolDay(scene, T) {
       const skin = [lam({ color: 0xc28a62, roughness: 0.8 }), lam({ color: 0x8a5a3a, roughness: 0.8 }), lam({ color: 0xe0b08a, roughness: 0.8 })];
       const hair = [lam({ color: 0x2a2018 }), lam({ color: 0x4a2e18 }), lam({ color: 0x1a1a1c })];
       skin.concat(hair).forEach(mm => { mm.flatShading = true; });
+      // 26 banhistas × 3 icosaedros = 78 meshes. As geometrias são as MESMAS três; só a
+      // matriz e o material (3 tons de pele, 3 de cabelo) mudam. Instanciando por
+      // geometria+material caem para ~9 grupos, com as mesmas 26 cabeças na água.
+      const gOmbro = new THREE.IcosahedronGeometry(0.24, 0);
+      const gCabeca = new THREE.IcosahedronGeometry(0.13, 0);
+      const gCabelo = new THREE.IcosahedronGeometry(0.135, 0);
       const bath = (x, z, si) => {
-        const sh = new THREE.Mesh(new THREE.IcosahedronGeometry(0.24, 0), skin[si]);   // ombros
-        sh.scale.set(1.5, 0.55, 0.7); sh.position.set(x, -0.08, z); root.add(sh);
-        const hd = new THREE.Mesh(new THREE.IcosahedronGeometry(0.13, 0), skin[si]);   // cabeça
-        hd.position.set(x, 0.16, z); root.add(hd);
-        const hc = new THREE.Mesh(new THREE.IcosahedronGeometry(0.135, 0), hair[si]);  // cabelo
-        hc.scale.set(1, 0.72, 1); hc.position.set(x, 0.22, z - 0.02); root.add(hc);
+        _dd.rotation.set(0, 0, 0);
+        _dd.position.set(x, -0.08, z); _dd.scale.set(1.5, 0.55, 0.7);
+        INST.add(gOmbro, skin[si], _dd, null, { cast: false });                        // ombros
+        _dd.position.set(x, 0.16, z); _dd.scale.set(1, 1, 1);
+        INST.add(gCabeca, skin[si], _dd, null, { cast: false });                       // cabeça
+        _dd.position.set(x, 0.22, z - 0.02); _dd.scale.set(1, 0.72, 1);
+        INST.add(gCabelo, hair[si], _dd, null, { cast: false });                       // cabelo
+        _dd.scale.set(1, 1, 1);
       };
       // "MUITA GENTE" é item de gabarito, mas banhista de corpo inteiro na areia vira
       // alvo falso num FPS. Solução: cabeça+ombros DENTRO da lagoa (nunca confundível
       // com bot) — 3 → 18. ?crowd=0 volta ao mínimo.
       const heads = [[6, -6], [-7, 2], [2, 11], [-3, -3], [8, 4], [-9, -9], [4, -12], [-5, 12],
         [10, -2], [0, 6], [-10, 6], [7, 9], [-2, -8], [11, 11], [-11, -2], [3, -1], [-6, 8], [9, -10]];
-      (CROWD ? heads : heads.slice(0, 3)).forEach(([hx, hz], i) => bath(hx, hz, i % 3));
+      (CROWD ? (LOWQ ? heads.slice(0, 9) : heads) : heads.slice(0, 3)).forEach(([hx, hz], i) => bath(hx, hz, i % 3));   // 'low': metade das cabeças
       // BANHISTAS SENTADOS na canga, na periferia da areia (fora das lanes): torso baixo,
       // sem pernas de pé — não lê como inimigo agachado a 30m.
-      if (CROWD) {
+      if (CROWD && !LOWQ) {   // 'low': sem os sentados na canga (são os mais caros do grupo)
         const shirt = [lam({ color: 0xe8e2d2, roughness: 0.9 }), lam({ color: 0x3a6ec2, roughness: 0.9 }), lam({ color: 0xe23b3b, roughness: 0.9 })];
         shirt.forEach(m => { m.flatShading = true; });
+        const gTorso = new THREE.IcosahedronGeometry(0.34, 0);
+        const gCabecaS = new THREE.IcosahedronGeometry(0.14, 0);
+        const gCabeloS = new THREE.IcosahedronGeometry(0.145, 0);
         for (const [sx3, sz3, si] of [[-20.5, 17, 0], [-19.4, 15.6, 1], [20.6, -19, 2], [19.2, -17.6, 0],
           [-21, -26, 1], [21, 27, 2], [-17.5, -30, 0], [17.6, 31, 1]]) {
           contact(sx3, sz3, 0.45);   // banhista sentado na canga também precisa colar na areia
-          const torso = new THREE.Mesh(new THREE.IcosahedronGeometry(0.34, 0), shirt[si]);
-          torso.scale.set(0.9, 1.0, 0.7); torso.position.set(sx3, 0.42, sz3); torso.castShadow = true; root.add(torso);
-          const hd = new THREE.Mesh(new THREE.IcosahedronGeometry(0.14, 0), skin[si]);
-          hd.position.set(sx3, 0.86, sz3); hd.castShadow = true; root.add(hd);
-          const hc = new THREE.Mesh(new THREE.IcosahedronGeometry(0.145, 0), hair[si]);
-          hc.scale.set(1, 0.7, 1); hc.position.set(sx3, 0.92, sz3 - 0.02); root.add(hc);
+          _dd.rotation.set(0, 0, 0);
+          _dd.position.set(sx3, 0.42, sz3); _dd.scale.set(0.9, 1.0, 0.7);
+          INST.add(gTorso, shirt[si], _dd);
+          _dd.position.set(sx3, 0.86, sz3); _dd.scale.set(1, 1, 1);
+          INST.add(gCabecaS, skin[si], _dd);
+          _dd.position.set(sx3, 0.92, sz3 - 0.02); _dd.scale.set(1, 0.7, 1);
+          INST.add(gCabeloS, hair[si], _dd);
+          _dd.scale.set(1, 1, 1);
         }
       }
     }
 
     // ---- cadeiras de plástico (monobloco branca — ícone de clube/bar BR) ----
+    /* CADEIRA MONOBLOCO — 12 cadeiras × 6 peças = 72 meshes. A cadeira inteira é sempre
+       a MESMA malha: dá pra mesclar as 6 peças UMA vez num molde e depois instanciar.
+       12 cadeiras = 1 draw call, com o mesmo assento, encosto e 4 pés de antes. */
+    const chairWhite = lam({ color: 0xf0f2ee, roughness: 0.55 });
+    const chairGeo = (() => {
+      const parts = [], t = new THREE.Object3D();
+      const push = (g, px, py, pz, rx = 0) => { t.position.set(px, py, pz); t.rotation.set(rx, 0, 0); t.updateMatrix(); parts.push(g.clone().applyMatrix4(t.matrix)); };
+      push(new THREE.BoxGeometry(0.42, 0.05, 0.42), 0, 0.42, 0);                 // assento
+      push(new THREE.BoxGeometry(0.42, 0.48, 0.05), 0, 0.68, -0.19, -0.12);      // encosto
+      const leg = new THREE.CylinderGeometry(0.022, 0.026, 0.42, 6);
+      for (const lx of [-0.18, 0.18]) for (const lz of [-0.18, 0.18]) push(leg, lx, 0.21, lz);
+      return mergeParts(parts);
+    })();
     const chair = (x, z, ry, tipped = false) => {
-      const g = new THREE.Group();
-      const white = lam({ color: 0xf0f2ee, roughness: 0.55 });
-      const seat = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.05, 0.42), white); seat.position.y = 0.42; g.add(seat);
-      const back = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.48, 0.05), white); back.position.set(0, 0.68, -0.19); back.rotation.x = -0.12; g.add(back);
-      for (const lx of [-0.18, 0.18]) for (const lz of [-0.18, 0.18]) {
-        const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.026, 0.42, 6), white);
-        leg.position.set(lx, 0.21, lz); g.add(leg);
-      }
-      g.position.set(x, 0, z); g.rotation.y = ry;
-      if (tipped) { g.rotation.z = Math.PI / 2; g.position.y = 0.24; }
-      g.traverse(o => { if (o.isMesh) o.castShadow = true; }); root.add(g);
+      _dd.position.set(x, tipped ? 0.24 : 0, z);
+      _dd.rotation.set(0, ry, tipped ? Math.PI / 2 : 0);
+      _dd.scale.set(1, 1, 1);
+      INST.add(chairGeo, chairWhite, _dd);
     };
     // cadeiras: 4→10, sempre em RODINHA na periferia (fora das lanes) — cadeira solta lê
     // como prop esquecido; cadeira em roda lê como família que passou o domingo ali
@@ -1183,42 +1392,65 @@ export function buildPoolDay(scene, T) {
     chair(-20.5, -21, 1.9); chair(-19.6, -22.2, 4.9); chair(20.2, 22.4, 0.3);
 
     // ---- chuveirão do deck (poste + prato) c/ poça embaixo ----
+    // chuveirão inteiro (mastro + braço + prato) vira um molde só, instanciado 2×
+    const showerGeo = (() => {
+      const parts = [], t = new THREE.Object3D();
+      const push = (g, px, py, pz, rz = 0) => { t.position.set(px, py, pz); t.rotation.set(0, 0, rz); t.updateMatrix(); parts.push(g.applyMatrix4(t.matrix)); };
+      push(new THREE.CylinderGeometry(0.05, 0.05, 2.3, 8), 0, 1.15, 0);
+      push(new THREE.CylinderGeometry(0.035, 0.035, 0.5, 6), 0.22, 2.25, 0, Math.PI / 2);
+      push(new THREE.CylinderGeometry(0.16, 0.1, 0.08, 10), 0.44, 2.2, 0);
+      return mergeParts(parts);
+    })();
     const shower = (x, z) => {
-      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 2.3, 8), MAT.steel);
-      pole.position.set(x, 1.15, z); pole.castShadow = true; root.add(pole);
-      const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.5, 6), MAT.steel);
-      arm.rotation.z = Math.PI / 2; arm.position.set(x + 0.22, 2.25, z); root.add(arm);
-      const head = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.1, 0.08, 10), MAT.steel);
-      head.position.set(x + 0.44, 2.2, z); root.add(head);
+      _dd.position.set(x, 0, z); _dd.rotation.set(0, 0, 0); _dd.scale.set(1, 1, 1);
+      INST.add(showerGeo, MAT.steel, _dd);
       decal(wetTex, 1.6, 1.6, x + 0.44, z, 0, 0.015);
     };
     shower(16.6, 13.5); shower(-16.6, -13.5);
 
     // ---- bandeirinhas de festa (clube em dia de domingo) entre pontos altos ----
+    /* BANDEIRINHAS — o item mais caro do mapa e o mais fácil de arrumar. Eram 268 panos,
+       cada um com BufferGeometry PRÓPRIA (3 vértices!) e MeshBasicMaterial PRÓPRIO: 268
+       draw calls, 268 geometrias e 268 materiais para desenhar 5 cores de triângulo.
+       Agora é UMA geometria de triângulo + UM material branco; a cor de cada pano vai por
+       instanceColor (que MULTIPLICA o diffuse, daí o branco). Idem a corda: um cilindro
+       unitário esticado por escala. Mesmíssima varal na tela, ~4 draw calls no total. */
     const buntCols = [0xe23b3b, 0xf4c020, 0x2fa060, 0x3a6ec2, 0xff6a8a];
+    const ropeMat = new THREE.MeshBasicMaterial({ color: 0x333333 });
+    const ropeGeo = new THREE.CylinderGeometry(0.008, 0.008, 1, 4);
+    const flagMat = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide });
+    const flagGeo = (() => {
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.BufferAttribute(new Float32Array([-0.17, 0, 0, 0.17, 0, 0, 0, -0.36, 0]), 3));   // 3-4× maior (eram "confetes de 2px")
+      g.computeVertexNormals();
+      return g;
+    })();
+    const _bd = new THREE.Object3D();
     const bunting = (x1, z1, x2, z2, y = 2.9, n = 10) => {
-      const lineMat = new THREE.MeshBasicMaterial({ color: 0x333333 });
       const len = Math.hypot(x2 - x1, z2 - z1);
-      const rope = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, len, 4), lineMat);
-      rope.position.set((x1 + x2) / 2, y, (z1 + z2) / 2);
-      rope.rotation.z = Math.PI / 2; rope.rotation.y = -Math.atan2(z2 - z1, x2 - x1); root.add(rope);
+      _bd.position.set((x1 + x2) / 2, y, (z1 + z2) / 2);
+      _bd.rotation.set(0, -Math.atan2(z2 - z1, x2 - x1), Math.PI / 2);
+      _bd.scale.set(1, len, 1);
+      INST.add(ropeGeo, ropeMat, _bd, null, { cast: false });
+      const ang = Math.atan2(z2 - z1, x2 - x1) + Math.PI / 2;
       for (let i = 0; i < n; i++) {
         const t = (i + 0.5) / n, fx = x1 + (x2 - x1) * t, fz = z1 + (z2 - z1) * t, fy = y - 0.28 - Math.sin(t * Math.PI) * 0.14;
-        const tri = new THREE.BufferGeometry();
-        tri.setAttribute('position', new THREE.BufferAttribute(new Float32Array([-0.17, 0, 0, 0.17, 0, 0, 0, -0.36, 0]), 3));   // 3-4× maior (eram "confetes de 2px")
-        tri.computeVertexNormals();
-        const f = new THREE.Mesh(tri, new THREE.MeshBasicMaterial({ color: buntCols[i % buntCols.length], side: THREE.DoubleSide }));
-        f.position.set(fx, fy, fz); f.rotation.y = Math.atan2(z2 - z1, x2 - x1) + Math.PI / 2; root.add(f);
+        _bd.position.set(fx, fy, fz); _bd.rotation.set(0, ang, 0); _bd.scale.set(1, 1, 1);
+        INST.add(flagGeo, flagMat, _bd, buntCols[i % buntCols.length], { cast: false });
       }
+      _bd.scale.set(1, 1, 1);
     };
     bunting(-14, 25.2, -18, 20.5); bunting(14, -25.2, 18, -20.5); bunting(-11, 27, -16.5, 26.5, 2.7); bunting(11, -27, 16.5, -26.5, 2.7);
 
     // ---- LATERAIS vestidas (crítico R6: "corredores laterais nus") — espalha os props que
     // já existiam só no fundo: bóias, cadeiras, placas, lixo. Sem collider. ----
+    // pilha de boias: 1 geometria de toro compartilhada + 2 materiais (amarelo/rosa)
+    const boiaGeo = new THREE.TorusGeometry(0.48, 0.16, 8, 16);
     const boiaPile = (x, z) => {
       for (let i = 0; i < 3; i++) {
-        const t = new THREE.Mesh(new THREE.TorusGeometry(0.48, 0.16, 8, 16), i % 2 ? MAT.foam : MAT.foam2);
-        t.rotation.x = Math.PI / 2; t.position.set(x + (i % 2) * 0.1, 0.16 + i * 0.28, z); t.castShadow = true; root.add(t);
+        _dd.position.set(x + (i % 2) * 0.1, 0.16 + i * 0.28, z);
+        _dd.rotation.set(Math.PI / 2, 0, 0); _dd.scale.set(1, 1, 1);
+        INST.add(boiaGeo, i % 2 ? MAT.foam : MAT.foam2, _dd);
       }
     };
     boiaPile(-14.6, -16.5); boiaPile(14.6, 16.5); boiaPile(-14.6, 13);
@@ -1226,9 +1458,11 @@ export function buildPoolDay(scene, T) {
     for (const [x, z] of [[-14, 1], [14.4, -18.2], [-13.2, 22.6], [13.8, 6.4]]) { garrafa(x, z, drnd() > 0.4); if (drnd() > 0.4) copo(x + 0.5, z - 0.4); }
     par(-14.2, -6); par(14.4, 9); chinelo(-13.4, 12.4, 0.8); chinelo(13.6, -8.6, 2.2);
     // lixeiras de tambor nas laterais
+    const drumGeo = new THREE.CylinderGeometry(0.3, 0.28, 0.72, 12);
+    const drumMat = lam({ color: 0x2c5e2e, roughness: 0.7 });
     for (const [x, z] of [[-13.4, -22.4], [13.4, 24.4]]) {
-      const drum = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.28, 0.72, 12), lam({ color: 0x2c5e2e, roughness: 0.7 }));
-      drum.position.set(x, 0.36, z); drum.castShadow = drum.receiveShadow = true; root.add(drum);
+      _dd.position.set(x, 0.36, z); _dd.rotation.set(0, 0, 0); _dd.scale.set(1, 1, 1);
+      INST.add(drumGeo, drumMat, _dd);
     }
     // areia invadindo as bordas da grama da quadra (borda irregular, sem retângulo duro)
     for (const [x, z, w, ry] of [[15.4, -8, 3.2, 0.4], [15.4, 6, 2.6, 2.2], [23.4, -4, 3.4, 1.1], [23.4, 9, 2.8, 2.9], [18, -11.8, 3.0, 0.2], [21, 11.8, 3.2, 1.7]])
@@ -1245,8 +1479,9 @@ export function buildPoolDay(scene, T) {
     // ---- chão dos corredores de spawn (crítico R6: "plano bege único") ----
     for (const s of [-1, 1]) {
       for (const dz of [19.5, 22.5, 25.5, 28.5, 31.5]) {   // juntas de dilatação
-        const j = new THREE.Mesh(new THREE.PlaneGeometry(15.4, 0.07), new THREE.MeshBasicMaterial({ color: 0x8a7a5e, transparent: true, opacity: 0.5, depthWrite: false }));
-        j.rotation.x = -Math.PI / 2; j.position.set(0, 0.013, s * dz); root.add(j);
+        // 10 juntas eram 10 materiais idênticos; um material só + merge = 1 draw call
+        const j = new THREE.Mesh(new THREE.PlaneGeometry(15.4, 0.07), juntaMat);
+        j.rotation.x = -Math.PI / 2; j.position.set(0, 0.013, s * dz); j.castShadow = false; deco(j);
       }
       decal(sandBlob, 3.4, 2.4, -5.5, s * 21, 1.2, 0.014, 0.8);   // manchas úmidas
       decal(sandBlob, 3.0, 2.2, 5, s * 30, 2.6, 0.014, 0.8);
@@ -1268,10 +1503,10 @@ export function buildPoolDay(scene, T) {
       g.addColorStop(0, 'rgba(28,24,16,0)'); g.addColorStop(1, 'rgba(28,24,16,0.4)');
       x.fillStyle = g; x.fillRect(0, 0, S, S);
     });
+    const aoWallMat = new THREE.MeshStandardMaterial({ map: aoWallTex, transparent: true, roughness: 1, polygonOffset: true, polygonOffsetFactor: -1 });
     for (const [w2, x, z, ry] of [[HALF_X * 2, 0, 35.955, Math.PI], [HALF_X * 2, 0, -35.955, 0], [HALF_Z * 2, 23.955, 0, -Math.PI / 2], [HALF_Z * 2, -23.955, 0, Math.PI / 2]]) {
-      const m = new THREE.Mesh(new THREE.PlaneGeometry(w2, 0.45),
-        new THREE.MeshStandardMaterial({ map: aoWallTex, transparent: true, roughness: 1, polygonOffset: true, polygonOffsetFactor: -1 }));
-      m.position.set(x, 0.22, z); m.rotation.y = ry; root.add(m);
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(w2, 0.45), aoWallMat);   // 4 materiais idênticos viraram 1
+      m.position.set(x, 0.22, z); m.rotation.y = ry; m.castShadow = false; deco(m);
     }
     // trilhas de pegadas molhadas (saída da lagoa, chuveiros, corredores)
     const footTex = decalTex((x, S) => {
@@ -1287,6 +1522,7 @@ export function buildPoolDay(scene, T) {
 
   /* ============ VESTINDO OS CORREDORES (crítico R6: "cantos e corredores mortos") ============
      2-3 props de FUNÇÃO por corredor: lockers, banco, lixeira, placa + pilha de bóias. */
+  const bg2 = new THREE.TorusGeometry(0.5, 0.17, 8, 16);   // mesma malha nas 6 bóias dos 2 corredores
   for (const s of [-1, 1]) {
     // armários do vestiário (banco de 2 portas, encostado na parede da porta)
     {
@@ -1301,10 +1537,10 @@ export function buildPoolDay(scene, T) {
     {
       const wood = lam({ map: pergoTex(2, 0.5) });
       const seat = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.07, 1.9), wood);
-      seat.position.set(s * 7.75, 0.44, s * (HALF_Z - 9.5)); seat.castShadow = seat.receiveShadow = true; root.add(seat);
+      seat.position.set(s * 7.75, 0.44, s * (HALF_Z - 9.5)); seat.castShadow = seat.receiveShadow = true; deco(seat);
       for (const dz of [-0.7, 0.7]) {
         const leg = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.4, 0.08), MAT.steel);
-        leg.position.set(s * 7.75, 0.2, s * (HALF_Z - 9.5) + dz); root.add(leg);
+        leg.position.set(s * 7.75, 0.2, s * (HALF_Z - 9.5) + dz); leg.castShadow = false; deco(leg);
       }
       colliders.push({ minX: s * 7.75 - 0.25, maxX: s * 7.75 + 0.25, minY: 0, maxY: 0.48, minZ: s * (HALF_Z - 9.5) - 1.0, maxZ: s * (HALF_Z - 9.5) + 1.0 });
       contact(s * 7.75, s * (HALF_Z - 9.5), 0.85);
@@ -1312,9 +1548,9 @@ export function buildPoolDay(scene, T) {
     // lixeira de tambor verde na saída do corredor
     {
       const drum = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.28, 0.72, 12), lam({ color: 0x2c5e2e, roughness: 0.7 }));
-      drum.position.set(s < 0 ? -9.4 : 9.4, 0.36, s * (HALF_Z - 11)); drum.castShadow = drum.receiveShadow = true; root.add(drum);
+      drum.position.set(s < 0 ? -9.4 : 9.4, 0.36, s * (HALF_Z - 11)); drum.castShadow = drum.receiveShadow = true; deco(drum);
       const rim = new THREE.Mesh(new THREE.TorusGeometry(0.3, 0.03, 6, 14), MAT.steel);
-      rim.rotation.x = Math.PI / 2; rim.position.set(s < 0 ? -9.4 : 9.4, 0.72, s * (HALF_Z - 11)); root.add(rim);
+      rim.rotation.x = Math.PI / 2; rim.position.set(s < 0 ? -9.4 : 9.4, 0.72, s * (HALF_Z - 11)); rim.castShadow = false; deco(rim);
       colliders.push({ minX: (s < 0 ? -9.4 : 9.4) - 0.32, maxX: (s < 0 ? -9.4 : 9.4) + 0.32, minY: 0, maxY: 0.72, minZ: s * (HALF_Z - 11) - 0.32, maxZ: s * (HALF_Z - 11) + 0.32 });
       contact(s < 0 ? -9.4 : 9.4, s * (HALF_Z - 11), 0.42);
     }
@@ -1324,9 +1560,9 @@ export function buildPoolDay(scene, T) {
     {
       const bx = s * 9.5, bz = s * (OUTZ - 1.6);
       for (let i = 0; i < 3; i++) {
-        const t = new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.17, 8, 16), i % 2 ? MAT.foam2 : MAT.foam);
-        t.rotation.x = Math.PI / 2; t.rotation.y = i * 0.3;
-        t.position.set(bx + (i % 2) * 0.5, -0.06 + i * 0.05, bz - (i % 2) * 0.4); t.castShadow = true; root.add(t);
+        _dd.position.set(bx + (i % 2) * 0.5, -0.06 + i * 0.05, bz - (i % 2) * 0.4);
+        _dd.rotation.set(Math.PI / 2, i * 0.3, 0); _dd.scale.set(1, 1, 1);
+        INST.add(bg2, i % 2 ? MAT.foam2 : MAT.foam, _dd);
       }
     }
   }
@@ -1357,7 +1593,7 @@ export function buildPoolDay(scene, T) {
       const vt = new THREE.CanvasTexture(c); vt.colorSpace = THREE.SRGBColorSpace;
       const q = new THREE.Mesh(new THREE.PlaneGeometry(9.4, 25.4),
         new THREE.MeshStandardMaterial({ map: vt, transparent: true, roughness: 0.95, polygonOffset: true, polygonOffsetFactor: -1 }));
-      q.rotation.x = -Math.PI / 2; q.position.set(bx, 0.012, 0); q.receiveShadow = true; root.add(q);
+      q.rotation.x = -Math.PI / 2; q.position.set(bx, 0.012, 0); q.receiveShadow = true; q.castShadow = false; deco(q);
     }
     // REDE de vôlei no meio da quadra (postes finos, sem collider — cover já vem dos pilares)
     {
@@ -1370,10 +1606,10 @@ export function buildPoolDay(scene, T) {
       const nt = new THREE.CanvasTexture(netC); nt.colorSpace = THREE.SRGBColorSpace;
       const net = new THREE.Mesh(new THREE.PlaneGeometry(7.6, 1.05),
         new THREE.MeshBasicMaterial({ map: nt, transparent: true, side: THREE.DoubleSide, alphaTest: 0.1 }));
-      net.position.set(bx, 2.35, 0); net.rotation.y = Math.PI / 2; root.add(net);
+      net.position.set(bx, 2.35, 0); net.rotation.y = Math.PI / 2; net.castShadow = false; deco(net);
       for (const pz of [-3.9, 3.9]) {
         const post = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 2.9, 8), MAT.steel);
-        post.position.set(bx, 1.45, pz); post.castShadow = true; root.add(post);
+        post.position.set(bx, 1.45, pz); post.castShadow = true; deco(post);
       }
     }
     // postes/tela da quadra (cover em fileira)
@@ -1387,12 +1623,13 @@ export function buildPoolDay(scene, T) {
   }
 
   /* ---------------- guarda-sóis espalhados pela areia (decorativo) ---------------- */
+  const parasolPole = new THREE.CylinderGeometry(0.05, 0.05, 2.4, 8);
+  const parasolTop = new THREE.ConeGeometry(1.7, 0.85, 12);
   function parasol(x, z, col) {
     if (gprop('guarda_sol', x, z, 3.0)) return;   // GLB Mint
-    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 2.4, 8), MAT.steel);
-    pole.position.set(x, 1.2, z); root.add(pole);
-    const top = new THREE.Mesh(new THREE.ConeGeometry(1.7, 0.85, 12), col);
-    top.position.set(x, 2.6, z); root.add(top);
+    _dd.rotation.set(0, 0, 0); _dd.scale.set(1, 1, 1);
+    _dd.position.set(x, 1.2, z); INST.add(parasolPole, MAT.steel, _dd, null, { cast: false });
+    _dd.position.set(x, 2.6, z); INST.add(parasolTop, col, _dd, null, { cast: false });   // paridade: o cone não projetava sombra antes
   }
   for (const [x, z, c] of [[-18, 20, MAT.umbA], [18, 22, MAT.umbB], [-20, -20, MAT.umbB], [20, -22, MAT.umbA], [-16, 26, MAT.umbB], [16, 28, MAT.umbA]]) parasol(x, z, c);
 
@@ -1403,14 +1640,21 @@ export function buildPoolDay(scene, T) {
     let useed = 131; const urnd = () => (useed = (useed * 16807) % 2147483647) / 2147483647;
     const cols = [0xe23b3b, 0xf4c020, 0x2fa060, 0x3a6ec2, 0xff6a8a, 0xff8a3b, 0xf2f2f2];
     const umbMat = cols.map(cc => lam({ color: cc, roughness: 0.8 }));
+    const umbPoleGeo = new THREE.CylinderGeometry(0.04, 0.04, 2.3, 6);
+    const umbTopGeo = new THREE.ConeGeometry(1.4, 0.6, 10);
+    const cangaGeo = new THREE.PlaneGeometry(0.9, 1.8);
+    const cangaMat = cols.map(cc => lam({ color: cc, roughness: 0.95 }));
     const sandy = (x, z) => {
       if (Math.abs(x) < 14 && Math.abs(z) < 20) return false;          // lagoa + faixa
       if (Math.abs(x) < 10 && Math.abs(z) > 15) return false;          // corredores de spawn
       if (x > 14 && Math.abs(z) < 13.5) return false;                  // quadra de vôlei
       return Math.abs(x) < 23 && Math.abs(z) < 33.5;
     };
+    // GATE DE QUALIDADE: em 'low' a areia recebe METADE dos guarda-sóis. Continua lendo
+    // como praia cheia (eles se sobrepõem em perspectiva) com metade das instâncias.
+    const NUMB = LOWQ ? 13 : 26;
     let placed = 0, guard = 0;
-    while (placed < 26 && guard++ < 500) {
+    while (placed < NUMB && guard++ < 500) {
       const x = (urnd() * 2 - 1) * 23, z = (urnd() * 2 - 1) * 33;
       if (!sandy(x, z)) continue;
       // guarda-sol de praia NUNCA está a prumo: inclina pro sol e cada um pro seu lado.
@@ -1419,16 +1663,25 @@ export function buildPoolDay(scene, T) {
       // disco de contato deslocado no sentido do tombo: sombra de guarda-sol torto não
       // fica concêntrica ao mastro, e é justamente o descentramento que cola o prop no chão
       contact(x - Math.cos(spin) * tilt * 2.2, z + Math.sin(spin) * tilt * 2.2, 1.35);
-      const lean = new THREE.Group(); lean.position.set(x, 0, z);
-      lean.rotation.y = spin; lean.rotation.z = tilt; root.add(lean);
-      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 2.3, 6), MAT.steel);
-      pole.position.set(0, 1.15, 0); pole.castShadow = true; lean.add(pole);
-      const top = new THREE.Mesh(new THREE.ConeGeometry(1.4 + urnd() * 0.35, 0.6 + urnd() * 0.35, 10), umbMat[(urnd() * umbMat.length) | 0]);
-      top.position.set(0, 2.45, 0); top.castShadow = true; lean.add(top);
+      /* 26 guarda-sóis × 2-3 peças = ~65 meshes, e cada cone tinha raio/altura SORTEADOS,
+         ou seja 26 geometrias diferentes. A variação de tamanho passa a ser ESCALA da
+         instância (mesma silhueta na tela) e o mastro/cone viram 2 moldes compartilhados.
+         A inclinação continua por guarda-sol — era ela que matava a cara de maquete. */
+      const _lean = new THREE.Object3D();
+      _lean.position.set(x, 0, z); _lean.rotation.set(0, spin, tilt);
+      _lean.updateMatrix();
+      const M = new THREE.Matrix4(), L = new THREE.Object3D();
+      L.position.set(0, 1.15, 0); L.updateMatrix();
+      M.multiplyMatrices(_lean.matrix, L.matrix);
+      INST.add(umbPoleGeo, MAT.steel, M);
+      const cs = 1 + urnd() * 0.25, ch = 1 + urnd() * 0.58;
+      L.position.set(0, 2.45, 0); L.scale.set(cs, ch, cs); L.updateMatrix();
+      M.multiplyMatrices(_lean.matrix, L.matrix);
+      INST.add(umbTopGeo, umbMat[(urnd() * umbMat.length) | 0], M);
       if (urnd() > 0.45) {   // esteira/canga estendida aos pés
-        const t = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 1.8), lam({ color: cols[(urnd() * cols.length) | 0], roughness: 0.95 }));
-        t.rotation.x = -Math.PI / 2; t.rotation.z = urnd() * 6.3;
-        t.position.set(x + 0.9, 0.012, z + 0.4); t.receiveShadow = true; root.add(t);
+        _dd.rotation.set(-Math.PI / 2, 0, urnd() * 6.3); _dd.scale.set(1, 1, 1);
+        _dd.position.set(x + 0.9, 0.012, z + 0.4);
+        INST.add(cangaGeo, cangaMat[(urnd() * cangaMat.length) | 0], _dd, null, { cast: false });
       }
       placed++;
     }
@@ -1438,16 +1691,23 @@ export function buildPoolDay(scene, T) {
   {
     const leafMat = lam({ color: 0x3f7a3a, roughness: 0.95 }); leafMat.flatShading = true;
     const trunkMat = lam({ color: 0x5a4632, roughness: 0.9 });
+    const trunkGeo = new THREE.CylinderGeometry(0.14, 0.2, 2.6, 7);   // molde unitário
+    const leafGeo = new THREE.IcosahedronGeometry(1, 0);
     const tree = (x, z, s = 1) => {
-      const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.14 * s, 0.2 * s, 2.6 * s, 7), trunkMat);
       // sem disco de contato aqui: estas árvores ficam FORA do muro, onde não existe plano
       // de chão — um decal de multiply sem geometria atrás escureceria o próprio céu
-      trunk.position.set(x, 1.3 * s, z); trunk.castShadow = true; root.add(trunk);
+      // 8 árvores × 4 peças = 32 meshes com 32 geometrias (o raio da copa dependia da
+      // escala da árvore). Molde unitário + escala na instância = 2 grupos.
+      _dd.rotation.set(0, 0, 0);
+      _dd.position.set(x, 1.3 * s, z); _dd.scale.set(s, s, s);
+      INST.add(trunkGeo, trunkMat, _dd);
       for (let i = 0; i < 3; i++) {
-        const b = new THREE.Mesh(new THREE.IcosahedronGeometry((1.1 + i * 0.4) * s * 0.75, 0), leafMat);
-        b.position.set(x + (i - 1) * 0.9 * s, (2.6 + i * 0.85) * s, z + (i % 2 ? 0.4 : -0.3) * s);
-        b.castShadow = true; root.add(b);
+        const r = (1.1 + i * 0.4) * s * 0.75;
+        _dd.position.set(x + (i - 1) * 0.9 * s, (2.6 + i * 0.85) * s, z + (i % 2 ? 0.4 : -0.3) * s);
+        _dd.scale.set(r, r, r);
+        INST.add(leafGeo, leafMat, _dd);
       }
+      _dd.scale.set(1, 1, 1);
     };
     tree(-27.5, -30, 1.5); tree(27.5, -26, 1.3); tree(-27.5, 26, 1.4); tree(27.5, 30, 1.6);
     tree(-27.5, 4, 1.2); tree(27.5, 8, 1.1); tree(-8, -40, 1.4); tree(10, 40, 1.5);
@@ -1495,13 +1755,13 @@ export function buildPoolDay(scene, T) {
     for (const px of [-14.4, -4.8, 4.8, 14.4]) {   // pilastras N/S nas emendas
       for (const pz of [iS - 0.13, iN + 0.13]) {
         const p = new THREE.Mesh(new THREE.BoxGeometry(0.5, WALL_H, 0.22), pilMat);
-        p.position.set(px, WALL_H / 2, pz); p.castShadow = p.receiveShadow = true; root.add(p);
+        p.position.set(px, WALL_H / 2, pz); p.castShadow = p.receiveShadow = true; deco(p);
       }
     }
     for (const pz2 of [-14.4, -4.8, 4.8, 14.4, -24, 24]) {   // pilastras E/W
       for (const px2 of [iE - 0.13, iW + 0.13]) {
         const p = new THREE.Mesh(new THREE.BoxGeometry(0.22, WALL_H, 0.5), pilMat);
-        p.position.set(px2, WALL_H / 2, pz2); p.castShadow = p.receiveShadow = true; root.add(p);
+        p.position.set(px2, WALL_H / 2, pz2); p.castShadow = p.receiveShadow = true; deco(p);
       }
     }
     // PALETA do muro. O azul-piscina (#7ba3c4) SAIU: uma faixa horizontal contínua de azul
@@ -1511,14 +1771,23 @@ export function buildPoolDay(scene, T) {
     // tinta). Entram amarelo-ovo e rosa-terracota, cores de reboco de subúrbio carioca; o
     // azul volta só como acento cinza-esverdeado escuro, uma vez por trecho.
     const paints = { G: '#6a8a5c', W: '#d5d0c2', A: '#c5aa78', R: '#b58a76', B: '#5f7480' };
-    let pseed = 41;
+    /* Eram 24 painéis com 24 SEEDS distintas = 24 canvas rasterizados e 24 materiais para
+       5 cores de reboco. Duas variações de desgaste por cor (10 imagens no total) já dão
+       a mesma leitura de "cada trecho foi pintado num dia" — o que o olho pega aqui é a
+       COR e o topo serrilhado, não o padrão do descascado. Com material compartilhado os
+       24 planos ainda viram ~10 draw calls no merge. */
+    let pseed = 0;
+    const wallMat = new Map();
     // altura e pé VARIÁVEIS por trecho: banda contínua na mesma cota é o que produz a
     // leitura de "linha d'água". Topo serrilhado mata a leitura e ainda ajuda o B7.
     const paint = (key, x, z, ry, i) => {
       const h = 1.75 + ((i * 5) % 3) * 0.22;
       const y0 = 0.85 + ((i * 3) % 2) * 0.12;
-      const m = new THREE.Mesh(new THREE.PlaneGeometry(9.6, h), lam({ map: paintWallTex(paints[key], pseed += 7) }));
-      m.position.set(x, y0 + h / 2, z); m.rotation.y = ry; m.receiveShadow = true; root.add(m);
+      const sd = 41 + (pseed++ % 2) * 7;
+      const mk = key + sd;
+      if (!wallMat.has(mk)) wallMat.set(mk, lam({ map: paintWallTex(paints[key], sd) }));
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(9.6, h), wallMat.get(mk));
+      m.position.set(x, y0 + h / 2, z); m.rotation.y = ry; m.receiveShadow = true; m.castShadow = false; deco(m);
     };
     const S5 = [-19.2, -9.6, 0, 9.6, 19.2], E7 = [-28.8, -19.2, -9.6, 0, 9.6, 19.2, 28.8];
     ['G', 'A', 'W', 'R', 'G'].forEach((k, i) => paint(k, S5[i], iS - 0.02, Math.PI, i));
@@ -1530,8 +1799,12 @@ export function buildPoolDay(scene, T) {
   if (T.graffiti && T.graffiti.length) {
     const gspot = [[-wX + 0.56, -16, Math.PI / 2, 0], [-wX + 0.56, 6, Math.PI / 2, 1], [-wX + 0.56, 24, Math.PI / 2, 2],
       [wX - 0.56, -22, -Math.PI / 2, 2], [wX - 0.56, -2, -Math.PI / 2, 0], [wX - 0.56, 18, -Math.PI / 2, 1]];
-    for (const [x, z, ry, gi] of gspot)
-      addPlane(6.4, 2.8, lam({ map: T.graffiti[gi % T.graffiti.length] }), x, 1.55, z, ry);
+    const gmat = new Map();   // 6 pontos usam 3 texturas: 3 materiais, não 6
+    for (const [x, z, ry, gi] of gspot) {
+      const tex = T.graffiti[gi % T.graffiti.length];
+      if (!gmat.has(tex)) gmat.set(tex, lam({ map: tex }));
+      addPlane(6.4, 2.8, gmat.get(tex), x, 1.55, z, ry);
+    }
   }
   // SILHUETAS NO HORIZONTE (crítico R6: "horizonte morto acima do muro") — cards ALTOS
   // (5-8m aparentes sobre o muro) + postes com FIOS cruzando o topo (o truque mais BR).
@@ -1539,7 +1812,7 @@ export function buildPoolDay(scene, T) {
     const sil = (kind, tint, x, z, ry, w = 15, h = 7, seed = 5, fog = true) => {
       const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h),
         new THREE.MeshBasicMaterial({ map: silTex(kind, tint, seed), transparent: true, alphaTest: 0.05, fog }));
-      m.position.set(x, h / 2 - 0.2, z); m.rotation.y = ry; root.add(m);
+      m.position.set(x, h / 2 - 0.2, z); m.rotation.y = ry; m.castShadow = false; m.receiveShadow = false; root.add(m);
     };
     const GT = '#5c6656';   // verde-árvore
     // FAVELA em 2 fileiras: a de trás mais esfumaçada (haze .55) e mais alta, a da frente
@@ -1567,17 +1840,19 @@ export function buildPoolDay(scene, T) {
     // postes com fios cruzando o topo do muro N e S
     const postMat = lam({ color: 0x4a3b2c, roughness: 0.9 });
     const wireMat = new THREE.MeshBasicMaterial({ color: 0x22201e });
+    // 18 fios = 18 draw calls por 1 material; todos parados => 1 malha mesclada
     const wire = (a, b, sag = 1.2) => {
       const mid = a.clone().lerp(b, 0.5); mid.y -= sag;
-      root.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.QuadraticBezierCurve3(a, mid, b), 18, 0.02, 4), wireMat));
+      const m = new THREE.Mesh(new THREE.TubeGeometry(new THREE.QuadraticBezierCurve3(a, mid, b), 18, 0.02, 4), wireMat);
+      m.castShadow = false; m.receiveShadow = false; deco(m);
     };
     for (const sz of [-1, 1]) {
       const tops = [];
       for (const px of [-16, 0, 16]) {
         const p = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.11, 7.6, 7), postMat);
-        p.position.set(px, 3.8, sz * (wZ + 4.2)); root.add(p);
+        p.position.set(px, 3.8, sz * (wZ + 4.2)); p.castShadow = false; deco(p);
         const cross = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.06, 0.06), postMat);
-        cross.position.set(px, 6.9, sz * (wZ + 4.2)); root.add(cross);
+        cross.position.set(px, 6.9, sz * (wZ + 4.2)); cross.castShadow = false; deco(cross);
         tops.push(new THREE.Vector3(px, 7.4, sz * (wZ + 4.2)));
       }
       wire(tops[0], tops[1]); wire(tops[1], tops[2]); wire(tops[0], tops[2], 2.2);   // 2 vãos + diagonal longa
@@ -1597,7 +1872,9 @@ export function buildPoolDay(scene, T) {
      caixas vão em InstancedMesh: 3 draw calls no total, não ~120. ?favela=0 desliga. */
   if (FAVELA) {
     const lajeMats = ['#9c6a4c', '#b8ac95', '#8f9a96', '#c0a888'].map((hex, i) => {
-      const t = paintWallTex(hex, 3 + i * 6); t.repeat.set(2.2, 2.2);   // caixa é grande: sem repeat a textura estica
+      // clone: paintWallTex agora é memoizada e a MESMA instância pode estar em uso nos
+      // painéis do muro — mudar o repeat no original esticaria a pintura de lá
+      const t = paintWallTex(hex, 3 + i * 6).clone(); t.needsUpdate = true; t.repeat.set(2.2, 2.2);   // caixa é grande: sem repeat a textura estica
       return lam({ map: t });
     });
     const boxGeo = new THREE.BoxGeometry(1, 1, 1);
@@ -1612,10 +1889,9 @@ export function buildPoolDay(scene, T) {
       else if (side === 1) { x = -34 + fr() * 68; z = wZ + 9 + fr() * 16; }
       else if (side === 2) { x = wX + 8 + fr() * 15; z = -40 + fr() * 80; }
       else { x = -(wX + 8 + fr() * 15); z = -40 + fr() * 80; }
-      const m = new THREE.Mesh(boxGeo, lajeMats[(fr() * lajeMats.length) | 0]);
-      m.scale.set(w, h, d); m.position.set(x, h / 2, z);
-      m.castShadow = false; m.receiveShadow = false;   // fora do jogável: não paga sombra
-      root.add(m);
+      // 14 lajes em 4 materiais: instancia por material = 4 draw calls, não 14
+      _dd.position.set(x, h / 2, z); _dd.rotation.set(0, 0, 0); _dd.scale.set(w, h, d);
+      INST.add(boxGeo, lajeMats[(fr() * lajeMats.length) | 0], _dd, null, { cast: false });
       // ferragem de espera espetada na laje
       for (let k = 0; k < 3 + (fr() * 4 | 0); k++)
         rebarPos.push([x + (fr() - 0.5) * w * 0.9, h, z + (fr() - 0.5) * d * 0.9, 0.5 + fr() * 1.1]);
@@ -1652,16 +1928,16 @@ export function buildPoolDay(scene, T) {
     const panel = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.06), lam({ map: tex }));
     panel.position.set(x, y, z); panel.rotation.y = ry;
     panel.castShadow = panel.receiveShadow = true; root.add(panel);
-    const frame = lam({ color: 0x6d6a60, roughness: 0.6, metalness: 0.35 });   // cantoneira galvanizada
+    const frame = lam({ color: 0x6d6a60, roughness: 0.34, metalness: 0.72, envMapIntensity: 1.7 });   // cantoneira galvanizada
     for (const [fw, fh, oy, ox] of [[w + 0.16, 0.12, h / 2, 0], [w + 0.16, 0.12, -h / 2, 0], [0.12, h + 0.16, 0, w / 2], [0.12, h + 0.16, 0, -w / 2]]) {
       const b = new THREE.Mesh(new THREE.BoxGeometry(fw, fh, 0.1), frame);
       b.position.set(x + Math.cos(ry) * ox, y + oy, z - Math.sin(ry) * ox);
-      b.rotation.y = ry; b.castShadow = true; root.add(b);
+      b.rotation.y = ry; b.castShadow = true; deco(b);
     }
     for (const ox of [-w * 0.3, w * 0.3]) {   // mãos-francesas afastando a placa do muro
       const s = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 0.34), frame);
       s.position.set(x + Math.cos(ry) * ox - dir.x * 0.18, y - h / 2 + 0.2, z - Math.sin(ry) * ox - dir.z * 0.18);
-      s.rotation.y = ry; root.add(s);
+      s.rotation.y = ry; s.castShadow = false; deco(s);
     }
   };
   placaMural(muralTex('PRAINHA', 'DOMINGO É DIA DE LAGOA', 5), wX - 0.62, 9.6, -Math.PI / 2);
@@ -1684,15 +1960,17 @@ export function buildPoolDay(scene, T) {
     const winT = new THREE.CanvasTexture(winC); winT.colorSpace = THREE.SRGBColorSpace;
     const winM = lam({ map: winT });
     for (const wxp of [-20, -13, 6, 13, 20]) {
-      const w1 = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 1.25), winM); w1.position.set(wxp, 2.05, -35.945); root.add(w1);
-      const w2 = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 1.25), winM); w2.position.set(wxp, 2.05, 35.945); w2.rotation.y = Math.PI; root.add(w2);
+      const w1 = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 1.25), winM); w1.position.set(wxp, 2.05, -35.945); w1.castShadow = false; deco(w1);
+      const w2 = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 1.25), winM); w2.position.set(wxp, 2.05, 35.945); w2.rotation.y = Math.PI; w2.castShadow = false; deco(w2);
     }
     // caixas d'água na borda superior das lajes N/S (quebra a linha reta do topo)
+    const cxdaguaMat = lam({ map: azulejoBandTex(6), roughness: 0.8 });
     for (const [tx, tz] of [[-13, -36], [11, -36], [-9, 36], [15, 36]]) {
-      const t = new THREE.Mesh(new THREE.CylinderGeometry(0.75, 0.75, 1.0, 10), lam({ map: azulejoBandTex(6), roughness: 0.8 }));
-      t.position.set(tx, 3.4 + 0.5, tz); t.castShadow = true; root.add(t);
+      // as 4 caixas d'água criavam 4 canvas de azulejo idênticos; agora é um material só
+      const t = new THREE.Mesh(new THREE.CylinderGeometry(0.75, 0.75, 1.0, 10), cxdaguaMat);
+      t.position.set(tx, 3.4 + 0.5, tz); t.castShadow = true; deco(t);
       const lid = new THREE.Mesh(new THREE.ConeGeometry(0.8, 0.3, 10), MAT.concrete);
-      lid.position.set(tx, 3.4 + 1.0 + 0.15, tz); root.add(lid);
+      lid.position.set(tx, 3.4 + 1.0 + 0.15, tz); lid.castShadow = false; deco(lid);
     }
   }
 
@@ -1705,7 +1983,7 @@ export function buildPoolDay(scene, T) {
     {
       const mx = x + 1.9, mz = z - 0.9;
       const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 4.2, 6), MAT.steel);
-      mast.position.set(mx, 2.1, mz); mast.castShadow = true; root.add(mast);
+      mast.position.set(mx, 2.1, mz); mast.castShadow = true; deco(mast);
       const fc = document.createElement('canvas'); fc.width = 96; fc.height = 64;
       const fx2 = fc.getContext('2d');
       // PALETA: o par azul-cobalto + amarelo saiu. Num mapa de favela carioca ele lia como
@@ -1742,7 +2020,12 @@ export function buildPoolDay(scene, T) {
   // sal em suspensão — cor puxada pro creme/bege. Near em 34m (e não 28) de propósito: a
   // lane spawn↔spawn tem 72m e velar demais o alvo é bug de jogabilidade, não fidelidade —
   // a profundidade do fundo já vem do haze PINTADO nas texturas de favela. ?nofog=1 desliga.
-  if (QP.get('nofog') !== '1') scene.fog = new THREE.Fog(0xe0d7c2, 34, 175);
+  // R9: linear 34→175 virou FogExp2 ρ = 0,0078. O near em 34 m tinha um efeito colateral
+  // caro: entre 0 e 34 m a névoa era EXATAMENTE zero, então a lane inteira ficava com o
+  // mesmo contraste do morro no fundo — sem gradiente não há profundidade. A exponencial
+  // dá 3,7 % a 25 m, 27 % a 72 m (a lane spawn↔spawn) e 85 % a 175 m: o alvo continua legível
+  // e o fundo finalmente recua. Cor-base = azul do céu MEDIDO logo acima da favela.
+  if (QP.get('nofog') !== '1') scene.fog = makeAerialFog('fy_pool_day');
   // disco solar + nuvens (sprites) — "dia de sol de bairro", não box bege (crítico R6)
   {
     const sunSpr = new THREE.Sprite(new THREE.SpriteMaterial({ map: T.sunSprite, transparent: true, fog: false, depthWrite: false }));
@@ -1878,6 +2161,14 @@ export function buildPoolDay(scene, T) {
     im.frustumCulled = false;   // bounding sphere de InstancedMesh some com o mapa inteiro
     root.add(im);
   }
+
+  // saia de contato: todas as bases registradas viram UMA malha mesclada = 1 draw call
+  SKIRT.build(root);
+  // MERGE + INSTANCING (rodam depois de todo mundo registrar — ver o bloco de orçamento
+  // lá em cima). Só emitem malha; nenhum collider/occluder/waypoint passa por aqui.
+  DECO.build(root);
+  INST.build(root);
+  PROPS.build(root);
 
   return {
     root, colliders, occluders, groundHeightAt, slowAt, spawns, sun, hemi, pickups,

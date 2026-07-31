@@ -1,6 +1,8 @@
 // awp_map-inspired arena, Brazilian satire edition. Procedural geometry only.
 import * as THREE from 'three';
-import { detailFor, applyContactAO } from './textures.js';
+import { detailFor } from './textures.js';
+import { VAO_BANDS, aoBoxGeo, aoMatFactory, ContactSkirt, BASE_FLOATING, onGround } from './vao.js';
+import { makeAerialFog } from './bloom.js';   // névoa exponencial + cor por direção do olhar
 
 const WALL_H = 4.5;
 
@@ -24,21 +26,23 @@ export function buildWorld(scene, T) {
     }
     return m;
   };
-  // Vertex-AO: caixas ganham escurecimento na base (contato com o chão). O material é
-  // clonado UMA vez por material original — planos que compartilham o mesmo `lam` não
-  // podem ligar vertexColors (não têm o atributo color e ficariam pretos).
-  const AO_MATS = new Map();
-  const aoMat = (mat) => {
-    let a = AO_MATS.get(mat);
-    if (!a) { a = mat.clone(); a.vertexColors = true; AO_MATS.set(mat, a); }
-    return a;
-  };
+  /* AO DE VÉRTICE — migrado do applyContactAO local para o vao.js compartilhado, para que
+     os 5 mapas usem os MESMOS multiplicadores calibrados (a versão antiga tinha piso 0,66
+     e alcance 0,55 m: ΔL* de ~5 nos 15 cm finais, ou seja, reprovava no A1 mesmo "tendo AO").
+     A saia de contato no chão é a metade que faltava. */
+  const LOWQ = (() => { try { return JSON.parse(localStorage.getItem('awpbr_settings') || '{}').quality === 'low'; } catch (e) { return false; } })();
+  const aoMat = aoMatFactory();
+  const SKIRT = new ContactSkirt({ low: LOWQ });
   function addBox(w, h, d, mat, x, y, z, opts = {}) {
-    // segmentação vertical só o bastante pra o gradiente de contato existir (máx. 6 anéis)
-    const hs = Math.max(2, Math.min(6, Math.round(h / 0.35)));
-    const geo = new THREE.BoxGeometry(w, h, d, 1, hs, 1);
-    if (opts.ao !== false && !opts.rx && !opts.rz) applyContactAO(geo, -h / 2, 0.55, 0.66);
-    const m = new THREE.Mesh(geo, (opts.ao !== false && !opts.rx && !opts.rz) ? aoMat(mat) : mat);
+    const vao = VAO_BANDS && opts.ao !== false && opts.vao !== false && !opts.rx && !opts.rz
+      && mat && mat.visible !== false;
+    // `solo` é geométrico, não depende do gate de faixas — assim `?vao=skirt` (A/B do
+    // agente de captura) ainda emite a saia. SKIRT.add já checa o próprio kill-switch.
+    const solo = onGround(y, h) && !opts.rx && !opts.rz;
+    const geo = vao ? aoBoxGeo(w, h, d, { low: LOWQ, base: solo ? undefined : BASE_FLOATING })
+      : new THREE.BoxGeometry(w, h, d);
+    const m = new THREE.Mesh(geo, vao ? aoMat(mat) : mat);
+    if (solo && opts.skirt !== false) SKIRT.add(x, y, z, w, d, opts.ry || 0);
     m.position.set(x, y + h / 2, z);
     m.castShadow = opts.cast !== false; m.receiveShadow = true;
     if (opts.ry) m.rotation.y = opts.ry;
@@ -292,7 +296,9 @@ export function buildWorld(scene, T) {
 
   /* ---------------- lighting & sky ---------------- */
   scene.background = T.sky;
-  scene.fog = new THREE.Fog(0xffc890, 70, 210);
+  // mapa legado (?map=praca_old): mesma perspectiva aérea do awp_map, senão ele fica com
+  // uma curva de névoa e uma cor de horizonte que não existem mais em lugar nenhum.
+  scene.fog = makeAerialFog('praca_old');
   // sun disc + clouds (sprites, unaffected by fog)
   const sunSpr = new THREE.Sprite(new THREE.SpriteMaterial({ map: T.sunSprite, transparent: true, fog: false, depthWrite: false }));
   sunSpr.position.set(110, 85, -140); sunSpr.scale.setScalar(70); root.add(sunSpr);
@@ -386,6 +392,9 @@ export function buildWorld(scene, T) {
   /* ---------------- spawns ---------------- */
   const mk = s => [-9, -3, 3, 9].map(x => ({ x, z: 42 * s, yaw: s < 0 ? 0 : Math.PI }));
   const spawns = { P: mk(-1), B: mk(1) };
+
+  // saia de contato: todas as bases registradas viram UMA malha mesclada = 1 draw call
+  SKIRT.build(root);
 
   return {
     root, colliders, occluders, groundHeightAt, spawns, sun, hemi,

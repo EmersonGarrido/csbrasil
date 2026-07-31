@@ -7,6 +7,13 @@
 //
 // Only bots use these models (the player is first-person). Characters without a GLB
 // fall back to the procedural box meshes in characters.js.
+//
+// Kill-switches de clareza (todos em characters.js, valem p/ GLB e procedural):
+//   ?charfx=0     desliga TODA a injeção de shader (volta ao material cru)
+//   ?charclamp=0  desliga só o clamp de ambiente + o piso/ganho de albedo
+//   ?rim=0        desliga só o rim/fresnel por time
+//   ?cshadow=0    desliga a sombra de contato   |  ?charrecv=0  o char não recebe sombra
+//   tuning ao vivo: ?charfloor= ?charfloorfar= ?charceil= ?charsat= ?rimnear= ?rimfar=
 import * as THREE from 'three';
 import { VERSION } from './version.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
@@ -179,8 +186,10 @@ export function buildCharacterModel(def, opts = {}) {
     if (!o.isMesh) return;
     o.castShadow = true;
     // receiveShadow: sem isto a sombra do sol NUNCA escurecia o personagem — parte do
-    // motivo de ele ler como adesivo. O clamp de ambiente (characters.js) é o que
-    // impede que essa sombra o faça sumir. Desligado em quality low e com ?charrecv=0.
+    // motivo de ele ler como adesivo. Quem impede que essa sombra o faça SUMIR é o piso
+    // de irradiância do characters.js (CS_AMB) — e desde a R3 esse piso é MULTIPLICATIVO,
+    // então ele garante o mínimo de luz sem apagar a diferença entre cabelo preto e
+    // jaleco branco (era esse o bug do "fantasma" da R2). Off em quality low e ?charrecv=0.
     o.receiveShadow = CHAR_FX.recv;
     o.frustumCulled = false;
     if (!CHAR_FX.mats || !o.material) return;

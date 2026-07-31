@@ -5,6 +5,8 @@
 // Props otimizados de /Users/ruben/glb (tools/optimize-static.mjs).
 import * as THREE from 'three';
 import { placeProp } from './mapprops.js';
+import { VAO_BANDS, aoBoxGeo, aoMatFactory, ContactSkirt, BASE_FLOATING, onGround } from './vao.js';
+import { makeAerialFog } from './bloom.js';   // névoa exponencial + cor por direção do olhar
 
 // kill-switches (padrão do projeto): ?nofog=1 sem névoa, ?rays=0 sem god rays,
 // ?dust=0 sem poeira em suspensão, ?mato=0 sem vegetação invasora.
@@ -176,10 +178,33 @@ function blobTex(r, g, b, aMax, seed = 101) {
    azul vira CINZA-AZULADO LEITOSO. Ela nunca vem sozinha — vem com escorrimento de
    ferrugem descendo de cada parafuso e dobra, que é o que "cola" a tinta na chapa.
    =================================================================================== */
-const RUST_STAGE = [
+/* R3 — DESSATURAÇÃO MEDIDA DA FERRUGEM (critério C2).
+   O sol do ferro velho é 0xffd39a (S 0,40) e o composite do bloom.js aplica sat 1,12:
+   albedo quente × luz quente COMPÕE croma. Medido: albedo S 0,81 no estágio 0 saía a
+   S 0,82 na tela, e o pátio inteiro ficava acima de S 0,55 — com tudo saturado, nada
+   é saturado, e a bandeira de captura deixa de significar alguma coisa.
+   Os valores abaixo mantêm o MATIZ de cada estágio (é o hue que faz o contraste
+   ferrugem × mato de que fala o BAR §4.4) e cortam ~55 % do croma; os estágios escuros
+   também SOBEM de valor, porque em HSV pixel escuro infla S artificialmente.
+   Alvo por estágio na tela (previsto em tools/eval/r3_sim.py): 0 → S 0,48 · 1 → S 0,53 ·
+   2 → S 0,18. Nenhum passa de 0,55.
+   Kill-switch: ?ferrosat=1 devolve a paleta quente da r2 (ferrugem E terra), pra A/B
+   direto na captura. Custo zero: é hex, não muda canvas, draw call nem shader — por isso
+   não há degradação separada em quality 'low'. */
+const FERRO_SAT_HOT = new URLSearchParams(location.search).get('ferrosat') === '1';
+const RUST_STAGE = FERRO_SAT_HOT ? [
   { base: '#a3541f', blot: [['#c1702c', 44, 6, 26, 0.55], ['#d98a38', 30, 4, 16, 0.5], ['#7c3c14', 26, 5, 20, 0.5], ['#e8a55c', 22, 2, 8, 0.45]], grain: 820, rough: 0.98, metal: 0.05 },
   { base: '#4a281a', blot: [['#371d12', 38, 8, 30, 0.6], ['#6a3a20', 30, 6, 22, 0.5], ['#8c4a24', 18, 4, 14, 0.45], ['#241410', 20, 5, 18, 0.5]], crust: true, rough: 0.95, metal: 0.1 },
   { base: '#9aa2a4', blot: [['#8b9396', 26, 10, 30, 0.45], ['#b8571f', 30, 3, 12, 0.32], ['#c98f4e', 16, 8, 26, 0.22], ['#6f7679', 14, 5, 16, 0.35]], veil: 'rgba(190,105,42,0.24)', rough: 0.62, metal: 0.45 },
+] : [
+  // 0 — corrosão ativa: continua sendo o mais LARANJA dos três (hue 26), só não é mais neon
+  { base: '#a8866f', blot: [['#c19d7f', 44, 6, 26, 0.55], ['#d9b998', 30, 4, 16, 0.5], ['#7a6152', 26, 5, 20, 0.5], ['#e8cbac', 22, 2, 8, 0.45]], grain: 820, rough: 0.98, metal: 0.05 },
+  // 1 — crosta escura: valor sobe de 0,29 para 0,43 (era o campeão de S: em HSV, pixel
+  //     escuro infla saturação, então dessaturar sem clarear não resolvia)
+  { base: '#6e5d54', blot: [['#594e47', 38, 8, 30, 0.6], ['#8c786c', 30, 6, 22, 0.5], ['#a68c79', 18, 4, 14, 0.45], ['#4d423f', 20, 5, 18, 0.5]], crust: true, rough: 0.95, metal: 0.1 },
+  // 2 — véu fino sobre metal claro: já era o estágio dessaturado; só o véu e a mancha
+  //     laranja perdem croma pra não reintroduzir o pico que os outros dois abriram mão
+  { base: '#9aa2a4', blot: [['#8b9396', 26, 10, 30, 0.45], ['#b08a6f', 30, 3, 12, 0.32], ['#c9ae91', 16, 8, 26, 0.22], ['#6f7679', 14, 5, 16, 0.35]], veil: 'rgba(176,132,102,0.24)', rough: 0.62, metal: 0.45 },
 ];
 // tinta calcinada: vermelho→rosa-salmão, azul→cinza-azulado leitoso, amarelo/verde/bege gizados
 const PAINT_DEAD = ['#c98d84', '#93a5ae', '#c3ab63', '#8ea38a', '#bfae9d', '#b06e63'];
@@ -212,16 +237,17 @@ function rustStageTex(stage, seed = 7, paint = null, rx = 1, rz = 1) {
     }
   }
   if (P.grain) {   // granulado da corrosão ativa: o estágio 1 é o mais "areia grossa"
-    for (let i = 0; i < P.grain; i++) { x.globalAlpha = 0.18 + rnd() * 0.4; x.fillStyle = rnd() > 0.5 ? '#e6a45c' : '#6d3312'; x.fillRect(rnd() * S, rnd() * S, 1.4, 1.4); }
+    // R3: grão dessaturado junto com a base (era '#e6a45c' / '#6d3312')
+    for (let i = 0; i < P.grain; i++) { x.globalAlpha = 0.18 + rnd() * 0.4; x.fillStyle = rnd() > 0.5 ? '#e6c9aa' : '#755d50'; x.fillRect(rnd() * S, rnd() * S, 1.4, 1.4); }
   }
   if (P.crust) {   // crostas escamando: polígono claro com borda escura levantada
     for (let i = 0; i < 34; i++) {
       const px = rnd() * S, py = rnd() * S, r = 4 + rnd() * 13;
-      x.globalAlpha = 0.5 + rnd() * 0.35; x.fillStyle = '#7d4322';
+      x.globalAlpha = 0.5 + rnd() * 0.35; x.fillStyle = '#856a5a';   // R3: crosta dessaturada
       x.beginPath();
       for (let k = 0; k < 6; k++) { const an = k / 6 * 6.28, rr = r * (0.6 + rnd() * 0.6); const fx = px + Math.cos(an) * rr, fy = py + Math.sin(an) * rr; k ? x.lineTo(fx, fy) : x.moveTo(fx, fy); }
       x.closePath(); x.fill();
-      x.globalAlpha = 0.6; x.strokeStyle = '#1d0f0a'; x.lineWidth = 1.4; x.stroke();
+      x.globalAlpha = 0.6; x.strokeStyle = '#2a2220'; x.lineWidth = 1.4; x.stroke();   // R3: borda menos preta (A3)
     }
   }
   if (P.veil) { x.globalAlpha = 1; x.fillStyle = P.veil; x.fillRect(0, 0, S, S); }   // véu fino uniforme
@@ -244,7 +270,7 @@ function rustStageTex(stage, seed = 7, paint = null, rx = 1, rz = 1) {
     x.globalAlpha = 0.55; x.fillStyle = '#2a1710';
     x.beginPath(); x.arc(px, py, 2.2 + rnd() * 1.6, 0, 6.3); x.fill();   // parafuso
     const g = x.createLinearGradient(0, py, 0, py + 50 + rnd() * 90);
-    g.addColorStop(0, 'rgba(148,72,26,0.75)'); g.addColorStop(1, 'rgba(148,72,26,0)');
+    g.addColorStop(0, 'rgba(146,110,88,0.75)'); g.addColorStop(1, 'rgba(146,110,88,0)');   // R3: escorrimento dessaturado
     x.globalAlpha = 1; x.fillStyle = g; x.fillRect(px - 2, py, 4 + rnd() * 3, 50 + rnd() * 90);
   }
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
@@ -441,19 +467,42 @@ export function buildFerroVelho(scene, T) {
   const MAT = {
     // terra batida: tiling FINO (crítico R6: "chão borrão de baixa frequência") — cascalho,
     // óxido e tonalidade em escala de ~1.4m por tile (antes ~3.2m = manchão)
-    dirt: lam({ map: noiseTex('#6b5a44', [['#584a38', 60, 8, 26, 0.5], ['#7a6a52', 50, 6, 20, 0.4], ['#3a3230', 14, 5, 14, 0.45], ['#8a4a2a', 26, 2, 6, 0.4], ['#4a3f30', 34, 2, 7, 0.4]], 46, 52, { pebbles: '#8a7a62', pebbleN: 620, seed: 11 }) }),
+    /* R3 — TERRA DESSATURADA. Medido no recorte x200-900 / y560-760 do frame 169-d:
+       RGB (98,68,38), S 0,611, 95,5 % dos pixels acima de S 0,55 — ou seja, o chão inteiro
+       gastava sozinho o orçamento de 5 % de C2, e com ele estourado a bandeira verde de
+       captura e a placa vermelha param de significar qualquer coisa.
+       A conta: o albedo #6b5a44 tem S 0,36, mas o sol daqui é 0xffd39a e croma de albedo
+       multiplica croma de luz — mesmo um cinza NEUTRO sairia a S 0,29 nesta iluminação.
+       Base nova: S 0,21 e valor um pouco mais alto (V 0,42 → 0,47, o mapa era o mais
+       escuro dos quatro). Previsão do r3_sim.py: tela S ≈ 0,45 — o mesmo patamar da r1,
+       que mediu 3,9 % acima de 0,55. O matiz (31°, argila) não muda: o que faz o chão ler
+       como terra batida brasileira é o hue, não a saturação. */
+    dirt: lam({ map: FERRO_SAT_HOT
+      ? noiseTex('#6b5a44', [['#584a38', 60, 8, 26, 0.5], ['#7a6a52', 50, 6, 20, 0.4], ['#3a3230', 14, 5, 14, 0.45], ['#8a4a2a', 26, 2, 6, 0.4], ['#4a3f30', 34, 2, 7, 0.4]], 46, 52, { pebbles: '#8a7a62', pebbleN: 620, seed: 11 })
+      : noiseTex('#786d5f', [['#585046', 60, 8, 26, 0.5], ['#7a7163', 50, 6, 20, 0.4], ['#3a3331', 14, 5, 14, 0.45], ['#946c59', 26, 2, 6, 0.4], ['#4a443b', 34, 2, 7, 0.4]], 46, 52, { pebbles: '#8a7d69', pebbleN: 620, seed: 11 }) }),
     wall: lam({ map: noiseTex('#7d7468', [['#6a6258', 40, 10, 30, 0.5], ['#8d8478', 30, 8, 22, 0.4], ['#4a443c', 10, 6, 16, 0.4]], 6, 2, { cracks: '#55504a', seed: 23 }) }),
-    steel: lam({ map: noiseTex('#8a9096', [['#787e84', 30, 6, 20, 0.4], ['#9aa0a8', 20, 4, 14, 0.3], ['#6a5a48', 8, 3, 10, 0.3]], 2, 2, { seed: 137 }), metalness: 0.5, roughness: 0.6 }),
+    /* ESPECULARES — R9. O BAR §4.4 pede nominalmente "o specular correndo pelas chapas
+       onduladas" com o sol rasante, e o mapa entregava ZERO pixel acima de L* 97 em 24
+       frames. Não era falta de sol: era roughness alta demais (0,52-0,70) nas chapas e
+       baixa demais (0,08-0,16) nas poças/cacos. Nos dois extremos o brilho some — num
+       porque o lóbulo é largo e fraco, no outro porque é forte e sub-pixel. A faixa útil
+       com uma luz direcional é 0,22-0,38, e é onde tudo aqui foi parar. */
+    steel: lam({ map: noiseTex('#8a9096', [['#787e84', 30, 6, 20, 0.4], ['#9aa0a8', 20, 4, 14, 0.3], ['#6a5a48', 8, 3, 10, 0.3]], 2, 2, { seed: 137 }), metalness: 0.82, roughness: 0.34, envMapIntensity: 1.8 }),
     office: lam({ map: blocoTex(4, 2) }),   // barraco = bloco cerâmico SEM reboco (era verde chapado)
     roof: lam({ map: fibroTex(5, 3) }),   // BAR §4.4: barraco tem telhado de FIBROCIMENTO, não zinco
     // zinco da cerca/portão: chapa cinza-azulada, giz de óxido, base corroída
-    zinc: lam({ map: zincTex(1, 1, 71, { rust: 1 }), metalness: 0.42, roughness: 0.52 }),
-    zincOld: lam({ map: zincTex(1, 1, 313, { rust: 1, hi: '#9aa39f', mid: '#77817e', lo: '#4e5654' }), metalness: 0.34, roughness: 0.62 }),
-    zincDark: lam({ map: zincTex(3, 1.4, 907, { rust: 0.6, hi: '#5d666a', mid: '#48504f', lo: '#31393a' }), metalness: 0.3, roughness: 0.7 }),
+    // a onda da telha é curva: com 0,30 o risco de sol percorre CADA canaleta (é a imagem
+    // que o BAR pede pelo nome) em vez de virar um cinza uniforme.
+    zinc: lam({ map: zincTex(1, 1, 71, { rust: 1 }), metalness: 0.72, roughness: 0.30, envMapIntensity: 1.9 }),
+    zincOld: lam({ map: zincTex(1, 1, 313, { rust: 1, hi: '#9aa39f', mid: '#77817e', lo: '#4e5654' }), metalness: 0.58, roughness: 0.32, envMapIntensity: 1.7 }),
+    zincDark: lam({ map: zincTex(3, 1.4, 907, { rust: 0.6, hi: '#5d666a', mid: '#48504f', lo: '#31393a' }), metalness: 0.50, roughness: 0.38, envMapIntensity: 1.6 }),
     tire: lam({ color: 0x22252a }),
     barrel: lam({ map: barrelTex(), metalness: 0.4, roughness: 0.7 }),
     // óleo BRILHA (crítico R6: "lê como buraco preto fosco") — specular do sol na poça
-    oil: new THREE.MeshStandardMaterial({ color: 0x14161a, metalness: 0.75, roughness: 0.16, transparent: true, opacity: 0.82 }),
+    // óleo é FILME DIELÉTRICO sobre asfalto: quem faz o brilho é o Fresnel na rasante
+    // (F ~ 0,14 com o sol a 20°), então a roughness tem que ficar baixa pro pico passar
+    // do ponto branco — 0,28 derrubava o pico pra 4,2 (limiar 4,2: em cima da linha).
+    oil: new THREE.MeshStandardMaterial({ color: 0x14161a, metalness: 0.20, roughness: 0.20, envMapIntensity: 2.2, transparent: true, opacity: 0.82 }),
   };
   /* ===== POOL DE FERRUGEM: 3 ESTÁGIOS × variantes, escolhido por ÍNDICE DA PEÇA =====
      O erro que o BAR chama de "chapado" é usar UMA textura de ferrugem em tudo. Aqui cada
@@ -472,10 +521,23 @@ export function buildFerroVelho(scene, T) {
   // hash de avalanche → índice do pool: peças vizinhas caem em estágios diferentes
   const rustMat = (i) => RUST_POOL[mix32(i) % RUST_POOL.length];
   let _rc = 0; const nextRust = () => rustMat(_rc++);   // contador de peça (fallbacks sem GLB)
+  /* AO DE VÉRTICE (critério A1) — ver vao.js. No ferro velho é o que separa a cerca de
+     zinco da terra batida: as duas superfícies têm luminância parecida e, sem contato, a
+     chapa lê como recorte colado no chão. */
+  const aoMat = aoMatFactory();
+  const SKIRT = new ContactSkirt({ low: LOWQ });
   function addBox(w, h, d, mat, x, y, z, opts = {}) {
-    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+    const vao = VAO_BANDS && opts.vao !== false && mat && mat.visible !== false;
+    // `solo` é geométrico, não depende do gate de faixas — assim `?vao=skirt` (A/B do
+    // agente de captura) ainda emite a saia. SKIRT.add já checa o próprio kill-switch.
+    const solo = onGround(y, h) && !opts.rx && !opts.rz;
+    const geo = vao ? aoBoxGeo(w, h, d, { low: LOWQ, base: solo ? undefined : BASE_FLOATING })
+      : new THREE.BoxGeometry(w, h, d);
+    const m = new THREE.Mesh(geo, vao ? aoMat(mat) : mat);
     m.position.set(x, y + h / 2, z); m.castShadow = opts.cast !== false; m.receiveShadow = true;
-    if (opts.ry) m.rotation.y = opts.ry; root.add(m);
+    if (opts.ry) m.rotation.y = opts.ry;
+    if (solo && opts.skirt !== false) SKIRT.add(x, y, z, w, d, opts.ry || 0);
+    root.add(m);
     if (opts.collide !== false) { colliders.push({ minX: x - w / 2, maxX: x + w / 2, minY: y, maxY: y + h, minZ: z - d / 2, maxZ: z + d / 2 }); occluders.push(m); }
     return m;
   }
@@ -486,7 +548,10 @@ export function buildFerroVelho(scene, T) {
      o scan — o que dá é puxar a COR do material para o alvo do estágio (lerp) e mexer em
      rough/metal. Resultado: a mesma pilha lida como laranja-vivo, marrom-crosta ou
      metal-com-véu conforme o índice, que é exatamente o que o BAR pede. */
-  const STAGE_TINT = [new THREE.Color(0xb0601f), new THREE.Color(0x4f2c1c), new THREE.Color(0x9fa6a6)];
+  // R3: mesma dessaturação da RUST_STAGE, senão o lerp dos GLB reinjetava o laranja neon
+  const STAGE_TINT = FERRO_SAT_HOT
+    ? [new THREE.Color(0xb0601f), new THREE.Color(0x4f2c1c), new THREE.Color(0x9fa6a6)]
+    : [new THREE.Color(0xb08f77), new THREE.Color(0x5e4c43), new THREE.Color(0x9fa6a6)];
   const STAGE_PBR = [[0.98, 0.05], [0.95, 0.08], [0.6, 0.4]];
   let _pv = 0;
   const vary = (o) => {
@@ -666,7 +731,7 @@ export function buildFerroVelho(scene, T) {
       }
     }
     // trilho no chão (o portão é de correr, não de bater)
-    const rail = new THREE.Mesh(new THREE.BoxGeometry(15, 0.06, 0.14), lam({ color: 0x4a4a48, metalness: 0.7, roughness: 0.4 }));
+    const rail = new THREE.Mesh(new THREE.BoxGeometry(15, 0.06, 0.14), lam({ color: 0x4a4a48, metalness: 0.90, roughness: 0.26, envMapIntensity: 2.0 }));   // boleto de trilho: polido pelo uso
     rail.position.set(0, 0.03, HALF_Z - 0.75); rail.receiveShadow = true; root.add(rail);
     /* CORRENTE + CADEADO — regressão medida: pendurados em x=-4,6 / z=33,1 eles caíam
        EXATAMENTE no meio do vão do portão, a ~1,5 m da câmera de quem nasce no spawn P.
@@ -675,7 +740,7 @@ export function buildFerroVelho(scene, T) {
        de tiro"). Realocados pra ponta EXTERNA da folha oeste já recolhida (x=-6,7 /
        z=34,9), encostados na cerca: continuam contando a história do portão trancado, mas
        fora do vão e fora do eixo de saída do spawn. */
-    const chain = lam({ color: 0x565049, metalness: 0.7, roughness: 0.5 });
+    const chain = lam({ color: 0x565049, metalness: 0.85, roughness: 0.32, envMapIntensity: 1.8 });
     for (let i = 0; i < 6; i++) {
       const l = new THREE.Mesh(new THREE.TorusGeometry(0.055, 0.017, 4, 8), chain);
       l.position.set(-6.72 + i * 0.02, 1.12 - i * 0.09, HALF_Z - 1.1); l.rotation.y = i % 2 ? 1.57 : 0; root.add(l);
@@ -815,7 +880,8 @@ export function buildFerroVelho(scene, T) {
      de cima — com o reflexo do céu nessa água (é um detalhe citado nominalmente no BAR e
      custa 1 disco por pilha). */
   const tireMat = lam({ map: noiseTex('#26282c', [['#3a3d40', 26, 6, 20, 0.5], ['#585c5c', 18, 3, 10, 0.45], ['#8a8b84', 14, 2, 7, 0.35]], 2, 1, { seed: 601 }), roughness: 0.98 });
-  const waterMat = new THREE.MeshStandardMaterial({ color: 0x2b3a3c, metalness: 0.9, roughness: 0.08, transparent: true, opacity: 0.9 });
+  // lâmina d'água parada dentro do pneu/tambor: mesmo raciocínio da poça (0.08 = sub-pixel)
+  const waterMat = new THREE.MeshStandardMaterial({ color: 0x2b3a3c, metalness: 0.95, roughness: 0.24, envMapIntensity: 2.2, transparent: true, opacity: 0.9 });
   let _ti = 0;
   const tireStack = (x, z) => {
     const i = _ti++;
@@ -919,7 +985,7 @@ export function buildFerroVelho(scene, T) {
       mesh(new THREE.BoxGeometry(0.34, 0.26, 0.2), batMat, bx, by, bz, (i * 0.3) % 0.5);
       for (const tx of [-0.09, 0.09]) mesh(new THREE.CylinderGeometry(0.028, 0.032, 0.05, 6), sulf, bx + tx, by + 0.15, bz);
     }
-    const copper = lam({ color: 0xb1622c, metalness: 0.85, roughness: 0.42 });
+    const copper = lam({ color: 0xb1622c, metalness: 0.92, roughness: 0.30, envMapIntensity: 1.8 });
     for (const [cx, cz, cr] of [[-11.4, -29.2, 0.28], [-11.0, -28.6, 0.22], [-11.7, -28.7, 0.18]])
       mesh(new THREE.TorusGeometry(cr, 0.075, 5, 12), copper, cx, 0.075, cz, 0, Math.PI / 2);
     /* CADEIRA MONOBLOCO branca encardida na porta do escritório (BAR §4.4) */
@@ -985,7 +1051,9 @@ export function buildFerroVelho(scene, T) {
     ]) decal(t, w, w * (0.6 + drnd() * 0.5), x, z, drnd() * 6.3, 0.012, 0.85);
     // POÇAS: material espelhado (metalness alta + roughness baixa) — é o único lugar do
     // pátio onde o céu de fim de tarde aparece refletido, e o BAR pede isso nominalmente.
-    const puddleMat = new THREE.MeshStandardMaterial({ map: puddleTex(617), transparent: true, metalness: 0.85, roughness: 0.09, polygonOffset: true, polygonOffsetFactor: -3 });
+    // 0.09 num PLANO horizontal + sol pontual = o reflexo do disco solar cabe em menos de
+    // um pixel: a poça "espelhada" não devolvia nenhum brilho medível. 0.26 abre o rastro.
+    const puddleMat = new THREE.MeshStandardMaterial({ map: puddleTex(617), transparent: true, metalness: 0.92, roughness: 0.26, envMapIntensity: 2.2, polygonOffset: true, polygonOffsetFactor: -3 });
     for (const [x, z, w] of [[-9.5, 17.5, 3.4], [7.5, -8.5, 2.8], [-19, -19, 3.0], [15, 24, 2.6], [25, -9, 2.4], [-25, 24, 3.0], [2, -34, 2.2], [-3, 8.5, 2.6]]) {
       const m = new THREE.Mesh(new THREE.PlaneGeometry(w, w * (0.6 + drnd() * 0.4)), puddleMat);
       m.rotation.x = -Math.PI / 2; m.rotation.z = drnd() * 6.3; m.position.set(x, 0.021, z); root.add(m);
@@ -993,7 +1061,7 @@ export function buildFerroVelho(scene, T) {
     /* CACOS DE VIDRO — carcaça "sem vidro" tem que ter o vidro NO CHÃO. Quadradinhos
        verdes de para-brisa laminado, levemente especulares: piscam com o sol rasante. */
     {  // InstancedMesh: 90 cacos em 1 draw call (eram 90 chamadas — alvo é 60fps em notebook)
-      const shardMat = new THREE.MeshStandardMaterial({ color: 0x9fc6b4, metalness: 0.25, roughness: 0.08, transparent: true, opacity: 0.72, side: THREE.DoubleSide });
+      const shardMat = new THREE.MeshStandardMaterial({ color: 0x9fc6b4, metalness: 0.35, roughness: 0.20, envMapIntensity: 2.4, transparent: true, opacity: 0.72, side: THREE.DoubleSide });
       const spots = [[-24, 22], [2, 12], [18, -10], [-2, -18], [-26, -2], [8, 24], [-6, 24], [6, -12], [-11, -13], [11, 1]];
       const per = LOWQ ? 4 : 9;
       const im = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1), shardMat, spots.length * per);
@@ -1027,7 +1095,7 @@ export function buildFerroVelho(scene, T) {
         m.rotation.z = Math.PI / 2; m.rotation.y = drnd() * 6.3; m.position.set(x + drnd() - 0.5, 0.06, z + drnd() - 0.5);
         m.castShadow = true; root.add(m);
       } else {                    // bloco de motor
-        const m = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.32, 0.34), lam({ color: 0x1f1d1b, metalness: 0.55, roughness: 0.22 }));
+        const m = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.32, 0.34), lam({ color: 0x1f1d1b, metalness: 0.75, roughness: 0.26, envMapIntensity: 1.8 }));
         m.position.set(x + drnd() - 0.5, 0.16, z + drnd() - 0.5); m.rotation.y = drnd() * 6.3; m.castShadow = true; root.add(m);
       }
     }
@@ -1045,7 +1113,7 @@ export function buildFerroVelho(scene, T) {
     };
     leanDoor(-10.2, -8, Math.PI / 2); leanDoor(10.2, 5, -Math.PI / 2); leanDoor(-10.2, 18, Math.PI / 2); leanDoor(0.8, -5.2, 0); leanDoor(-5.2, 8.8, Math.PI);
     const bumper = (x, z, ry) => {
-      const m = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.18, 0.22), lam({ color: 0x9aa0a6, metalness: 0.7, roughness: 0.45 }));
+      const m = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.18, 0.22), lam({ color: 0x9aa0a6, metalness: 0.88, roughness: 0.28, envMapIntensity: 1.9 }));
       m.position.set(x, 0.09, z); m.rotation.y = ry; m.castShadow = true; root.add(m);
     };
     bumper(2, 25, 0.4); bumper(-6, -16, 1.9); bumper(14, 20, 2.8); bumper(-12, -20, 0.9); bumper(6, 34, 1.2);
@@ -1416,7 +1484,16 @@ export function buildFerroVelho(scene, T) {
      plano. A regressão antiga (tela preto-avermelhada com o composer) era com fog denso e
      cor escura; aqui a cor é a MESMA do céu de tarde e o near é longe (55 m), então mesmo
      que o composer some algo o efeito é sutil. Kill-switch padrão ?nofog=1. */
-  if (QP.get('nofog') !== '1') scene.fog = new THREE.Fog(0xd9b98c, 55, 235);
+  /* R9 — a névoa era LINEAR (55→235) e BEGE FIXA, e o mapa tinha a pior razão de contraste
+     longe/perto dos quatro. Dois erros somados: (a) entre 0 e 55 m a névoa valia zero, ou
+     seja, o pátio inteiro sem gradiente de profundidade; (b) o céu MEDIDO logo acima da
+     silhueta do muro é 0xa5c5e5 (azul), não 0xd9b98c (bege) — a névoa bege contra céu azul
+     é literalmente o desenho da aresta. Agora FogExp2 ρ = 0,0112 (18 % a 40 m, 46 % a 70 m,
+     84 % a 120 m, 99 % a 200 m) com base azul e CONTRALUZ QUENTE: com o sol rasante em
+     (-46,20,32), olhar na direção dele devolve o âmbar de fim de tarde do mapa; olhar de
+     costas devolve azul. É exatamente o que a atmosfera faz e é o que dá o topo/fundo que
+     a cor fixa não dava. ?nofog=1 / ?fog2=0 / ?fogd=NN. */
+  if (QP.get('nofog') !== '1') scene.fog = makeAerialFog('fy_ferrovelho');
   /* POEIRA EM SUSPENSÃO — o pó do pátio pegando o sol rasante. Points com sprite macio,
      additive, sem depthWrite; estático (o mapa não tem hook de update) mas em 3 camadas de
      altura, o que já dá volume. ?dust=0 desliga; em 'low' não entra. */
@@ -1424,7 +1501,11 @@ export function buildFerroVelho(scene, T) {
     const N = 900, pos = new Float32Array(N * 3);
     let ds = 7717; const r = () => (ds = (ds * 16807) % 2147483647) / 2147483647;
     for (let i = 0; i < N; i++) {
-      pos[i * 3] = (r() - 0.5) * 2 * HALF_X; pos[i * 3 + 1] = 0.3 + Math.pow(r(), 1.5) * 7.5; pos[i * 3 + 2] = (r() - 0.5) * 2 * HALF_Z;
+      // teto do pó 7,5 m -> 4,2 m: acima da linha dos muros as partículas aditivas apareciam
+      // como PONTINHOS BRANCOS soltos no céu (o céu não escreve profundidade, então não há o
+      // que ocluí-las lá em cima). Pó de pátio fica baixo mesmo; o expoente 1,8 concentra
+      // ainda mais perto do chão, que é onde ele pega o sol rasante e faz sentido.
+      pos[i * 3] = (r() - 0.5) * 2 * HALF_X; pos[i * 3 + 1] = 0.3 + Math.pow(r(), 1.8) * 4.2; pos[i * 3 + 2] = (r() - 0.5) * 2 * HALF_Z;
     }
     const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     const p = new THREE.Points(g, new THREE.PointsMaterial({
@@ -1439,11 +1520,23 @@ export function buildFerroVelho(scene, T) {
   if (!LOWQ && QP.get('rays') !== '0') {
     const rayMat = new THREE.MeshBasicMaterial({ color: 0xffd9a0, transparent: true, opacity: 0.075, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: false });
     const dir = new THREE.Vector3(-46, 20, 32).normalize();
+    /* BUG CORRIGIDO NA R9 — "riscos diagonais branco-claros no céu".
+       O cone era posicionado em `+ dir * len/2`, ou seja, SUBINDO na direção do sol a partir
+       da abertura. Um shaft de 9 m com dir.y = 0,34 terminava a 7,2 m de altura, acima de
+       tudo que existe no pátio (muros e pilhas têm ~3 m) — e como o céu é `scene.background`
+       (não escreve profundidade) e o material é aditivo com depthWrite:false, o quad passava
+       por cima do céu. Daí as cunhas pálidas atravessando o azul em -169-b e -169-d: não era
+       flare, era o god ray inteiro sem NADA na frente pra ocluí-lo.
+       Luz não sobe: o shaft desce DA abertura PRO CHÃO. Com `- dir` a ponta larga (raio `w`,
+       o -Y local do cone) cai em y = 0,3-1,2 m, dentro do pátio e atrás das carcaças, e a
+       ponta fina fica na abertura — que também é o desenho fisicamente certo (o feixe abre
+       conforme viaja). Kill-switch ?rays=0 continua valendo. */
     const shaft = (x, y, z, len, w) => {
       const m = new THREE.Mesh(new THREE.CylinderGeometry(w * 0.25, w, len, 6, 1, true), rayMat);
-      // o cone nasce apontando +Y; gira pra descer NA direção do sol
+      // o cone nasce apontando +Y; gira pra alinhar +Y com o SOL (ponta fina na abertura)
       m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
-      m.position.set(x + dir.x * len * 0.5, y + dir.y * len * 0.5, z + dir.z * len * 0.5);
+      // e o corpo desce a partir da abertura, no sentido em que a luz viaja (-dir)
+      m.position.set(x - dir.x * len * 0.5, y - dir.y * len * 0.5, z - dir.z * len * 0.5);
       m.renderOrder = 3; root.add(m);
     };
     shaft(-5, 3.6, -31, 7.5, 1.1); shaft(-9, 3.6, -29.5, 6.5, 0.9);   // furos do telhado do barraco
@@ -1495,6 +1588,9 @@ export function buildFerroVelho(scene, T) {
   place('shotgun', -12, -2); place('ak', 4, 0); place('m4', 0, 12); place('mp5', -2, -14);
   place('awp', 29, -22); place('m400', -24, 14);
   place('deagle', -4, 31); place('ak', 0, 31); place('shotgun', 4, 28); place('m4', 8, 33);
+
+  // saia de contato: todas as bases registradas viram UMA malha mesclada = 1 draw call
+  SKIRT.build(root);
 
   return {
     root, colliders, occluders, groundHeightAt, spawns, sun, hemi, pickups, ctfPoints,

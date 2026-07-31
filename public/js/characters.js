@@ -13,7 +13,28 @@ import * as THREE from 'three';
    procedurais de fallback (buildCharacter, mais abaixo):
      1. sombra de contato (plano + alpha radial)                  -> A2
      2. rim/fresnel por time modulado pela DISTÂNCIA              -> C1
-     3. clamp de ambiente NO MATERIAL (receita VALORANT)          -> C1 no pior canto
+     3. clamp de ambiente NA IRRADIÂNCIA (receita VALORANT)       -> C1 no pior canto
+
+   ── CORREÇÃO DA R3 (regressão "personagem fantasma" da R2) ─────────────────
+   A R2 aplicou o piso de luminância SOMANDO no `outgoingLight` (a cor já
+   iluminada). Isso é matematicamente um "levantar o preto" chapado: como o piso
+   é ABSOLUTO, todo texel cujo albedo era escuro chegava EXATAMENTE ao mesmo
+   valor do texel claro. Medido nos PNGs (tools/eval/char_probe.py):
+
+     r1 bot camisa roxa   C* 18,5 (p90 36,0)   L* p5/p50/p95 = 16,4 / 58,5 / 70,8
+     r2 fantasma ferro    C*  6,8 (p90 10,4)   L* p5/p50/p95 = 54,7 / 57,5 / 74,1
+     r2 fantasma piscinão C*  2,9 (p90  6,0)   L* p5/p50/p95 = 54,8 / 57,2 / 62,1
+
+   Repare no p5: na R2 NADA no corpo fica abaixo de L* ~55. Cabelo preto, bota
+   preta e jaleco branco viram o mesmo cinza — daí o "vulto branco-rosado"
+   (o rosado é o rim do time P somado por cima do cinza). O topo (p95 ~74)
+   continuava certo: a luz FUNCIONAVA, o piso é que esmagava os 2/3 de baixo
+   da escala de valores.
+
+   Agora o piso vive em `irradiance`, ANTES do BRDF_Lambert — ou seja, ele é
+   MULTIPLICADO pelo albedo. Cabelo preto continua preto, jaleco continua
+   branco, a razão entre eles (= croma e contraste interno) é preservada por
+   construção, e o personagem ainda ganha um mínimo garantido de luz na sombra.
    ═══════════════════════════════════════════════════════════════════════════ */
 const _cqp = new URLSearchParams(location.search);
 const _cnum = (k, d) => { const v = parseFloat(_cqp.get(k)); return isNaN(v) ? d : v; };
@@ -26,26 +47,43 @@ try { _lowQ = JSON.parse(localStorage.getItem('awpbr_settings') || '{}').quality
 export const CHAR_FX = {
   on:      _cqp.get('charfx') !== '0',                 // kill-switch geral da injeção de shader
   rim:     _cqp.get('rim') !== '0',                    // kill-switch do rim (pedido explícito da tarefa)
+  clamp:   _cqp.get('charclamp') !== '0',              // kill-switch do clamp de ambiente + piso de albedo
   shadow:  _cqp.get('cshadow') !== '0',                // kill-switch da sombra de contato
   recv:    _cqp.get('charrecv') !== '0' && !_lowQ,     // personagem RECEBE a sombra do sol (off em low)
   mats:    _cqp.get('charmat') !== '0',                // kill-switch da correção do material do GLB
   low:     _lowQ,
-  floor:   _cnum('charfloor', 0.13),                   // piso de luminância LINEAR (clamp de ambiente)
-  rimNear: _cnum('rimnear', 0.10),                     // rim a queima-roupa: discreto, não vira fantasma
-  rimFar:  _cnum('rimfar', 0.45),                      // rim a 38 m+: é longe que o inimigo some no fundo
-  rimPow:  _cnum('rimpow', 2.4),                       // expoente do fresnel (banda do contorno)
+  // ── clamp de ambiente: unidades de IRRADIÂNCIA do three (useLegacyLights=false),
+  // não de cor final. O ambiente difuso real medido nos mapas (hemi 0.52 no piscinão a
+  // 1.0 no ferro velho, mais o IBL do PMREM) dá ~1,0. 1.85 é portanto uma decisão de
+  // JOGABILIDADE declarada: o personagem é iluminado ~1,8× mais que o mundo à volta.
+  // É a mesma escolha da Riot ("clamp do Indirect Lighting Cache") e da Valve ("Boost
+  // Player Contrast") — e o BAR §2 diz que clareza tem precedência sobre estética.
+  // Calibrado em tools/eval/char_sim.py: com 1.85 o ΔL* previsto contra o anel fica
+  // 31/32/20 nos três bots medidos; com 1.25 (o valor "físico") cairia pra 27/28/16.
+  floorIrr: _cnum('charfloor', 1.85),                  // piso de irradiância indireta (perto)
+  floorFar: _cnum('charfloorfar', 3.00),               // piso a 45 m+ (Riot clareia o agente distante)
+  ceilIrr:  _cnum('charceil', 4.5),                    // teto: céu HDR não pode estourar o personagem
+  albMin:   _cnum('charalbmin', 0.09),                 // valor mínimo do albedo, por ESCALA (matiz/S intactos)
+  sat:      _cnum('charsat', 1.16),                    // ganho de croma do albedo (BAR §2.2: o boneco FURA a faixa do cenário)
+  rimNear: _cnum('rimnear', 0.18),                     // rim a queima-roupa: discreto, não vira fantasma
+  rimFar:  _cnum('rimfar', 0.70),                      // rim a 34 m+: é longe que o inimigo some no fundo
+  rimPow:  _cnum('rimpow', 1.7),                       // expoente da banda LARGA (dá área pro ΔL* médio subir)
+  rimEdge: _cnum('rimedge', 1.35),                     // peso da banda FINA (contorno explícito, C1)
   sss:     _lowQ ? 0 : _cnum('charsss', 0.30),         // subsurface falso na pele (0 em low)
   csOp:    _cnum('csop', 0.45),                        // opacidade da sombra de contato
 };
 
 // Paleta de rim = a MESMA que o jogo já usa no radar/killfeed (`_teamColor`,
-// game.js:2602-2607): P vermelho, B verde, U azul. Puxada 45% pro branco de
-// propósito — o C1 mede LUMINÂNCIA (ΔL*), então o contorno precisa ser CLARO
-// antes de ser colorido; um rim verde-escuro num fundo escuro não separa nada.
+// game.js:2602-2607): P vermelho, B verde, U azul. Puxada pro branco de propósito —
+// o C1 mede LUMINÂNCIA (ΔL*), então o contorno precisa ser CLARO antes de ser
+// colorido; um rim verde-escuro num fundo escuro não separa nada.
+// 0.35 (era 0.45 na R2): com o piso agora multiplicativo o rim voltou a ser o único
+// termo aditivo do personagem, e cada ponto que ele anda na direção do branco é croma
+// que ele TIRA do boneco. Medido no char_sim: 0.45 custava ~1,5 de C* sem ganhar ΔL*.
 const TEAM_RIM = { P: 0xff5555, B: 0x55dd66, U: 0x4aa3ff };
 export function charRimColor(def) {
   const c = new THREE.Color(TEAM_RIM[(def && def.team) || 'P'] || 0xffffff);
-  return c.lerp(new THREE.Color(0xffffff), 0.45);
+  return c.lerp(new THREE.Color(0xffffff), 0.35);
 }
 
 // ── shader: declarações. Os dois trechos injetados vivem no MESMO main(), mas
@@ -55,10 +93,68 @@ uniform vec3 csRimColor;
 uniform float csRimNear;
 uniform float csRimFar;
 uniform float csRimPow;
-uniform float csFloor;
+uniform float csRimEdge;
+uniform float csFloorIrr;
+uniform float csFloorFar;
+uniform float csCeilIrr;
+uniform float csAlbMin;
+uniform float csSat;
 uniform float csSss;
 float csMaxC;
 float csSkinM;
+const vec3 CS_LUMA = vec3(0.2126, 0.7152, 0.0722);
+`;
+
+// ── shader: ALBEDO. Injetado logo após <map_fragment> (o atlas já foi amostrado).
+// REGRA DESTE BLOCO: só operações que preservam matiz e saturação relativa. Nada
+// aqui pode "levantar o preto" — foi esse o erro da R2.
+const CS_ALBEDO = `
+	{
+		// (a) ganho de croma. O BAR §2.2/C2 pede cenário dessaturado (S 0,10-0,30) e diz
+		// explicitamente que o PERSONAGEM deve furar essa faixa: "é exatamente daí que
+		// vem a separação". Operador de saturação em torno da luminância — não desloca
+		// o valor médio, só afasta os canais dele.
+		float csY = dot(diffuseColor.rgb, CS_LUMA);
+		diffuseColor.rgb = max(vec3(0.0), mix(vec3(csY), diffuseColor.rgb, csSat));
+		// (b) piso de VALOR do albedo por ESCALA, nunca por soma. Multiplicar os três
+		// canais pelo mesmo fator mantém o matiz E a saturação HSV idênticos: o preto do
+		// Black Metal deixa de ser um buraco sem virar cinza lavado. (Somar aqui é o que
+		// transformava cabelo preto em branco-rosado na R2.)
+		float csMx = max(diffuseColor.r, max(diffuseColor.g, diffuseColor.b));
+		diffuseColor.rgb *= max(1.0, csAlbMin / max(csMx, 1e-4));
+	}
+`;
+
+// ── shader: CLAMP DE AMBIENTE. Injetado ANTES de <lights_fragment_end>, que é o
+// único ponto onde `irradiance`/`iblIrradiance` ainda existem e ainda NÃO foram
+// multiplicadas pelo albedo (isso acontece dentro de RE_IndirectDiffuse, via
+// BRDF_Lambert, e dentro de RE_IndirectSpecular via cosineWeightedIrradiance).
+// PORQUÊ AQUI: piso na irradiância é MULTIPLICATIVO no albedo -> clareia sem
+// achatar croma. Piso na cor final é ADITIVO -> lava tudo pro mesmo cinza.
+const CS_AMB = `
+	#if defined( RE_IndirectDiffuse )
+	{
+		float csD = length(vViewPosition);
+		// Os DOIS termos indiretos entram no difuso como (X / PI) * albedo, então o piso
+		// tem que olhar a SOMA — senão o env map (PMREM do céu) fica fora da conta e o
+		// piso dispara à toa a céu aberto.
+		vec3  csAmb = irradiance + iblIrradiance;
+		float csAL  = dot(csAmb, CS_LUMA);
+		// O piso sobe com a distância porque é longe que o fog/haze come a silhueta
+		// (Riot: o agente distante é clareado E ganha mais fresnel).
+		float csFl  = mix(csFloorIrr, csFloorFar, smoothstep(10.0, 45.0, csD));
+		float csAdd = max(0.0, csFl - csAL);
+		irradiance += vec3(csAdd);            // fill neutro: não desloca o matiz do albedo
+		// Teto: um céu HDR muito claro não pode estourar o personagem (a outra metade do
+		// clamp da Riot — "nem escuro demais, nem claro demais em nenhum canto do mapa").
+		float csTot = csAL + csAdd;
+		if (csTot > csCeilIrr) {
+			float csS = csCeilIrr / max(csTot, 1e-4);
+			irradiance *= csS;
+			iblIrradiance *= csS;
+		}
+	}
+	#endif
 `;
 
 // ── shader: rugosidade POR REGIÃO, injetada logo após <roughnessmap_fragment>
@@ -84,28 +180,41 @@ const CS_REGION = `
 // ── shader: clareza, injetada ANTES de <opaque_fragment> — ou seja, ainda em
 // linear e ANTES do ACES: o rim é comprimido pelo ombro filmico em vez de clipar
 // (critérios A3/A5), e o fog continua sendo aplicado por igual em cima.
+// Aqui SÓ ficam termos que são luz ADICIONADA de verdade (rim e subsurface). O
+// piso de ambiente saiu daqui na R3 — soma de luminância em cima da cor final é
+// o que lavava o croma.
 const CS_CLARITY = `
 	{
 		float csDist = length(vViewPosition);      // metros até a câmera
 		vec3  csV    = normalize(vViewPosition);   // fragmento -> câmera
-		// 1) CLAMP DE AMBIENTE (receita VALORANT): piso de luminância NO PERSONAGEM,
-		//    nunca na cena — o inimigo não pode sumir dentro de uma sombra, e o mapa
-		//    mantém o contraste que o artista desenhou. Sobe com a distância porque
-		//    é longe que o haze/fog come a silhueta.
-		float csLum = dot(outgoingLight, vec3(0.2126, 0.7152, 0.0722));
-		float csFlr = csFloor * mix(1.0, 1.6, smoothstep(10.0, 45.0, csDist));
-		// Albedo normalizado pelo canal máximo: preserva o MATIZ do material e mata só
-		// o VALOR. Sem isso o emo/black metal (albedo ~0.03) não receberia piso nenhum
-		// — justamente quem mais precisa. 60% material + 40% neutro.
-		vec3 csTint = mix(vec3(1.0), diffuseColor.rgb / max(csMaxC, 1e-3), 0.6);
-		outgoingLight += csTint * max(0.0, csFlr - csLum);
-		// 2) RIM/FRESNEL por time, CRESCENDO com a distância (Riot: personagem longe
-		//    é clareado e ganha mais fresnel). csUpW prioriza os rasantes VOLTADOS
-		//    PRA CIMA (ombro/cabeça/braço), onde está a informação de combate.
-		float csF   = pow(1.0 - clamp(dot(normal, csV), 0.0, 1.0), csRimPow);
+		// RIM/FRESNEL por time: o mecanismo ATIVO de separação exigido pelo C1
+		// ("se o personagem só lê porque o mapa está bem iluminado, não lê").
+		// DUAS bandas de propósito:
+		//   - larga  (csRimPow ~1.7): cobre ~1/3 da silhueta, então move a MÉDIA de L*
+		//     do recorte, que é o que o critério mede contra o anel de 20 px;
+		//   - fina   (expoente 6): contorno explícito no rasante extremo — a alternativa
+		//     que a própria régua aceita ("ΔL* ≥ 20 OU rim/contorno explícito").
+		float csNV  = clamp(dot(normal, csV), 0.0, 1.0);
+		float csF   = pow(1.0 - csNV, csRimPow) + pow(1.0 - csNV, 6.0) * csRimEdge;
+		// csUpW prioriza os rasantes VOLTADOS PRA CIMA (ombro/cabeça/braço), onde
+		// está a informação de combate — regra literal da Riot.
 		vec3  csUp  = normalize((viewMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz);
-		float csUpW = mix(0.5, 1.5, clamp(dot(normal, csUp) * 0.5 + 0.5, 0.0, 1.0));
-		float csK   = mix(csRimNear, csRimFar, smoothstep(5.0, 38.0, csDist));
+		float csUpW = mix(0.45, 1.55, clamp(dot(normal, csUp) * 0.5 + 0.5, 0.0, 1.0));
+		// Cresce com a distância (Riot: agente longe é clareado e ganha mais fresnel).
+		float csK   = mix(csRimNear, csRimFar, smoothstep(4.0, 34.0, csDist));
+		outgoingLight += csRimColor * (csF * csUpW * csK);
+`;
+// Variante de quality low: uma banda só (corta um pow por fragmento). O contorno
+// fica mais mole, mas o mecanismo continua existindo.
+const CS_CLARITY_LOW = `
+	{
+		float csDist = length(vViewPosition);
+		vec3  csV    = normalize(vViewPosition);
+		float csNV  = clamp(dot(normal, csV), 0.0, 1.0);
+		float csF   = pow(1.0 - csNV, csRimPow);
+		vec3  csUp  = normalize((viewMatrix * vec4(0.0, 1.0, 0.0, 0.0)).xyz);
+		float csUpW = mix(0.45, 1.55, clamp(dot(normal, csUp) * 0.5 + 0.5, 0.0, 1.0));
+		float csK   = mix(csRimNear, csRimFar, smoothstep(4.0, 34.0, csDist));
 		outgoingLight += csRimColor * (csF * csUpW * csK);
 `;
 // Fechamento + subsurface falso. Separado porque em quality low o SSS é CORTADO do
@@ -122,26 +231,43 @@ const CS_END = `	}
 export function applyCharFX(mat, rimColor) {
   if (!CHAR_FX.on || !mat || !mat.isMeshStandardMaterial || mat.userData.csFx) return mat;
   mat.userData.csFx = true;
-  const rimOn = CHAR_FX.rim;
+  const rimOn = CHAR_FX.rim, clampOn = CHAR_FX.clamp;
   const u = {
     csRimColor: { value: new THREE.Color(rimColor || 0xffffff) },
     csRimNear:  { value: rimOn ? CHAR_FX.rimNear : 0 },
     csRimFar:   { value: rimOn ? CHAR_FX.rimFar : 0 },
     csRimPow:   { value: CHAR_FX.rimPow },
-    csFloor:    { value: CHAR_FX.floor },
+    csRimEdge:  { value: rimOn ? CHAR_FX.rimEdge : 0 },
+    csFloorIrr: { value: CHAR_FX.floorIrr },
+    csFloorFar: { value: CHAR_FX.floorFar },
+    csCeilIrr:  { value: CHAR_FX.ceilIrr },
+    csAlbMin:   { value: CHAR_FX.albMin },
+    csSat:      { value: CHAR_FX.sat },
     csSss:      { value: CHAR_FX.sss },
   };
   mat.userData.csUniforms = u;   // tuning ao vivo sem recompilar
   mat.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, u);
-    shader.fragmentShader = CS_PARS + shader.fragmentShader
+    // ?charclamp=0 não zera uniform: REMOVE os dois blocos do fonte. Instrução que
+    // não existe é instrução que não custa — e o kill-switch fica sendo prova de que
+    // o clamp é a causa, não um palpite (o A/B vira "com bloco" x "sem bloco").
+    let f = CS_PARS + shader.fragmentShader
       .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n' + CS_REGION)
-      .replace('#include <opaque_fragment>', CS_CLARITY + (CHAR_FX.low ? '' : CS_SSS) + CS_END + '\n#include <opaque_fragment>');
+      .replace('#include <opaque_fragment>',
+        (CHAR_FX.low ? CS_CLARITY_LOW : CS_CLARITY) + (CHAR_FX.low ? '' : CS_SSS) + CS_END + '\n#include <opaque_fragment>');
+    if (clampOn) {
+      f = f
+        .replace('#include <map_fragment>', '#include <map_fragment>\n' + CS_ALBEDO)
+        .replace('#include <lights_fragment_end>', CS_AMB + '\n#include <lights_fragment_end>');
+    }
+    shader.fragmentShader = f;
   };
   // Sem chave própria o three pode reaproveitar o programa de um material SEM a
   // injeção (a chave de cache padrão não enxerga onBeforeCompile). Constante de
   // propósito: todos os personagens compartilham UM programa, só os uniforms mudam.
-  mat.customProgramCacheKey = () => 'csCharFx1' + (CHAR_FX.low ? 'L' : 'H');
+  // O sufixo muda com a variante do FONTE (low corta SSS+banda fina; charclamp=0
+  // corta albedo+ambiente) — se não mudasse, o three serviria o programa errado.
+  mat.customProgramCacheKey = () => 'csCharFx3' + (CHAR_FX.low ? 'L' : 'H') + (clampOn ? 'C' : 'c');
   mat.needsUpdate = true;
   return mat;
 }
@@ -152,8 +278,10 @@ export function applyCharFX(mat, rimColor) {
 // [1,1,1] + emissiveTexture apontando pro próprio baseColor. Resultado: o personagem
 // é praticamente UNLIT — luz nenhuma o toca, sombra nenhuma o escurece. É a causa
 // direta do "chapado" (braço de pele rosa lisa do emo, ET verde uniforme). Aqui:
-// metal 0, roughness real, emissivo zerado — o piso de luminância passa a vir do
-// clamp de ambiente no shader, que é controlável e não achata o volume.
+// metal 0, roughness real, emissivo zerado — o mínimo garantido de luz passa a vir
+// do clamp na IRRADIÂNCIA (CS_AMB), que é multiplicativo e não achata o volume.
+// (Na R1 esse emissivo é que segurava o croma alto: o personagem era literalmente
+// o albedo cru na tela. Bonito de cor, zero volume — e a régua cobrou volume.)
 export function upgradeCharMaterial(src, rimColor) {
   const m = new THREE.MeshStandardMaterial({
     map: src.map || null,
@@ -168,7 +296,9 @@ export function upgradeCharMaterial(src, rimColor) {
     vertexColors: !!src.vertexColors,
   });
   if (src.normalScale && m.normalScale) m.normalScale.copy(src.normalScale);
-  m.envMapIntensity = 0.85;          // não briga com o IBL do mapa; só o suficiente p/ ter forma
+  // 1.0 (era 0.85 na R2): sem o piso aditivo, o IBL do mapa voltou a ser a principal
+  // fonte de fill do personagem — cortá-lo em 15% agora só escureceria a sombra.
+  m.envMapIntensity = 1.0;
   m.name = src.name || 'char';
   m.userData.csSrcEmissive = true;
   // Se a injeção estiver desligada (?charfx=0) o clamp não existe: devolve um resto

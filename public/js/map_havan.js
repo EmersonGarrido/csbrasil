@@ -6,7 +6,9 @@
 // no ESTACIONAMENTO (carros GLB texturizados + Estátua da Liberdade). 3 bandeiras:
 // estacionamento, estátua, gôndolas. Contrato buildWorld + A*. Props de /Users/ruben/glb.
 import * as THREE from 'three';
-import { placeProp, hasProp } from './mapprops.js';
+import { placeProp, PropBatch, StaticBatch, PROP_BATCH } from './mapprops.js';
+import { VAO_BANDS, aoBoxGeo, aoMatFactory, ContactSkirt, BASE_FLOATING, onGround } from './vao.js';
+import { makeAerialFog } from './bloom.js';   // névoa exponencial + cor por direção do olhar
 
 const HALF_X = 38, HALF_Z = 58;
 // Carros do estacionamento (ids otimizados em public/models/props). Forte cara BR.
@@ -43,13 +45,51 @@ const HEAVY = new Set(['1965_ford_mustang_coupe_289', '1981_dmc_delorean', '2015
 const LIGHT_CARS = CARS.filter(id => !HEAVY.has(id));
 // carros BR Mint SEMPRE entram na partida (a "cara brasileira"); o resto sorteia dos leves
 const MINT_BR = ['kombi', 'opala', 'chevette', 'brasilia_vw', 'saveiro', 'fusca', 'moto_cg'];
+/* ===== CUSTO DE GPU POR MODELO (rodada 3) =====
+   O filtro HEAVY acima e de BYTES (tempo de download). O que estourou a regua foi outra
+   coisa: TRIANGULO e NUMERO DE MATERIAIS. Medido nos .glb (tools/eval/glbinfo):
+   um `2006_hyundai_sonata` tem 13,7 k tris em 12 materiais; um `jeep_cherokee` tem
+   1,4 k tris em 1 material — e no patio, a 20 m, os dois lem como "um carro na vaga".
+   Com 59 vagas ocupadas, trocar a rotacao pelos modelos baratos derrubou os carros de
+   ~510 k para ~200 k triangulos SEM tirar um carro do estacionamento e mantendo os
+   mesmos 12 modelos distintos por partida.
+   [triangulos, materiais] — materiais viram draw calls depois do instancing. */
+const CAR_COST = {
+  jeep_cherokee: [1376, 1], dirty_lada_lowpoly_from_scan: [1716, 1], reliant_k_car: [2034, 1],
+  kombi: [2797, 1], fusca: [2854, 1], chevette: [2872, 1], opala: [2891, 1], brasilia_vw: [2894, 1],
+  saveiro: [2904, 1], moto_cg: [3369, 1],
+  '2006_chevrolet_cobalt_lt': [7009, 15], small_price_car: [7353, 17],
+  '1969_dodge_charger_rt': [9672, 29], '1999_volkswagen_gol_2000_gti_g2': [10627, 13],
+  '1968_volkswagen_beetle': [10732, 13], '1976_volkswagen_golf_gti_mk1': [11256, 24],
+  '2002_volkswagen_golf_r32_mk4': [11342, 12], '1989_ford_fiesta_xr2i_mk3': [12957, 19],
+  '2006_hyundai_sonata': [13686, 12], fiat_toro: [14661, 18], '1986_ford_escort_xr3': [15121, 15],
+  peugeot_3008: [16461, 25], '2021_nissan_kicks': [16943, 12], peugeot_405: [20177, 17],
+  fiat_uno: [22553, 26], car_a: [27142, 2],
+};
+// 1 material ≈ 1 draw call no passe principal + 1 na sombra; 8 k tris ≈ o mesmo peso.
+const carCost = (id) => { const c = CAR_COST[id]; return c ? c[1] * 8 + c[0] / 1000 : 200; };
+const carTris = (id) => (CAR_COST[id] ? CAR_COST[id][0] : 20000);
+const EXTRA_TRI_BUDGET = 26000;   // teto de triangulos para os 5 modelos sorteados
 let _carSeed = 1;
 export function setHavanCarSeed(s) { _carSeed = (s | 0) || 1; }
 export function havanCarSelection(n = 12) {
-  const arr = LIGHT_CARS.filter(id => !MINT_BR.includes(id)); let s = _carSeed;
+  // candidatos ordenados por CUSTO (nao mais sorteio uniforme na lista inteira): o sorteio
+  // antigo podia trazer 5 sedas de 20 k tris e 25 materiais cada e dobrar o custo do mapa.
+  const arr = LIGHT_CARS.filter(id => !MINT_BR.includes(id)).sort((a, b) => carCost(a) - carCost(b));
+  const pool = arr.slice(0, 8);             // janela dos 8 mais baratos: ainda ha variedade
+  let s = _carSeed;
   const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647;
   const out = [...MINT_BR];
-  while (out.length < Math.max(n, MINT_BR.length) && arr.length) out.push(arr.splice((rnd() * arr.length) | 0, 1)[0]);
+  let tri = 0;
+  const want = Math.max(n, MINT_BR.length);
+  while (out.length < want && pool.length) {
+    const i = (rnd() * pool.length) | 0, id = pool[i];
+    pool.splice(i, 1);
+    if (tri + carTris(id) > EXTRA_TRI_BUDGET) continue;   // estourou o teto: pula esse modelo
+    tri += carTris(id); out.push(id);
+  }
+  // se o teto barrou demais, completa com os mais baratos que sobraram (sem estourar de novo)
+  for (const id of arr) { if (out.length >= want) break; if (!out.includes(id) && tri + carTris(id) <= EXTRA_TRI_BUDGET * 1.35) { tri += carTris(id); out.push(id); } }
   return out;
 }
 // props p/ preload da partida atual (maps.js consome via getter)
@@ -305,12 +345,20 @@ export function buildHavan(scene, T) {
     lot: lam({ map: asfaltoTex(13, 11) }),   // v4: asfalto com brita+recape (as "bolhas" sumiram)
     // piso da loja: porcelanato POLIDO — roughness baixa dá o brilho de espelho sob a
     // fluorescente, que é metade da leitura "estou dentro de uma loja" (contra o sol fosco)
-    floor: lam({ map: noiseTex('#c9cfd6', [['#b2b9c0', 40, 8, 22, 0.45], ['#dde2e7', 30, 6, 18, 0.35], ['#8a929a', 14, 4, 12, 0.4]], 16, 16, { cracks: '#9aa2aa', pebbles: '#eef1f4', seed: 9 }), roughness: 0.3, metalness: 0.05 }),
+    floor: lam({ map: noiseTex('#c9cfd6', [['#b2b9c0', 40, 8, 22, 0.45], ['#dde2e7', 30, 6, 18, 0.35], ['#8a929a', 14, 4, 12, 0.4]], 16, 16, { cracks: '#9aa2aa', pebbles: '#eef1f4', seed: 9 }), roughness: 0.22, metalness: 0.10, envMapIntensity: 1.6 }),
     wall: lam({ map: acmTex(8, 2) }),                                    // painel ACM azul c/ emendas
     trim: lam({ color: 0xf4c020 }),
     shelf: lam({ color: 0xb9bec4 }), goods: lam({ color: 0xe07a3a }), rack: lam({ color: 0x3a3f45 }),
-    caixa: lam({ color: 0xdfe4e8 }), glass: lam({ color: 0x9fd0e8, transparent: true, opacity: 0.4 }),
-    steel: lam({ color: 0x8a9096 }), mez: lam({ color: 0xc7ccd2 }), curb: lam({ color: 0xd8d2c0 }),
+    caixa: lam({ color: 0xdfe4e8 }),
+    /* VIDRO DE VITRINE — R9. `lam` tem roughness 0.9 por padrão, então as seis vitrines da
+       fachada e as duas folhas da porta eram VIDRO FOSCO: nenhum reflexo de sol, nenhum
+       pixel acima de L* 97 na frente inteira da loja. 0.10/0.55 devolve a lâmina de sol que
+       corre pelo painel quando a câmera passa, e o envMap 2.4 devolve o céu refletido que é
+       o que faz vidro LER como vidro (senão é um plano azul translúcido). */
+    glass: lam({ color: 0x9fd0e8, roughness: 0.20, metalness: 0.45, envMapIntensity: 2.4, transparent: true, opacity: 0.4 }),
+    // aço da estrutura/prateleira: era metalness 0 (o default do `lam`) — literalmente plástico cinza
+    steel: lam({ color: 0x8a9096, roughness: 0.32, metalness: 0.85, envMapIntensity: 1.8 }),
+    mez: lam({ color: 0xc7ccd2 }), curb: lam({ color: 0xd8d2c0 }),
     // muro do estacionamento: bloco de concreto pintado na escala real (40 × 20 cm).
     // O MESMO canvas entra como bumpMap: a junta rebaixada vira relevo no shader sem
     // custo de textura nova, que é o que dá micro-detalhe a < 2 m da câmera (B5).
@@ -320,15 +368,109 @@ export function buildHavan(scene, T) {
     paintW: new THREE.MeshBasicMaterial({ map: tintaTex('#e8e6dd'), transparent: true, depthWrite: false }),
     paintY: new THREE.MeshBasicMaterial({ map: tintaTex('#e0b028'), transparent: true, depthWrite: false }),
   };
-  function addBox(w, h, d, mat, x, y, z, opts = {}) {
-    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
-    m.position.set(x, y + h / 2, z); m.castShadow = opts.cast !== false; m.receiveShadow = true;
-    if (opts.ry) m.rotation.y = opts.ry; root.add(m);
-    if (opts.collide !== false) { colliders.push({ minX: x - w / 2, maxX: x + w / 2, minY: y, maxY: y + h, minZ: z - d / 2, maxZ: z + d / 2 }); occluders.push(m); }
+  /* AO DE VÉRTICE (critério A1) — ver vao.js. A r2 já tinha isso SÓ nos 3 muros do
+     perímetro (bakeMuroAO); agora vale para toda caixa procedural do mapa. */
+  const LOWQ = _q === 'low';
+  const aoMat = aoMatFactory();
+  const SKIRT = new ContactSkirt({ low: LOWQ });
+  /* ================= ORÇAMENTO DE DRAW CALL (rodada 3) =================
+     MEDIDO na r2: 4.347 draw calls e 3,65 M triângulos contra um teto de régua de
+     300-800 calls / 500 k tris. O mapa não tem conteúdo demais — ele tem MALHA demais
+     pra mesma imagem. Três frentes, todas sem tirar um pixel da tela:
+
+       1. DECO_BATCH — toda caixa/cilindro DECORATIVO (collide:false: colunata, cornija,
+          pilaretes, vitrines, letreiros, Casa Branca, luminárias, degraus) vira UMA malha
+          mesclada por material. Eram ~400 meshes; viram ~15. Nada disso é occluder nem
+          collider, então A-estrela, LOS e hitscan continuam idênticos — e o raycast fica mais
+          barato, porque a lista de occluders não muda mas o grafo de cena encolhe.
+       2. PROPS — os GLB repetidos (59 carros de 12 modelos, 35 gôndolas, 10 carrinhos)
+          viram InstancedMesh agrupado por material. Um carro de 60 primitivas custava 60
+          draw calls por cópia; agora custa ~1-15 pro modelo inteiro, com a cor de lataria
+          indo por instanceColor (a repintura BR continua carro a carro).
+       3. PAINT_BATCH — as ~78 faixas de tinta do asfalto viram 4 malhas (uma por material).
+
+     `?batch=0` desliga tudo e volta ao caminho antigo, mesh por mesh — é o A/B que prova
+     que o frame não mudou. Em quality 'low' o mapa ainda corta props (ver DECO_HI/LOWQ). */
+  const BATCH = PROP_BATCH;
+  const DECO_BATCH = new StaticBatch({ name: 'havan-deco' });
+  const PAINT_BATCH = new StaticBatch({ name: 'havan-tinta' });
+  // carros: bucket 0 (uma instância por modelo+material cobrindo o pátio inteiro). Com os
+  // modelos baratos da nova seleção o pátio todo dá ~200 k tris — não compensa fatiar em
+  // blocos pra ganhar culling e pagar 3× em draw call.
+  const PROPS = new PropBatch({
+    tag: 'havan',
+    // lataria: mesma regra do paintBR (nome de material de carroceria e SEM textura assada)
+    paintTest: (m) => !!m && !Array.isArray(m) && BODY_RE.test(m.name || '') && !SKIP_RE.test(m.name || '') && !m.map && CARPAINT,
+    /* LATARIA / CROMADO / VIDRO DOS GLB — R9. Antes só se SOMAVA 0,16 de roughness à
+       pintura, o que empurrava o verniz pra 0,55-0,75: um pátio com 59 carros ao sol de
+       meio-dia sem UM reflexo estourado. Agora a pintura vai pra 0,30 (pico do GGX ~40, o
+       suficiente pra clipar num capô curvo) e o cromado/vidro — que o SKIP_RE já preserva
+       da repintura — recebe o tratamento de metal polido que o glTF não trouxe. */
+    matTweak: (m, paint) => {
+      if (!m) return;
+      // ganho de IBL modesto no geral (1,25): envMapIntensity mexe TAMBÉM na irradiância
+      // difusa, então um blanket alto aqui viraria "ambiente a mais" em 35 gôndolas e 59
+      // carros. O ganho grande fica só onde há reflexão especular pra sustentar.
+      m.envMapIntensity = 1.25;
+      if (paint) { m.roughness = 0.30; m.metalness = Math.max(m.metalness ?? 0, 0.45); return; }
+      const n = m.name || '';
+      if (/chrome|crom|metal|steel|aco|aço|rim|roda|escapa|exhaust|carrinho|cart/i.test(n)) {
+        m.roughness = 0.24; m.metalness = 0.90; m.envMapIntensity = 2.0;
+      } else if (/glass|vidro|window|janela|farol|lente|lens/i.test(n)) {
+        m.roughness = 0.18; m.metalness = 0.45; m.envMapIntensity = 2.4;
+      }
+    },
+    // peças com menos de 6% dos triângulos do modelo (emblema, retrovisor, friso) não mudam
+    // a silhueta projetada e custavam metade do passe de sombra
+    shadowMin: 0.06,
+  });
+  /* Manda um mesh AVULSO (cilindro, extrude, plano) pro merge estático em vez da cena.
+     Retorna o mesh mesmo assim, pra quem quiser continuar mexendo nele antes do build. */
+  function deco(m, batch) {
+    const b = batch || DECO_BATCH;
+    if (!BATCH || Array.isArray(m.material)) { root.add(m); return m; }
+    m.updateMatrix();
+    if (!b.add(m.geometry, m.matrix, m.material, { cast: m.castShadow, receive: m.receiveShadow, order: m.renderOrder })) root.add(m);
     return m;
   }
+  function addBox(w, h, d, mat, x, y, z, opts = {}) {
+    const vao = VAO_BANDS && opts.vao !== false && mat && mat.visible !== false;
+    // `solo` é geométrico, não depende do gate de faixas — assim `?vao=skirt` (A/B do
+    // agente de captura) ainda emite a saia. SKIRT.add já checa o próprio kill-switch.
+    const solo = onGround(y, h) && !opts.rx && !opts.rz;
+    const geo = vao ? aoBoxGeo(w, h, d, { low: LOWQ, base: solo ? undefined : BASE_FLOATING })
+      : new THREE.BoxGeometry(w, h, d);
+    const m = new THREE.Mesh(geo, vao ? aoMat(mat) : mat);
+    m.position.set(x, y + h / 2, z); m.castShadow = opts.cast !== false; m.receiveShadow = true;
+    if (opts.ry) m.rotation.y = opts.ry;
+    if (solo && opts.skirt !== false) SKIRT.add(x, y, z, w, d, opts.ry || 0);
+    const collide = opts.collide !== false;
+    // só entra no merge quem NÃO é occluder (o raycast de LOS/hitscan precisa de meshes
+    // separados pra ter early-out por bounding sphere) e quem não vai ser animado depois
+    if (collide || opts.batch === false || Array.isArray(m.material)) {
+      root.add(m);
+      if (collide) { colliders.push({ minX: x - w / 2, maxX: x + w / 2, minY: y, maxY: y + h, minZ: z - d / 2, maxZ: z + d / 2 }); occluders.push(m); }
+      return m;
+    }
+    return deco(m, DECO_BATCH);
+  }
   const addFloor = (w, d, x, z, mat, y = 0) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d), mat); m.rotation.x = -Math.PI / 2; m.position.set(x, y, z); m.receiveShadow = true; root.add(m); };
-  const gprop = (id, x, z, h, ry = 0, y = 0) => { const o = placeProp(id, { x, y, z, targetH: h, ry }); if (o) root.add(o); return !!o; };
+  /* PROPS DA LOJA — lote separado, SEM sombra de sol.
+     PORQUE: desde a r2 a laje do teto tem castShadow (foi o que criou a identidade de
+     interior: dentro da loja só existe a fluorescente fria). Ou seja, TODO o piso da loja
+     já está na sombra do teto — e as ~40 gôndolas/araras/caixas/manequins continuavam
+     sendo desenhadas no shadow map do sol pra projetar sombra sobre sombra. São ~124 k
+     triângulos e ~10 draw calls por frame que não produzem UM pixel. Com `?teto=0` (o sol
+     volta a entrar) elas voltam a projetar, senão o interior ficaria sem sombra nenhuma. */
+  const TETO = QP.get('teto') !== '0';
+  const PROPS_LOJA = new PropBatch({ tag: 'havan', shadowMin: 0.06, cast: !TETO });
+  // gprop agora só REGISTRA no PropBatch (a malha nasce no build lá embaixo). O retorno
+  // continua sendo "o GLB existe?", que é o que os ~40 fallbacks do mapa consultam.
+  // z < -6 = dentro da loja (SF): vai pro lote sem sombra.
+  const gprop = (id, x, z, h, ry = 0, y = 0) => {
+    if (BATCH) return (z < -6 ? PROPS_LOJA : PROPS).add(id, { x, y, z, targetH: h, ry });
+    const o = placeProp(id, { x, y, z, targetH: h, ry }); if (o) root.add(o); return !!o;
+  };
   // fallback enquanto o GLB não carrega (ou falha): mini-carro colorido por hash do id —
   // substitui a caixa preta que fazia o estacionamento parecer quebrado no menu/loading.
   // Paleta REAL da frota brasileira (~67% neutros: branco 21,9 / preto 19,0 / prata 16,3 /
@@ -358,13 +500,20 @@ export function buildHavan(scene, T) {
       const mat = m.material.clone(); mat.color.setHex(hex);
       // verniz descascado: sem máscara por peça, o honesto é queimar o brilho e "cretar"
       // a cor — é exatamente como um capô descascado de sol lê à distância de jogo.
-      if (worn) { mat.roughness = Math.min(1, (mat.roughness ?? 0.5) + 0.38); mat.metalness = Math.max(0, (mat.metalness ?? 0.3) - 0.25); mat.color.lerp(WORN, 0.18); }
-      else mat.roughness = Math.min(1, (mat.roughness ?? 0.4) + 0.1);
+      // mesma calibração do matTweak do PropBatch (ver lá o porquê do 0,34)
+      mat.envMapIntensity = 1.25;
+      if (worn) { mat.roughness = 0.62; mat.metalness = Math.max(0, (mat.metalness ?? 0.3) - 0.25); mat.color.lerp(WORN, 0.18); }
+      else { mat.roughness = 0.30; mat.metalness = Math.max(mat.metalness ?? 0, 0.45); }
       m.material = mat;
     });
   }
-  // coloca 1 carro (GLB repintado) ou cai no mini-carro de fallback
+  // sorteia a cor de UM carro (mesma sequência de antes: 37 e 100 são coprimos)
+  const nextPaint = () => { _paintI = (_paintI + 37) % PAINT_BAG.length; return PAINT_BAG[_paintI]; };
+  // coloca 1 carro (GLB repintado) ou cai no mini-carro de fallback.
+  // Com BATCH a cor da lataria vai por instanceColor (ver PropBatch.paintTest): 59 carros
+  // continuam com 59 pinturas diferentes, mas custam ~1 draw call por material do MODELO.
   const placeCar = (id, x, z, ry) => {
+    if (BATCH) { const col = CARPAINT ? nextPaint() : null; if (PROPS.add(id, { x, y: 0, z, targetH: 1.55, ry, color: col })) return; fallbackCar(id, x, z, ry); return; }
     const o = placeProp(id, { x, y: 0, z, targetH: 1.55, ry });
     if (!o) { fallbackCar(id, x, z, ry); return; }
     paintBR(o); root.add(o);
@@ -372,9 +521,9 @@ export function buildHavan(scene, T) {
   function fallbackCar(id, x, z, ry) {
     let h = 0; for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) | 0;
     const g = new THREE.Group();
-    const body = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.55, 4.2), lam({ color: CAR_COLORS[Math.abs(h) % CAR_COLORS.length], metalness: 0.4, roughness: 0.5 }));
+    const body = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.55, 4.2), lam({ color: CAR_COLORS[Math.abs(h) % CAR_COLORS.length], metalness: 0.55, roughness: 0.32, envMapIntensity: 1.8 }));
     body.position.y = 0.55; body.castShadow = body.receiveShadow = true; g.add(body);
-    const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.5, 2.1), lam({ color: 0x20242a, metalness: 0.2, roughness: 0.3 }));
+    const cabin = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.5, 2.1), lam({ color: 0x20242a, metalness: 0.45, roughness: 0.18, envMapIntensity: 2.2 }));   // vidro do carro
     cabin.position.set(0, 1.05, -0.2); cabin.castShadow = true; g.add(cabin);
     g.position.set(x, 0, z); g.rotation.y = ry; root.add(g);
   }
@@ -415,9 +564,9 @@ export function buildHavan(scene, T) {
       addBox(0.92, 0.20, 0.92, plaster, x, 0.18, z, { collide: false });                // base (toro)
       // fuste CANELADO (16 lados p/ a estria ler no perfil; a textura faz o resto de graça)
       const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.30, 0.34, 4.12, 16), plasterCol);
-      shaft.position.set(x, 0.38 + 4.12 / 2, z); shaft.castShadow = shaft.receiveShadow = true; root.add(shaft);
+      shaft.position.set(x, 0.38 + 4.12 / 2, z); shaft.castShadow = shaft.receiveShadow = true; deco(shaft);
       const ech = new THREE.Mesh(new THREE.CylinderGeometry(0.44, 0.30, 0.22, 16), plaster);  // équino do capitel
-      ech.position.set(x, 4.61, z); ech.castShadow = true; root.add(ech);
+      ech.position.set(x, 4.61, z); ech.castShadow = true; deco(ech);
       addBox(1.0, 0.26, 1.0, plaster, x, 4.72, z, { collide: false });                  // ábaco do capitel sob a cornija
     }
     /* BANNERS verticais entre as colunas. Eram 8 canvas de 256×512 pra 4 imagens (o laço
@@ -437,11 +586,15 @@ export function buildHavan(scene, T) {
       });
       const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
     })();
+    /* Os 8 banners eram 8 clones de textura + 8 materiais + 8 draw calls. Como todos
+       saem do MESMO atlas, dá pra assar o recorte no UV da própria geometria — aí os 8
+       compartilham UM material e o merge estático junta tudo num draw call só. Mesma
+       imagem na tela, 1/8 do custo. */
+    const bannerMat = new THREE.MeshStandardMaterial({ map: bannerAtlas, roughness: 0.8, side: THREE.DoubleSide });
+    const subUV = (geo, ox, sx2) => { const uv = geo.attributes.uv; for (let k = 0; k < uv.count; k++) uv.setX(k, ox + uv.getX(k) * sx2); uv.needsUpdate = true; return geo; };
     for (const sx of [-1, 1]) [7.5, 12.5, 17.5, 22.5].forEach((bx, i) => {
-      const t2 = bannerAtlas.clone(); t2.repeat.set(0.25, 1); t2.offset.set(i * 0.25, 0);
-      const b = new THREE.Mesh(new THREE.PlaneGeometry(1.9, 2.9),
-        new THREE.MeshStandardMaterial({ map: t2, roughness: 0.8, side: THREE.DoubleSide }));
-      b.position.set(sx * bx, 3.35, SF + 1.9); b.castShadow = true; root.add(b);
+      const b = new THREE.Mesh(subUV(new THREE.PlaneGeometry(1.9, 2.9), i * 0.25, 0.25), bannerMat);
+      b.position.set(sx * bx, 3.35, SF + 1.9); b.castShadow = true; deco(b);
     });
     // CORNIJA corrida no topo, avançando da parede até cobrir a colunata
     addBox(2 * HALF_X + 1, 0.55, 2.3, plaster, 0, 5.0, SF + 1.05, { collide: false });
@@ -463,21 +616,21 @@ export function buildHavan(scene, T) {
     {
       const tri = new THREE.Shape(); tri.moveTo(-13, 0); tri.lineTo(13, 0); tri.lineTo(0, 3.8); tri.closePath();
       const ped = new THREE.Mesh(new THREE.ExtrudeGeometry(tri, { depth: 1.6, bevelEnabled: false }), plaster);
-      ped.position.set(0, 5.75, SF + 0.1); ped.castShadow = true; root.add(ped);
+      ped.position.set(0, 5.75, SF + 0.1); ped.castShadow = true; deco(ped);
       const map = letreiroTex('HAVAN', 1024, 256);
       // emissive: o letreiro é luminoso (é de acrílico retroiluminado na loja real) —
       // em quality low cai pra Basic, que não paga o custo de emissive no shader
       const mat = _q === 'low' ? new THREE.MeshBasicMaterial({ map })
         : new THREE.MeshStandardMaterial({ map, emissiveMap: map, emissive: 0xffffff, emissiveIntensity: 0.55, roughness: 0.6 });
       const s = new THREE.Mesh(new THREE.BoxGeometry(12, 3.0, 0.35), mat);
-      s.position.set(0, 6.85, SF + 1.85); s.castShadow = true; root.add(s);
+      s.position.set(0, 6.85, SF + 1.85); s.castShadow = true; deco(s);
       // letreiros menores nas alas laterais: um canvas só, o mesmo material nos dois lados
       // (eram duas rasterizações idênticas do mesmo texto)
       if (DECO) {
         const alaMat = new THREE.MeshBasicMaterial({ map: letreiroTex('HAVAN', 512, 128) });
         for (const sx of [-1, 1]) {
           const m2 = new THREE.Mesh(new THREE.BoxGeometry(7.5, 1.5, 0.25), alaMat);
-          m2.position.set(sx * 33, 4.0, SF + 0.72); root.add(m2);
+          m2.position.set(sx * 33, 4.0, SF + 0.72); deco(m2);
         }
       }
     }
@@ -492,7 +645,7 @@ export function buildHavan(scene, T) {
       addBox(6.2, 0.15, 0.15, frame, x, 4.0, SF + 0.55, { collide: false });
       addBox(6.2, 0.15, 0.15, frame, x, 0.62, SF + 0.55, { collide: false });
       const v = new THREE.Mesh(new THREE.PlaneGeometry(6.0, 3.3), MAT.glass);
-      v.position.set(x, 2.3, SF + 0.55); root.add(v);
+      v.position.set(x, 2.3, SF + 0.55); deco(v);
     }
   }
   // teto (alto, sem colisão) — DoubleSide: antes virado só pra cima = céu aparecendo DENTRO da loja
@@ -510,8 +663,10 @@ export function buildHavan(scene, T) {
 
   // PORTA COM SENSOR (2 folhas de vidro no vão; game.js abre ao chegar perto — ver world.doors)
   {
-    const pl = addBox(4, 4, 0.2, MAT.glass, -2, 0, SF, { cast: false, collide: false });
-    const pr = addBox(4, 4, 0.2, MAT.glass, 2, 0, SF, { cast: false, collide: false });
+    // batch:false — estas duas folhas SÃO animadas (game.js desliza panelL/panelR): mesclar
+    // congelaria a porta fechada
+    const pl = addBox(4, 4, 0.2, MAT.glass, -2, 0, SF, { cast: false, collide: false, batch: false });
+    const pr = addBox(4, 4, 0.2, MAT.glass, 2, 0, SF, { cast: false, collide: false, batch: false });
     doors.push({ panelL: pl, panelR: pr, x: 0, z: SF, closedL: -2, closedR: 2, openL: -6, openR: 6, open: 0 });
   }
 
@@ -560,18 +715,18 @@ export function buildHavan(scene, T) {
   // fora = a troca de temperatura na porta é o que vende "entrei na loja".
   const lightPanel = new THREE.MeshBasicMaterial({ color: 0xeaf2ff });
   const tubeMat = new THREE.MeshBasicMaterial({ color: 0xf4f8ff });
-  const bodyMat = lam({ color: 0xb9c0c8, roughness: 0.6, metalness: 0.3 });
+  const bodyMat = lam({ color: 0xb9c0c8, roughness: 0.34, metalness: 0.65, envMapIntensity: 1.6 });   // calha de alumínio
   for (const z of [-14, -24, -34]) {
     for (const x of [-14, 0, 14]) {
       const p = new THREE.Mesh(new THREE.PlaneGeometry(4, 1.6), lightPanel);
-      p.rotation.x = Math.PI / 2; p.position.set(x, 6.1, z); root.add(p);
+      p.rotation.x = Math.PI / 2; p.position.set(x, 6.1, z); p.castShadow = false; deco(p);
     }
     // calhas de tubo corridas atravessando a loja (o "teto de galpão de varejo")
     if (DECO_HI) for (const tz of [z - 2.4, z + 2.4]) {
       const cal = new THREE.Mesh(new THREE.BoxGeometry(2 * SW - 6, 0.16, 0.34), bodyMat);
-      cal.position.set(0, 6.05, tz); root.add(cal);
+      cal.position.set(0, 6.05, tz); cal.castShadow = false; deco(cal);
       const tb = new THREE.Mesh(new THREE.BoxGeometry(2 * SW - 6.4, 0.06, 0.2), tubeMat);
-      tb.position.set(0, 5.95, tz); root.add(tb);
+      tb.position.set(0, 5.95, tz); tb.castShadow = false; deco(tb);
     }
     // +12%: com o teto agora tapando o sol (ver acima), a fluorescente passou a ser a
     // ÚNICA fonte de dentro — o interior tem que continuar legível pro C1 (silhueta do
@@ -631,14 +786,24 @@ export function buildHavan(scene, T) {
       });
       const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
     })();
+    // igual aos banners: o recorte do atlas vai pro UV da geometria em vez de virar 4
+    // clones de textura + 4 materiais. Um material, um draw call pras 4 placas.
+    const secMat = new THREE.MeshBasicMaterial({ map: secAtlas });
     SECOES.forEach(([t2, x], i) => {
-      const tex = secAtlas.clone(); tex.repeat.set(1, 0.25); tex.offset.set(0, 0.75 - i * 0.25);
-      const s = new THREE.Mesh(new THREE.PlaneGeometry(10, 1.4), new THREE.MeshBasicMaterial({ map: tex }));
-      s.position.set(x, 2.55, SB + 0.56); root.add(s);
+      const g = new THREE.PlaneGeometry(10, 1.4), uv = g.attributes.uv;
+      for (let k = 0; k < uv.count; k++) uv.setY(k, (0.75 - i * 0.25) + uv.getY(k) * 0.25);
+      uv.needsUpdate = true;
+      const s = new THREE.Mesh(g, secMat);
+      s.position.set(x, 2.55, SB + 0.56); s.castShadow = false; deco(s);
     });
-    if (T.posters && T.posters.length) for (let i = 0; i < 4; i++) {   // pôsteres de oferta
-      const p = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 2.0), lam({ map: T.posters[i % T.posters.length] }));
-      p.position.set(-12.5 + i * 8.4, 1.3, SB + 0.56); root.add(p);
+    if (T.posters && T.posters.length) {   // pôsteres de oferta (1 material por textura distinta)
+      const pmat = new Map();
+      for (let i = 0; i < 4; i++) {
+        const tex = T.posters[i % T.posters.length];
+        if (!pmat.has(tex)) pmat.set(tex, lam({ map: tex }));
+        const p = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 2.0), pmat.get(tex));
+        p.position.set(-12.5 + i * 8.4, 1.3, SB + 0.56); p.castShadow = false; deco(p);
+      }
     }
   }
 
@@ -648,12 +813,12 @@ export function buildHavan(scene, T) {
     const track = new THREE.MeshBasicMaterial({ color: 0x5a6066, transparent: true, opacity: 0.3 });
     for (const z of [-18, -24, -30]) for (const tx of [-5.4, -0.9, 0.9, 5.4]) {
       const t2 = new THREE.Mesh(new THREE.PlaneGeometry(0.2, 5.4), track);
-      t2.rotation.x = -Math.PI / 2; t2.position.set(tx, 0.012, z); root.add(t2);
+      t2.rotation.x = -Math.PI / 2; t2.position.set(tx, 0.012, z); t2.castShadow = false; deco(t2);
     }
     const ao = new THREE.MeshBasicMaterial({ color: 0x3a3e44, transparent: true, opacity: 0.28 });
     for (let r = 0; r < 4; r++) {
       const t3 = new THREE.Mesh(new THREE.PlaneGeometry(19, 1.9), ao);
-      t3.rotation.x = -Math.PI / 2; t3.position.set(0, 0.011, -15 - r * 6); root.add(t3);
+      t3.rotation.x = -Math.PI / 2; t3.position.set(0, 0.011, -15 - r * 6); t3.castShadow = false; deco(t3);
     }
   }
 
@@ -682,6 +847,9 @@ export function buildHavan(scene, T) {
     const geo = new THREE.BoxGeometry(w, h, d, 1, 8, 1); bakeMuroAO(geo, h);
     const m = new THREE.Mesh(geo, mat); m.position.set(mx, h / 2, mz);
     m.castShadow = m.receiveShadow = true; root.add(m);
+    // o bakeMuroAO já resolve o LADO DA PAREDE; a saia resolve o lado do ASFALTO — sem os
+    // dois o perfil do A1 continua tendo metade da junção chapada
+    SKIRT.add(mx, 0, mz, w, d, 0);
     colliders.push({ minX: mx - w / 2, maxX: mx + w / 2, minY: 0, maxY: h, minZ: mz - d / 2, maxZ: mz + d / 2 });
     occluders.push(m); return m;
   };
@@ -751,10 +919,14 @@ export function buildHavan(scene, T) {
 
   // ===== DEMARCAÇÃO DO ASFALTO (tinta gasta, não caixinha cinza chapada) =====
   // planos finos com alpha furado pelo desgaste. Zero collider, cast:false.
+  // ~78 planos de tinta eram ~78 draw calls por 4 imagens. Como nenhum deles se move nem
+  // colide, todos vão pro PAINT_BATCH: 4 malhas mescladas (uma por material), mesma tinta
+  // na mesma vaga. O renderOrder 1 entra na chave do grupo, então a ordem de blend não muda.
   const paint = (w, d, x, z, mat, ry = 0, y = 0.02) => {
     const g = new THREE.PlaneGeometry(w, d);
     const m = new THREE.Mesh(g, mat); m.rotation.x = -Math.PI / 2; if (ry) m.rotation.z = ry;
-    m.position.set(x, y, z); m.renderOrder = 1; root.add(m); return m;
+    m.position.set(x, y, z); m.renderOrder = 1; m.castShadow = false; m.receiveShadow = false;
+    return deco(m, PAINT_BATCH);
   };
   // a mesma tinta em orientações/comprimentos diferentes precisa de repeat próprio, senão
   // o desgaste vira borrão esticado numa linha de 28m. Clone só a textura (mesma imagem).
@@ -805,7 +977,8 @@ export function buildHavan(scene, T) {
     const oilMat = new THREE.MeshBasicMaterial({ map: t, transparent: true, depthWrite: false });
     for (const [x, z, r, sd] of [[-14, 26, 1.9, 1], [8, 40, 1.3, 2], [22, 16, 2.1, 3], [-26, 46, 1.5, 4], [4, 8, 1.2, 5], [-19, 12, 1.6, 6], [30, 38, 1.4, 7]]) {
       const p = new THREE.Mesh(new THREE.PlaneGeometry(r * 2, r * 2 * (0.7 + (sd % 3) * 0.15)), oilMat);
-      p.rotation.x = -Math.PI / 2; p.rotation.z = sd; p.position.set(x, 0.016, z); p.renderOrder = 1; root.add(p);
+      p.rotation.x = -Math.PI / 2; p.rotation.z = sd; p.position.set(x, 0.016, z); p.renderOrder = 1;
+      p.castShadow = false; p.receiveShadow = false; deco(p, PAINT_BATCH);
     }
   }
   // CARRINHOS DE COMPRAS espalhados + baia de devolução (a assinatura de estacionamento
@@ -822,8 +995,13 @@ export function buildHavan(scene, T) {
   let ci = 0;
   const carPool = havanCarSelection();
   const parkSpots = [];
+  let _spot = 0;
   for (const zc of [10, 18, 28, 36, 44, 52]) for (const xc of [-32, -25, -18, -11, 11, 18, 25, 32]) {
     if (Math.hypot(xc, zc - 20) < 9) continue;   // deixa espaço ao redor da estátua
+    // GATE DE QUALIDADE (item 5 da auditoria de custo): em 'low' o pátio fica com METADE
+    // dos carros, em xadrez — continua lendo como estacionamento cheio, com metade da
+    // geometria. As vagas vazias mostram a tinta de demarcação, que é conteúdo que já existe.
+    if (LOWQ && (_spot++ % 2)) continue;
     parkSpots.push([xc, zc]);
   }
   for (const [x, z] of parkSpots) {
@@ -851,20 +1029,20 @@ export function buildHavan(scene, T) {
   // no meio do estacionamento" da crítica era isto (um paralelepípedo sem luminária, sem
   // base, sem braço, do nada). O tronco de colisão continua o MESMO (0.4×4, collider +
   // occluder idênticos); tudo que foi somado é collide:false.
-  const poleMat = lam({ color: 0x53595f, roughness: 0.65, metalness: 0.35 });
+  const poleMat = lam({ color: 0x53595f, roughness: 0.30, metalness: 0.80, envMapIntensity: 1.7 });   // poste galvanizado: cilindro = risco de sol vertical
   const lampMat = new THREE.MeshBasicMaterial({ color: 0xdfe7f2 });
   for (const [x, z] of [[-34, 22], [34, 22], [-34, 46], [34, 46], [-14, 54], [14, 54], [-14, 34], [14, 34]]) {
     addBox(0.4, 4, 0.4, poleMat, x, 0, z);                                  // tronco (collider/LOS inalterados)
     if (!DECO) continue;
     addBox(0.9, 0.35, 0.9, MAT.curb, x, 0, z, { collide: false });          // sapata de concreto
     const up = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.17, 2.6, 8), poleMat);
-    up.position.set(x, 5.3, z); up.castShadow = true; root.add(up);         // continuação afinando
+    up.position.set(x, 5.3, z); up.castShadow = true; deco(up);             // continuação afinando
     const dir = x < 0 ? 1 : -1;                                             // braço aponta pro pátio
     const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.09, 1.5, 6), poleMat);
-    arm.rotation.z = dir * Math.PI / 2.6; arm.position.set(x + dir * 0.62, 6.5, z); arm.castShadow = true; root.add(arm);
+    arm.rotation.z = dir * Math.PI / 2.6; arm.position.set(x + dir * 0.62, 6.5, z); arm.castShadow = true; deco(arm);
     addBox(0.9, 0.2, 0.42, poleMat, x + dir * 1.25, 6.55, z, { collide: false });   // luminária
     const bulb = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 0.36), lampMat);
-    bulb.rotation.x = Math.PI / 2; bulb.position.set(x + dir * 1.25, 6.54, z); root.add(bulb);
+    bulb.rotation.x = Math.PI / 2; bulb.position.set(x + dir * 1.25, 6.54, z); bulb.castShadow = false; deco(bulb);
   }
 
   // ===== RÉPLICA DA CASA BRANCA (gabarito: toda Havan tem uma ao lado da Estátua) =====
@@ -884,20 +1062,20 @@ export function buildHavan(scene, T) {
     for (let i = 0; i < 6; i++) {
       const cz = CW.z - 4.5 + i * 1.8;
       const col = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.36, 7.2, 10), wh);
-      col.position.set(px0, 3.6, cz); col.castShadow = true; root.add(col);
+      col.position.set(px0, 3.6, cz); col.castShadow = true; deco(col);
     }
     addBox(2.2, 0.7, 12, whRoof, px0, 7.2, CW.z, { collide: false });
     const tri = new THREE.Shape(); tri.moveTo(-6, 0); tri.lineTo(6, 0); tri.lineTo(0, 2.2); tri.closePath();
     const fr = new THREE.Mesh(new THREE.ExtrudeGeometry(tri, { depth: 1.6, bevelEnabled: false }), wh);
-    fr.rotation.y = Math.PI / 2; fr.position.set(px0 + 1.1, 7.9, CW.z); fr.castShadow = true; root.add(fr);
+    fr.rotation.y = Math.PI / 2; fr.position.set(px0 + 1.1, 7.9, CW.z); fr.castShadow = true; deco(fr);
     // rotunda + cúpula rasa no miolo (a leitura de "Casa Branca" vem daqui de longe)
     const rot = new THREE.Mesh(new THREE.CylinderGeometry(4.2, 4.2, 2.4, 20), wh);
-    rot.position.set(CW.x, 9.2, CW.z); rot.castShadow = true; root.add(rot);
+    rot.position.set(CW.x, 9.2, CW.z); rot.castShadow = true; deco(rot);
     // hemisfério inteiro achatado: a calota parcial anterior lia como uma "foice" flutuando
     const dome = new THREE.Mesh(new THREE.SphereGeometry(4.2, 20, 10, 0, Math.PI * 2, 0, Math.PI / 2), whRoof);
-    dome.scale.y = 0.72; dome.position.set(CW.x, 10.4, CW.z); dome.castShadow = true; root.add(dome);
+    dome.scale.y = 0.72; dome.position.set(CW.x, 10.4, CW.z); dome.castShadow = true; deco(dome);
     const lant = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.9, 1.8, 10), wh);   // lanternim
-    lant.position.set(CW.x, 13.6, CW.z); lant.castShadow = true; root.add(lant);
+    lant.position.set(CW.x, 13.6, CW.z); lant.castShadow = true; deco(lant);
   }
 
   // ===== luz / céu / névoa leve =====
@@ -905,7 +1083,13 @@ export function buildHavan(scene, T) {
   // duas iguais, sem troca de temperatura na porta. Agora sol QUENTE de meio-dia brasileiro
   // + rebote do asfalto quente vindo de baixo, contra a fluorescente FRIA lá dentro.
   scene.background = T.sky || new THREE.Color(0x9fb8cc);
-  if (QP.get('nofog') !== '1') scene.fog = new THREE.Fog(0xb9c8d2, 85, 210);   // haze de calor, não névoa
+  /* NÉVOA R9: linear 85→210 era o mesmo que NÃO TER névoa — o estacionamento inteiro cabe
+     dentro dos primeiros 85 m, então nenhum pixel do mapa jogável recebia um grama de haze
+     e o muro do fundo lia com o MESMO microcontraste do meio-fio a 3 m. Agora FogExp2
+     ρ = 0,0088: 6,7 % a 30 m, 24 % a 60 m, 54 % a 100 m e 92 % a 180 m. A cor-base saiu de
+     0xb9c8d2 (chute) pro azul MEDIDO do céu logo acima da silhueta do muro, que é o que
+     apaga a aresta; o calor volta pelo termo de contraluz. ?nofog=1 / ?fog2=0. */
+  if (QP.get('nofog') !== '1') scene.fog = makeAerialFog('fy_havan');
   /* RAZÃO SOL/HEMI (item 8 da revisão; alvo: ΔL* sol↔sombra ≥ 26 no asfalto).
      Estava sol 1,65 / hemi 1,15 — razão 1,43. Com o sol quase a pino (elevação ~65°, ou
      seja N·L ≈ 0,90 no chão), o asfalto iluminado ficava só ~3,1× a sombra, que depois do
@@ -974,6 +1158,16 @@ export function buildHavan(scene, T) {
   ['ak', 'm4', 'mp5', 'shotgun'].forEach((k, i) => place(k, -9 + i * 6, -13));
   place('awp', 0, MZ.z0 + 2); place('m400', -10, MZ.z0 + 2);   // snipers no mezanino
   ['deagle', 'ak', 'm4', 'shotgun', 'mp5', 'awp'].forEach((k, i) => place(k, -25 + i * 10, 44));   // estacionamento
+
+  // saia de contato: todas as bases registradas viram UMA malha mesclada = 1 draw call
+  SKIRT.build(root);
+  /* MERGE + INSTANCING (têm que rodar DEPOIS de todo mundo registrar).
+     Ordem importa só pro PAINT_BATCH: ele carrega renderOrder 1 e materiais transparentes,
+     e sai da mesma forma que os planos individuais saíam. */
+  DECO_BATCH.build(root);
+  PAINT_BATCH.build(root);
+  PROPS.build(root);
+  PROPS_LOJA.build(root);
 
   return {
     root, colliders, occluders, groundHeightAt, spawns, sun, hemi, pickups, doors, ctfPoints,

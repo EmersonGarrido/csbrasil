@@ -5,6 +5,8 @@
 // collidered from their actual bounds. Same contract as buildWorld().
 import * as THREE from 'three';
 import { placeProp } from './mapprops.js';
+import { VAO_BANDS, aoBoxGeo, aoMatFactory, ContactSkirt, BASE_FLOATING, onGround } from './vao.js';
+import { makeAerialFog } from './bloom.js';   // névoa exponencial + cor por direção do olhar
 
 export function buildBrasilia(scene, T) {
   const colliders = [];   // {minX,minY,minZ,maxX,maxY,maxZ}
@@ -15,11 +17,21 @@ export function buildBrasilia(scene, T) {
   // PBR: era MeshLambertMaterial (chapado). Standard reage ao env map (IBL) e à luz com
   // roughness/metalness — mesmo com map/color, ganha ambiente e sombreamento real.
   const lam = (opts) => new THREE.MeshStandardMaterial({ roughness: 0.92, metalness: 0.0, ...opts });
+  /* AO DE VÉRTICE (critério A1). Toda caixa procedural ganha faixas de escurecimento na
+     base + uma saia de contato no chão. Ver vao.js para a calibração dos multiplicadores.
+     `opts.vao === false` isenta caixas onde o efeito seria errado (volume invisível). */
   function addBox(w, h, d, mat, x, y, z, opts = {}) {
-    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+    const vao = VAO_BANDS && opts.vao !== false && mat && mat.visible !== false;
+    // `solo` é geométrico, não depende do gate de faixas — assim `?vao=skirt` (A/B do
+    // agente de captura) ainda emite a saia. SKIRT.add já checa o próprio kill-switch.
+    const solo = onGround(y, h) && !opts.rx && !opts.rz;
+    const geo = vao ? aoBoxGeo(w, h, d, { low: LOWQ, base: solo ? undefined : BASE_FLOATING })
+      : new THREE.BoxGeometry(w, h, d);
+    const m = new THREE.Mesh(geo, vao ? aoMat(mat) : mat);
     m.position.set(x, y + h / 2, z);
     m.castShadow = opts.cast !== false; m.receiveShadow = true;
     if (opts.ry) m.rotation.y = opts.ry;
+    if (solo && opts.skirt !== false) SKIRT.add(x, y, z, w, d, opts.ry || 0);
     root.add(m);
     if (opts.collide !== false) {
       const pad = opts.pad || 0;
@@ -52,6 +64,9 @@ export function buildBrasilia(scene, T) {
   const DETAIL = QP.get('props') === '0' ? 0 : (LOWQ ? 1 : 2);   // 0=nada, 1=essencial, 2=cheio
   const BIG = QP.get('bigscale') !== '0';   // ?bigscale=0 volta à escala antiga dos landmarks
   const SKY2 = QP.get('sky') !== '0';       // ?sky=0 volta ao céu/luz antigos
+  // AO de vértice: `?vao=0` desliga; em 'low' cai de 3 faixas para 1 (ver vao.js)
+  const aoMat = aoMatFactory();
+  const SKIRT = new ContactSkirt({ low: LOWQ });
 
   /* ---------------- texturas locais do cerrado (NÃO mexer em textures.js) ------------- */
   // textures.js é do agente GRÁFICOS-CORE; tudo que é específico de Brasília nasce aqui.
@@ -387,15 +402,34 @@ export function buildBrasilia(scene, T) {
     // o contraste com o branco polido é o assunto do edifício.
     concCru: triplanar(lam({ color: 0x93938c, roughness: 0.96 }), TX_FORMA, 0.42),
     // granito preto tem veio também; sem mapa ele vira outro plano chapado (escuro, mas chapado)
-    granitoPreto: triplanar(lam({ color: 0x33353a, roughness: 0.42, metalness: 0.05 }), TX_MARM, 0.9),
-    corten: lam({ color: 0x7a4a32, roughness: 0.7, metalness: 0.5 }),             // mastro
-    vidroFume: lam({ color: 0x2b3237, roughness: 0.14, metalness: 0.55 }),        // fachadas dos ministérios
-    aco: lam({ color: 0x9aa0a6, roughness: 0.5, metalness: 0.6 }),
+    /* ESPECULARES — RECALIBRAÇÃO R9 (o frame não tinha TOPO).
+       Medido: 0,002 % dos pixels acima de L* 97 nos 96 frames das três rodadas, alvo
+       0,2-0,6 %. Ou seja: NENHUM especular clipava em lugar nenhum. A causa é contra-
+       intuitiva — os materiais espelhados estavam LISOS DEMAIS. Com uma luz direcional
+       (delta de Dirac), o lóbulo GGX de roughness 0,06-0,14 tem meio-ângulo de 0,1-0,6°:
+       o brilho existe, é intensíssimo, e cabe em MENOS DE UM PIXEL. Subindo pra 0,20-0,34
+       o pico continua bem acima do ponto branco do AgX (que nesta exposição exige
+       radiância de cena ≥ 2,9), mas agora espalhado por 2-4° — o que num cilindro/curva vira
+       um RISCO de dezenas de pixels que estoura de verdade. `envMapIntensity` sobe junto
+       porque é ele que sustenta a MEIA-LUZ da reflexão em volta do risco (o IBL é o
+       gradiente de céu do game.js, e a 1,0 ele lia como se não houvesse reflexo nenhum). */
+    granitoPreto: triplanar(lam({ color: 0x33353a, roughness: 0.34, metalness: 0.18, envMapIntensity: 1.6 }), TX_MARM, 0.9),
+    corten: lam({ color: 0x7a4a32, roughness: 0.52, metalness: 0.62, envMapIntensity: 1.5 }),   // mastro
+    // vidro fumê dos ministérios. metalness BAIXA de propósito: vidro é dielétrico. Com metalness 0.7 sobre uma cor
+    // quase preta o F0 cairia pra 0,03 e o reflexo do sol sumiria de novo — o brilho de
+    // fachada de vidro vem do Fresnel (F->1 na rasante), não de tratar vidro como metal.
+    vidroFume: lam({ color: 0x2b3237, roughness: 0.20, metalness: 0.10, envMapIntensity: 2.4 }),
+    aco: lam({ color: 0x9aa0a6, roughness: 0.32, metalness: 0.85, envMapIntensity: 1.8 }),
     pintBranca: lam({ color: 0xdedbd2, roughness: 0.7 }),
     asfalto: lam({ map: ctex(asfaltoTex(), 8, 40), roughness: 0.95 }),
-    agua: lam({ color: 0x2f6ea0, roughness: 0.06, metalness: 0.35, transparent: true, opacity: 0.88 }),
-    bronze: lam({ color: 0x5d6b4e, roughness: 0.55, metalness: 0.45 }),           // pátina verde-escura
+    // lâmina d'água do espelho: 0.06 = espelho perfeito de uma fonte pontual = ponto
+    // invisível. 0.24 abre o rastro de sol na água (o "glitter path") pra vários pixels.
+    agua: lam({ color: 0x2f6ea0, roughness: 0.24, metalness: 0.55, envMapIntensity: 2.2, transparent: true, opacity: 0.88 }),
+    bronze: lam({ color: 0x5d6b4e, roughness: 0.40, metalness: 0.78, envMapIntensity: 1.7 }),   // pátina verde-escura
   };
+  // mármore polido da colunata: o mapa de veio já quebra o hotspot chapado (r2), então aqui
+  // só entra o ganho de IBL — sem ele o branco do Congresso não tem para onde subir.
+  MAT.marmore.envMapIntensity = 1.35;
   const invis = new THREE.MeshBasicMaterial({ visible: false });
   // Materiais r2: piso da lane, mato de rachadura e as três massas de flor do ipê.
   const TX_PISO = ctex(pisoConcTex(), 1, 1);
@@ -443,7 +477,7 @@ export function buildBrasilia(scene, T) {
 
   // Place a Mint building GLB, normalized to targetH metres, and derive a footprint
   // collider from its real placed bounds. Returns the object (or null if not loaded).
-  function putBuilding(id, { x, z, targetH, ry = 0, solid = true, y = 0, occ = true, dress = null }) {
+  function putBuilding(id, { x, z, targetH, ry = 0, solid = true, y = 0, occ = true, dress = null, skirt = true }) {
     const o = placeProp(id, { x, z, targetH, ry, y });
     if (!o) return null;
     if (dress) dressGLB(o, dress);
@@ -451,6 +485,16 @@ export function buildBrasilia(scene, T) {
     o.updateMatrixWorld(true);
     const bb = new THREE.Box3().setFromObject(o);
     if (solid) col(bb.min.x, bb.max.x, y, Math.max(1, bb.max.y), bb.min.z, bb.max.z);
+    // AO de contato também para os LANDMARKS GLB. A geometria deles é template compartilhado
+    // entre clones (placeProp faz clone(true)), então gravar `color` na malha contaminaria
+    // todas as instâncias — mas a SAIA é geometria nova em espaço de mundo e não tem esse
+    // problema. É o que faz o Congresso/Catedral/Ministério pararem de flutuar sobre o gramado.
+    // O anel nasce 6 % PARA DENTRO da bounding box: a pegada real de um GLB é menor que o
+    // AABB, e sem o recuo os quatro cantos do anel apareceriam como quadrados escuros no
+    // gramado. `skirt: false` nos landmarks de planta redonda (catedral, pilha de pneus),
+    // onde nenhum recuo salva um anel retangular.
+    if (skirt && y <= 0.35) SKIRT.add((bb.min.x + bb.max.x) / 2, y, (bb.min.z + bb.max.z) / 2,
+      (bb.max.x - bb.min.x) * 0.94, (bb.max.z - bb.min.z) * 0.94, 0);
     // O GLB é um Group e o raycast de bala/LOS do game.js é NÃO-recursivo — sem uma caixa
     // MESH invisível a bala atravessa o prédio inteiro (mesmo bug já corrigido no ônibus).
     // Sem isso não existe "cobertura" nenhuma nos ângulos longos da Esplanada.
@@ -531,7 +575,7 @@ export function buildBrasilia(scene, T) {
   // white ribs stay visible outside the glass, like the real Niemeyer crown.
   // Catedral: 40 m no real. 30 m recuada a -108 (era 13 m a -76, "minúscula no fundo").
   const CAT_H = BIG ? 30 : 13, CAT_Z = BIG ? -108 : -76, CAT_S = CAT_H / 13;
-  putBuilding('catedral', { x: 0, z: CAT_Z, targetH: CAT_H, ry: 0, occ: false, dress: MAT.concBranco });   // cone: AABB bloquearia bala nos cantos
+  putBuilding('catedral', { x: 0, z: CAT_Z, targetH: CAT_H, ry: 0, occ: false, dress: MAT.concBranco, skirt: false });   // cone: AABB bloquearia bala nos cantos
   {
     // O perfil do vitral foi medido pra targetH 13; escala junto com a coroa (CAT_S).
     const profile = [[9.6, 0.3], [9.35, 1], [8.35, 2], [7.3, 3], [6.3, 4], [4.6, 5],
@@ -833,7 +877,7 @@ export function buildBrasilia(scene, T) {
   // Tire-pile barricades (Mint) as the main lane cover — the protest look.
   for (const [tx, tz, ry] of [[-6, -14, 0.3], [7, 12, -0.4], [-8, 26, 0.8], [9, -26, 0.2],
     [10, 3, 0], [-10, -3, 1.1], [4, 34, 0.5], [-4, -34, -0.3]])
-    putBuilding('tires', { x: tx, z: tz, targetH: 1.6, ry });
+    putBuilding('tires', { x: tx, z: tz, targetH: 1.6, ry, skirt: false });
   // Barraquinhas de camelô (vendor stalls)
   putBuilding('stall', { x: -13, z: -8, targetH: 2.7, ry: Math.PI / 2 });
   putBuilding('stall', { x: 13, z: 8, targetH: 2.7, ry: -Math.PI / 2 });
@@ -1110,11 +1154,15 @@ export function buildBrasilia(scene, T) {
     sk.wrapS = sk.wrapT = THREE.ClampToEdgeWrapping;
     scene.background = sk;
   } else scene.background = T.sky;
-  // FOG: no Planalto Central o ar é seco e rarefeito — os primeiros ~100 m NÃO têm haze
-  // nenhum (era near=100/far=260, que lavava a lane inteira). O que existe é a poeira da
-  // seca deixando o HORIZONTE amarelado. Daí near alto + far longe + cor de poeira, não azul.
-  // ?nofog=1 desliga (escape hatch padrão do projeto).
-  if (QP.get('nofog') !== '1') scene.fog = new THREE.Fog(SKY2 ? 0xd6ccae : 0xbfd8ee, SKY2 ? 130 : 100, SKY2 ? 360 : 260);
+  // FOG: continua valendo que no Planalto o ar é seco e os primeiros metros não têm haze —
+  // o que muda é a CURVA. A névoa linear (near 130 / far 360) só tinha apagado 43 % do
+  // terreno no ponto em que o plano de chão de 420 × 460 m ACABA (~220 m): sobrava uma
+  // aresta reta de "parede de neblina" no horizonte de awp-169-a. A FogExp2 (ρ = 0,0066)
+  // vale 1,7 % a 20 m, 6,7 % a 40 m, 24 % a 80 m e 88 % a 220 m: não vela a lane e apaga a
+  // borda. A cor bege fixa (0xd6ccae) era a outra metade do problema — o céu MEDIDO logo
+  // acima daquela silhueta é azul-acinzentado, não poeira; agora a base é o azul medido e a
+  // poeira quente aparece só de contraluz (ver AERIAL no bloom.js). ?nofog=1 / ?fog2=0.
+  if (QP.get('nofog') !== '1') scene.fog = SKY2 ? makeAerialFog('awp_map') : new THREE.Fog(0xbfd8ee, 100, 260);
   const sunSpr = new THREE.Sprite(new THREE.SpriteMaterial({ map: T.sunSprite, transparent: true, fog: false, depthWrite: false }));
   sunSpr.position.set(170, 118, -75); sunSpr.scale.setScalar(58); root.add(sunSpr);
   // Céu de seca: pouquíssima nuvem, e alta/rala. Nuvem gorda de verão mata a leitura.
@@ -1235,6 +1283,9 @@ export function buildBrasilia(scene, T) {
   // Bolsonaristas start at the Cathedral (south) end, Petistas at the Congresso (north)
   // end — swapped per request.
   const spawns = { B: mk(-1), P: mk(1) };
+
+  // saia de contato: TODAS as bases registradas viram UMA malha mesclada = 1 draw call
+  SKIRT.build(root);
 
   return {
     root, colliders, occluders, groundHeightAt, spawns, sun, hemi,

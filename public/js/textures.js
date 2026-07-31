@@ -156,13 +156,23 @@ function concreteBase(w = 256, h = 256, base = '#9a938a', dark = '#7d766d') {
   return c;
 }
 
+/* R3 — DESSATURAÇÃO DE ALBEDO (critério C2 da RÉGUA: cenário em S 0,10-0,30 e no máximo
+   5 % dos pixels acima de S 0,55, com esses 5 % reservados a elemento FUNCIONAL).
+   O que estava errado: as texturas de TERRA e MATO nasciam com S 0,48-0,54 no albedo.
+   Como todo mapa tem sol quente, croma de albedo MULTIPLICA croma de luz e a superfície
+   mais extensa do frame saía acima de 0,55 sozinha — com o teto estourado pelo chão, a
+   bandeira de captura e a placa vermelha param de significar alguma coisa.
+   Kill-switch: ?texsat=1 volta os albedos quentes anteriores. Custo zero (é hex): não há
+   nada a degradar em quality 'low'. */
+const TEX_SAT_HOT = new URLSearchParams(location.search).get('texsat') === '1';
+
 export function initTextures() {
   const T = {};
 
   // --- ground / structure ---
   const gc = concreteBase(1024, 1024, '#a89e90', '#8d8375');
   { const x = gc.getContext('2d');
-    stains(x, 1024, 1024, 22, 'rgba(120,80,40,0.16)');            // dust
+    stains(x, 1024, 1024, 22, TEX_SAT_HOT ? 'rgba(120,80,40,0.16)' : 'rgba(120,102,84,0.16)');   // poeira (R3: S 0,67 → 0,30)
     stains(x, 1024, 1024, 8, 'rgba(35,33,30,0.22)');              // oil stains
     x.strokeStyle = 'rgba(60,55,48,0.5)'; x.lineWidth = 3;        // expansion joints
     for (let i = 0; i <= 4; i++) {
@@ -192,18 +202,25 @@ export function initTextures() {
     macro(x, 256, 256, 5, ['rgba(150,148,146,0.13)', 'rgba(25,24,23,0.16)']);
     T.asphalt = withDetail(tex(c, 4, 4), c, 2.0, 0.66, 0.99);
   }
-  { // dirt (MST camp)
+  { /* dirt (MST camp) — R3: base #8a6b48 tinha S 0,478. Terra é a superfície mais EXTENSA
+       onde ela aparece, e croma de albedo multiplica croma de luz (todos os mapas têm sol
+       quente): 0,478 no albedo vira 0,65+ na tela e sozinha estoura o teto de 5 % de C2.
+       Alvo do gabarito para textura base de terra/areia/asfalto: S 0,20-0,30. Aqui: 0,26,
+       matiz 31° intacto — é o hue que diz "terra brasileira", não a saturação. */
     const c = canvas(256, 256), x = c.getContext('2d');
-    x.fillStyle = '#8a6b48'; x.fillRect(0, 0, 256, 256);
-    noiseOver(x, 256, 256, 0.35, ['#75583a', '#9c7d56', '#63482e']);
-    macro(x, 256, 256, 5, ['rgba(60,44,26,0.22)', 'rgba(170,140,100,0.16)']);
+    x.fillStyle = TEX_SAT_HOT ? '#8a6b48' : '#8a7866'; x.fillRect(0, 0, 256, 256);
+    noiseOver(x, 256, 256, 0.35, TEX_SAT_HOT ? ['#75583a', '#9c7d56', '#63482e'] : ['#756654', '#9c8e7c', '#63584a']);
+    macro(x, 256, 256, 5, TEX_SAT_HOT ? ['rgba(60,44,26,0.22)', 'rgba(170,140,100,0.16)'] : ['rgba(60,50,38,0.22)', 'rgba(170,152,128,0.16)']);
     T.dirt = withDetail(tex(c, 3, 3), c, 3.0, 0.80, 1.0);
   }
-  { // grass patches
+  { /* grass patches — R3: base #5f7d3a tinha S 0,536. Mato é o único verde do cenário e
+       precisa contrastar com a terra, mas esse contraste vem do MATIZ (85° contra 31°),
+       não do croma. S 0,32: fica acima do teto de terra (é vegetação viva) e ainda assim
+       longe de 0,55, que fica reservado a bandeira/placa/barril/cone. */
     const c = canvas(128, 128), x = c.getContext('2d');
-    x.fillStyle = '#5f7d3a'; x.fillRect(0, 0, 128, 128);
-    noiseOver(x, 128, 128, 0.4, ['#4c682e', '#73924a', '#87a355']);
-    macro(x, 128, 128, 4, ['rgba(40,58,24,0.24)', 'rgba(140,160,90,0.14)']);
+    x.fillStyle = TEX_SAT_HOT ? '#5f7d3a' : '#677d55'; x.fillRect(0, 0, 128, 128);
+    noiseOver(x, 128, 128, 0.4, TEX_SAT_HOT ? ['#4c682e', '#73924a', '#87a355'] : ['#556848', '#7b9265', '#8ea37a']);
+    macro(x, 128, 128, 4, TEX_SAT_HOT ? ['rgba(40,58,24,0.24)', 'rgba(140,160,90,0.14)'] : ['rgba(46,58,38,0.24)', 'rgba(148,160,124,0.14)']);
     T.grass = withDetail(tex(c, 2, 2), c, 2.4, 0.80, 1.0);
   }
   { // Caixa dos Correios (SEDEX) — papelão com a faixa amarela e o "C" azul

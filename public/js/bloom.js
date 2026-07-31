@@ -50,26 +50,48 @@ const QP = () => new URLSearchParams(location.search);
 //   exposição -> L* médio alvo do mapa   |   piso -> ~1 % dos pixels abaixo de L* 3.
 // Previsão (média dos 8 frames): pool_day 48,1 > havan 46,0 > awp_map 44,1 > ferrovelho 42,0,
 // com p1 ≈ 3 e blk 0,86-1,03 % em todos. `expAces` é só o fallback de ?lowtone=0.
+//
+// AJUSTE R9 — SÓ DOIS MAPAS SE MEXEM. Medição dos 8 frames de cada mapa em /root/shots/r2
+// (frame inteiro, sem máscara): pool_day 45,20 e ferrovelho 39,86 estão no alvo ou na borda
+// e ficam INTOCADOS. Os outros dois saíram do lugar:
+//   • awp_map  L* médio 36,36 (alvo 42-48) — a laje de asfalto de awp-169-a mede L* 15,0
+//     com mínimo 0,8: voltou a ser buraco preto. Exposição 1,63 -> 2,40.
+//   • fy_havan 2,295 % do frame em L* < 3 (limite 1,0 %) — o asfalto do estacionamento
+//     estava ESMAGADO, não escuro. Aqui o remédio é o PISO, não a exposição: com
+//     floor·exposure ≈ 0,0090 o pixel mais escuro possível cai em L* ≈ 4,2 (acima do 3)
+//     em vez de 3,04, que era exatamente em cima da linha. Exposição 1,24 -> 1,50.
+// Ambos resolvidos por `tools/eval/tone_r3.py`, que inverte ESTE composite em cima dos PNGs
+// da r2 (round-trip bate a média medida com erro < 0,02 L* e o %blk com erro < 0,02 pp).
+// Previsão: awp_map 36,4 -> 42,3 com blk 0,00 % e p1 5,0;  havan 40,4 -> 43,6 com blk
+// 2,26 % -> 0,00 % e p1 2,6 -> 4,0.
 const LOOKS = {
-  awp_map:       { exposure: 1.63, floor: 0.0048, expAces: 1.70 },   // Brasília, meio-dia seco
-  praca_old:     { exposure: 1.63, floor: 0.0048, expAces: 1.70 },
+  awp_map:       { exposure: 2.40, floor: 0.0042, expAces: 2.61 },   // Brasília, meio-dia seco
+  praca_old:     { exposure: 2.40, floor: 0.0042, expAces: 2.61 },
   fy_pool_day:   { exposure: 1.92, floor: 0.0039, expAces: 1.91 },   // Piscinão: TEM que ser o mais claro
-  fy_havan:      { exposure: 1.24, floor: 0.0057, expAces: 1.28 },
+  fy_havan:      { exposure: 1.50, floor: 0.0060, expAces: 1.59 },
   fy_ferrovelho: { exposure: 1.66, floor: 0.0041, expAces: 1.76 },
 };
 // id desconhecido cai no awp_map em maps.js (DEFAULT_MAP) — o look padrão tem que ser o
 // MESMO, senão o mapa que roda e a curva que é aplicada divergem.
-const DEFAULT_LOOK = { exposure: 1.63, floor: 0.0048, expAces: 1.70 };
+const DEFAULT_LOOK = { exposure: 2.40, floor: 0.0042, expAces: 2.61 };
 // saturação do AgX (uLook.z). A R7 baixou 1.05→1.02 E empurrou a exposição pro ombro do AgX,
 // que dessatura por construção — somados, derrubaram a saturação HSV medida em 30-64 %
 // (ferro velho 0,54→0,27). Com a exposição de volta ao lugar, 1.12 devolve 21-42 % disso.
 const LOOK_SAT = 1.12;
 
-function currentLook() {
-  let id = null;
+function currentMapId() {
   try {
-    id = QP().get('map') || (JSON.parse(localStorage.getItem('awpbr_settings') || '{}').map);
-  } catch (e) { /* localStorage bloqueado — cai no default */ }
+    return QP().get('map') || (JSON.parse(localStorage.getItem('awpbr_settings') || '{}').map) || null;
+  } catch (e) { return null; }   // localStorage bloqueado — cai no default
+}
+function currentQuality() {
+  try {
+    return QP().get('q') || (JSON.parse(localStorage.getItem('awpbr_settings') || '{}').quality) || 'med';
+  } catch (e) { return 'med'; }
+}
+
+function currentLook() {
+  const id = currentMapId();
   const base = LOOKS[id] || DEFAULT_LOOK;
   const q = QP();
   const exp = parseFloat(q.get('exp'));
@@ -81,6 +103,144 @@ function currentLook() {
     sat: isFinite(sat) ? sat : LOOK_SAT,
     expAces: isFinite(exp) ? exp : base.expAces,
   };
+}
+
+/* ================================================================
+   PERSPECTIVA AÉREA — FogExp2 radial + cor de névoa dependente da direção do olhar
+   ================================================================
+   O DEFEITO (medido nas três rodadas): a razão de contraste local LONGE/PERTO era 1,13-2,42
+   nos quatro mapas — o FUNDO do frame com MAIS microcontraste que o primeiro plano, que é o
+   inverso exato do que a atmosfera faz. Somado a isso, em awp-169-a havia uma BORDA DURA de
+   terreno distante (o plano de chão de 420 × 460 m acaba a ~220 m e a névoa linear só tinha
+   apagado 43 % dele naquele ponto: uma parede de neblina com aresta).
+   Três correções, todas aqui pra valerem nos quatro mapas de uma vez:
+
+   (1) `THREE.Fog` linear -> `THREE.FogExp2`. A névoa linear é ZERO até `near` e depois sobe
+       em rampa: ou ela vela a lane de tiro, ou não chega a apagar o fim do mapa. A
+       exponencial ao quadrado é ~0 nos primeiros 30 m (f < 4 %) e satura sozinha depois de
+       200-300 m — que é exatamente o perfil da atmosfera real e o que mata a borda dura.
+
+   (2) DISTÂNCIA RADIAL em vez de profundidade planar. O three usa `-mvPosition.z`, então
+       um pixel no canto do frame (que está mais LONGE que o do centro, para o mesmo z de
+       view) recebia MENOS névoa — é a "parede de névoa" curva que aparece quando se gira a
+       câmera. Aqui vFogPosV carrega a posição de view inteira e a distância é `length()`.
+
+   (3) COR DA NÉVOA POR DIREÇÃO DO OLHAR. Espalhamento de Mie é fortemente para a frente:
+       olhando NA direção do sol a névoa é clara e quente (o "glow" de contraluz); olhando
+       de costas ela é escura e azul. Uma cor fixa é o que fazia o horizonte do Ferro Velho
+       (fog 0xd9b98c, bege) brigar com o céu azul medido logo acima da silhueta (0xa5c5e5) —
+       e é a briga que desenha a aresta. As duas pontas são DERIVADAS de `fog.color` em luz
+       linear (não são duas cores soltas que alguém tem que manter em sincronia).
+
+   As cores-base de cada mapa NÃO foram escolhidas no olho: `tools/eval/r3_fog.py` recorta,
+   nos 8 frames de cada mapa, as 14 linhas de céu imediatamente acima da silhueta, inverte
+   este composite inteiro (AgX + piso + vinheta + exposição) e devolve a radiância linear
+   medida. Onde o terreno encontra o céu, névoa e céu passam a ter o MESMO valor.
+
+   Kill-switches: `?fog2=0` (volta ao fog linear de antes, por mapa) · `?nofog=1` (sem
+   névoa nenhuma, já existia) · `?fogd=0.008` (densidade manual, p/ A/B do capturador).
+   Degradação: em quality 'low' a componente direcional é desligada (uFogSun.w = 0), o que
+   remove ~12 ALU/fragmento e faz o shader cair no `fogColor` puro — a névoa continua lá.
+*/
+const AERIAL = {
+  //                 densidade   cor-base medida do céu    direção do sol (posição da
+  //                             logo acima da silhueta     DirectionalLight do mapa)
+  awp_map:       { d: 0.0066, color: 0x7d9cbb, sun: [90, 62, -40], dir: 0.90 },
+  praca_old:     { d: 0.0066, color: 0x7d9cbb, sun: [38, 58, -14], dir: 0.90 },
+  fy_pool_day:   { d: 0.0078, color: 0x93b9df, sun: [14, 76, -9],  dir: 0.85 },
+  fy_havan:      { d: 0.0088, color: 0xa3c4e5, sun: [18, 55, 20],  dir: 0.80 },
+  fy_ferrovelho: { d: 0.0112, color: 0xa5c5e5, sun: [-46, 20, 32], dir: 1.00 },
+};
+const AERIAL_DEFAULT = AERIAL.awp_map;
+
+// Uniform COMPARTILHADO por todos os materiais. Float32Array de propósito: `cloneUniforms`
+// do three clona Color/Vector/Matrix mas passa TypedArray por REFERÊNCIA — então um único
+// array aqui chega em cada material sem varredura nem sincronia por frame. xyz = direção
+// do sol em MUNDO, w = força do termo direcional (0 desliga o bloco inteiro no shader).
+const _fogSun = new Float32Array([0, 1, 0, 0]);
+
+// mesma matemática do FogExp2 do three, só que sobre a distância RADIAL (ver (2) acima)
+const FOG_VERT_PARS = '#ifdef USE_FOG\n\tvarying vec3 vFogPosV;\n#endif';
+const FOG_VERT = '#ifdef USE_FOG\n\tvFogPosV = mvPosition.xyz;\n#endif';
+const FOG_FRAG_PARS = `#ifdef USE_FOG
+	uniform vec3 fogColor;
+	uniform vec4 uFogSun;
+	varying vec3 vFogPosV;
+	#ifdef FOG_EXP2
+		uniform float fogDensity;
+	#else
+		uniform float fogNear;
+		uniform float fogFar;
+	#endif
+#endif`;
+const FOG_FRAG = `#ifdef USE_FOG
+	float owfD = length( vFogPosV );
+	#ifdef FOG_EXP2
+		float fogFactor = 1.0 - exp( - fogDensity * fogDensity * owfD * owfD );
+	#else
+		float fogFactor = smoothstep( fogNear, fogFar, owfD );
+	#endif
+	vec3 owfC = fogColor;
+	// uFogSun.w == 0 => material sem o uniform (ShaderMaterial de terceiro), quality 'low'
+	// ou ?fog2=0. Nesse caso o bloco inteiro some e sobra o fog de cor fixa: fail-safe.
+	if ( uFogSun.w > 0.001 ) {
+		vec3 owfS = normalize( ( viewMatrix * vec4( uFogSun.xyz, 0.0 ) ).xyz );
+		float owfA = smoothstep( -0.35, 0.90, dot( normalize( vFogPosV ), owfS ) );
+		// contraluz: mais claro e mais quente (Mie para a frente); de costas: mais escuro e azul
+		vec3 owfHot = min( fogColor * vec3( 2.30, 1.35, 0.72 ) + vec3( 0.045, 0.022, 0.006 ), vec3( 2.0 ) );
+		vec3 owfCold = fogColor * vec3( 0.80, 0.92, 1.12 );
+		owfC = mix( fogColor, mix( owfCold, owfHot, owfA ), uFogSun.w );
+	}
+	gl_FragColor.rgb = mix( gl_FragColor.rgb, owfC, fogFactor );
+#endif`;
+
+let _fogPatched = null;
+function patchFogChunks() {
+  if (_fogPatched !== null) return _fogPatched;
+  _fogPatched = false;
+  try {
+    if (QP().get('fog2') === '0') return false;
+    const SC = THREE.ShaderChunk;
+    // só troca se o vendor for MESMO o r160 esperado — se o chunk mudar de forma, não mexe
+    if (!SC || typeof SC.fog_fragment !== 'string' || SC.fog_fragment.indexOf('vFogDepth') < 0) return false;
+    SC.fog_pars_vertex = FOG_VERT_PARS;
+    SC.fog_vertex = FOG_VERT;
+    SC.fog_pars_fragment = FOG_FRAG_PARS;
+    SC.fog_fragment = FOG_FRAG;
+    // o uniform precisa existir no objeto de uniforms de CADA shader que usa névoa. O
+    // ShaderLib já foi montado no import do three, então não basta mexer no UniformsLib.
+    const u = { value: _fogSun };
+    if (THREE.UniformsLib && THREE.UniformsLib.fog) THREE.UniformsLib.fog.uFogSun = u;
+    for (const k in THREE.ShaderLib) {
+      const uni = THREE.ShaderLib[k] && THREE.ShaderLib[k].uniforms;
+      if (uni && uni.fogColor) uni.uFogSun = u;
+    }
+    _fogPatched = true;
+  } catch (e) { _fogPatched = false; }
+  return _fogPatched;
+}
+// roda no import do bloom.js — ANTES de qualquer material compilar (main.js importa este
+// módulo no topo). Assim não existe programa em cache com o chunk antigo.
+patchFogChunks();
+
+/* Névoa de um mapa. Os map_*.js chamam isto no lugar de `new THREE.Fog(...)`. */
+export function makeAerialFog(mapId) {
+  const q = QP();
+  const A = AERIAL[mapId] || AERIAL_DEFAULT;
+  const dOv = parseFloat(q.get('fogd'));
+  const d = isFinite(dOv) ? dOv : A.d;
+  // sem o patch (vendor diferente / ?fog2=0) a exponencial mudaria o look sem a cor
+  // direcional que a compensa — nesse caso volta pro linear equivalente (f=0.5 na mesma
+  // distância da exponencial, e f≈0,95 no fim do alcance).
+  if (!_fogPatched) {
+    const half = Math.sqrt(Math.LN2) / d;
+    return new THREE.Fog(A.color, half * 0.35, half * 2.1);
+  }
+  const s = A.sun, L = Math.hypot(s[0], s[1], s[2]) || 1;
+  _fogSun[0] = s[0] / L; _fogSun[1] = s[1] / L; _fogSun[2] = s[2] / L;
+  // 'low': só a cor fixa (o branch dinâmico é uniforme, então some do custo de verdade)
+  _fogSun[3] = currentQuality() === 'low' ? 0 : (q.get('fog2') === '0' ? 0 : A.dir);
+  return new THREE.FogExp2(A.color, d);
 }
 
 /* ================================================================
@@ -304,8 +464,8 @@ const COMPOSITE = {
     uLens: { value: new THREE.Vector4(0.0016, 0.14, 0.0, 0) },
     // x agx slope, y power (1.25 → 1.00: era gama pós-log2, crushava o meio-tom), z sat, w exposure
     // z 1.02 → 1.12 (LOOK_SAT): ver comentário da tabela LOOKS — a r1 dessaturou 30-64 %.
-    uLook: { value: new THREE.Vector4(1.0, 1.0, LOOK_SAT, 1.63) },
-    uFloor: { value: 0.0048 },   // piso de ambiente aditivo suave (linear) — sobrescrito por mapa
+    uLook: { value: new THREE.Vector4(1.0, 1.0, LOOK_SAT, DEFAULT_LOOK.exposure) },
+    uFloor: { value: DEFAULT_LOOK.floor },   // piso de ambiente aditivo suave (linear) — sobrescrito por mapa
   },
   vertexShader: SSAO_VERT,
   fragmentShader: /* glsl */`
