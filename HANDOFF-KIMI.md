@@ -2,6 +2,31 @@
 
 Documento de continuidade. Se esta for uma sessão nova, leia isto primeiro: aqui está onde paramos e o que vem a seguir.
 
+## 🔄 ATUALIZAÇÃO 31/07 #28 (Claude) — v3.0.0: **A RÉGUA MUDOU** — consistência > fidelidade
+
+**Esta entrada é a mais importante do documento. O dono jogou 3 dias e mudou a direção do projeto.** Palavras dele: *"as armas ganharam realismo mas perderam identidade... o mais importante de todos esses jogos [CS 1.6, ev.io, VALORANT] é a CONSISTÊNCIA de jogo, e o flow ser bom... o nosso está tudo quebrado... o usuário não pode notar todos esses bugs, ele tem que se preocupar em jogar e não com bugs. Às vezes é melhor ter um valor visual mais simples, mas mais consistente pro jogo."*
+
+- **Régua nova: `tools/eval/BAR-CONSISTENCIA.md`** (25 critérios de consistência e flow) tem PRECEDÊNCIA sobre a `BAR.md` (fotorrealismo). **Melhoria visual que quebra o jogo é REGRESSÃO.** Ordem de prioridade: não ter bug perceptível > flow > legibilidade > identidade > beleza.
+- **Erro de método admitido:** rodaram-se 3 gauntlets de fidelidade medindo L\* e saturação em frame parado enquanto o jogo estava quebrado em movimento. Crítico de screenshot não pega "mão solta no ar na recarga", "no ADS não vejo a arma nem a mira", "morri e não sei de onde veio". E **fan-out de 8 agentes num sistema de coerência (arma+mão+animação+ADS+mira+HUD) produziu 13 regressões numa rodada** — foi o método que criou a inconsistência que o dono reclamou. Fan-out só para coisas independentes (4 mapas em 4 arquivos). Sistema interconectado = um agente, sequencial.
+- **PORTÃO NOVO — `tools/eval/invariants.mjs`.** Roda em node puro, ~3 min, imprime PASS/FAIL. **Nada commita com invariante vermelha, e todo bug que o dono reportar vira invariante permanente.** Foi a falta disso que criou o ciclo de 3 dias (cada rodada consertava uma coisa e quebrava outra, e só se descobria uma rodada depois). Estado: **10/10 críticas verdes**.
+- **Arneses em NODE PURO (sem Chrome, que custa ~4 min por carga de mapa):** `botsim.mjs` (classe Game real + mapas reais, 45 s × 4 mapas × 3 sementes em ~10 s; modos SIM_CTF/SIM_DUEL), `vmrig-test.mjs` (rig de viewmodel a 240 Hz), `tp-mount-probe.mjs` (mount de 3ª pessoa com parser de GLB próprio).
+
+**ARMAS — a causa raiz de "26 armas com visual igual", achada e corrigida:** a 3ª pessoa já usava os **26 GLBs da Mint**, um por arma, com `len`/`rot`/`gripZ` medidos em `weapons.js`. A 1ª pessoa usava OUTRO pipeline: 8 GLBs-herói da Tripo (18 MB cada) + kit procedural sobre ~5 malhas base. 26 identidades viravam 8+5. O viewmodel migrou para os mesmos 26 GLBs da Mint (250-900 KB por arma; o lazy-load deixa de ser necessário e o risco de OOM sai do caminho). Tripo intacta atrás de `?tripovm=1`.
+- **Trava de borda do viewmodel:** o probe mediu a caixa do VM indo até NDC x 2,11 com centro em 1,17 — a arma estava mais fora do quadro do que dentro. Causa geométrica: a coronha é o ponto mais perto do olho e é o que projeta mais largo. Resolvido pela desigualdade `(Zg·tanH)/(Zg−back) ≤ NEAR_X·halfTanH` + `tanH` 0,600 → 0,460. Coronha ≤ NDC 0,94, boca 0,19-0,46, nas 26 armas e nos 2 aspectos.
+- **`p90` estava invertida no GLB** (ponta +Z era a grossa) — corrigido no `rot`; o curativo `vmRotY`, que só consertava a 1ª pessoa, foi removido.
+- **`uzi` len 0,60 → 0,47**: a "UZI maior que o corpo do Hipster" não era mount (fator 1,00, o mais exato do elenco) — era proporção do GLB (altura/comprimento 0,69, a maior do arsenal).
+- **PENDÊNCIA REAL, não varrida:** os braços FP de `buildFPArms` entram com escala herdada do pipeline Tripo e viram uma massa sem forma de mão. `gripErrR = 0,001 m` prova que o cálculo do grip está certo — o errado é o TAMANHO do braço, que é rig a refazer. **Padrão no caminho Mint = arma sozinha**; `?hands=1` religa pra continuar o trabalho.
+
+**3ª PESSOA:** "Coach com a arma pra trás", "Dollynho sem arma", "Ancap e ET segurando errado" eram UM defeito de método: o cano vinha da linha antebraço→mão e ficava entre −21° e −35° (apontado pro chão) nos **27** personagens. Agora vem do corpo (yaw +4°, pitch −6°) e o grip vai no centro medido da palma. Dollynho tinha a palma a 0,05 m do eixo contra 0,185 m de raio da garrafa — a arma nascia DENTRO do corpo.
+
+**BOTS — todas as reclamações viraram número e entraram no alvo:** flips laterais 16,4 → **10,8**/min; giros 0,32 → **0,23**/min; preso 9,2% → **1,1%**; janela entre o 1º tiro e a morte **1,26 s → 3,65 s**; headshot 0,003; acerto 0,16. Mais: indicador direcional de dano com 4 arcos na borda por 1,5 s + tique panoramizado, e marcador de time com **duas formas, não só cor** (halo contínuo × tracejado, chevron cheio × vazado) — resolve bolsonaristas × bolsonaristas.
+
+**MAPAS/MODOS:** `ctfOnly` (que travava) virou `ctfMode` (só define o padrão) e o badge de modo virou **botão**. **Piscinão → Piscina da Treta**: o dono reprovou ("é o pior mapa de todos, muito poluído"), então voltou o salão fechado do CS 1.6 do commit `7871a7b` (328 linhas contra 1.887); a versão temática está preservada em `map_pool_ramos.js`, fora do registro. **Havan → LOJA H** (constante `LOJA_NOME`). **Armário de armas**: eram ~52 props deitados no chão ENTRE o spawn e o centro do mapa (a faixa que o critério C4 manda deixar limpa); agora ficam atrás do spawn, em cima de mesas, em 2 fileiras de ±5,5 m. **God rays do ferro velho desligados por padrão** — efeito de recinto fechado que a céu aberto lê como cunha translúcida cortando o quadro.
+
+**PRÓXIMO PASSO:** o dono responde `TESTE-5MIN.md` (8 perguntas sim/não). Cada "não" vira invariante. Depois: rig dos braços FP, `motion.mjs` (tira de frames + traços numéricos para as 5 invariantes que exigem pixel), e as ideias novas dele (2 times a mais, +1 jogador por time, modo novo).
+
+**NÃO PUSHAR.** Todo o trabalho está em commits locais na branch `feat/evio-feel`; `main` segue em `origin/main`. O dono não quer o v2/v3 público antes de jogabilidade, UI e armas estarem redondas.
+
 ## 🚨 ATUALIZAÇÃO 31/07 #27 (Kimi, G2-R14 — FEEDBACK CRÍTICO DO DONO) — v2.2.0: crash OOM morto + armas FUNCIONAIS — gate 17/17
 
 **O dono jogou 2 dias e interrompeu o gauntlet com: crash no CTF da Havan (Chrome "Aw Snap" err 15), armas grandes demais/"apontam pro outro lugar", shotgun sem ADS, piscinão poluído (skate sem sentido), respawns sem proteção física central. TUDO resolvido:**
