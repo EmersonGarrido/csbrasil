@@ -10,6 +10,7 @@ import { RenderPass } from '../vendor/addons/postprocessing/RenderPass.js';
 import { ShaderPass } from '../vendor/addons/postprocessing/ShaderPass.js';
 import { UnrealBloomPass } from '../vendor/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from '../vendor/addons/postprocessing/OutputPass.js';
+import { focusSunShadow } from './bloom.js';
 
 const CelEdgeShader = {
   uniforms: {
@@ -54,6 +55,9 @@ export function enableStylize(renderer, opts = {}) {
   const patched = (scene, camera) => {
     const cp = forScene(scene, camera);
     renderer.render = rawRender;   // evita recursão (composer chama renderer.render nos quads)
+    // mesma melhora de cm/texel do pipeline padrão (ver bloom.js): a ortho do sol segue o
+    // jogador em vez de cobrir 120 m. ?shadowfocus=0 desliga nos dois caminhos.
+    if (scene.userData.vmPass) focusSunShadow(scene, camera);
     cp.render();
     renderer.render = patched;
   };

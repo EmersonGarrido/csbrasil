@@ -11,7 +11,7 @@ const chromium = _pw.chromium || _pw.default?.chromium;
 const BASE = process.env.BASE || 'http://localhost:8123';
 
 const browser = await chromium.launch({
-  executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+  executablePath: process.env.CHROME_BIN || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
   args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--headless=new', '--mute-audio',
     '--autoplay-policy=no-user-gesture-required'],
 });

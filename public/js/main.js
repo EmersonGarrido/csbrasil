@@ -27,8 +27,14 @@ const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'hi
 renderer.setSize(innerWidth, innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+// Tonemap: ACES 1.06 é o caminho SEM pós (quality low / ?bloom=0). Com o composer ligado
+// three já força NoToneMapping nos materiais (só aplica tonemap quando o alvo é null), e
+// quem faz a curva é o AgX do bloom.js — deixamos NoToneMapping EXPLÍCITO nesse caso pra
+// não haver a menor chance de tonemap duplo (que achata o meio-tom e crusha a sombra).
+// No caminho sem pós a exposição sobe 1.06 → 1.25: o crítico mediu 22.7 % do frame em
+// L* < 3, e ali não existe o piso de ambiente do composite pra segurar a sombra.
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.06;
+renderer.toneMappingExposure = 1.25;
 container.appendChild(renderer.domElement);
 // bloom leve (FASE 4) — ligado por padrão, pulado na qualidade 'low' ou com ?bloom=0
 // (escape hatch p/ GPUs/extensões que derrubam a aba — suspeita do "jogo fechar sozinho")
@@ -36,8 +42,11 @@ container.appendChild(renderer.domElement);
   const _qp = new URLSearchParams(location.search);
   const _bloomOn = settings.quality !== 'low' && _qp.get('bloom') !== '0';
   // pipeline estilizado (cel+contorno) atrás de ?style=1 — prova de conceito reversível.
-  if (_qp.get('style') === '1') enableStylize(renderer, { bloom: _bloomOn });
-  else if (_bloomOn) enableLightBloom(renderer);
+  if (_qp.get('style') === '1') enableStylize(renderer, { bloom: _bloomOn, quality: settings.quality });
+  else if (_bloomOn) {
+    enableLightBloom(renderer, { quality: settings.quality });
+    if (_qp.get('post') !== 'output') renderer.toneMapping = THREE.NoToneMapping;   // AgX manda
+  }
 }
 
 const textures = initTextures();
@@ -220,7 +229,9 @@ function ensurePreview() {
   if (pv) return pv;
   const canvas = $('char-preview');
   const r = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
-  r.setSize(340, 340, false);
+  // 400² de backing store exibido a 380 CSS px: o preview era 340 e ficava pequeno demais
+  // pra ser "a" peça da tela de personagem. O downscale ainda dá borda limpa.
+  r.setSize(400, 400, false);
   r.toneMapping = THREE.ACESFilmicToneMapping;
   const scene = new THREE.Scene();
   scene.add(new THREE.HemisphereLight(0xffe6c0, 0x5a4a38, 1.1));
@@ -393,31 +404,70 @@ $('avatar-file').onchange = async e => {
 };
 
 /* ---------------- menu CS 1.6 (Coro Solto) ---------------- */
+/* Som de UI: um menu AAA tem TRÊS sons (mover, confirmar, voltar) e o "mover" é o que dá
+   a sensação tátil. Só existia uiClick(); hover/back são compostos aqui com as primitivas
+   do Sfx (audio.js pertence a outro agente — nada é adicionado lá). Falha em silêncio. */
+const ui = {
+  click() { try { sfx.uiClick(); } catch {} },
+  hover() { try { sfx.ensure(); sfx._beep('square', 1240, 1240, .02, .04, 0, true); } catch {} },
+  back()  { try { sfx.ensure(); sfx.duck(0.5, 0.1); sfx._beep('square', 560, 400, .06, .10, 0, true); } catch {} },
+};
 let matchMode = 'rounds';   // 'rounds' | 'ctf' — lido em startGame (ctf)
 if (MAPS[currentMap].ctfOnly) matchMode = 'ctf';   // mapas ctfOnly (Havan/Ferro Velho) forçam CTF — sem query string
 const menuSetup = $('menu-setup');
-const openSetup = (mode, title) => {
+const csItems = [...document.querySelectorAll('.cs-item')];
+// aria-current = "o painel aberto veio DAQUI". Antes nenhum item tinha estado de seleção.
+function markCurrent(act) {
+  for (const it of csItems) {
+    const on = !!act && it.dataset.act === act;
+    if (on) it.setAttribute('aria-current', 'true'); else it.removeAttribute('aria-current');
+  }
+}
+const SETUP_STEPS = { rounds: 'PASSO 1 DE 3 · PARTIDA', ctf: 'PASSO 1 DE 3 · PARTIDA' };
+const openSetup = (mode, title, act) => {
   if (mode) matchMode = mode;
   $('setup-title').textContent = title;
+  const st = $('setup-step'); if (st) st.textContent = SETUP_STEPS[matchMode] || 'PASSO 1 DE 3 · PARTIDA';
+  markCurrent(act);
   menuSetup.classList.add('open');
+  setMapMode();
   applySetupWall();   // "escolher mapa/config" usa o wallpaper da posição 2 do fluxo
 };
-document.querySelectorAll('.cs-item').forEach((it) => {
+csItems.forEach((it) => {
+  it.onmouseenter = () => ui.hover();
   it.onclick = () => {
-    sfx.uiClick();
+    ui.click();
     switch (it.dataset.act) {
-      case 'sp':    openSetup('rounds', 'SINGLE PLAYER'); break;
-      case 'ctf':   openSetup('ctf', 'CAPTURE THE FLAG'); break;
-      case 'mapa':  openSetup(null, 'ESCOLHER MAPA · ' + (matchMode === 'ctf' ? 'CTF' : 'SINGLE PLAYER')); break;
-      case 'config': show('settings-panel'); break;
-      case 'ranking': showRanking(); break;
-      case 'sobre': show('howto-panel'); break;
+      case 'sp':    openSetup('rounds', 'SINGLE PLAYER', 'sp'); break;
+      case 'ctf':   openSetup('ctf', 'CAPTURE THE FLAG', 'ctf'); break;
+      case 'mapa':  openSetup(null, 'ESCOLHER MAPA', 'mapa'); break;
+      case 'config': markCurrent('config'); show('settings-panel'); break;
+      case 'ranking': markCurrent('ranking'); showRanking(); break;
+      case 'sobre': markCurrent('sobre'); show('howto-panel'); break;
     }
   };
 });
-$('setup-back').onclick = () => { sfx.uiClick(); menuSetup.classList.remove('open'); applyHomeWall(); };
+// Navegação por teclado no menu (↑↓ / Home / End). Num FPS de PC não navegar no teclado
+// é falha de acessibilidade E de sensação — CS2/Valorant fazem tudo sem mouse.
+$('cs-menu').addEventListener('keydown', (e) => {
+  const i = csItems.indexOf(document.activeElement);
+  let n = -1;
+  if (e.key === 'ArrowDown') n = (i < 0 ? 0 : (i + 1) % csItems.length);
+  else if (e.key === 'ArrowUp') n = (i < 0 ? csItems.length - 1 : (i - 1 + csItems.length) % csItems.length);
+  else if (e.key === 'Home') n = 0;
+  else if (e.key === 'End') n = csItems.length - 1;
+  if (n < 0) return;
+  e.preventDefault(); csItems[n].focus(); ui.hover();
+});
+$('setup-back').onclick = () => { ui.back(); menuSetup.classList.remove('open'); markCurrent(null); applyHomeWall(); };
 
 /* ---------------- menu wiring ---------------- */
+// JOGAR sem nick era um SHAKE depois do clique; agora é ESTADO (aria-disabled), atualizado
+// a cada tecla — o jogador vê que falta algo ANTES de tentar.
+function syncPlayState() {
+  const b = $('btn-jogar'); if (!b) return;
+  b.setAttribute('aria-disabled', (nickEl.value || '').trim() ? 'false' : 'true');
+}
 $('btn-jogar').onclick = () => {
   if (!(nickEl.value || '').trim()) {
     nickEl.classList.add('invalid');
@@ -436,7 +486,7 @@ $('btn-jogar').onclick = () => {
   ensureTeamPreviews();   // thumbnails 3D dos times (async, cacheia no card)
 };
 $('btn-ranking').onclick = () => { sfx.uiClick(); showRanking(); };
-$('ranking-back').onclick = () => { sfx.uiClick(); show('main-menu'); };
+$('ranking-back').onclick = () => { ui.back(); markCurrent(null); show('main-menu'); };
 // carrossel de mapas: setas ‹ › trocam o mapa E o fundo 3D do menu + thumbnail real do mapa
 const mapNameEl = $('map-name');
 const mapThumb = $('map-thumb');
@@ -449,22 +499,32 @@ function setMapThumb() {
   mapThumb.style.opacity = '0';
   mapThumb.src = `/img/map-previews/${currentMap}.jpg?v=${VERSION}`;
 }
+// Badge de modo + pontinhos de posição: o carrossel não dizia onde o jogador estava
+// (quantos mapas existem, qual é este) nem que Havan/Ferro Velho SÃO CTF por natureza.
+function setMapMode() {
+  const m = $('map-mode');
+  if (m) m.textContent = (MAPS[currentMap].ctfOnly || matchMode === 'ctf') ? 'CAPTURE THE FLAG' : 'ROUNDS';
+  const d = $('map-dots');
+  if (d) d.innerHTML = MAP_IDS.map((_, i) => `<i class="${i === mapIdx ? 'on' : ''}"></i>`).join('');
+}
 let mapIdx = Math.max(0, MAP_IDS.indexOf(currentMap));
 function stepMap(dir) {
-  sfx.uiClick();
+  ui.click();
   mapIdx = (mapIdx + dir + MAP_IDS.length) % MAP_IDS.length;
   currentMap = resolveMapId(MAP_IDS[mapIdx]);
   settings.map = currentMap; saveSettings();
   mapNameEl.textContent = MAPS[currentMap].name;
   setMapThumb();
   if (MAPS[currentMap].ctfOnly) matchMode = 'ctf';   // Havan/Ferro Velho: CTF automático, sem ?ctf=1
-  $('setup-title').textContent = 'ESCOLHER MAPA · ' + (matchMode === 'ctf' ? 'CTF' : 'SINGLE PLAYER');
+  setMapMode();
   rebuildMenuBackdrop();
 }
 mapNameEl.textContent = MAPS[currentMap].name;
 setMapThumb();
+setMapMode();
 $('map-prev').onclick = () => stepMap(-1);
 $('map-next').onclick = () => stepMap(1);
+[$('map-prev'), $('map-next')].forEach(b => b && (b.onmouseenter = () => ui.hover()));
 const wpnSel = { value: settings.wpnMode || 'all' };
 // dropdown custom de modo de armas (com ícones SVG originais)
 const WPN_ICONS = {
@@ -507,16 +567,17 @@ if (diffSel) {
   diffSel.onchange = () => { settings.difficulty = diffSel.value; saveSettings(); sfx.uiClick(); };
 }
 $('btn-howto').onclick = () => { sfx.uiClick(); show('howto-panel'); };
-$('howto-back').onclick = () => { sfx.uiClick(); show('main-menu'); };
+$('howto-back').onclick = () => { ui.back(); markCurrent(null); show('main-menu'); };
 $('btn-settings').onclick = () => { sfx.uiClick(); settingsReturn = 'main-menu'; show('settings-panel'); };
 $('settings-back').onclick = () => {
-  sfx.uiClick(); saveSettings();
+  ui.back(); saveSettings();
   if (game) game.applySettings();
+  if (settingsReturn === 'main-menu') markCurrent(null);
   show(settingsReturn);
 };
 $('mobile-ok').onclick = () => { sfx.uiClick(); show('main-menu'); };
-$('team-back').onclick = () => { sfx.uiClick(); pickingEnemy = false; setEnemyPickMode(false); const t = document.querySelector('#team-select .screen-title'); if (t) t.textContent = 'ESCOLHA SEU LADO DA TRETA'; show('main-menu'); };
-$('char-back').onclick = () => { sfx.uiClick(); show('team-select'); };
+$('team-back').onclick = () => { ui.back(); pickingEnemy = false; setEnemyPickMode(false); const t = document.querySelector('#team-select .screen-title'); if (t) t.textContent = 'ESCOLHA SEU LADO DA TRETA'; show('main-menu'); };
+$('char-back').onclick = () => { ui.back(); show('team-select'); };
 $('btn-team-p').onclick = () => { sfx.uiClick(); pickTeam('P'); };
 $('btn-team-b').onclick = () => { sfx.uiClick(); pickTeam('B'); };
 $('btn-team-u') && ($('btn-team-u').onclick = () => { sfx.uiClick(); pickTeam('U'); });
@@ -626,6 +687,8 @@ function renderSocials() {
 }
 $('social-add').onclick = () => { socials.push({ net: 'x', handle: '' }); saveSocials(); renderSocials(); };
 nickEl.addEventListener('input', updateAvatarVisibility);
+nickEl.addEventListener('input', syncPlayState);
+syncPlayState();   // estado inicial do botão JOGAR (nick vem do localStorage)
 renderSocials();
 
 /* ---------------- global ranking API (via /api/* do site) ---------------- */
@@ -741,15 +804,15 @@ function showRanking() {
 }
 async function renderGlobal(nick) {
   const box = $('rank-global');
-  box.innerHTML = '<h3>🌐 RANKING GLOBAL</h3><div class="rg-off">carregando…</div>';
+  box.innerHTML = '<h3>RANKING GLOBAL</h3><div class="rg-off">carregando…</div>';
   const data = await api('/api/leaderboard');
   if (!data || !data.players) {
-    box.innerHTML = '<h3>🌐 RANKING GLOBAL</h3><div class="rg-off">indisponível no momento</div>';
+    box.innerHTML = '<h3>RANKING GLOBAL</h3><div class="rg-off">indisponível no momento</div>';
     return;
   }
   const rows = data.players.slice(0, 10).map((p, i) =>
     `<tr class="${p.nick === nick ? 'me' : ''}"><td>${i + 1}</td><td>${p.nick}</td><td>${p.kd}</td><td>${p.kills}</td><td>${p.wins > 0 ? p.wins : "—"}</td></tr>`).join('');
-  box.innerHTML = '<h3>🌐 RANKING GLOBAL (top 10)</h3>' +
+  box.innerHTML = '<h3>RANKING GLOBAL (top 10)</h3>' +
     (rows
       ? `<table><tr><th>#</th><th>JOGADOR</th><th>K/D</th><th>KILLS</th><th>VIT.</th></tr>${rows}</table>`
       : '<div class="rg-off">ainda vazio — seja o primeiro!</div>') +
@@ -811,6 +874,11 @@ function pickTeam(faction) {
   // faction = FACÇÃO escolhida (P/B/U). O LADO físico é P (petista/tribos) ou B (bolsonarista).
   currentFaction = faction;
   currentTeam = faction === 'B' ? 'B' : 'P';
+  // estado de seleção persistente nos cards: ao voltar do personagem, a tela diz qual é o SEU lado
+  for (const f of ['p', 'b', 'u']) {
+    const b = $('btn-team-' + f);
+    if (b) b.setAttribute('aria-pressed', String(f.toUpperCase() === faction));
+  }
   const chars = CHARACTERS.filter(c => c.team === faction);   // roster da facção escolhida
   // LOADING REAL da seleção de personagem: os GLBs do roster entram ANTES da tela abrir —
   // nada de thumbnails de caixa montando aos poucos (o "minecraft" que o dono viu)
@@ -825,8 +893,20 @@ function pickTeam(faction) {
       row.className = 'char-row';
       // GLB direto (acabou de pré-carregar) — caixa procedural só se o modelo não existe
       const thumb0 = (hasModel(c.id) ? glbThumb(c) : null) || pvThumb(c);
+      row.type = 'button'; row.setAttribute('role', 'option'); row.setAttribute('aria-selected', 'false');
       row.innerHTML = `<img src="${thumb0}" alt="${c.name}"><span>${c.name}</span>`;
-      row.onclick = () => { sfx.uiClick(); selectChar(c, row); };
+      row.onmouseenter = () => ui.hover();
+      // teclado: ↑↓ percorrem o roster e já trocam o preview (era só mouse)
+      row.onkeydown = (e) => {
+        const rows = [...list.children];
+        const k = rows.indexOf(row);
+        let n = -1;
+        if (e.key === 'ArrowDown') n = (k + 1) % rows.length;
+        else if (e.key === 'ArrowUp') n = (k - 1 + rows.length) % rows.length;
+        if (n < 0) return;
+        e.preventDefault(); rows[n].focus(); rows[n].click();
+      };
+      row.onclick = () => { ui.click(); selectChar(c, row); };
       list.appendChild(row);
       if (i === 0) firstRow = row;
     });
@@ -837,8 +917,9 @@ function pickTeam(faction) {
 }
 function selectChar(c, row) {
   selChar = c;
-  document.querySelectorAll('.char-row').forEach(r => r.classList.remove('sel'));
-  row.classList.add('sel');
+  // aria-selected além da classe: estado de seleção legível por teclado/leitor de tela
+  document.querySelectorAll('.char-row').forEach(r => { r.classList.remove('sel'); r.setAttribute('aria-selected', 'false'); });
+  row.classList.add('sel'); row.setAttribute('aria-selected', 'true');
   pvSetChar(c);
   $('char-info-name').textContent = c.name;
   $('char-info-blurb').textContent = c.blurb;
@@ -854,6 +935,18 @@ const updLabels = () => {
 sensEl.oninput = () => { settings.sens = +sensEl.value; updLabels(); saveSettings(); };
 volEl.oninput = () => { settings.vol = +volEl.value; sfx.setVolume(settings.vol); updLabels(); saveSettings(); };
 qualEl.onchange = () => { settings.quality = qualEl.value; saveSettings(); if (game) game.applySettings(); };
+// Cor da mira: a mira sai do sistema de cor do HUD (ciano = sistema, âmbar = objetivo,
+// vermelho = crítico) e passa a ser escolha do jogador — puro CSS var, sem custo por frame.
+const xhairEl = $('set-xhair');
+function applyXhair() {
+  document.documentElement.style.setProperty('--xhair', settings.xhair || '#e9f1f3');
+}
+if (xhairEl) {
+  xhairEl.value = settings.xhair || '#e9f1f3';
+  if (!xhairEl.value) xhairEl.value = '#e9f1f3';   // valor salvo fora da lista → volta pro branco
+  xhairEl.onchange = () => { settings.xhair = xhairEl.value; applyXhair(); saveSettings(); ui.click(); };
+}
+applyXhair();
 const speechEl = $('set-speech');
 speechEl.checked = settings.speech !== false;
 speechEl.onchange = () => {
@@ -866,48 +959,75 @@ updLabels();
 
 /* ---------------- logo ---------------- */
 (function drawLogo() {
-  // CORO SOLTO — logo terminal futurista: crista de soundwave (evoca "coro" = vozes) em
-  // ciano com pico âmbar, wordmark com aberração cromática (glitch), moldura HUD, subtítulo mono.
+  // O splash mostrava um wordmark TERMINAL/SCI-FI (soundwave ciano + aberração cromática)
+  // e 3 segundos depois o menu mostrava a key art com o logo REAL do jogo: letreiramento
+  // de brush, vermelho/amarelo/branco, graffiti brasileiro. Duas marcas em 3 segundos — o
+  // primeiro frame do jogo mentia sobre o produto. Este desenho passa a falar a MESMA
+  // língua da key art: wordmark empilhado, tinta de pincel, borda comida, respingo, faixa
+  // amarelo/preto de sinaleiro. Sem ciano, sem moldura de HUD.
   const c = $('logo-canvas') || $('splash-logo'); if (!c) return;   // splash de boot (o menu usa o logo do wallpaper)
   const x = c.getContext('2d');
-  const W = 900, H = 360; const CY = '#39d6e0', AM = '#ffb44d'; x.clearRect(0, 0, W, H);
-  // brilho ciano suave
-  const g = x.createRadialGradient(W / 2, 150, 20, W / 2, 150, 400);
-  g.addColorStop(0, 'rgba(57,214,224,0.20)'); g.addColorStop(1, 'rgba(0,0,0,0)');
-  x.fillStyle = g; x.fillRect(0, 0, W, H);
-  // moldura HUD (cantos em colchete)
-  x.strokeStyle = 'rgba(57,214,224,.55)'; x.lineWidth = 2;
-  const fx = 150, fy = 40, fw = 600, fh = 258, k = 26;
-  const br = (cx, cy, dx, dy) => { x.beginPath(); x.moveTo(cx + dx * k, cy); x.lineTo(cx, cy); x.lineTo(cx, cy + dy * k); x.stroke(); };
-  br(fx, fy, 1, 1); br(fx + fw, fy, -1, 1); br(fx, fy + fh, 1, -1); br(fx + fw, fy + fh, -1, -1);
-  // crista de soundwave (barras simétricas) com as cores da BANDEIRA do Brasil (verde→
-  // amarelo do centro pra fora) + pico âmbar — "coro" (vozes) que remete ao Brasil.
-  const bars = 29, bw = 10, gap = 6, tot = bars * (bw + gap) - gap, sx = W / 2 - tot / 2, base = 122;
-  const GREEN = '#12a24a', YELLOW = '#ffd23f';
-  for (let i = 0; i < bars; i++) {
-    const d = Math.abs(i - (bars - 1) / 2) / ((bars - 1) / 2);   // 0 no centro, 1 nas pontas
-    const h = 8 + Math.pow(1 - d, 1.7) * 62 + (i % 2 ? 7 : 0);
-    x.fillStyle = d < 0.10 ? AM : d < 0.5 ? YELLOW : GREEN;   // centro âmbar, miolo amarelo, pontas verdes
-    x.globalAlpha = d < 0.10 ? 1 : 0.9;
-    x.fillRect(sx + i * (bw + gap), base - h, bw, h);
+  const W = 900, H = 360;
+  const CAL = '#f4f1e8', AMAR = '#ffc93f', SINAL = '#e2402c', TINTA = '#0b0f13';
+  x.clearRect(0, 0, W, H);
+  // ruído determinístico (mulberry-ish): o mesmo logo em todo boot, sem flicker entre sessões
+  let seed = 20260731;
+  const rnd = () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296;
+
+  // camada offscreen: a erosão do pincel usa destination-out e não pode comer o fundo
+  const off = document.createElement('canvas'); off.width = W; off.height = H;
+  const o = off.getContext('2d');
+  o.textAlign = 'center'; o.lineJoin = 'round'; o.textBaseline = 'alphabetic';
+
+  // três linhas empilhadas, levemente rotacionadas — pintura de caminhão/lambe-lambe
+  const LINES = [
+    { t: 'CORO',  y: 104, col: CAL,   sx: 1.00, rot: -0.020 },
+    { t: 'SOLTO', y: 196, col: AMAR,  sx: 1.06, rot: 0.014 },
+    { t: 'TRETA', y: 288, col: SINAL, sx: 1.02, rot: -0.010 },
+  ];
+  for (const L of LINES) {
+    o.save();
+    o.translate(W / 2, L.y); o.rotate(L.rot); o.scale(L.sx, 1);
+    o.font = '900 96px "Arial Black",Impact,"Haettenschweiler",sans-serif';
+    o.lineWidth = 16; o.strokeStyle = TINTA; o.strokeText(L.t, 0, 0);   // contorno de tinta grossa
+    o.lineWidth = 5;  o.strokeStyle = 'rgba(0,0,0,.55)'; o.strokeText(L.t, 3, 4);
+    o.fillStyle = L.col; o.fillText(L.t, 0, 0);
+    o.restore();
   }
+  // borda comida: mordidas irregulares no miolo das letras (pincel seco em tapume)
+  o.globalCompositeOperation = 'destination-out';
+  for (let i = 0; i < 320; i++) {
+    const bx = 90 + rnd() * (W - 180), by = 40 + rnd() * 262;
+    o.beginPath(); o.ellipse(bx, by, 1 + rnd() * 5, 1 + rnd() * 3, rnd() * 3, 0, 7); o.fill();
+  }
+  o.globalCompositeOperation = 'source-over';
+  // respingo de spray ao redor (só onde já não há letra: fica atrás no composite final)
+  for (let i = 0; i < 90; i++) {
+    const bx = 60 + rnd() * (W - 120), by = 30 + rnd() * 300;
+    o.fillStyle = [CAL, AMAR, SINAL][(rnd() * 3) | 0];
+    o.globalAlpha = 0.18 + rnd() * 0.5;
+    o.beginPath(); o.arc(bx, by, 0.7 + rnd() * 2.2, 0, 7); o.fill();
+  }
+  o.globalAlpha = 1;
+
+  // fundo: faixa de sinaleiro (amarelo/preto) atrás do bloco, cortada em ângulo
+  x.save();
+  x.translate(W / 2, 180); x.rotate(-0.02);
+  const hz = x.createLinearGradient(-380, 0, 380, 0);
+  hz.addColorStop(0, 'rgba(255,201,63,0)'); hz.addColorStop(.5, 'rgba(255,201,63,.14)'); hz.addColorStop(1, 'rgba(255,201,63,0)');
+  x.fillStyle = hz; x.fillRect(-400, -142, 800, 284);
+  x.restore();
+  x.drawImage(off, 0, 0);
+
+  // subtítulo: "SUPREMA" entre réguas, como carimbo de placa
+  x.textAlign = 'center';
+  x.font = '900 26px "Arial Black",Impact,sans-serif';
+  x.fillStyle = CAL; x.globalAlpha = .92;
+  x.fillText('S U P R E M A', W / 2, 336);
   x.globalAlpha = 1;
-  // wordmark CORO SOLTO com aberração cromática (glitch de terminal)
-  x.textAlign = 'center'; x.lineJoin = 'round';
-  x.font = '900 96px "Arial Black",Impact,sans-serif';
-  const wy = 224;
-  x.globalAlpha = .45; x.fillStyle = '#ff3b6b'; x.fillText('CORO SOLTO', W / 2 - 4, wy);
-  x.fillStyle = CY; x.fillText('CORO SOLTO', W / 2 + 4, wy); x.globalAlpha = 1;
-  x.lineWidth = 11; x.strokeStyle = '#04121a'; x.strokeText('CORO SOLTO', W / 2, wy);
-  const tg = x.createLinearGradient(0, 150, 0, 232);
-  tg.addColorStop(0, '#eafcff'); tg.addColorStop(1, '#bfeff5');
-  x.fillStyle = tg; x.fillText('CORO SOLTO', W / 2, wy);
-  // subtítulo mono espaçado, âmbar
-  x.font = '700 24px "Courier New",monospace'; x.fillStyle = AM;
-  x.fillText('/ / T R E T A   S U P R E M A', W / 2, 272);
-  // divisor fino
-  x.strokeStyle = 'rgba(57,214,224,.35)'; x.lineWidth = 1;
-  x.beginPath(); x.moveTo(fx + 30, 290); x.lineTo(fx + fw - 30, 290); x.stroke();
+  x.strokeStyle = 'rgba(255,201,63,.75)'; x.lineWidth = 3;
+  x.beginPath(); x.moveTo(W / 2 - 250, 329); x.lineTo(W / 2 - 120, 329);
+  x.moveTo(W / 2 + 120, 329); x.lineTo(W / 2 + 250, 329); x.stroke();
 })();
 
 /* ---------------- loop ---------------- */

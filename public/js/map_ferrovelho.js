@@ -6,6 +6,13 @@
 import * as THREE from 'three';
 import { placeProp } from './mapprops.js';
 
+// kill-switches (padrão do projeto): ?nofog=1 sem névoa, ?rays=0 sem god rays,
+// ?dust=0 sem poeira em suspensão, ?mato=0 sem vegetação invasora.
+const QP = new URLSearchParams(typeof location !== 'undefined' ? location.search : '');
+// quality vem do localStorage (o buildFerroVelho recebe só scene+T; game.js não passa
+// settings). 'low' = notebook fraco: cortamos contagem de painéis, mato e partículas.
+const LOWQ = (() => { try { return JSON.parse(localStorage.getItem('awpbr_settings') || '{}').quality === 'low'; } catch (e) { return false; } })();
+
 const HALF_X = 32, HALF_Z = 36;
 export const FERRO_PROPS = [
   // pilhas/máquinas Mint estilizadas (substituem os photoscans que destoavam + pesavam)
@@ -46,44 +53,90 @@ function noiseTex(base, blotches, rx, rz, opts = {}) {
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
   t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rx, rz); return t;
 }
-function signTex(bg, fg, title) {
-  const c = document.createElement('canvas'); c.width = 1024; c.height = 160; const x = c.getContext('2d');
-  x.fillStyle = bg; x.fillRect(0, 0, 1024, 160); x.fillStyle = fg; x.textAlign = 'center';
-  x.font = 'bold 84px "Arial Black",Impact,sans-serif'; x.fillText(title, 512, 110);
-  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
-}
-// metal enferrujado (portão, sucata, balcão) — manchas de óxido + riscos + resto de tinta
-function rustTex(rx, rz, seed = 61) {
+// ZINCO GALVANIZADO — a assinatura nº1 do ferro velho (BAR §4.4). A versão antiga era
+// marrom-chocolate e lia como madeira/ferrugem chapada; o gabarito pede chapa
+// CINZA-AZULADA onde ainda tem zinco, MANCHADA DE BRANCO-GIZ (óxido de zinco) e
+// CORROÍDA NA BASE, onde encosta na terra molhada. A ondulação é vertical: é ela que
+// pega o specular anisotrópico do sol rasante de fim de tarde.
+function zincTex(rx, rz, seed = 71, opts = {}) {
   const S = 256, c = document.createElement('canvas'); c.width = c.height = S; const x = c.getContext('2d');
-  x.fillStyle = '#7a5438'; x.fillRect(0, 0, S, S);
   const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
-  for (const [col, n, rMin, rMax, a] of [['#5c3a22', 46, 8, 30, 0.5], ['#96502a', 40, 6, 22, 0.45], ['#b06a34', 26, 4, 14, 0.4], ['#3f2c1c', 18, 5, 18, 0.4], ['#8a9096', 8, 3, 10, 0.3]]) {
-    x.fillStyle = col;
-    for (let i = 0; i < n; i++) {
-      x.globalAlpha = a * (0.5 + rnd() * 0.5);
-      const r = rMin + rnd() * (rMax - rMin);
-      x.beginPath(); x.ellipse(rnd() * S, rnd() * S, r, r * (0.4 + rnd() * 0.8), rnd() * Math.PI, 0, Math.PI * 2); x.fill();
+  const period = opts.period || 16, rustAmt = opts.rust == null ? 1 : opts.rust;
+  const hi = opts.hi || '#b3bec4', mid = opts.mid || '#8d99a1', lo = opts.lo || '#5f6a72';
+  for (let i = 0; i * period < S; i++) {   // ondas: claro na crista, escuro no vale
+    const g = x.createLinearGradient(i * period, 0, (i + 1) * period, 0);
+    g.addColorStop(0, lo); g.addColorStop(0.28, mid); g.addColorStop(0.5, hi); g.addColorStop(0.74, mid); g.addColorStop(1, lo);
+    x.fillStyle = g; x.fillRect(i * period, 0, period, S);
+  }
+  // manchas de branco-giz (óxido de zinco) — o que diferencia galvanizada de aço pintado
+  for (let i = 0; i < 34; i++) {
+    x.globalAlpha = 0.14 + rnd() * 0.3; x.fillStyle = rnd() > 0.35 ? '#e2e6e0' : '#c6ccc6';
+    const r = 6 + rnd() * 26;
+    x.beginPath(); x.ellipse(rnd() * S, rnd() * S, r, r * (0.3 + rnd() * 0.9), rnd() * 3.14, 0, 6.3); x.fill();
+  }
+  // escorrimento vertical de sujeira a partir dos rebites/emendas
+  x.globalAlpha = 1;
+  for (let i = 0; i < 20 * rustAmt; i++) {
+    const px = rnd() * S, py = rnd() * S * 0.6;
+    const g = x.createLinearGradient(0, py, 0, py + 40 + rnd() * 90);
+    g.addColorStop(0, `rgba(126,72,38,${0.30 + rnd() * 0.35})`); g.addColorStop(1, 'rgba(126,72,38,0)');
+    x.fillStyle = g; x.fillRect(px, py, 2 + rnd() * 5, 40 + rnd() * 90);
+  }
+  // CORROSÃO NA BASE: gradiente laranja subindo do rodapé + pitting (furos)
+  if (rustAmt > 0) {
+    const g = x.createLinearGradient(0, S * 0.58, 0, S);
+    g.addColorStop(0, 'rgba(150,74,30,0)'); g.addColorStop(0.6, `rgba(150,74,30,${0.4 * rustAmt})`); g.addColorStop(1, `rgba(96,44,20,${0.82 * rustAmt})`);
+    x.fillStyle = g; x.fillRect(0, 0, S, S);
+    for (let i = 0; i < 46 * rustAmt; i++) {
+      x.globalAlpha = 0.35 + rnd() * 0.5; x.fillStyle = rnd() > 0.4 ? '#7a3a18' : '#2c1a10';
+      const r = 1.5 + rnd() * 5; x.beginPath(); x.arc(rnd() * S, S * (0.7 + rnd() * 0.3), r, 0, 6.3); x.fill();
     }
   }
-  x.globalAlpha = 0.3; x.strokeStyle = '#33241a'; x.lineWidth = 1;   // riscos
-  for (let i = 0; i < 22; i++) { const px = rnd() * S, py = rnd() * S; x.beginPath(); x.moveTo(px, py); x.lineTo(px + (rnd() - 0.5) * 60, py + (rnd() - 0.5) * 24); x.stroke(); }
+  // emendas horizontais (chapas de origens diferentes, sobrepostas)
+  x.globalAlpha = 0.35; x.fillStyle = '#3c4348';
+  for (const yy of [S * 0.34, S * 0.71]) x.fillRect(0, yy, S, 2);
   x.globalAlpha = 1;
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
   t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rx, rz); return t;
 }
-// telhado de zinco corrugado (galpão)
-function zincTex(rx, rz) {
+// FIBROCIMENTO ondulado cinza (telhado do barraco — BAR §4.4 pede fibrocimento, não zinco):
+// onda mais larga e macia, cinza-esverdeado, com limo/lodo escuro nas juntas.
+function fibroTex(rx, rz, seed = 907) {
   const S = 128, c = document.createElement('canvas'); c.width = c.height = S; const x = c.getContext('2d');
-  let seed = 71; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
-  for (let i = 0; i < 16; i++) {   // ondas do zinco
-    const g = x.createLinearGradient(i * 8, 0, i * 8 + 8, 0);
-    g.addColorStop(0, '#6a5848'); g.addColorStop(0.5, '#8a7460'); g.addColorStop(1, '#5c4c3e');
-    x.fillStyle = g; x.fillRect(i * 8, 0, 8, S);
+  const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  for (let i = 0; i * 21 < S; i++) {
+    const g = x.createLinearGradient(i * 21, 0, (i + 1) * 21, 0);
+    g.addColorStop(0, '#6e726c'); g.addColorStop(0.5, '#a3a69d'); g.addColorStop(1, '#63665f');
+    x.fillStyle = g; x.fillRect(i * 21, 0, 21, S);
   }
-  for (let i = 0; i < 26; i++) {   // ferrugem escorrida
-    x.fillStyle = `rgba(150,80,40,${0.15 + rnd() * 0.3})`;
-    const px = rnd() * S; x.fillRect(px, rnd() * S * 0.5, 2 + rnd() * 4, 20 + rnd() * 60);
+  for (let i = 0; i < 30; i++) {   // limo e poeira
+    x.globalAlpha = 0.12 + rnd() * 0.28; x.fillStyle = rnd() > 0.5 ? '#4d5a42' : '#3e423c';
+    const r = 5 + rnd() * 22; x.beginPath(); x.ellipse(rnd() * S, rnd() * S, r, r * 0.5, 0, 0, 6.3); x.fill();
   }
+  x.globalAlpha = 1;
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rx, rz); return t;
+}
+// ALVENARIA DE BLOCO CERÂMICO SEM REBOCO (BAR §4.4: o barraco do Zé não é pintado) —
+// bloco vermelho-terra com os 6 furos, junta de argamassa cinza mal passada e escorrido.
+function blocoTex(rx, rz, seed = 449) {
+  const S = 256, c = document.createElement('canvas'); c.width = c.height = S; const x = c.getContext('2d');
+  const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  x.fillStyle = '#8d8377'; x.fillRect(0, 0, S, S);                  // argamassa
+  const bw = S / 2, bh = S / 4;
+  for (let r = 0; r < 4; r++) for (let k = -1; k < 2; k++) {
+    const bx = k * bw + (r % 2 ? bw / 2 : 0) + 3, by = r * bh + 3;
+    const v = rnd();
+    x.fillStyle = `rgb(${150 + v * 46 | 0},${86 + v * 34 | 0},${58 + v * 26 | 0})`;
+    x.fillRect(bx, by, bw - 6, bh - 6);
+    x.fillStyle = 'rgba(40,26,20,0.55)';                            // furos do bloco
+    for (let h = 0; h < 3; h++) for (let g = 0; g < 2; g++) x.fillRect(bx + 8 + h * (bw - 24) / 3, by + 10 + g * (bh - 26) / 2, (bw - 30) / 3, (bh - 30) / 2);
+  }
+  for (let i = 0; i < 40; i++) {   // sujeira/limo escorrido
+    x.globalAlpha = 0.1 + rnd() * 0.25; x.fillStyle = rnd() > 0.55 ? '#4a4436' : '#2f2a24';
+    x.fillRect(rnd() * S, rnd() * S, 3 + rnd() * 9, 20 + rnd() * 70);
+  }
+  x.globalAlpha = 1;
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
   t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rx, rz); return t;
 }
@@ -97,18 +150,6 @@ function barrelTex() {
   const g = x.createLinearGradient(0, S * 0.6, 0, S);   // ferrugem subindo do fundo
   g.addColorStop(0, 'rgba(120,60,30,0)'); g.addColorStop(1, 'rgba(120,60,30,0.75)');
   x.fillStyle = g; x.fillRect(0, 0, S, S);
-  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
-}
-// mato rasteiro (tufos entre os carros) — textura com alpha pra planos cruzados
-function weedTex() {
-  const S = 64, c = document.createElement('canvas'); c.width = c.height = S; const x = c.getContext('2d');
-  let seed = 89; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
-  for (let i = 0; i < 26; i++) {
-    const px = 8 + rnd() * (S - 16), h = 20 + rnd() * 38;
-    x.strokeStyle = `rgba(${60 + rnd() * 50 | 0},${110 + rnd() * 60 | 0},${40 + rnd() * 30 | 0},0.95)`;
-    x.lineWidth = 1.6 + rnd();
-    x.beginPath(); x.moveTo(px, S); x.quadraticCurveTo(px + (rnd() - 0.5) * 14, S - h * 0.6, px + (rnd() - 0.5) * 20, S - h); x.stroke();
-  }
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
 }
 // decal de mancha (óleo/poeira) — alpha radial irregular
@@ -125,6 +166,260 @@ function blobTex(r, g, b, aMax, seed = 101) {
   t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping; return t;
 }
 
+/* ===================================================================================
+   FERRUGEM EM 3 ESTÁGIOS + TINTA CALCINADA (BAR §4.4 — "usar todos os três, senão
+   fica chapado"). Estágio por PEÇA (seed pelo índice), nunca a mesma textura em tudo:
+     0 — laranja VIVO e granulado: corrosão ativa, recente.
+     1 — marrom-avermelhado ESCURO com crostas escamando.
+     2 — VÉU alaranjado fino sobre metal ainda claro (o único que ainda reflete).
+   `paint` = tinta original MORTA, verniz totalmente ido: vermelho vira ROSA-SALMÃO,
+   azul vira CINZA-AZULADO LEITOSO. Ela nunca vem sozinha — vem com escorrimento de
+   ferrugem descendo de cada parafuso e dobra, que é o que "cola" a tinta na chapa.
+   =================================================================================== */
+const RUST_STAGE = [
+  { base: '#a3541f', blot: [['#c1702c', 44, 6, 26, 0.55], ['#d98a38', 30, 4, 16, 0.5], ['#7c3c14', 26, 5, 20, 0.5], ['#e8a55c', 22, 2, 8, 0.45]], grain: 820, rough: 0.98, metal: 0.05 },
+  { base: '#4a281a', blot: [['#371d12', 38, 8, 30, 0.6], ['#6a3a20', 30, 6, 22, 0.5], ['#8c4a24', 18, 4, 14, 0.45], ['#241410', 20, 5, 18, 0.5]], crust: true, rough: 0.95, metal: 0.1 },
+  { base: '#9aa2a4', blot: [['#8b9396', 26, 10, 30, 0.45], ['#b8571f', 30, 3, 12, 0.32], ['#c98f4e', 16, 8, 26, 0.22], ['#6f7679', 14, 5, 16, 0.35]], veil: 'rgba(190,105,42,0.24)', rough: 0.62, metal: 0.45 },
+];
+// tinta calcinada: vermelho→rosa-salmão, azul→cinza-azulado leitoso, amarelo/verde/bege gizados
+const PAINT_DEAD = ['#c98d84', '#93a5ae', '#c3ab63', '#8ea38a', '#bfae9d', '#b06e63'];
+
+function rustStageTex(stage, seed = 7, paint = null, rx = 1, rz = 1) {
+  const S = 256, c = document.createElement('canvas'); c.width = c.height = S; const x = c.getContext('2d');
+  const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const P = RUST_STAGE[stage % 3];
+  x.fillStyle = P.base; x.fillRect(0, 0, S, S);
+  for (const [col, n, rMin, rMax, a] of P.blot) {
+    x.fillStyle = col;
+    for (let i = 0; i < n; i++) {
+      x.globalAlpha = a * (0.5 + rnd() * 0.5);
+      const r = rMin + rnd() * (rMax - rMin);
+      x.beginPath(); x.ellipse(rnd() * S, rnd() * S, r, r * (0.4 + rnd() * 0.8), rnd() * 3.14, 0, 6.3); x.fill();
+    }
+  }
+  if (P.grain) {   // granulado da corrosão ativa: o estágio 1 é o mais "areia grossa"
+    for (let i = 0; i < P.grain; i++) { x.globalAlpha = 0.18 + rnd() * 0.4; x.fillStyle = rnd() > 0.5 ? '#e6a45c' : '#6d3312'; x.fillRect(rnd() * S, rnd() * S, 1.4, 1.4); }
+  }
+  if (P.crust) {   // crostas escamando: polígono claro com borda escura levantada
+    for (let i = 0; i < 34; i++) {
+      const px = rnd() * S, py = rnd() * S, r = 4 + rnd() * 13;
+      x.globalAlpha = 0.5 + rnd() * 0.35; x.fillStyle = '#7d4322';
+      x.beginPath();
+      for (let k = 0; k < 6; k++) { const an = k / 6 * 6.28, rr = r * (0.6 + rnd() * 0.6); const fx = px + Math.cos(an) * rr, fy = py + Math.sin(an) * rr; k ? x.lineTo(fx, fy) : x.moveTo(fx, fy); }
+      x.closePath(); x.fill();
+      x.globalAlpha = 0.6; x.strokeStyle = '#1d0f0a'; x.lineWidth = 1.4; x.stroke();
+    }
+  }
+  if (P.veil) { x.globalAlpha = 1; x.fillStyle = P.veil; x.fillRect(0, 0, S, S); }   // véu fino uniforme
+  // TINTA CALCINADA: manchas grandes de tinta morta, bordas lascadas, giz por cima
+  if (paint) {
+    for (let i = 0; i < 7; i++) {
+      x.globalAlpha = 0.62 + rnd() * 0.3; x.fillStyle = paint;
+      const px = rnd() * S, py = rnd() * S, r = 26 + rnd() * 52;
+      x.beginPath();
+      for (let k = 0; k < 11; k++) { const an = k / 11 * 6.28, rr = r * (0.55 + rnd() * 0.65); const fx = px + Math.cos(an) * rr, fy = py + Math.sin(an) * rr; k ? x.lineTo(fx, fy) : x.moveTo(fx, fy); }
+      x.closePath(); x.fill();
+    }
+    x.globalAlpha = 0.18; x.fillStyle = '#e8e4dc';   // calcinação: pó de giz sobre a cor
+    for (let i = 0; i < 90; i++) { const r = 3 + rnd() * 12; x.beginPath(); x.arc(rnd() * S, rnd() * S, r, 0, 6.3); x.fill(); }
+  }
+  // ESCORRIMENTO a partir de parafusos/dobras — presente em todos os estágios
+  x.globalAlpha = 1;
+  for (let i = 0; i < 12; i++) {
+    const px = 8 + rnd() * (S - 16), py = 10 + rnd() * (S * 0.55);
+    x.globalAlpha = 0.55; x.fillStyle = '#2a1710';
+    x.beginPath(); x.arc(px, py, 2.2 + rnd() * 1.6, 0, 6.3); x.fill();   // parafuso
+    const g = x.createLinearGradient(0, py, 0, py + 50 + rnd() * 90);
+    g.addColorStop(0, 'rgba(148,72,26,0.75)'); g.addColorStop(1, 'rgba(148,72,26,0)');
+    x.globalAlpha = 1; x.fillStyle = g; x.fillRect(px - 2, py, 4 + rnd() * 3, 50 + rnd() * 90);
+  }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rx, rz); return t;
+}
+
+/* ===================================================================================
+   PLACA PINTADA À MÃO — elemento identitário OBRIGATÓRIO do BAR §4.4.
+   "A característica formal do letreiramento vernacular brasileiro é o distanciamento
+   de convenções tipográficas, com pouco ou nenhum respeito por entrelinha, hierarquia
+   de espaços e dimensões" — baseline irregular, letras que APERTAM no fim da linha,
+   espacejamento desigual. Uma fonte digital limpa e centralizada REPROVA no critério.
+   Por isso NADA de fillText de linha inteira: cada letra é desenhada individualmente
+   com jitter próprio de baseline, rotação, escala e avanço, mais contorno e sombra
+   projetada em cor contrastante, sobre campo de esmalte sintético a pincel.
+   =================================================================================== */
+function handSignTex(lines, opts = {}) {
+  const W = opts.w || 1024, H = opts.h || 320;
+  const c = document.createElement('canvas'); c.width = W; c.height = H; const x = c.getContext('2d');
+  let seed = opts.seed || 1337; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const field = opts.bg || '#b3261d';
+  // campo: esmalte a pincel — base + passadas de pincel de tom variado (nunca chapado)
+  x.fillStyle = field; x.fillRect(0, 0, W, H);
+  for (let i = 0; i < 60; i++) {
+    x.globalAlpha = 0.05 + rnd() * 0.1; x.fillStyle = rnd() > 0.5 ? '#ffffff' : '#000000';
+    x.fillRect(rnd() * W, rnd() * H, 40 + rnd() * 260, 3 + rnd() * 9);   // marca da cerda
+  }
+  x.globalAlpha = 1;
+  const rows = lines.length, pad = H * 0.06;
+  const rowH = (H - pad * 2) / rows;
+  for (let li = 0; li < rows; li++) {
+    const L = lines[li];
+    const size = (L.size || 0.72) * rowH;
+    const baseY = pad + rowH * li + rowH * 0.78;
+    const slant = L.italic === false ? 0 : -(0.14 + rnd() * 0.12);   // bastão condensada itálica
+    x.font = `900 ${size | 0}px "Arial Black",Impact,"Haettenschweiler",sans-serif`;
+    const txt = L.t;
+    // 1ª passada: largura natural de cada letra
+    const wch = [];
+    let natural = 0;
+    for (const ch of txt) { const w = x.measureText(ch).width * (L.cond || 0.82); wch.push(w); natural += w; }
+    const avail = W - pad * 2 - W * 0.02;
+    // "apertar no fim da linha": o avanço encolhe progressivamente do 60% pro fim
+    const squeeze = Math.min(0.34, Math.max(0, (natural - avail) / Math.max(1, natural)) + 0.08);
+    let adv = 0; const advs = [];
+    for (let i = 0; i < wch.length; i++) {
+      const p = i / Math.max(1, wch.length - 1);
+      const k = 1 - squeeze * Math.pow(Math.max(0, p - 0.45) / 0.55, 1.5);
+      advs.push(wch[i] * k * (0.94 + rnd() * 0.13)); adv += advs[i];
+    }
+    const sx = Math.min(1, avail / Math.max(1, adv));   // se ainda estourar, comprime tudo
+    // margem esquerda irregular (placa de pincel começa na esquerda, não centralizada)
+    let px = pad + (L.center ? Math.max(0, (avail - adv * sx) / 2) : 0) + (rnd() - 0.5) * W * 0.012;
+    const shadow = L.shadow || '#140b06', outline = L.outline || '#140b06';
+    for (let i = 0; i < txt.length; i++) {
+      const ch = txt[i];
+      if (ch !== ' ') {
+        const jy = (rnd() - 0.5) * size * 0.13;         // BASELINE IRREGULAR
+        const jr = (rnd() - 0.5) * 0.075;               // letra torta
+        const js = 0.9 + rnd() * 0.2;                   // altura desigual
+        x.save();
+        x.translate(px, baseY + jy); x.rotate(jr);
+        x.transform(sx * (L.cond || 0.82), 0, slant, js, 0, 0);
+        x.fillStyle = shadow; x.fillText(ch, size * 0.06, size * 0.07);   // sombra projetada
+        x.lineWidth = size * 0.11; x.strokeStyle = outline; x.strokeText(ch, 0, 0);   // contorno
+        x.fillStyle = L.color || '#f5f0e2'; x.fillText(ch, 0, 0);
+        x.restore();
+      }
+      px += advs[i] * sx;
+    }
+  }
+  // escorrimento de tinta (pinta em pé, escorre) + ferrugem nas bordas + furos de parafuso
+  for (let i = 0; i < 16; i++) {
+    x.globalAlpha = 0.16 + rnd() * 0.2; x.fillStyle = field;
+    const dx = rnd() * W, dy = rnd() * H * 0.7; x.fillRect(dx, dy, 2 + rnd() * 4, 12 + rnd() * 46);
+  }
+  for (let i = 0; i < 30; i++) {
+    x.globalAlpha = 0.1 + rnd() * 0.3; x.fillStyle = '#7a3d1a';
+    const edge = rnd(); const px = edge < 0.5 ? rnd() * W : (rnd() > 0.5 ? rnd() * W * 0.12 : W - rnd() * W * 0.12);
+    const py = edge < 0.5 ? (rnd() > 0.5 ? rnd() * H * 0.12 : H - rnd() * H * 0.12) : rnd() * H;
+    const r = 4 + rnd() * 18; x.beginPath(); x.ellipse(px, py, r, r * 0.7, 0, 0, 6.3); x.fill();
+  }
+  x.globalAlpha = 0.75; x.fillStyle = '#2a1a12';
+  for (const [fx, fy] of [[W * 0.03, H * 0.1], [W * 0.97, H * 0.1], [W * 0.03, H * 0.9], [W * 0.97, H * 0.9]]) { x.beginPath(); x.arc(fx, fy, 5, 0, 6.3); x.fill(); }
+  x.globalAlpha = 1;
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+  t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping; t.anisotropy = 4; return t;
+}
+
+// PIXAÇÃO em preto/prata sobre o zinco (BAR §4.4) — letra reta, alta e angular, sem serifa,
+// nada a ver com o grafite colorido: é traço de rolinho/spray, uma passada só.
+function pixacaoTex(seed = 555) {
+  const W = 256, H = 128, c = document.createElement('canvas'); c.width = W; c.height = H; const x = c.getContext('2d');
+  const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  x.clearRect(0, 0, W, H);
+  x.strokeStyle = rnd() > 0.5 ? '#141414' : '#9aa0a6'; x.lineCap = 'square';
+  for (let g = 0; g < 7; g++) {   // "letras": hastes verticais com ganchos
+    const bx = 14 + g * 34 + (rnd() - 0.5) * 8, top = 18 + rnd() * 12, bot = H - 18 - rnd() * 10;
+    x.lineWidth = 5 + rnd() * 4;
+    x.beginPath(); x.moveTo(bx, top); x.lineTo(bx + (rnd() - 0.5) * 6, bot); x.stroke();
+    x.beginPath(); x.moveTo(bx, top + rnd() * 10); x.lineTo(bx + 12 + rnd() * 10, top + rnd() * 22); x.stroke();
+    if (rnd() > 0.4) { x.beginPath(); x.moveTo(bx, bot); x.lineTo(bx + 10 + rnd() * 12, bot - 8 - rnd() * 14); x.stroke(); }
+  }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+  t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping; return t;
+}
+
+/* ===== VEGETAÇÃO INVASORA — o contraste que DEFINE o mapa =====
+   BAR §4.4: "o verde vivo e saturado do mato contra o laranja da ferrugem é o contraste
+   cromático que define este mapa (complementares diretos). Um ferro velho sem mato lê
+   como cenário de estúdio." Por isso o verde aqui é MAIS saturado que o T.grass padrão. */
+function bladeTex(seed = 401, tall = false) {
+  const S = 128, c = document.createElement('canvas'); c.width = c.height = S; const x = c.getContext('2d');
+  const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  x.clearRect(0, 0, S, S);
+  const n = tall ? 30 : 24;
+  for (let i = 0; i < n; i++) {
+    const px = 6 + rnd() * (S - 12), h = (tall ? 0.62 : 0.42) * S + rnd() * S * 0.36;
+    // verde SATURADO (capim-colonião ao sol) com algumas folhas secas amareladas
+    const dry = rnd() > 0.82;
+    x.strokeStyle = dry
+      ? `rgba(${170 + rnd() * 40 | 0},${150 + rnd() * 40 | 0},${60 + rnd() * 30 | 0},0.95)`
+      : `rgba(${44 + rnd() * 54 | 0},${132 + rnd() * 74 | 0},${28 + rnd() * 34 | 0},0.96)`;
+    x.lineWidth = 1.6 + rnd() * 2.4; x.lineCap = 'round';
+    x.beginPath(); x.moveTo(px, S);
+    x.quadraticCurveTo(px + (rnd() - 0.5) * 22, S - h * 0.55, px + (rnd() - 0.5) * 40, S - h);
+    x.stroke();
+  }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+  t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping; return t;
+}
+// trepadeira: manta de folhas que cobre a pilha inteira (alpha, bordas recortadas)
+function vineTex(seed = 733) {
+  const S = 256, c = document.createElement('canvas'); c.width = c.height = S; const x = c.getContext('2d');
+  const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  x.clearRect(0, 0, S, S);
+  x.strokeStyle = 'rgba(72,96,40,0.9)'; x.lineWidth = 2.4;   // ramos
+  for (let i = 0; i < 9; i++) {
+    let px = rnd() * S, py = -6; x.beginPath(); x.moveTo(px, py);
+    for (let k = 0; k < 7; k++) { px += (rnd() - 0.5) * 46; py += S / 6; x.lineTo(px, py); }
+    x.stroke();
+  }
+  for (let i = 0; i < 300; i++) {   // folhas — densas em cima, ralas embaixo (a trepadeira desce)
+    const py = Math.pow(rnd(), 0.55) * S;
+    if (py > S * 0.82 && rnd() > 0.35) continue;
+    const px = rnd() * S, r = 4 + rnd() * 9;
+    x.fillStyle = `rgba(${40 + rnd() * 58 | 0},${118 + rnd() * 82 | 0},${26 + rnd() * 42 | 0},${0.8 + rnd() * 0.2})`;
+    x.save(); x.translate(px, py); x.rotate(rnd() * 6.3);
+    x.beginPath(); x.ellipse(0, 0, r, r * 0.62, 0, 0, 6.3); x.fill(); x.restore();
+  }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+  t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping; return t;
+}
+// copa de árvore (mangueira do quintal) — cachos de folha, silhueta irregular
+function canopyTex(seed = 811) {
+  const S = 256, c = document.createElement('canvas'); c.width = c.height = S; const x = c.getContext('2d');
+  const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  x.clearRect(0, 0, S, S);
+  for (let i = 0; i < 150; i++) {
+    const a = rnd() * 6.283, d = Math.pow(rnd(), 0.6) * S * 0.46;
+    const px = S / 2 + Math.cos(a) * d, py = S / 2 + Math.sin(a) * d * 0.86, r = 9 + rnd() * 22;
+    const sh = d / (S * 0.46);   // borda mais clara (sol), miolo escuro
+    x.fillStyle = `rgba(${(30 + sh * 62) | 0},${(78 + sh * 96) | 0},${(24 + sh * 42) | 0},${0.85 + rnd() * 0.15})`;
+    x.beginPath(); x.ellipse(px, py, r, r * (0.6 + rnd() * 0.5), rnd() * 6.3, 0, 6.3); x.fill();
+  }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+  t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping; return t;
+}
+// POÇA: água escura espelhando o céu + IRIDESCÊNCIA de óleo (BAR §4.4)
+function puddleTex(seed = 617) {
+  const S = 128, c = document.createElement('canvas'); c.width = c.height = S; const x = c.getContext('2d');
+  const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  x.clearRect(0, 0, S, S);
+  const g = x.createRadialGradient(S / 2, S / 2, 4, S / 2, S / 2, S / 2);
+  g.addColorStop(0, 'rgba(58,66,64,0.95)'); g.addColorStop(0.72, 'rgba(40,44,42,0.92)'); g.addColorStop(1, 'rgba(40,44,42,0)');
+  x.fillStyle = g; x.beginPath(); x.ellipse(S / 2, S / 2, S * 0.47, S * 0.42, 0, 0, 6.3); x.fill();
+  // reflexo do céu de fim de tarde (a poça é o único espelho do pátio)
+  x.globalAlpha = 0.45; x.fillStyle = '#c9a678';
+  x.beginPath(); x.ellipse(S * 0.42, S * 0.38, S * 0.2, S * 0.09, -0.4, 0, 6.3); x.fill();
+  // anéis de iridescência do óleo
+  const IRI = ['rgba(190,90,180,0.30)', 'rgba(90,190,190,0.28)', 'rgba(210,180,70,0.26)', 'rgba(120,110,210,0.24)'];
+  for (let i = 0; i < 9; i++) {
+    x.globalAlpha = 1; x.strokeStyle = IRI[i % IRI.length]; x.lineWidth = 2 + rnd() * 5;
+    x.beginPath(); x.ellipse(S / 2 + (rnd() - 0.5) * 28, S / 2 + (rnd() - 0.5) * 28, 10 + rnd() * 34, 8 + rnd() * 28, rnd() * 3, 0, 6.3); x.stroke();
+  }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+  t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping; return t;
+}
+
 export function buildFerroVelho(scene, T) {
   const colliders = [], occluders = [], pickups = [];
   const root = new THREE.Group(); scene.add(root);
@@ -134,15 +429,35 @@ export function buildFerroVelho(scene, T) {
     // óxido e tonalidade em escala de ~1.4m por tile (antes ~3.2m = manchão)
     dirt: lam({ map: noiseTex('#6b5a44', [['#584a38', 60, 8, 26, 0.5], ['#7a6a52', 50, 6, 20, 0.4], ['#3a3230', 14, 5, 14, 0.45], ['#8a4a2a', 26, 2, 6, 0.4], ['#4a3f30', 34, 2, 7, 0.4]], 46, 52, { pebbles: '#8a7a62', pebbleN: 620, seed: 11 }) }),
     wall: lam({ map: noiseTex('#7d7468', [['#6a6258', 40, 10, 30, 0.5], ['#8d8478', 30, 8, 22, 0.4], ['#4a443c', 10, 6, 16, 0.4]], 6, 2, { cracks: '#55504a', seed: 23 }) }),
-    rust: lam({ map: rustTex(2, 2), metalness: 0.3, roughness: 0.85 }),
     steel: lam({ map: noiseTex('#8a9096', [['#787e84', 30, 6, 20, 0.4], ['#9aa0a8', 20, 4, 14, 0.3], ['#6a5a48', 8, 3, 10, 0.3]], 2, 2, { seed: 137 }), metalness: 0.5, roughness: 0.6 }),
-    office: lam({ map: noiseTex('#4a6e4f', [['#3d5c42', 30, 8, 24, 0.5], ['#5a8060', 20, 6, 18, 0.35]], 4, 2, { seed: 31 }) }),
-    roof: lam({ map: zincTex(6, 4) }),
+    office: lam({ map: blocoTex(4, 2) }),   // barraco = bloco cerâmico SEM reboco (era verde chapado)
+    roof: lam({ map: fibroTex(5, 3) }),   // BAR §4.4: barraco tem telhado de FIBROCIMENTO, não zinco
+    // zinco da cerca/portão: chapa cinza-azulada, giz de óxido, base corroída
+    zinc: lam({ map: zincTex(1, 1, 71, { rust: 1 }), metalness: 0.42, roughness: 0.52 }),
+    zincOld: lam({ map: zincTex(1, 1, 313, { rust: 1, hi: '#9aa39f', mid: '#77817e', lo: '#4e5654' }), metalness: 0.34, roughness: 0.62 }),
+    zincDark: lam({ map: zincTex(3, 1.4, 907, { rust: 0.6, hi: '#5d666a', mid: '#48504f', lo: '#31393a' }), metalness: 0.3, roughness: 0.7 }),
     tire: lam({ color: 0x22252a }),
     barrel: lam({ map: barrelTex(), metalness: 0.4, roughness: 0.7 }),
     // óleo BRILHA (crítico R6: "lê como buraco preto fosco") — specular do sol na poça
     oil: new THREE.MeshStandardMaterial({ color: 0x14161a, metalness: 0.75, roughness: 0.16, transparent: true, opacity: 0.82 }),
   };
+  /* ===== POOL DE FERRUGEM: 3 ESTÁGIOS × variantes, escolhido por ÍNDICE DA PEÇA =====
+     O erro que o BAR chama de "chapado" é usar UMA textura de ferrugem em tudo. Aqui cada
+     peça pega um material determinístico pelo índice (mesmo pátio todo boot, sem surpresa),
+     e ~40% delas vêm com TINTA CALCINADA por cima. Pool fixo (não um material por peça):
+     em 'low' são 6 texturas, senão 12 — ~3 MB de VRAM, e o batching não sofre. */
+  const RUST_POOL = [];
+  {
+    const variants = LOWQ ? 2 : 4;
+    for (let s = 0; s < 3; s++) for (let v = 0; v < variants; v++) {
+      const paint = (v % 2 === 1) ? PAINT_DEAD[(s * 2 + v) % PAINT_DEAD.length] : null;
+      const P = RUST_STAGE[s];
+      RUST_POOL.push(lam({ map: rustStageTex(s, 101 + s * 37 + v * 913, paint), roughness: P.rough, metalness: P.metal }));
+    }
+  }
+  // hash inteiro → índice do pool (Knuth): peças vizinhas caem em estágios diferentes
+  const rustMat = (i) => RUST_POOL[((i * 2654435761) >>> 0) % RUST_POOL.length];
+  let _rc = 0; const nextRust = () => rustMat(_rc++);   // contador de peça (fallbacks sem GLB)
   function addBox(w, h, d, mat, x, y, z, opts = {}) {
     const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
     m.position.set(x, y + h / 2, z); m.castShadow = opts.cast !== false; m.receiveShadow = true;
@@ -152,14 +467,30 @@ export function buildFerroVelho(scene, T) {
   }
   const addFloor = (w, d, x, z, mat, y = 0) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d), mat); m.rotation.x = -Math.PI / 2; m.position.set(x, y, z); m.receiveShadow = true; root.add(m); };
   const gprop = (id, x, z, h, ry = 0) => { const o = placeProp(id, { x, z, targetH: h, ry }); if (o) root.add(o); return !!o; };
-  // Variação de painel (crítico gauntlet: "mesmo módulo repetido"): flip + tint por instância
+  /* Variação de painel (crítico gauntlet: "mesmo módulo repetido") + ESTÁGIO DE FERRUGEM.
+     Os GLB de carcaça já vêm com map próprio, então não dá pra trocar a textura sem perder
+     o scan — o que dá é puxar a COR do material para o alvo do estágio (lerp) e mexer em
+     rough/metal. Resultado: a mesma pilha lida como laranja-vivo, marrom-crosta ou
+     metal-com-véu conforme o índice, que é exatamente o que o BAR pede. */
+  const STAGE_TINT = [new THREE.Color(0xb0601f), new THREE.Color(0x4f2c1c), new THREE.Color(0x9fa6a6)];
+  const STAGE_PBR = [[0.98, 0.05], [0.95, 0.08], [0.6, 0.4]];
   let _pv = 0;
   const vary = (o) => {
-    const s = ++_pv * 2654435761 % 97 / 97;
+    const i = ++_pv;
+    const s = (i * 2654435761 % 97) / 97;
+    const st = ((i * 40503) >>> 0) % 3;
+    const painted = ((i * 22695477) >>> 0) % 5 < 2;   // ~40% guardam tinta calcinada
+    const tint = painted ? new THREE.Color(PAINT_DEAD[((i * 69069) >>> 0) % PAINT_DEAD.length]) : STAGE_TINT[st];
+    const k = painted ? 0.5 : 0.62;
     o.traverse((m) => {
       if (!m.isMesh || !m.material) return;
       m.material = m.material.clone();   // clone(true) compartilha material entre instâncias
-      if (m.material.color) m.material.color.offsetHSL((s - 0.5) * 0.05, (s - 0.5) * 0.12, (s - 0.5) * 0.09);
+      if (m.material.color) {
+        m.material.color.lerp(tint, k);
+        m.material.color.offsetHSL((s - 0.5) * 0.04, (s - 0.5) * 0.1, (s - 0.5) * 0.07);
+      }
+      if (m.material.roughness !== undefined) m.material.roughness = STAGE_PBR[st][0];
+      if (m.material.metalness !== undefined) m.material.metalness = STAGE_PBR[st][1];
       if (m.material.emissive) m.material.emissive.offsetHSL((s - 0.5) * 0.05, (s - 0.5) * 0.12, (s - 0.5) * 0.09);
     });
     return o;
@@ -187,18 +518,151 @@ export function buildFerroVelho(scene, T) {
     }
   }
 
-  // ===== perímetro: muro de concreto; PORTÃO (vão) no sul =====
-  addBox(2 * HALF_X, 3.2, 1, MAT.wall, 0, 0, -HALF_Z);                 // fundo (norte)
-  addBox(HALF_X - 5, 3.2, 1, MAT.wall, -(HALF_X / 2 + 2.5), 0, HALF_Z);  // sul esq (vão do portão x∈[-5,5])
-  addBox(HALF_X - 5, 3.2, 1, MAT.wall, (HALF_X / 2 + 2.5), 0, HALF_Z);   // sul dir
-  addBox(1, 3.2, 2 * HALF_Z, MAT.wall, -HALF_X, 0, 0);                 // oeste
-  addBox(1, 3.2, 2 * HALF_Z, MAT.wall, HALF_X, 0, 0);                  // leste
-  // portão de ferro aberto + letreiro virado pra rua
-  addBox(0.25, 3.4, 4.6, MAT.rust, -5.2, 0, HALF_Z - 2.2, { ry: 0.9 });
-  addBox(0.25, 3.4, 4.6, MAT.rust, 5.2, 0, HALF_Z - 2.2, { ry: -0.9 });
-  { const s = new THREE.Mesh(new THREE.PlaneGeometry(14, 2.2), new THREE.MeshBasicMaterial({ map: signTex('#3a3f45', '#f4c020', 'FERRO VELHO DO ZÉ') }));
-    s.position.set(0, 4.4, HALF_Z + 0.1); root.add(s);
-    addBox(0.3, 5.4, 0.3, MAT.rust, -7.2, 0, HALF_Z - 0.4); addBox(0.3, 5.4, 0.3, MAT.rust, 7.2, 0, HALF_Z - 0.4); }
+  /* ===== PERÍMETRO: CERCA DE TELHA ONDULADA DE ZINCO =====
+     Correção do gap nº1 apontado pelo crítico ("muro de CONCRETO — falta a assinatura nº1
+     do lugar, que é o zinco"). O BAR §4.4 é literal: chapa galvanizada em mourões de
+     madeira torta, ALTURAS IRREGULARES, chapas de origens diferentes, remendos, corroída
+     na base. Implementação: o collider continua sendo UM box por lado (idêntico ao de
+     antes — A*, LOS e bounds não mudam nada), com material escuro; por cima dele vão os
+     painéis de zinco em InstancedMesh (1 draw call pros ~200 painéis) com altura, giro e
+     tint por instância. O topo serrilhado dos painéis é o que quebra o horizonte reto. */
+  const fenceP = [], fencePost = [];   // {x,z,ry,w,h,tint} / {x,z,ry,h}
+  const zincFence = (cx, cz, ry, len) => {
+    const step = LOWQ ? 2.2 : 1.25;    // 'low': metade dos painéis, mesma silhueta
+    const n = Math.max(1, Math.round(len / step)), w = len / n;
+    const dx = Math.cos(ry), dz = -Math.sin(ry);
+    for (let i = 0; i < n; i++) {
+      const t = (i + 0.5) / n - 0.5, px = cx + dx * t * len, pz = cz + dz * t * len;
+      const s = ((i * 2654435761 + (cx * 71 + cz * 13)) >>> 0) % 1000 / 1000;
+      fenceP.push({ x: px, z: pz, ry: ry + (s - 0.5) * 0.09, w: w * 1.06, h: 2.9 + s * 1.25, tint: s });
+      if (i % (LOWQ ? 3 : 2) === 0) fencePost.push({ x: px - dx * w * 0.5, z: pz - dz * w * 0.5, ry, h: 3.4 + s * 0.9, lean: (s - 0.5) * 0.1 });
+    }
+  };
+  addBox(2 * HALF_X, 3.2, 1, MAT.zincDark, 0, 0, -HALF_Z);                 // fundo (norte)
+  addBox(HALF_X - 5, 3.2, 1, MAT.zincDark, -(HALF_X / 2 + 2.5), 0, HALF_Z);  // sul esq (vão do portão x∈[-5,5])
+  addBox(HALF_X - 5, 3.2, 1, MAT.zincDark, (HALF_X / 2 + 2.5), 0, HALF_Z);   // sul dir
+  addBox(1, 3.2, 2 * HALF_Z, MAT.zincDark, -HALF_X, 0, 0);                 // oeste
+  addBox(1, 3.2, 2 * HALF_Z, MAT.zincDark, HALF_X, 0, 0);                  // leste
+  zincFence(0, -HALF_Z + 0.52, 0, 2 * HALF_X);
+  zincFence(-(HALF_X / 2 + 2.5), HALF_Z - 0.52, Math.PI, HALF_X - 5);
+  zincFence((HALF_X / 2 + 2.5), HALF_Z - 0.52, Math.PI, HALF_X - 5);
+  zincFence(-HALF_X + 0.52, 0, Math.PI / 2, 2 * HALF_Z);
+  zincFence(HALF_X - 0.52, 0, -Math.PI / 2, 2 * HALF_Z);
+  {
+    const geo = new THREE.BoxGeometry(1, 1, 0.05);
+    const im = new THREE.InstancedMesh(geo, MAT.zinc, fenceP.length);
+    im.castShadow = im.receiveShadow = true; im.frustumCulled = false;
+    const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), col = new THREE.Color();
+    for (let i = 0; i < fenceP.length; i++) {
+      const p = fenceP[i];
+      e.set(0, p.ry, 0); q.setFromEuler(e);
+      m4.compose(new THREE.Vector3(p.x, p.h / 2, p.z), q, new THREE.Vector3(p.w, p.h, 1));
+      im.setMatrixAt(i, m4);
+      // chapas de origens diferentes: umas ainda azuladas, outras já lavadas/amareladas
+      const t = p.tint;
+      col.setHSL(t < 0.55 ? 0.55 : 0.09, t < 0.55 ? 0.05 + t * 0.06 : 0.16, 0.72 + (t - 0.5) * 0.3);
+      im.setColorAt(i, col);
+    }
+    im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true;
+    root.add(im);
+    // mourões de madeira torta (o BAR pede madeira OU cantoneira; madeira lê melhor)
+    const pgeo = new THREE.CylinderGeometry(0.075, 0.105, 1, 5);
+    const pmat = lam({ color: 0x4b3a29, roughness: 0.96 });
+    const pim = new THREE.InstancedMesh(pgeo, pmat, fencePost.length);
+    pim.castShadow = true; pim.frustumCulled = false;
+    for (let i = 0; i < fencePost.length; i++) {
+      const p = fencePost[i];
+      e.set(p.lean, p.ry, p.lean * 0.6); q.setFromEuler(e);
+      m4.compose(new THREE.Vector3(p.x, p.h / 2, p.z), q, new THREE.Vector3(1, p.h, 1));
+      pim.setMatrixAt(i, m4);
+    }
+    pim.instanceMatrix.needsUpdate = true; root.add(pim);
+  }
+  /* ARAME FARPADO no topo da cerca — silhueta clássica e barata: 2 fios em catenária +
+     farpas como cruzetas finas. Sem collider (é decoração acima da altura de tiro). */
+  {
+    const wmat = new THREE.MeshBasicMaterial({ color: 0x2b2620 });
+    const barbGeo = [];
+    const runWire = (ax, az, bx, bz, y) => {
+      const a = new THREE.Vector3(ax, y, az), b = new THREE.Vector3(bx, y, bz);
+      const mid = a.clone().lerp(b, 0.5); mid.y -= 0.28;
+      const cur = new THREE.QuadraticBezierCurve3(a, mid, b);
+      root.add(new THREE.Mesh(new THREE.TubeGeometry(cur, LOWQ ? 8 : 16, 0.016, 3), wmat));
+      if (LOWQ) return;
+      for (let i = 1; i < 10; i++) {   // farpas
+        const pt = cur.getPoint(i / 10);
+        const bg = new THREE.BoxGeometry(0.005, 0.1, 0.1);
+        bg.rotateY(Math.atan2(bx - ax, bz - az)); bg.rotateZ(0.7);
+        bg.translate(pt.x, pt.y, pt.z); barbGeo.push(bg);
+      }
+    };
+    const C = [[-HALF_X + 0.5, -HALF_Z + 0.5], [HALF_X - 0.5, -HALF_Z + 0.5], [HALF_X - 0.5, HALF_Z - 0.5], [-HALF_X + 0.5, HALF_Z - 0.5]];
+    for (let i = 0; i < 4; i++) {
+      const a = C[i], b = C[(i + 1) % 4];
+      if (i === 2) continue;   // lado sul: o vão do portão fica livre
+      for (const y of [4.15, 4.45]) runWire(a[0], a[1], b[0], b[1], y);
+    }
+    if (barbGeo.length) {
+      // merge manual (sem BufferGeometryUtils no import map): 1 draw call pras farpas
+      let vc = 0, ic = 0;
+      for (const g of barbGeo) { vc += g.attributes.position.count; ic += g.index.count; }
+      const pos = new Float32Array(vc * 3), idx = new Uint32Array(ic);
+      let vo = 0, io = 0;
+      for (const g of barbGeo) {
+        pos.set(g.attributes.position.array, vo * 3);
+        const gi = g.index.array; for (let k = 0; k < gi.length; k++) idx[io + k] = gi[k] + vo;
+        vo += g.attributes.position.count; io += gi.length; g.dispose();
+      }
+      const merged = new THREE.BufferGeometry();
+      merged.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+      merged.setIndex(new THREE.BufferAttribute(idx, 1));
+      root.add(new THREE.Mesh(merged, wmat));
+    }
+  }
+  /* PORTÃO DE CORRER de zinco (BAR §4.4) — mesma chapa da cerca, moldura de cantoneira,
+     TRILHO no chão, cadeado e corrente. Fica aberto (o vão x∈[-5,5] é o spawn P), as duas
+     folhas recolhidas nas laterais. Colliders idênticos aos das folhas antigas. */
+  addBox(0.25, 3.4, 4.6, MAT.zincOld, -5.2, 0, HALF_Z - 2.2, { ry: 0.9 });
+  addBox(0.25, 3.4, 4.6, MAT.zincOld, 5.2, 0, HALF_Z - 2.2, { ry: -0.9 });
+  {
+    const angle = lam({ map: rustStageTex(1, 51, null, 2, 1), metalness: 0.35, roughness: 0.8 });
+    for (const sgn of [-1, 1]) {   // moldura de cantoneira nas folhas
+      for (const [ox, oy, w, h] of [[0, 0.06, 4.7, 0.12], [0, 3.3, 4.7, 0.12]]) {
+        const m = new THREE.Mesh(new THREE.BoxGeometry(0.12, h, w), angle);
+        m.position.set(sgn * 5.2, oy, HALF_Z - 2.2); m.rotation.y = sgn * -0.9; m.castShadow = true; root.add(m);
+      }
+    }
+    // trilho no chão (o portão é de correr, não de bater)
+    const rail = new THREE.Mesh(new THREE.BoxGeometry(15, 0.06, 0.14), lam({ color: 0x4a4a48, metalness: 0.7, roughness: 0.4 }));
+    rail.position.set(0, 0.03, HALF_Z - 0.75); rail.receiveShadow = true; root.add(rail);
+    // corrente + cadeado pendurados na folha oeste
+    const chain = lam({ color: 0x565049, metalness: 0.7, roughness: 0.5 });
+    for (let i = 0; i < 7; i++) {
+      const l = new THREE.Mesh(new THREE.TorusGeometry(0.055, 0.017, 4, 8), chain);
+      l.position.set(-4.6 + i * 0.02, 1.35 - i * 0.09, HALF_Z - 2.9); l.rotation.y = i % 2 ? 1.57 : 0; root.add(l);
+    }
+    const lock = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.16, 0.05), lam({ color: 0x6d6a60, metalness: 0.6, roughness: 0.5 }));
+    lock.position.set(-4.5, 0.68, HALF_Z - 2.9); root.add(lock);
+  }
+  /* PLACA PINTADA À MÃO do portão — o hero prop de identidade do mapa.
+     Campo vermelho, letra creme com contorno e sombra preta, baseline irregular,
+     conteúdo canônico (FERRO VELHO + o que se compra + telefone + seta). */
+  {
+    const tex = handSignTex([
+      { t: 'FERRO VELHO DO ZÉ', size: 0.9, color: '#f7e9c8', cond: 0.86 },
+      { t: 'COMPRA-SE FERRO • COBRE • ALUMÍNIO', size: 0.58, color: '#f2c23a', cond: 0.7 },
+      { t: 'BATERIA • MOTOR — FONE 3255-4180', size: 0.58, color: '#f2c23a', cond: 0.7 },
+    ], { bg: '#a8241c', w: 1024, h: 288, seed: 4242 });
+    const s = new THREE.Mesh(new THREE.PlaneGeometry(14, 3.4), new THREE.MeshBasicMaterial({ map: tex, transparent: true }));
+    s.position.set(0, 4.9, HALF_Z + 0.12); root.add(s);
+    // verso (quem já está dentro do pátio também vê a placa — marco do spawn P)
+    const s2 = s.clone(); s2.position.z = HALF_Z - 0.12; s2.rotation.y = Math.PI; root.add(s2);
+    addBox(0.3, 6.2, 0.3, MAT.zincOld, -7.2, 0, HALF_Z - 0.4); addBox(0.3, 6.2, 0.3, MAT.zincOld, 7.2, 0, HALF_Z - 0.4);
+    // seta pintada à mão apontando pra dentro (affordance de rota, BAR §2.5)
+    const arrow = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 1.1),
+      new THREE.MeshBasicMaterial({ map: handSignTex([{ t: '↓ ENTRADA', size: 0.86, color: '#1b1b1b', outline: '#f5e9b8', shadow: '#f5e9b8', cond: 0.78 }], { bg: '#e8c22a', w: 512, h: 160, seed: 77 }), transparent: true }));
+    arrow.position.set(-6.6, 2.6, HALF_Z - 0.72); arrow.rotation.y = Math.PI; root.add(arrow);
+  }
 
   // ===== FUNDO DO PÁTIO (crítico gauntlet: "horizonte vazio"): silhueta de pilhas FORA do
   // muro, sem collider — o mundo não acaba atrás da parede =====
@@ -220,23 +684,26 @@ export function buildFerroVelho(scene, T) {
   addBox(0.5, 3.4, 2.5, MAT.office, G.x1, 0, G.z0 + 1.25);
   addBox(0.5, 3.4, 2.5, MAT.office, G.x1, 0, G.z1 - 1.25);
   addBox(G.x1 - G.x0 + 1.5, 0.3, G.z1 - G.z0 + 1.5, MAT.roof, (G.x0 + G.x1) / 2, 3.4, (G.z0 + G.z1) / 2, { collide: false });  // telhado
-  addBox(3.2, 1.0, 1.4, MAT.rust, -8, 0, -31.5, { collide: true });   // balcão/mesa dentro
-  { const s = new THREE.Mesh(new THREE.PlaneGeometry(8, 1.4), new THREE.MeshBasicMaterial({ map: signTex('#4a6e4f', '#e8e4d8', 'ESCRITÓRIO') }));
-    s.position.set((G.x0 + G.x1) / 2, 3.9, G.z1 + 0.3); root.add(s); }
+  addBox(3.2, 1.0, 1.4, nextRust(), -8, 0, -31.5, { collide: true });   // balcão/mesa dentro
+  { // placa do escritório: mesma mão de pincel do portão, campo azul (BAR §4.4 aceita
+    // vermelho/azul/amarelo). Marco visual do spawn B, legível de longe.
+    const s = new THREE.Mesh(new THREE.PlaneGeometry(8, 1.7), new THREE.MeshBasicMaterial({
+      map: handSignTex([{ t: 'ESCRITÓRIO', size: 0.82, color: '#f4e7c4', cond: 0.8 }], { bg: '#1f4f86', w: 512, h: 128, seed: 909 }), transparent: true }));
+    s.position.set((G.x0 + G.x1) / 2, 4.0, G.z1 + 0.3); root.add(s); }
   gprop('dumpster', 6, -31, 1.4) || addBox(1.2, 1.4, 2, MAT.steel, 6, 0, -31); collide(6, -31, 0.7, 1.1, 1.4);
 
   // ===== LABIRINTO: muros de carros empilhados Mint (N-S altos) + fileiras prensadas (E-W baixas) =====
   // muro_carros h=3.0 → painel ~2.8w×1.3d; em fila forma a parede do labirinto (não dá pra ver por cima)
   const wallAtNS = (x, z) => {   // parede N-S: 5 painéis ao longo de z (14m)
-    for (let i = -2; i <= 2; i++) gpropV('muro_carros', x, z + i * 2.8, 3.0, Math.PI / 2) || addBox(1.3, 3.0, 2.8, MAT.rust, x, 0, z + i * 2.8);
+    for (let i = -2; i <= 2; i++) gpropV('muro_carros', x, z + i * 2.8, 3.0, Math.PI / 2) || addBox(1.3, 3.0, 2.8, nextRust(), x, 0, z + i * 2.8);
     collide(x, z, 0.7, 7.0, 3.0);
   };
   const wallAtEW = (x, z) => {   // parede E-W: 3 painéis ao longo de x (8.4m)
-    for (let i = -1; i <= 1; i++) gpropV('muro_carros', x + i * 2.8, z, 3.0) || addBox(2.8, 3.0, 1.3, MAT.rust, x + i * 2.8, 0, z);
+    for (let i = -1; i <= 1; i++) gpropV('muro_carros', x + i * 2.8, z, 3.0) || addBox(2.8, 3.0, 1.3, nextRust(), x + i * 2.8, 0, z);
     collide(x, z, 4.2, 0.7, 3.0);
   };
   // fileira_carros h=1.2 → ~6.3×1.45 (cover baixo E-W, dá pra atirar por cima)
-  const rowAt = (x, z) => { gpropV('fileira_carros', x, z, 1.2) || addBox(6.3, 1.2, 1.45, MAT.rust, x, 0, z); collide(x, z, 3.2, 0.8, 1.2); };
+  const rowAt = (x, z) => { gpropV('fileira_carros', x, z, 1.2) || addBox(6.3, 1.2, 1.45, nextRust(), x, 0, z); collide(x, z, 3.2, 0.8, 1.2); };
   wallAtNS(-11, -13);   // A — centro-oeste norte
   wallAtNS(11, 1);      // B — centro-leste
   wallAtNS(-11, 15);    // C — centro-oeste sul
@@ -254,18 +721,19 @@ export function buildFerroVelho(scene, T) {
   wallAtEW(-6, 8);      // I — muro E-W no miolo oeste (mata LOS spawn↔spawn)
   wallAtEW(0, -6);      // J — muro E-W no miolo centro (mata LOS spawn↔spawn)
   // montes de carros (cover médio nos cantos largos)
-  const heapAt = (x, z, ry = 0) => { gprop('monte_carros', x, z, 2.2, ry) || addBox(2.8, 2.2, 2.8, MAT.rust, x, 0, z, { ry }); collide(x, z, 1.5, 1.5, 2.2); };
+  const heapAt = (x, z, ry = 0) => { gpropV('monte_carros', x, z, 2.2, ry) || addBox(2.8, 2.2, 2.8, nextRust(), x, 0, z, { ry }); collide(x, z, 1.5, 1.5, 2.2); };
   heapAt(-22, -24, 0.4);
   heapAt(24, 32, -0.3);
   // máquinas do ferro velho: guindaste (marco leste) + prensa (canto SW)
   gprop('guindaste', 26, -6, 7) || addBox(5.7, 7, 5.5, MAT.steel, 26, 0, -6); collide(26, -6, 2.9, 2.8, 6.5);
-  gprop('prensa_carros', -26, 32, 2.6) || addBox(2.3, 2.6, 1.1, MAT.rust, -26, 0, 32); collide(-26, 32, 1.2, 0.6, 2.6);
+  gprop('prensa_carros', -26, 32, 2.6) || addBox(2.3, 2.6, 1.1, nextRust(), -26, 0, 32); collide(-26, 32, 1.2, 0.6, 2.6);
 
   // ===== carros unitários + cover baixo nos corredores =====
   let ci = 0;
   const carAt = (x, z, ry) => {
     const id = SINGLES[ci++ % SINGLES.length];
-    if (!gprop(id, x, z, 1.45, ry)) addBox(2, 1.3, 4.2, MAT.rust, x, 0, z, { ry });
+    // gpropV (e não gprop): cada carcaça pega um dos 3 estágios de ferrugem pelo índice
+    if (!gpropV(id, x, z, 1.45, ry)) addBox(2, 1.3, 4.2, nextRust(), x, 0, z, { ry });
     collide(x, z, 1.2, 2.2, 1.3);
   };
   carAt(-24, 22, 0.3); carAt(2, 12, -2.9); carAt(18, -10, 1.7);
@@ -279,11 +747,55 @@ export function buildFerroVelho(scene, T) {
   sandAt(-20, 14); sandAt(12, 28); sandAt(26, -12);
   gprop('concrete_roadblock', 0, 20, 1.1, Math.PI / 2) || addBox(2.7, 1.1, 0.7, MAT.wall, 0, 0, 20); collide(0, 20, 0.5, 1.6, 1.1);
 
-  // ===== pneus empilhados (pilha_pneus Mint) + barris =====
-  const tireStack = (x, z) => { gprop('pilha_pneus', x, z, 1.2) || addBox(1.4, 1.1, 1.4, MAT.tire, x, 0, z); collide(x, z, 0.5, 0.5, 1.1); };
+  /* ===== PNEUS EMPILHADOS + TAMBORES DE 200 L (props de identidade, BAR §4.4) =====
+     Pneu: preto fosco ESBRANQUIÇADO de poeira, e a pilha tem ÁGUA PARADA dentro do pneu
+     de cima — com o reflexo do céu nessa água (é um detalhe citado nominalmente no BAR e
+     custa 1 disco por pilha). */
+  const tireMat = lam({ map: noiseTex('#26282c', [['#3a3d40', 26, 6, 20, 0.5], ['#585c5c', 18, 3, 10, 0.45], ['#8a8b84', 14, 2, 7, 0.35]], 2, 1, { seed: 601 }), roughness: 0.98 });
+  const waterMat = new THREE.MeshStandardMaterial({ color: 0x2b3a3c, metalness: 0.9, roughness: 0.08, transparent: true, opacity: 0.9 });
+  let _ti = 0;
+  const tireStack = (x, z) => {
+    const i = _ti++;
+    if (!gprop('pilha_pneus', x, z, 1.2)) {   // fallback procedural: 4 pneus tortos, não um box
+      for (let k = 0; k < 4; k++) {
+        const m = new THREE.Mesh(new THREE.TorusGeometry(0.42, 0.15, 6, 14), tireMat);
+        m.rotation.x = Math.PI / 2; m.rotation.z = k * 1.1 + i;
+        m.position.set(x + Math.sin(k * 2.1 + i) * 0.06, 0.15 + k * 0.27, z + Math.cos(k * 1.7 + i) * 0.06);
+        m.castShadow = m.receiveShadow = true; root.add(m);
+      }
+    }
+    // ÁGUA PARADA no pneu de cima (dengue do ferro velho) — espelha o céu alaranjado
+    const w = new THREE.Mesh(new THREE.CircleGeometry(0.26, 12), waterMat);
+    w.rotation.x = -Math.PI / 2; w.position.set(x, 1.14, z); root.add(w);
+    collide(x, z, 0.5, 0.5, 1.1);
+  };
   tireStack(-18, 20); tireStack(16, 30); tireStack(-16, -33); tireStack(26, -30); tireStack(-28, 12);
-  const barrel = (x, z) => { const m = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 1.0, 10), MAT.barrel); m.position.set(x, 0.5, z); m.castShadow = m.receiveShadow = true; root.add(m); collide(x, z, 0.5, 0.5, 1.0); };
+  /* TAMBOR DE 200 L: 0.58 m Ø × 0.88 m, com os DOIS frisos de rolamento e o tampo.
+     Cores por índice — azul/verde/vermelho desbotados com logo ido, e alguns só ferrugem
+     (estágio sorteado do mesmo pool das carcaças). Alguns tombados no chão. */
+  const DRUM_PAINT = [0x3c5f8e, 0x2f6b46, 0x9c3128, 0xb4a24a, null, null];
+  let _bi = 0;
+  const barrel = (x, z, tipped = false) => {
+    const i = _bi++;
+    const col = DRUM_PAINT[i % DRUM_PAINT.length];
+    const mat = col == null ? rustMat(i * 31 + 5) : lam({ map: barrelTex(), color: col, metalness: 0.35, roughness: 0.72 });
+    const g = new THREE.Group();
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.29, 0.29, 0.88, 12), mat);
+    body.position.y = 0.44; body.castShadow = body.receiveShadow = true; g.add(body);
+    for (const ry of [0.28, 0.6]) {   // frisos de rolamento — a silhueta do tambor 200 L
+      const r = new THREE.Mesh(new THREE.CylinderGeometry(0.315, 0.315, 0.055, 12), mat);
+      r.position.y = ry; r.castShadow = true; g.add(r);
+    }
+    const lid = new THREE.Mesh(new THREE.CylinderGeometry(0.30, 0.30, 0.03, 12), mat);
+    lid.position.y = 0.885 + (i % 3 === 0 ? 0.02 : 0); lid.rotation.z = i % 3 === 0 ? 0.09 : 0;   // tampo empenado
+    g.add(lid);
+    if (tipped) { g.rotation.z = Math.PI / 2 - 0.06; g.position.set(x, 0.30, z); g.rotation.y = i * 1.3; }
+    else g.position.set(x, 0, z);
+    root.add(g);
+    collide(x, z, tipped ? 0.5 : 0.32, tipped ? 0.32 : 0.32, tipped ? 0.6 : 0.95);
+  };
   barrel(-4, 4); barrel(20, 22); barrel(-28, -18); barrel(4, -32); barrel(28, 8);
+  barrel(-4.8, 4.5); barrel(20.7, 22.4, true); barrel(-28.7, -17.4); barrel(27.4, 8.6, true);
   // REFORÇO DAS LANES CENTRAIS (G2-R14B, pedido do dono — "mesma coisa no ferro velho"):
   // sucatas escalonadas no corredor-miolo (x≈±6) quebram a lane aberta portão↔galpão.
   // Tudo ≤1.45m de altura (LOS spawn↔spawn, já 0, não muda) e vãos laterais ≥3m pro A*.
@@ -291,6 +803,89 @@ export function buildFerroVelho(scene, T) {
   carAt(6, -12, -0.3);
   tireStack(3, 22);
   sandAt(-7, 0);
+
+  /* ===== PROPS DE IDENTIDADE PROCEDURAIS (BAR §4.4) =====
+     Empilhadeira, carrinho de mão, baterias, rolos de fio de cobre, cadeira monobloco e
+     o CACHORRO vira-lata. Tudo geometria primitiva barata (nenhum GLB novo, nenhum
+     download) e SÓ a empilhadeira ganha collider — os demais são leitura, não cover,
+     e ficam fora da linha de tiro pra não virar ruído (BAR §2.3). */
+  {
+    const ymat = lam({ map: rustStageTex(2, 777, '#c3ab63', 1, 1), roughness: 0.8, metalness: 0.2 });   // amarelo calcinado
+    const dark = lam({ color: 0x2a2c2e, roughness: 0.6, metalness: 0.4 });
+    const mesh = (g, m, x, y, z, ry = 0, rx = 0) => { const o = new THREE.Mesh(g, m); o.position.set(x, y, z); o.rotation.y = ry; o.rotation.x = rx; o.castShadow = o.receiveShadow = true; root.add(o); return o; };
+    /* EMPILHADEIRA — marco do PÁTIO LESTE (o crítico pede "marcos distintos por área":
+       hoje o leste só tinha o guindaste). Silhueta reconhecível = torre do mastro + garfos. */
+    // peça local de grupo (Object3D.position é acessor read-only: nada de Object.assign)
+    const part = (g, geo, mat, px, py, pz, ry = 0, rx = 0, rz = 0) => {
+      const o = new THREE.Mesh(geo, mat); o.position.set(px, py, pz);
+      o.rotation.set(rx, ry, rz); o.castShadow = o.receiveShadow = true; g.add(o); return o;
+    };
+    const forklift = (fx, fz, ry) => {
+      const g = new THREE.Group();
+      part(g, new THREE.BoxGeometry(1.15, 0.85, 1.9), ymat, 0, 0.72, -0.15);
+      part(g, new THREE.BoxGeometry(1.05, 0.5, 0.7), dark, 0, 1.4, -0.55);   // banco/cabine
+      for (const sx of [-0.42, 0.42]) {   // gaiola de proteção do operador
+        part(g, new THREE.BoxGeometry(0.07, 1.5, 0.07), ymat, sx, 2.0, -1.0);
+        part(g, new THREE.BoxGeometry(0.07, 1.5, 0.07), ymat, sx, 2.0, 0.1);
+        part(g, new THREE.BoxGeometry(0.09, 2.4, 0.13), dark, sx * 0.55, 1.35, 0.95);   // trilhos do mastro
+        part(g, new THREE.BoxGeometry(0.11, 0.05, 1.15), dark, sx * 0.55, 0.09, 1.5);   // GARFOS
+      }
+      part(g, new THREE.BoxGeometry(1.1, 0.07, 0.07), ymat, 0, 2.72, -0.45);
+      for (const [wx, wz, wr] of [[-0.55, 0.75, 0.34], [0.55, 0.75, 0.34], [-0.5, -0.85, 0.24], [0.5, -0.85, 0.24]])
+        part(g, new THREE.CylinderGeometry(wr, wr, 0.24, 10), tireMat, wx, wr, wz, 0, 0, Math.PI / 2);
+      g.position.set(fx, 0, fz); g.rotation.y = ry; root.add(g);
+      collide(fx, fz, 1.1, 1.4, 2.1);
+    };
+    forklift(20, 9, -1.15);
+    /* CARRINHO DE MÃO encostado na parede do barraco */
+    const barrow = (bx, bz, ry) => {
+      const g = new THREE.Group();
+      part(g, new THREE.BoxGeometry(0.62, 0.28, 0.9), rustMat(913), 0, 0.55, 0, 0, -0.9);
+      const wood = lam({ color: 0x5b4a34 });
+      for (const sx of [-0.24, 0.24]) part(g, new THREE.BoxGeometry(0.05, 0.05, 1.5), wood, sx, 0.62, -0.45, 0, 0.35);
+      part(g, new THREE.CylinderGeometry(0.2, 0.2, 0.1, 10), tireMat, 0, 0.2, 0.62, 0, 0, Math.PI / 2);
+      g.position.set(bx, 0, bz); g.rotation.y = ry; root.add(g);
+    };
+    barrow(3.2, -30.4, 0.6);
+    /* BATERIAS empilhadas (terminais esverdeados de sulfato) + ROLOS DE FIO DE COBRE —
+       é literalmente o que o ferro velho compra; ficam à sombra do barraco. */
+    const batMat = lam({ color: 0x1a1c1e, roughness: 0.75 });
+    const sulf = lam({ color: 0x6fae86, roughness: 0.6, metalness: 0.25 });
+    for (let i = 0; i < 6; i++) {
+      const bx = -10.6 + (i % 3) * 0.38, by = 0.14 + Math.floor(i / 3) * 0.27, bz = -30.2 + (i % 2) * 0.05;
+      mesh(new THREE.BoxGeometry(0.34, 0.26, 0.2), batMat, bx, by, bz, (i * 0.3) % 0.5);
+      for (const tx of [-0.09, 0.09]) mesh(new THREE.CylinderGeometry(0.028, 0.032, 0.05, 6), sulf, bx + tx, by + 0.15, bz);
+    }
+    const copper = lam({ color: 0xb1622c, metalness: 0.85, roughness: 0.42 });
+    for (const [cx, cz, cr] of [[-11.4, -29.2, 0.28], [-11.0, -28.6, 0.22], [-11.7, -28.7, 0.18]])
+      mesh(new THREE.TorusGeometry(cr, 0.075, 5, 12), copper, cx, 0.075, cz, 0, Math.PI / 2);
+    /* CADEIRA MONOBLOCO branca encardida na porta do escritório (BAR §4.4) */
+    {
+      const pl = lam({ color: 0xd6d2c4, roughness: 0.72 });
+      mesh(new THREE.BoxGeometry(0.42, 0.05, 0.42), pl, 4.0, 0.44, -29.6, 0.5);
+      mesh(new THREE.BoxGeometry(0.42, 0.5, 0.05), pl, 4.0 + Math.sin(0.5) * 0.19, 0.7, -29.6 - Math.cos(0.5) * 0.19, 0.5);
+      for (const [lx, lz] of [[-0.17, -0.17], [0.17, -0.17], [-0.17, 0.17], [0.17, 0.17]])
+        mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.44, 5), pl, 4.0 + lx, 0.22, -29.6 + lz);
+    }
+    /* CACHORRO vira-lata dormindo na sombra — o BAR lista cachorro/gato/galinha como
+       marcador de "isso é um ferro velho brasileiro, não um depósito industrial". */
+    {
+      const fur = lam({ color: 0x8a6a44, roughness: 0.95 });
+      const dx = 1.6, dz = -29.2, dr = -0.7;
+      const body = mesh(new THREE.CapsuleGeometry(0.16, 0.42, 3, 6), fur, dx, 0.17, dz, dr, 0);
+      body.rotation.z = Math.PI / 2;
+      mesh(new THREE.SphereGeometry(0.14, 8, 6), fur, dx + Math.sin(dr) * 0.34, 0.19, dz + Math.cos(dr) * 0.34, dr);
+      for (const e of [-1, 1]) mesh(new THREE.ConeGeometry(0.05, 0.11, 4), fur, dx + Math.sin(dr) * 0.34 + e * 0.07, 0.3, dz + Math.cos(dr) * 0.34, dr);
+      mesh(new THREE.CylinderGeometry(0.025, 0.015, 0.34, 5), fur, dx - Math.sin(dr) * 0.36, 0.09, dz - Math.cos(dr) * 0.36, dr, Math.PI / 2 - 0.3);
+    }
+    /* CARCAÇA APOIADA EM TIJOLO/ARO, não em roda (BAR §4.4) — pilhas de tijolo debaixo
+       dos carros unitários; é o detalhe que denuncia "sem roda, sobre calço". */
+    const brick = lam({ color: 0x9c5a3c, roughness: 0.95 });
+    for (const [bx, bz] of [[-24, 22], [2, 12], [18, -10], [-2, -18], [-26, -2], [8, 24], [-6, 24], [6, -12]]) {
+      for (const s of [-1, 1]) for (let k = 0; k < 2; k++)
+        mesh(new THREE.BoxGeometry(0.2, 0.09, 0.11), brick, bx + s * 0.85, 0.05 + k * 0.1, bz + s * 1.5, k * 0.5);
+    }
+  }
 
   /* ===== GROUND DETAIL PASS pesado (crítico gauntlet R2: "primeiro plano morto") =====
      ferro velho = óleo, sucata, poeira, mato. TUDO sem collider (LOS/A* intactos). */
@@ -314,8 +909,45 @@ export function buildFerroVelho(scene, T) {
     for (let x = -26; x <= 26; x += 6) decal(dust, 5.5, 2.0, x + drnd() * 2, -HALF_Z + 1.4, Math.PI / 2, 0.014, 0.8);
     decal(dust, 7, 2.4, -14, HALF_Z - 1.6, Math.PI / 2, 0.014, 0.8); decal(dust, 7, 2.4, 14, HALF_Z - 1.6, Math.PI / 2, 0.014, 0.8);
 
+    /* ---- CHÃO BRASILEIRO: ARGILA VERMELHA + BRITA + POÇAS (BAR §4.4) ----
+       "terra batida com trechos de argila vermelha e trechos de brita, manchada de óleo
+       preto e com poças de água escura (espelhadas, com iridescência de óleo)".
+       O chão antigo era um marrom só; as manchas de laterita são o que dá o cheiro de
+       Brasil e, de quebra, funcionam como pontos de referência na navegação. */
+    const clay = blobTex(156, 74, 42, 0.55, 404), grit = blobTex(150, 146, 132, 0.42, 505);
+    for (const [x, z, w, t] of [
+      [-20, -30, 7, clay], [12, -22, 6, clay], [-6, 6, 8, clay], [22, 26, 7, clay], [-26, 16, 6, clay],
+      [4, 34, 6, clay], [28, -14, 5, clay], [-14, 24, 6, clay],
+      [0, 22, 6, grit], [-18, -4, 6, grit], [16, 4, 6, grit], [-4, -26, 6, grit], [26, -26, 5, grit], [-28, 6, 5, grit],
+    ]) decal(t, w, w * (0.6 + drnd() * 0.5), x, z, drnd() * 6.3, 0.012, 0.85);
+    // POÇAS: material espelhado (metalness alta + roughness baixa) — é o único lugar do
+    // pátio onde o céu de fim de tarde aparece refletido, e o BAR pede isso nominalmente.
+    const puddleMat = new THREE.MeshStandardMaterial({ map: puddleTex(617), transparent: true, metalness: 0.85, roughness: 0.09, polygonOffset: true, polygonOffsetFactor: -3 });
+    for (const [x, z, w] of [[-9.5, 17.5, 3.4], [7.5, -8.5, 2.8], [-19, -19, 3.0], [15, 24, 2.6], [25, -9, 2.4], [-25, 24, 3.0], [2, -34, 2.2], [-3, 8.5, 2.6]]) {
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(w, w * (0.6 + drnd() * 0.4)), puddleMat);
+      m.rotation.x = -Math.PI / 2; m.rotation.z = drnd() * 6.3; m.position.set(x, 0.021, z); root.add(m);
+    }
+    /* CACOS DE VIDRO — carcaça "sem vidro" tem que ter o vidro NO CHÃO. Quadradinhos
+       verdes de para-brisa laminado, levemente especulares: piscam com o sol rasante. */
+    {  // InstancedMesh: 90 cacos em 1 draw call (eram 90 chamadas — alvo é 60fps em notebook)
+      const shardMat = new THREE.MeshStandardMaterial({ color: 0x9fc6b4, metalness: 0.25, roughness: 0.08, transparent: true, opacity: 0.72, side: THREE.DoubleSide });
+      const spots = [[-24, 22], [2, 12], [18, -10], [-2, -18], [-26, -2], [8, 24], [-6, 24], [6, -12], [-11, -13], [11, 1]];
+      const per = LOWQ ? 4 : 9;
+      const im = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1), shardMat, spots.length * per);
+      im.frustumCulled = false;
+      const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler();
+      let n = 0;
+      for (const [cx, cz] of spots) for (let k = 0; k < per; k++) {
+        e.set(-Math.PI / 2, 0, drnd() * 6.3); q.setFromEuler(e);
+        m4.compose(new THREE.Vector3(cx + (drnd() - 0.5) * 3.4, 0.025, cz + (drnd() - 0.5) * 3.4), q,
+          new THREE.Vector3(0.05 + drnd() * 0.09, 0.04 + drnd() * 0.08, 1));
+        im.setMatrixAt(n++, m4);
+      }
+      im.instanceMatrix.needsUpdate = true; root.add(im);
+    }
+
     // ---- sucata miúda: chapas, tubos, blocos de motor (corredores e rotas) ----
-    const scrapMat = lam({ map: rustTex(1, 1, 167), metalness: 0.45, roughness: 0.7 });
+    const scrapMat = lam({ map: rustStageTex(0, 167, null), metalness: 0.05, roughness: 0.98 });
     const scrapSpots = [   // miolo das rotas principais + perto dos spawns (primeiros 5m!)
       [0, 27], [-3, 24], [4, 22], [-8, 30], [7, 31], [-1, 18], [3, 15], [-5, 10], [2, 6], [-2, -2], [5, -10], [-4, -12],
       [-10, 20], [12, 8], [-14, -6], [8, -16], [16, -18], [-18, 16], [20, 2], [-22, -10], [10, 32], [-12, 33], [14, 26], [-16, 27],
@@ -332,14 +964,19 @@ export function buildFerroVelho(scene, T) {
         m.rotation.z = Math.PI / 2; m.rotation.y = drnd() * 6.3; m.position.set(x + drnd() - 0.5, 0.06, z + drnd() - 0.5);
         m.castShadow = true; root.add(m);
       } else {                    // bloco de motor
-        const m = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.32, 0.34), lam({ color: 0x2e2c28, metalness: 0.6, roughness: 0.6 }));
+        const m = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.32, 0.34), lam({ color: 0x1f1d1b, metalness: 0.55, roughness: 0.22 }));
         m.position.set(x + drnd() - 0.5, 0.16, z + drnd() - 0.5); m.rotation.y = drnd() * 6.3; m.castShadow = true; root.add(m);
       }
     }
     // peças grandes: portas/capôs apoiados nas pilhas + parachoques no chão
-    const doorMat = lam({ map: rustTex(1.2, 1.2, 211), metalness: 0.4, roughness: 0.75 });
+    // portas/capôs guardam TINTA CALCINADA (vermelho vira rosa-salmão): é a peça onde
+    // o resto de tinta morta mais aparece, porque é chapa grande e lisa.
+    const doorMats = [lam({ map: rustStageTex(2, 211, PAINT_DEAD[0]), metalness: 0.35, roughness: 0.66 }),
+      lam({ map: rustStageTex(1, 311, PAINT_DEAD[1]), metalness: 0.1, roughness: 0.94 }),
+      lam({ map: rustStageTex(0, 411, PAINT_DEAD[4]), metalness: 0.05, roughness: 0.98 })];
+    let _dm = 0;
     const leanDoor = (x, z, ry) => {
-      const m = new THREE.Mesh(new THREE.BoxGeometry(1.25, 1.05, 0.05), doorMat);
+      const m = new THREE.Mesh(new THREE.BoxGeometry(1.25, 1.05, 0.05), doorMats[_dm++ % doorMats.length]);
       m.position.set(x, 0.55, z); m.rotation.y = ry; m.rotation.x = -0.28;   // escorada
       m.castShadow = m.receiveShadow = true; root.add(m);
     };
@@ -358,13 +995,10 @@ export function buildFerroVelho(scene, T) {
     };
     looseTire(1.5, 30.5); looseTire(-7, 27); looseTire(9, 20, true); looseTire(-13, 12); looseTire(18, 6, true); looseTire(-9, -22); looseTire(13, -24); looseTire(-21, 2); looseTire(22, -16); looseTire(-3, 33.5);
     // mato nascendo entre os carros e nos rodapés (planos cruzados c/ alpha)
-    const weedMat = new THREE.MeshLambertMaterial({ map: weedTex(), transparent: true, alphaTest: 0.35, side: THREE.DoubleSide });
-    const weed = (x, z, s = 1) => {
-      for (let i = 0; i < 2; i++) {
-        const m = new THREE.Mesh(new THREE.PlaneGeometry(0.7 * s, 0.55 * s), weedMat);
-        m.position.set(x, 0.27 * s, z); m.rotation.y = i * Math.PI / 2 + drnd() * 0.5; root.add(m);
-      }
-    };
+    const weedMat = new THREE.MeshLambertMaterial({ map: bladeTex(89, false), transparent: true, alphaTest: 0.35, side: THREE.DoubleSide });
+    // planos cruzados num único InstancedMesh (eram 2 draw calls por tufo)
+    const weedTufts = [];
+    const weed = (x, z, s = 1) => { for (let i = 0; i < 2; i++) weedTufts.push([x, z, s, i * Math.PI / 2 + drnd() * 0.5]); };
     const weedSpots = [
       [-9.5, -13, 1.2], [-12.5, -6, 1], [-9.5, 15, 1.1], [-12.5, 22, 0.9], [12.5, 1, 1.2], [9.5, -4, 1], [12.5, 9, 0.9],
       [20, -18, 1.1], [-22, -22, 1], [-25, 4, 1.2], [-27, 16, 1], [25, 26, 1.1], [27, 2, 0.9], [16, -30, 1],
@@ -372,30 +1006,154 @@ export function buildFerroVelho(scene, T) {
       [-1, 34, 0.9], [6, 25, 0.8], [-11, 33, 0.9], [0.5, 12, 0.7], [-4, -6.5, 0.8], [6.5, -5.5, 0.9],
     ];
     for (const [x, z, s] of weedSpots) weed(x, z, s);
+    {
+      const im = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1), weedMat, weedTufts.length);
+      im.receiveShadow = true; im.frustumCulled = false;
+      const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), col = new THREE.Color();
+      for (let i = 0; i < weedTufts.length; i++) {
+        const [x, z, s, ry] = weedTufts[i];
+        e.set(0, ry, 0); q.setFromEuler(e);
+        m4.compose(new THREE.Vector3(x, 0.27 * s, z), q, new THREE.Vector3(0.7 * s, 0.55 * s, 1));
+        im.setMatrixAt(i, m4);
+        col.setHSL(0.25 + (i % 7) * 0.008, 0.42 + (i % 5) * 0.05, 0.34 + (i % 3) * 0.05);   // verde nunca uniforme
+        im.setColorAt(i, col);
+      }
+      im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true;
+      root.add(im);
+    }
+
+    /* ===== VEGETAÇÃO INVASORA — O ASSUNTO DO MAPA =====
+       BAR §4.4: "o verde vivo e saturado do mato contra o laranja da ferrugem é o
+       contraste cromático que define este mapa (complementares diretos). Um ferro velho
+       sem mato lê como cenário de estúdio." Três camadas: capim ALTO (1,4–2,2 m) nos
+       bolsões mortos, TREPADEIRA cobrindo pilhas inteiras, e ÁRVORE + BANANEIRA como
+       marcos verticais.
+       CLAREZA COMPETITIVA (BAR §2.3, "zero ruído na linha de tiro"): o capim alto só
+       entra em bolsão morto e rodapé de cerca — NUNCA no corredor central (|x|<8) nem
+       nos 4 m em volta das bandeiras. Kill-switch ?mato=0; em 'low' cai pra 40%. */
+    if (QP.get('mato') !== '0') {
+      const grassMat = new THREE.MeshLambertMaterial({ map: bladeTex(457, true), transparent: true, alphaTest: 0.4, side: THREE.DoubleSide, depthWrite: true });
+      // bolsões mortos: encostados na cerca, atrás das pilhas, cantos que ninguém cruza
+      const clumps = [
+        [-29.5, -30], [-29.5, -22], [-29.5, -6], [-29.5, 10], [-29.5, 26], [-29.5, 33],
+        [29.5, -32], [29.5, -24], [29.5, -8], [29.5, 6], [29.5, 20], [29.5, 33],
+        [-26, -34], [-8, -34], [16, -34], [24, -34], [-27, 34.5], [22, 34.5],
+        [-19.5, -13], [-19.5, 15], [19.5, 1], [-13, -22], [13, -30], [27, -18],
+        [-22, 8], [-27, 20], [26, 14], [-24, 28], [21, 27], [-17, 4], [17, -22],
+      ];
+      const perClump = LOWQ ? 3 : 7;
+      const total = clumps.length * perClump;
+      const geo = new THREE.PlaneGeometry(1, 1);
+      const im = new THREE.InstancedMesh(geo, grassMat, total * 2);   // ×2 = planos cruzados
+      im.castShadow = false; im.receiveShadow = true; im.frustumCulled = false;
+      const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), col = new THREE.Color();
+      let n = 0;
+      for (const [cx, cz] of clumps) {
+        for (let k = 0; k < perClump; k++) {
+          const a = drnd() * 6.283, d = drnd() * 1.7;
+          const px = cx + Math.cos(a) * d, pz = cz + Math.sin(a) * d;
+          const h = 1.35 + drnd() * 0.85, w = h * (0.72 + drnd() * 0.4);
+          const yaw = drnd() * 3.14;
+          // tint por tufo: verde-vivo (a maioria) até um pouco de palha — nunca uniforme
+          const v = drnd();
+          col.setHSL(0.24 + v * 0.06, 0.45 + (1 - v) * 0.3, 0.36 + v * 0.16);
+          for (const off of [0, Math.PI / 2]) {
+            e.set(0, yaw + off, 0); q.setFromEuler(e);
+            m4.compose(new THREE.Vector3(px, h / 2, pz), q, new THREE.Vector3(w, h, 1));
+            im.setMatrixAt(n, m4); im.setColorAt(n, col); n++;
+          }
+        }
+      }
+      im.count = n; im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true;
+      root.add(im);
+
+      /* TREPADEIRA cobrindo pilha inteira — manta de folhas na FACE das paredes de carcaça
+         e nos montes. Face escolhida à mão pra não tapar a leitura da rota nem o cover. */
+      const vineMat = new THREE.MeshLambertMaterial({ map: vineTex(733), transparent: true, alphaTest: 0.32, side: THREE.DoubleSide });
+      const drape = (x, z, ry, w, h) => {
+        const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h, 1, 3), vineMat);
+        m.position.set(x, h / 2 + 0.05, z); m.rotation.y = ry; m.receiveShadow = true; root.add(m);
+      };
+      // paredes N-S do labirinto (A -11/-13, B 11/1, C -11/15, D 21/-20): face externa
+      drape(-11.75, -13, Math.PI / 2, 12, 3.0); drape(11.75, 1, -Math.PI / 2, 12, 3.0);
+      drape(-11.75, 15, Math.PI / 2, 9, 2.8); drape(21.75, -20, -Math.PI / 2, 10, 3.0);
+      // montes e prensa: a trepadeira desce do topo
+      drape(-22, -25.6, 0, 4.2, 2.4); drape(24, 33.6, Math.PI, 4.2, 2.4);
+      drape(-26, 32.7, 0, 3.0, 2.6);
+      // capim saindo de DENTRO das carcaças (o mato cresce por dentro da sucata)
+      // gy = topo da peça (paredes de carcaça 3.0 m, montes 2.2 m): o capim tem que sair
+      // POR CIMA da pilha, não ficar embutido nela
+      for (const [gx, gz, gy] of [[-11, -16, 3.0], [11, 4, 3.0], [-11, 12, 3.0], [21, -17, 3.0], [-22, -24, 2.2], [24, 32, 2.2]]) {
+        for (let k = 0; k < 3; k++) {
+          const m = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 1.3), grassMat);
+          m.position.set(gx + (drnd() - 0.5) * 1.6, gy + 0.55, gz + (drnd() - 0.5) * 1.6);
+          m.rotation.y = drnd() * 3.14; root.add(m);
+        }
+      }
+    }
+    /* Árvore e bananeira ficam FORA do gate ?mato=0: a árvore do canto NO tem collider e é
+       marco de navegação — tirá-la mudaria o navmesh entre estados do kill-switch. */
+    {
+      /* ÁRVORE (mangueira de quintal) — marco vertical do canto NOROESTE, o único
+         volume orgânico do mapa e a maior mancha de verde saturado do frame. */
+      const canopyMat = new THREE.MeshLambertMaterial({ map: canopyTex(811), transparent: true, alphaTest: 0.35, side: THREE.DoubleSide });
+      const barkMat = lam({ color: 0x53412e, roughness: 0.97 });
+      const tree = (tx, tz, s, collideIt) => {
+        const tr = new THREE.Mesh(new THREE.CylinderGeometry(0.16 * s, 0.3 * s, 3.6 * s, 7), barkMat);
+        tr.position.set(tx, 1.8 * s, tz); tr.castShadow = true; root.add(tr);
+        for (const [bx, by, bz, br] of [[0.5, 3.2, 0.2, 0.5], [-0.4, 3.4, -0.4, -0.55]]) {
+          const b = new THREE.Mesh(new THREE.CylinderGeometry(0.07 * s, 0.12 * s, 1.5 * s, 5), barkMat);
+          b.position.set(tx + bx * s, by * s, tz + bz * s); b.rotation.z = br; b.castShadow = true; root.add(b);
+        }
+        for (let k = 0; k < 3; k++) {   // copa: 3 cartões cruzados (barato e lê bem de longe)
+          const c = new THREE.Mesh(new THREE.PlaneGeometry(5.4 * s, 4.2 * s), canopyMat);
+          c.position.set(tx, 4.9 * s, tz); c.rotation.y = k * 1.05; c.castShadow = true; root.add(c);
+        }
+        if (collideIt) collide(tx, tz, 0.4, 0.4, 3.0);
+      };
+      tree(-28.5, -30.5, 1.0, true);            // dentro do pátio (marco do canto NO)
+      tree(-42, -34, 1.35, false); tree(44, 26, 1.2, false);   // fora da cerca: skyline vivo
+
+      /* BANANEIRA ao lado do barraco — folha longa, verde vivo; assinatura de quintal. */
+      const leafMat = new THREE.MeshLambertMaterial({ map: bladeTex(999, true), transparent: true, alphaTest: 0.3, side: THREE.DoubleSide, color: 0x63b03a });
+      const banana = (bx, bz) => {
+        const st = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.16, 1.9, 6), lam({ color: 0x6e7a44, roughness: 0.9 }));
+        st.position.set(bx, 0.95, bz); st.castShadow = true; root.add(st);
+        for (let k = 0; k < 6; k++) {
+          const l = new THREE.Mesh(new THREE.PlaneGeometry(0.55, 2.1), leafMat);
+          l.position.set(bx + Math.cos(k * 1.05) * 0.55, 2.05, bz + Math.sin(k * 1.05) * 0.55);
+          l.rotation.set(-0.85, k * 1.05, 0); l.castShadow = true; root.add(l);
+        }
+      };
+      banana(5.4, -33.4); banana(-13.6, -33.6);
+    }
 
     // ---- SINALIZAÇÃO DO LABIRINTO (crítico: corredores com identidade) ----
-    const dirSign = (txt, x, z, ry) => {
+    // Placas de rota também PINTADAS A PINCEL (uma fonte digital limpa reprovaria no BAR),
+    // mas com contraste alto e placa maior: clareza competitiva vem antes do charme.
+    // O campo de cor é o CÓDIGO DA ÁREA (BAR §2.5, cor = affordance):
+    // amarelo = portão/sul, azul = galpão/norte, vermelho = pátio leste, verde = beco oeste.
+    let _sg = 0;
+    const dirSign = (txt, x, z, ry, bg = '#e0b21e', fg = '#191410') => {
       const post = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 2.5, 8), MAT.steel);
       post.position.set(x, 1.25, z); post.castShadow = true; root.add(post);
-      const c = document.createElement('canvas'); c.width = 512; c.height = 96; const xc = c.getContext('2d');
-      xc.fillStyle = '#2c2f34'; xc.fillRect(0, 0, 512, 96);
-      xc.strokeStyle = '#f4c020'; xc.lineWidth = 6; xc.strokeRect(4, 4, 504, 88);
-      xc.fillStyle = '#f4c020'; xc.textAlign = 'center'; xc.font = 'bold 52px "Arial Black",Impact,sans-serif';
-      xc.fillText(txt, 256, 66);
-      const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+      const t = handSignTex([{ t: txt, size: 0.84, color: fg, outline: '#f0e6cc', shadow: '#f0e6cc', cond: 0.74, center: true }],
+        { bg, w: 512, h: 96, seed: 3001 + (_sg++) * 137 });
       for (const face of [0, Math.PI]) {   // duas faces: legível dos dois lados
-        const s = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 0.32), new THREE.MeshBasicMaterial({ map: t }));
+        const s = new THREE.Mesh(new THREE.PlaneGeometry(1.9, 0.36), new THREE.MeshBasicMaterial({ map: t, transparent: true }));
         s.position.set(x, 2.2, z); s.rotation.y = ry + face; root.add(s);
       }
     };
-    dirSign('GALPÃO →', 7.5, 27, 0);            // saída do spawn P, aponta pro miolo
-    dirSign('← BECO OESTE', -7.5, 27, 0);
-    dirSign('PÁTIO LESTE →', 13.5, -3, Math.PI / 2);
-    dirSign('← BECO OESTE', -13.5, 3, -Math.PI / 2);
-    dirSign('↑ GALPÃO', 1, -21, Math.PI);       // aproximação do galpão
-    dirSign('PRENSA', -23.5, 29.5, 0.6);
-    dirSign('GUINDASTE', 23, -3.5, Math.PI / 2);
-    dirSign('PORTÃO →', 1, -33, Math.PI);       // saída do spawn B de volta ao portão
+    const AZUL = '#1f4f86', VERM = '#a8241c', VERDE = '#2c6b33', AMAR = '#e0b21e';
+    dirSign('GALPÃO →', 7.5, 27, 0, AZUL, '#f4e7c4');            // saída do spawn P, aponta pro miolo
+    dirSign('← BECO OESTE', -7.5, 27, 0, VERDE, '#f4e7c4');
+    dirSign('PÁTIO LESTE →', 13.5, -3, Math.PI / 2, VERM, '#f7e9c8');
+    dirSign('← BECO OESTE', -13.5, 3, -Math.PI / 2, VERDE, '#f4e7c4');
+    dirSign('↑ GALPÃO', 1, -21, Math.PI, AZUL, '#f4e7c4');       // aproximação do galpão
+    dirSign('PRENSA', -23.5, 29.5, 0.6, AMAR);
+    dirSign('GUINDASTE', 23, -3.5, Math.PI / 2, VERM, '#f7e9c8');
+    dirSign('EMPILHADEIRA', 17.5, 8.5, -Math.PI / 2, VERM, '#f7e9c8');   // marco novo do pátio leste
+    dirSign('PORTÃO →', 1, -33, Math.PI, AMAR);                  // saída do spawn B de volta ao portão
   }
 
   /* ===== PERÍMETRO + SKYLINE (crítico R6: "muros = lama marrom sem leitura, topo morto") =====
@@ -421,12 +1179,24 @@ export function buildFerroVelho(scene, T) {
         m.position.set(x, 1.75, z); m.rotation.y = ry; m.receiveShadow = true; root.add(m);
       }
     }
+    /* PIXAÇÃO em preto/prata sobre o zinco (BAR §4.4) — é diferente do grafite colorido:
+       traço reto, alto e angular, uma passada de rolinho. Vai mais alto que o grafite e em
+       pedaço menor, pra ler como tag e não como mural. */
+    {
+      const pix = [pixacaoTex(551), pixacaoTex(917)];
+      for (const [x, z, ry, pi] of [[-6, -35.42, 0, 0], [18, -35.42, 0, 1], [-31.42, 10, Math.PI / 2, 1],
+        [31.42, -4, -Math.PI / 2, 0], [-24, 35.34, Math.PI, 0], [26, 35.34, Math.PI, 1]]) {
+        const m = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 1.7),
+          new THREE.MeshBasicMaterial({ map: pix[pi], transparent: true, alphaTest: 0.15 }));
+        m.position.set(x, 2.65, z); m.rotation.y = ry; root.add(m);
+      }
+    }
     // sucata/pneus encostados na base dos muros (quebra a linha reta do rodapé)
     const wallJunk = [[-30.6, -12, 0.3], [-30.6, 4, 1.2], [30.6, -22, 2.1], [30.6, 14, 0.6], [-8, -34.6, 1.7], [20, -34.6, 0.2], [-24, 34.6, 2.8], [12, 34.6, 1.1]];
     for (const [x, z, ry] of wallJunk) {
       const t = new THREE.Mesh(new THREE.TorusGeometry(0.32, 0.13, 8, 16), MAT.tire);
       t.rotation.x = Math.PI / 2; t.rotation.z = ry; t.position.set(x, 0.13, z); t.castShadow = t.receiveShadow = true; root.add(t);
-      const s = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.05, 0.4), lam({ map: rustTex(1, 1, 300 + (x | 0)), metalness: 0.4, roughness: 0.75 }));
+      const s = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.05, 0.4), rustMat(300 + (x | 0)));
       s.position.set(x + 0.5, 0.04, z + 0.4); s.rotation.y = ry; s.castShadow = true; root.add(s);
     }
     // postes + fios (catenária) cruzando o pátio — quebra o topo retilíneo do muro
@@ -508,23 +1278,67 @@ export function buildFerroVelho(scene, T) {
       const m = new THREE.Mesh(new THREE.PlaneGeometry(11, 3.0), lam({ map: zincTex(4.5, 1.2) }));
       m.position.set(px, 1.55, HALF_Z - 0.56); m.rotation.y = Math.PI; m.receiveShadow = true; root.add(m);
     }
-    // céu: disco solar + nuvens (sprites; SEM fog — regressão conhecida ferro+fog+composer)
+    // céu: disco solar + nuvens (sprites com fog:false — sprite de céu não deve receber névoa)
     const sunSpr = new THREE.Sprite(new THREE.SpriteMaterial({ map: T.sunSprite, transparent: true, fog: false, depthWrite: false }));
-    sunSpr.position.set(-48, 68, 60); sunSpr.scale.setScalar(46); root.add(sunSpr);   // alinhado c/ a direção do sol (-24,48,30)
+    // disco solar BAIXO, alinhado com a nova direcional (-46,20,32): é o sol rasante de
+    // fim de tarde que justifica as sombras longas e o specular correndo pelo zinco.
+    sunSpr.position.set(-92, 40, 64); sunSpr.scale.setScalar(58); root.add(sunSpr);
     if (T.cloud) for (const [cx, cy, cz, cs] of [[-60, 55, -80, 44], [30, 62, -90, 52], [80, 50, 40, 40], [-80, 58, 60, 46]]) {
       const cl = new THREE.Sprite(new THREE.SpriteMaterial({ map: T.cloud, transparent: true, fog: false, depthWrite: false, opacity: 0.85 }));
       cl.position.set(cx, cy, cz); cl.scale.set(cs, cs * 0.42, 1); root.add(cl);
     }
   }
 
-  // ===== luz / céu (tarde empoeirada) =====
-  // SEM scene.fog: ferro+fog+EffectComposer quebrava o frame INTEIRO (tela preto-avermelhada
-  // no headless e risco igual na GPU real; havan+fog funciona — investigar depois).
+  /* ===== LUZ: FIM DE TARDE (BAR §4.4: "o mais flexível dos quatro; fim de tarde funciona
+     melhor — sol rasante fazendo o specular correr pelas chapas onduladas, sombras longas
+     entre as pilhas, poeira em suspensão, céu levemente alaranjado").
+     O sol saiu de (-24,48,30) — ~55° de elevação, sombra curta, meio-dia disfarçado — para
+     ~22° de elevação: a sombra fica ~2,5× mais longa e é ELA que desenha os corredores
+     entre as pilhas. Cor mais quente e âmbar; o hemi ganha bounce quente do chão de terra. */
   scene.background = T.sky || new THREE.Color(0xc8b49a);
-  const hemi = new THREE.HemisphereLight(0xfff0dd, 0x4a4034, 1.1); scene.add(hemi);
-  const sun = new THREE.DirectionalLight(0xffe8cc, 1.5); sun.position.set(-24, 48, 30); sun.castShadow = true;
-  sun.shadow.mapSize.set(2048, 2048); sun.shadow.camera.left = -50; sun.shadow.camera.right = 50; sun.shadow.camera.top = 50; sun.shadow.camera.bottom = -50; sun.shadow.camera.far = 160; sun.shadow.bias = -0.0004;
+  const hemi = new THREE.HemisphereLight(0xffe7c2, 0x5a4530, 1.0); scene.add(hemi);
+  const sun = new THREE.DirectionalLight(0xffd39a, 1.65); sun.position.set(-46, 20, 32); sun.castShadow = true;
+  sun.shadow.mapSize.set(2048, 2048); sun.shadow.camera.left = -50; sun.shadow.camera.right = 50; sun.shadow.camera.top = 50; sun.shadow.camera.bottom = -50; sun.shadow.camera.far = 200; sun.shadow.bias = -0.0006; sun.shadow.normalBias = 0.02;
   scene.add(sun);
+  /* NÉVOA: o mapa era o único dos quatro sem fog e por isso o fundo colava no primeiro
+     plano. A regressão antiga (tela preto-avermelhada com o composer) era com fog denso e
+     cor escura; aqui a cor é a MESMA do céu de tarde e o near é longe (55 m), então mesmo
+     que o composer some algo o efeito é sutil. Kill-switch padrão ?nofog=1. */
+  if (QP.get('nofog') !== '1') scene.fog = new THREE.Fog(0xd9b98c, 55, 235);
+  /* POEIRA EM SUSPENSÃO — o pó do pátio pegando o sol rasante. Points com sprite macio,
+     additive, sem depthWrite; estático (o mapa não tem hook de update) mas em 3 camadas de
+     altura, o que já dá volume. ?dust=0 desliga; em 'low' não entra. */
+  if (!LOWQ && QP.get('dust') !== '0' && T.sunSprite) {
+    const N = 900, pos = new Float32Array(N * 3);
+    let ds = 7717; const r = () => (ds = (ds * 16807) % 2147483647) / 2147483647;
+    for (let i = 0; i < N; i++) {
+      pos[i * 3] = (r() - 0.5) * 2 * HALF_X; pos[i * 3 + 1] = 0.3 + Math.pow(r(), 1.5) * 7.5; pos[i * 3 + 2] = (r() - 0.5) * 2 * HALF_Z;
+    }
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    const p = new THREE.Points(g, new THREE.PointsMaterial({
+      map: T.sunSprite, color: 0xffd9a8, size: 0.075, sizeAttenuation: true,
+      transparent: true, opacity: 0.5, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
+    p.frustumCulled = false; root.add(p);
+  }
+  /* GOD RAYS BARATOS — cones/lâminas aditivas alinhadas com a direção do sol, saindo dos
+     furos do telhado de fibrocimento e dos vãos entre as pilhas. É o truque clássico de
+     "light shaft" em geometria: um cone aberto, sem depthWrite, com opacidade baixinha.
+     Custa 6 tris-quads e nenhum passe extra. ?rays=0 desliga; fora em 'low'. */
+  if (!LOWQ && QP.get('rays') !== '0') {
+    const rayMat = new THREE.MeshBasicMaterial({ color: 0xffd9a0, transparent: true, opacity: 0.075, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: false });
+    const dir = new THREE.Vector3(-46, 20, 32).normalize();
+    const shaft = (x, y, z, len, w) => {
+      const m = new THREE.Mesh(new THREE.CylinderGeometry(w * 0.25, w, len, 6, 1, true), rayMat);
+      // o cone nasce apontando +Y; gira pra descer NA direção do sol
+      m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
+      m.position.set(x + dir.x * len * 0.5, y + dir.y * len * 0.5, z + dir.z * len * 0.5);
+      m.renderOrder = 3; root.add(m);
+    };
+    shaft(-5, 3.6, -31, 7.5, 1.1); shaft(-9, 3.6, -29.5, 6.5, 0.9);   // furos do telhado do barraco
+    shaft(-11, 3.0, -13, 8, 1.3); shaft(11, 3.0, 1, 8, 1.3);          // vãos entre as paredes de carcaça
+    shaft(-11, 3.0, 15, 7, 1.1); shaft(21, 3.0, -20, 7, 1.1);
+    shaft(0, 4.2, HALF_Z - 2, 9, 1.6);                                 // vão do portão
+  }
 
   // ===== ground height (pátio plano) =====
   const groundHeightAt = () => 0;

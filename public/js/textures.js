@@ -11,6 +11,101 @@ function tex(c, repeat = 1, ry = null) {
   t.repeat.set(repeat, ry === null ? repeat : ry);
   return t;
 }
+/* ================================================================
+   DETALHE DE SUPERFÍCIE (R7 — crítica: "materiais chapados, tiling visível")
+   O mundo inteiro era cor+albedo puro: `grep normalMap public/js/*.js` só achava o
+   viewmodel. Sem normal map nenhuma superfície reage ao sol, e sem variação de macro-escala
+   o olho enxerga o tile se repetindo. Aqui geramos, a partir do MESMO canvas do albedo:
+     - normalMap por Sobel da luminância (relevo grátis, sem asset externo);
+     - roughnessMap (escuro = mais áspero) — quebra o especular chapado sob o env map novo.
+   Ficam registrados em WeakMaps indexados pela textura de albedo, então quem cria material
+   só precisa chamar detailFor(t) — ver `lam()` no map.js. Custo de boot: os mapas são
+   gerados em no máx. 512² (relevo não precisa de resolução de albedo).
+   ================================================================ */
+const NORMALS = new WeakMap();
+const ROUGHS = new WeakMap();
+const MAX_DETAIL = 512;
+
+function normalFromCanvas(src, strength) {
+  const w = Math.min(src.width, MAX_DETAIL), h = Math.min(src.height, MAX_DETAIL);
+  const tmp = canvas(w, h); const tctx = tmp.getContext('2d');
+  tctx.drawImage(src, 0, 0, w, h);
+  const s = tctx.getImageData(0, 0, w, h).data;
+  const out = canvas(w, h), octx = out.getContext('2d');
+  const img = octx.createImageData(w, h), d = img.data;
+  const L = (x, y) => { x = (x + w) % w; y = (y + h) % h; const i = (y * w + x) * 4; return (s[i] * 0.299 + s[i + 1] * 0.587 + s[i + 2] * 0.114) / 255; };
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const dx = (L(x + 1, y) - L(x - 1, y)) * strength;
+    const dy = (L(x, y + 1) - L(x, y - 1)) * strength;
+    const nx = -dx, ny = dy, nz = 1, l = Math.sqrt(nx * nx + ny * ny + 1);
+    const i = (y * w + x) * 4;
+    d[i] = (nx / l * 0.5 + 0.5) * 255; d[i + 1] = (ny / l * 0.5 + 0.5) * 255; d[i + 2] = (nz / l * 0.5 + 0.5) * 255; d[i + 3] = 255;
+  }
+  octx.putImageData(img, 0, 0);
+  return out;
+}
+function roughFromCanvas(src, lo, hi) {
+  const w = Math.min(src.width, MAX_DETAIL), h = Math.min(src.height, MAX_DETAIL);
+  const tmp = canvas(w, h), tctx = tmp.getContext('2d');
+  tctx.drawImage(src, 0, 0, w, h);
+  const im = tctx.getImageData(0, 0, w, h), d = im.data;
+  for (let i = 0; i < d.length; i += 4) {
+    const lum = (d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114) / 255;
+    const r = (hi + (lo - hi) * lum) * 255;   // claro = menos áspero (mais lustro)
+    d[i] = d[i + 1] = d[i + 2] = r; d[i + 3] = 255;
+  }
+  tctx.putImageData(im, 0, 0);
+  return tmp;
+}
+// registra normal+roughness derivados do canvas de albedo, com o MESMO repeat da base
+let _detailOn = null;
+function withDetail(t, src, strength = 2.2, lo = 0.55, hi = 0.98) {
+  // kill-switch ?detail=0: gerar normal+roughness custa ~100 ms de boot (Sobel em JS).
+  // Em quality 'low' também pula — GPU fraca não paga 2 samplers extras por material.
+  if (_detailOn === null) {
+    let q = 'med';
+    try { q = JSON.parse(localStorage.getItem('awpbr_settings') || '{}').quality || 'med'; } catch (e) { /* noop */ }
+    _detailOn = new URLSearchParams(location.search).get('detail') !== '0' && q !== 'low';
+  }
+  if (!_detailOn) return t;
+  try {
+    const mk = (c) => {
+      const n = new THREE.CanvasTexture(c);
+      n.colorSpace = THREE.NoColorSpace;
+      n.wrapS = n.wrapT = t.wrapS; n.repeat.copy(t.repeat);
+      n.minFilter = THREE.LinearMipmapLinearFilter; n.magFilter = THREE.LinearFilter;
+      return n;
+    };
+    NORMALS.set(t, mk(normalFromCanvas(src, strength)));
+    ROUGHS.set(t, mk(roughFromCanvas(src, lo, hi)));
+  } catch (e) { /* canvas tainted / sem 2d: segue sem detalhe */ }
+  return t;
+}
+export function detailFor(t) {
+  if (!t) return null;
+  const n = NORMALS.get(t), r = ROUGHS.get(t);
+  return (n || r) ? { normalMap: n || null, roughnessMap: r || null } : null;
+}
+
+/* Contact AO por vértice — o AO "quase de graça" que o crítico pediu (§2 GAP 2.1).
+   Escurece os vértices perto da base do objeto: a junção parede/chão deixa de ser uma
+   aresta com salto de luminância ZERO. Funciona até em quality 'low' (não depende do
+   SSAO do composer) e custa zero draw call / zero memória de textura.
+   `baseLocalY` = y local do "chão" do objeto (para BoxGeometry centrada, -h/2). */
+export function applyContactAO(geom, baseLocalY, reach = 0.45, floor = 0.62) {
+  const pos = geom.attributes.position;
+  if (!pos) return geom;
+  const col = new Float32Array(pos.count * 3);
+  for (let i = 0; i < pos.count; i++) {
+    const dy = pos.getY(i) - baseLocalY;
+    let k = dy <= 0 ? floor : floor + (1 - floor) * Math.min(1, dy / reach);
+    k = Math.min(1, Math.max(floor, k));
+    col[i * 3] = col[i * 3 + 1] = col[i * 3 + 2] = k;
+  }
+  geom.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  return geom;
+}
+
 function noiseOver(ctx, w, h, alpha, colors) {
   for (let i = 0; i < w * h / 14; i++) {
     ctx.fillStyle = colors[(Math.random() * colors.length) | 0];
@@ -18,6 +113,17 @@ function noiseOver(ctx, w, h, alpha, colors) {
     ctx.fillRect(Math.random() * w, Math.random() * h, 2 + Math.random() * 4, 2 + Math.random() * 4);
   }
   ctx.globalAlpha = 1;
+}
+// manchas GRANDES (metade a um terço do tile): variação de macro-escala. Sem ela o olho
+// lê a repetição do tile como padrão; com ela cada repetição parece um trecho diferente.
+function macro(ctx, w, h, n, cols) {
+  for (let i = 0; i < n; i++) {
+    const x = Math.random() * w, y = Math.random() * h, r = w * (0.25 + Math.random() * 0.35);
+    const g = ctx.createRadialGradient(x, y, r * 0.1, x, y, r);
+    const c = cols[(Math.random() * cols.length) | 0];
+    g.addColorStop(0, c); g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g; ctx.fillRect(x - r, y - r, r * 2, r * 2);
+  }
 }
 function stains(ctx, w, h, n, col) {
   for (let i = 0; i < n; i++) {
@@ -66,30 +172,39 @@ export function initTextures() {
     x.strokeStyle = 'rgba(40,38,36,0.13)'; x.lineWidth = 24;      // tire tracks
     x.beginPath(); x.moveTo(120, -20); x.bezierCurveTo(340, 300, 180, 700, 520, 1050); x.stroke();
     x.beginPath(); x.moveTo(760, -20); x.bezierCurveTo(620, 380, 880, 640, 700, 1050); x.stroke();
+    // macro: nuvens grandes de sujeira/desbotado quebrando a leitura do tile (10 repetições
+    // do mesmo 1024 num piso de 180 m liam como xadrez)
+    macro(x, 1024, 1024, 7, ['rgba(120,110,95,0.20)', 'rgba(70,64,56,0.16)', 'rgba(150,142,128,0.14)']);
   }
-  T.ground = tex(gc, 10, 10);
+  T.ground = withDetail(tex(gc, 10, 10), gc, 2.6, 0.60, 0.98);
 
-  T.concrete = tex(concreteBase(), 1, 1);
-  T.concreteDark = tex(concreteBase(256, 256, '#6f6a62', '#57534c'), 1, 1);
+  { const c = concreteBase(); T.concrete = withDetail(tex(c, 1, 1), c, 2.4, 0.58, 0.97); }
+  { const c = concreteBase(256, 256, '#6f6a62', '#57534c'); T.concreteDark = withDetail(tex(c, 1, 1), c, 2.4, 0.60, 0.98); }
 
   { // asphalt for central lane
     const c = canvas(256, 256), x = c.getContext('2d');
     x.fillStyle = '#5c5a58'; x.fillRect(0, 0, 256, 256);
     noiseOver(x, 256, 256, 0.3, ['#4c4a48', '#6b6967', '#413f3d']);
+    // 2ª oitava fina: o asfalto tinha sd de luminância ~1.7 (alvo do crítico: > 2 em
+    // qualquer região que ocupe > 5 % do frame)
+    noiseOver(x, 256, 256, 0.18, ['#6f6d6b', '#3a3836']);
     stains(x, 256, 256, 4, 'rgba(30,28,26,0.3)');
-    T.asphalt = tex(c, 4, 4);
+    macro(x, 256, 256, 5, ['rgba(150,148,146,0.13)', 'rgba(25,24,23,0.16)']);
+    T.asphalt = withDetail(tex(c, 4, 4), c, 2.0, 0.66, 0.99);
   }
   { // dirt (MST camp)
     const c = canvas(256, 256), x = c.getContext('2d');
     x.fillStyle = '#8a6b48'; x.fillRect(0, 0, 256, 256);
     noiseOver(x, 256, 256, 0.35, ['#75583a', '#9c7d56', '#63482e']);
-    T.dirt = tex(c, 3, 3);
+    macro(x, 256, 256, 5, ['rgba(60,44,26,0.22)', 'rgba(170,140,100,0.16)']);
+    T.dirt = withDetail(tex(c, 3, 3), c, 3.0, 0.80, 1.0);
   }
   { // grass patches
     const c = canvas(128, 128), x = c.getContext('2d');
     x.fillStyle = '#5f7d3a'; x.fillRect(0, 0, 128, 128);
     noiseOver(x, 128, 128, 0.4, ['#4c682e', '#73924a', '#87a355']);
-    T.grass = tex(c, 2, 2);
+    macro(x, 128, 128, 4, ['rgba(40,58,24,0.24)', 'rgba(140,160,90,0.14)']);
+    T.grass = withDetail(tex(c, 2, 2), c, 2.4, 0.80, 1.0);
   }
   { // Caixa dos Correios (SEDEX) — papelão com a faixa amarela e o "C" azul
     const correiosBox = (label, sub) => {
@@ -146,7 +261,10 @@ export function initTextures() {
       x.moveTo(px, py); x.bezierCurveTo(px + 30, py - 25, px + 50, py + 25, px + 80, py - 10); x.stroke();
     }
     x.globalAlpha = 1;
-    return tex(c);
+    // macro no muro: concreto pintado nunca é uniforme (chuva, sol, remendo)
+    macro(x, 512, 256, 4, ['rgba(120,112,100,0.16)', 'rgba(55,50,44,0.16)']);
+    const t = tex(c);
+    return withDetail(t, c, 2.0, 0.62, 0.98);
   });
 
   // --- fictional campaign posters ---
@@ -316,8 +434,8 @@ export function initTextures() {
     x.beginPath(); x.moveTo(28, 26); x.lineTo(70, 70); x.lineTo(30, 78); x.lineTo(106, 30); x.lineTo(28, 26); x.stroke();
     T.corkboard = tex(c);
   }
-  // metal
-  T.metal = tex(concreteBase(128, 128, '#5a5f66', '#464b52'));
+  // metal — normal forte + roughness baixa: é onde o env map novo (disco solar HDR) paga
+  { const c = concreteBase(128, 128, '#5a5f66', '#464b52'); T.metal = withDetail(tex(c), c, 3.2, 0.28, 0.72); }
 
   // --- soft sprites (sun / cloud / muzzle flash) ---
   const clampTex = t => { t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping; t.magFilter = THREE.LinearFilter; return t; };

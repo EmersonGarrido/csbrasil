@@ -210,10 +210,17 @@ export function buildVmAttachment(cls, kind) {
     add(box(0.048, 0.085, 0.11, chrome), 1.0 + 0.025 / L, 0.01, 0, [1.12, 0, 0]);
     add(box(0.014, 0.026, 0.014, black), 1.0 + 0.075 / L, 0.055, 0, [1.12, 0, 0]);   // mira frontal
   } else if (kind === 'drum2') {
-    // Revólver: cilindro à frente da mão (t 0.68), alargando a silhueta lateral e
-    // protruindo abaixo da linha do frame; eixo lateral (X local = side)
-    add(cyl(0.075, 0.075, 0.17, mat(0x2b3038, 0.45, 0.55), 8), 0.68, 0.0, 0, [0, 0, Math.PI / 2]);
-    add(cyl(0.022, 0.022, 0.06, steel, 8), 0.68, 0.0, 0, [0, 0, Math.PI / 2]);   // eixo do tambor
+    // Revólver (GUNFEEL): o crítico não achava tambor, martelo, guarda-mato nem dedo no
+    // gatilho — "a arma é 6% da massa visual do quadro". O tambor saiu de t=0.68 (longe,
+    // atrás da mão no framing novo) pra t=0.56 e ganhou CANELURAS (6 faces), martelo e
+    // guarda-mato: são esses 3 traços que fazem um .38 ler como revólver de primeira.
+    const blued = mat(0x2b3038, 0.45, 0.55);
+    add(cyl(0.078, 0.078, 0.175, blued, 6), 0.56, 0.0, 0.012, [0, 0, Math.PI / 2]);      // tambor caneluado
+    add(cyl(0.022, 0.022, 0.20, steel, 8), 0.56, 0.0, 0.012, [0, 0, Math.PI / 2]);       // eixo/haste ejetora
+    add(box(0.030, 0.055, 0.045, blued), 0.30, 0.115, 0, [0.5, 0, 0]);                   // martelo (cão) armado
+    const guard = new THREE.Mesh(new THREE.TorusGeometry(0.055, 0.011, 6, 12, 3.1), blued);
+    add(guard, 0.40, -0.085, 0, [0, Math.PI / 2, 0.4]);                                   // guarda-mato
+    add(box(0.012, 0.040, 0.014, steel), 0.41, -0.055, 0, [0.25, 0, 0]);                  // gatilho
   } else if (kind === 'tacguard') {
     // MD97: handguard TÁTICO ventilado sobre o pump (crítico R3: M3 madeira × MD97
     // militar tinham a mesma silhueta) — caixa com slots cobrindo o pump de madeira
@@ -291,9 +298,11 @@ export function buildVmAttachment(cls, kind) {
   } else if (kind === 'drumside') {
     // Revólver: conjunto cilindro+grua POR FORA do frame (o frame da pistol é sólido —
     // deslocado lateralmente pro lado da câmera, alargando a silhueta)
-    add(cyl(0.07, 0.07, 0.15, mat(0x2b3038, 0.45, 0.55), 8), 0.58, 0.06, 0.075, [0, 0, Math.PI / 2]);
-    add(box(0.028, 0.028, 0.075, mat(0x2b3038, 0.45, 0.55)), 0.58, 0.06, 0.02);   // grua
-    add(cyl(0.02, 0.02, 0.05, steel, 8), 0.58, 0.06, 0.075, [0, 0, Math.PI / 2]); // eixo
+    // GUNFEEL: alinhado ao tambor novo (t 0.58→0.56) e um pouco mais pra fora (s 0.075→0.085)
+    // — no framing da pistola (arma 54% maior e 28% mais perto) ele passava por dentro da mão.
+    add(cyl(0.07, 0.07, 0.15, mat(0x2b3038, 0.45, 0.55), 6), 0.56, 0.04, 0.085, [0, 0, Math.PI / 2]);
+    add(box(0.028, 0.028, 0.075, mat(0x2b3038, 0.45, 0.55)), 0.56, 0.04, 0.03);   // grua
+    add(cyl(0.02, 0.02, 0.05, steel, 8), 0.56, 0.04, 0.085, [0, 0, Math.PI / 2]); // eixo
   } else if (kind === 'shells') {
     add(box(0.028, 0.055, 0.17, dark), 0.30, 0.06, 0.075);
     const shell = mat(0xa8232a, 0.55, 0.1);

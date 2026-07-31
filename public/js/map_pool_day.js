@@ -42,6 +42,14 @@ function sandTex(rx, rz) {
   // pegadas apagadas
   for (let i = 0; i < 26; i++) { x.fillStyle = `rgba(120,95,60,${0.1 + rnd() * 0.14})`; x.beginPath(); x.ellipse(rnd() * 128, rnd() * 128, 2.6, 1.4, rnd() * 3, 0, 7); x.fill(); }
   for (let i = 0; i < 900; i++) { x.fillStyle = `rgba(${150 + Math.random() * 80 | 0},${120 + Math.random() * 70 | 0},${70 + Math.random() * 50 | 0},.5)`; x.fillRect(Math.random() * 128, Math.random() * 128, 2, 2); }
+  // DETRITOS: conchinha, graveto, tampinha, bituca — a areia do Piscinão nunca é limpa.
+  // Entram na textura (custo zero em draw call) e matam a lisura no plano rasante.
+  for (let i = 0; i < 34; i++) {
+    const px = rnd() * 128, py = rnd() * 128, t = rnd();
+    if (t < 0.4) { x.fillStyle = 'rgba(238,232,214,0.8)'; x.beginPath(); x.ellipse(px, py, 1.8, 1.1, rnd() * 3, 0, 7); x.fill(); }        // concha
+    else if (t < 0.7) { x.strokeStyle = 'rgba(84,64,40,0.7)'; x.lineWidth = 1; x.beginPath(); x.moveTo(px, py); x.lineTo(px + (rnd() - 0.5) * 8, py + (rnd() - 0.5) * 8); x.stroke(); }   // graveto
+    else { x.fillStyle = rnd() > 0.5 ? 'rgba(190,50,40,0.75)' : 'rgba(40,70,140,0.7)'; x.fillRect(px, py, 1.6, 1.6); }                   // tampinha/plástico
+  }
   return mkTex(c, rx, rz);
 }
 // concreto com STREAKS VERTICAIS de umidade (crítico R6: blobs ovais liam como "pelagem
@@ -62,7 +70,15 @@ function concreteTex(rx, rz) {
     x.fillStyle = g; x.fillRect(px - w / 2, py, w, len);
   }
   for (let i = 0; i < 480; i++) { x.fillStyle = `rgba(84,80,70,${rnd() * 0.3})`; x.fillRect(rnd() * S, rnd() * S, 1.5, 1.5); }
+  // MOFO no concreto: bolor verde-preto onde a água escorre e não pega sol
+  for (let i = 0; i < 9; i++) {
+    const mx = rnd() * S, my = S * (0.4 + rnd() * 0.55), mr = 6 + rnd() * 18;
+    const mg = x.createRadialGradient(mx, my, 1, mx, my, mr);
+    mg.addColorStop(0, `rgba(54,66,48,${0.18 + rnd() * 0.2})`); mg.addColorStop(1, 'rgba(54,66,48,0)');
+    x.fillStyle = mg; x.beginPath(); x.ellipse(mx, my, mr, mr * 0.7, rnd() * 3, 0, 7); x.fill();
+  }
   x.strokeStyle = 'rgba(96,92,82,0.6)'; x.lineWidth = 2; x.beginPath(); x.moveTo(0, S / 2); x.lineTo(S, S / 2); x.stroke();
+  x.strokeStyle = 'rgba(52,58,46,0.35)'; x.lineWidth = 3; x.beginPath(); x.moveTo(0, S / 2 + 2.5); x.lineTo(S, S / 2 + 2.5); x.stroke();   // limo acumulado na junta
   return mkTex(c, rx, rz);
 }
 // parede PINTADA desgastada (tinta descascando mostra o concreto, sujeira no rodapé) —
@@ -83,9 +99,25 @@ function paintWallTex(base, seed = 7) {
     x.fillStyle = g; x.fillRect(px - w / 2, py, w, len);
   }
   for (let i = 0; i < 260; i++) { x.fillStyle = `rgba(70,66,58,${rnd() * 0.22})`; x.fillRect(rnd() * S, rnd() * S, 1.6, 1.6); }
-  // sujeira/umidade subindo do rodapé
-  const g = x.createLinearGradient(0, S * 0.7, 0, S);
-  g.addColorStop(0, 'rgba(60,54,44,0)'); g.addColorStop(1, 'rgba(60,54,44,0.5)');
+  // MOFO: manchas verde-escuras irregulares na sombra + no rodapé. É o que falta pro
+  // reboco carioca não parecer parede de maquete — clima quente e úmido = bolor sempre.
+  for (let i = 0; i < 14; i++) {
+    const mx = rnd() * S, my = S * (0.35 + rnd() * 0.6), mr = 8 + rnd() * 26;
+    const mg = x.createRadialGradient(mx, my, 1, mx, my, mr);
+    mg.addColorStop(0, `rgba(58,72,50,${0.2 + rnd() * 0.22})`); mg.addColorStop(1, 'rgba(58,72,50,0)');
+    x.fillStyle = mg; x.beginPath(); x.ellipse(mx, my, mr, mr * (0.5 + rnd() * 0.5), rnd() * 3, 0, 7); x.fill();
+  }
+  // ESCORRIMENTO de ferrugem sob pontos de fixação (grade, cano, ferragem exposta)
+  for (let i = 0; i < 5; i++) {
+    const px = rnd() * S, py = rnd() * S * 0.5, len = 40 + rnd() * 90;
+    const rg = x.createLinearGradient(px, py, px, py + len);
+    rg.addColorStop(0, `rgba(126,72,36,${0.3 + rnd() * 0.25})`); rg.addColorStop(1, 'rgba(126,72,36,0)');
+    x.fillStyle = rg; x.fillRect(px - 1.5, py, 3 + rnd() * 2, len);
+    x.fillStyle = 'rgba(96,60,34,0.5)'; x.beginPath(); x.arc(px, py, 2.5, 0, 7); x.fill();   // o próprio ferro
+  }
+  // sujeira/umidade subindo do rodapé (capilaridade — mais forte perto da água)
+  const g = x.createLinearGradient(0, S * 0.62, 0, S);
+  g.addColorStop(0, 'rgba(60,54,44,0)'); g.addColorStop(0.6, 'rgba(58,60,46,0.3)'); g.addColorStop(1, 'rgba(48,52,40,0.62)');
   x.fillStyle = g; x.fillRect(0, 0, S, S);
   return mkTex(c, 1, 1);
 }
@@ -170,20 +202,56 @@ function lockerTex(hex = '#2c6e7a', seed = 31) {
   x.fillStyle = g; x.fillRect(0, 0, 128, 256);
   return mkTex(c, 1, 1, true);
 }
-// ripples da água — LAGOA natural (dono: "o piscinão é mais uma lagoa"): verde-escuro
-// natural com manchas de fundo, NÃO ciano de piscina
+// DIFUSO da água — a lagoa do Piscinão é água de MAR DA GUANABARA: verde-opaca, turva,
+// com sedimento em suspensão. Nada de ciano de piscina e nada de "riscos de espuma"
+// desenhados: a agitação agora vem do normal map animado (waterNormalTex), então aqui
+// só ficam as MANCHAS grandes de turbidez que quebram a cor chapada.
 function rippleTex(rx, rz) {
   const S = 256, c = document.createElement('canvas'); c.width = c.height = S;
   const x = c.getContext('2d');
-  x.fillStyle = '#3a7a58'; x.fillRect(0, 0, S, S);
+  x.fillStyle = '#33513f'; x.fillRect(0, 0, S, S);
   let seed = 29; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
-  for (let i = 0; i < 40; i++) {
-    x.strokeStyle = `rgba(190,235,200,${0.07 + rnd() * 0.16})`; x.lineWidth = 1 + rnd() * 2;
-    const cx = rnd() * S, cy = rnd() * S, r = 6 + rnd() * 26;
-    x.beginPath(); x.ellipse(cx, cy, r, r * 0.4, rnd() * 0.6, 0, Math.PI * 2); x.stroke();
+  for (let i = 0; i < 34; i++) {   // plumas de sedimento (mais claras, esverdeado-barrento)
+    x.fillStyle = `rgba(${96 + rnd() * 34 | 0},${112 + rnd() * 26 | 0},${78 + rnd() * 22 | 0},${0.1 + rnd() * 0.18})`;
+    x.beginPath(); x.ellipse(rnd() * S, rnd() * S, 16 + rnd() * 44, 9 + rnd() * 26, rnd() * 3, 0, 7); x.fill();
   }
-  for (let i = 0; i < 30; i++) { x.fillStyle = `rgba(14,48,32,${0.08 + rnd() * 0.16})`; x.beginPath(); x.ellipse(rnd() * S, rnd() * S, 10 + rnd() * 30, 6 + rnd() * 18, rnd() * 3, 0, 7); x.fill(); }
-  return mkTex(c, rx, rz);
+  for (let i = 0; i < 26; i++) {   // poças escuras (fundo mais profundo / sombra de nuvem)
+    x.fillStyle = `rgba(16,38,28,${0.1 + rnd() * 0.18})`;
+    x.beginPath(); x.ellipse(rnd() * S, rnd() * S, 12 + rnd() * 36, 7 + rnd() * 20, rnd() * 3, 0, 7); x.fill();
+  }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;   // sem NearestFilter: água turva não pode pixelar
+  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rx, rz); return t;
+}
+// NORMAL MAP procedural de marola (tangent-space). Campo de altura = soma de senos com
+// período INTEIRO no canvas → tileia sem costura. Duas cópias com scroll diferente são
+// misturadas no shader; é o que dá vida à água sem animar um único vértice.
+function waterNormalTex(rep) {
+  const S = 128, c = document.createElement('canvas'); c.width = c.height = S;
+  const x = c.getContext('2d');
+  const h = new Float32Array(S * S);
+  const waves = [[3, 1, 1.0, 0.0], [1, 4, 0.72, 1.7], [5, 3, 0.42, 3.1], [2, 7, 0.28, 0.6], [9, 6, 0.16, 2.2]];
+  for (let j = 0; j < S; j++) for (let i = 0; i < S; i++) {
+    let v = 0;
+    for (const [fx, fz, a, ph] of waves)
+      v += a * Math.sin((i / S) * fx * Math.PI * 2 + ph) * Math.cos((j / S) * fz * Math.PI * 2 + ph * 0.7);
+    h[j * S + i] = v;
+  }
+  const img = x.createImageData(S, S);
+  const STR = 22;   // marola BAIXA: lagoa fechada por muro de pedra, não mar aberto
+  for (let j = 0; j < S; j++) for (let i = 0; i < S; i++) {
+    const l = h[j * S + ((i + S - 1) % S)], r = h[j * S + ((i + 1) % S)];
+    const u = h[((j + S - 1) % S) * S + i], d = h[((j + 1) % S) * S + i];
+    const nx = (l - r) * STR, ny = (u - d) * STR, inv = 1 / Math.hypot(nx, ny, 1);
+    const o = (j * S + i) * 4;
+    img.data[o] = (nx * inv * 0.5 + 0.5) * 255;
+    img.data[o + 1] = (ny * inv * 0.5 + 0.5) * 255;
+    img.data[o + 2] = (inv * 0.5 + 0.5) * 255;
+    img.data[o + 3] = 255;
+  }
+  x.putImageData(img, 0, 0);
+  const t = new THREE.CanvasTexture(c);   // dado LINEAR: normal map nunca leva sRGB
+  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rep, rep * 1.2);
+  return t;
 }
 // FUNDO da lagoa: areia nas bordas → verde fundo no centro (ilusão de profundidade natural)
 function lagoonFloorTex() {
@@ -251,6 +319,13 @@ function azulejoBandTex(rx = 1) {
     const jx = (rnd() - 0.5) * 0.16;   // jitter de matiz/valor ±8%
     let r = 36 + jx * 90, g = 64 + jx * 90, b = 122 + jx * 90;
     if (j === 3) { r = r * 0.55 + 40; g = g * 0.75 + 34; b = b * 0.6 + 26; }   // verdete na fileira de baixo
+    const roll = rnd();
+    if (roll < 0.055) {   // PEÇA CAÍDA: sobra a argamassa com o rastro do rejunte (o azulejo
+      x.fillStyle = '#9a9284'; x.fillRect(i * TS, j * TS, TS, TS);   // corrido e perfeito era o pior tell de "clube novo")
+      for (let k = 0; k < 8; k++) { x.fillStyle = `rgba(120,112,100,${rnd() * 0.5})`; x.fillRect(i * TS + rnd() * TS, j * TS + rnd() * TS, 3, 3); }
+      continue;
+    }
+    if (roll < 0.11) { r = r * 0.6 + 90; g = g * 0.7 + 76; b = b * 0.8 + 40; }   // peça de reposição fora de tom
     x.fillStyle = `rgb(${r | 0},${g | 0},${b | 0})`;
     x.fillRect(i * TS, j * TS, TS, TS);
     const gl = x.createLinearGradient(i * TS, j * TS, i * TS + TS, j * TS + TS);   // esmalte
@@ -353,6 +428,80 @@ function silTex(kind, tint, seed = 5) {
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
   t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping; return t;
 }
+// SILHUETA DE FAVELA/SUBÚRBIO — o fundo OBRIGATÓRIO do Piscinão (a Maré encosta na
+// lagoa). Substitui os "cards de caixa cinza": lajes empilhadas em alturas irregulares,
+// FERRAGEM DE ESPERA saindo do topo (a laje que nunca vira 2º andar), CAIXAS D'ÁGUA
+// azul/preta, antenas e FIAÇÃO EMARANHADA cruzando tudo. `haze` puxa a paleta pro
+// cinza-quente da atmosfera pra dar profundidade entre a fileira longe e a perto.
+function favelaTex(seed = 3, haze = 0) {
+  const W = 512, H = 192, c = document.createElement('canvas'); c.width = W; c.height = H;
+  const x = c.getContext('2d');
+  const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const hz = (r, g, b, a = 1) => `rgba(${(r + (176 - r) * haze) | 0},${(g + (180 - g) * haze) | 0},${(b + (176 - b) * haze) | 0},${a})`;
+  // paleta de subúrbio carioca: tijolo aparente, reboco cru, pintura desbotada
+  const bodies = [[142, 96, 74], [128, 88, 68], [162, 150, 130], [140, 134, 120],
+    [120, 138, 130], [158, 140, 108], [116, 120, 128], [150, 116, 96]];
+  const tops = [];   // topos das lajes: onde nascem ferragem, caixa d'água e fiação
+  let px = -14;
+  while (px < W) {
+    const w = 26 + rnd() * 52, h = 40 + rnd() * 112, bc = bodies[(rnd() * bodies.length) | 0];
+    const ty = H - h;
+    x.fillStyle = hz(bc[0], bc[1], bc[2]); x.fillRect(px, ty, w, h);
+    // sombra da empena NÃO passa pelo hz(): hazear preto o clarearia (viraria luz).
+    // O que o haze faz de verdade é REDUZIR o contraste — daí o (1 - haze) no alpha.
+    x.fillStyle = `rgba(0,0,0,${0.18 * (1 - haze)})`; x.fillRect(px + w - 5, ty, 5, h);
+    x.fillStyle = hz(196, 190, 176, 0.85); x.fillRect(px, ty, w, 4);              // laje/viga de topo
+    // janelas e portas — vãos escuros pequenos e desalinhados (nada de grade regular)
+    for (let j = 0; j < 3 + (rnd() * 4 | 0); j++) {
+      const wwx = px + 4 + rnd() * (w - 12), wwy = ty + 8 + rnd() * (h - 20);
+      x.fillStyle = hz(38, 36, 34, 0.85); x.fillRect(wwx, wwy, 4 + rnd() * 5, 6 + rnd() * 6);
+    }
+    // FERRAGEM DE ESPERA: 3-6 vergalhões finos saindo da laje, tortos
+    if (rnd() > 0.25) for (let j = 0; j < 3 + (rnd() * 4 | 0); j++) {
+      const rx2 = px + 3 + rnd() * (w - 6), rl = 5 + rnd() * 13;
+      x.strokeStyle = hz(96, 74, 56, 0.95); x.lineWidth = 1.4;
+      x.beginPath(); x.moveTo(rx2, ty); x.lineTo(rx2 + (rnd() - 0.5) * 5, ty - rl); x.stroke();
+    }
+    // CAIXA D'ÁGUA: azul (polietileno) ou preta (fibrocimento), sobre pezinhos
+    if (rnd() > 0.3) {
+      const cx2 = px + 5 + rnd() * (w - 16), cw = 9 + rnd() * 7, ch = 7 + rnd() * 5;
+      const blue = rnd() > 0.42;
+      x.fillStyle = blue ? hz(40, 82, 152) : hz(38, 38, 40);
+      x.fillRect(cx2, ty - ch - 2, cw, ch);
+      x.fillStyle = blue ? hz(70, 118, 190) : hz(66, 66, 68);
+      x.fillRect(cx2, ty - ch - 2, cw, 2.5);                                       // tampa
+      x.fillStyle = hz(120, 116, 108); x.fillRect(cx2 + 1, ty - 2, 2, 2); x.fillRect(cx2 + cw - 3, ty - 2, 2, 2);
+    }
+    // caixa de escada / puxadinho no topo
+    if (rnd() > 0.55) { x.fillStyle = hz(bc[0] * 0.9, bc[1] * 0.9, bc[2] * 0.9); x.fillRect(px + w * 0.55, ty - 12, w * 0.35, 12); }
+    // antena de TV (espinha de peixe)
+    if (rnd() > 0.5) {
+      const ax = px + 6 + rnd() * (w - 12), ah = 12 + rnd() * 16;
+      x.strokeStyle = hz(70, 68, 64, 0.9); x.lineWidth = 1.1;
+      x.beginPath(); x.moveTo(ax, ty); x.lineTo(ax, ty - ah); x.stroke();
+      for (let j = 0; j < 4; j++) { const yy = ty - ah + 3 + j * 3.5; x.beginPath(); x.moveTo(ax - 4 + j * 0.6, yy); x.lineTo(ax + 4 - j * 0.6, yy); x.stroke(); }
+    }
+    // caixa d'água terminou; guarda o topo pra pendurar fio
+    tops.push([px + w * 0.5, ty - 4]);
+    px += w - 2 - rnd() * 6;   // colado/sobreposto: favela não tem recuo lateral
+  }
+  // FIAÇÃO EMARANHADA: catenárias entre topos + "gatos" (feixes grossos pendurados)
+  x.lineWidth = 1; x.strokeStyle = hz(28, 26, 24, 0.9);
+  for (let i = 0; i + 1 < tops.length; i++) {
+    for (let k = 0; k < 2 + (rnd() * 3 | 0); k++) {
+      const a = tops[i], b = tops[i + 1], sag = 5 + rnd() * 12, off = (rnd() - 0.5) * 14;
+      x.beginPath(); x.moveTo(a[0], a[1] + off);
+      x.quadraticCurveTo((a[0] + b[0]) / 2, Math.max(a[1], b[1]) + sag + off, b[0], b[1] + off);
+      x.stroke();
+    }
+    if (rnd() > 0.5) {   // o "gato": feixe grosso enrolado no poste
+      const a = tops[i];
+      x.lineWidth = 3.2; x.beginPath(); x.arc(a[0], a[1] + 8 + rnd() * 10, 3 + rnd() * 3, 0, 7); x.stroke(); x.lineWidth = 1;
+    }
+  }
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+  t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping; return t;
+}
 // pergolado de madeira (teto dos corredores de spawn — antes um plano bege liso)
 function pergoTex(rx, rz) {
   const S = 128, c = document.createElement('canvas'); c.width = c.height = S;
@@ -407,6 +556,18 @@ export function buildPoolDay(scene, T) {
   // coloca um prop GLB do Mint (visual); retorna true se entrou (senão o mapa usa o procedural).
   const gprop = (id, x, z, h, ry = 0, y = 0) => { const o = placeProp(id, { x, y, z, targetH: h, ry }); if (o) { o.traverse(m => { if (m.isMesh) m.frustumCulled = true; }); root.add(o); return true; } return false; };
 
+  /* ---------------- config: kill-switches + degradação por qualidade ----------------
+     buildPoolDay só recebe (scene, T) — a qualidade vem do MESMO localStorage que o
+     main.js grava, pra não mudar a assinatura (outros agentes editam game.js junto). */
+  const QP = new URLSearchParams(location.search);
+  let _q = 'med';
+  try { _q = JSON.parse(localStorage.getItem('awpbr_settings') || '{}').quality || 'med'; } catch (e) { /* storage bloqueado */ }
+  const LOWQ = _q === 'low';
+  const WATER_FX = QP.get('water') !== '0';    // ?water=0 → material simples (fallback do shader)
+  const FAVELA = QP.get('favela') !== '0';     // ?favela=0 → sem o fundo de lajes/caixa d'água
+  const CROWD = QP.get('crowd') !== '0';       // ?crowd=0 → sem banhistas extras
+  const NFAV = LOWQ ? 6 : 14;                  // nº de lajes 3D atrás do muro
+
   // Standard (não Lambert) pra receber o env map IBL (scene.environment) — padrão visual v2.
   const lam = (opts) => new THREE.MeshStandardMaterial({ roughness: 0.92, metalness: 0, ...opts });
   function addBox(w, h, d, mat, x, y, z, opts = {}) {
@@ -435,10 +596,11 @@ export function buildPoolDay(scene, T) {
   const TEX = {
     sand: sandTex(14, 20),
     deck: beachSandTex(12, 16),   // faixa de areia batida colada na lagoa (era concreto)
-    pool: tileTex('#33c6e0', '#7fe4f2', 4, 5, 6),
+    // (removido TEX.pool: azulejo turquesa de piscina de clube — era código morto e é
+    //  exatamente a gramática visual errada; o Piscinão é lagoa de mar, não piscina)
   };
   const MAT = {
-    sand: lam({ map: TEX.sand }), deck: lam({ map: TEX.deck }), pool: lam({ map: TEX.pool }),
+    sand: lam({ map: TEX.sand }), deck: lam({ map: TEX.deck }),
     navy: lam({ map: azulejoBandTex(24) }), white: lam({ color: 0xf2f5f7 }), steel: lam({ map: concreteTex(1, 2), color: 0x9aa0a6, metalness: 0.4, roughness: 0.6 }),
     kiosk: lam({ color: 0xcf5b3a }), thatch: lam({ color: 0xb2843f }),
     umbA: lam({ color: 0xe23b3b }), umbB: lam({ color: 0xf4c020 }),
@@ -484,31 +646,82 @@ export function buildPoolDay(scene, T) {
     const fl = new THREE.Mesh(new THREE.PlaneGeometry(POOL.hx * 2, POOL.hz * 2), lam({ map: lagoonFloorTex() }));
     fl.rotation.x = -Math.PI / 2; fl.position.set(POOL.cx, -POOL.depth + 0.02, POOL.cz); fl.receiveShadow = true; root.add(fl);
     const ang = Math.atan2(POOL.depth, POOL.m), L = Math.hypot(POOL.depth, POOL.m);
-    const bank = lam({ map: beachSandTex(8, 1) });   // margem de areia batida (era azulejo navy)
+    // margem MOLHADA: areia/concreto encharcado é mais escuro E mais especular que o seco.
+    // roughness baixo aqui é o que faz a linha d'água brilhar de rasante.
+    const bank = lam({ map: beachSandTex(8, 1), color: 0x7d6a4e, roughness: 0.32, metalness: 0.04 });
     addBox(POOL.hx * 2, 0.1, L, lam({ map: beachSandTex(6, 1) }), POOL.cx, -POOL.depth / 2, POOL.cz + POOL.hz + POOL.m / 2, { collide: false, rx: -ang, cast: false });
     addBox(POOL.hx * 2, 0.1, L, lam({ map: beachSandTex(6, 1) }), POOL.cx, -POOL.depth / 2, POOL.cz - POOL.hz - POOL.m / 2, { collide: false, rx: ang, cast: false });
     addBox(L, 0.1, POOL.hz * 2, lam({ map: beachSandTex(6, 1) }), POOL.cx + POOL.hx + POOL.m / 2, -POOL.depth / 2, POOL.cz, { collide: false, rz: ang, cast: false });
     addBox(L, 0.1, POOL.hz * 2, lam({ map: beachSandTex(6, 1) }), POOL.cx - POOL.hx - POOL.m / 2, -POOL.depth / 2, POOL.cz, { collide: false, rz: -ang, cast: false });
-    const waterMat = new THREE.MeshPhongMaterial({ map: rippleTex(3, 4), color: 0x42654e, shininess: 170, specular: 0x8aa8b0, transparent: true, opacity: 0.88 });
-    // FRESNEL FAKE (crítico: "de longe lê grama"): mistura a cor do céu conforme o ângulo
-    // de visada (razante → espelho de céu; de cima → verde-fundo natural)
-    waterMat.onBeforeCompile = (sh) => {
+    // ÁGUA: OPACA de propósito. No Piscinão (água de mar da Guanabara) o fundo some a
+    // ~40cm — shader de água clara reprova o gabarito. Por isso transparent:false e o
+    // fundo/rampas ficam escondidos (só os 15cm de rampa que sobram do plano leem como
+    // areia molhada na linha d'água).
+    const waterMat = new THREE.MeshPhongMaterial({
+      map: rippleTex(3, 4), color: 0x3d5946,
+      specular: 0x86a096, shininess: 70,   // brilho de água TURVA: reflete, mas não é espelho
+      normalMap: waterNormalTex(LOWQ ? 3 : 5),
+      normalScale: new THREE.Vector2(0.9, 0.9),
+    });
+    // uTime é compartilhado com o shader; quem avança é o onBeforeRender do próprio mesh
+    // (o mapa não recebe hook de tick do game.js, e não dá pra editar game.js aqui).
+    const uT = { value: 0 };
+    if (WATER_FX) waterMat.onBeforeCompile = (sh) => {
+      sh.uniforms.uTime = uT;
+      sh.uniforms.uExt = { value: new THREE.Vector2(OUTX, OUTZ) };
+      sh.vertexShader = sh.vertexShader
+        .replace('#include <common>', '#include <common>\nvarying vec2 vWuv;')
+        .replace('#include <begin_vertex>', '#include <begin_vertex>\n  vWuv = uv;');
+      // DUAS CAMADAS de scroll em direções/escalas diferentes: sozinha, uma camada lê como
+      // "textura deslizando"; cruzadas, leem como interferência de marola.
+      const twoLayer = `
+        vec2 sA = vNormalMapUv + vec2( uTime * 0.014, uTime * 0.009 );
+        vec2 sB = vNormalMapUv * 2.13 + vec2( -uTime * 0.023, uTime * 0.018 );
+        vec3 nA = texture2D( normalMap, sA ).xyz * 2.0 - 1.0;
+        vec3 nB = texture2D( normalMap, sB ).xyz * 2.0 - 1.0;
+        vec3 mapN = normalize( vec3( nA.xy + nB.xy, nA.z * nB.z ) );
+        mapN.xy *= normalScale;
+        normal = normalize( tbn * mapN );`;
+      // quality low: 1 fetch só (metade do custo de textura no maior quad da cena)
+      const oneLayer = `
+        vec3 mapN = texture2D( normalMap, vNormalMapUv + vec2( uTime * 0.012, uTime * 0.008 ) ).xyz * 2.0 - 1.0;
+        mapN.xy *= normalScale;
+        normal = normalize( tbn * mapN );`;
       sh.fragmentShader = sh.fragmentShader
-        .replace('#include <normal_fragment_begin>',
-          `#include <normal_fragment_begin>
-           float fresFactor = pow(1.0 - abs(dot(normalize(vViewPosition), normal)), 2.5);`)
-        .replace('#include <output_fragment>',
-          `outgoingLight = mix(outgoingLight, vec3(0.60, 0.76, 0.85), fresFactor * 0.62);
-           #include <output_fragment>`);
+        .replace('#include <common>', '#include <common>\nvarying vec2 vWuv;\nuniform float uTime;\nuniform vec2 uExt;')
+        .replace('#include <normal_fragment_maps>', LOWQ ? oneLayer : twoLayer)
+        .replace('#include <opaque_fragment>', `
+        // distância à margem EM METROS (o plano é retangular, uv normalizado engana)
+        vec2 dE = ( vec2( 0.5 ) - abs( vWuv - vec2( 0.5 ) ) ) * 2.0 * uExt;
+        float dEdge = min( dE.x, dE.y );
+        vec3 Vv = normalize( vViewPosition );
+        float fres = pow( 1.0 - clamp( dot( Vv, normal ), 0.0, 1.0 ), 3.0 );
+        // REFLEXO BARATO DO CÉU: gradiente de 2 cores indexado pelo próprio fresnel —
+        // razante pega o haze quente do horizonte, de cima pega o azul do zênite.
+        // Custa 0 texture fetch e 0 render target (cubemap aqui mataria o orçamento).
+        vec3 skyCol = mix( vec3( 0.40, 0.57, 0.71 ), vec3( 0.87, 0.86, 0.78 ), fres );
+        outgoingLight = mix( outgoingLight, skyCol, fres * 0.55 );
+        // margem RASA: areia em suspensão deixa a água barrenta — NUNCA transparente
+        float murk = 1.0 - smoothstep( 0.0, 5.0, dEdge );
+        outgoingLight = mix( outgoingLight, outgoingLight * vec3( 1.28, 1.14, 0.84 ), murk * 0.75 );
+        // ESPUMA na linha d'água, com a borda quebrada pela própria marola (senão vira
+        // uma moldura geométrica em volta do retângulo)
+        float wob = texture2D( normalMap, vWuv * 7.0 + vec2( uTime * 0.02, -uTime * 0.016 ) ).x - 0.5;
+        float foam = 1.0 - smoothstep( 0.15, 1.25, dEdge + wob * 2.2 );
+        outgoingLight = mix( outgoingLight, vec3( 0.89, 0.91, 0.86 ), clamp( foam, 0.0, 1.0 ) * 0.8 );
+        #include <opaque_fragment>`);
     };
     const water = new THREE.Mesh(new THREE.PlaneGeometry(OUTX * 2 - 0.3, OUTZ * 2 - 0.3), waterMat);
     water.rotation.x = -Math.PI / 2; water.position.set(POOL.cx, -0.12, POOL.cz); root.add(water);
+    if (WATER_FX) water.onBeforeRender = () => { uT.value = performance.now() * 0.001; };
     // SUN-STREAK comprido (~60% da lagoa) na direção do sol — era um plano 10×30 de um lado só
     {
       const gl = document.createElement('canvas'); gl.width = 128; gl.height = 128;
       const gx = gl.getContext('2d');
       const gg = gx.createRadialGradient(64, 64, 4, 64, 64, 62);
-      gg.addColorStop(0, 'rgba(255,250,228,0.5)'); gg.addColorStop(0.5, 'rgba(220,242,236,0.16)'); gg.addColorStop(1, 'rgba(220,242,236,0)');
+      // mais discreto que antes: o specular do normal map animado já faz o brilho da marola;
+      // este plano só ancora o "caminho do sol" no eixo certo
+      gg.addColorStop(0, 'rgba(255,250,228,0.30)'); gg.addColorStop(0.5, 'rgba(220,242,236,0.10)'); gg.addColorStop(1, 'rgba(220,242,236,0)');
       gx.fillStyle = gg; gx.fillRect(0, 0, 128, 128);
       const gt = new THREE.CanvasTexture(gl); gt.colorSpace = THREE.SRGBColorSpace;
       const glint = new THREE.Mesh(new THREE.PlaneGeometry(14, 32),
@@ -541,6 +754,10 @@ export function buildPoolDay(scene, T) {
     };
     floaty(-5, 5, MAT.foam); floaty(4, -4, MAT.foam2, 1.15); floaty(6, 7, MAT.foam2, 0.8);
     floaty(-6, -7, MAT.foam); floaty(1, 9, MAT.foam2, 0.85); floaty(-2, -10, MAT.foam);
+    // + bóias: são os únicos pontos SATURADOS sobre a água verde-opaca; poucas demais e a
+    // lagoa lê como mancha morta no meio do mapa
+    floaty(8, -9, MAT.foam, 1.0); floaty(-9, 10, MAT.foam2, 0.9); floaty(10, 3, MAT.foam, 0.75);
+    floaty(-10, -2, MAT.foam2, 1.05); floaty(0, -14, MAT.foam, 0.9); floaty(5, 13, MAT.foam2, 0.8);
   }
 
   /* ---------------- plataforma de salto (marco alto num canto da lagoa) ---------------- */
@@ -684,8 +901,9 @@ export function buildPoolDay(scene, T) {
     if (!gprop('mesa_guardasol', x, z, 2.3, ry)) addBox(1.8, 2.3, 1.8, MAT.white, x, 0, z, { ry });
     colliders.push({ minX: x - 0.9, maxX: x + 0.9, minY: 0, maxY: 1.0, minZ: z - 0.9, maxZ: z + 0.9 });
   }
-  // coolers do lado das mesas (G2-R14B: 5→3 — declutter)
-  for (const [x, z] of [[17, 4], [-17, 8], [19, -10]]) {
+  // coolers do lado das mesas — 3→6: "isopor por todo lado" é assinatura do Piscinão em
+  // dia de calor, e são cover baixo que não estraga LOS (h=0.55)
+  for (const [x, z] of [[17, 4], [-17, 8], [19, -10], [-19, -18], [20, 19], [-15.5, 30]]) {
     if (!gprop('cooler', x, z, 0.55)) addBox(0.6, 0.55, 0.4, MAT.white, x, 0, z);
     colliders.push({ minX: x - 0.35, maxX: x + 0.35, minY: 0, maxY: 0.55, minZ: z - 0.25, maxZ: z + 0.25 });
   }
@@ -704,8 +922,11 @@ export function buildPoolDay(scene, T) {
       t.receiveShadow = true; root.add(t);
     });
   }
-  if (!gprop('caixa_som', -12.5, -(HALF_Z - 10), 1.6, 0.9)) addBox(0.8, 1.6, 0.8, MAT.kiosk, -12.5, 0, -(HALF_Z - 10));
-  colliders.push({ minX: -13, maxX: -12, minY: 0, maxY: 1.6, minZ: -(HALF_Z - 10) - 0.5, maxZ: -(HALF_Z - 10) + 0.5 });
+  // CAIXAS DE SOM (paredão): 1 → 3. Sem paredão não é balneário carioca em domingo.
+  for (const [x, z, ry] of [[-12.5, -(HALF_Z - 10), 0.9], [12.5, HALF_Z - 10, 2.6], [-18.5, 24, 1.4]]) {
+    if (!gprop('caixa_som', x, z, 1.6, ry)) addBox(0.8, 1.6, 0.8, MAT.kiosk, x, 0, z, { ry });
+    colliders.push({ minX: x - 0.5, maxX: x + 0.5, minY: 0, maxY: 1.6, minZ: z - 0.5, maxZ: z + 0.5 });
+  }
   // placa de regras na entrada leste + boias novas na água
   if (!gprop('placa_piscina', 13, HALF_Z - 10, 1.7, Math.PI)) addBox(1.6, 1.7, 0.3, MAT.kiosk, 13, 0, HALF_Z - 10);
   colliders.push({ minX: 12.2, maxX: 13.8, minY: 0, maxY: 1.7, minZ: HALF_Z - 10.3, maxZ: HALF_Z - 9.7 });
@@ -756,7 +977,7 @@ export function buildPoolDay(scene, T) {
     });
     for (const [x, z, w, ry] of [[-9, POOL.cz + POOL.hz - 1.5, 7, 0.3], [3, POOL.cz + POOL.hz - 1, 8, 1.8], [9, POOL.cz - POOL.hz + 1.5, 7.5, 2.6], [-4, POOL.cz - POOL.hz + 1, 6.5, 0.9],
       [POOL.cx + POOL.hx - 1, 4, 6, 1.4], [POOL.cx + POOL.hx - 1.5, -7, 7, 2.9], [POOL.cx - POOL.hx + 1, 8, 6.5, 0.5], [POOL.cx - POOL.hx + 1.5, -4, 7, 2.1]])
-      decal(foamTex, w, w * 0.7, x, z, ry, -0.09, 0.6);
+      decal(foamTex, w, w * 0.7, x, z, ry, -0.09, 0.3);   // 0.6→0.3: a espuma da MARGEM agora é do shader; aqui sobra só a escuma solta no meio
     // areia acumulada no rodapé do muro-perímetro (vento junta areia nos cantos)
     const driftTex = decalTex((x, S) => {
       const g = x.createLinearGradient(0, 0, 0, S);
@@ -814,7 +1035,27 @@ export function buildPoolDay(scene, T) {
         const hc = new THREE.Mesh(new THREE.IcosahedronGeometry(0.135, 0), hair[si]);  // cabelo
         hc.scale.set(1, 0.72, 1); hc.position.set(x, 0.22, z - 0.02); root.add(hc);
       };
-      bath(6, -6, 0); bath(-7, 2, 1); bath(2, 11, 2);
+      // "MUITA GENTE" é item de gabarito, mas banhista de corpo inteiro na areia vira
+      // alvo falso num FPS. Solução: cabeça+ombros DENTRO da lagoa (nunca confundível
+      // com bot) — 3 → 18. ?crowd=0 volta ao mínimo.
+      const heads = [[6, -6], [-7, 2], [2, 11], [-3, -3], [8, 4], [-9, -9], [4, -12], [-5, 12],
+        [10, -2], [0, 6], [-10, 6], [7, 9], [-2, -8], [11, 11], [-11, -2], [3, -1], [-6, 8], [9, -10]];
+      (CROWD ? heads : heads.slice(0, 3)).forEach(([hx, hz], i) => bath(hx, hz, i % 3));
+      // BANHISTAS SENTADOS na canga, na periferia da areia (fora das lanes): torso baixo,
+      // sem pernas de pé — não lê como inimigo agachado a 30m.
+      if (CROWD) {
+        const shirt = [lam({ color: 0xe8e2d2, roughness: 0.9 }), lam({ color: 0x3a6ec2, roughness: 0.9 }), lam({ color: 0xe23b3b, roughness: 0.9 })];
+        shirt.forEach(m => { m.flatShading = true; });
+        for (const [sx3, sz3, si] of [[-20.5, 17, 0], [-19.4, 15.6, 1], [20.6, -19, 2], [19.2, -17.6, 0],
+          [-21, -26, 1], [21, 27, 2], [-17.5, -30, 0], [17.6, 31, 1]]) {
+          const torso = new THREE.Mesh(new THREE.IcosahedronGeometry(0.34, 0), shirt[si]);
+          torso.scale.set(0.9, 1.0, 0.7); torso.position.set(sx3, 0.42, sz3); torso.castShadow = true; root.add(torso);
+          const hd = new THREE.Mesh(new THREE.IcosahedronGeometry(0.14, 0), skin[si]);
+          hd.position.set(sx3, 0.86, sz3); hd.castShadow = true; root.add(hd);
+          const hc = new THREE.Mesh(new THREE.IcosahedronGeometry(0.145, 0), hair[si]);
+          hc.scale.set(1, 0.7, 1); hc.position.set(sx3, 0.92, sz3 - 0.02); root.add(hc);
+        }
+      }
     }
 
     // ---- cadeiras de plástico (monobloco branca — ícone de clube/bar BR) ----
@@ -831,7 +1072,11 @@ export function buildPoolDay(scene, T) {
       if (tipped) { g.rotation.z = Math.PI / 2; g.position.y = 0.24; }
       g.traverse(o => { if (o.isMesh) o.castShadow = true; }); root.add(g);
     };
-    chair(17, 7.2, 2.4); chair(19.2, 4.6, -0.8, true); chair(-17, 11.4, 1.1); chair(-12, 27.6, 1.8);   // G2-R14B: 8→4 (declutter)
+    // cadeiras: 4→10, sempre em RODINHA na periferia (fora das lanes) — cadeira solta lê
+    // como prop esquecido; cadeira em roda lê como família que passou o domingo ali
+    chair(17, 7.2, 2.4); chair(19.2, 4.6, -0.8, true); chair(-17, 11.4, 1.1); chair(-12, 27.6, 1.8);
+    chair(17.9, 6.4, 0.6); chair(-17.9, 10.6, 3.4); chair(-11.2, 28.3, 4.6);
+    chair(-20.5, -21, 1.9); chair(-19.6, -22.2, 4.9); chair(20.2, 22.4, 0.3);
 
     // ---- chuveirão do deck (poste + prato) c/ poça embaixo ----
     const shower = (x, z) => {
@@ -1061,10 +1306,15 @@ export function buildPoolDay(scene, T) {
     while (placed < 26 && guard++ < 500) {
       const x = (urnd() * 2 - 1) * 23, z = (urnd() * 2 - 1) * 33;
       if (!sandy(x, z)) continue;
+      // guarda-sol de praia NUNCA está a prumo: inclina pro sol e cada um pro seu lado.
+      // Um campo de cones perfeitamente verticais é o tell nº1 de cenário de maquete.
+      const tilt = (urnd() - 0.5) * 0.42, spin = urnd() * 6.3;
+      const lean = new THREE.Group(); lean.position.set(x, 0, z);
+      lean.rotation.y = spin; lean.rotation.z = tilt; root.add(lean);
       const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 2.3, 6), MAT.steel);
-      pole.position.set(x, 1.15, z); pole.castShadow = true; root.add(pole);
-      const top = new THREE.Mesh(new THREE.ConeGeometry(1.5, 0.75, 10), umbMat[(urnd() * umbMat.length) | 0]);
-      top.position.set(x, 2.45, z); top.castShadow = true; root.add(top);
+      pole.position.set(0, 1.15, 0); pole.castShadow = true; lean.add(pole);
+      const top = new THREE.Mesh(new THREE.ConeGeometry(1.4 + urnd() * 0.35, 0.6 + urnd() * 0.35, 10), umbMat[(urnd() * umbMat.length) | 0]);
+      top.position.set(0, 2.45, 0); top.castShadow = true; lean.add(top);
       if (urnd() > 0.45) {   // esteira/canga estendida aos pés
         const t = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 1.8), lam({ color: cols[(urnd() * cols.length) | 0], roughness: 0.95 }));
         t.rotation.x = -Math.PI / 2; t.rotation.z = urnd() * 6.3;
@@ -1168,15 +1418,29 @@ export function buildPoolDay(scene, T) {
         new THREE.MeshBasicMaterial({ map: silTex(kind, tint, seed), transparent: true, alphaTest: 0.05, fog }));
       m.position.set(x, h / 2 - 0.2, z); m.rotation.y = ry; root.add(m);
     };
-    const GT = '#5c6656', BT = '#676964';   // verde-árvore / cinza-prédio, mais contraste (crítico R6)
-    // N e S: cards CENTRAIS largos e altos (o vão acima do miolo da laje estava vazio)
-    sil('blocks', BT, -12, -(wZ + 6), 0, 20, 10, 11); sil('trees', GT, 16, -(wZ + 7), 0, 18, 11, 22); sil('blocks', BT, 0, -(wZ + 6.5), 0, 26, 12, 23);
-    sil('mixed', BT, -16, wZ + 6, Math.PI, 18, 10, 33); sil('trees', GT, 14, wZ + 7, Math.PI, 18, 11, 44); sil('blocks', BT, 0, wZ + 6.5, Math.PI, 26, 12, 45);
+    const GT = '#5c6656';   // verde-árvore
+    // FAVELA em 2 fileiras: a de trás mais esfumaçada (haze .55) e mais alta, a da frente
+    // quase saturada. A diferença de tinta é o que dá PROFUNDIDADE — o baseline tinha
+    // uma parede de cards no mesmo cinza e lia como caixa.
+    const fav = (x, z, ry, w, h, seed, haze) => {
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h),
+        new THREE.MeshBasicMaterial({ map: favelaTex(seed, haze), transparent: true, alphaTest: 0.05, fog: true }));
+      m.position.set(x, h / 2 - 0.4, z); m.rotation.y = ry; root.add(m);
+    };
+    if (FAVELA) {
+      // N e S: morro atrás (fileira longe) + lajes coladas no muro (fileira perto)
+      fav(-6, -(wZ + 15), 0, 62, 22, 11, 0.55); fav(14, -(wZ + 17), 0, 50, 26, 12, 0.62);
+      fav(-14, -(wZ + 6), 0, 34, 13, 23, 0.16); fav(10, -(wZ + 6.5), 0, 32, 15, 24, 0.2);
+      fav(4, wZ + 15, Math.PI, 62, 22, 33, 0.55); fav(-16, wZ + 17, Math.PI, 50, 25, 34, 0.62);
+      fav(-14, wZ + 6, Math.PI, 34, 14, 45, 0.18); fav(12, wZ + 6.5, Math.PI, 32, 13, 46, 0.2);
+      sil('trees', GT, 20, -(wZ + 8), 0, 18, 11, 22); sil('trees', GT, 20, wZ + 8, Math.PI, 18, 11, 44);
+      // E e W
+      fav(wX + 6, 14, -Math.PI / 2, 40, 15, 66, 0.24); fav(wX + 14, -16, -Math.PI / 2, 54, 22, 67, 0.58);
+      fav(-(wX + 6), 2, Math.PI / 2, 40, 15, 77, 0.24); fav(-(wX + 14), -22, Math.PI / 2, 54, 22, 78, 0.58);
+      sil('trees', GT, wX + 7, -14, -Math.PI / 2, 17, 10, 55); sil('trees', GT, -(wX + 7), -20, Math.PI / 2, 17, 10, 88);
+    }
     sil('bridge', '#4a4c46', 9, wZ + 11, Math.PI, 40, 18, 99, false);   // PONTE ao fundo (tabuleiro alto, sem fog)
     sil('bridge', '#43453f', -9, wZ + 12, Math.PI, 36, 19, 77, false);  // 2ª ponte: lê dos DOIS spawns
-    // E e W
-    sil('trees', GT, wX + 6, -14, -Math.PI / 2, 17, 10, 55); sil('blocks', BT, wX + 7, 12, -Math.PI / 2, 19, 9, 66);
-    sil('blocks', BT, -(wX + 7), 2, Math.PI / 2, 19, 9, 77); sil('trees', GT, -(wX + 6), -20, Math.PI / 2, 17, 10, 88);
     // postes com fios cruzando o topo do muro N e S
     const postMat = lam({ color: 0x4a3b2c, roughness: 0.9 });
     const wireMat = new THREE.MeshBasicMaterial({ color: 0x22201e });
@@ -1194,11 +1458,91 @@ export function buildPoolDay(scene, T) {
         tops.push(new THREE.Vector3(px, 7.4, sz * (wZ + 4.2)));
       }
       wire(tops[0], tops[1]); wire(tops[1], tops[2]); wire(tops[0], tops[2], 2.2);   // 2 vãos + diagonal longa
+      // FIAÇÃO EMARANHADA de verdade: 3 fios extras por vão, com barriga e altura
+      // diferentes. Um fio só lê como "cabo de tirolesa"; o feixe é que lê como Rio.
+      if (!LOWQ) for (let k = 0; k < 3; k++) {
+        const o = (k - 1) * 0.35;
+        wire(tops[0].clone().setY(7.4 - 0.5 - k * 0.35).setX(-16 + o), tops[1].clone().setY(7.4 - 0.4 - k * 0.3), 1.4 + k * 0.6);
+        wire(tops[1].clone().setY(7.4 - 0.4 - k * 0.3), tops[2].clone().setY(7.4 - 0.5 - k * 0.35).setX(16 + o), 1.4 + k * 0.6);
+      }
     }
   }
-  // MURAIS no painel azul do muro leste (crítico R6: "painel azul gigante sem textura")
-  addPlane(9.2, 2.7, lam({ map: muralTex('PRAINHA', 'DOMINGO É DIA DE LAGOA', 5) }), wX - 0.57, 1.72, 9.6, -Math.PI / 2);
-  addPlane(9.2, 2.7, lam({ map: muralTex('RAMOS', 'A LAGOA DA GALERA · DESDE 1987', 12) }), wX - 0.57, 1.72, -28.8, -Math.PI / 2);
+  /* ---- LAJES 3D atrás do muro (o fundo obrigatório do gabarito) ------------------
+     Cards dão silhueta mas não dão PARALAXE — de dentro do mapa o horizonte continua
+     chapado. Estas caixas ficam fora do jogável (sem collider, sem waypoint) e sobem
+     6-12m: laje inacabada + ferragem de espera + caixa d'água azul/preta. Ferragem e
+     caixas vão em InstancedMesh: 3 draw calls no total, não ~120. ?favela=0 desliga. */
+  if (FAVELA) {
+    const lajeMats = ['#9c6a4c', '#b8ac95', '#8f9a96', '#c0a888'].map((hex, i) => {
+      const t = paintWallTex(hex, 3 + i * 6); t.repeat.set(2.2, 2.2);   // caixa é grande: sem repeat a textura estica
+      return lam({ map: t });
+    });
+    const boxGeo = new THREE.BoxGeometry(1, 1, 1);
+    let fseed2 = 101; const fr = () => (fseed2 = (fseed2 * 16807) % 2147483647) / 2147483647;
+    const rebarPos = [], tankPos = [];
+    for (let i = 0; i < NFAV; i++) {
+      const side = i % 4;
+      const w = 5 + fr() * 7, d = 4 + fr() * 5, h = 6 + fr() * 7;
+      // distribui em anel logo atrás do muro; o jitter evita fileira de dentes
+      let x, z;
+      if (side === 0) { x = -34 + fr() * 68; z = -(wZ + 9 + fr() * 16); }
+      else if (side === 1) { x = -34 + fr() * 68; z = wZ + 9 + fr() * 16; }
+      else if (side === 2) { x = wX + 8 + fr() * 15; z = -40 + fr() * 80; }
+      else { x = -(wX + 8 + fr() * 15); z = -40 + fr() * 80; }
+      const m = new THREE.Mesh(boxGeo, lajeMats[(fr() * lajeMats.length) | 0]);
+      m.scale.set(w, h, d); m.position.set(x, h / 2, z);
+      m.castShadow = false; m.receiveShadow = false;   // fora do jogável: não paga sombra
+      root.add(m);
+      // ferragem de espera espetada na laje
+      for (let k = 0; k < 3 + (fr() * 4 | 0); k++)
+        rebarPos.push([x + (fr() - 0.5) * w * 0.9, h, z + (fr() - 0.5) * d * 0.9, 0.5 + fr() * 1.1]);
+      // caixa d'água (azul ou preta) sobre a laje
+      if (fr() > 0.25) tankPos.push([x + (fr() - 0.5) * w * 0.5, h + 0.62, z + (fr() - 0.5) * d * 0.5, fr() > 0.42]);
+    }
+    const rebarGeo = new THREE.CylinderGeometry(0.035, 0.035, 1, 4);
+    const rebar = new THREE.InstancedMesh(rebarGeo, lam({ color: 0x8a6a4a, roughness: 0.95 }), rebarPos.length);
+    const dummy = new THREE.Object3D();
+    rebarPos.forEach(([px, py, pz, len], i) => {
+      dummy.position.set(px, py + len / 2, pz); dummy.scale.set(1, len, 1);
+      dummy.rotation.set((fr() - 0.5) * 0.35, fr() * 6.3, (fr() - 0.5) * 0.35);
+      dummy.updateMatrix(); rebar.setMatrixAt(i, dummy.matrix);
+    });
+    rebar.instanceMatrix.needsUpdate = true; root.add(rebar);
+    if (tankPos.length) {   // InstancedMesh com count 0 é caso degenerado no three — evita
+      const tankGeo = new THREE.CylinderGeometry(0.62, 0.62, 1.15, 8);
+      const tanks = new THREE.InstancedMesh(tankGeo, lam({ color: 0xffffff, roughness: 0.75 }), tankPos.length);
+      const cAzul = new THREE.Color(0x2a5798), cPreta = new THREE.Color(0x232326);
+      tankPos.forEach(([px, py, pz, blue], i) => {
+        dummy.position.set(px, py, pz); dummy.scale.set(1, 1, 1); dummy.rotation.set(0, fr() * 6.3, 0);
+        dummy.updateMatrix(); tanks.setMatrixAt(i, dummy.matrix);
+        tanks.setColorAt(i, blue ? cAzul : cPreta);   // azul de polietileno / preta de fibrocimento
+      });
+      tanks.instanceMatrix.needsUpdate = true; if (tanks.instanceColor) tanks.instanceColor.needsUpdate = true;
+      root.add(tanks);
+    }
+  }
+  // MURAIS no muro leste. O crítico acertou: o "PRAINHA" era um DECALQUE PLANO. Agora o
+  // painel é uma placa FÍSICA — chapa de 6cm, moldura de cantoneira e mãos-francesas —
+  // então pega sombra própria e projeta sombra no muro. É o que separa placa de adesivo.
+  const placaMural = (tex, x, z, ry, w = 9.2, h = 2.7, y = 1.72) => {
+    const dir = new THREE.Vector3(Math.sin(ry), 0, Math.cos(ry));   // normal da placa
+    const panel = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.06), lam({ map: tex }));
+    panel.position.set(x, y, z); panel.rotation.y = ry;
+    panel.castShadow = panel.receiveShadow = true; root.add(panel);
+    const frame = lam({ color: 0x6d6a60, roughness: 0.6, metalness: 0.35 });   // cantoneira galvanizada
+    for (const [fw, fh, oy, ox] of [[w + 0.16, 0.12, h / 2, 0], [w + 0.16, 0.12, -h / 2, 0], [0.12, h + 0.16, 0, w / 2], [0.12, h + 0.16, 0, -w / 2]]) {
+      const b = new THREE.Mesh(new THREE.BoxGeometry(fw, fh, 0.1), frame);
+      b.position.set(x + Math.cos(ry) * ox, y + oy, z - Math.sin(ry) * ox);
+      b.rotation.y = ry; b.castShadow = true; root.add(b);
+    }
+    for (const ox of [-w * 0.3, w * 0.3]) {   // mãos-francesas afastando a placa do muro
+      const s = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 0.34), frame);
+      s.position.set(x + Math.cos(ry) * ox - dir.x * 0.18, y - h / 2 + 0.2, z - Math.sin(ry) * ox - dir.z * 0.18);
+      s.rotation.y = ry; root.add(s);
+    }
+  };
+  placaMural(muralTex('PRAINHA', 'DOMINGO É DIA DE LAGOA', 5), wX - 0.62, 9.6, -Math.PI / 2);
+  placaMural(muralTex('RAMOS', 'A LAGOA DA GALERA · DESDE 1987', 12), wX - 0.62, -28.8, -Math.PI / 2);
   // MONÓLITOS N/S no fundo de cada spawn (centro da sightline principal — crítico R6):
   // letreiro pintado + janelas falsas + caixa d'água na borda superior
   {
@@ -1232,6 +1576,23 @@ export function buildPoolDay(scene, T) {
   /* ---------------- kiosk helper (usado nos corredores) ---------------- */
   function kioskAt(x, z) {
     const counter = addBox(3.2, 1.2, 1.6, MAT.kiosk, x, 0, z);   // collider sempre
+    // BANDEIRA DO QUIOSQUE (cerveja/refri) — marco vertical colorido de 4m que dá
+    // affordance de "aqui tem quiosque" de longe. Fica fora do if do GLB de propósito.
+    {
+      const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 4.2, 6), MAT.steel);
+      mast.position.set(x + 1.9, 2.1, z - 0.9); mast.castShadow = true; root.add(mast);
+      const fc = document.createElement('canvas'); fc.width = 96; fc.height = 64;
+      const fx2 = fc.getContext('2d');
+      const bandas = [['#e2231a', '#ffd400'], ['#0b6b3a', '#f2f2f2'], ['#1b5f9e', '#ffd400']];
+      const bb = bandas[(Math.abs(x * 7 + z * 3) | 0) % bandas.length];
+      fx2.fillStyle = bb[0]; fx2.fillRect(0, 0, 96, 64);
+      fx2.fillStyle = bb[1]; fx2.fillRect(0, 26, 96, 12);
+      fx2.fillStyle = 'rgba(0,0,0,0.18)'; for (let i = 0; i < 6; i++) fx2.fillRect(i * 16, 0, 4, 64);   // vinco do pano
+      const ft = new THREE.CanvasTexture(fc); ft.colorSpace = THREE.SRGBColorSpace;
+      const flag = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 0.9),
+        new THREE.MeshBasicMaterial({ map: ft, side: THREE.DoubleSide }));
+      flag.position.set(x + 2.6, 3.7, z - 0.9); flag.rotation.y = 0.25; root.add(flag);
+    }
     if (gprop('quiosque', x, z, 3.0)) { counter.visible = false; return; }   // GLB Mint por cima
     addBox(3.6, 0.26, 2.1, MAT.thatch, x, 2.4, z, { collide: false });
     for (const sx of [-1.6, 1.6]) for (const sz of [-0.95, 0.95]) addBox(0.14, 2.4, 0.14, MAT.steel, x + sx, 0, z + sz, { collide: false });
@@ -1239,26 +1600,35 @@ export function buildPoolDay(scene, T) {
 
   // OPEN-AIR: céu aberto. background/luz definidos abaixo.
   scene.background = T.sky || new THREE.Color(0x9fd4ee);
-  scene.fog = new THREE.Fog(0xd8e2e6, 48, 170);   // haze de tarde quente, mais presente perto do chão
+  // HAZE QUENTE da Guanabara: não é névoa azul-fria de montanha, é ar de 38°C com poeira e
+  // sal em suspensão — cor puxada pro creme/bege. Near em 34m (e não 28) de propósito: a
+  // lane spawn↔spawn tem 72m e velar demais o alvo é bug de jogabilidade, não fidelidade —
+  // a profundidade do fundo já vem do haze PINTADO nas texturas de favela. ?nofog=1 desliga.
+  if (QP.get('nofog') !== '1') scene.fog = new THREE.Fog(0xe0d7c2, 34, 175);
   // disco solar + nuvens (sprites) — "dia de sol de bairro", não box bege (crítico R6)
   {
     const sunSpr = new THREE.Sprite(new THREE.SpriteMaterial({ map: T.sunSprite, transparent: true, fog: false, depthWrite: false }));
-    sunSpr.position.set(60, 80, -50); sunSpr.scale.setScalar(52); root.add(sunSpr);   // alinhado c/ o sol (20,44,-14)
+    sunSpr.position.set(26, 148, -17); sunSpr.scale.setScalar(60); root.add(sunSpr);   // realinhado c/ o sol a pino (14,76,-9)
     if (T.cloud) for (const [cx, cy, cz, cs] of [[-60, 62, -80, 46], [40, 70, -90, 56], [90, 58, 50, 42], [-85, 66, 70, 50], [10, 74, 95, 44], [-20, 80, -60, 62], [70, 76, -40, 58], [-95, 72, -10, 54], [30, 64, 80, 48]]) {
       const cl = new THREE.Sprite(new THREE.SpriteMaterial({ map: T.cloud, transparent: true, fog: false, depthWrite: false, opacity: 0.9 }));
       cl.position.set(cx, cy, cz); cl.scale.set(cs, cs * 0.42, 1); root.add(cl);
     }
   }
-  const hemi = new THREE.HemisphereLight(0xf2fbff, 0xd8c096, 0.75);   // menos ambiente = sombra mais forte; bounce quente da areia
+  // SOL ALTO DE VERÃO CARIOCA (meio-dia, não fim de tarde): o ângulo é o que manda na
+  // leitura — sombra CURTA e DURA colada no pé do objeto. Antes o sol estava a ~65° da
+  // vertical e as sombras compridas liam como "fim de tarde de clube".
+  const hemi = new THREE.HemisphereLight(0xeaf6ff, 0xdcc39a, 0.52);   // menos ambiente = sombra mais dura; bounce quente da areia
   scene.add(hemi);
-  const sun = new THREE.DirectionalLight(0xffedd0, 2.1);   // sol de tarde forte, sombras projetadas marcadas
-  sun.position.set(20, 44, -14); sun.castShadow = true;
-  sun.shadow.mapSize.set(2048, 2048);
+  const sun = new THREE.DirectionalLight(0xfff2da, 2.6);   // sol a pino, quase branco-quente
+  sun.position.set(14, 76, -9); sun.castShadow = true;
+  sun.shadow.mapSize.set(LOWQ ? 1024 : 2048, LOWQ ? 1024 : 2048);   // GPU fraca: metade do shadow map
   sun.shadow.camera.left = -42; sun.shadow.camera.right = 42;
   sun.shadow.camera.top = 42; sun.shadow.camera.bottom = -42;
-  sun.shadow.camera.far = 140; sun.shadow.bias = -0.0004;
+  sun.shadow.camera.far = 170; sun.shadow.bias = -0.0004;
   scene.add(sun);
-  const fill = new THREE.DirectionalLight(0xdfeeff, 0.4);
+  // fill FRACO e quente: sombra de meio-dia no Rio não é azul de estúdio, é preenchida
+  // pelo bounce da areia clara. Fill forte demais achata a cena (crítico: "luz chapada").
+  const fill = new THREE.DirectionalLight(0xffe7c4, 0.22);
   fill.position.set(-18, 40, 18); scene.add(fill);
 
   /* ---------------- ground height ---------------- */

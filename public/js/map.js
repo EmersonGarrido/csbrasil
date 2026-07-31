@@ -1,5 +1,6 @@
 // awp_map-inspired arena, Brazilian satire edition. Procedural geometry only.
 import * as THREE from 'three';
+import { detailFor, applyContactAO } from './textures.js';
 
 const WALL_H = 4.5;
 
@@ -11,9 +12,33 @@ export function buildWorld(scene, T) {
 
   // Standard (não Lambert) pra receber o env map IBL (scene.environment, _buildEnv no game.js) —
   // mesmo padrão visual do map_brasilia. roughness alto/metalness 0 = superfícies foscas do mapa.
-  const lam = (opts) => new THREE.MeshStandardMaterial({ roughness: 0.9, metalness: 0, ...opts });
+  const lam = (opts) => {
+    const m = new THREE.MeshStandardMaterial({ roughness: 0.9, metalness: 0, ...opts });
+    // normal/roughness derivados do próprio albedo (textures.js): superfície deixa de ser
+    // cor chapada e passa a reagir ao sol e ao env map. normalScale conservador (0.65) —
+    // relevo por Sobel exagera fácil e vira plástico.
+    const det = m.map && detailFor(m.map);
+    if (det) {
+      if (det.normalMap && !m.normalMap) { m.normalMap = det.normalMap; m.normalScale.set(0.65, 0.65); }
+      if (det.roughnessMap && !m.roughnessMap) m.roughnessMap = det.roughnessMap;
+    }
+    return m;
+  };
+  // Vertex-AO: caixas ganham escurecimento na base (contato com o chão). O material é
+  // clonado UMA vez por material original — planos que compartilham o mesmo `lam` não
+  // podem ligar vertexColors (não têm o atributo color e ficariam pretos).
+  const AO_MATS = new Map();
+  const aoMat = (mat) => {
+    let a = AO_MATS.get(mat);
+    if (!a) { a = mat.clone(); a.vertexColors = true; AO_MATS.set(mat, a); }
+    return a;
+  };
   function addBox(w, h, d, mat, x, y, z, opts = {}) {
-    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+    // segmentação vertical só o bastante pra o gradiente de contato existir (máx. 6 anéis)
+    const hs = Math.max(2, Math.min(6, Math.round(h / 0.35)));
+    const geo = new THREE.BoxGeometry(w, h, d, 1, hs, 1);
+    if (opts.ao !== false && !opts.rx && !opts.rz) applyContactAO(geo, -h / 2, 0.55, 0.66);
+    const m = new THREE.Mesh(geo, (opts.ao !== false && !opts.rx && !opts.rz) ? aoMat(mat) : mat);
     m.position.set(x, y + h / 2, z);
     m.castShadow = opts.cast !== false; m.receiveShadow = true;
     if (opts.ry) m.rotation.y = opts.ry;

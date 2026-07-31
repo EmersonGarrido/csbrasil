@@ -22,7 +22,7 @@ const chromium = _pw.chromium || _pw.default?.chromium;
 rmSync(DIR, { recursive: true, force: true });
 mkdirSync(DIR, { recursive: true });
 const browser = await chromium.launch({
-  executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+  executablePath: process.env.CHROME_BIN || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
   args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--headless=new'],
 });
 const page = await browser.newPage({ viewport: { width: 640, height: 640 } });

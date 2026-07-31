@@ -248,13 +248,31 @@ export class Sfx {
     const nearP = Math.pow(near, 0.7), far = 1 - near;
     const V = P.lvl * v.level * (0.92 + Math.random() * 0.16) * 0.85 * vol;
     const env = (g, a, pk, d, t0 = t) => this._env(g, t0, a, pk, d);
+    // GUNFEEL — CARÁTER POR CLASSE aplicado aqui (a tabela GUN é compartilhada com outras
+    // rotinas, então o tempero fica no sintetizador): [snap] quanto o tiro ESTALA no
+    // transiente, [punch] quanto ele SOCA no grave, [room] quanto a sala devolve. É o que
+    // separa de verdade pistola × rifle × sniper × shotgun — antes as 4 tinham a mesma
+    // arquitetura de envelope e só mudavam de frequência.
+    const CH = { pistol: [1.30, 0.72, 0.45], smg: [1.18, 0.80, 0.55], ar: [1.10, 0.95, 0.70],
+      rifle: [1.05, 1.00, 0.75], ak: [0.94, 1.28, 0.88], lmg: [0.94, 1.32, 0.95],
+      sniper: [0.80, 1.65, 1.30], shotgun: [0.70, 1.55, 1.15] }[cls] || [1, 1, 0.8];
+    const snap = CH[0], punch = CH[1];
+    // `room` é ajustável de fora (this.room = 0..1.6) para dar cauda por AMBIENTE — mapa
+    // fechado devolve mais que praça aberta. Default 1 = comportamento neutro.
+    const roomK = CH[2] * (this.room ?? 1);
+    const rr2 = 0.88 + Math.random() * 0.24;   // variação extra por tiro em cima do round-robin
     const shaper = R.createWaveShaper(); shaper.curve = this._satCurve(P.drive * v.drive); shaper.oversample = '2x';
     const shg = R.createGain(); shg.gain.value = V; shaper.connect(shg); shg.connect(out);
     // 1) transiente (click agudo + snap) — só de perto
     if (nearP > 0.05) {
-      const s = this._noise(0.008); const hp = R.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 2400;
-      const g = R.createGain(); env(g, 0.0005, 0.85 * nearP * V, 0.007); s.connect(hp); hp.connect(g); g.connect(out); s.start(t); s.stop(t + 0.02);
-      const clk = this._osc('triangle', 1750 * v.crack); const cg = R.createGain(); env(cg, 0.0005, 0.3 * nearP * V, 0.004);
+      const s = this._noise(0.008); const hp = R.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 2400 * snap;
+      const g = R.createGain(); env(g, 0.0004, 0.95 * snap * nearP * V, 0.007); s.connect(hp); hp.connect(g); g.connect(out); s.start(t); s.stop(t + 0.02);
+      // sub-camada de ATAQUE (GUNFEEL): 2.5 ms em 7 kHz. O transiente antigo começava em
+      // 2.4 kHz e subia em 0.5 ms — no alto-falante lia como "pop" e não como estalo; este
+      // é o "tick" que o ouvido usa pra datar o disparo (e é o que dá a impressão de rapidez).
+      const s2 = this._noise(0.004); const hp2 = R.createBiquadFilter(); hp2.type = 'highpass'; hp2.frequency.value = 7000;
+      const g2 = R.createGain(); env(g2, 0.0002, 0.55 * snap * nearP * V, 0.0025); s2.connect(hp2); hp2.connect(g2); g2.connect(out); s2.start(t); s2.stop(t + 0.02);
+      const clk = this._osc('triangle', 1750 * v.crack * rr2); const cg = R.createGain(); env(cg, 0.0005, 0.34 * snap * nearP * V, 0.004);
       clk.connect(cg); cg.connect(out); clk.start(t); clk.stop(t + 0.02);
     }
     // 2) corpo (sine+tri em queda) → shaper + sub grave direto
@@ -263,7 +281,9 @@ export class Sfx {
       const o2 = this._osc('triangle', P.bodyF * 0.5 * v.body * jit); o2.frequency.exponentialRampToValueAtTime(Math.max(20, P.bodyF2 * 0.55 * v.body * jit), t + P.bodyDecay * 1.6);
       const g2 = R.createGain(); env(g2, 0.0012, 0.6, P.bodyDecay * 1.15); o2.connect(g2); g2.connect(shaper); o2.start(t); o2.stop(t + P.bodyDecay * 1.8);
       const s = this._osc('sine', P.subF * v.body * jit); s.frequency.exponentialRampToValueAtTime(Math.max(18, P.subF * 0.8 * v.body * jit), t + P.subDecay);
-      const sg = R.createGain(); env(sg, 0.004, (0.5 + far * 0.55) * V, P.subDecay * 1.3); s.connect(sg); sg.connect(out); s.start(t); s.stop(t + P.subDecay * 2 + 0.05); }
+      // GUNFEEL: o SOCO grave escala por classe (punch) e o ataque é mais rápido (4→2 ms) —
+      // sub lento chega DEPOIS do estalo e o tiro soa mole/desconectado.
+      const sg = R.createGain(); env(sg, 0.002, (0.5 + far * 0.55) * punch * V, P.subDecay * 1.3 * (0.85 + 0.3 * punch)); s.connect(sg); sg.connect(out); s.start(t); s.stop(t + P.subDecay * 2.4 + 0.05); }
     // 3) crack (bandpass saturado, sweep pra baixo) — caráter do calibre, só de perto
     if (nearP > 0.03) {
       const s = this._noise(P.crackDecay + 0.02); const bp = R.createBiquadFilter(); bp.type = 'bandpass';
@@ -275,7 +295,7 @@ export class Sfx {
     { const s = this._noise(P.midDecay); const bp = R.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = P.midF * v.body; bp.Q.value = 1.1;
       const g = R.createGain(); env(g, 0.002, (0.5 + far * 0.35) * V, P.midDecay * 1.4); s.connect(bp); bp.connect(g); g.connect(out); s.start(t); s.stop(t + P.midDecay * 4 + 0.05); }
     // 5) cauda (lowpass caindo) — curta de perto, longa de longe (a "sala" mora na DISTÂNCIA)
-    { const dur = P.tailDecay * v.tail * (1 + far * 1.6);
+    { const dur = P.tailDecay * v.tail * rr2 * (1 + far * 1.6);   // rr2: 2 tiros seguidos nunca têm a mesma cauda
       const s = this._noise(dur); const lp = R.createBiquadFilter(); lp.type = 'lowpass';
       lp.frequency.setValueAtTime(P.tailF * (1 - 0.65 * far), t); lp.frequency.exponentialRampToValueAtTime(Math.max(60, P.tailEndF * (1 - 0.4 * far)), t + dur);
       const hp = R.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 160 - 90 * far;
@@ -312,6 +332,28 @@ export class Sfx {
       const s = this._noise(0.05); const bp = R.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 2600 + Math.random() * 3600; bp.Q.value = 1.8;
       const g = R.createGain(); env(g, 0.001, 0.1 * nearP * V, 0.004 + Math.random() * 0.01, pt); s.connect(bp); bp.connect(g); g.connect(out); s.start(pt); s.stop(pt + 0.05);
     }
+    // 9) CAUDA DE AMBIENTE (GUNFEEL): 2 reflexões curtas (slap) a ~26 ms e ~55 ms. A cauda
+    // que já existia só cresce com a DISTÂNCIA — o tiro do PRÓPRIO jogador (dist 0) saía sem
+    // espaço nenhum, "seco de fone". Aqui a sala responde perto também, com peso por classe
+    // (uma AWP devolve muito mais parede que uma pistola). Buffer de ruído CACHEADO: em
+    // full-auto o custo dominante do synth é justamente gerar ruído por camada.
+    if (roomK > 0.05 && nearP > 0.12) {
+      if (!this._roomBuf) {
+        const n = (R.sampleRate * 0.22) | 0, b = R.createBuffer(1, n, R.sampleRate), d = b.getChannelData(0);
+        for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, 2.2);
+        this._roomBuf = b;
+      }
+      for (const [dl, lv, fq] of [[0.026, 0.30, 1800], [0.055, 0.18, 900]]) {
+        const src = R.createBufferSource(); src.buffer = this._roomBuf;
+        src.playbackRate.value = 0.8 + Math.random() * 0.5;
+        const lp = R.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = fq * (1 - 0.4 * far);
+        const hp = R.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 220;
+        const td = t + dl * (0.85 + Math.random() * 0.3);
+        const g = R.createGain(); env(g, 0.004, lv * roomK * nearP * V, 0.10 + roomK * 0.16, td);
+        src.connect(hp); hp.connect(lp); lp.connect(g); g.connect(out);
+        src.start(td); src.stop(td + 0.3);
+      }
+    }
     this._send(out, 0.06 + far * 0.14);   // reverb opt-in: mais "sala" de longe, quase nada em 1ª pessoa
   }
   // tiro por arma: synth por classe é PRIMÁRIO (samples CC0 = opt-in via "weaponSamples":true).
@@ -319,7 +361,14 @@ export class Sfx {
   shotWeapon(w, dist = 0, vol = 1, pan = 0, propDelay = 0) {
     if (w === 'knife') return this.knife();
     if (this.pack?.weaponSamples) { const f = this._pick(this.pack?.weapons?.[w]); if (f) { this.duck(0.3, 0.16); this._sample(f, vol); return; } }
-    this._gunshot(Sfx.GUN_CLASS[w] || 'rifle', dist, vol, pan, propDelay);
+    // GUNFEEL: peso POR ARMA dentro da classe — só a classe fazia .38, PT-38 e Deagle
+    // soarem idênticos (e a SKS soar igual à AWP). `vol` é o único parâmetro por tiro que o
+    // synth aceita, então a hierarquia de calibre entra por aqui.
+    const W = { deagle: 1.25, revolver38: 1.18, pistol: 0.90, m92: 0.95,
+      awp: 1.15, mosin: 1.10, rem700: 1.12, m400: 0.85, svd: 0.90, g3sg1: 0.88, sks: 0.80,
+      ak: 1.00, akm: 1.08, g3: 1.05, m4: 0.95, scar: 0.98, tavor: 0.93, famas: 0.90, carbine: 1.0,
+      mp5: 0.90, uzi: 0.88, p90: 0.85, lmg: 1.10, shotgun: 1.15, md97: 1.08 };
+    this._gunshot(Sfx.GUN_CLASS[w] || 'rifle', dist, vol * (W[w] ?? 1), pan, propDelay);
   }
   // whizz: projétil supersônico passando perto do ouvido (CoD bulletWhizz) — tiro inimigo
   // que erra por pouco. miss = metros do ouvido.

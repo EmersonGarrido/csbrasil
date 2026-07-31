@@ -12,16 +12,20 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 export const WEAPONS = {
   awp:    { name: 'AWP "DELIBERADOR"', short: 'AWP', dmg: 400, mag: 5, reserve: 25, rate: 1.7, reload: 3.1, spreadHip: 0.075, spreadScope: 0.0008, recoil: 0.055, scope: true },
-  ak:     { name: 'AK-47 "BATE-ESTACA"', short: 'AK', dmg: 33, mag: 30, reserve: 90, rate: 0.1, reload: 2.5, spreadHip: 0.024, recoil: 0.008, auto: true },
+  // dmg 33→36 (crítico de gunfeel): 33×3=99 deixava a arma-tema 1 HP de matar em 3 tiros —
+  // era a 12ª em TTK. Com 36 mata em 3 (TTK 0.200) e volta a ser a régua do arsenal.
+  ak:     { name: 'AK-47 "BATE-ESTACA"', short: 'AK', dmg: 36, mag: 30, reserve: 90, rate: 0.1, reload: 2.5, spreadHip: 0.024, recoil: 0.008, auto: true },
   m4:     { name: 'M4A1 "REQUINTE"', short: 'M4', dmg: 31, mag: 30, reserve: 90, rate: 0.09, reload: 2.4, spreadHip: 0.02, recoil: 0.007, auto: true },
   mp5:    { name: 'MP5 "VASSOURA"', short: 'MP5', dmg: 26, mag: 30, reserve: 120, rate: 0.075, reload: 2.2, spreadHip: 0.03, recoil: 0.005, auto: true },
-  shotgun:{ name: 'M3 "CONVERSA FIADA"', short: 'M3', dmg: 12, pellets: 8, mag: 7, reserve: 32, rate: 0.9, reload: 3.0, spreadHip: 0.06, recoil: 0.045 },
+  // 8×12=96 não matava nem com o cartucho inteiro no peito (TTK 0.9s, pior arma do jogo).
+  // 9×14=126 = mata no contato, que é o contrato de uma pump.
+  shotgun:{ name: 'M3 "CONVERSA FIADA"', short: 'M3', dmg: 14, pellets: 9, mag: 7, reserve: 32, rate: 0.9, reload: 3.0, spreadHip: 0.06, recoil: 0.045 },
   deagle: { name: 'DEAGLE "MARTELO"', short: 'DE', dmg: 53, mag: 7, reserve: 35, rate: 0.28, reload: 2.0, spreadHip: 0.012, recoil: 0.03 },
   pistol: { name: 'PT-38 "APITO"', short: 'PT-38', dmg: 34, mag: 12, reserve: 48, rate: 0.24, reload: 1.6, spreadHip: 0.02, recoil: 0.014, scope: false },
   knife:  { name: 'FACA "CONVERSA FIADA"', short: 'FACA', dmg: 55, rate: 0.55, range: 2.4, reload: 0, recoil: 0.02, scope: false },
   // arsenal 2 (BR)
   m92:       { name: 'ZASTAVA M92 "IOGUSLAVO"', short: 'M92', dmg: 32, mag: 30, reserve: 90, rate: 0.1, reload: 2.5, spreadHip: 0.026, recoil: 0.009, auto: true },
-  akm:       { name: 'AKM "KALASH DA VÉIA"', short: 'AKM', dmg: 35, mag: 30, reserve: 90, rate: 0.105, reload: 2.5, spreadHip: 0.025, recoil: 0.009, auto: true },
+  akm:       { name: 'AKM "KALASH DA VÉIA"', short: 'AKM', dmg: 34, mag: 30, reserve: 90, rate: 0.105, reload: 2.5, spreadHip: 0.025, recoil: 0.009, auto: true },   // 35→34: matava em 3 e ficava ACIMA da AK-47 sem contrapartida; agora 4 tiros (pesada e lenta, como o nome promete)
   g3:        { name: 'HK G3 "FRITZ"', short: 'G3', dmg: 37, mag: 20, reserve: 80, rate: 0.11, reload: 2.6, spreadHip: 0.022, recoil: 0.013, auto: true },
   revolver38:{ name: 'REVÓLVER .38 "TROVÃO"', short: '.38', dmg: 46, mag: 6, reserve: 24, rate: 0.36, reload: 2.4, spreadHip: 0.016, recoil: 0.03 },
   md97:      { name: 'MD97 "FUZIL DA PÁTRIA"', short: 'MD97', dmg: 38, mag: 20, reserve: 80, rate: 0.12, reload: 2.6, spreadHip: 0.022, recoil: 0.012, auto: true },
@@ -39,14 +43,56 @@ export const WEAPONS = {
   lmg:       { name: 'METRALHA "TRETA PESADA"', short: 'LMG', dmg: 31, mag: 100, reserve: 200, rate: 0.085, reload: 5.0, spreadHip: 0.04, recoil: 0.011, auto: true },
   scar:      { name: 'SCAR "PAGA-PAU"', short: 'SCAR', dmg: 37, mag: 20, reserve: 80, rate: 0.11, reload: 2.5, spreadHip: 0.02, recoil: 0.01, auto: true },
   tavor:     { name: 'TAVOR "CURTINHO"', short: 'TAVOR', dmg: 32, mag: 30, reserve: 90, rate: 0.09, reload: 2.3, spreadHip: 0.024, recoil: 0.008, auto: true },
-  famas:     { name: 'FAMAS "BAGUETE"', short: 'FAMAS', dmg: 29, mag: 25, reserve: 90, rate: 0.06, reload: 2.4, spreadHip: 0.028, recoil: 0.006, auto: true },
+  // rate 0.06→0.075: a 1000 RPM full-auto ela era a MELHOR arma do jogo (TTK 0.180) com o
+  // 2º menor recuo. 800 RPM mantém o caráter "rajada rápida" sem apagar os rifles 7.62.
+  famas:     { name: 'FAMAS "BAGUETE"', short: 'FAMAS', dmg: 29, mag: 25, reserve: 90, rate: 0.075, reload: 2.4, spreadHip: 0.028, recoil: 0.006, auto: true },
   uzi:       { name: 'UZI "RÁ-TÁ-TÁ"', short: 'UZI', dmg: 25, mag: 25, reserve: 100, rate: 0.07, reload: 2.1, spreadHip: 0.032, recoil: 0.006, auto: true },
   p90:       { name: 'P90 "CHINELÃO"', short: 'P90', dmg: 23, mag: 50, reserve: 100, rate: 0.065, reload: 2.3, spreadHip: 0.03, recoil: 0.005, auto: true },
 };
-const ROUND_TIME = 99, ROUNDS_TO_WIN = 3, RESPAWN_DELAY = 2.5, PICKUP_RESPAWN = 8, SPAWN_PROT = 3;
-const BOT_SPEED = 3.3, BOT_EYE = 1.5;
+/* ===================== RITMO / MOVIMENTO (kill-switches) =====================
+   ?pace=0  -> round volta a ser SÓ tempo (sem alvo de abates, sem match point)
+   ?move=0  -> movimento volta ao modelo antigo (4.7 base, sprint 6.6, sem counter-strafe)
+   ?killcam=0 -> sem painel/câmera de morte
+   Motivo: as três mudam COMPORTAMENTO sentido pelo jogador; o dono precisa do A/B. */
+const QS = new URLSearchParams(location.search);
+// RESPAWN 2.5→2.2 e SPAWN_PROT 3→2: o custo medido de morrer em Brasília era ~16s (16% do
+// round) olhando pra esplanada vazia. Menos espera + spawn escolhido por segurança
+// (_pickSpawn) encurta o caminho de volta pra briga sem virar respawn de arena.
+const ROUND_TIME = 99, ROUNDS_TO_WIN = 3, RESPAWN_DELAY = 2.2, PICKUP_RESPAWN = 8, SPAWN_PROT = 2;
+// O round SEMPRE queimava os 99s e ganhava quem tivesse mais kills — sem virada, sem clímax.
+// Agora existe ALVO (3 abates × jogadores por lado, mín. 6): quem chega primeiro fecha o
+// round na hora, e a 2 abates do fim entra o banner MATCH POINT (pico no fim, não platô).
+const KILLS_PER_PLAYER = 3, KILLS_MIN = 6;
+const PACE = QS.get('pace') !== '0';
+const BOT_SPEED = 4.1, BOT_EYE = 1.5;   // 3.3 = 30% mais lento que o jogador: o bot nunca chegava no lugar
 const BOT_VIEW = 45;              // alcance de aquisição de alvo (m) — ver comentário no think
+const BOT_VIEW_SNIPER = 82;       // com luneta o bot enxerga longe (o jogador de AWP era impune a 100m)
+const BOT_VIEW_ALERT = 64;        // levou/ouviu tiro: abre a visão por alguns segundos
 const BOT_AIM_PITCH = 15 * Math.PI / 180;   // clamp do pitch da cabeça ao mirar (rad)
+// Dano do bot CONTRA O JOGADOR: com a arma real na mão (rajada de AK = 36×N) o bot ficou
+// muito mais letal que o 63 fixo de antes. 0.85 devolve ~1 tiro extra de margem pro jogador
+// reagir sem apagar a identidade das armas (AWP segue matando de um tiro).
+const BOT_DMG_PLAYER = 0.85;
+/* ===================== MOVIMENTO (referência CS2) =====================
+   Andar com rifle no CS2 = 5.46 m/s (faca 6.35, AWP 5.08). Aqui a base era 4.7 pra TODAS as
+   armas + um sprint de 6.6 que não existe em CS. Resultado: a AWP andava igual à faca (posição
+   não valia nada) e o Shift servia pra correr gritando passo. Agora: base PLAYER_SPEED com
+   multiplicador POR ARMA e Shift = ANDAR SILENCIOSO (o loop "segurar ângulo escutando passo"
+   passa a existir). Armas sem entrada caem em 0.9. */
+const PLAYER_SPEED = 5.35;
+const MOVE_MUL = {
+  knife: 1.0, pistol: 0.98, revolver38: 0.96, deagle: 0.94,
+  mp5: 0.95, uzi: 0.95, p90: 0.94, famas: 0.9, tavor: 0.9, m4: 0.9, scar: 0.89, carbine: 0.9,
+  ak: 0.88, akm: 0.86, m92: 0.88, g3: 0.85, md97: 0.86, shotgun: 0.88,
+  sks: 0.87, m400: 0.85, svd: 0.83, g3sg1: 0.8, lmg: 0.8, rem700: 0.79, mosin: 0.78, awp: 0.78,
+};
+const WALK_MUL = 0.52;            // Shift: 52% da velocidade, sem som de passo
+const MOVE2 = QS.get('move') !== '0';
+// REGENERAÇÃO: não existia cura, kit, colete nem regen em lugar nenhum — cada vida depois do
+// primeiro contato já estava perdida (um tiro de bot deixa em ~40 e o próximo mata, faça o
+// que fizer). Como aqui o respawn é contínuo e não há economia, o modelo é o do CoD: X s sem
+// tomar dano e o HP volta. Vale pra jogador E bots (simetria). ?regen=0 desliga.
+const REGEN = QS.get('regen') !== '0', REGEN_DELAY = 6, REGEN_RATE = 22;
 const TEAM_LABEL = { P: 'PETISTAS', B: 'BOLSONARISTAS' };
 const RADIO = {
   z: { title: 'COMANDOS', items: ['Bora, bora, bora!', 'Cobre eu!', 'Recua, recua!'] },
@@ -55,6 +101,71 @@ const RADIO = {
 };
 const MK_TIERS = { 2: 'doublekill', 3: 'triplekill', 4: 'multikill', 5: 'megakill' };
 const MK_LABELS = { doublekill: 'DOUBLE KILL', triplekill: 'TRIPLE KILL', multikill: 'MULTI KILL', megakill: 'MEGA KILL', killingspree: 'KILLING SPREE', godlike: 'GODLIKE' };
+/* ===================== GUNFEEL (recuo / spread / feedback) =====================
+   Kill-switch: ?gunfeel=0 volta ao modelo antigo (impulso escalar de w.recoil, spread em
+   caixa, sem padrão, sem falloff). Existe porque isto muda o COMPORTAMENTO de mira das 26
+   armas de uma vez — se algo ficar ruim em produção o dono tem o A/B na querystring. */
+const GUNFEEL = new URLSearchParams(location.search).get('gunfeel') !== '0';
+const D2R = Math.PI / 180;
+// PADRÃO DETERMINÍSTICO de spray (CS2-like). Medição do crítico: a AK acumulava 0.57° de
+// estado estacionário numa rajada INTEIRA — a tela não saía do lugar e duas rajadas de 30
+// eram idênticas (nenhuma forma). Aqui cada tiro tem [dx, dy] NORMALIZADO (1.0 = kick do
+// 1º tiro; a amplitude em graus vem de REC_DEG por arma): sobe reto nos 8 primeiros, puxa
+// pra ESQUERDA no miolo, pra DIREITA depois e serpenteia no fim. É a FORMA que ensina
+// spray control; ±30% de aleatoriedade entra em cima (equivalente ao weapon_recoil_seed).
+function buildRecoilPattern({ mid = 0.42, tail = 0.2, left = 0.56, right = 0.68, wig = 0.3 } = {}) {
+  const a = [];
+  for (let i = 0; i < 30; i++) {
+    let dy, dx;
+    if (i < 8) { dy = 1 - 0.31 * (i / 7); dx = (i % 2 ? 0.06 : -0.05); }        // subida quase reta
+    else if (i < 16) { dy = mid; dx = -left; }                                   // esquerda
+    else if (i < 25) { dy = mid * 0.72; dx = right; }                            // direita
+    else { dy = tail; dx = (i % 2 ? 1 : -1) * wig; }                             // serpenteia
+    a.push([dx, dy]);
+  }
+  return a;
+}
+const RECOIL_PATTERN = {
+  ak:   buildRecoilPattern({ mid: 0.44, tail: 0.22, left: 0.56, right: 0.69 }),  // 7.62: braço largo
+  ar:   buildRecoilPattern({ mid: 0.40, tail: 0.19, left: 0.40, right: 0.48 }),  // 5.56: mais controlável
+  smg:  buildRecoilPattern({ mid: 0.46, tail: 0.26, left: 0.30, right: 0.36, wig: 0.36 }),
+  lmg:  buildRecoilPattern({ mid: 0.52, tail: 0.30, left: 0.60, right: 0.72 }),
+  semi: buildRecoilPattern({ mid: 0.55, tail: 0.40, left: 0.16, right: 0.20, wig: 0.2 }),  // 1 tiro por clique: quase só vertical
+};
+const RECOIL_CLASS = {};
+for (const w of ['ak', 'akm', 'g3', 'm92', 'md97']) RECOIL_CLASS[w] = 'ak';
+for (const w of ['m4', 'scar', 'tavor', 'famas', 'carbine']) RECOIL_CLASS[w] = 'ar';
+for (const w of ['mp5', 'uzi', 'p90']) RECOIL_CLASS[w] = 'smg';
+RECOIL_CLASS.lmg = 'lmg';
+// Kick VERTICAL do 1º tiro em GRAUS (o crítico pediu 1.6° na AK, 1.35 na M4, 2.3 no Deagle,
+// 4.9 na AWP — era 0.458° na AK e nem isso chegava na tela).
+const REC_DEG = {
+  awp: 4.9, mosin: 4.7, rem700: 4.8, shotgun: 3.4, md97: 3.0,
+  m400: 1.5, svd: 1.9, g3sg1: 1.7, sks: 1.5, carbine: 1.9,
+  ak: 1.6, akm: 1.72, m92: 1.5, g3: 1.75, scar: 1.45, m4: 1.35, tavor: 1.3, famas: 1.25, lmg: 1.5,
+  mp5: 0.95, uzi: 0.9, p90: 0.85,
+  deagle: 2.3, revolver38: 2.0, pistol: 1.15, knife: 0.5,
+};
+// Curva de recuperação do view punch: NÃO recupera enquanto a rajada está viva (é isso que
+// faz a tela subir de verdade); passado REC_HOLD volta com mola tau=REC_TAU. REC_PERM fica
+// como deriva permanente na mira — o jogador corrige com o mouse (spray control).
+const REC_HOLD = 0.30, REC_TAU = 0.22, REC_RISE = 0.035, REC_PERM = 0.25;
+// Queda de dano por distância: hoje o raycast vai a 200 m com dano constante (P90 a 40 m
+// mata igual à AWP). start/end em metros, min = multiplicador no fim. Sniper: sem falloff.
+const DMG_FALLOFF = {
+  smg: [25, 65, 0.60], pistol: [30, 70, 0.62], rifle: [45, 95, 0.85], shotgun: [8, 26, 0.30], lmg: [40, 90, 0.8],
+};
+// Headshot: era `dmg = 100` fixo em QUALQUER arma (P90 a 40 m matava na cabeça igual à AWP,
+// o que apagava a identidade das 26 armas). Agora é multiplicador por classe.
+const HS_MUL = { rifle: 4, smg: 4, pistol: 4, lmg: 3.6, shotgun: 1.7, sniper: 2.5 };
+// Classe BALÍSTICA (≠ STATIC_CLASS, que é do viewmodel: lá SMG mora em 'rifle' e a M400
+// mora em 'awp'). Usada só por falloff/headshot.
+const BALL_CLASS = {};
+for (const w of ['awp', 'mosin', 'rem700', 'm400', 'svd', 'g3sg1', 'sks']) BALL_CLASS[w] = 'sniper';
+for (const w of ['shotgun', 'md97']) BALL_CLASS[w] = 'shotgun';
+for (const w of ['mp5', 'uzi', 'p90']) BALL_CLASS[w] = 'smg';
+for (const w of ['pistol', 'deagle', 'revolver38']) BALL_CLASS[w] = 'pistol';
+BALL_CLASS.lmg = 'lmg';
 // Classe do viewmodel ESTÁTICO Tripo por arma — TODAS as armas têm classe (arms_<cls>.glb).
 // Snipers entram na classe 'awp' com VARIAÇÃO de acabamento por arma (SNIPER_VM abaixo).
 const STATIC_CLASS = {};
@@ -108,8 +219,12 @@ const SHOTGUN_VM = {
 // (fov vertical 70). Em telas mais altas (MacBook 3024×1964 ≈ 1.54:1) o FOV horizontal
 // encolhia e o VM invadia a tela; aqui o vertical abre p/ compensar — em 16:9 retorna
 // exatamente 70 (comportamento de referência inalterado).
+// GUNFEEL: V0 70→62. O viewmodel do CS2/Valorant é MAIS FECHADO que o mundo — é isso que
+// dá peso à arma e mata a distorção do antebraço na borda (o "tubo aberto" que o crítico
+// viu na Havan é agravado por lente larga). Compensado por VM_SHRINK 0.72→0.64, então o
+// tamanho aparente sobe só ~3% — não é uma volta às "armas gigantes". ?vmwide=1 reverte.
 function vmFovForAspect(aspect) {
-  const REF = 16 / 9, V0 = 70 * Math.PI / 180;
+  const REF = 16 / 9, V0 = (new URLSearchParams(location.search).get('vmwide') === '1' ? 70 : 62) * Math.PI / 180;
   const halfH = Math.atan(Math.tan(V0 / 2) * REF);
   return 2 * Math.atan(Math.tan(halfH) / aspect) * 180 / Math.PI;
 }
@@ -138,21 +253,42 @@ export function vmPreloadClasses(weaponId) {
 // Encolhimento global dos viewmodels (G2-R14A — dono: "armas tomam a maior parte da
 // tela, quero ver o jogo"): ~28% menor em tamanho aparente nos VMs estáticos (heróis
 // + classes). Muzzles são recomputados do transform final no build — seguem a escala.
-const VM_SHRINK = 0.72;
+// GUNFEEL: 0.72→0.62 — compensa EXATAMENTE a lente mais fechada da vmCamera (V0 70→62:
+// tan35/tan31 = 1.165; 0.62/0.72 = 0.861 → tamanho aparente 1.003). Medido em captura A/B
+// 1600×900: a arma NÃO cresce na tela (a regra do dono continua valendo), só ganha a
+// perspectiva mais fechada, que é o que tira a distorção do antebraço na borda.
+const VM_SHRINK = new URLSearchParams(location.search).get('vmwide') === '1' ? 0.72 : 0.62;
+// EIXO do viewmodel (GUNFEEL): o crítico mediu a arma 23–27° fora da linha de mira
+// (atan(0.18/0.42)=23.2° no rifle, 26.6° na pistola) — é a causa medida do "mira num lugar,
+// a arma aponta pro outro". Referência CS2/Valorant: 11–14° à direita, 7–9° abaixo. VMP(novo,
+// antigo) troca as duas tabelas de uma vez; ?vmaxis=0 volta ao enquadramento anterior.
+const VMP = (n, o) => (new URLSearchParams(location.search).get('vmaxis') === '0' ? o : n);
 // GUN-SPACE e attachments: public/js/vmattach.js (medidas em tools/g2-gunspace.mjs).
 
-// Dificuldade RANDÔMICA por bot (não há mais seletor): 50% ruins, 20% médios, 20% bons,
-// 10% muito bons. Retorna um escalar `skill` (usado em reação/cadência/chance de acerto).
-const BOT_SKILLS = [  { p: 0.50, tier: 'ruim', skill: 0.6 },
-  { p: 0.20, tier: 'medio', skill: 0.95 },
-  { p: 0.20, tier: 'bom', skill: 1.25 },
-  { p: 0.10, tier: 'muitobom', skill: 1.7 },
+// Dificuldade por bot: o SORTEIO fica (variedade dentro da partida — nem todo inimigo é
+// igual), mas a MÉDIA volta a ser do jogador. Antes 50% dos bots eram 'ruim' e a variância
+// entre duas partidas era maior que a diferença entre FÁCIL e INSANO em qualquer FPS.
+const BOT_SKILLS = [  { p: 0.32, tier: 'ruim', skill: 0.62 },
+  { p: 0.30, tier: 'medio', skill: 0.95 },
+  { p: 0.26, tier: 'bom', skill: 1.25 },
+  { p: 0.12, tier: 'muitobom', skill: 1.65 },
 ];
-function rollBotSkill() {
-  let r = Math.random();
-  for (const s of BOT_SKILLS) { if (r < s.p) return s.skill; r -= s.p; }
-  return BOT_SKILLS[0].skill;
+// settings.difficulty era GRAVADO por main.js e nunca lido por ninguém — o seletor do menu
+// estava morto. Aqui ele volta a enviesar o sorteio. ?diff=hard testa sem depender do menu
+// (o <select id="diff-select"> ainda falta no index.astro — fora da minha região de edição).
+const DIFF_MUL = { easy: 0.6, normal: 0.88, hard: 1.2, insane: 1.65 };
+function diffMul(settings) {
+  const k = String(QS.get('diff') || (settings && settings.difficulty) || 'normal').toLowerCase();
+  return DIFF_MUL[k] !== undefined ? DIFF_MUL[k] : DIFF_MUL.normal;
 }
+function rollBotSkill(mul = 1) {
+  let r = Math.random();
+  for (const s of BOT_SKILLS) { if (r < s.p) return s.skill * mul; r -= s.p; }
+  return BOT_SKILLS[0].skill * mul;
+}
+// Rótulo do tier a partir do skill final (usado no killfeed/nametag: o jogador precisa
+// APRENDER quem é perigoso em vez de morrer pra 8 bots visualmente idênticos).
+function botTier(skill) { return skill < 0.75 ? 'ruim' : skill < 1.05 ? 'medio' : skill < 1.4 ? 'bom' : 'muitobom'; }
 
 export class Game {
   constructor({ renderer, textures, sfx, settings, playerCharId, playerTeam, playerFaction, enemyFaction, nickname, mapId, ctf, testMode = false, onQuit, onMatchEnd }) {
@@ -223,12 +359,23 @@ export class Game {
       kills: 0, deaths: 0, headshots: 0, grounded: true, stepPhase: 0, revealedAt: -99, protUntil: 0, smokes: 5,
     };
     this.combatants.push(this.player);
+    // ANDAR SILENCIOSO (Shift): o disparo do passo mora no _updatePlayer, num trecho que não
+    // é desta região de edição — então o gate fica aqui, envolvendo sfx.step UMA vez (o flag
+    // no próprio sfx evita empilhar wrappers quando uma nova partida é criada).
+    if (!this.sfx._stepGate) {
+      const _s0 = this.sfx.step.bind(this.sfx);
+      this.sfx._stepGate = true;
+      this.sfx.step = (...a) => { if (!this.sfx._quiet) _s0(...a); };
+    }
 
     // ---- bots ----
     this.bots = [];
-    // Custom match: team size (total per side, player fills one ally slot). Dificuldade
-    // é RANDÔMICA por bot (rollBotSkill), não mais um seletor único de partida.
+    // Custom match: team size (total per side, player fills one ally slot). Dificuldade =
+    // sorteio por bot (variedade) × settings.difficulty do menu (média sob controle do jogador).
     const teamSize = Math.max(1, Math.min(8, this.settings.bots || 4));
+    // Alvo de abates do round, escalado pelo tamanho do time (4v4 -> 12). MATCH POINT a 2 do fim.
+    this.killsToWin = PACE ? Math.max(KILLS_MIN, teamSize * KILLS_PER_PLAYER) : Infinity;
+    this._diffMul = diffMul(this.settings);
     // Rotação aleatória do pool por partida: sem ela só os 8 primeiros do time viravam
     // bots (personagens no fim da lista, ex.: canarinho/proerd, nunca apareciam).
     const cycle = (pool, n) => {
@@ -246,11 +393,13 @@ export class Game {
         isPlayer: false, name: def.name, def, team,
         mesh: c, pos: new THREE.Vector3(), yaw: 0, hp: 100, alive: true,
         respawnAt: 0, protUntil: 0, kills: 0, deaths: 0,
-        target: null, reactAt: 0, nextShotAt: 0, skill: rollBotSkill() * (0.9 + Math.random() * 0.2), weapon: wpn,
+        target: null, reactAt: 0, nextShotAt: 0, skill: rollBotSkill(this._diffMul) * (0.9 + Math.random() * 0.2), weapon: wpn,
+        mag: (WEAPONS[wpn] && WEAPONS[wpn].mag) || 30, aimErr: 0.2, burst: 0, alertUntil: 0,
         path: null, pathIdx: 0, repathAt: 0, roamIdx: 0, phase: 0, think: Math.random() * 0.2,
         deadT: 0, strafeT: Math.random() * 10, revealedAt: -99,
         crouchBias: Math.random() < 0.45, // ~half the bots hold angles crouched (AWPer style)
       };
+      bot.tier = botTier(bot.skill);   // tier visível (killfeed/scoreboard): o jogador aprende quem é perigoso
       c.group.traverse(o => { o.userData.botOwner = bot; });
       this.scene.add(c.group);
       this.bots.push(bot); this.combatants.push(bot);
@@ -450,21 +599,65 @@ export class Game {
     };
   }
 
-  // IBL: gera um env map (gradiente de céu dusk) e seta scene.environment, pra os materiais
-  // PBR (MeshStandardMaterial) terem luz ambiente/reflexo em vez de ficarem chapados.
+  // IBL: env map procedural HDR-ish (equirect 512×256 em FLOAT) -> scene.environment.
+  // ANTES: um gradiente sRGB 16×128 hardcoded. Como canvas é 8 bits, o "sol" não podia
+  // passar de 1.0 linear — nenhum material tinha reflexo especular com range, e a mesma
+  // faixa dusk servia pros 4 mapas (meio-dia de Brasília com céu de pôr do sol).
+  // AGORA: DataTexture FloatType, então o disco solar vale ~55 em linear (HDR de verdade)
+  // e o PMREM gera os mips de rugosidade com highlight que sobrevive ao tonemap. Modelo:
+  // gradiente zênite→horizonte + glow de Mie ao redor do sol + disco + chão com albedo +
+  // haze no horizonte. Direção/cor do sol vêm do próprio DirectionalLight do mapa
+  // (this.world.sun), então cada mapa ganha o SEU céu. Isso melhora TODOS os materiais
+  // PBR de uma vez (é o único ambiente que o jogo tem além do hemi).
+  // Intensidade exposta em ?env=<mult> (default 1.0); ?env=0 volta pro ambiente só-hemi.
   _buildEnv() {
     try {
-      const c = document.createElement('canvas'); c.width = 16; c.height = 128;
-      const g = c.getContext('2d');
-      const grd = g.createLinearGradient(0, 0, 0, 128);
-      grd.addColorStop(0.00, '#1a2740');   // topo do céu
-      grd.addColorStop(0.48, '#8ea8c6');   // céu claro perto do horizonte
-      grd.addColorStop(0.52, '#c3a577');   // faixa quente do pôr do sol
-      grd.addColorStop(1.00, '#2a2620');   // chão/reflexo escuro
-      g.fillStyle = grd; g.fillRect(0, 0, 16, 128);
-      const tex = new THREE.CanvasTexture(c);
-      tex.mapping = THREE.EquirectangularReflectionMapping; tex.colorSpace = THREE.SRGBColorSpace;
+      const mult = (() => { const v = parseFloat(new URLSearchParams(location.search).get('env')); return isFinite(v) ? v : 1.0; })();
+      if (mult <= 0) { this.scene.environment = null; return; }
+      const W = 512, H = 256;
+      const sun = this.world && this.world.sun;
+      const sd = new THREE.Vector3(0.35, 0.75, -0.25);
+      if (sun && sun.position && sun.position.lengthSq() > 0.001) sd.copy(sun.position).normalize();
+      const sc = new THREE.Color(sun ? sun.color.getHex() : 0xffe8c8);
+      // energia do céu acompanha (de leve) a intensidade do sol do mapa: mapa de fim de
+      // tarde não recebe o mesmo ambiente de um meio-dia.
+      const sunI = Math.min(3.2, Math.max(0.6, sun ? sun.intensity : 1.6));
+      const skyE = mult * (0.62 + 0.14 * sunI);
+      const zen = [0.075, 0.16, 0.36], hor = [0.55, 0.62, 0.72];   // linear (sRGB primaries)
+      const gnd = [0.085, 0.078, 0.066];                            // albedo do chão * bounce
+      const data = new Float32Array(W * H * 4);
+      for (let j = 0; j < H; j++) {
+        const v = (j + 0.5) / H, phi = (v - 0.5) * Math.PI;
+        const sy = Math.sin(phi), cy = Math.cos(phi);
+        for (let i = 0; i < W; i++) {
+          const u = (i + 0.5) / W, th = (u - 0.5) * Math.PI * 2;
+          const dx = cy * Math.cos(th), dz = cy * Math.sin(th);
+          const cosS = dx * sd.x + sy * sd.y + dz * sd.z;
+          let r, g2, b;
+          if (sy >= 0) {
+            const t = Math.pow(1 - sy, 5);                       // zênite -> horizonte
+            r = zen[0] + (hor[0] - zen[0]) * t;
+            g2 = zen[1] + (hor[1] - zen[1]) * t;
+            b = zen[2] + (hor[2] - zen[2]) * t;
+            const mie = Math.pow(Math.max(cosS, 0), 6) * 0.45 + Math.pow(Math.max(cosS, 0), 48) * 1.1;
+            r += mie * sc.r; g2 += mie * sc.g * 0.92; b += mie * sc.b * 0.72;
+            if (cosS > 0.99965) { r += 55 * sc.r; g2 += 55 * sc.g; b += 55 * sc.b; }   // disco (~1.5°)
+          } else {
+            // chão: albedo * irradiância do céu, clareando no horizonte (haze/poeira)
+            const t = Math.pow(1 + sy, 8);
+            r = gnd[0] * (1 + 3.2 * t); g2 = gnd[1] * (1 + 3.0 * t); b = gnd[2] * (1 + 2.6 * t);
+          }
+          const o = (j * W + i) * 4;
+          data[o] = r * skyE; data[o + 1] = g2 * skyE; data[o + 2] = b * skyE; data[o + 3] = 1;
+        }
+      }
+      const tex = new THREE.DataTexture(data, W, H, THREE.RGBAFormat, THREE.FloatType);
+      tex.mapping = THREE.EquirectangularReflectionMapping;
+      tex.colorSpace = THREE.LinearSRGBColorSpace;   // já está em linear, sem decode
+      tex.minFilter = THREE.LinearFilter; tex.magFilter = THREE.LinearFilter;
+      tex.needsUpdate = true;
       const pmrem = new THREE.PMREMGenerator(this.renderer); pmrem.compileEquirectangularShader();
+      if (this._envRT) this._envRT.dispose();
       this._envRT = pmrem.fromEquirectangular(tex);
       this.scene.environment = this._envRT.texture;
       tex.dispose(); pmrem.dispose();
@@ -757,30 +950,41 @@ export class Game {
             // — regressão funcional. Agora yaw ≤0.09 em TODAS (cano colado na linha de mira;
             // a identidade vem do modelo/textura/attachments, não do ângulo). Escala global
             // -28% via VM_SHRINK (dono: "armas tomam a maior parte da tela").
-            rifle:   { yaw: 0.08, roll: -0.071, pitch: 0.065, pos: [0.18, -0.08, -0.42], scale: 0.45 },
-            pistol:  { yaw: -0.07, roll: -0.06, pitch: 0.01, pos: [0.15, -0.15, -0.30], scale: 0.26 },
-            awp:     { yaw: 0.08, roll: -0.053, pitch: 0.012, pos: [0.17, -0.10, -0.43], scale: 0.46 },
-            shotgun: { yaw: 0.08, roll: -0.078, pitch: 0.037, pos: [0.19, -0.09, -0.44], scale: 0.42 },
+            // GUNFEEL: pos recalculado para 14° à direita / 8.4° abaixo do eixo de mira
+            // (x = |z|·tan14, y = -|z|·tan8.4). Os yaws ≤0.09 continuam intocados.
+            rifle:   { yaw: 0.08, roll: -0.071, pitch: 0.065, pos: VMP([0.105, -0.089, -0.42], [0.18, -0.08, -0.42]), scale: 0.45 },
+            // pistola: era 26.6°/26.6° e a arma ocupava 0.5% da tela contra 3.4% do antebraço
+            // (7× a arma, com o TUBO ABERTO do braço visível). scale 0.26→0.40 e 28% mais
+            // perto: a arma cresce e o antebraço sai por baixo do quadro, como no CS.
+            // MEDIDO em A/B 1600×900: os números do crítico (scale 0.40, pos y -0.10) fazem o
+            // ANTEBRAÇO crescer junto — vira um tubo azul ocupando o quadrante inteiro e a
+            // seção aberta sobe pra dentro do quadro. O mesh é ~85% braço, então subir a
+            // escala sem descer o eixo piora. Meio-termo: +15% de arma, eixo horizontal
+            // corrigido (15°) e o braço mantido BAIXO (25°, quase o valor antigo) pra sair
+            // por baixo do quadro como no CS.
+            pistol:  { yaw: -0.07, roll: -0.06, pitch: 0.01, pos: VMP([0.078, -0.135, -0.29], [0.15, -0.15, -0.30]), scale: VMP(0.30, 0.26) },
+            awp:     { yaw: 0.08, roll: -0.053, pitch: 0.012, pos: VMP([0.100, -0.091, -0.43], [0.17, -0.10, -0.43]), scale: 0.46 },
+            shotgun: { yaw: 0.08, roll: -0.078, pitch: 0.037, pos: VMP([0.110, -0.094, -0.44], [0.19, -0.09, -0.44]), scale: 0.42 },
             // AK dedicada (G2-R7): gun-space próprio quase sem cant — deltas distintos da
             // classe rifle. G2-R14A: yaw 0.28→0.09 (alinho do cano ao crosshair).
-            ak:      { yaw: 0.09, roll: -0.07, pitch: 0.02, pos: [0.19, -0.12, -0.37], scale: 0.54 },
-            m4:      { yaw: 0.09, roll: -0.07, pitch: 0.02, pos: [0.19, -0.12, -0.37], scale: 0.54 },
+            ak:      { yaw: 0.09, roll: -0.07, pitch: 0.02, pos: VMP([0.092, -0.079, -0.37], [0.19, -0.12, -0.37]), scale: 0.54 },
+            m4:      { yaw: 0.09, roll: -0.07, pitch: 0.02, pos: VMP([0.092, -0.079, -0.37], [0.19, -0.12, -0.37]), scale: 0.54 },
             // MP5: o cano dela corre ao longo de -X no model space — no euler LOCAL os
             // papéis trocam: "roll" vira elevação do cano (por isso roll -0.24 alto) e
             // "pitch" vira rolagem. G2-R10: -15% de tamanho aparente — lia "tamanho de rifle".
-            mp5:     { yaw: 0.09, roll: -0.24, pitch: 0.02, pos: [0.21, -0.13, -0.40], scale: 0.41 },
+            mp5:     { yaw: 0.09, roll: -0.24, pitch: 0.02, pos: VMP([0.100, -0.085, -0.40], [0.21, -0.13, -0.40]), scale: 0.41 },
             // p90: gun-space refeito pelo trilho do cano em X (o slab em Z mentia).
-            p90:     { yaw: 0.09, roll: -0.061, pitch: 0.172, pos: [0.20, -0.13, -0.38], scale: 0.44 },
+            p90:     { yaw: 0.09, roll: -0.061, pitch: 0.172, pos: VMP([0.095, -0.081, -0.38], [0.20, -0.13, -0.38]), scale: 0.44 },
             // UZI-kit (G2-R12+): entrada própria desde a remoção da herói.
-            uzi:     { yaw: 0.09, roll: -0.088, pitch: 0.087, pos: [0.18, -0.08, -0.42], scale: 0.45 },
+            uzi:     { yaw: 0.09, roll: -0.088, pitch: 0.087, pos: VMP([0.105, -0.089, -0.42], [0.18, -0.08, -0.42]), scale: 0.45 },
             // m92-kit (G2-R13): rotação própria expõe a ALAVANCA + nogal claro separa da g3.
-            m92:     { yaw: 0.08, roll: -0.189, pitch: 0.139, pos: [0.18, -0.08, -0.42], scale: 0.45 },
+            m92:     { yaw: 0.08, roll: -0.189, pitch: 0.139, pos: VMP([0.105, -0.089, -0.42], [0.18, -0.08, -0.42]), scale: 0.45 },
             // Herói G2-R13 (SVD): coronha esqueleto de madeira + PSO-1.
-            svd:     { yaw: 0.09, roll: -0.117, pitch: 0.09, pos: [0.19, -0.12, -0.37], scale: 0.54 },
+            svd:     { yaw: 0.09, roll: -0.117, pitch: 0.09, pos: VMP([0.092, -0.079, -0.37], [0.19, -0.12, -0.37]), scale: 0.54 },
             // Heróis G2-R11B (TAVOR/FAMAS): bullpups curtas — arma inteira no quadro.
-            tavor:   { yaw: 0.09, roll: 0.038, pitch: -0.026, pos: [0.20, -0.13, -0.38], scale: 0.44 },
-            famas:   { yaw: 0.08, roll: -0.097, pitch: 0.011, pos: [0.20, -0.13, -0.38], scale: 0.44 },
-            awphero: { yaw: 0.09, roll: -0.07, pitch: 0.02, pos: [0.19, -0.12, -0.37], scale: 0.54 },
+            tavor:   { yaw: 0.09, roll: 0.038, pitch: -0.026, pos: VMP([0.095, -0.081, -0.38], [0.20, -0.13, -0.38]), scale: 0.44 },
+            famas:   { yaw: 0.08, roll: -0.097, pitch: 0.011, pos: VMP([0.095, -0.081, -0.38], [0.20, -0.13, -0.38]), scale: 0.44 },
+            awphero: { yaw: 0.09, roll: -0.07, pitch: 0.02, pos: VMP([0.092, -0.079, -0.37], [0.19, -0.12, -0.37]), scale: 0.54 },
           };
           if (cls === 'knife') { m.scale.setScalar(0.32 * VM_SHRINK); m.rotation.set(-0.15, 0.55, 0.2); m.position.set(0.15, -0.1, -0.14); }   // G2-R14A: -28% (VM_SHRINK) — tomava a tela; pose CS mantida
           else {
@@ -1065,13 +1269,18 @@ export class Game {
     this.roundNum++;
     this.roundKills = { P: 0, B: 0 };
     this.timeLeft = ROUND_TIME;
+    this._matchPoint = false;    // banner de MATCH POINT dispara uma vez por round
     this.mk.life = 0; this.mk.count = 0;
     this._resetPositions();
     if (this.ctf) this._initCTF();
     this.state = 'countdown';
     this.stateUntil = this.time + 3;
     this._showScoreboard(false);
-    this._banner(`ROUND ${this.roundNum}`, this.roundNum === 1 ? 'Que comece a treta!' : 'De volta pra treta!');
+    // O alvo do round entra no banner: sem isso o jogador não tem como saber que existe
+    // condição de vitória por abates (o HUD só mostra o placar corrido).
+    this._banner(`ROUND ${this.roundNum}`, (PACE && !this.ctf)
+      ? `Primeiro time a ${this.killsToWin} abates leva`
+      : (this.roundNum === 1 ? 'Que comece a treta!' : 'De volta pra treta!'));
     if (!this.sfx.csSound('roundstart')) this.sfx.vuvuzela(1.4);
   }
   _resetPositions() {
@@ -1151,6 +1360,22 @@ export class Game {
     }
   }
 
+  /* RITMO: o round tem ALVO (this.killsToWin) — quem chega primeiro fecha na hora. Roda a
+     cada frame a partir do _updatePlayer (o update() principal não é desta região de edição;
+     zerar timeLeft deixa o fluxo de fim de round existente fazer o resto, sem duplicar
+     caminho). Também emite o MATCH POINT a 2 abates do fim: é o pico que o round não tinha. */
+  _checkPace() {
+    if (!PACE || this.ctf || this.state !== 'live') return;
+    const p = this.roundKills.P, b = this.roundKills.B, tgt = this.killsToWin;
+    const lead = Math.max(p, b);
+    if (!this._matchPoint && lead >= tgt - 2) {
+      this._matchPoint = true;
+      const side = p > b ? 'P' : 'B';
+      this._banner('MATCH POINT', `${this._teamName(side)} a ${tgt - lead} da vitória`);
+      try { this.sfx.vuvuzela(0.9); } catch {}
+    }
+    if (lead >= tgt) this.timeLeft = 0;   // update() enxerga timeLeft<=0 e chama _endRound
+  }
   _endRound() {
     const p = this.roundKills.P, b = this.roundKills.B;
     let winner = null;
@@ -1167,7 +1392,9 @@ export class Game {
       this.sfx.roundLose();
     } else {
       const mine = winner === this.playerTeam;
-      this._banner(`${this._teamName(winner)} LEVARAM O ROUND`, `${p} × ${b} ` + (mine ? '— o povo (você) agradece' : '— a oposição (você) pede revanche'));
+      // fechou no ALVO de abates (antes do tempo) vs ganhou no relógio — informação diferente
+      const byTarget = PACE && Math.max(p, b) >= this.killsToWin;
+      this._banner(`${this._teamName(winner)} LEVARAM O ROUND`, `${p} × ${b} ` + (byTarget ? '— fecharam no alvo' : mine ? '— o povo (você) agradece' : '— a oposição (você) pede revanche'));
       if (!this.sfx.roundSound(this._voiceKey(winner))) mine ? this.sfx.roundWin() : this.sfx.roundLose();
     }
     if (this.roundsWon.P >= ROUNDS_TO_WIN || this.roundsWon.B >= ROUNDS_TO_WIN)
@@ -1279,6 +1506,11 @@ export class Game {
     const shadows = q !== 'low';
     this.renderer.shadowMap.enabled = shadows;
     this.world.sun.castShadow = shadows;
+    // o foco dinâmico do shadow map (bloom.js: ortho seguindo o jogador, 26 m em vez de
+    // 120 m => ~2.5 cm/texel) cacheia luz+extent em scene.userData.__sf. Trocar de
+    // qualidade muda mapSize/bias, então invalida o cache pra ele reconfigurar.
+    delete this.scene.userData.__sf;
+    if (shadows) this.renderer.shadowMap.needsUpdate = true;
     this.scene.traverse(o => { if (o.material) o.material.needsUpdate = true; });
   }
   onResize() {
@@ -1398,7 +1630,14 @@ export class Game {
     const p = this.player;
     if (p.weapon === w || !p.alive || !WEAPONS[w]) return;
     if (w !== 'knife' && !p.ammo[w]) p.ammo[w] = { mag: WEAPONS[w].mag, res: WEAPONS[w].reserve };
-    p.weapon = w; p.reloadUntil = 0; p.drawUntil = this.time + 0.28;
+    // GUNFEEL: deploy por CLASSE (era 0.28 fixo p/ as 26 armas — a AWP sacava tão rápido
+    // quanto a faca). Teto de 0.45s de propósito: a animação de saque divide por 0.28 no
+    // _updatePlayer (fora deste arquivo-região), então drawF chega a ~1.6 = entrada de
+    // y -0.35 / rx -0.9, que é justamente a curva pedida pelo crítico.
+    const DEPLOY = { knife: 0.25, pistol: 0.34, smg: 0.38, rifle: 0.42, shotgun: 0.42, awp: 0.45 };
+    const _dcls = BALL_CLASS[w] === 'smg' ? 'smg' : (STATIC_CLASS[w] || 'rifle');
+    p.weapon = w; p.reloadUntil = 0; p.drawUntil = this.time + (GUNFEEL ? (DEPLOY[_dcls] || 0.38) : 0.28);
+    p.sprayI = 0; p.lastShotAt = -9;   // rajada nova: padrão de recuo recomeça do tiro 1
     // remember the slot so 1/2 recall the LAST weapon of that kind (primary vs sidearm)
     if (w !== 'knife') { if (PISTOLS.has(w)) p.secondary = w; else p.primary = w; }
     this.vm.reloadDip = 0;   // evita arma travada inclinada ao trocar no meio da recarga
@@ -1407,7 +1646,17 @@ export class Game {
     this._applyVmVisibility();
     this.el.weaponName.textContent = WEAPONS[w].name;
     this.el.reloadNote.classList.add('hidden');
-    if (w === 'knife') this.sfx.knifeDeploy(); else this.sfx.uiClick();
+    if (w === 'knife') this.sfx.knifeDeploy(); else this._deploySfx(_dcls);
+  }
+  // Som de SAQUE por classe: 2 ressonadores metálicos a ~28ms (ferrolho + trava), grave nas
+  // armas pesadas. Era `sfx.uiClick()` — um beep de MENU pra sacar uma AWP. Usa os helpers
+  // já existentes do Sfx (não há API pública de foley de arma).
+  _deploySfx(cls) {
+    const s = this.sfx; s.ensure(); if (!s.ctx) return;
+    const F = { pistol: [2100, 3000], smg: [1750, 2500], rifle: [1350, 2050], shotgun: [1000, 1650], awp: [820, 1400] }[cls] || [1350, 2050];
+    s._burst(0.035, 0.20, F[0], 7, 'bandpass');
+    s._burst(0.045, 0.16, F[1], 5, 'bandpass', 0.028);
+    s._beep('sine', 150, 85, 0.07, 0.10, 0.03);   // peso do corpo da arma assentando
   }
   _scope(on, silent = false) {
     const p = this.player, w = p.weapon;
@@ -1442,8 +1691,78 @@ export class Game {
     if (a.mag >= WEAPONS[w].mag || a.res <= 0) return;
     this._scope(false, true);
     p.reloadUntil = this.time + WEAPONS[w].reload;
+    p.sprayI = 0;   // recarregou = rajada nova (padrão de recuo do tiro 1)
     this.el.reloadNote.classList.remove('hidden');
     this.sfx.reloadStart();
+    this._reloadLayers(w, WEAPONS[w].reload);
+  }
+  // Camadas de recarga (GUNFEEL): era 1 beep na entrada e 1 na saída. Agora magOut (trava +
+  // pente caindo), magIn (thunk grave de encaixe) e boltRelease (ressonador metálico),
+  // sincronizados com o `reload` da arma. Guardado por token: trocar de arma no meio da
+  // recarga cancela as camadas pendentes (senão a AK "encaixa pente" com a pistola na mão).
+  _reloadLayers(w, dur) {
+    const s = this.sfx; s.ensure(); if (!s.ctx) return;
+    const tok = (this._rlTok = (this._rlTok || 0) + 1);
+    const alive = () => this._rlTok === tok && this.player.weapon === w && this._reloading();
+    const at = (f, t) => setTimeout(() => { if (alive()) f(); }, t * 1000);
+    const heavy = STATIC_CLASS[w] === 'awp' || STATIC_CLASS[w] === 'shotgun';
+    at(() => { s._burst(0.03, 0.16, 2600, 6, 'bandpass'); s._burst(0.09, 0.10, 700, 1.2); }, dur * 0.18);   // trava + pente saindo
+    at(() => { s._beep('sine', 180, 110, 0.08, 0.20); s._burst(0.06, 0.14, 900, 1.5); }, dur * 0.62);       // thunk grave do encaixe
+    at(() => { s._burst(0.035, 0.18, heavy ? 1400 : 2000, 7, 'bandpass'); s._burst(0.04, 0.13, heavy ? 2100 : 3000, 5, 'bandpass', 0.03); }, dur * 0.86);   // ferrolho
+  }
+  /* GUNFEEL — recuo de CÂMERA. Toma posse da curva de `p.recoilP` com um acessor em vez de
+     editar o loop principal (que pertence a outra região do arquivo): o loop faz
+     `p.recoilP = max(0, p.recoilP - dt*(0.06 + p.recoilP*2))` e lê `pitch + recoilP`; com o
+     setter MUDO a recuperação passa a ser esta (hold da rajada + mola tau 0.22). O getter
+     integra uma única vez por valor distinto de this.time (idempotente dentro do frame) e
+     aproveita para aplicar/devolver o componente HORIZONTAL no yaw base — é assim que o
+     padrão ganha lado sem precisar de um 2º acessor em `p.yaw`. Se alguém remover as duas
+     leituras do loop, o recuo simplesmente para de aparecer (degrada, não quebra). */
+  _installRecoil(p) {
+    if (p._rec) return p._rec;
+    const st = p._rec = { y: 0, ty: 0, x: 0, tx: 0, t: -1, last: -9, sh: 0 };
+    Object.defineProperty(p, 'recoilP', {
+      configurable: true,
+      get: () => {
+        const now = this.time;
+        if (st.t < 0) st.t = now;
+        const dt = Math.min(0.1, now - st.t);
+        // morto = zera sem devolver delta no yaw (o respawn reposiciona o yaw sozinho;
+        // devolver a recuperação depois disso torceria a mira do nascimento)
+        if (!p.alive) { st.t = now; st.y = st.ty = st.x = st.tx = st.sh = 0; return 0; }
+        if (dt > 0) {
+          st.t = now;
+          // NÃO recupera enquanto a rajada está viva: é isso que faz a tela subir de verdade
+          // (o crítico mediu 0.57° de estado estacionário na rajada inteira da AK).
+          if (now - st.last > REC_HOLD) { const k = Math.exp(-dt / REC_TAU); st.ty *= k; st.tx *= k; }
+          const r = Math.min(1, dt / REC_RISE);
+          st.y += (st.ty - st.y) * r;
+          const nx = st.x + (st.tx - st.x) * r;
+          p.yaw -= nx - st.x;       // + = punch pra DIREITA (yaw diminui, igual ao mouse)
+          st.x = nx;
+          st.sh = Math.max(0, st.sh - dt * 9);
+        }
+        return st.y + st.sh * Math.sin(now * 78);   // punch de tela (~12 Hz, ~130 ms)
+      },
+      set: () => { /* a curva é nossa; o decaimento antigo do loop vira no-op */ },
+    });
+    return st;
+  }
+  // Impulso de recuo de UM tiro: padrão determinístico + 30% de aleatoriedade, 75% como view
+  // punch que recupera e 25% como deriva permanente na mira (o que o jogador corrige = spray
+  // control). ADS reduz o recuo VISUAL em 32%.
+  _shotRecoil(p, wid) {
+    const st = this._installRecoil(p);
+    const pat = RECOIL_PATTERN[RECOIL_CLASS[wid] || 'semi'];
+    const [px, py] = pat[Math.min(29, p.sprayI || 0)];
+    const g = (REC_DEG[wid] ?? 1.4) * D2R * (p.scoped ? 0.68 : 1) * (1 - 0.25 * p.crouchF);
+    const vy = g * py * (1 + (Math.random() - 0.5) * 0.6);
+    const hx = g * px * (1 + (Math.random() - 0.5) * 0.6);
+    st.ty += vy * (1 - REC_PERM); st.tx += hx * (1 - REC_PERM);
+    p.pitch = Math.max(-1.45, Math.min(1.45, p.pitch + vy * REC_PERM));   // mesmo clamp do mouse-look
+    p.yaw -= hx * REC_PERM;
+    st.last = this.time;
+    st.sh = Math.min(0.013, st.sh + g * 0.16);
   }
   _tryShoot() {
     const p = this.player, w = WEAPONS[p.weapon];
@@ -1462,28 +1781,51 @@ export class Game {
     p.revealedAt = this.time;
     if (p.weapon === 'awp') setTimeout(() => this.sfx.bolt(), 420);
     this.sfx.shotWeapon(p.weapon, 0);   // 1ª pessoa = distância 0 no mix do synth
-    // spread & direction — crouching tightens it up; autos dão bloom
+    // spread & direção. GUNFEEL: (a) ADS agora fecha o spread em TODAS as armas — antes só a
+    // awp consultava spreadScope e 6 armas o declaravam sem nunca usar (ADS era só zoom);
+    // (b) correr/pular abre — antes só o agachar entrava na conta; (c) a distribuição virou
+    // POLAR (disco), o `x/y/z += rand-0.5` antigo era uma CAIXA (furos formavam quadrado na
+    // parede) e o termo em z ainda mexia no spread efetivo sem significado nenhum.
     const crouchMul = 1 - 0.5 * p.crouchF;
+    const sp0 = Math.hypot(p.vel.x, p.vel.z);
+    const moveMul = GUNFEEL ? (1 + 1.8 * Math.min(1, sp0 / 6.6) + (p.grounded ? 0 : 2.5)) : 1;
     this.bloom = Math.min(1.6, (this.bloom || 0) + (w.auto ? 0.22 : 0));
-    const spreadBase = (p.weapon === 'awp' ? (p.scoped ? w.spreadScope : w.spreadHip) : w.spreadHip) * crouchMul;
+    const spreadBase = (GUNFEEL
+      ? (p.scoped ? (w.spreadScope ?? w.spreadHip * 0.35) : w.spreadHip)
+      : (p.weapon === 'awp' ? (p.scoped ? w.spreadScope : w.spreadHip) : w.spreadHip)) * crouchMul * moveMul;
     const from = this.camera.getWorldPosition(new THREE.Vector3());
     const pellets = w.pellets || 1;
+    // tracer só em PARTE dos tiros (CS): 1 em 3 na rajada; sniper/shotgun sempre (o tiro é o
+    // evento). Antes TODO tiro deixava rastro — vira "chuva de laser" em full-auto.
+    const wantTracer = !GUNFEEL || pellets > 1 || (REC_DEG[p.weapon] ?? 1) > 2.4 || ((p.sprayI || 0) % 3) === 0;
     for (let i = 0; i < pellets; i++) {
-      const sp = spreadBase * (1 + this.bloom) * (pellets > 1 ? 1 : 1);
-      const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion);
-      dir.x += (Math.random() - .5) * sp; dir.y += (Math.random() - .5) * sp; dir.z += (Math.random() - .5) * sp;
-      dir.normalize();
-      this._fireHitscan(this.player, from, dir, w.dmg, true, w.short);
+      const sp = spreadBase * (1 + this.bloom);
+      let dir;
+      if (GUNFEEL) {
+        const ang = Math.random() * Math.PI * 2, rad = sp * 0.5 * Math.sqrt(Math.random());
+        dir = new THREE.Vector3(Math.cos(ang) * rad, Math.sin(ang) * rad, -1).applyQuaternion(this.camera.quaternion).normalize();
+      } else {
+        dir = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion);
+        dir.x += (Math.random() - .5) * sp; dir.y += (Math.random() - .5) * sp; dir.z += (Math.random() - .5) * sp;
+        dir.normalize();
+      }
+      this._fireHitscan(this.player, from, dir, w.dmg, true, w.short, p.weapon, wantTracer && i < 2);
     }
-    // recoil + muzzle flash — accumulates and RECOVERS toward zero (ev.io/CS pattern,
-    // not a permanent pitch climb)
-    p.recoilP = (p.recoilP || 0) + w.recoil * (1 - 0.25 * p.crouchF);
-    // pico do kick escalado por recoil da arma (SMG ~0.6, rifle ~0.6-0.65, pistola/dmr ~0.9,
-    // sniper/shotgun ~1.2-1.3) + direção lateral aleatória do coice.
+    // recuo: CÂMERA (padrão determinístico + mola, ver _shotRecoil) e VIEWMODEL (mola própria
+    // do RecoilAxis) são independentes de propósito — a arma pode coicear forte sem arrancar
+    // a mira, e vice-versa.
+    if (GUNFEEL) {
+      if (this.time - (p.lastShotAt || -9) > REC_HOLD) p.sprayI = 0;   // parou de atirar = rajada nova
+      this._shotRecoil(p, p.weapon);
+      p.sprayI = (p.sprayI || 0) + 1;
+      p.lastShotAt = this.time;
+    } else p.recoilP = (p.recoilP || 0) + w.recoil * (1 - 0.25 * p.crouchF);
     // Classe pistola ×0.5 (R7.6): o kick cheio jogava a deagle pra borda superior da tela —
     // coice de pistola gira no punho, não levanta o cano até o teto.
     const kickMul = STATIC_CLASS[p.weapon] === 'pistol' ? 0.5 : 1;
-    this.vm.recoil.kick(Math.min(1.5, 0.55 + (w.recoil || 0.01) * 13) * (1 - 0.25 * p.crouchF) * kickMul);
+    const vmAmp = GUNFEEL ? Math.min(1.7, 0.42 + (REC_DEG[p.weapon] ?? 1.4) * 0.30) * (p.scoped ? 0.7 : 1)
+                          : Math.min(1.5, 0.55 + (w.recoil || 0.01) * 13);
+    this.vm.recoil.kick(vmAmp * (1 - 0.25 * p.crouchF) * kickMul);
     this.vm.kickSide = Math.random() * 2 - 1;
     const _cls = STATIC_CLASS[p.weapon] || 'rifle';
     this._flash(this._muzzleWorld(_cls), this.camera.getWorldDirection(new THREE.Vector3()), _cls);
@@ -1503,7 +1845,7 @@ export class Game {
     }
     if (best) { this.sfx.knifeHit(); this._damage(best, WEAPONS.knife.dmg, this.player, 'FACA'); }
   }
-  _fireHitscan(shooter, from, dir, dmg, byPlayer = false, weap = 'AWP') {
+  _fireHitscan(shooter, from, dir, dmg, byPlayer = false, weap = 'AWP', wid = null, tracer = true) {
     this.ray.set(from, dir); this.ray.far = 200;
     const enemyGroups = this.bots.filter(b => b.alive && (byPlayer ? b.team !== this.playerTeam : true)).map(b => b.mesh.group);
     const hitsChar = enemyGroups.length ? this.ray.intersectObjects(enemyGroups, true) : [];
@@ -1520,20 +1862,126 @@ export class Game {
       end = hC.point;
       if (bot) {
         if (bot.team === shooter.team) { /* friendly fire off */ }
-        else this._damage(bot, head && dmg < 100 ? 100 : dmg, shooter, weap, head, end); // headshot: dano mínimo 100
+        else {
+          let d = dmg;
+          if (GUNFEEL && wid) {
+            // falloff: o raycast ia a 200 m com dano constante (P90 a 40 m = AWP). Sniper não
+            // tem queda. Headshot virou MULTIPLICADOR por classe — era `dmg = 100` fixo em
+            // qualquer arma, o que apagava a identidade das 26.
+            const bc = BALL_CLASS[wid] || 'rifle';
+            const fo = DMG_FALLOFF[bc];
+            if (fo) { const [s0, s1, mn] = fo; d *= Math.max(mn, Math.min(1, 1 - (hC.distance - s0) / (s1 - s0))); }
+            if (head) d *= HS_MUL[bc] ?? 4;
+          } else if (head && d < 100) d = 100;
+          this._damage(bot, d, shooter, weap, head, end);
+          if (byPlayer) this._fleshImpact(end, dir, head);
+        }
       }
     } else if (hW) {
       end = hW.point;
-      this._puff(hW.point, hW.face ? hW.face.normal : null);
-      if (Math.random() < 0.3) this.sfx.ricochet();
+      const n = hW.face ? hW.face.normal : null;
+      const surf = GUNFEEL ? this._surfaceOf(hW.object) : null;
+      this._puff(hW.point, n, surf);
+      // som de impacto em 100% dos tiros do jogador (era `ricochet()` — um BIP de sine — em
+      // 30%: 70% dos tiros na parede eram literalmente mudos).
+      if (GUNFEEL) { if (byPlayer || Math.random() < 0.35) this._impactSfx(surf, from.distanceTo(hW.point)); }
+      else if (Math.random() < 0.3) this.sfx.ricochet();
     } else {
       end = from.clone().add(dir.clone().multiplyScalar(120));
     }
-    if (byPlayer) {
+    if (byPlayer && tracer) {
       const muzzle = this._muzzleWorld(STATIC_CLASS[this.player.weapon] || 'rifle');
       this._tracer(muzzle, end);
     }
     return end;
+  }
+  // MATERIAL da superfície atingida, inferido do material do mesh (os mapas não marcam
+  // userData.surf; quando marcarem, ela ganha prioridade). Cache em WeakMap — o raycast roda
+  // por pellet e por bala, não dá pra inspecionar material a cada tiro.
+  _surfaceOf(obj) {
+    if (!obj) return 'concreto';
+    if (obj.userData && obj.userData.surf) return obj.userData.surf;
+    const cache = this._surfCache || (this._surfCache = new WeakMap());
+    const hit = cache.get(obj);
+    if (hit) return hit;
+    let s = 'concreto';
+    const m = Array.isArray(obj.material) ? obj.material[0] : obj.material;
+    const nm = ((obj.name || '') + ' ' + ((m && m.name) || '')).toLowerCase();
+    if (/agua|water|pool|piscin/.test(nm)) s = 'agua';
+    else if (/vidro|glass|window|janela/.test(nm)) s = 'vidro';
+    else if (/madeira|wood|tabua|crate|caixa/.test(nm)) s = 'madeira';
+    else if (/metal|aco|steel|carro|car|trailer|container|barril/.test(nm)) s = 'metal';
+    else if (m) {
+      if ((m.metalness ?? 0) > 0.45) s = 'metal';
+      else if (m.transparent && (m.opacity ?? 1) < 0.75) s = 'vidro';
+      else if (m.color) {
+        const c = m.color, mx = Math.max(c.r, c.g, c.b), mn2 = Math.min(c.r, c.g, c.b);
+        // marrom/ocre saturado = madeira ou terra; cinza dessaturado = concreto
+        if (c.r > c.b * 1.35 && mx - mn2 > 0.09) s = (m.roughness ?? 1) > 0.75 ? 'areia' : 'madeira';
+      }
+    }
+    cache.set(obj, s);
+    return s;
+  }
+  // Impacto em CARNE: puff vermelho curto + som próprio. Antes o único sinal de que você
+  // acertou uma PESSOA era o mesmo bip de acertar uma parede (grep blood = 0 ocorrências).
+  _fleshImpact(pos, dir, head) {
+    if (!GUNFEEL) return;
+    const voice = this._fxVoice(head ? 3 : 2);
+    const fx = this._bloodFx || (this._bloodFx = this._tintFx(0xb1121a, false));
+    const back = dir.clone().multiplyScalar(-1);
+    fx.spawn(pos, { life: 0.2, size: head ? 0.20 : 0.13, grow: 0.5 });
+    for (let i = 0; i < (head ? 5 : 3); i++) {
+      const v = back.clone().multiplyScalar(1.2 + Math.random() * 2.2)
+        .add(new THREE.Vector3((Math.random() - .5) * 2, (Math.random() - .5) * 1.6 + 0.6, (Math.random() - .5) * 2));
+      fx.spawn(pos, { vel: v, life: 0.24 + Math.random() * 0.12, size: 0.05, grow: -0.05 });
+    }
+    if (!voice) return;
+    const s = this.sfx; s.ensure(); if (!s.ctx) return;
+    s._burst(0.05, head ? 0.30 : 0.20, head ? 420 : 620, 1.1);              // baque úmido
+    s._burst(0.08, 0.10, 1500, 2.2, 'bandpass', 0.012);
+  }
+  // Limitador de VOZES de foley de impacto: um cartucho de shotgun são 9 pellets = 9
+  // impactos no mesmo milissegundo. Sem isto o synth abre ~20 fontes de ruído de uma vez
+  // (estoura o limiter e come frame). Máx `n` sons por janela de 45 ms.
+  _fxVoice(n = 2) {
+    const now = this.time;
+    if (now - (this._fxvT || -9) > 0.045) { this._fxvT = now; this._fxvN = 0; }
+    if ((this._fxvN || 0) >= n) return false;
+    this._fxvN = (this._fxvN || 0) + 1;
+    return true;
+  }
+  // Som de impacto por MATERIAL (o projeto não expõe API de foley no Sfx — usa os helpers
+  // internos, mesmo padrão do _deploySfx). dist só atenua.
+  _impactSfx(surf, dist = 0) {
+    if (!this._fxVoice(2)) return;
+    const s = this.sfx; s.ensure(); if (!s.ctx) return;
+    const a = Math.max(0.12, 1 - dist / 55);
+    if (surf === 'metal') { s._burst(0.05, 0.24 * a, 2000, 4, 'bandpass'); s._beep('triangle', 3200, 1500, 0.1, 0.06 * a, 0.006); }
+    else if (surf === 'madeira') { s._burst(0.05, 0.22 * a, 900, 1.6); s._burst(0.06, 0.09 * a, 2600, 2, 'bandpass', 0.008); }
+    else if (surf === 'vidro') { for (let i = 0; i < 3; i++) s._burst(0.05, 0.13 * a, 4200 + Math.random() * 2600, 6, 'bandpass', i * 0.03); }
+    else if (surf === 'agua') { s._burst(0.10, 0.22 * a, 420, 0.9); s._burst(0.14, 0.08 * a, 1300, 1.4, 'bandpass', 0.02); }
+    else if (surf === 'areia') s._burst(0.07, 0.16 * a, 620, 0.8);
+    else s._burst(0.055, 0.22 * a, 500, 1.2);   // concreto: pancada seca (era um bip de sine)
+  }
+  // Sistema de partículas COLORIDO sob demanda (poeira bege, faísca, sangue). Compartilha o
+  // uTime/uScale do puffFx de propósito: assim ele anima no update do puffFx e não precisa de
+  // um tick próprio no loop principal (que é de outra região do arquivo).
+  _tintFx(hex, additive) {
+    // degradação segura: em quality 'low' não abre sistema novo (mais 1 draw call + 1
+    // textura por material) — reusa o puff branco existente.
+    if (this.settings && this.settings.quality === 'low') return this.puffFx;
+    const c = document.createElement('canvas'); c.width = c.height = 32;
+    const g = c.getContext('2d');
+    const col = new THREE.Color(hex), rgb = `${(col.r * 255) | 0},${(col.g * 255) | 0},${(col.b * 255) | 0}`;
+    const rad = g.createRadialGradient(16, 16, 0, 16, 16, 16);
+    rad.addColorStop(0, `rgba(${rgb},1)`); rad.addColorStop(0.45, `rgba(${rgb},0.55)`); rad.addColorStop(1, `rgba(${rgb},0)`);
+    g.fillStyle = rad; g.fillRect(0, 0, 32, 32);
+    const tex = new THREE.CanvasTexture(c);
+    const fx = new GPUParticles(this.scene, this.camera, { tex, additive, max: 128 });
+    const src = this.puffFx && this.puffFx.uniforms;
+    if (src) { fx.uniforms.uTime = src.uTime; fx.uniforms.uScale = src.uScale; }
+    return fx;
   }
   _damage(ent, dmg, attacker, weap = 'AWP', head = false, point = null) {
     if (!ent.alive || this.state !== 'live') return;
@@ -1752,25 +2200,47 @@ export class Game {
     t.a = (t.a || new THREE.Vector3()).copy(a);
     t.dir = (t.dir || new THREE.Vector3()).copy(b).sub(a).normalize();
     t.dist = len;
-    t.v = len / 0.05;                       // cruza o caminho inteiro em ~50ms
-    t.seg = Math.min(len, 2.0);             // comprimento do rastro (curto = bala, não viga)
+    // GUNFEEL: mais curto e mais rápido (CS). Era 2.0 m em 50 ms; agora 1.2 m em 32 ms — a
+    // bala lê como bala, não como traço luminoso pendurado no ar.
+    t.v = len / (GUNFEEL ? 0.032 : 0.05);
+    t.seg = Math.min(len, GUNFEEL ? 1.2 : 2.0);
     t.t = 0;
-    t.ttl = 0.05 + 0.012;                   // viagem + fade final — sem persistência
-    m.material.opacity = 0.9;
+    t.ttl = (GUNFEEL ? 0.032 : 0.05) + 0.012;   // viagem + fade final — sem persistência
+    m.material.opacity = GUNFEEL ? 0.75 : 0.9;
     m.position.copy(a);
     m.scale.set(1, 0.01, 1);
     m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), t.dir);
     this.scene.add(m);
     this.tracers.push(t);
   }
-  _puff(pos, normal) {
+  _puff(pos, normal, surf = null) {
     // impact smoke: one GPU particle (batched, no allocation)
     const p = pos.clone();
     if (normal) p.add(normal.clone().multiplyScalar(0.12));
-    this.puffFx.spawn(p, { life: 0.4, size: 0.4, grow: 2.2 });
+    // GUNFEEL: todo impacto no mundo gerava o MESMO puff branco. Agora a nuvem tem cor de
+    // material e metal/vidro trocam poeira por FAÍSCA (poeira em aço não existe).
+    if (GUNFEEL && surf && surf !== 'concreto') {
+      const S = {
+        madeira: { c: 0x8a6033, life: 0.34, size: 0.3, grow: 1.6, spark: 0 },
+        areia:   { c: 0x9c7c4e, life: 0.5, size: 0.45, grow: 2.6, spark: 0 },
+        metal:   { c: 0xbfc6cc, life: 0.16, size: 0.14, grow: 0.6, spark: 6 },
+        vidro:   { c: 0xd8e6ee, life: 0.2, size: 0.16, grow: 0.8, spark: 4 },
+        agua:    { c: 0x9fd0e0, life: 0.42, size: 0.34, grow: 1.4, spark: 0 },
+      }[surf];
+      if (S) {
+        const key = '_fx_' + surf;
+        const fx = this[key] || (this[key] = this._tintFx(S.c, surf === 'metal' || surf === 'vidro'));
+        fx.spawn(p, { life: S.life, size: S.size, grow: S.grow });
+        for (let i = 0; i < S.spark; i++) {
+          const v = (normal ? normal.clone() : new THREE.Vector3(0, 1, 0)).multiplyScalar(1.5 + Math.random() * 3)
+            .add(new THREE.Vector3((Math.random() - .5) * 4, (Math.random() - .5) * 4, (Math.random() - .5) * 4));
+          this.flashFx.spawn(pos, { vel: v, life: 0.09 + Math.random() * 0.09, size: 0.045, grow: -0.2 });
+        }
+      }
+    } else this.puffFx.spawn(p, { life: 0.4, size: 0.4, grow: 2.2 });
     // persistent bullet hole on the surface (capped ring buffer)
-    if (normal) {
-      const m = new THREE.Mesh(this._holeGeo, this._holeMat);
+    if (normal && surf !== 'agua') {
+      const m = new THREE.Mesh(this._holeGeo, this._holeDecalMat(surf));
       m.position.copy(pos).add(normal.clone().multiplyScalar(0.012));
       m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal.clone().normalize());
       m.rotateZ(Math.random() * Math.PI * 2);
@@ -1779,6 +2249,16 @@ export class Game {
       this.decals.push(m);
       if (this.decals.length > 48) { const old = this.decals.shift(); this.scene.remove(old); }
     }
+  }
+  // Decal de furo TINGIDO por material (o mapa é o mesmo; só o multiplicador de cor muda).
+  // Materiais cacheados por superfície — nada de material novo por tiro.
+  _holeDecalMat(surf) {
+    if (!GUNFEEL || !surf || surf === 'concreto') return this._holeMat;
+    const C = { madeira: 0x7a5330, metal: 0xc6ccd4, areia: 0xa88a5c, vidro: 0xe2eef4 }[surf];
+    if (!C) return this._holeMat;
+    const cache = this._holeMats || (this._holeMats = {});
+    if (!cache[surf]) { const m = this._holeMat.clone(); m.color.setHex(C); cache[surf] = m; }
+    return cache[surf];
   }
   _flash(pos, dir, fpCls) {
     // muzzle flash: estrela irregular + núcleo branco-quente (sprites), point light pulsante,
@@ -2157,7 +2637,11 @@ export class Game {
   }
 
   _updateCTF(dt) {
-    const CAP = 3;   // segundos pra capturar
+    // RITMO do CTF: 3s fixos pra qualquer ponto deixava tudo plano (tomar um ponto neutro
+    // custava o mesmo que roubar a base inimiga, e ir em 3 não valia mais que ir sozinho).
+    // Agora: NEUTRO 2.2s, ponto do INIMIGO 4.5s (roubar dói), e cada colega a mais dentro do
+    // anel acelera 35% (teto 2×) — grupo captura rápido, o que cria a corrida/retomada.
+    const CAP_NEUTRAL = 2.2, CAP_STEAL = 4.5, DECAY = 1.6;
     for (const pt of this.ctfPts) {
       let np = 0, nb = 0;
       for (const c of this.combatants) {
@@ -2167,8 +2651,10 @@ export class Game {
       }
       const solo = np > 0 && nb === 0 ? 'P' : (nb > 0 && np === 0 ? 'B' : null);
       pt.capTeam = solo;   // time que está capturando agora (pra cor da barra no HUD)
+      pt.contested = np > 0 && nb > 0;
       if (solo && solo !== pt.owner) {
-        pt.prog += dt / CAP;
+        const crew = Math.min(2, 1 + 0.35 * ((solo === 'P' ? np : nb) - 1));   // 2º e 3º corpo aceleram
+        pt.prog += (dt * crew) / (pt.owner ? CAP_STEAL : CAP_NEUTRAL);
         if (pt.prog >= 1) {
           pt.owner = solo; pt.prog = 0;
           this.sfx.captureSound && this.sfx.captureSound();   // som de captura de bandeira (pasta audio/capture)
@@ -2182,12 +2668,17 @@ export class Game {
           this._updateCtfHud();
         }
       } else if (!solo) {
-        pt.prog = Math.max(0, pt.prog - dt / CAP);
+        // CONTESTADO (os dois times no anel) CONGELA o progresso — é o momento de tensão do
+        // modo; só decai quando o anel fica vazio ou o dono retoma sozinho.
+        if (!pt.contested) pt.prog = Math.max(0, pt.prog - dt / (CAP_NEUTRAL * DECAY));
       }
       // cor de time DESSATURADA no anel fino (-50% sat: identidade sem o verde-chapado)
       if (pt.owner) pt.ring.material.color.set(this._teamColor(pt.owner)).lerp(this._ctfGray, 0.45);
       else pt.ring.material.color.set(0xb8b4a8);
-      pt.ring.material.opacity = 0.5 + 0.45 * (pt.prog || (pt.owner ? 1 : 0));
+      // contestado pisca o anel (leitura à distância de "tem briga nessa bandeira")
+      pt.ring.material.opacity = pt.contested
+        ? 0.55 + 0.4 * Math.abs(Math.sin(this.time * 7))
+        : 0.5 + 0.45 * (pt.prog || (pt.owner ? 1 : 0));
       if (pt.flag) pt.flag.material.color.set(this._teamColor(pt.owner, true)).lerp(this._ctfGray, pt.owner ? 0.25 : 0);   // pano dessaturado
     }
     this._updateCtfHud();   // atualiza a barra de progresso de captura a cada frame
@@ -2331,22 +2822,88 @@ export class Game {
     pos.x = Math.max(B.minX + r, Math.min(B.maxX - r, pos.x));
     pos.z = Math.max(B.minZ + r, Math.min(B.maxZ - r, pos.z));
   }
+  /* ================= FEEDBACK DE MORTE =================
+     "Você morre olhando pro chão sem saber quem, de onde, com o quê" era o item mais grave da
+     crítica: sem entender a causa, não há aprendizado — a morte vira azar. _noteHit registra
+     todo tiro que ENCOSTA no jogador (chamado do disparo do bot); _deathFeedback usa o último
+     registro pra (a) VIRAR a câmera do defunto na direção do assassino — killcam simples, sem
+     segunda câmera nem replay, custo zero — e (b) montar o painel quem/arma/distância/costas
+     dentro do overlay de respawn que já existia. ?killcam=0 desliga tudo. */
+  _noteHit(by, weap, dmg, head, dist) {
+    const p = this.player;
+    let rel = Math.atan2(by.pos.x - p.pos.x, by.pos.z - p.pos.z) - p.yaw;
+    while (rel > Math.PI) rel -= Math.PI * 2; while (rel < -Math.PI) rel += Math.PI * 2;
+    p._lifeDmg = (p._lifeDmg || 0) + dmg;
+    this._lastHit = {
+      at: this.time, name: by.name || 'INIMIGO', tier: by.tier, weap, dmg, head, dist,
+      behind: Math.abs(rel) < Math.PI / 2, pos: by.pos.clone(), total: p._lifeDmg,
+    };
+  }
+  _deathFeedback(dt) {
+    const h = this._lastHit;
+    // só o dano que REALMENTE matou: registro velho (>6s) é de outra vida/outro contexto —
+    // apontar a câmera pra um sujeito que não te matou seria pior que não apontar nada.
+    if (!h || this.time - h.at > 6 || QS.get('killcam') === '0') return;
+    if (!this._deathPanel && this.el.respawn) {
+      const d = document.createElement('div');
+      d.className = 'death-info';
+      d.style.cssText = 'margin-top:10px;font:600 13px/1.55 system-ui,sans-serif;letter-spacing:.05em;color:#ffd9a0;text-shadow:0 2px 8px #000;text-align:center';
+      this.el.respawn.appendChild(d);
+      this._deathPanel = d;
+    }
+    if (this._deathPanel && this._deathShown !== h.at) {
+      this._deathShown = h.at;
+      const tier = { ruim: 'PERNA DE PAU', medio: 'MEDIANO', bom: 'BOM', muitobom: 'MONSTRO' }[h.tier] || '';
+      this._deathPanel.innerHTML =
+        `<div style="font-size:15px;color:#fff">MORTO POR <b>${h.name}</b>${tier ? ` <span style="opacity:.65;font-size:11px">(${tier})</span>` : ''}</div>` +
+        `<div>${h.weap} · ${h.dist.toFixed(0)} m · ${h.head ? 'NA CABEÇA' : h.dmg + ' de dano'}</div>` +
+        `<div style="opacity:.75;font-size:11px">${h.behind ? '⚠ PELAS COSTAS' : 'veio da sua frente'} · ${Math.round(h.total)} de dano nesta vida</div>`;
+    }
+    // killcam: a cabeça do defunto vira pro assassino (2 rad/s) — mostra a linha de tiro que
+    // te pegou. Sem corte de câmera: continua a mesma, então nada de FX/pós muda.
+    if (h.pos) {
+      const c = this.camera, dx = h.pos.x - c.position.x, dz = h.pos.z - c.position.z;
+      const dist = Math.hypot(dx, dz) || 1;
+      let dy = Math.atan2(-dx, -dz) - c.rotation.y;
+      while (dy > Math.PI) dy -= Math.PI * 2; while (dy < -Math.PI) dy += Math.PI * 2;
+      c.rotation.y += dy * Math.min(1, dt * 3.5);
+      const wantPitch = Math.atan2((h.pos.y + 1.4) - c.position.y, dist);
+      c.rotation.x += (wantPitch - c.rotation.x) * Math.min(1, dt * 3.5);
+    }
+  }
   _updatePlayer(dt) {
     const p = this.player;
+    if (PACE) this._checkPace();   // alvo de abates / match point — vale também com o jogador morto
     if (!p.alive) {
       const left = p.respawnAt - this.time;
       this.el.respawnCount.textContent = Math.max(0, left).toFixed(1);
+      this._deathFeedback(dt);
       if (left <= 0) this._respawnPlayer();
       this.camera.position.y = Math.max(0.5, this.camera.position.y - dt * 2);
       this.camera.rotation.z = Math.min(0.5, (this.camera.rotation.z || 0) + dt * 0.8);
       return;
     }
-    // crouch (CTRL ou C) — slower, steadier aim
-    const wantCrouch = (this.keys.ControlLeft || this.keys.ControlRight || this.keys.KeyC) && p.grounded;
-    p.crouchF = Math.max(0, Math.min(1, p.crouchF + (wantCrouch ? dt * 7 : -dt * 7)));
-    const sprint = (this.keys.ShiftLeft || this.keys.ShiftRight) && p.crouchF < 0.3;
+    // REGEN fora de combate (ver comentário da constante). Detecta o dano pela QUEDA do hp —
+    // o _damage fica fora desta região de edição, então não dá pra marcar o timestamp lá.
+    if (p.hp < (p._lastHp === undefined ? 100 : p._lastHp)) p._hurtAt = this.time;
+    p._lastHp = p.hp;
+    if (REGEN && p.hp > 0 && p.hp < 100 && this.time - (p._hurtAt || -99) > REGEN_DELAY)
+      p.hp = Math.min(100, p.hp + dt * REGEN_RATE);
+    // crouch (CTRL ou C). Agora vale NO AR também (crouch-jump é movimento básico de FPS —
+    // encolhe a silhueta no pulo e ajuda a subir degrau). Transição ASSIMÉTRICA como no CS2:
+    // agacha rápido (7/s ≈ 140ms) e levanta devagar (4.2/s ≈ 240ms), o que tira o
+    // crouch-spam de graça e dá peso ao movimento.
+    const wantCrouch = !!(this.keys.ControlLeft || this.keys.ControlRight || this.keys.KeyC);
+    p.crouchF = Math.max(0, Math.min(1, p.crouchF + (wantCrouch ? dt * 7 : -dt * (MOVE2 ? 4.2 : 7))));
+    const walking = MOVE2 && !!(this.keys.ShiftLeft || this.keys.ShiftRight);   // Shift = ANDAR (silencioso)
+    const sprint = !MOVE2 && !!(this.keys.ShiftLeft || this.keys.ShiftRight) && p.crouchF < 0.3;
     const slowMul = this.world.slowAt && this.world.slowAt(p.pos.x, p.pos.z) ? 0.45 : 1;  // água/lago
-    const maxSp = (sprint && slowMul === 1 ? 6.6 : 4.7) * (p.scoped ? 0.5 : 1) * (1 - 0.5 * p.crouchF) * slowMul;
+    // velocidade base × ARMA (MOVE_MUL) × andar × ADS × agachado × água
+    const wpnMul = MOVE2 ? (MOVE_MUL[p.weapon] !== undefined ? MOVE_MUL[p.weapon] : 0.9) : 1;
+    const maxSp = MOVE2
+      // crouch só freia NO CHÃO: crouch-jump não deve perder velocidade no ar (CS)
+      ? PLAYER_SPEED * wpnMul * (walking ? WALK_MUL : 1) * (p.scoped ? 0.55 : 1) * (1 - 0.48 * p.crouchF * (p.grounded ? 1 : 0)) * slowMul
+      : (sprint && slowMul === 1 ? 6.6 : 4.7) * (p.scoped ? 0.5 : 1) * (1 - 0.5 * p.crouchF) * slowMul;
     let ix = (this.keys.KeyD ? 1 : 0) - (this.keys.KeyA ? 1 : 0);
     let iz = (this.keys.KeyS ? 1 : 0) - (this.keys.KeyW ? 1 : 0);
     const il = Math.hypot(ix, iz) || 1; ix /= il; iz /= il;
@@ -2360,16 +2917,30 @@ export class Game {
     p.vel.x += wx * accel * dt; p.vel.z += wz * accel * dt;
     if (!p.grounded) {
       const spAir = Math.hypot(p.vel.x, p.vel.z);
-      const cap = Math.max(spBefore, 4.7);
+      const cap = Math.max(spBefore, MOVE2 ? PLAYER_SPEED * wpnMul : 4.7);
       if (spAir > cap) { p.vel.x *= cap / spAir; p.vel.z *= cap / spAir; }
     }
     if (p.grounded) {
       // friction applied ALWAYS (smooth controlled stop), stronger with no input
       const f = Math.max(0, 1 - (ix || iz ? 7 : 11) * dt);
       p.vel.x *= f; p.vel.z *= f;
+      // COUNTER-STRAFE (CS): apertar a direção OPOSTA à do movimento mata a inércia em
+      // ~110ms, em vez dos ~330ms do atrito sozinho. É o que permite parar-atirar-andar sem
+      // esperar a "derrapada" — sem isto o duelo em movimento é loteria e o jogador não tem
+      // como se estabilizar de propósito. Só a componente CONTRÁRIA é freada (a lateral
+      // continua fluida, senão o strafe fica travado).
+      if (MOVE2 && (ix || iz)) {
+        const dot = p.vel.x * wx + p.vel.z * wz;
+        if (dot < 0) {
+          const kill = Math.min(1, 15 * dt);
+          p.vel.x -= wx * dot * kill; p.vel.z -= wz * dot * kill;
+        }
+      }
     }
     const sp = Math.hypot(p.vel.x, p.vel.z);
     if (sp > maxSp) { p.vel.x *= maxSp / sp; p.vel.z *= maxSp / sp; }
+    // Shift silencioso: gate global do sfx.step (instalado no constructor) + ninguém escuta.
+    this.sfx._quiet = MOVE2 && walking && sp < PLAYER_SPEED * wpnMul * (WALK_MUL + 0.06);
     // jump: coyote time (90ms) + jump buffer (130ms) — tuning CoD/MW: pular logo depois de
     // sair da borda ou logo antes de tocar o chão ainda funciona (feel moderno, zero risco)
     p.coyoteUntil = p.grounded ? this.time + 0.09 : (p.coyoteUntil || 0);
@@ -2381,13 +2952,20 @@ export class Game {
     p.vel.y -= 20.6 * dt;   // gravidade exagerada do CoD — arco de pulo "snappy", não flutuante
     // integrate with step-limit so platform fronts block
     const oldG = this.world.groundHeightAt(p.pos.x, p.pos.z);
-    const tryAxis = (dx, dz) => {
+    // STEP-UP CONFIÁVEL: degrau até STEP_H sobe no MESMO frame, sem perder velocidade (antes
+    // o corpo só era realinhado no snap de gravidade do frame seguinte — subir meio-fio/degrau
+    // "engasgava"). Acima disso é parede: além de bloquear, ZERA a velocidade daquele eixo,
+    // senão o jogador segue acelerando contra o degrau e a arma treme parada no obstáculo.
+    const STEP_H = 0.55;
+    const tryAxis = (dx, dz, ax) => {
       const nx = p.pos.x + dx, nz = p.pos.z + dz;
       const g = this.world.groundHeightAt(nx, nz);
-      if (g - oldG > 0.55 && p.pos.y < g - 0.2) return; // wall-like step
+      const rise = g - oldG;
+      if (rise > STEP_H && p.pos.y < g - 0.2) { if (MOVE2) { if (ax) p.vel.z = 0; else p.vel.x = 0; } return; } // wall-like step
       p.pos.x = nx; p.pos.z = nz;
+      if (MOVE2 && p.grounded && rise > 0.02 && rise <= STEP_H && p.pos.y < g) { p.pos.y = g; if (p.vel.y < 0) p.vel.y = 0; }
     };
-    tryAxis(p.vel.x * dt, 0); tryAxis(0, p.vel.z * dt);
+    tryAxis(p.vel.x * dt, 0, 0); tryAxis(0, p.vel.z * dt, 1);
     this._collide(p.pos, 0.38);
     p.pos.y += p.vel.y * dt;
     const g2 = this.world.groundHeightAt(p.pos.x, p.pos.z);
@@ -2406,7 +2984,17 @@ export class Game {
     // (termo proporcional limita o acúmulo da rajada — sobe um pouco e volta, não escala).
     p.recoilP = Math.max(0, (p.recoilP || 0) - dt * (0.06 + (p.recoilP || 0) * 2.0));
     const eye = 1.62 - 0.52 * p.crouchF - p.landDip * 0.09;
-    this.camera.position.set(p.pos.x, p.pos.y + eye, p.pos.z);
+    // HEADBOB da CÂMERA (não existia: só o viewmodel balançava, então correr não tinha peso).
+    // Calibrado SUTIL — 1.3cm vertical / 0.9cm lateral no talo, travado na cadência do passo
+    // (stepPhase, o mesmo que dispara o som) e zerado parado/no ar. Andando silencioso cai
+    // pela metade. ?bob=0 desliga; quality 'low' usa 60% (menos jitter em tela de notebook).
+    let camBobY = 0, camBobLat = 0;
+    if (MOVE2 && QS.get('bob') !== '0' && p.grounded) {
+      const amp = Math.min(1, sp / (PLAYER_SPEED * 0.9)) * (walking ? 0.5 : 1) * (this.settings.quality === 'low' ? 0.6 : 1);
+      camBobY = Math.sin(p.stepPhase * 2) * 0.013 * amp;
+      camBobLat = Math.sin(p.stepPhase) * 0.009 * amp;
+    }
+    this.camera.position.set(p.pos.x + Math.cos(p.yaw) * camBobLat, p.pos.y + eye + camBobY, p.pos.z - Math.sin(p.yaw) * camBobLat);
     this.camera.rotation.set(p.pitch + p.recoilP, p.yaw, 0);
     // footsteps + view bob
     const moving = sp > 0.6 && p.grounded;
@@ -2610,11 +3198,40 @@ export class Game {
     this.scene.add(mesh);
     this.drops.push({ x, z, weapon, readyAt: 0, mesh, rack });
   }
+  /* SPAWN POR SEGURANÇA (não sorteado): dos 4 pontos do time, escolhe o que está mais longe
+     do inimigo vivo mais próximo E sem linha de visão pra ele. O sorteio puro colocava o
+     jogador na frente de quem estava empurrando o spawn — morrer duas vezes seguidas sem
+     encostar no gatilho era rotina. Usado pelo jogador e pelos bots. */
+  _pickSpawn(team) {
+    const list = this.world.spawns[team] || [];
+    if (!list.length) return { x: 0, z: 0 };
+    const foes = this.combatants.filter(c => c.alive && c.team !== team);
+    if (!foes.length) return list[(Math.random() * list.length) | 0];
+    let best = null, bestScore = -1e9;
+    for (const s of list) {
+      // custo controlado: 1 raycast por spawn (só contra o inimigo MAIS PRÓXIMO), não N —
+      // isto roda a cada respawn de bot, várias vezes por segundo numa partida cheia.
+      let near = 1e9, nearest = null;
+      for (const f of foes) {
+        const d = Math.hypot(f.pos.x - s.x, f.pos.z - s.z);
+        if (d < near) { near = d; nearest = f; }
+      }
+      const eye = new THREE.Vector3(s.x, 1.5, s.z);
+      const seen = nearest && near < 60 &&
+        this._losClear(eye, nearest.isPlayer ? this.camera.position : this._botEye(nearest));
+      // ruído pequeno pra não usar SEMPRE o mesmo canto quando o mapa está calmo
+      const score = Math.min(near, 45) - (seen ? 30 : 0) + Math.random() * 4;
+      if (score > bestScore) { bestScore = score; best = s; }
+    }
+    return best || list[0];
+  }
   _respawnPlayer() {
     const p = this.player;
-    const s = this.world.spawns[p.team][(Math.random() * 4) | 0];
+    const s = this._pickSpawn(p.team);
     p.pos.set(s.x, 0, s.z); p.vel.set(0, 0, 0);
     p.hp = 100; p.alive = true; p.crouchF = 0;
+    p._lifeDmg = 0;
+    if (this._deathPanel) this._deathPanel.innerHTML = '';   // painel de morte não vaza pra vida nova
     p.protUntil = this.time + SPAWN_PROT;
     p.yaw = p.team === 'P' ? Math.PI : 0; p.pitch = 0;
     // top off the CURRENT loadout's mags (primary could be any weapon now, not just AWP)
@@ -2640,6 +3257,30 @@ export class Game {
     }
     return true;
   }
+  /* RÁDIO DOS BOTS: o sistema de rádio existia só pro jogador — o time era mudo, então nada
+     do que os bots faziam chegava ao jogador como informação. Aqui, ao ENGATAR um alvo, o bot
+     grita o contato no mesmo log do rádio (cooldown global de 5s pra não virar tagarelice) e,
+     se for ALIADO do jogador, isso é a única pista de "tem briga ali" fora do radar. */
+  _botCall(b, target) {
+    if (!this.el || !this.el.radioLog || this.state !== 'live') return;
+    if (this.time < (this._radioCd || 0)) return;
+    if (b.pos.distanceTo(this.player.pos) > 55) return;   // longe demais: não escutaria
+    this._radioCd = this.time + 5;
+    const mine = b.team === this.playerTeam;
+    const lines = mine
+      ? ['Contato!', 'Tô vendo um aqui!', 'Inimigo na minha frente!', 'Cobre eu que eu vou!']
+      : ['Achei um!', 'Tá aqui, ó!'];
+    if (!mine && Math.random() < 0.6) return;             // inimigo fala menos (não entrega tudo)
+    const log = document.createElement('div');
+    log.className = 'radio-line';
+    log.style.opacity = mine ? '1' : '0.75';
+    log.textContent = `${b.name} (RÁDIO): ${lines[(Math.random() * lines.length) | 0]}` +
+      (target === this.player ? ' — é você!' : '');
+    this.el.radioLog.appendChild(log);
+    setTimeout(() => log.remove(), 3600);
+    while (this.el.radioLog.children.length > 3) this.el.radioLog.firstChild.remove();
+    try { this.sfx.radioVoice(this._voiceKey(b.team)); } catch {}
+  }
   _botEye(b) { return new THREE.Vector3(b.pos.x, b.pos.y + BOT_EYE, b.pos.z); }
   _enemyOf(bot) { return this.combatants.filter(c => c.team !== bot.team && c.alive); }
   _updateBot(b, dt) {
@@ -2655,9 +3296,11 @@ export class Game {
         g.position.y = b.pos.y + Math.max(-0.6, 0 - b.deadT * 0.3);
       }
       if (this.time >= b.respawnAt && (this.state === 'live')) {
-        const s = this.world.spawns[b.team][(Math.random() * 4) | 0];
+        const s = this._pickSpawn(b.team);   // mesmo critério de segurança do jogador
         b.pos.set(s.x, 0, s.z); b.hp = 100; b.alive = true;
         b.protUntil = this.time + SPAWN_PROT;
+        b.mag = (WEAPONS[b.weapon] && WEAPONS[b.weapon].mag) || 30;
+        b.aimErr = 0.2; b.burst = 0; b.alertUntil = 0; b._hurtAt = 0; b.reloadUntil = 0;
         b.target = null; b.path = null; b.yaw = b.team === 'P' ? 0 : Math.PI;
         b.laneX = undefined; b.roamUntil = 0;   // re-sorteia a coluna A CADA VIDA -> rotas variam (não "sempre a mesma")
         b._banNodes = null; b._unreach = null; b._escapeUntil = 0; b._jukeAt = 0;   // limpa estado de rota/juke da vida anterior (G2-R6A)
@@ -2677,10 +3320,24 @@ export class Game {
     if (this.time < b.protUntil) g.visible = Math.floor(this.time * 12) % 2 === 0;
     else if (!g.visible) g.visible = true;
 
+    // REGEN do bot (mesma regra do jogador — ver constante REGEN): sem isto o bot que trocou
+    // tiro uma vez fica marcado pra morrer e o combate vira "quem encostou primeiro ganha".
+    if (b.hp < (b._lastHp === undefined ? 100 : b._lastHp)) { b._hurtAt = this.time; b.alertUntil = this.time + 6; }
+    b._lastHp = b.hp;
+    if (REGEN && b.hp < 100 && this.time - (b._hurtAt || -99) > REGEN_DELAY) b.hp = Math.min(100, b.hp + dt * REGEN_RATE);
+
     // --- think: target acquisition
     b.think -= dt;
     if (b.think <= 0) {
-      b.think = 0.16;
+      // think ESCALONADO (0.10-0.22s) em vez de 0.16 travado: 8 bots pensando no mesmo frame
+      // dão um pico de raycast e, pior, reagem todos juntos (leitura de "enxame sincronizado").
+      b.think = 0.10 + Math.random() * 0.12;
+      // Alcance de visão: base 45m, 82m com luneta (o jogador de AWP a 100m era literalmente
+      // impune — o bot não podia nem SABER que estava sendo alvejado), 64m quando alerta
+      // (levou tiro ou ouviu tiro perto nos últimos segundos).
+      const W0 = WEAPONS[b.weapon];
+      const view = Math.max(W0 && (W0.scope || W0.spreadScope) ? BOT_VIEW_SNIPER : BOT_VIEW,
+        this.time < (b.alertUntil || 0) ? BOT_VIEW_ALERT : 0);
       let best = null, bd = 1e9;
       for (const e of this._enemyOf(b)) {
         const d = b.pos.distanceTo(e.pos);
@@ -2688,7 +3345,7 @@ export class Game {
         // acquired from spawn and the round became a stand-still snipe loop (100 dmg
         // bot-vs-bot = first hit kills) — nobody roamed. 45m forces bots to close
         // in through mid-map, so the varied roam routes actually play out.
-        if (d < bd && d < BOT_VIEW) {
+        if (d < bd && d < view) {
           const eye = this._botEye(b);
           const teye = e.isPlayer ? this.camera.position.clone() : this._botEye(e);
           if (this._losClear(eye, teye)) { best = e; bd = d; }
@@ -2696,7 +3353,20 @@ export class Game {
       }
       if (best) {
         b._losLost = false; b._lostAt = 0;
-        if (b.target !== best) { b.target = best; b.reactAt = this.time + (0.3 + Math.random() * 0.5) / (b.skill * 1.5); }
+        if (b.target !== best) {
+          b.target = best;
+          // REAÇÃO HUMANA: era uniforme (0.3-0.8)/(skill*1.5) — todo bot do mesmo tier reagia
+          // dentro de uma janela de 30ms e nunca "cochilava". Agora é uma distribuição com
+          // MODA e CAUDA (soma de 3 uniformes = quase-normal + 12% de lapso de atenção):
+          // 'bom' fica ~230ms típico, mas erra pra 600ms de vez em quando, como gente.
+          const g = (Math.random() + Math.random() + Math.random()) / 3;   // ~normal em [0,1]
+          const lapse = Math.random() < 0.12 ? 0.28 + Math.random() * 0.35 : 0;
+          b.reactAt = this.time + (0.13 + g * 0.34) / Math.max(0.4, b.skill) + lapse;
+          // ao ENGATAR o alvo a mira está fora: começa com erro grande e "arrasta" até ele
+          b.aimErr = Math.max(b.aimErr || 0, 0.075 + 0.05 / Math.max(0.4, b.skill));
+          b.burst = 0;
+          this._botCall(b, best);   // rádio: avisa o time (comunicação, não telepatia)
+        }
       } else if (b.target) {
         // G2-R6A: não derruba o alvo no 1º frame sem LOS — colunas (Havan) e ilhotas
         // (piscinão) quebram a visão por frações de segundo e o bot flapava
@@ -2705,6 +3375,9 @@ export class Game {
         // enquanto stale (sem wallhack — ver o gate _losLost no bloco de fogo).
         if (!b._lostAt) b._lostAt = this.time;
         b._losLost = true;
+        // PERDA DE TRACKING: sumiu de vista, a mira "solta" o alvo. Reaparecendo, o bot tem
+        // que reconquistar a precisão (é o que dá valor a quebrar linha de visão / peek).
+        b.aimErr = Math.min(0.26, (b.aimErr || 0) + 0.045);   // por tick de think (~0.16s)
         if (this.time - b._lostAt > 1.2) { b.target = null; b._losLost = false; b._lostAt = 0; }
       }
     }
@@ -2727,7 +3400,10 @@ export class Game {
       const wantYaw = Math.atan2(dx, dz);
       let dy = wantYaw - b.yaw;
       while (dy > Math.PI) dy -= Math.PI * 2; while (dy < -Math.PI) dy += Math.PI * 2;
-      b.yaw += dy * Math.min(1, dt * 7);
+      // VIRADA por skill (era dt*7 pra todo mundo): o bot ruim demora a te encarar, o bom
+      // te acha na hora. Como o gate de tiro exige |dy|<0.3, isso vira tempo de reação
+      // VISÍVEL — dá pra ver o corpo girando antes do primeiro tiro, em vez de snap.
+      b.yaw += dy * Math.min(1, dt * (4 + 4.2 * Math.max(0.4, b.skill)));
       b.strafeT += dt;
       // Hold a comfortable range: advance if far, back off if close, plus a small
       // lateral juke. Moving mostly ALONG the facing (forward/back) makes the forward
@@ -2742,6 +3418,22 @@ export class Game {
         b.holdUntil = (dist > 16 && Math.random() < (b.crouchBias ? 0.6 : 0.4)) ? this.time + 1.0 + Math.random() * 1.8 : 0;
       }
       const holding = this.time < (b.holdUntil || 0);
+      // USO DE COBERTURA: machucado (<40 HP) e ainda sob fogo, o bot QUEBRA a linha de visão —
+      // recua e procura o lado com obstáculo, em vez de morrer em pé trocando tiro. Com o
+      // regen isso vira comportamento legível: ele some, se cura e volta.
+      const hurt = b.hp < 40 && this.time - (b._hurtAt || -99) < 4;
+      if (hurt && this.time > (b._coverAt || 0)) {
+        b._coverAt = this.time + 1.6;
+        // testa 4 direções pra trás/lados e fica com a primeira que CORTA o LOS pro alvo
+        const te = e.isPlayer ? this.camera.position : this._botEye(e);
+        let bestA = b.yaw + Math.PI;
+        for (let i = 0; i < 4; i++) {
+          const a = b.yaw + Math.PI + (i - 1.5) * 0.6;
+          const probe = new THREE.Vector3(b.pos.x + Math.sin(a) * 3.2, b.pos.y + BOT_EYE, b.pos.z + Math.cos(a) * 3.2);
+          if (!this._losClear(probe, te)) { bestA = a; break; }
+        }
+        b._coverYaw = bestA;
+      }
       // G2-R6A (dono: "bots ficam andando pro lado e pro outro"): o pêndulo senoidal
       // contínuo (approach ±0.55 @9s + strafe ±0.18 @5.7s) lia como metrônomo robótico —
       // avança/recua ±4.5m sem motivo. Agora são DECISÕES esparsas estilo jiggle-peek:
@@ -2760,6 +3452,11 @@ export class Game {
       const spd = BOT_SPEED * 0.55;
       b.pos.x += (fdx * approach + rdx * strafe) * spd * dt;
       b.pos.z += (fdz * approach + rdz * strafe) * spd * dt;
+      if (hurt) {   // recuo pra cobertura (mais rápido que o passo de combate: é fuga)
+        b.pos.x += Math.sin(b._coverYaw || 0) * BOT_SPEED * 0.8 * dt;
+        b.pos.z += Math.cos(b._coverYaw || 0) * BOT_SPEED * 0.8 * dt;
+        moving = 1;
+      }
       // FLANCO/AVANÇO: sem isto, com o beeline no inimigo mais próximo TODOS convergiam pro
       // centro. Quando o alvo está LONGE (>20m) o bot avança pela SUA coluna (laneX) rumo à
       // profundidade do inimigo — cada bot empurra seu flanco/meio e os combates se espalham
@@ -2784,47 +3481,120 @@ export class Game {
         const ndir = tgt.clone().sub(from); ndir.y += ndir.length() * 0.18;
         this._spawnGrenade(from, ndir.normalize(), 'smoke', b);
       }
+      /* ===== MIRA QUE ARRASTA (b.aimErr = raio angular do erro, em rad) =====
+         O bot não "trava" mais no alvo: o erro cai com o TEMPO DE FOCO (exponencial), tem um
+         piso por skill, e sobe com a velocidade do alvo, com o recuo de cada tiro e quando o
+         alvo some de vista. É isso que produz os padrões humanos — o primeiro tiro erra, o
+         terceiro acerta; quem se mexe é mais difícil de acertar; quebrar visão custa caro
+         pro bot. Sniper arrasta mais devagar (mira pesada) mas com piso menor. */
+      {
+        const snip0 = (BALL_CLASS[b.weapon] || 'rifle') === 'sniper';
+        const eSp = e.isPlayer ? Math.hypot(e.vel.x, e.vel.z) : BOT_SPEED * 0.6;
+        // Piso do erro (rad). Calibrado com o tamanho angular do tronco (atan(0.5/d)): bot
+        // 'medio' parado acerta ~1/3 dos tiros a 30 m e ~97% a 10 m; alvo em movimento a 4,5
+        // m/s derruba isso pra ~1/3 disso — é o que faz strafar valer a pena.
+        const floorErr = (snip0 ? 0.004 : 0.006) + 0.012 / Math.max(0.4, b.skill) + eSp * 0.004 / Math.max(0.5, b.skill);
+        const rate = (snip0 ? 1.5 : 2.7) * Math.max(0.4, b.skill);
+        b.aimErr = floorErr + ((b.aimErr === undefined ? 0.2 : b.aimErr) - floorErr) * Math.exp(-rate * dt);
+        b.aimErr = Math.max(0.002, b.aimErr + (Math.random() - 0.5) * 0.02 * dt);   // micro-tremor
+      }
+      // FACA (w.range): bot de faca disparava hitscan a 40m como se fosse rifle — agora só
+      // "ataca" no alcance real da arma; longe disso ele avança (o approach acima já faz isso).
+      const _w0 = WEAPONS[b.weapon];
+      const inRange = !(_w0 && _w0.range) || dist <= _w0.range + 0.6;
       // fire (bloqueado enquanto o alvo está stale/sem LOS — ver aquisição: sem wallhack)
-      if (this.time > b.reactAt && this.time > b.nextShotAt && Math.abs(dy) < 0.3 && !b._losLost) {
-        b.nextShotAt = this.time + (2.1 + Math.random() * 1.4) / (b.skill * 1.5);
+      if (this.time > b.reactAt && this.time > b.nextShotAt && this.time > (b.reloadUntil || 0)
+          && Math.abs(dy) < 0.3 && !b._losLost && inRange) {
+        /* ===== TIRO DO BOT =====
+           ANTES: dano FIXO (63 no jogador / 100 no bot), cadência 0.75-3.5s igual pra P90 e
+           AWP, e um sorteio de acerto invisível (até 92%) que ignorava a parede no caminho.
+           AGORA: a ARMA manda em dano/cadência/pente/recarga; o acerto é GEOMÉTRICO (o desvio
+           sorteado tem que caber no tamanho angular do alvo — daí a distância pesa sozinha);
+           e a bala testa o MUNDO antes do alvo (fim do acerto atrás de parede). */
+        const Wb = WEAPONS[b.weapon] || WEAPONS.ak;
+        const bcls = BALL_CLASS[b.weapon] || 'rifle';
+        const sniper = bcls === 'sniper';
+        if (b.mag === undefined) b.mag = Wb.mag || 30;
+        b.mag--;
         b.revealedAt = this.time;
-        const dist = Math.hypot(dx, dz);
-        const eSpeed = e.isPlayer ? Math.hypot(e.vel.x, e.vel.z) : BOT_SPEED;
-        const crouchBonus = dist > 25 ? 1.18 : 1;   // bot parado em posição = mais preciso
-        let chance = (0.72 * b.skill - dist * 0.006 - eSpeed * 0.035) * 1.5 * crouchBonus;
-        chance = Math.max(0.07, Math.min(0.92, chance));
-        const hit = Math.random() < chance;
+        // cadência: dentro da rajada = a da ARMA; entre rajadas, pausa humana por skill.
+        if (Wb.auto) {
+          if (b.burst > 0) { b.burst--; b.nextShotAt = this.time + Wb.rate * (1 + Math.random() * 0.15); }
+          else {
+            b.burst = 1 + ((Math.random() * (dist < 14 ? 5 : 3)) | 0);
+            b.nextShotAt = this.time + (0.35 + Math.random() * 0.55) / Math.max(0.5, b.skill);
+          }
+        } else {
+          b.nextShotAt = this.time + Math.max(Wb.rate, (sniper ? 0.85 : 0.3) + Math.random() * 0.5) / Math.max(0.5, b.skill);
+        }
+        if ((Wb.mag || 0) > 0 && b.mag <= 0) { b.reloadUntil = this.time + (Wb.reload || 2.4); b.mag = Wb.mag; b.burst = 0; }
+        b.aimErr += (Wb.recoil || 0.01) * (Wb.auto ? 0.6 : 0.4);   // cada tiro tira a mira do lugar (rajada abre)
         const from = this._botEye(b);
         const teye = (e.isPlayer ? this.camera.position.clone() : this._botEye(e));
-        const aim = teye.clone();
-        if (!hit) {
-          aim.x += (Math.random() - .5) * 2.2; aim.y += (Math.random() - .5) * 1.6; aim.z += (Math.random() - .5) * 2.2;
+        const tdist = Math.max(1, from.distanceTo(teye));
+        // tamanho angular do alvo (meia-largura de tronco ~0.5 m)
+        const halfAng = Math.atan2(0.5, tdist);
+        const gauss = () => (Math.random() + Math.random() + Math.random() - 1.5) / 1.5;
+        const ox = gauss() * b.aimErr, oy = gauss() * b.aimErr * 0.8;
+        const off = Math.hypot(ox, oy);
+        let hit = off < halfAng;
+        // cabeça: só quando a mira JÁ está boa (o bot nunca dava headshot; agora dá, mas é
+        // consequência de mirar bem, não um dado extra)
+        const head = hit && off < halfAng * 0.35 && Math.random() < 0.16 * b.skill;
+        const dir = teye.clone().sub(from).normalize();
+        {   // aplica o desvio na base direita/cima do próprio tiro
+          const rt = new THREE.Vector3().crossVectors(dir, new THREE.Vector3(0, 1, 0));
+          if (rt.lengthSq() < 1e-6) rt.set(1, 0, 0);
+          rt.normalize();
+          const up = new THREE.Vector3().crossVectors(rt, dir).normalize();
+          dir.addScaledVector(rt, Math.tan(ox)).addScaledVector(up, Math.tan(oy)).normalize();
         }
-        const dir = aim.sub(from).normalize();
         // tracer & world impact
         this.ray.set(from, dir); this.ray.far = 200;
         const hitsW = this.ray.intersectObjects(this.world.occluders, false)[0];
+        // NUNCA acerta atrás de parede: se o mundo está na frente do alvo, a bala morre lá.
+        const blocked = !!(hitsW && hitsW.distance < tdist - 0.4);
+        if (blocked) hit = false;
         let end = hitsW ? hitsW.point : from.clone().add(dir.clone().multiplyScalar(120));
         if (hit) {
           end = teye;
-          const dmg = e.isPlayer ? 63 : 100;   // 1.5x dano
-          this._damage(e, dmg, b, (WEAPONS[b.weapon] && WEAPONS[b.weapon].short) || 'AWP');   // arma real do bot no killfeed
+          let dmg = (Wb.dmg || 30) * (Wb.pellets ? Math.min(Wb.pellets, 6) * 0.55 : 1);
+          const fo = DMG_FALLOFF[bcls];   // mesma tabela do jogador: P90 a 60m não mata como AWP
+          if (fo) { const t = Math.max(0, Math.min(1, (tdist - fo[0]) / (fo[1] - fo[0]))); dmg *= 1 - (1 - fo[2]) * t; }
+          if (head) dmg *= (HS_MUL[bcls] || 3) * 0.8;
+          dmg = Math.max(6, Math.min(e.isPlayer ? 100 : 130, Math.round(dmg * (e.isPlayer ? BOT_DMG_PLAYER : 1))));
+          this._damage(e, dmg, b, Wb.short || 'AWP', head, teye);   // arma real do bot no killfeed
+          if (e.isPlayer) this._noteHit(b, Wb.short || 'ARMA', dmg, head, tdist);
         } else if (hitsW && Math.random() < 0.5) this._puff(hitsW.point, hitsW.face ? hitsW.face.normal : null);
-        // whizz: quase-acerto no JOGADOR = projétil passando do ouvido (mix por distância)
-        if (!hit && e.isPlayer) {
+        // COMUNICAÇÃO: quem atira acorda os colegas por perto (abre a visão deles por 6s) —
+        // é o motivo de o combate "puxar" gente em vez de acontecer em bolhas isoladas.
+        for (const o of this.bots) {
+          if (o === b || !o.alive || o.team !== b.team) continue;
+          if (Math.hypot(o.pos.x - b.pos.x, o.pos.z - b.pos.z) < 30) o.alertUntil = Math.max(o.alertUntil || 0, this.time + 6);
+        }
+        // whizz: quase-acerto no JOGADOR = projétil passando do ouvido (mix por distância).
+        // `blocked` evita o whizz de uma bala que parou na parede antes de chegar perto.
+        if (!hit && !blocked && e.isPlayer) {
           const toEar = this.camera.position.clone().sub(from);
           const along = toEar.dot(dir);
           if (along > 0) { const perpSq = toEar.lengthSq() - along * along; if (perpSq > 0 && perpSq < 9) this.sfx.whizz(Math.sqrt(perpSq)); }
         }
-        this._tracer(from.clone().add(dir.clone().multiplyScalar(0.7)), end);
-        this._flash(from.clone().add(dir.clone().multiplyScalar(0.85)), dir);
         // som da arma REAL do bot com MIX POR DISTÂNCIA no synth (perto=crack, longe=boom)
         // + PAN ESTÉREO pela direção relativa à câmera (mesma conta do damage indicator)
         // + delay de propagação (dist/343, estilo CoD) — só em bots; player segue central.
         const _sd = Math.hypot(b.pos.x - this.player.pos.x, b.pos.z - this.player.pos.z);
         const _rel = Math.atan2(b.pos.x - this.player.pos.x, b.pos.z - this.player.pos.z) - this.player.yaw;
         const _pan = Math.max(-0.85, Math.min(0.85, Math.sin(_rel) * 0.8));
-        this.sfx.shotWeapon(b.weapon, _sd, 1, _pan, Math.min(0.25, _sd / 343));
+        // ORÇAMENTO DE FX (60fps em GPU de notebook): com rajadas reais, 8 bots podem disparar
+        // ~50 tiros/s — cada um custa tracer + voz do synth. Perto (<45m) sai tudo; longe (ou
+        // em quality 'low') sai 1 a cada 2. O DANO e o raycast nunca são afetados, só o enfeite.
+        const fxTick = (b._fxTick = (b._fxTick || 0) + 1);
+        const fxFull = (_sd < 45 && this.settings.quality !== 'low') || (fxTick % 2) === 0;
+        if (fxFull) {
+          this._tracer(from.clone().add(dir.clone().multiplyScalar(0.7)), end);
+          this.sfx.shotWeapon(b.weapon, _sd, 1, _pan, Math.min(0.25, _sd / 343));
+        }
+        this._flash(from.clone().add(dir.clone().multiplyScalar(0.85)), dir);   // GPU-batched: 1 draw call
         if (b.mesh.isGLB) b.mesh.ctrl.shoot();
       }
     } else if (this.ctf) {
@@ -3031,11 +3801,60 @@ export class Game {
     }
   }
 
-  /* ================= radar (CS-style) ================= */
+  /* ================= radar (CS-style) =================
+     ANTES: `strokeRect(H-26*sc, H-46*sc, 52*sc, 92*sc)` era a caixa do awp_map HARDCODED,
+     desenhada igual na Havan, no Piscinão e no Ferro Velho — o radar mostrava o mapa
+     errado em 3 dos 4 mapas — e a escala fixa (1.42 px/m) fazia o jogador sumir do disco
+     em mapa maior que ~52×92 m.
+     AGORA: a planta vem do MUNDO (this.world.colliders, que já existe e é por mapa),
+     é rasterizada UMA vez num canvas offscreen (custo por frame = 1 blit) e a escala é
+     derivada dos limites reais da arena, então o mapa inteiro cabe no disco em qualquer
+     mapa. Kill-switch: ?radar=0 desliga a planta (fica bússola + blips, que é o mínimo
+     honesto); ?radar=box volta pro retângulo antigo. */
+  _radarFoot(S) {
+    if (this._rdFoot !== undefined) return this._rdFoot;
+    const qp = new URLSearchParams(location.search).get('radar');
+    const cols = (this.world && this.world.colliders) || [];
+    if (qp === '0' || !cols.length) return (this._rdFoot = null);
+    let minX = 1e9, maxX = -1e9, minZ = 1e9, maxZ = -1e9;
+    for (const c of cols) {
+      if (!isFinite(c.minX) || !isFinite(c.minZ)) continue;
+      if (c.minX < minX) minX = c.minX; if (c.maxX > maxX) maxX = c.maxX;
+      if (c.minZ < minZ) minZ = c.minZ; if (c.maxZ > maxZ) maxZ = c.maxZ;
+    }
+    let ex = maxX - minX, ez = maxZ - minZ;
+    // sanidade: collider perdido no infinito não pode encolher a arena inteira a 2 px
+    if (!(ex > 4) || !(ez > 4) || ex > 400 || ez > 400) { minX = -60; maxX = 60; minZ = -100; maxZ = 100; ex = 120; ez = 200; }
+    const R = S / 2 - 3;
+    const sc = (2 * R - 10) / Math.max(ex, ez);
+    const cx = (minX + maxX) / 2, cz = (minZ + maxZ) / 2;
+    const cv = document.createElement('canvas'); cv.width = cv.height = S;
+    const g = cv.getContext('2d');
+    g.translate(S / 2, S / 2); g.scale(sc, sc); g.translate(-cx, -cz);
+    g.lineWidth = Math.max(0.6, 1 / sc);
+    if (qp === 'box') {   // fallback declarado: a caixa antiga, pra comparar lado a lado
+      g.strokeStyle = 'rgba(120,220,220,0.5)'; g.strokeRect(-26, -46, 52, 92);
+    } else {
+      // Legibilidade: num disco de 150px, desenhar TODO collider (carros, gôndolas, caixas)
+      // vira ruído. Só entra estrutura — bloco grande com preenchimento, médio só contorno;
+      // prop pequeno (< 1.6 m nas duas direções) é descartado.
+      for (const c of cols) {
+        const w = c.maxX - c.minX, h = c.maxZ - c.minZ;
+        if (Math.max(w, h) < 1.6) continue;
+        const big = Math.max(w, h) >= 5;
+        if (big) { g.fillStyle = 'rgba(120,220,220,0.13)'; g.fillRect(c.minX, c.minZ, w, h); }
+        g.strokeStyle = big ? 'rgba(160,240,240,0.55)' : 'rgba(120,220,220,0.28)';
+        g.strokeRect(c.minX, c.minZ, w, h);
+      }
+    }
+    return (this._rdFoot = { img: cv, sc, cx, cz });
+  }
   _updateRadar() {
     const x = this.radarCtx;
     if (!x) return;
-    const S = 150, H = S / 2, sc = 1.42, R = H - 3;
+    const S = 150, H = S / 2, R = H - 3;
+    const fp = this._radarFoot(S);
+    const sc = fp ? fp.sc : 1.42, ox = fp ? fp.cx : 0, oz = fp ? fp.cz : 0;
     x.clearRect(0, 0, S, S);
     // fundo: disco escuro radial (referência CS2/Valorant) — opaco o bastante pra
     // a geometria ciano ler bem mesmo com céu claro atrás
@@ -3046,11 +3865,8 @@ export class Game {
     x.beginPath(); x.arc(H, H, R, 0, 7); x.fill();
     x.save();
     x.beginPath(); x.arc(H, H, R, 0, 7); x.clip();
-    // geometria do mapa: linha fina ciano apagado (norte fixo: mundo X→tela X, Z→tela Y)
-    x.strokeStyle = 'rgba(120,220,220,0.5)'; x.lineWidth = 1;
-    x.strokeRect(H - 26 * sc, H - 46 * sc, 52 * sc, 92 * sc);
-    x.strokeStyle = 'rgba(120,220,220,0.22)';
-    x.beginPath(); x.moveTo(H - 26 * sc, H); x.lineTo(H + 26 * sc, H); x.stroke();
+    // planta REAL do mapa atual (blit do offscreen; norte fixo: mundo X→tela X, Z→tela Y)
+    if (fp) x.drawImage(fp.img, 0, 0);
     // grade de referência bem sutil
     x.strokeStyle = 'rgba(120,220,220,0.12)';
     x.beginPath();
@@ -3058,16 +3874,17 @@ export class Game {
     x.moveTo(H - R, H); x.lineTo(H + R, H);
     x.stroke();
     // cone de visão do jogador (FOV real da câmera, com falloff radial)
-    const px = H + this.player.pos.x * sc, pz = H + this.player.pos.z * sc;
+    const px = H + (this.player.pos.x - ox) * sc, pz = H + (this.player.pos.z - oz) * sc;
     const fov = (this.camera.fov || 75) * Math.PI / 180;
     x.save();
     x.translate(px, pz); x.rotate(-this.player.yaw);
-    const grad = x.createRadialGradient(0, 0, 3, 0, 0, 62);
+    const cone = Math.max(26, Math.min(70, 34 * sc));   // alcance do cone acompanha a escala do mapa
+    const grad = x.createRadialGradient(0, 0, 3, 0, 0, cone);
     grad.addColorStop(0, 'rgba(140,230,230,0.30)');
     grad.addColorStop(1, 'rgba(140,230,230,0)');
     x.fillStyle = grad;
     x.beginPath(); x.moveTo(0, 0);
-    x.arc(0, 0, 62, -Math.PI / 2 - fov / 2, -Math.PI / 2 + fov / 2);
+    x.arc(0, 0, cone, -Math.PI / 2 - fov / 2, -Math.PI / 2 + fov / 2);
     x.closePath(); x.fill();
     // player arrow (rotates with view)
     x.fillStyle = '#fff';
@@ -3079,9 +3896,9 @@ export class Game {
       if (!c.alive || c.isPlayer) continue;
       const ally = c.team === this.playerTeam;
       if (!ally && this.time - c.revealedAt > 1.6) continue;
-      const col = ally ? this._teamColor(c.team) : '#ffd23f';
+      const col = ally ? this._teamColor(c.team) : '#ffb44d';   // inimigo revelado = âmbar (objetivo), aliado = cor do time
       x.fillStyle = col; x.shadowColor = col;
-      x.fillRect(H + c.pos.x * sc - 2, H + c.pos.z * sc - 2, 4, 4);
+      x.fillRect(H + (c.pos.x - ox) * sc - 2, H + (c.pos.z - oz) * sc - 2, 4, 4);
     }
     x.shadowBlur = 0;
     x.restore();
@@ -3143,15 +3960,24 @@ export class Game {
       this.el.ammoRes.textContent = a.res;
       this.el.ammoMag.classList.toggle('empty', a.mag === 0);
     }
+    // HIERARQUIA DO TOPO: o elemento mais pesado tem que carregar a informação mais
+    // importante. No CTF o round não tem tempo — mostrar '∞' a 32px fazia o MAIOR tipo do
+    // HUD comunicar a AUSÊNCIA de informação, enquanto o placar de bandeiras ficava numa
+    // faixa de 12px. Agora o timer encolhe pra rótulo de modo e a linha de baixo passa a
+    // trazer o placar que vale (capturas).
     if (this.ctf) {
-      this.el.roundTime.textContent = '∞';   // CTF: round sem tempo
+      this.el.roundTime.textContent = 'CAPTURA';
+      this.el.roundTime.classList.add('ctf');
+      const cp = (this.ctfCaps && this.ctfCaps.P) || 0, cb = (this.ctfCaps && this.ctfCaps.B) || 0;
+      this.el.roundsRow.textContent = `${this._teamTag('P')} ${cp} × ${cb} ${this._teamTag('B')} · CAPTURAS`;
     } else {
+      this.el.roundTime.classList.remove('ctf');
       const total = Math.max(0, Math.ceil(this.timeLeft));
       this.el.roundTime.textContent = `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
+      // linha secundária única sob o timer: rodada + placar de rounds por time
+      this.el.roundsRow.textContent =
+        `RODADA ${this.roundNum} · ${this._teamTag('P')} ${this.roundsWon.P} × ${this.roundsWon.B} ${this._teamTag('B')}`;
     }
-    // linha secundária única sob o timer: rodada + placar de rounds por time
-    this.el.roundsRow.textContent =
-      `RODADA ${this.roundNum} · ${this._teamTag('P')} ${this.roundsWon.P} × ${this.roundsWon.B} ${this._teamTag('B')}`;
     this.el.scoreP.innerHTML = `${this._teamTag('P')} <b>${this.roundKills.P}</b>`;
     this.el.scoreB.innerHTML = `${this._teamTag('B')} <b>${this.roundKills.B}</b>`;
     this.el.scoreP.style.color = this._teamColor('P');   // lado do jogador Tribos fica AZUL

@@ -4,17 +4,79 @@
 @font-face{font-family:'Rajdhani';src:url('/fonts/rajdhani-700.woff2') format('woff2');font-weight:700;font-display:swap}
 @font-face{font-family:'ST Mono';src:url('/fonts/share-tech-mono.woff2') format('woff2');font-display:swap}
 
+/* =========================================================================
+   SISTEMA DE DESIGN — "CORO SOLTO"
+   Por quê: antes cada regra escolhia seu próprio px/hex, então ciano queria
+   dizer 5 coisas e o texto de nav vivia a 58% de opacidade. Aqui a decisão é
+   tomada UMA vez, no token, e as regras só consomem.
+   Identidade BR sem clip-art de bandeira: a referência é sinaleiro de rua,
+   lambe-lambe colado em tapume e pintura de caminhão — faixa amarela+preta,
+   vermelho de placa, branco de cal, asfalto. Verde/amarelo aparecem como
+   ACENTO de time, nunca como moldura de bandeirinha.
+   ========================================================================= */
 :root{
-  --red:#e03232; --red-dark:#8f1d1d;          /* time PETISTA */
-  --green:#1faa4d; --yellow:#ffd23f;           /* time BOLSO + âmbar */
-  --purple:#7b2ff7;                            /* time TRIBOS */
-  --dark:#0b1116; --panel:rgba(11,17,22,.94);
-  --hud:#e8f4f6; --cs:#39d6e0;                 /* ciano primário */
-  --am:#ffb44d;                                /* âmbar de destaque */
-  --ink1:rgba(232,244,246,.94); --ink2:rgba(232,244,246,.58); --ink3:rgba(232,244,246,.30);
-  --line:#22333c; --line-hi:#39d6e0;
+  /* ---- escala tipográfica (razão ~1.22; piso 11px = legível em 1280×720) ---- */
+  --fs-50:11px;  --fs-100:12px; --fs-200:13px; --fs-300:15px; --fs-400:17px;
+  --fs-500:20px; --fs-600:24px; --fs-700:32px; --fs-800:44px; --fs-900:60px;
+  --lh-tight:1; --lh-snug:1.2; --lh-base:1.45;
+  --tr-tight:.5px; --tr-1:1px; --tr-2:2px; --tr-3:3px; --tr-4:4px; --tr-6:6px;
+
+  /* ---- superfícies (asfalto noturno) ---- */
+  --bg-900:#05080b; --bg-800:#0a1116; --bg-700:#101a21; --bg-600:#16242d; --bg-500:#1e323d;
+  --line:#22333c; --line-2:#33505d;
+
+  /* ---- tinta: contraste medido sobre --bg-800 (AA = 4.5:1) ---- */
+  --ink-100:#e9f1f3;   /* 15.4:1 — números de HUD, títulos */
+  --ink-200:#c6d6db;   /* 10.8:1 — corpo e idle de navegação */
+  --ink-300:#93a8b0;   /*  5.5:1 — rótulos/meta (mínimo AA) */
+  --ink-400:#63787f;   /*  2.7:1 — SÓ régua/ícone decorativo, nunca texto */
+
+  /* ---- cor = significado (uma função por cor; regra do level design aplicada à UI) ---- */
+  --sys:#39d6e0;       /* SISTEMA: foco, rádio, links, radar */
+  --am:#ffb44d;        /* OBJETIVO e conquista */
+  --crit:#ff4d4d;      /* CRÍTICO: vida baixa, pente vazio, você morreu */
+  --ok:#46e08a;
+
+  /* ---- identidade BR (sinaleiro / lambe-lambe / caminhão) ---- */
+  --br-sinal:#e2402c;  --br-faixa:#ffc93f;  --br-verde:#1faa4d;
+  --br-cal:#f2efe6;    --br-asfalto:#12171a;
+  --hazard:repeating-linear-gradient(135deg,var(--br-faixa) 0 7px,#0d1418 7px 14px);
+  --lambe:repeating-linear-gradient(0deg,rgba(255,255,255,.03) 0 1px,rgba(0,0,0,0) 1px 3px);
+
+  /* ---- times ---- */
+  --team-p:#e03232; --team-b:#1faa4d; --team-u:#7b2ff7;
+
+  /* ---- espaçamento (escala de 4) ---- */
+  --s-1:4px; --s-2:8px; --s-3:12px; --s-4:16px; --s-5:24px; --s-6:32px; --s-7:48px; --s-8:64px;
+
+  /* ---- raios/cortes: a UI é chanfrada, não arredondada ---- */
+  --r-0:0; --r-1:2px; --r-2:4px;
   --cut:polygon(10px 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%,0 10px);
   --cut-sm:polygon(6px 0,100% 0,100% calc(100% - 6px),calc(100% - 6px) 100%,0 100%,0 6px);
+
+  /* ---- sombras e legibilidade sobre cena 3D ---- */
+  --sh-1:0 2px 10px rgba(0,0,0,.45);
+  --sh-2:0 10px 34px rgba(0,0,0,.6);
+  --sh-text:0 1px 3px rgba(0,0,0,.85);
+  --sh-hud:0 1px 2px rgba(0,0,0,.9),0 0 7px rgba(0,0,0,.5);   /* AA garantido sobre céu claro */
+  --scrim:rgba(5,8,11,.82);
+
+  /* ---- estados ---- */
+  --focus-ring:2px solid var(--sys); --focus-off:2px;
+  --op-disabled:.38;
+
+  /* ---- movimento: nada acima de 180ms na UI ---- */
+  --t-fast:90ms; --t:140ms; --t-slow:180ms; --ease:cubic-bezier(.2,.8,.2,1);
+
+  /* ---- mira: fora do sistema de cor, configurável em CONFIGURAÇÕES ---- */
+  --xhair:#e9f1f3;
+
+  /* ---- aliases legados (regras antigas e estilos inline do JS ainda consomem) ---- */
+  --red:var(--team-p); --red-dark:#8f1d1d; --green:var(--team-b); --yellow:var(--br-faixa);
+  --purple:var(--team-u); --dark:var(--bg-900); --panel:rgba(10,17,22,.94);
+  --hud:var(--ink-100); --cs:var(--sys);
+  --ink1:var(--ink-100); --ink2:var(--ink-200); --ink3:var(--ink-300);
+  --line-hi:var(--sys);
   --font:'Rajdhani',"Arial Narrow",Arial,sans-serif;
   --mono:'ST Mono',Consolas,monospace;
 }
@@ -22,6 +84,20 @@
 html,body{width:100%;height:100%;overflow:hidden;background:var(--dark)}
 body{font-family:var(--font);font-weight:600;color:var(--ink1)}
 .hidden{display:none!important}
+
+/* ---------- ESTADOS GLOBAIS (antes o jogo inteiro era inoperável no teclado) ----------
+   Um FPS de PC navega 100% no teclado; sem anel de foco não dá pra saber onde se está. */
+:where(button,a,select,input,textarea,[tabindex]):focus-visible{
+  outline:var(--focus-ring);outline-offset:var(--focus-off);border-radius:var(--r-1)}
+:where(button,a,select,input,textarea,[tabindex]):focus:not(:focus-visible){outline:none}
+:where(.btn,.cs-item,.map-arrow,.char-row,.dd-item,.corner-btn):active{transform:translateY(1px)}
+:where(button,.btn)[disabled]{opacity:var(--op-disabled);filter:saturate(.3);cursor:not-allowed;pointer-events:none}
+/* aria-disabled = desabilitado VISUAL mas ainda clicável de propósito: o clique leva o
+   foco pro campo que falta (melhor que um botão morto que não explica nada). */
+:where(button,.btn)[aria-disabled="true"]{opacity:var(--op-disabled);filter:saturate(.3);cursor:not-allowed}
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}
+}
 .sr-only{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
 
 #game-container,#game-container canvas{position:fixed;inset:0;width:100%;height:100%}
@@ -30,8 +106,13 @@ body{font-family:var(--font);font-weight:600;color:var(--ink1)}
 .screen{position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;
   background:linear-gradient(180deg,#0a0f14,#070b10)}
 .scanlines{display:none}   /* morto na v2 */
-.screen-title{font-size:34px;font-weight:700;letter-spacing:6px;color:var(--ink1);text-transform:uppercase}
-.panel{background:var(--panel);border:1px solid var(--line);padding:36px 44px;clip-path:var(--cut)}
+.screen-title{font-size:var(--fs-700);font-weight:700;letter-spacing:var(--tr-6);color:var(--ink-100);
+  text-transform:uppercase;position:relative;padding-bottom:var(--s-3)}
+.screen-title::after{content:"";position:absolute;left:50%;bottom:0;transform:translateX(-50%);
+  width:120px;height:3px;background:linear-gradient(90deg,var(--br-sinal),var(--br-faixa))}   /* régua de tinta: assinatura da marca em toda tela de fluxo */
+.panel{background:var(--panel);border:1px solid var(--line);padding:var(--s-6) var(--s-7);clip-path:var(--cut);
+  box-shadow:var(--sh-2);position:relative}
+.panel::before{content:"";position:absolute;left:0;top:14px;width:4px;height:52px;background:var(--hazard)}   /* top:0 caía dentro do canto chanfrado do clip-path */
 .center-panel{display:flex;flex-direction:column;gap:18px;align-items:center;max-width:640px;text-align:center}
 .big{font-size:18px}
 .footnote{position:absolute;bottom:18px;font-size:12px;font-weight:600;letter-spacing:2px;color:var(--ink3)}
@@ -44,18 +125,21 @@ body{font-family:var(--font);font-weight:600;color:var(--ink1)}
 .corner-btn:hover{border-color:var(--cs);color:#fff}
 
 /* ---------- buttons & inputs ---------- */
-.btn{font-family:var(--font);font-weight:700;font-size:17px;letter-spacing:3px;color:var(--ink1);cursor:pointer;
-  background:#101b22;border:1px solid var(--line);clip-path:var(--cut);
-  padding:12px 34px;transition:all .12s;text-transform:uppercase}
-.btn:hover{background:#1b2c36;border-color:var(--cs);color:#fff}
-.btn-big{font-size:24px;padding:16px 64px;border-color:var(--yellow);color:var(--yellow)}
-.btn-big:hover{background:var(--yellow);color:#0b1116}
+.btn{font-family:var(--font);font-weight:700;font-size:var(--fs-400);letter-spacing:var(--tr-3);color:var(--ink-100);cursor:pointer;
+  background:var(--bg-700);border:1px solid var(--line);clip-path:var(--cut);
+  padding:var(--s-3) var(--s-6);transition:background var(--t) var(--ease),border-color var(--t) var(--ease),color var(--t) var(--ease);
+  text-transform:uppercase}
+.btn:hover{background:var(--bg-600);border-color:var(--sys);color:#fff}
+.btn-big{font-size:var(--fs-600);padding:var(--s-4) var(--s-8);border-color:var(--br-faixa);color:var(--br-faixa)}
+.btn-big:hover{background:var(--br-faixa);color:var(--bg-900)}
 .btn-back{position:absolute;top:26px;left:26px;font-size:13px;padding:9px 20px;z-index:5}
 .menu-buttons{display:flex;flex-direction:column;gap:16px;align-items:center;z-index:1;width:min(760px,95vw)}
 .profile-card{width:100%;background:var(--panel);border:1px solid var(--line);clip-path:var(--cut);
-  padding:20px 22px;display:flex;flex-direction:column;gap:14px;position:relative}
-.pc-title{font-family:var(--font);font-weight:700;font-size:12px;letter-spacing:3px;color:var(--cs);
-  border-bottom:1px solid var(--line);padding-bottom:8px;text-transform:uppercase}
+  padding:var(--s-5) var(--s-5);display:flex;flex-direction:column;gap:var(--s-4);position:relative;box-shadow:var(--sh-2)}
+.pc-title{font-family:var(--font);font-weight:700;font-size:var(--fs-100);letter-spacing:var(--tr-3);color:var(--ink-300);
+  border-bottom:1px solid var(--line);padding-bottom:var(--s-2);text-transform:uppercase;
+  display:flex;align-items:center;gap:var(--s-2)}
+.pc-title::before{content:"";width:3px;height:12px;background:var(--am);flex:0 0 auto}   /* marcador em vez do "▚" tipográfico */
 .pc-row{display:grid;grid-template-columns:2fr 4fr;gap:10px}
 .pc-cols{display:grid;grid-template-columns:1fr 1fr;gap:22px;align-items:start}
 .pc-col{display:flex;flex-direction:column;gap:12px;min-width:0}
@@ -67,8 +151,11 @@ body{font-family:var(--font);font-weight:600;color:var(--ink1)}
 .social-item input.invalid{border-color:var(--red)!important;animation:shake .3s}
 .social-del{background:transparent;border:1px solid var(--line);color:var(--ink3);cursor:pointer;width:34px;height:34px;font-size:13px}
 .social-del:hover{border-color:var(--red);color:var(--red)}
-#nick-input,#social-input,#social-net{font-family:var(--mono);font-size:15px;letter-spacing:1px;text-align:center;
-  background:#0a141a;border:1px solid var(--line);color:var(--cs);padding:10px 12px;outline:none;width:100%}
+#nick-input,#social-input,#social-net{font-family:var(--mono);font-size:var(--fs-300);letter-spacing:var(--tr-1);text-align:center;
+  background:var(--bg-800);border:1px solid var(--line);color:var(--ink-100);padding:10px 12px;outline:none;width:100%;
+  transition:border-color var(--t) var(--ease)}
+#nick-input:hover,#social-input:hover{border-color:var(--line-2)}
+#nick-input::placeholder{color:var(--ink-400)}
 #social-net{font-size:13px;cursor:pointer}
 #social-input{font-size:13px}
 #social-input:disabled{opacity:.35;cursor:not-allowed}
@@ -81,18 +168,23 @@ body{font-family:var(--font);font-weight:600;color:var(--ink1)}
 /* dropdown custom */
 .dd{position:relative;width:100%}
 .dd-btn{display:flex;align-items:center;justify-content:space-between;width:100%;cursor:pointer;
-  font-family:var(--mono);font-size:14px;letter-spacing:1px;
-  background:#0a141a;border:1px solid var(--line);color:var(--cs);padding:10px 12px;outline:none}
-.dd-btn:hover,.dd-btn.open{border-color:var(--cs)}
-.dd-arrow{font-size:12px;opacity:.7}
-.dd-list{position:absolute;left:0;right:0;z-index:30;background:#0c151b;border:1px solid var(--line);overflow:hidden;top:calc(100% + 4px)}
+  font-family:var(--mono);font-size:var(--fs-200);letter-spacing:var(--tr-1);
+  background:var(--bg-800);border:1px solid var(--line);color:var(--ink-100);padding:10px 12px;outline:none;
+  transition:border-color var(--t) var(--ease)}
+.dd-btn:hover{border-color:var(--line-2)}
+.dd-btn.open{border-color:var(--sys)}
+.dd-arrow{font-size:var(--fs-100);color:var(--ink-300)}
+.dd-list{position:absolute;left:0;right:0;z-index:30;background:var(--bg-700);border:1px solid var(--line-2);
+  overflow:hidden;top:calc(100% + 4px);box-shadow:var(--sh-1)}
 #wpn-dd .dd-list{top:auto;bottom:calc(100% + 4px)}   /* baixo na tela: abre pra cima */
 .dd-item{display:flex;align-items:center;gap:10px;width:100%;cursor:pointer;text-align:left;
-  font-family:var(--mono);font-size:13px;letter-spacing:1px;color:var(--cs);background:transparent;border:0;padding:10px 12px}
-.dd-item:hover{background:#16242d}
+  font-family:var(--mono);font-size:var(--fs-200);letter-spacing:var(--tr-1);color:var(--ink-200);
+  background:transparent;border:0;padding:10px 12px;transition:background var(--t) var(--ease),color var(--t) var(--ease)}
+.dd-item:hover{background:var(--bg-600);color:#fff}
 .dd-item svg,.dd-cur svg{flex:0 0 auto}
 .dd-cur{display:flex;align-items:center;gap:10px}
-.map-label{display:flex;flex-direction:column;gap:6px;font-size:12px;font-weight:600;letter-spacing:2px;color:var(--ink2)}
+.map-label{display:flex;flex-direction:column;gap:var(--s-2);font-size:var(--fs-100);font-weight:700;
+  letter-spacing:var(--tr-2);color:var(--ink-300);text-transform:uppercase}
 #map-select{font-family:var(--mono);font-size:14px;letter-spacing:1px;text-align:center;
   background:#0a141a;border:1px solid var(--line);color:var(--cs);padding:10px 12px;outline:none;cursor:pointer;width:100%}
 .btn-ghost{font-family:var(--mono);font-size:12px;letter-spacing:1px;cursor:pointer;width:100%;
@@ -101,13 +193,19 @@ body{font-family:var(--font);font-weight:600;color:var(--ink1)}
 #avatar-note{font-size:12px;color:var(--cs);min-height:13px}
 .menu-secondary{display:flex;gap:10px;width:100%}
 .menu-secondary .btn{flex:1;padding:10px 8px;font-size:14px;letter-spacing:1.5px}
-#btn-jogar{font-size:22px;padding:15px;letter-spacing:5px;width:100%;position:sticky;bottom:6px;z-index:5;
-  border-color:var(--yellow);color:var(--yellow);background:#141810}
-#btn-jogar:hover{background:var(--yellow);color:#0b1116;border-color:var(--yellow)}
-#hud-actions{position:absolute;top:14px;right:14px;display:flex;gap:8px;z-index:25}
-#hud-actions button{width:34px;height:34px;border:1px solid var(--line);cursor:pointer;
-  background:rgba(8,14,18,.8);color:var(--cs);font-size:16px;pointer-events:auto;clip-path:var(--cut-sm)}
-#hud-actions button:hover{border-color:var(--cs)}
+#btn-jogar{font-size:var(--fs-600);padding:15px;letter-spacing:5px;width:100%;position:sticky;bottom:6px;z-index:5;
+  border-color:var(--br-faixa);color:var(--br-faixa);background:#141810;
+  transition:background var(--t) var(--ease),color var(--t) var(--ease),opacity var(--t) var(--ease)}
+#btn-jogar:hover{background:var(--br-faixa);color:var(--bg-900);border-color:var(--br-faixa)}
+/* Sem nick, JOGAR é ESTADO desabilitado — não um shake depois do clique. */
+#btn-jogar[aria-disabled="true"]{opacity:var(--op-disabled);filter:saturate(.25);cursor:not-allowed}
+#btn-jogar[aria-disabled="true"]:hover{background:#141810;color:var(--br-faixa)}
+#hud-actions{position:absolute;top:14px;right:14px;display:flex;gap:var(--s-2);z-index:25}
+#hud-actions button{width:32px;height:32px;border:1px solid var(--line);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  background:rgba(5,8,11,.72);color:var(--ink-300);font-size:var(--fs-400);pointer-events:auto;clip-path:var(--cut-sm);
+  transition:color var(--t) var(--ease),border-color var(--t) var(--ease)}
+#hud-actions button:hover{border-color:var(--sys);color:var(--sys)}
 .set-row input[type=checkbox]{width:18px;height:18px;accent-color:var(--yellow)}
 .rank-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px 26px;font-family:var(--mono);font-size:14px;color:var(--ink2)}
 .rank-stats b{color:var(--yellow);font-size:26px;display:block;text-align:center}
@@ -133,13 +231,22 @@ body{font-family:var(--font);font-weight:600;color:var(--ink1)}
   display:flex;flex-direction:column;justify-content:flex-end;gap:10px;padding:26px;text-align:left;
   border:1px solid var(--line);clip-path:var(--cut);transition:all .15s;position:relative;overflow:hidden}
 .team-card::before{content:"";position:absolute;inset:0;background:repeating-linear-gradient(45deg,transparent 0 14px,rgba(0,0,0,.18) 14px 28px)}
-.team-card:hover{transform:translateY(-4px)}
+.team-card{transition:transform var(--t-slow) var(--ease),box-shadow var(--t) var(--ease),filter var(--t) var(--ease);filter:saturate(.86) brightness(.92)}
+.team-card:hover,.team-card:focus-visible{transform:translateY(-4px);filter:none;box-shadow:var(--sh-2)}
+/* estado SELECIONADO (o 2º passo escolhe o adversário — precisa dizer qual é o seu) */
+.team-card[aria-pressed="true"]{filter:none;box-shadow:var(--sh-2),inset 0 0 0 3px var(--br-faixa)}
+.team-card[aria-pressed="true"]::after{content:"SEU LADO";position:absolute;top:var(--s-3);right:var(--s-3);
+  font-family:var(--mono);font-size:var(--fs-50);letter-spacing:var(--tr-2);color:var(--bg-900);
+  background:var(--br-faixa);padding:3px var(--s-2)}
 .team-p{background:linear-gradient(160deg,#b52e2e,#5e1212);border-color:#ff6b6b}
 .team-b{background:linear-gradient(160deg,#1d8f45 30%,#b0901c);border-color:#7de08f}
 .team-u{background:linear-gradient(160deg,#5f22c2 30%,#b823a0);border-color:#c79bff}
-.team-name{font-size:32px;font-weight:700;letter-spacing:3px;text-transform:uppercase}
-.team-slogan{font-size:15px;font-style:italic;font-weight:500}
-.team-desc{font-size:12px;font-weight:600;letter-spacing:1px;opacity:.85}
+/* "BOLSONARISTAS" a 32px + tracking 3px estourava a caixa de 340px e vazava pro card
+   vizinho — agora o corpo encolhe com o comprimento do nome e a linha pode quebrar. */
+.team-name{font-size:clamp(22px,2.1vw,30px);font-weight:700;letter-spacing:var(--tr-2);
+  text-transform:uppercase;line-height:var(--lh-tight);text-shadow:var(--sh-text)}
+.team-slogan{font-size:var(--fs-300);font-style:italic;font-weight:500;text-shadow:var(--sh-text)}
+.team-desc{font-size:var(--fs-100);font-weight:600;letter-spacing:var(--tr-tight);opacity:.9;line-height:var(--lh-snug)}
 /* previews 3D dos personagens da facção (renderizados do GLB real, ver main.js) */
 .team-chars{display:flex;gap:8px;margin-bottom:auto;min-height:64px}
 .team-chars .tc-slot{width:64px;height:64px;display:block;border:1px solid rgba(255,255,255,.28);
@@ -147,28 +254,44 @@ body{font-family:var(--font);font-weight:600;color:var(--ink1)}
 .team-chars img{width:64px;height:64px;display:block;image-rendering:auto}
 
 /* ---------- character select ---------- */
-.char-wrap{display:flex;gap:26px;align-items:stretch}
-.char-list{display:flex;flex-direction:column;gap:6px;width:340px}
-.char-row{display:flex;align-items:center;gap:12px;padding:8px 12px;cursor:pointer;text-align:left;
-  background:rgba(11,17,22,.9);border:1px solid var(--line);color:var(--ink1);clip-path:var(--cut-sm);
-  font-family:var(--font);font-weight:600;font-size:17px;letter-spacing:1px}
-.char-row img{width:52px;height:52px;border:1px solid var(--line);background:#10181e;image-rendering:auto}
-.char-row:hover{background:#16242d;border-color:var(--cs)}
-.char-row.sel{background:#16303a;border-color:var(--cs)}
-.char-preview-box{display:flex;flex-direction:column;align-items:center;gap:12px;
-  background:rgba(11,17,22,.9);border:1px solid var(--line);padding:16px;clip-path:var(--cut)}
-#char-preview{background:radial-gradient(ellipse at 50% 35%,#12242e,#0a141a);border:1px solid var(--line)}
-#char-info{text-align:center;max-width:340px}
-#char-info-name{font-size:19px;font-weight:700;letter-spacing:2px;color:var(--yellow);margin-bottom:6px;text-transform:uppercase}
-#char-info-blurb{font-size:13px;font-weight:500;color:var(--ink2);line-height:1.4;min-height:34px}
-#char-confirm{font-size:17px;padding:12px 34px}
+.char-wrap{display:flex;gap:var(--s-5);align-items:stretch}
+.char-list{display:flex;flex-direction:column;gap:var(--s-1);width:340px;max-height:66vh;overflow-y:auto;padding-right:var(--s-1)}
+.char-row{display:flex;align-items:center;gap:var(--s-3);padding:var(--s-2) var(--s-3);cursor:pointer;text-align:left;
+  background:rgba(10,17,22,.9);border:1px solid var(--line);color:var(--ink-200);clip-path:var(--cut-sm);
+  font-family:var(--font);font-weight:600;font-size:var(--fs-400);letter-spacing:var(--tr-1);
+  transition:background var(--t) var(--ease),border-color var(--t) var(--ease),color var(--t) var(--ease)}
+.char-row img{width:52px;height:52px;border:1px solid var(--line);background:var(--bg-700);image-rendering:auto}
+.char-row:hover{background:var(--bg-600);border-color:var(--line-2);color:var(--ink-100)}
+/* SELECIONADO: barra interna + fundo, não só uma borda de 1px que somia no hover */
+.char-row.sel,.char-row[aria-selected="true"]{background:#16303a;border-color:var(--sys);color:#fff;
+  box-shadow:inset 3px 0 0 var(--sys)}
+.char-preview-box{display:flex;flex-direction:column;align-items:center;gap:var(--s-3);
+  background:rgba(10,17,22,.9);border:1px solid var(--line);padding:var(--s-4);clip-path:var(--cut);position:relative}
+.char-preview-box::before{content:"";position:absolute;left:0;top:0;width:4px;height:64px;background:var(--hazard)}
+#char-preview{background:
+    radial-gradient(ellipse at 50% 30%,rgba(57,214,224,.10),rgba(0,0,0,0) 62%),
+    radial-gradient(ellipse at 50% 100%,#16242d,#080e13);
+  border:1px solid var(--line);width:380px;height:380px}   /* backing store 400² → downscale nítido */
+@media(max-height:820px){#char-preview{width:300px;height:300px}.char-list{max-height:60vh}}
+#char-info{text-align:center;max-width:400px}
+#char-info-name{font-size:var(--fs-500);font-weight:700;letter-spacing:var(--tr-2);color:var(--br-faixa);
+  margin-bottom:var(--s-1);text-transform:uppercase}
+#char-info-blurb{font-size:var(--fs-200);font-weight:500;color:var(--ink-200);line-height:var(--lh-base);min-height:38px}
+#char-confirm{font-size:var(--fs-400);padding:var(--s-3) var(--s-6)}
 
 /* ---------- settings / howto ---------- */
-.set-row{display:flex;align-items:center;gap:14px;width:100%;justify-content:space-between;font-size:15px;font-weight:600;letter-spacing:1px}
-.set-row input[type=range]{flex:1;accent-color:var(--yellow)}
-.set-row select{font-family:inherit;background:#101b22;color:var(--ink1);border:1px solid var(--line);padding:6px 10px}
-.howto-grid{display:grid;grid-template-columns:auto auto;gap:8px 26px;font-size:14px;font-weight:600;letter-spacing:1px;text-align:left}
-.howto-grid span:nth-child(odd){color:var(--yellow)}
+.set-row{display:flex;align-items:center;gap:var(--s-4);width:100%;justify-content:space-between;
+  font-size:var(--fs-300);font-weight:600;letter-spacing:var(--tr-1);color:var(--ink-200);
+  padding:var(--s-1) 0;border-bottom:1px solid rgba(255,255,255,.05)}
+.set-row:hover{color:var(--ink-100)}
+.set-row input[type=range]{flex:1;accent-color:var(--br-faixa)}
+.set-row select{font-family:inherit;background:var(--bg-700);color:var(--ink-100);border:1px solid var(--line);
+  padding:6px var(--s-3);cursor:pointer;transition:border-color var(--t) var(--ease)}
+.set-row select:hover{border-color:var(--line-2)}
+#set-xhair{font-weight:700}
+.howto-grid{display:grid;grid-template-columns:auto auto;gap:var(--s-2) var(--s-5);font-size:var(--fs-200);
+  font-weight:600;letter-spacing:var(--tr-1);text-align:left;color:var(--ink-200)}
+.howto-grid span:nth-child(odd){color:var(--br-faixa);font-family:var(--mono);font-size:var(--fs-100)}
 
 /* ---------- HUD ---------- */
 #hud{position:fixed;inset:0;z-index:20;pointer-events:none;font-family:var(--font);font-weight:600}
@@ -179,13 +302,17 @@ body{font-family:var(--font);font-weight:600;color:var(--ink1)}
 #radio-menu{position:absolute;top:200px;left:14px;background:rgba(11,17,22,.92);border:1px solid var(--line);padding:10px 16px;min-width:220px}
 .radio-title{color:var(--yellow);font-size:12px;letter-spacing:2px;margin-bottom:6px;border-bottom:1px solid var(--line);padding-bottom:4px}
 .radio-item{color:var(--cs);font-size:14px;padding:2px 0}
+/* Mira: FORA do sistema de cor (não é "sistema", nem "objetivo", nem "crítico").
+   Branco por padrão com contorno preto — legível em céu claro e em sombra —,
+   e a cor é escolhida pelo jogador em CONFIGURAÇÕES (var --xhair no <html>).
+   O gap (--ch) é escrito pelo game.js a cada frame = spread dinâmico real. */
 #crosshair{position:absolute;left:50%;top:50%;width:0;height:0;--ch:6px}
-#crosshair i{position:absolute;background:#4fe8e0;box-shadow:0 0 0 1px rgba(0,0,0,.85),0 0 5px rgba(0,0,0,.6)}   /* contorno escuro = visível em fundo claro (reclamação do dono) */
+#crosshair i{position:absolute;background:var(--xhair);box-shadow:0 0 0 1px rgba(0,0,0,.85),0 0 5px rgba(0,0,0,.6)}   /* contorno escuro = visível em fundo claro (reclamação do dono) */
 #crosshair i:nth-child(1){left:-1px;top:calc(-9px - var(--ch));width:2px;height:9px}
 #crosshair i:nth-child(2){left:-1px;top:var(--ch);width:2px;height:9px}
 #crosshair i:nth-child(3){left:calc(-9px - var(--ch));top:-1px;width:9px;height:2px}
 #crosshair i:nth-child(4){left:var(--ch);top:-1px;width:9px;height:2px}
-#crosshair b{position:absolute;left:-1px;top:-1px;width:2px;height:2px;background:#4fe8e0;box-shadow:0 0 0 1px rgba(0,0,0,.85)}
+#crosshair b{position:absolute;left:-1px;top:-1px;width:2px;height:2px;background:var(--xhair);box-shadow:0 0 0 1px rgba(0,0,0,.85)}
 /* ADS de rifle (R7.6): variante fina de precisão — braços 1px mais longos, gap mínimo */
 #crosshair.prec i:nth-child(1),#crosshair.prec i:nth-child(2){left:-.5px;width:1px;height:12px}
 #crosshair.prec i:nth-child(1){top:calc(-12px - var(--ch))}
@@ -223,50 +350,94 @@ body{font-family:var(--font);font-weight:600;color:var(--ink1)}
 .scope-line.h{left:50%;top:50%;width:62vmin;height:1px;transform:translate(-50%,0)}
 .scope-line.v{left:50%;top:50%;width:1px;height:62vmin;transform:translate(0,-50%)}
 #damage-vignette{position:absolute;inset:0;opacity:0;box-shadow:inset 0 0 140px 60px rgba(220,20,20,.75);transition:opacity .09s}
-#dmg-dir{position:absolute;left:50%;top:50%;width:230px;height:230px;margin:-115px 0 0 -115px;opacity:0;transition:opacity .14s;pointer-events:none}
-#dmg-dir::before{content:'';position:absolute;left:50%;top:-4px;transform:translateX(-50%);border-left:52px solid transparent;border-right:52px solid transparent;border-top:30px solid rgba(255,42,42,.85)}
+/* Indicador direcional de dano: cunha vermelha apontando pra origem do tiro.
+   Ganhou contorno escuro (era invisível contra parede clara) e ficou mais fina —
+   um triângulo de 104px de base competia com o centro da tela. */
+#dmg-dir{position:absolute;left:50%;top:50%;width:230px;height:230px;margin:-115px 0 0 -115px;opacity:0;
+  transition:opacity var(--t) var(--ease);pointer-events:none;
+  filter:drop-shadow(0 0 3px rgba(0,0,0,.9))}
+#dmg-dir::before{content:'';position:absolute;left:50%;top:-2px;transform:translateX(-50%);
+  border-left:42px solid transparent;border-right:42px solid transparent;border-top:26px solid rgba(255,60,60,.92)}
 #mk-banner{position:absolute;left:0;right:0;top:26%;text-align:center;font-weight:700;
   font-size:46px;letter-spacing:20px;color:#ff5030;text-transform:uppercase;
   text-shadow:0 2px 4px rgba(0,0,0,.8);
   opacity:0;transform:scale(1.35);transition:all .16s cubic-bezier(.16,1,.3,1);pointer-events:none}
 #mk-banner.show{opacity:1;transform:scale(1);letter-spacing:8px}
-#prot-badge{position:absolute;left:50%;top:70px;transform:translateX(-50%);font-weight:700;font-size:16px;
-  letter-spacing:2px;color:var(--yellow);pointer-events:none}
-#hud-top{position:absolute;top:14px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:18px}
-.team-score{font-size:15px;font-weight:700;letter-spacing:2px;padding:6px 14px;background:rgba(8,14,18,.75);clip-path:var(--cut-sm)}
-.ts-p{color:#ff8080;border:1px solid var(--red)}
-.ts-b{color:#9dff9d;border:1px solid var(--green)}
+/* PROTEGIDO é estado DO JOGADOR: mora junto da vida (canto inferior esquerdo), não no
+   centro superior — ali colidia com a faixa de objetivos do CTF e disputava o centro. */
+#prot-badge{position:absolute;left:22px;bottom:92px;
+  font-weight:700;font-size:var(--fs-200);letter-spacing:var(--tr-2);color:var(--am);
+  text-shadow:var(--sh-hud);pointer-events:none}
+#prot-badge svg{vertical-align:-2px;margin-right:5px}   /* inline: flex separava o "3" do "s" */
+/* --- BLOCO SUPERIOR: altura DETERMINÍSTICA ---------------------------------
+   O bug da barra de CTF sobre "RODADA 1" era aritmética de caixa: #round-time
+   não tinha line-height, então o Rajdhani em `normal` (~1.55em) empurrava o
+   bloco pra ~80px enquanto #ctf-hud estava fixo em 62px — e o valor mudava se
+   a fonte caísse pro Arial Narrow. Agora cada linha tem line-height fixo e a
+   soma é conferível: 14 (top) + 32 + 5 + 15.6 ≈ 67px → CTF em 76px. */
+#hud-top{position:absolute;top:14px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:var(--s-5)}
+.team-score{font-size:var(--fs-300);font-weight:700;letter-spacing:var(--tr-2);line-height:var(--lh-snug);
+  padding:var(--s-1) var(--s-3);background:rgba(5,8,11,.72);clip-path:var(--cut-sm);text-shadow:var(--sh-hud)}
+.ts-p{color:#ff9a9a;border:1px solid var(--team-p);border-left-width:3px}
+.ts-b{color:#a9f0b6;border:1px solid var(--team-b);border-right-width:3px}
 #hud-mid{text-align:center}
-#round-time{font-size:30px;font-weight:700;color:var(--ink1);font-family:var(--font)}
-#rounds-row{font-size:11px;font-weight:600;letter-spacing:3px;color:var(--ink2);text-transform:uppercase;margin-top:3px}
-#ctf-hud{position:absolute;top:62px;left:50%;transform:translateX(-50%);display:flex;gap:8px;
-  font-family:var(--font);font-weight:700;font-size:14px;letter-spacing:1px;
-  text-shadow:0 1px 3px #000;pointer-events:none;white-space:nowrap}
-#killfeed{position:absolute;top:70px;right:18px;display:flex;flex-direction:column;gap:4px;align-items:flex-end;font-size:13px;font-weight:600}
-.kf-row{display:flex;align-items:center;gap:8px;background:rgba(8,14,18,.82);padding:5px 12px;
-  border-left:2px solid var(--line);clip-path:var(--cut-sm);animation:kfFade 4.5s forwards}
-.kf-row .kf-n{font-weight:700;letter-spacing:.5px;padding:1px 7px;border-radius:2px}   /* bg/color inline: tint do time + texto na cor do time */
-.kf-row .kf-w{color:var(--ink3);font-family:var(--mono);font-size:11px;letter-spacing:1px;text-transform:uppercase}
-.kf-row .kf-ic{color:#fff;opacity:.95;flex:0 0 auto}
-.kf-row .kf-skull{color:#fff}
-.kf-row.me-atk{background:rgba(57,214,224,.16);border-left-color:var(--cs)}   // VOCÊ matou
-.kf-row.me-vic{background:rgba(224,50,50,.18);border-left-color:var(--red)}   // VOCÊ morreu
+#round-time{font-size:var(--fs-700);line-height:var(--lh-tight);font-weight:700;color:var(--ink-100);
+  font-family:var(--font);font-variant-numeric:tabular-nums;text-shadow:var(--sh-hud)}
+#round-time.ctf{font-size:var(--fs-300);letter-spacing:var(--tr-3);color:var(--am)}   /* CTF: o timer não é a informação — não pode ser o maior tipo do topo */
+#rounds-row{font-size:var(--fs-50);line-height:var(--lh-snug);font-weight:600;letter-spacing:var(--tr-3);
+  color:var(--ink-200);text-transform:uppercase;margin-top:5px;text-shadow:var(--sh-hud);
+  font-variant-numeric:tabular-nums}
+/* Faixa de objetivos do CTF: banda própria abaixo do bloco de round, com largura
+   TETO (não empurra mais o killfeed nem cresce com o nome do ponto). */
+#ctf-hud{position:absolute;top:76px;left:50%;transform:translateX(-50%);
+  display:flex;align-items:center;justify-content:center;gap:var(--s-2);
+  font-family:var(--font);font-weight:700;font-size:var(--fs-100);letter-spacing:var(--tr-1);
+  text-transform:uppercase;text-shadow:var(--sh-hud);pointer-events:none;white-space:nowrap;
+  max-width:min(62vw,720px);overflow:hidden;text-overflow:ellipsis;
+  padding:var(--s-1) var(--s-3);background:rgba(5,8,11,.55);clip-path:var(--cut-sm)}
+/* irmão POSTERIOR no DOM: quando a faixa de CTF existe, o killfeed desce. */
+#ctf-hud:not(.hidden) ~ #killfeed{top:114px}
+#killfeed{position:absolute;top:76px;right:18px;display:flex;flex-direction:column;gap:var(--s-1);
+  align-items:flex-end;font-size:var(--fs-200);font-weight:600;max-width:min(42vw,460px)}
+.kf-row{display:flex;align-items:center;gap:var(--s-2);background:rgba(5,8,11,.82);padding:5px var(--s-3);
+  border-left:2px solid var(--line);clip-path:var(--cut-sm);animation:kfFade 4.5s forwards;
+  text-shadow:var(--sh-text)}
+.kf-row .kf-n{font-weight:700;letter-spacing:var(--tr-tight);padding:1px 7px;border-radius:var(--r-1)}   /* bg/color inline: tint do time + texto na cor do time */
+.kf-row .kf-w{color:var(--ink-300);font-family:var(--mono);font-size:var(--fs-50);letter-spacing:var(--tr-1);text-transform:uppercase}
+.kf-row .kf-ic{color:var(--ink-100);opacity:1;flex:0 0 auto}   /* ícone da arma: branco cheio (era .95 sobre céu claro) */
+.kf-row .kf-skull{color:var(--am)}                              /* headshot = conquista → âmbar, não mais um branco igual ao resto */
+/* ATENÇÃO: `//` NÃO é comentário em CSS. As duas linhas abaixo usavam `//` e o parser
+   engolia a regra .me-vic INTEIRA e o @keyframes kfFade seguinte — killfeed e rádio
+   apareciam/sumiam em corte seco e "VOCÊ morreu" nunca ficava vermelho. */
+.kf-row.me-atk{background:rgba(57,214,224,.16);border-left-color:var(--sys)}   /* VOCÊ matou */
+.kf-row.me-vic{background:rgba(255,77,77,.18);border-left-color:var(--crit)}   /* VOCÊ morreu */
 @keyframes kfFade{0%{opacity:0;transform:translateX(20px)}8%{opacity:1;transform:none}80%{opacity:1}100%{opacity:0}}
+/* --- VIDA / MUNIÇÃO: neutros por padrão, coloridos SÓ em estado crítico ---------
+   Antes vida, munição, mira, rádio e radar eram o MESMO ciano: cor saturada sem
+   significado, o olho tinha que ler o número pra saber o que era. Agora o número
+   grande é branco (hierarquia por tamanho/peso) e a cor só entra como alarme. */
 #hud-bottom-left{position:absolute;left:22px;bottom:20px}
-#hp-row{display:flex;align-items:baseline;gap:8px}
-#hp-num{font-size:40px;font-weight:700;color:var(--cs);font-family:var(--font)}
-#hp-num.low{color:#ff5b5b}
-#hp-bar{width:200px;height:6px;background:rgba(8,14,18,.8);border:1px solid var(--line);overflow:hidden;margin-top:2px;clip-path:var(--cut-sm)}
-#hp-fill{height:100%;width:100%;background:var(--cs);transition:width .15s}
-#hp-fill.low{background:#ff5b5b}
+#hp-row{display:flex;align-items:baseline;gap:var(--s-2)}
+#hp-num{font-size:var(--fs-800);line-height:var(--lh-tight);font-weight:700;color:var(--ink-100);
+  font-family:var(--font);font-variant-numeric:tabular-nums;text-shadow:var(--sh-hud);
+  transition:color var(--t-fast)}
+#hp-num::after{content:'HP';display:inline-block;margin-left:6px;font-size:var(--fs-100);
+  letter-spacing:var(--tr-2);color:var(--ink-300);vertical-align:.32em}   /* rótulo: o número sozinho não diz o que é */
+#hp-num.low{color:var(--crit)}
+#hp-bar{width:200px;height:6px;background:rgba(5,8,11,.8);border:1px solid var(--line);overflow:hidden;margin-top:var(--s-1);clip-path:var(--cut-sm)}
+#hp-fill{height:100%;width:100%;background:var(--ink-100);transition:width var(--t),background var(--t-fast)}
+#hp-fill.low{background:var(--crit)}
 #hud-bottom-right{position:absolute;right:26px;bottom:20px;text-align:right}
-#weapon-name{font-size:13px;font-weight:700;letter-spacing:2px;color:var(--ink2);margin-bottom:2px;text-transform:uppercase}   /* despromovido: amarelo fica só pra banners/feedback */
-#ammo{font-size:40px;font-weight:700;color:var(--cs);font-family:var(--font)}
-#ammo-mag.empty{color:#ff5b5b}
-.ammo-sep{color:var(--ink3);margin:0 8px;font-size:24px}
-#ammo-reserve{font-size:24px;color:var(--ink2)}
-#smoke-count{font-size:14px;color:var(--ink2)}
-#reload-note{font-size:13px;font-weight:700;letter-spacing:2px;color:var(--yellow);animation:blink .5s steps(2) infinite}
+#weapon-name{font-size:var(--fs-200);font-weight:700;letter-spacing:var(--tr-2);color:var(--ink-300);
+  margin-bottom:var(--s-1);text-transform:uppercase;text-shadow:var(--sh-hud)}
+#ammo{font-size:var(--fs-800);line-height:var(--lh-tight);font-weight:700;color:var(--ink-100);
+  font-family:var(--font);font-variant-numeric:tabular-nums;text-shadow:var(--sh-hud)}
+#ammo-mag{transition:color var(--t-fast)}
+#ammo-mag.empty{color:var(--crit)}
+.ammo-sep{color:var(--ink-400);margin:0 var(--s-2);font-size:var(--fs-600)}
+#ammo-reserve{font-size:var(--fs-600);color:var(--ink-300)}
+#smoke-count{font-size:var(--fs-200);color:var(--ink-300);letter-spacing:var(--tr-1);text-shadow:var(--sh-hud)}
+#reload-note{font-size:var(--fs-200);font-weight:700;letter-spacing:var(--tr-2);color:var(--am);animation:blink .5s steps(2) infinite}
 @keyframes blink{50%{opacity:.25}}
 #round-banner{position:absolute;left:0;right:0;top:30%;text-align:center;
   opacity:0;transition:opacity .38s ease;pointer-events:none}
@@ -292,16 +463,17 @@ body{font-family:var(--font);font-weight:600;color:var(--ink1)}
 .rip{font-size:44px;font-weight:700;letter-spacing:8px;text-transform:uppercase}
 .rip-sub{font-size:14px;font-weight:500;color:#e0b0b0}
 #scoreboard{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:var(--panel);
-  border:1px solid var(--line);padding:22px 30px;min-width:560px;clip-path:var(--cut)}
-#scoreboard h3{display:flex;flex-direction:column;align-items:center;gap:6px;margin-bottom:14px;text-transform:uppercase}
-#scoreboard h3 .sb-label{letter-spacing:3px;font-weight:700;color:var(--yellow);font-size:15px}
-#scoreboard h3 .sb-score{display:flex;align-items:center;gap:12px;font-family:var(--font);font-weight:700;font-size:26px}
-#scoreboard h3 .sb-score i{font-style:normal;color:var(--ink3);font-size:16px}
-#scoreboard h3 .sb-score b.tp{color:#ff8080}
-#scoreboard h3 .sb-score b.tb{color:#9dff9d}
-#scoreboard table{width:100%;border-collapse:collapse;font-size:15px;font-weight:600}
-#scoreboard th{font-size:10px;letter-spacing:2px;color:var(--ink3);text-align:left;padding:4px 10px;border-bottom:1px solid var(--line)}
-#scoreboard td{padding:5px 10px;color:var(--ink1)}
+  border:1px solid var(--line);padding:var(--s-5) var(--s-6);min-width:560px;clip-path:var(--cut);box-shadow:var(--sh-2)}
+#scoreboard h3{display:flex;flex-direction:column;align-items:center;gap:var(--s-1);margin-bottom:var(--s-4);text-transform:uppercase}
+#scoreboard h3 .sb-label{letter-spacing:var(--tr-3);font-weight:700;color:var(--ink-300);font-size:var(--fs-100)}
+#scoreboard h3 .sb-score{display:flex;align-items:center;gap:var(--s-3);font-family:var(--font);font-weight:700;
+  font-size:var(--fs-600);font-variant-numeric:tabular-nums}
+#scoreboard h3 .sb-score i{font-style:normal;color:var(--ink-400);font-size:var(--fs-400)}
+#scoreboard h3 .sb-score b.tp{color:#ff9a9a}
+#scoreboard h3 .sb-score b.tb{color:#a9f0b6}
+#scoreboard table{width:100%;border-collapse:collapse;font-size:var(--fs-300);font-weight:600}
+#scoreboard th{font-size:var(--fs-50);letter-spacing:var(--tr-2);color:var(--ink-300);text-align:left;padding:var(--s-1) var(--s-3);border-bottom:1px solid var(--line)}
+#scoreboard td{padding:5px var(--s-3);color:var(--ink-100)}
 #scoreboard th:nth-child(3),#scoreboard th:nth-child(4),#scoreboard td:nth-child(3),#scoreboard td:nth-child(4){text-align:right;font-family:var(--font);font-weight:600;font-size:16px}
 #scoreboard tbody tr:nth-child(even) td{background:rgba(232,244,246,.035)}   /* zebra sutil */
 #scoreboard tbody tr:hover td{background:rgba(57,214,224,.09)}
@@ -327,19 +499,18 @@ body{font-family:var(--font);font-weight:600;color:var(--ink1)}
 /* ---- layout fix: menu rola e o JOGAR fica sempre visível ---- */
 #main-menu{padding-top:5vh;gap:14px;overflow-y:auto;overflow-x:hidden}
 
-/* carrossel de mapa: setas ‹ › embaixo do nome (thumb quadrada à esquerda, ver .map-picker) */
-.map-arrow{font-family:var(--mono);font-size:22px;line-height:1;cursor:pointer;
-  background:#0a141a;border:1px solid var(--line);color:var(--cs);height:40px;
-  display:flex;align-items:center;justify-content:center;transition:all .12s;padding:0;clip-path:var(--cut-sm)}
-.map-arrow:hover{border-color:var(--cs);color:#fff;background:#122530}
+/* carrossel de mapa: setas ‹ › sobre a arte (layout final em .map-picker, mais abaixo) */
+.map-arrow{font-family:var(--mono);font-size:var(--fs-600);line-height:var(--lh-tight);cursor:pointer;
+  background:var(--bg-800);border:1px solid var(--line);color:var(--ink-200);height:40px;
+  display:flex;align-items:center;justify-content:center;padding:0;clip-path:var(--cut-sm);
+  transition:background var(--t) var(--ease),border-color var(--t) var(--ease),color var(--t) var(--ease)}
+.map-arrow:hover{border-color:var(--sys);color:#fff;background:var(--bg-600)}
 .map-arrow:active{transform:translateY(1px)}
-#map-name{font-family:var(--mono);font-size:14px;letter-spacing:1px;text-align:center;
-  color:var(--cs);background:#0a141a;border:1px solid var(--line);padding:10px 6px;
-  line-height:1.35;min-height:40px;display:flex;align-items:center;justify-content:center}
 
-#bots-select,#diff-select{font-family:var(--mono);font-size:14px;letter-spacing:1px;text-align:center;
-  background:#0a141a;border:1px solid var(--line);color:var(--cs);padding:10px 12px;outline:none;cursor:pointer;width:100%}
-#bots-select:hover,#diff-select:hover{border-color:var(--cs)}
+#bots-select,#diff-select{font-family:var(--mono);font-size:var(--fs-200);letter-spacing:var(--tr-1);text-align:center;
+  background:var(--bg-800);border:1px solid var(--line);color:var(--ink-100);padding:10px 12px;outline:none;cursor:pointer;width:100%;
+  transition:border-color var(--t) var(--ease)}
+#bots-select:hover,#diff-select:hover{border-color:var(--line-2)}
 
 /* empilha em telas estreitas */
 @media(max-width:640px){
@@ -350,31 +521,53 @@ body{font-family:var(--font);font-weight:600;color:var(--ink1)}
 /* ============ MENU (Coro Solto) — wallpaper + lista de texto à esquerda ============ */
 #main-menu.cs-screen{display:block;padding:0;gap:0;overflow:hidden}
 .cs-wallpaper{position:absolute;inset:0;z-index:0;background:#05090c center/cover no-repeat}
+/* Scrim que NASCE na borda da tela e morre em nada (CS2/Valorant). O texto passa a
+   depender do scrim, não de um card — por isso o painel de nav pode perder a caixa. */
 .cs-vignette{position:absolute;inset:0;z-index:1;pointer-events:none;
-  background:linear-gradient(0deg,rgba(7,11,16,.82) 0%,rgba(7,11,16,0) 36%)}
+  background:
+    linear-gradient(0deg,rgba(5,8,11,.88) 0%,rgba(5,8,11,0) 42%),
+    linear-gradient(90deg,rgba(5,8,11,.74) 0%,rgba(5,8,11,0) 48%),
+    var(--lambe)}                                   /* textura de lambe-lambe: 1px de papel, quase subliminar */
 .cs-left{position:absolute;z-index:3;left:min(4vw,64px);bottom:6vh;
-  display:flex;flex-direction:column;align-items:flex-start;gap:12px;max-width:52vw}
-.cs-menu{display:flex;flex-direction:column;gap:2px;width:min(400px,88vw);padding:16px 20px 16px 16px;
-  background:linear-gradient(90deg,rgba(7,11,16,.92),rgba(7,11,16,.68) 72%,rgba(7,11,16,.25));
-  border:1px solid var(--line);border-left:3px solid var(--cs)}
+  display:flex;flex-direction:column;align-items:flex-start;gap:var(--s-3);max-width:52vw}
+/* Trilho de acento no lugar do retângulo cinza: caixa FECHADA sobre foto lê como
+   "widget colado". Sem border nos 4 lados, gradiente termina em 0 (não em .25, que
+   criava uma aresta dura de opacidade no lado direito). */
+.cs-menu{position:relative;display:flex;flex-direction:column;gap:var(--s-1);width:min(460px,90vw);
+  padding:var(--s-4) var(--s-8) var(--s-4) var(--s-4);border:0;
+  background:linear-gradient(90deg,rgba(5,8,11,.90) 0%,rgba(5,8,11,.70) 55%,rgba(5,8,11,0) 100%)}
+/* único elemento com aresta = o trilho. Faixa amarelo/preto de sinaleiro de rua:
+   é a identidade BR entrando por linguagem visual de via pública, não por bandeirinha. */
+.cs-menu::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--hazard)}
+.cs-menu-label{font-family:var(--mono);font-size:var(--fs-50);letter-spacing:var(--tr-4);
+  color:var(--ink-300);text-transform:uppercase;padding:0 0 var(--s-2) var(--s-3);margin-bottom:var(--s-1);
+  border-bottom:1px solid rgba(255,255,255,.07)}
 .cs-item{appearance:none;background:none;border:0;border-left:3px solid transparent;
-  color:var(--ink2);font-family:var(--font);font-weight:700;
-  font-size:clamp(19px,2.7vh,27px);letter-spacing:3px;text-transform:uppercase;text-align:left;
-  padding:7px 14px 7px 10px;cursor:pointer;position:relative;
-  transition:color .16s,border-color .16s,transform .16s,letter-spacing .16s,background .16s;
-  animation:cs-item-in .4s cubic-bezier(.2,.8,.2,1) backwards}
-.cs-item:nth-child(1){animation-delay:.05s}.cs-item:nth-child(2){animation-delay:.10s}
-.cs-item:nth-child(3){animation-delay:.15s}.cs-item:nth-child(4){animation-delay:.20s}
-.cs-item:nth-child(5){animation-delay:.25s}.cs-item:nth-child(6){animation-delay:.30s}
+  color:var(--ink-200);font-family:var(--font);font-weight:700;
+  font-size:clamp(19px,2.7vh,27px);letter-spacing:var(--tr-3);text-transform:uppercase;text-align:left;
+  padding:7px var(--s-4) 7px var(--s-3);cursor:pointer;position:relative;
+  text-shadow:var(--sh-text);                                   /* idle a 11:1 de contraste, não mais 58% de opacidade */
+  transition:color var(--t-slow) var(--ease),border-color var(--t) var(--ease),
+             transform var(--t-slow) var(--ease),letter-spacing var(--t-slow) var(--ease),background var(--t) var(--ease);
+  animation:cs-item-in .4s var(--ease) backwards}
+/* nth-of-type (não nth-child): o rótulo "// ESCOLHA A TRETA" é um div e desalinhava a escada */
+.cs-item:nth-of-type(1){animation-delay:.05s}.cs-item:nth-of-type(2){animation-delay:.10s}
+.cs-item:nth-of-type(3){animation-delay:.15s}.cs-item:nth-of-type(4){animation-delay:.20s}
+.cs-item:nth-of-type(5){animation-delay:.25s}.cs-item:nth-of-type(6){animation-delay:.30s}
 @keyframes cs-item-in{from{opacity:0;transform:translateX(-22px)}to{opacity:1;transform:translateX(0)}}
 .cs-tick{display:inline-block;width:0;overflow:hidden;opacity:0;color:var(--am);
-  transform:translateX(-8px);transition:all .16s;margin-right:0}
-.cs-item:hover,.cs-item:focus-visible{color:#fff;border-left-color:var(--cs);
-  transform:translateX(10px);letter-spacing:4px;
+  transform:translateX(-8px);transition:all var(--t) var(--ease);margin-right:0}
+.cs-item:hover,.cs-item:focus-visible{color:#fff;border-left-color:var(--sys);
+  transform:translateX(10px);letter-spacing:var(--tr-4);
   background:linear-gradient(90deg,rgba(57,214,224,.14),rgba(57,214,224,0));outline:none}
 .cs-item:hover .cs-tick,.cs-item:focus-visible .cs-tick{width:22px;opacity:1;transform:translateX(0);margin-right:6px}
-.cs-left .footnote{position:static;color:var(--ink3);font-size:12px;max-width:400px;margin-top:0;
-  padding-left:16px;border-left:3px solid transparent;line-height:1.5}
+/* SELECIONADO/ATUAL: sem isso, nada dizia que o painel aberto veio de SINGLE PLAYER. */
+.cs-item[aria-current="true"]{color:#fff;border-left-color:var(--am);
+  background:linear-gradient(90deg,rgba(255,180,77,.16),rgba(255,180,77,0))}
+.cs-item[aria-current="true"] .cs-tick{width:22px;opacity:1;transform:none;margin-right:6px}
+.cs-left .footnote{position:static;color:var(--ink-300);font-size:var(--fs-100);max-width:420px;margin-top:0;
+  padding-left:var(--s-4);border-left:3px solid transparent;line-height:var(--lh-base);letter-spacing:var(--tr-tight);
+  text-shadow:var(--sh-text)}
 /* painel de setup (perfil + partida), desliza da direita sobre o wallpaper */
 /* painel de setup: SUBSTITUI o menu principal (a nav esmaece) e fica docado à direita,
    em altura cheia — pedido do dono ("o menu do jogo substitui o principal, tudo à direita") */
@@ -383,24 +576,45 @@ body{font-family:var(--font);font-weight:600;color:var(--ink1)}
 .cs-setup{position:absolute;z-index:4;right:0;top:0;bottom:0;width:min(700px,62vw);
   display:flex;flex-direction:column;justify-content:center;
   padding:42px min(4vw,56px) 42px 30px;overflow-y:auto;
-  background:linear-gradient(270deg,rgba(7,11,16,.94) 42%,rgba(7,11,16,.6) 80%,rgba(7,11,16,0));
+  background:linear-gradient(270deg,rgba(5,8,11,.94) 42%,rgba(5,8,11,.62) 80%,rgba(5,8,11,0));
   transform:translateX(36px);opacity:0;pointer-events:none;
-  transition:opacity .22s,transform .22s}
+  transition:opacity var(--t-slow) var(--ease),transform var(--t-slow) var(--ease)}
 .cs-setup.open{opacity:1;transform:none;pointer-events:auto}
-.cs-setup-head{font-family:var(--font);font-weight:700;letter-spacing:4px;
-  font-size:22px;color:var(--am);text-transform:uppercase;margin-bottom:10px;text-align:right;
-  border-bottom:1px solid var(--line);padding-bottom:6px}
+/* Cabeçalho do setup: eyebrow (passo do fluxo) + título. Sem isso o painel abria sem
+   dizer de onde veio nem em que etapa o jogador está. */
+.cs-setup-head{font-family:var(--font);font-weight:700;letter-spacing:var(--tr-4);
+  font-size:var(--fs-500);color:var(--am);text-transform:uppercase;margin-bottom:var(--s-3);text-align:right;
+  border-bottom:1px solid var(--line);padding-bottom:var(--s-2)}
+.cs-setup-head small{display:block;font-family:var(--mono);font-size:var(--fs-50);letter-spacing:var(--tr-3);
+  color:var(--ink-300);margin-bottom:var(--s-1)}
 /* VOLTAR do setup fica NO FLUXO do card (era absolute e flutuava por cima do SEU PERFIL) */
 #menu-setup .btn-back{position:static}
 .cs-setup-actions{display:flex;gap:12px;justify-content:space-between;align-items:center;margin-top:14px}
 .cs-setup-actions #btn-jogar{flex:1}
-/* seletor de mapa com preview quadrado (capturas reais em /img/map-previews/) */
-.map-picker{display:grid;grid-template-columns:116px 1fr;gap:10px;align-items:center}
-#map-thumb{width:116px;height:116px;object-fit:cover;display:block;
-  background:#0a141a;border:1px solid var(--line);clip-path:var(--cut-sm);transition:opacity .18s}
-.map-side{display:flex;flex-direction:column;gap:8px;min-width:0}
-.map-arrows{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.map-arrows .map-arrow{height:36px;width:100%}
+/* Seletor de mapa: o preview VIRA a peça principal (era um <img> de 116px ao lado do
+   nome). Agora é um cartaz 16:9 com o nome sobreposto, badge de modo e setas nas
+   bordas — o jogador escolhe pela imagem, não pelo texto. */
+.map-picker{position:relative;display:block;width:100%}
+#map-thumb{width:100%;aspect-ratio:16/9;height:auto;object-fit:cover;display:block;
+  background:var(--bg-800);border:1px solid var(--line);clip-path:var(--cut);
+  transition:opacity var(--t-slow) var(--ease)}
+.map-picker::after{content:"";position:absolute;inset:0;pointer-events:none;clip-path:var(--cut);
+  background:linear-gradient(0deg,rgba(5,8,11,.92) 0%,rgba(5,8,11,.15) 46%,rgba(5,8,11,.35) 100%)}
+.map-side{position:absolute;left:0;right:0;bottom:0;z-index:2;padding:var(--s-2) var(--s-3);min-width:0}
+#map-name{font-family:var(--font);font-weight:700;font-size:var(--fs-300);letter-spacing:var(--tr-1);
+  text-transform:uppercase;text-align:left;color:var(--ink-100);background:none;border:0;padding:0;
+  line-height:var(--lh-snug);min-height:0;display:block;text-shadow:var(--sh-text);white-space:normal}
+/* setas nas BORDAS da arte (era uma barra abaixo que roubava a largura do nome e
+   truncava "HAVAN — ESTACIONAMENTO" em "HAVAN — ES…") */
+.map-arrows{position:absolute;top:44%;left:0;right:0;z-index:3;transform:translateY(-50%);
+  display:flex;justify-content:space-between;padding:0 var(--s-1);pointer-events:none}
+.map-arrows .map-arrow{height:42px;width:28px;pointer-events:auto;background:rgba(5,8,11,.7)}
+#map-mode{position:absolute;top:var(--s-2);left:var(--s-2);z-index:2;font-family:var(--mono);
+  font-size:var(--fs-50);letter-spacing:var(--tr-2);color:var(--bg-900);background:var(--am);
+  padding:2px var(--s-2);text-transform:uppercase}
+#map-dots{position:absolute;top:var(--s-2);right:var(--s-2);z-index:2;display:flex;gap:5px}
+#map-dots i{width:6px;height:6px;background:rgba(255,255,255,.32);display:block;transition:background var(--t)}
+#map-dots i.on{background:var(--br-faixa)}
 
 /* fundo das telas de seleção = wallpaper rotativo (--wall, setado no main.js) + overlay escuro */
 #team-select,#char-select{
@@ -412,26 +626,28 @@ body{font-family:var(--font);font-weight:600;color:var(--ink1)}
 /* ============ SPLASH DE BOOT + LOADING (G2-R6B) ============ */
 /* Splash: tela de entrada com identidade — cobre o load inicial (nada de cena parcial
    visível) e o 1º gesto destrava o áudio COM SOM (autoplay exige gesto do usuário). */
+/* splash agora fala a língua da key art: brilho quente (tinta/poeira), textura de papel
+   colado — nada de glow ciano de terminal, que era a 2ª marca do jogo em 3 segundos */
 #boot-splash{position:fixed;inset:0;z-index:120;display:flex;align-items:center;justify-content:center;
   background:
-    radial-gradient(ellipse at 50% 38%,rgba(57,214,224,.07),rgba(0,0,0,0) 55%),
+    radial-gradient(ellipse at 50% 40%,rgba(255,201,63,.07),rgba(0,0,0,0) 58%),
+    radial-gradient(ellipse at 50% 96%,rgba(226,64,44,.10),rgba(0,0,0,0) 60%),
     linear-gradient(180deg,#080d12,#05090c);
   transition:opacity .45s ease;cursor:pointer}
-#boot-splash::before{content:"";position:absolute;inset:0;pointer-events:none;opacity:.5;
-  background:
-    repeating-linear-gradient(0deg,transparent 0 3px,rgba(0,0,0,.22) 3px 4px)}
+#boot-splash::before{content:"";position:absolute;inset:0;pointer-events:none;opacity:.6;
+  background:var(--lambe)}
 #boot-splash.gone{opacity:0;pointer-events:none}
 .splash-frame{display:flex;flex-direction:column;align-items:center;gap:14px;padding:0 20px}
 #splash-logo{width:min(560px,86vw);height:auto}
-.splash-sub{font-family:var(--mono);font-size:12px;letter-spacing:4px;color:var(--ink2)}
-.splash-bar{width:min(360px,72vw);height:6px;background:#0a141a;border:1px solid var(--line);
+.splash-sub{font-family:var(--mono);font-size:var(--fs-100);letter-spacing:var(--tr-4);color:var(--ink-300)}
+.splash-bar{width:min(360px,72vw);height:6px;background:var(--bg-800);border:1px solid var(--line);
   clip-path:var(--cut-sm);overflow:hidden}
-.splash-bar>div{height:100%;width:0;background:linear-gradient(90deg,var(--cs),var(--am));
-  transition:width .18s ease}
+.splash-bar>div{height:100%;width:0;background:linear-gradient(90deg,var(--br-sinal),var(--br-faixa));
+  transition:width var(--t-slow) ease}
 .splash-status{width:min(360px,72vw);display:flex;justify-content:space-between;
-  font-family:var(--mono);font-size:11px;letter-spacing:2px;color:var(--ink3)}
-#splash-enter{margin-top:20px;font-family:var(--font);font-weight:700;font-size:21px;
-  letter-spacing:4px;color:var(--am);text-transform:uppercase;animation:splashPulse 1.1s ease-in-out infinite}
+  font-family:var(--mono);font-size:var(--fs-50);letter-spacing:var(--tr-2);color:var(--ink-300)}
+#splash-enter{margin-top:var(--s-5);font-family:var(--font);font-weight:700;font-size:var(--fs-500);
+  letter-spacing:var(--tr-4);color:var(--br-faixa);text-transform:uppercase;animation:splashPulse 1.1s ease-in-out infinite}
 @keyframes splashPulse{0%,100%{opacity:1}50%{opacity:.35}}
 .splash-ver{position:absolute;right:18px;bottom:14px;font-family:var(--mono);font-size:11px;
   letter-spacing:2px;color:var(--ink3)}
@@ -439,13 +655,14 @@ body{font-family:var(--font);font-weight:600;color:var(--ink1)}
 /* Loading de partida/personagens: overlay OPACO (a cena montando nunca aparece) */
 #load-overlay{position:fixed;inset:0;z-index:110;display:flex;align-items:center;justify-content:center;
   background:
-    radial-gradient(ellipse at 50% 42%,rgba(57,214,224,.06),rgba(0,0,0,0) 55%),
+    radial-gradient(ellipse at 50% 42%,rgba(255,201,63,.06),rgba(0,0,0,0) 55%),
     linear-gradient(180deg,#080d12,#05090c)}
-.lo-box{display:flex;flex-direction:column;align-items:center;gap:16px;padding:0 20px}
-.lo-title{font-family:var(--font);font-weight:700;font-size:40px;letter-spacing:6px;color:var(--ink1);
-  text-transform:uppercase;line-height:1;display:flex;flex-direction:column;align-items:center;gap:6px}
-.lo-title span{font-family:var(--mono);font-size:12px;letter-spacing:5px;color:var(--am)}
-#load-label{font-family:var(--mono);font-size:14px;letter-spacing:3px;color:var(--cs);text-transform:uppercase}
+#load-overlay::before{content:"";position:absolute;inset:0;pointer-events:none;background:var(--lambe);opacity:.6}
+.lo-box{display:flex;flex-direction:column;align-items:center;gap:var(--s-4);padding:0 var(--s-5);position:relative}
+.lo-title{font-family:var(--font);font-weight:700;font-size:var(--fs-800);letter-spacing:var(--tr-6);color:var(--ink-100);
+  text-transform:uppercase;line-height:var(--lh-tight);display:flex;flex-direction:column;align-items:center;gap:var(--s-1)}
+.lo-title span{font-family:var(--mono);font-size:var(--fs-100);letter-spacing:5px;color:var(--br-faixa)}
+#load-label{font-family:var(--mono);font-size:var(--fs-200);letter-spacing:var(--tr-3);color:var(--ink-200);text-transform:uppercase}
 .lo-bar{width:min(440px,78vw)}
 .lo-bar+.splash-status{width:min(440px,78vw)}
 

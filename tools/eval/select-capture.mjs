@@ -16,7 +16,7 @@ const chromium = _pw.chromium || _pw.default?.chromium;
 
 mkdirSync(OUT, { recursive: true });
 const browser = await chromium.launch({
-  executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+  executablePath: process.env.CHROME_BIN || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
   args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--headless=new', '--mute-audio'],
 });
 const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
