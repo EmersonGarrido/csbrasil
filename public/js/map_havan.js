@@ -1162,7 +1162,9 @@ export function buildHavan(scene, T) {
   const gmat = lam({ color: 0x20242a });
   const place = (kind, x, z) => { const m = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.12, 1.0), gmat); m.position.set(x, groundHeightAt(x, z) + 0.1, z); m.castShadow = true; root.add(m); pickups.push({ x, z, kind, weapon: kind, readyAt: 0, mesh: m }); };
   ['ak', 'm4', 'mp5', 'shotgun'].forEach((k, i) => place(k, -9 + i * 6, -13));
-  place('awp', 0, MZ.z0 + 2); place('m400', -10, MZ.z0 + 2);   // snipers no mezanino
+  // snipers NO CHÃO (dono: não dá pra subir no mezanino/mesa pra pegar). z fora do footprint
+  // do mezanino -> groundHeightAt=0 -> chão, alcançável, estilo CS (arma no chão).
+  place('awp', 5, MZ.z0 - 3.5); place('m400', -6, MZ.z0 - 3.5);
   ['deagle', 'ak', 'm4', 'shotgun', 'mp5', 'awp'].forEach((k, i) => place(k, -25 + i * 10, 44));   // estacionamento
 
   // saia de contato: todas as bases registradas viram UMA malha mesclada = 1 draw call
