@@ -1611,7 +1611,7 @@ export class Game {
       const back = sz > 0 ? 1 : -1;                            // pra FORA do mapa, atrás de quem nasce
       const flat = rackRows.flat();
       const perRow = Math.ceil(flat.length / 2);
-      const HW = 5.5, TOP = 0.95;
+      const HW = 5.5, TOP = 0.12;   // armas NO CHÃO (dono: estilo CS — a mesa a 0,95 m era inalcançável)
       for (let r = 0; r < 2; r++) {
         const row = flat.slice(r * perRow, (r + 1) * perRow);
         if (!row.length) continue;
@@ -1620,18 +1620,8 @@ export class Game {
           const gx = row.length > 1 ? -HW + (c * 2 * HW) / (row.length - 1) : 0;
           this._dropWeapon(gx, rz, w, true, TOP);
         });
-        // a mesa: tampo + dois cavaletes. Sem colisão — o jogador atravessa e pega a arma
-        // andando por cima; colidir aqui só criaria trava de spawn.
-        const top = new THREE.Mesh(new THREE.BoxGeometry(2 * HW + 1.2, 0.08, 0.9),
-          new THREE.MeshStandardMaterial({ color: 0x3a3f45, roughness: 0.85, metalness: 0.1 }));
-        top.position.set(0, TOP - 0.05, rz); top.receiveShadow = true; top.castShadow = true;
-        this.scene.add(top); this._rackFurniture.push(top);
-        for (const sx of [-HW + 0.2, HW - 0.2]) {
-          const leg = new THREE.Mesh(new THREE.BoxGeometry(0.12, TOP - 0.05, 0.7),
-            new THREE.MeshStandardMaterial({ color: 0x2b2f34, roughness: 0.9 }));
-          leg.position.set(sx, (TOP - 0.05) / 2, rz); leg.castShadow = true;
-          this.scene.add(leg); this._rackFurniture.push(leg);
-        }
+        // SEM mesa: as armas ficam NO CHÃO em fileira (dono pediu estilo CS — a mesa a 0,95 m
+        // era bonita mas inalcançável; no chão o jogador anda por cima e pega andando).
       }
     }
     for (const k in this.vm.models) this.vm.models[k].visible = k === this.player.weapon;
