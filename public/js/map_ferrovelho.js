@@ -1582,12 +1582,14 @@ export function buildFerroVelho(scene, T) {
     P: [-6, -2, 2, 6].map(x => ({ x, z: HALF_Z - 3, yaw: 0 })),
     B: [-14, -9, -4, 1].map(x => ({ x, z: -25, yaw: Math.PI })),
   };
-  // 4 bandeiras: portão (P), beco oeste, pátio leste, galpão (B)
+  // 4 bandeiras (dono): 1 CENTRAL + as outras ESPAÇADAS, e NENHUMA no respawn (a antiga
+  // 'PORTÃO' 0,31 nascia colada no spawn P z33; a 'GALPÃO' -16,-31 atrás do spawn B z-25).
+  // Agora: centro + sudoeste (13 m à frente do spawn P) + leste + norte (11 m à frente do B).
   const ctfPoints = [
-    { id: 'P', label: 'PORTÃO', x: 0, z: 31 },
-    { id: 'W', label: 'BECO OESTE', x: -24, z: -14 },
-    { id: 'E', label: 'PÁTIO LESTE', x: 24, z: 4 },
-    { id: 'B', label: 'GALPÃO', x: -16, z: -31 },
+    { id: 'P', label: 'CENTRO', x: 0, z: 2 },
+    { id: 'W', label: 'BECO SUL', x: -20, z: 20 },
+    { id: 'E', label: 'PÁTIO LESTE', x: 24, z: 0 },
+    { id: 'B', label: 'GALPÃO', x: -8, z: -14 },
   ];
 
   // arsenal: shotgun/rifles no miolo do labirinto, snipers nos cantos, pistolas no spawn
