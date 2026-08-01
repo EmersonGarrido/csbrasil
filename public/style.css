@@ -876,9 +876,11 @@ html[data-ui="legacy"] .cs-vignette{
   background:linear-gradient(180deg,#080d12,#05090c);
   background-size:cover;background-position:center;background-repeat:no-repeat;
   transition:opacity .45s ease;cursor:pointer}
-/* scrim escuro pra legibilidade do logo/msg sobre o wallpaper loading-* (setado via JS) */
+/* scrim escuro pra legibilidade da msg sobre o wallpaper loading-* (setado via JS) */
 #boot-splash::before{content:"";position:absolute;inset:0;pointer-events:none;
   background:linear-gradient(180deg,rgba(5,9,12,.5) 0%,rgba(5,9,12,.32) 45%,rgba(5,9,12,.84) 100%)}
+/* o wallpaper loading-* já traz a marca CORO SOLTO — sem logo/subtítulo duplicado (pedido do dono) */
+#splash-logo,.splash-sub{display:none}
 #boot-splash.gone{opacity:0;pointer-events:none}
 .splash-frame{display:flex;flex-direction:column;align-items:center;gap:14px;padding:0 20px}
 #splash-logo{width:min(560px,86vw);height:auto}
