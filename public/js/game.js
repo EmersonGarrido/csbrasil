@@ -299,13 +299,13 @@ function vmFovForAspect(aspect) {
   // FOV base do viewmodel: MAIOR = arma menor na tela (o único jeito real de encolher — baixar
   // vmScale auto-compensa a distância). Default subido 62->78 (dono: "arma gigante, quero no
   // canto igual ev.io"). Tunável ao vivo com ?vmfov=N.
-  const REF = 16 / 9, V0 = (_q.get('vmfov') ? +_q.get('vmfov') : (_q.get('vmwide') === '1' ? 70 : 82)) * Math.PI / 180;
+  const REF = 16 / 9, V0 = (_q.get('vmfov') ? +_q.get('vmfov') : (_q.get('vmwide') === '1' ? 70 : 64)) * Math.PI / 180;
   const halfH = Math.atan(Math.tan(V0 / 2) * REF);
   return 2 * Math.atan(Math.tan(halfH) / aspect) * 180 / Math.PI;
 }
 // Offset base do viewmodel em VIEW SPACE (x=direita, y=cima, z=frente) — empurra a arma pro
 // CANTO inferior-direito (ev.io). Default desce/direita um pouco; tunável ao vivo com ?vmoff=x,y,z.
-const VM_OFF = (() => { const s = (new URLSearchParams(location.search).get('vmoff') || '').split(',').map(Number); return s.length === 3 && s.every((n) => !isNaN(n)) ? s : [0.10, -0.15, 0.02]; })();
+const VM_OFF = (() => { const s = (new URLSearchParams(location.search).get('vmoff') || '').split(',').map(Number); return s.length === 3 && s.every((n) => !isNaN(n)) ? s : [0.03, -0.20, 0]; })();
 // chave do staticVm por arma (variante por id quando existe; senão a classe)
 function staticVmKey(w) {
   return (SNIPER_VM[w] || RIFLE_VM[w] || PISTOL_VM[w] || SHOTGUN_VM[w]) ? w : (STATIC_CLASS[w] || null);
