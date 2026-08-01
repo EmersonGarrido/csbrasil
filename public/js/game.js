@@ -2805,7 +2805,7 @@ export class Game {
 
   // Pano da bandeira CTF: base clara (a cor do time multiplica), faixas de ondulação,
   // gradiente e borda gasta/desfiada na ponta — nunca um retângulo de cor plana.
-  _makeCtfFlagTex() {
+  _makeCtfFlagTex(fac) {
     const c = document.createElement('canvas'); c.width = 256; c.height = 160;
     const x = c.getContext('2d');
     let seed = 163; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
@@ -2822,7 +2822,37 @@ export class Game {
     // borda gasta: desfiado na ponta (fly end) e vincos no mastro
     for (let i = 0; i < 26; i++) { x.clearRect(250 + rnd() * 6, rnd() * 160, 2 + rnd() * 6, 1 + rnd() * 4); }
     x.strokeStyle = 'rgba(90,86,80,0.5)'; x.lineWidth = 3; x.beginPath(); x.moveTo(4, 0); x.lineTo(4, 160); x.stroke();
-    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+    t._fac = fac; t._canvas = c; this._paintFlagSymbol(t);   // emblema da facção dona (se já carregou)
+    return t;
+  }
+
+  // Estampa o símbolo da facção (img/symbols/<fac>.png) centrado no pano da bandeira.
+  _paintFlagSymbol(t) {
+    const img = this._ctfSymImg && this._ctfSymImg[t._fac];
+    if (!t._fac || !img || !img.complete || !img.naturalWidth) return;
+    const x = t._canvas.getContext('2d');
+    const H = 122, W = H * img.naturalWidth / img.naturalHeight;
+    x.drawImage(img, 128 - W / 2, 82 - H / 2, W, H);
+    t.needsUpdate = true;
+  }
+  // Textura de bandeira por facção (cacheada). null = pano neutro sem emblema.
+  _flagTexFor(fac) {
+    this._flagTexCache = this._flagTexCache || {};
+    const k = fac || '_';
+    if (!this._flagTexCache[k]) this._flagTexCache[k] = this._makeCtfFlagTex(fac);
+    return this._flagTexCache[k];
+  }
+  // Pré-carrega os 4 emblemas; ao carregar, repinta a textura já cacheada daquela facção.
+  _loadCtfSymbols() {
+    if (this._ctfSymImg) return;
+    this._ctfSymImg = {};
+    for (const f of ['P', 'B', 'U', 'C']) {
+      const img = new Image();
+      img.onload = () => { const t = this._flagTexCache && this._flagTexCache[f]; if (t) this._paintFlagSymbol(t); };
+      img.src = `img/symbols/${f.toLowerCase()}.png`;
+      this._ctfSymImg[f] = img;
+    }
   }
 
   // Zona de captura CTF: disco de terra compactada escura c/ borda irregular + anel pintado
@@ -2974,6 +3004,7 @@ export class Game {
     if (f === 'U') return dark ? '#2f7fe0' : '#4aa3ff';            // Tribos azul
     if (f === 'P') return dark ? '#e03232' : '#ff5555';            // Petista vermelho
     if (f === 'B') return dark ? '#1faa4d' : '#55dd66';            // Bolsonarista verde
+    if (f === 'C') return dark ? '#c23a86' : '#ff6ec7';            // Palhaços rosa-circo
     return dark ? '#aaaaaa' : '#999999';
   }
   // Pack de vozes/round por FACÇÃO: o lado do jogador usa 'U' (Tribos) quando a facção é Tribos
@@ -2981,8 +3012,8 @@ export class Game {
   // Facção que ocupa um LADO físico (P/B): lado do jogador = playerFaction, o outro = enemyFaction.
   _factionOf(side) { return side === this.playerTeam ? this.playerFaction : this.enemyFaction; }
   _voiceKey(side) { return this._factionOf(side); }   // pack de vozes/round por facção (P/B/U)
-  _teamName(side) { const f = this._factionOf(side); return f === 'U' ? 'TRIBOS URBANAS' : (TEAM_LABEL[f] || f); }
-  _teamTag(side) { const f = this._factionOf(side); return f === 'U' ? 'TRB' : f === 'P' ? 'PET' : 'BOL'; }
+  _teamName(side) { const f = this._factionOf(side); return f === 'U' ? 'TRIBOS URBANAS' : f === 'C' ? 'PALHAÇOS' : (TEAM_LABEL[f] || f); }
+  _teamTag(side) { const f = this._factionOf(side); return f === 'U' ? 'TRB' : f === 'C' ? 'PLH' : f === 'P' ? 'PET' : 'BOL'; }
   _mirror(side) { return side === this.enemyTeam && this.enemyFaction === this.playerFaction; }   // inimigo = mesma facção
   // Separação (boids): empurra o bot pra longe de colegas do mesmo time num raio curto, pra eles
   // NÃO andarem colados em fila indiana sobre o mesmo path. Peso ~inverso à distância.
@@ -3018,6 +3049,7 @@ export class Game {
     this._collide(b.pos, 0.38);
   }
   _initCTF() {
+    this._loadCtfSymbols();   // emblemas das facções (estampam a bandeira do dono)
     for (const p of this.ctfPts) for (const m of [p.ring, p.zone, p.pole, p.flag]) if (m) this.scene.remove(m);
     const sP = this.world.spawns.P[0], sB = this.world.spawns.B[0];
     const mk = (id, label, x, z) => {
@@ -3035,7 +3067,7 @@ export class Game {
       // gradiente e borda gasta — a cor do time multiplica o pano dessaturado.
       const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 4.2, 8), new THREE.MeshStandardMaterial({ color: 0xbfc3c9, metalness: 0.6, roughness: 0.5 }));
       pole.position.set(x, 2.1, z);
-      const flag = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 1.05, 6, 3), new THREE.MeshBasicMaterial({ map: this._ctfFlagTex || (this._ctfFlagTex = this._makeCtfFlagTex()), color: 0xaaaaaa, side: THREE.DoubleSide }));
+      const flag = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 1.05, 6, 3), new THREE.MeshBasicMaterial({ map: this._flagTexFor(null), color: 0xaaaaaa, side: THREE.DoubleSide }));
       // ondulação estática do pano (vértices em seno — sem custo de animação)
       {
         const pos = flag.geometry.attributes.position;
@@ -3084,7 +3116,7 @@ export class Game {
         pt.prog += (dt * crew) / (pt.owner ? CAP_STEAL : CAP_NEUTRAL);
         if (pt.prog >= 1) {
           pt.owner = solo; pt.prog = 0;
-          this.sfx.captureSound && this.sfx.captureSound();   // som de captura de bandeira (pasta audio/capture)
+          this.sfx.captureSound && this.sfx.captureSound(this._factionOf(solo));   // captura: pool de som por facção (palhaços = pasta própria)
           // credita a captura: +1 pro time e +1 pra cada combatente do time DENTRO do anel
           this.ctfCaps[solo] = (this.ctfCaps[solo] || 0) + 1;
           for (const c of this.combatants) {
@@ -3106,7 +3138,11 @@ export class Game {
       pt.ring.material.opacity = pt.contested
         ? 0.55 + 0.4 * Math.abs(Math.sin(this.time * 7))
         : 0.5 + 0.45 * (pt.prog || (pt.owner ? 1 : 0));
-      if (pt.flag) pt.flag.material.color.set(this._teamColor(pt.owner, true)).lerp(this._ctfGray, pt.owner ? 0.25 : 0);   // pano dessaturado
+      if (pt.flag) {   // emblema da facção dona no pano; troca a textura só quando o dono muda
+        const fac = pt.owner ? this._factionOf(pt.owner) : null;
+        if (pt._flagFac !== fac) { pt._flagFac = fac; pt.flag.material.map = this._flagTexFor(fac); pt.flag.material.needsUpdate = true; }
+        pt.flag.material.color.set(pt.owner ? 0xe6e6e6 : 0xaaaaaa);   // dono: quase branco p/ o emblema mostrar cor real
+      }
     }
     this._updateCtfHud();   // atualiza a barra de progresso de captura a cada frame
     const owners = this.ctfPts.map(p => p.owner);
@@ -3664,9 +3700,12 @@ export class Game {
     // _vmFrame a partir da alça de mira do GLB) e leva a alça ao centro EXATO da tela — é
     // literalmente sight picture, não "arma deslizando pro canto". Sem MINT_VM, cai na
     // tabela por classe do pipeline Tripo (_adsPose), que é o que existia.
-    const poseM = MINT_VM ? (this.vm.ads && this.vm.ads[p.weapon]) : null;
-    const pose = poseM ? { x: poseM.x, y: poseM.y, z: poseM.z, s: 1, rx: 0, ry: 0 }
-      : (this._adsPose[STATIC_CLASS[p.weapon]] || this._adsPose._hip);
+    // ADS CONSISTENTE (dono: "simplicidade > realismo, o jogo tem que casar"): a detecção de
+    // alça de mira por-arma (vm.ads[weapon]) era FRÁGIL — em várias GLBs a alça caía errada e a
+    // pose virava -s.y grande, DERRUBANDO a arma pra baixo/fora ("miro e a arma aponta pra baixo,
+    // não vejo mira"). Trocado por uma pose de mira por CLASSE, igual pra todas as armas: nudge
+    // sutil pro centro + leve zoom, sempre legível, nunca some. (?tripovm=1 mantém o antigo.)
+    const pose = this._adsPose[STATIC_CLASS[p.weapon]] || this._adsPose._hip;
     // ADS rifle (R7.6, SÓ no pipeline Tripo): sight picture era impossível com o
     // arms_rifle.glb (mesh único, cano baked em diagonal) — em adsF>0.8 o VM DESLIZAVA pra
     // fora da tela e a crosshair virava a variante fina de precisão. Era a origem literal do
@@ -3941,26 +3980,15 @@ export class Game {
       polygonOffset: true, polygonOffsetFactor: -3, toneMapped: false,
     }));
     halo.rotation.x = -Math.PI / 2; halo.scale.setScalar(1.45); halo.renderOrder = 3;
-    const chev = new THREE.Sprite(new THREE.SpriteMaterial({
-      map: this._teamMarkTex(ally ? 'chevAlly' : 'chevEnemy'), color: col,
-      transparent: true, depthTest: !ally, depthWrite: false, toneMapped: false,
-    }));
-    chev.renderOrder = 4;
-    this.scene.add(halo); this.scene.add(chev);
-    bot._mark = { halo, chev, ally };
+    this.scene.add(halo);
+    bot._mark = { halo, ally };   // SEM chevron/seta na cabeça (pedido do dono) — só o halo no chão
   }
   _updateTeamMark(b) {
     const m = b._mark;
     if (!m) return;
-    if (!b.alive || !b.mesh.group.visible) { m.halo.visible = false; m.chev.visible = false; return; }
-    m.halo.visible = true; m.chev.visible = true;
+    if (!b.alive || !b.mesh.group.visible) { m.halo.visible = false; return; }
+    m.halo.visible = true;
     m.halo.position.set(b.pos.x, b.pos.y + 0.05, b.pos.z);
-    const d = this.camera.position.distanceTo(m.halo.position);
-    // escala do chevron: cresce com a distância pra manter tamanho APARENTE ~constante, com
-    // piso (não vira mancha na cara) e teto (não vira outdoor no fundo do mapa).
-    const s = Math.max(0.34, Math.min(1.6, 0.34 + d * 0.028));
-    m.chev.scale.set(s, s, 1);
-    m.chev.position.set(b.pos.x, b.pos.y + 2.12 + s * 0.34, b.pos.z);
   }
   _botEye(b) { return new THREE.Vector3(b.pos.x, b.pos.y + BOT_EYE, b.pos.z); }
   _enemyOf(bot) { return this.combatants.filter(c => c.team !== bot.team && c.alive); }
@@ -4394,7 +4422,7 @@ export class Game {
         const fxFull = (_sd < 45 && this.settings.quality !== 'low') || (fxTick % 2) === 0;
         if (fxFull) {
           this._tracer(from.clone().add(dir.clone().multiplyScalar(0.7)), end);
-          this.sfx.shotWeapon(b.weapon, _sd, 1, _pan, Math.min(0.25, _sd / 343));
+          this.sfx.shotWeapon(b.weapon, _sd, 0.45, _pan, Math.min(0.25, _sd / 343));   // bots MUITO mais baixos que a arma do jogador (carabina de bot estourava o mix)
         }
         this._flash(from.clone().add(dir.clone().multiplyScalar(0.85)), dir);   // GPU-batched: 1 draw call
         if (b.mesh.isGLB) b.mesh.ctrl.shoot();

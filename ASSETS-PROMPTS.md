@@ -71,3 +71,35 @@ Estilo pedido pelo usuário nesta leva: **semi-realista** (pelugem/tecido com te
 4. Ajusto escala/altura pra bater com a hitbox (afinável, igual às armas).
 
 Armas já estão resolvidas (Quaternius CC0). Props de mapa a gente faz depois, mesmo fluxo (prompt → GLB → eu integro).
+
+---
+
+## 🤡 Time dos Palhaços (gerado via Mint — modelos individuais, riggable T-pose/mãos vazias)
+
+Paródia fictícia, sem logos/nomes reais. Asset IDs Mint em geração (31/jul→01/ago).
+
+**palhacomal** (time Palhaços) — *Palhaço do Mal* — asset `ks72yk4ea6ppq14ganv1dwzs4s8bjvjg`
+> Evil circus clown villain: bald bone-white face, sharp-tooth grin, black eye makeup, cracked red nose, dark hair tufts, tattered crimson/black ringmaster costume, spiked collar, black gloves. (ref: da tatuagem)
+
+**jozo** (time Palhaços) — *Jozo* (ex-Gozo) — asset `ks79s9ytd4h4e5cqvd9kbby3ys8bjpz7 (v2)`
+> Fast-food mascot parody: white face, red wig, big pointy yellow collar, red top, blank white chest badge (no logo), big red shoes.
+
+**adjim** (time Palhaços) — *Adjim* (ex-Atchim) — asset `ks7dp8j58z0j3p9rqfmh8ax2k98bk43q`
+> Kids-show clown: green curly wig, tiny felt hat, green/yellow polka-dot jumpsuit, ruffled collar, suspenders.
+
+**esbirro** (time Palhaços) — *Esbirro* (ex-Espirro) — asset `ks7fq5y2grzmhgxjwak33mb2qn8bjx0p`
+> Partner clown: orange wig, mini bowler hat, red/blue striped jumpsuit, giant polka-dot bow tie.
+
+**titica** (time Palhaços) — *Titica* (ex-Tiririca) — asset `ks76jc6erk6hrfx702qzzmvr3d8bj0vk`
+> Mustache, white-blond wig, red firefighter cap, geometric-patchwork shirt, red pants, colorful sneakers.
+
+**padati** (time Palhaços) — *Padati* (ex-Patati) — asset `ks7cvjrkwj0jnbj18vcfs0bpf58bka5d (v2)`
+> Blue curly wig, blue/yellow patchwork overalls, striped shirt, yellow bow tie, big blue/yellow shoes.
+
+**padata** (time Palhaços) — *Padata* (ex-Patatá) — asset `ks7czxcg8qmhm17815m0pfqg798bjrdf (v2)`
+> Red curly wig, red/yellow patchwork overalls, polka-dot shirt, green bow tie, big red/yellow shoes.
+
+**cadequinha** (time Palhaços) — *Cadequinha* (ex-Carequinha) — asset `ks70tg282r0esw7c97qp7v7esd8bka79`
+> Small red top hat, red/white checkered suit, round white ruffle collar, pom-pom buttons, big red shoes.
+
+**bonzo** (time Palhaços) — *Bonzo* (ex-Bozo, reaproveita `bozo.glb` existente, só renomear)

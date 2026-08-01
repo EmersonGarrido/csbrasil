@@ -85,7 +85,7 @@ export class Sfx {
   roundSound(team) { const f = this._pick(this.pack?.round?.[team]); if (f) { this._sample(f); return true; } return false; }
   csSound(key) { const f = this._cs(key); if (f) { this._sample(f); return true; } return false; }
   general(kind) { const f = this._pick(this.pack?.general?.[kind]); if (f) { this._sample(f); return true; } return false; }
-  captureSound() { const f = this._pick(this.pack?.capture); if (f) { this._sample(f); return true; } return false; }   // som ao capturar bandeira (CTF)
+  captureSound(faction) { const arr = (faction && this.pack?.captureByTeam?.[faction]) || this.pack?.capture; const f = this._pick(arr); if (f) { this._sample(f); return true; } return false; }   // captura de bandeira (CTF): pool por facção (captureByTeam) c/ fallback global
   _cs(key) { const v = this.pack?.cs?.[key]; return v && v.length ? this._pick(v) : null; }
 
   ensure() {

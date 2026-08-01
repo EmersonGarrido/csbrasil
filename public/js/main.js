@@ -118,6 +118,7 @@ const _lo = {
 };
 function showLoading(label, status = 'CARREGANDO MODELOS 3D…') {
   _lo.label.textContent = label; _lo.status.textContent = status;
+  try { _lo.box.style.backgroundImage = wallUrl(_loadWallI++); } catch {}   // wallpaper rotativo (wall-*) no load de mapa
   _lo.box.classList.remove('hidden');
   _mkPhase(_lo.fill, _lo.pct);
 }
@@ -149,6 +150,11 @@ let _wallK = 0;
 try { _wallK = (parseInt(localStorage.getItem('cs_wallK') || '-1', 10) + 1) % WALLS.length; localStorage.setItem('cs_wallK', String(_wallK)); } catch {}
 const wallUrl = (i) => `url('${WALLS[(_wallK + i) % WALLS.length]}')`;
 const HOME_WALL = wallUrl(0), SETUP_WALL = wallUrl(1), TEAM_WALL = wallUrl(2), CHAR_WALL = wallUrl(3);
+// loading-1..5: wallpaper rotativo SÓ da splash inicial (a msg "clique pra começar" fica por cima).
+// O overlay de carregamento de MAPA usa os wall-* (mesmo fluxo rotativo) — ver showLoading/_loadWallI.
+const LOADING_WALLS = ['/img/loading-1.png', '/img/loading-2.png', '/img/loading-3.png', '/img/loading-4.png', '/img/loading-5.png'];
+let _loadWallI = 4;
+{ const bs = document.getElementById('boot-splash'); if (bs) bs.style.backgroundImage = `url('${LOADING_WALLS[_wallK % LOADING_WALLS.length]}')`; }
 function applyHomeWall() { const w = document.querySelector('#main-menu .cs-wallpaper'); if (w) w.style.backgroundImage = HOME_WALL; }
 function applySetupWall() { const w = document.querySelector('#main-menu .cs-wallpaper'); if (w) w.style.backgroundImage = SETUP_WALL; }
 applyHomeWall();
@@ -164,7 +170,7 @@ applyHomeWall();
 const MENU_MUSIC_VOL = 0.3;
 // Trilhas do menu (public/audio/menu-music/m01..m15 — trims de ~105s normalizados via ffmpeg,
 // ver HANDOFF). Uma aleatória POR VISITA ao menu; troca a cada partida/retorno.
-const MENU_TRACKS = Array.from({ length: 15 }, (_, i) => `/audio/menu-music/m${String(i + 1).padStart(2, '0')}.mp3`);
+const MENU_TRACKS = Array.from({ length: 26 }, (_, i) => `/audio/menu-music/m${String(i + 1).padStart(2, '0')}.mp3`);
 let menuMusic = null, musicArmed = false, musicFade = null;
 function _ensureMusic() {
   if (menuMusic) return menuMusic;
@@ -724,6 +730,7 @@ $('char-back').onclick = () => { ui.back(); show('team-select'); };
 $('btn-team-p').onclick = () => { sfx.uiClick(); pickTeam('P'); };
 $('btn-team-b').onclick = () => { sfx.uiClick(); pickTeam('B'); };
 $('btn-team-u') && ($('btn-team-u').onclick = () => { sfx.uiClick(); pickTeam('U'); });
+$('btn-team-c') && ($('btn-team-c').onclick = () => { sfx.uiClick(); pickTeam('C'); });
 $('btn-resume').onclick = () => { sfx.uiClick(); game?.resume(); };
 $('btn-pause-settings').onclick = () => { sfx.uiClick(); settingsReturn = 'pause-menu'; show('settings-panel'); };
 $('btn-quit').onclick = () => {
@@ -770,7 +777,7 @@ $('char-confirm').onclick = () => {
 
 // Esconde/mostra o card da sua facção na tela de adversário (btn-team-p/b/u).
 function setEnemyPickMode(on, myFaction) {
-  for (const f of ['p', 'b', 'u']) {
+  for (const f of ['p', 'b', 'u', 'c']) {
     const b = $('btn-team-' + f);
     if (b) b.classList.toggle('hidden', !!(on && f.toUpperCase() === myFaction));
   }
@@ -780,7 +787,7 @@ function setEnemyPickMode(on, myFaction) {
    ficava com cara de formulário ("escolha o adversário" e três caixas iguais).
    Agora o passo é um estado (data-step) que a tela inteira lê: eyebrow, título, dica
    e o texto da barra de ação de cada placa (ver .team-cta no style.css). */
-const FACTION_NAME = { P: 'PETISTAS', B: 'BOLSONARISTAS', U: 'TRIBOS URBANAS' };
+const FACTION_NAME = { P: 'PETISTAS', B: 'BOLSONARISTAS', U: 'TRIBOS URBANAS', C: 'PALHAÇOS' };
 function setTeamStep(step, myFaction) {
   const ts = $('team-select'); if (ts) ts.dataset.step = step;
   const st = $('team-step'), tt = $('team-title'), hint = $('team-hint');
@@ -999,7 +1006,7 @@ let teamPreviewsDone = false;
 function ensureTeamPreviews() {
   if (teamPreviewsDone) return;
   teamPreviewsDone = true;
-  for (const [btn, fac] of [['btn-team-p', 'P'], ['btn-team-b', 'B'], ['btn-team-u', 'U']]) {
+  for (const [btn, fac] of [['btn-team-p', 'P'], ['btn-team-b', 'B'], ['btn-team-u', 'U'], ['btn-team-c', 'C']]) {
     const box = document.querySelector(`#${btn} .team-chars`);
     if (!box) continue;
     const chars = CHARACTERS.filter(c => c.team === fac && GLB_CHARS.has(c.id)).slice(0, 4);
@@ -1028,7 +1035,7 @@ function pickTeam(faction) {
   currentFaction = faction;
   currentTeam = faction === 'B' ? 'B' : 'P';
   // estado de seleção persistente nos cards: ao voltar do personagem, a tela diz qual é o SEU lado
-  for (const f of ['p', 'b', 'u']) {
+  for (const f of ['p', 'b', 'u', 'c']) {
     const b = $('btn-team-' + f);
     if (b) b.setAttribute('aria-pressed', String(f.toUpperCase() === faction));
   }

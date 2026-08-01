@@ -402,9 +402,36 @@ export const CHARACTERS = [
   { id: 'proerd', team: 'B', name: 'Leão do Proerd',
     blurb: 'Camisa preta colada, rugido de mascote de formatura e garra afiada na defesa da treta.',
     pal: { skin: 0xd9a25f, shirt: 0x1a1a1a, pants: 0x2e3d55, hair: 0x8a3a26, boots: 0xf0f0f0 } },
-  { id: 'bozo', team: 'P', name: 'Bozo',
+  // ── PALHAÇOS (4ª facção, models GLB do Mint). team:'C' + tribe:'palhacos'.
+  // bonzo (ex-bozo) já tem GLB; os 8 abaixo entram no GLB_CHARS quando os rigs saírem
+  // (hoje: fallback procedural via pal). Voz/round/captura própria (manifest chave 'C').
+  { id: 'bonzo', team: 'C', tribe: 'palhacos', name: 'Bonzo',
     blurb: 'Do picadeiro pra praça. Nariz vermelho, sapatão marrom e risada de quem arma o circo.',
     pal: { skin: 0xf5f0e6, shirt: 0x3b6fd4, pants: 0x2f56a8, hair: 0xd43a2e, boots: 0x6b4a2f } },
+  { id: 'palhacomal', team: 'C', tribe: 'palhacos', name: 'Palhaço do Mal',
+    blurb: 'Riso que gela a espinha. Sai do picadeiro direto pro pesadelo — e ainda cobra ingresso.',
+    pal: { skin: 0xf0ece4, shirt: 0x5a1420, pants: 0x3a1018, hair: 0x161616, boots: 0x2a1a14 } },
+  { id: 'jozo', team: 'C', tribe: 'palhacos', name: 'Jozo',
+    blurb: 'Mascote de lanche pirata. Fritou o juízo no óleo e agora só serve treta com batata.',
+    pal: { skin: 0xf4f0ea, shirt: 0xd83030, pants: 0x1a1a1a, hair: 0xd43a2e, boots: 0xd83030 } },
+  { id: 'adjim', team: 'C', tribe: 'palhacos', name: 'Adjim',
+    blurb: 'Espirra, ri e atira. Metade da dupla que faz a criançada chorar de rir (e de medo).',
+    pal: { skin: 0xf0d8c8, shirt: 0x2fae4a, pants: 0xffd23f, hair: 0x2fae4a, boots: 0xffd23f } },
+  { id: 'esbirro', team: 'C', tribe: 'palhacos', name: 'Esbirro',
+    blurb: 'A outra metade da dupla. Buzina no gatilho e resenha no recuo.',
+    pal: { skin: 0xf0d8c8, shirt: 0xd83030, pants: 0x2e56c4, hair: 0xe8792a, boots: 0x2e56c4 } },
+  { id: 'titica', team: 'C', tribe: 'palhacos', name: 'Titica',
+    blurb: 'Do circo pro Congresso e do Congresso pra arena, sempre no bom humor e no gatilho leve.',
+    pal: { skin: 0xd9a066, shirt: 0xe8792a, pants: 0xd83030, hair: 0xf0f0f0, boots: 0x2fae4a } },
+  { id: 'padati', team: 'C', tribe: 'palhacos', name: 'Padati',
+    blurb: 'Um da dupla mais colorida do picadeiro. Cambalhota, buzina e mira infantil.',
+    pal: { skin: 0xf4f0ea, shirt: 0x2e56c4, pants: 0xffd23f, hair: 0x2e6ad8, boots: 0x2e56c4 } },
+  { id: 'padata', team: 'C', tribe: 'palhacos', name: 'Padata',
+    blurb: 'O outro da dupla. Se um erra, o outro acerta — geralmente na risada.',
+    pal: { skin: 0xf4f0ea, shirt: 0xd83030, pants: 0xffd23f, hair: 0xd43a2e, boots: 0xd83030 } },
+  { id: 'cadequinha', team: 'C', tribe: 'palhacos', name: 'Cadequinha',
+    blurb: 'Clássico dos clássicos. Cartola, xadrez e uma gargalhada que atravessa gerações.',
+    pal: { skin: 0xf0dcc8, shirt: 0xd83030, pants: 0xf0ece4, hair: 0xc88030, boots: 0xd83030 } },
 
   // ── TRIBOS URBANAS (3º grupo, models GLB do Mint). team:'U' = invisível aos filtros P/B
   // (bots e seleção política não os pegam); selecionáveis via tribe:'urbanas' em qualquer lado.
@@ -446,7 +473,8 @@ export const CHAR_WEAPON = {
   caminhoneiro: 'md97', sertanejo: 'revolver38',
   coach: 'scar', gotinha: 'mp5', farialimer: 'm4', bombado: 'lmg', hipster: 'uzi',
   dollynho: 'p90', et: 'awp', ancap: 'mosin',
-  bozo: 'revolver38', canarinho: 'deagle', proerd: 'md97',
+  bonzo: 'revolver38', canarinho: 'deagle', proerd: 'md97',
+  palhacomal: 'deagle', jozo: 'shotgun', adjim: 'uzi', esbirro: 'mp5', titica: 'ak', padati: 'pistol', padata: 'p90', cadequinha: 'revolver38',
 };
 export const charWeapon = (id) => CHAR_WEAPON[id] || 'ak';
 

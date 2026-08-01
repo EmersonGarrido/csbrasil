@@ -28,7 +28,11 @@ export const GLB_CHARS = new Set([
   'caminhoneiro', 'sertanejo', 'coach',
   'gotinha', 'farialimer',
   'bombado', 'hipster', 'dollynho', 'et', 'ancap',
-  'bozo', 'canarinho', 'proerd',
+  'bonzo', 'canarinho', 'proerd',
+  // Palhaços (4ª facção). bonzo (ex-bozo) veio da Mint; os 8 abaixo foram rigados offline
+  // (tools/rig-from-donor.mjs: esqueleto do mst transplantado + auto-skin por proximidade),
+  // então usam os clips compartilhados por nome de osso, sem retarget por char.
+  'palhacomal', 'jozo', 'adjim', 'esbirro', 'titica', 'padati', 'padata', 'cadequinha',
   // Tribos Urbanas (3º grupo, GLB Mint riggado).
   'emo', 'blackmetal', 'metaleiro', 'punk', 'skatista', 'clubber', 'rapper', 'reggae', 'funkeiro',
 ]);

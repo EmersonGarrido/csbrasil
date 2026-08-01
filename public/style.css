@@ -44,7 +44,7 @@
   --lambe:repeating-linear-gradient(0deg,rgba(255,255,255,.03) 0 1px,rgba(0,0,0,0) 1px 3px);
 
   /* ---- times ---- */
-  --team-p:#e03232; --team-b:#1faa4d; --team-u:#7b2ff7;
+  --team-p:#e03232; --team-b:#1faa4d; --team-u:#7b2ff7; --team-c:#e83aa0;
 
   /* ---- espaçamento (escala de 4) ---- */
   --s-1:4px; --s-2:8px; --s-3:12px; --s-4:16px; --s-5:24px; --s-6:32px; --s-7:48px; --s-8:64px;
@@ -251,13 +251,11 @@ body{font-family:var(--font);font-weight:600;color:var(--ink1)}
 #team-select{justify-content:center;gap:var(--s-5);padding:clamp(56px,7vh,90px) var(--s-5) var(--s-6)}
 .team-row{display:flex;gap:var(--s-4);flex-wrap:nowrap;justify-content:center;align-items:stretch;
   width:min(1280px,96vw)}
-.team-card{flex:1 1 0;min-width:0;height:min(58vh,470px);cursor:pointer;font-family:inherit;color:#fff;
-  display:flex;flex-direction:column;justify-content:flex-end;gap:var(--s-2);
-  padding:var(--s-4) var(--s-4) 0;text-align:left;position:relative;overflow:hidden;
-  border:1px solid var(--line);border-bottom:0;clip-path:var(--cut);
-  background:var(--tc-bg);
-  transition:transform var(--t-slow) var(--ease),box-shadow var(--t) var(--ease),
-             border-color var(--t) var(--ease)}
+.team-card{flex:1 1 46%;max-width:calc(50% - var(--s-4));min-width:0;aspect-ratio:3/2;cursor:pointer;font-family:inherit;color:#fff;
+  position:relative;overflow:hidden;border:1px solid var(--line);clip-path:var(--cut);background:#0b0f13;
+  transition:transform var(--t-slow) var(--ease),box-shadow var(--t) var(--ease),border-color var(--t) var(--ease)}
+/* Só a arte do time (já traz elenco + nome). Sem overlays de texto — pedido do dono. */
+.team-plate,.team-chars,.team-desc,.team-cta{display:none}
 /* LUGAR RESERVADO PRA ARTE POR TIME (o dono vai gerar uma imagem por facção).
    Basta soltar o arquivo em /img/teams/<facção>.jpg. Se ele NÃO existir, a camada
    simplesmente não pinta e o degradê da facção continua sendo o fundo — nada de
@@ -265,22 +263,21 @@ body{font-family:var(--font);font-weight:600;color:var(--ink1)}
 /* O "apagado" do estado ocioso mora AQUI, na camada de arte — nunca num filter no card
    inteiro. O filter antigo (saturate .86) caía também sobre as miniaturas 3D do elenco e
    descolorir personagem é justamente a queixa nº 4 do dono. */
-.team-art{position:absolute;inset:0;z-index:0;background:var(--art) center top/cover no-repeat;
-  opacity:.3;filter:saturate(.6) brightness(.72);
-  transition:opacity var(--t) var(--ease),filter var(--t) var(--ease)}
+.team-art{display:block;position:absolute;inset:0;z-index:0;background:var(--art) center/cover no-repeat;
+  opacity:1;filter:none;transform-origin:center;transition:transform .28s var(--ease)}
 .team-card:hover .team-art,.team-card:focus-visible .team-art,
-.team-card[aria-pressed="true"] .team-art{opacity:.6;filter:none}
-.team-p{--tc:#ff6b6b;--art:url('/img/teams/petistas.jpg');
+.team-card[aria-pressed="true"] .team-art{transform:scale(1.2)}
+.team-p{--tc:#ff6b6b;--art:url('/img/team-time-e.png');
   --tc-bg:linear-gradient(165deg,#b52e2e 0%,#7a1a1a 52%,#3d0d0d 100%)}
-.team-b{--tc:#7de08f;--art:url('/img/teams/bolsonaristas.jpg');
+.team-b{--tc:#7de08f;--art:url('/img/team-time-b.png');
   --tc-bg:linear-gradient(165deg,#1d8f45 0%,#2f7a2a 46%,#7a6412 100%)}
-.team-u{--tc:#c79bff;--art:url('/img/teams/tribos.jpg');
+.team-u{--tc:#c79bff;--art:url('/img/team-tribos.png');
   --tc-bg:linear-gradient(165deg,#5f22c2 0%,#8a1f9c 55%,#3d0f52 100%)}
+.team-c{--tc:#ff8ad1;--art:url('/img/team-palhacos.png');
+  --tc-bg:linear-gradient(165deg,#d81e8c 0%,#7a1fa0 52%,#e0761a 100%)}
 /* scrim de leitura: nasce embaixo (onde mora o texto) e morre no meio da placa, pra
    não apagar a arte — a mesma lição do scrim do menu principal. */
-.team-card::before{content:"";position:absolute;inset:0;z-index:1;pointer-events:none;
-  background:linear-gradient(0deg,rgba(5,8,11,.92) 0%,rgba(5,8,11,.55) 38%,rgba(5,8,11,0) 78%),
-             var(--lambe)}
+.team-card::before{display:none}   /* sem scrim: a imagem aparece limpa e cheia */
 .team-card>*{position:relative;z-index:2}
 .team-card:hover,.team-card:focus-visible{transform:translateY(-6px);
   box-shadow:var(--sh-2);border-color:var(--tc);outline:none}
@@ -876,13 +873,12 @@ html[data-ui="legacy"] .cs-vignette{
 /* splash agora fala a língua da key art: brilho quente (tinta/poeira), textura de papel
    colado — nada de glow ciano de terminal, que era a 2ª marca do jogo em 3 segundos */
 #boot-splash{position:fixed;inset:0;z-index:120;display:flex;align-items:center;justify-content:center;
-  background:
-    radial-gradient(ellipse at 50% 40%,rgba(255,201,63,.07),rgba(0,0,0,0) 58%),
-    radial-gradient(ellipse at 50% 96%,rgba(226,64,44,.10),rgba(0,0,0,0) 60%),
-    linear-gradient(180deg,#080d12,#05090c);
+  background:linear-gradient(180deg,#080d12,#05090c);
+  background-size:cover;background-position:center;background-repeat:no-repeat;
   transition:opacity .45s ease;cursor:pointer}
-#boot-splash::before{content:"";position:absolute;inset:0;pointer-events:none;opacity:.6;
-  background:var(--lambe)}
+/* scrim escuro pra legibilidade do logo/msg sobre o wallpaper loading-* (setado via JS) */
+#boot-splash::before{content:"";position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(180deg,rgba(5,9,12,.5) 0%,rgba(5,9,12,.32) 45%,rgba(5,9,12,.84) 100%)}
 #boot-splash.gone{opacity:0;pointer-events:none}
 .splash-frame{display:flex;flex-direction:column;align-items:center;gap:14px;padding:0 20px}
 #splash-logo{width:min(560px,86vw);height:auto}
@@ -900,12 +896,16 @@ html[data-ui="legacy"] .cs-vignette{
   letter-spacing:2px;color:var(--ink3)}
 
 /* Loading de partida/personagens: overlay OPACO (a cena montando nunca aparece) */
-#load-overlay{position:fixed;inset:0;z-index:110;display:flex;align-items:center;justify-content:center;
-  background:
-    radial-gradient(ellipse at 50% 42%,rgba(255,201,63,.06),rgba(0,0,0,0) 55%),
-    linear-gradient(180deg,#080d12,#05090c)}
-#load-overlay::before{content:"";position:absolute;inset:0;pointer-events:none;background:var(--lambe);opacity:.6}
-.lo-box{display:flex;flex-direction:column;align-items:center;gap:var(--s-4);padding:0 var(--s-5);position:relative}
+#load-overlay{position:fixed;inset:0;z-index:110;display:flex;align-items:flex-end;justify-content:flex-end;
+  background:linear-gradient(180deg,#080d12,#05090c);
+  background-size:cover;background-position:center;background-repeat:no-repeat}
+#load-overlay::before{content:"";position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(180deg,rgba(5,9,12,.22) 0%,rgba(5,9,12,.12) 55%,rgba(5,9,12,.72) 100%)}
+.lo-title{display:none}   /* loading limpo: só o wallpaper + o progresso num painel no canto */
+.lo-box{position:absolute;right:var(--s-5);bottom:var(--s-5);z-index:2;display:flex;flex-direction:column;
+  align-items:flex-end;text-align:right;gap:var(--s-2);padding:13px 17px;
+  background:rgba(5,9,12,.55);backdrop-filter:blur(3px);border:1px solid var(--line)}
+.lo-box .splash-bar,.lo-box .splash-status{width:min(300px,52vw)}
 .lo-title{font-family:var(--font);font-weight:700;font-size:var(--fs-800);letter-spacing:var(--tr-6);color:var(--ink-100);
   text-transform:uppercase;line-height:var(--lh-tight);display:flex;flex-direction:column;align-items:center;gap:var(--s-1)}
 .lo-title span{font-family:var(--mono);font-size:var(--fs-100);letter-spacing:5px;color:var(--br-faixa)}
