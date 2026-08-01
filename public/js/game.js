@@ -4298,7 +4298,9 @@ export class Game {
         // m/s derruba isso pra ~1/3 disso — é o que faz strafar valer a pena.
         // 0.012→0.015 no piso: com o teto de headshot o que sobra é o TRONCO, e o bot acertava
         // tronco demais de longe. O piso é ANGULAR, então distância já pesa sozinha.
-        const floorErr = (snip0 ? 0.004 : 0.006) + (BOT_FAIR ? 0.019 : 0.012) / Math.max(0.4, b.skill) + eSp * 0.004 / Math.max(0.5, b.skill);
+        // Piso AUMENTADO (dono: "bots matam fácil demais, parece aimbot"): erra mais, sobretudo
+        // de longe e em alvo que se mexe — dá tempo do jogador reagir e ver de onde veio.
+        const floorErr = (snip0 ? 0.006 : 0.010) + (BOT_FAIR ? 0.028 : 0.020) / Math.max(0.4, b.skill) + eSp * 0.006 / Math.max(0.5, b.skill);
         // RE-AQUISIÇÃO ENTRE RAJADAS (medido): com rate 2.7 a mira voltava INTEIRA ao piso
         // durante a pausa de ~0,9 s (exp(-2,3) = 10% de resíduo), então TODA rajada começava
         // com um acerto garantido — 4 rajadas = 4 acertos = morte, e a janela travava em
@@ -4419,7 +4421,10 @@ export class Game {
         // ~50 tiros/s — cada um custa tracer + voz do synth. Perto (<45m) sai tudo; longe (ou
         // em quality 'low') sai 1 a cada 2. O DANO e o raycast nunca são afetados, só o enfeite.
         const fxTick = (b._fxTick = (b._fxTick || 0) + 1);
-        const fxFull = (_sd < 45 && this.settings.quality !== 'low') || (fxTick % 2) === 0;
+        // SEMPRE FX cheio quando o bot atira NO JOGADOR (dono: "não vejo de onde vem o tiro,
+        // parece cheater"): tracer + som direcional em todo tiro contra o player, mesmo de longe
+        // ou em quality low. Só o throttle bot-vs-bot distante segue valendo (orçamento de GPU).
+        const fxFull = e.isPlayer || (_sd < 45 && this.settings.quality !== 'low') || (fxTick % 2) === 0;
         if (fxFull) {
           this._tracer(from.clone().add(dir.clone().multiplyScalar(0.7)), end);
           this.sfx.shotWeapon(b.weapon, _sd, 0.45, _pan, Math.min(0.25, _sd / 343));   // bots MUITO mais baixos que a arma do jogador (carabina de bot estourava o mix)
