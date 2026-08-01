@@ -60,11 +60,15 @@ export const CHAR_FX = {
   // Player Contrast") — e o BAR §2 diz que clareza tem precedência sobre estética.
   // Calibrado em tools/eval/char_sim.py: com 1.85 o ΔL* previsto contra o anel fica
   // 31/32/20 nos três bots medidos; com 1.25 (o valor "físico") cairia pra 27/28/16.
-  floorIrr: _cnum('charfloor', 1.85),                  // piso de irradiância indireta (perto)
-  floorFar: _cnum('charfloorfar', 3.00),               // piso a 45 m+ (Riot clareia o agente distante)
+  // FLOOR BAIXADO (dono, ago/01: "players/bots esbranquiçados, quero a cor original dos moldes").
+  // 1.85/3.00 iluminava o personagem 1.8-3× mais que o mundo (boost de clareza Valorant) e
+  // lavava a cor — os bots distantes viravam fantasmas brancos. Baixei perto do "físico" (1.25)
+  // e cortei muito o de longe; +saturação pra cor original aparecer. Tunável: ?charfloor/…far/…sat.
+  floorIrr: _cnum('charfloor', 1.15),                  // piso de irradiância indireta (perto)
+  floorFar: _cnum('charfloorfar', 1.55),               // piso a 45 m+ (era 3.0 = fantasma branco distante)
   ceilIrr:  _cnum('charceil', 4.5),                    // teto: céu HDR não pode estourar o personagem
   albMin:   _cnum('charalbmin', 0.09),                 // valor mínimo do albedo, por ESCALA (matiz/S intactos)
-  sat:      _cnum('charsat', 1.16),                    // ganho de croma do albedo (BAR §2.2: o boneco FURA a faixa do cenário)
+  sat:      _cnum('charsat', 1.32),                    // ganho de croma do albedo (+cor original dos moldes)
   rimNear: _cnum('rimnear', 0.18),                     // rim a queima-roupa: discreto, não vira fantasma
   rimFar:  _cnum('rimfar', 0.70),                      // rim a 34 m+: é longe que o inimigo some no fundo
   rimPow:  _cnum('rimpow', 1.7),                       // expoente da banda LARGA (dá área pro ΔL* médio subir)
