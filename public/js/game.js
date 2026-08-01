@@ -2072,6 +2072,7 @@ export class Game {
     if (p.weapon === 'knife') {
       p.nextShotAt = this.time + w.rate;
       this.vm.recoil.kick(1); this.sfx.knife();
+      this.vm.swingAt = this.time;   // dispara o SWING (arco de faca estilo CS)
       this._meleeHit();
       return;
     }
@@ -3729,10 +3730,17 @@ export class Game {
     // Kick mais PUNCHY (dono: "animação de tiro ruim"): recuo pra trás + salto pra cima + subida
     // do cano + um jolt lateral (roll/yaw) aleatório por tiro, escalado por arma (ver _tryShoot).
     const k = this.vm.kick, ks = this.vm.kickSide || 0;
-    this.vm.root.position.set(VM_OFF[0] + pose.x * a + sl * 0.3 + this._swayX * 0.02 + bobX, VM_OFF[1] + bobY - this.vm.reloadDip * 0.18 - p.crouchF * 0.02 + pose.y * a - sl * 0.38 + this._swayY * 0.015 - drawF * 0.22 + k * 0.045, VM_OFF[2] + k * 0.15 + pose.z * a);
-    this.vm.root.rotation.x = k * 0.22 + this.vm.reloadDip * 0.6 - drawF * 0.55 + pose.rx * a;   // subida do cano + nível de ADS
-    this.vm.root.rotation.y = ks * k * 0.05 + pose.ry * a;                                       // yaw do coice + nível de ADS
-    this.vm.root.rotation.z = this._swayY * 0.03 + ks * k * 0.06;                                // roll do coice
+    // SWING da faca estilo CS (dono: "faca muito tímida"): varredura lateral + roll da lâmina + estocada.
+    let swPz = 0, swRx = 0, swRy = 0, swRz = 0;
+    if (this.vm.swingAt != null) {
+      const st = (this.time - this.vm.swingAt) / 0.26;
+      if (st < 1) { const e = Math.sin(st * Math.PI); swRy = -e * 0.6; swRz = e * 0.5; swRx = e * 0.28; swPz = e * 0.12; }
+      else this.vm.swingAt = null;
+    }
+    this.vm.root.position.set(VM_OFF[0] + pose.x * a + sl * 0.3 + this._swayX * 0.02 + bobX, VM_OFF[1] + bobY - this.vm.reloadDip * 0.18 - p.crouchF * 0.02 + pose.y * a - sl * 0.38 + this._swayY * 0.015 - drawF * 0.22 + k * 0.045, VM_OFF[2] + k * 0.15 + pose.z * a - swPz);
+    this.vm.root.rotation.x = k * 0.22 + this.vm.reloadDip * 0.6 - drawF * 0.55 + pose.rx * a + swRx;   // subida do cano + ADS + golpe da faca
+    this.vm.root.rotation.y = ks * k * 0.05 + pose.ry * a + swRy;                                       // yaw do coice/ADS + varredura da faca
+    this.vm.root.rotation.z = this._swayY * 0.03 + ks * k * 0.06 + swRz;                                // roll do coice + giro da lâmina
     this.vm.root.scale.setScalar(1 - (1 - pose.s) * a);                                          // scale-down do VM em ADS
     // Braços reais: IK trava as mãos na arma visível DEPOIS de todos os transforms do
     // vm.root (kick/dip/ADS/sway/bob/draw) — as mãos acompanham a arma em qualquer estado.
