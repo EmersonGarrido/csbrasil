@@ -2,9 +2,9 @@
 import { chromium } from 'playwright';
 const [,, auto='B,sertanejo', map='', out='/tmp/shots/game.png', ads=''] = process.argv;
 const b = await chromium.launch({ args:['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader','--ignore-gpu-blocklist','--no-sandbox'] });
-const p = await b.newPage({ viewport:{ width:1280, height:800 } });
+const p = await b.newPage({ viewport:{ width:1920, height:1080 } });
 const errs=[]; p.on('pageerror',e=>errs.push(String(e).slice(0,140)));
-const url = `http://localhost:4455/?debug=1&auto=${auto}${map?`&map=${map}`:''}`;
+const url = `http://localhost:4455/?debug=1&auto=${auto}${map?`&map=${map}`:''}${process.env.VMQS?'&'+process.env.VMQS:''}`;
 await p.goto(url,{waitUntil:'load',timeout:30000}).catch(()=>{});
 await p.waitForTimeout(1500);
 await p.mouse.click(640,400);            // dispensa splash

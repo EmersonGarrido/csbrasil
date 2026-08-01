@@ -295,10 +295,17 @@ const SHOTGUN_VM = {
 // CORREÇÃO R2: a doc dizia 0.64, o código sempre teve 0.62. ?vmwide=1 reverte o PAR
 // inteiro (70 + 0.72) — nunca mexa em um sem o outro, senão a arma cresce/encolhe.
 function vmFovForAspect(aspect) {
-  const REF = 16 / 9, V0 = (new URLSearchParams(location.search).get('vmwide') === '1' ? 70 : 62) * Math.PI / 180;
+  const _q = new URLSearchParams(location.search);
+  // FOV base do viewmodel: MAIOR = arma menor na tela (o único jeito real de encolher — baixar
+  // vmScale auto-compensa a distância). Default subido 62->78 (dono: "arma gigante, quero no
+  // canto igual ev.io"). Tunável ao vivo com ?vmfov=N.
+  const REF = 16 / 9, V0 = (_q.get('vmfov') ? +_q.get('vmfov') : (_q.get('vmwide') === '1' ? 70 : 82)) * Math.PI / 180;
   const halfH = Math.atan(Math.tan(V0 / 2) * REF);
   return 2 * Math.atan(Math.tan(halfH) / aspect) * 180 / Math.PI;
 }
+// Offset base do viewmodel em VIEW SPACE (x=direita, y=cima, z=frente) — empurra a arma pro
+// CANTO inferior-direito (ev.io). Default desce/direita um pouco; tunável ao vivo com ?vmoff=x,y,z.
+const VM_OFF = (() => { const s = (new URLSearchParams(location.search).get('vmoff') || '').split(',').map(Number); return s.length === 3 && s.every((n) => !isNaN(n)) ? s : [0.03, -0.055, 0]; })();
 // chave do staticVm por arma (variante por id quando existe; senão a classe)
 function staticVmKey(w) {
   return (SNIPER_VM[w] || RIFLE_VM[w] || PISTOL_VM[w] || SHOTGUN_VM[w]) ? w : (STATIC_CLASS[w] || null);
@@ -3720,7 +3727,7 @@ export class Game {
     // Kick mais PUNCHY (dono: "animação de tiro ruim"): recuo pra trás + salto pra cima + subida
     // do cano + um jolt lateral (roll/yaw) aleatório por tiro, escalado por arma (ver _tryShoot).
     const k = this.vm.kick, ks = this.vm.kickSide || 0;
-    this.vm.root.position.set(pose.x * a + sl * 0.3 + this._swayX * 0.02 + bobX, bobY - this.vm.reloadDip * 0.18 - p.crouchF * 0.02 + pose.y * a - sl * 0.38 + this._swayY * 0.015 - drawF * 0.22 + k * 0.045, k * 0.15 + pose.z * a);
+    this.vm.root.position.set(VM_OFF[0] + pose.x * a + sl * 0.3 + this._swayX * 0.02 + bobX, VM_OFF[1] + bobY - this.vm.reloadDip * 0.18 - p.crouchF * 0.02 + pose.y * a - sl * 0.38 + this._swayY * 0.015 - drawF * 0.22 + k * 0.045, VM_OFF[2] + k * 0.15 + pose.z * a);
     this.vm.root.rotation.x = k * 0.22 + this.vm.reloadDip * 0.6 - drawF * 0.55 + pose.rx * a;   // subida do cano + nível de ADS
     this.vm.root.rotation.y = ks * k * 0.05 + pose.ry * a;                                       // yaw do coice + nível de ADS
     this.vm.root.rotation.z = this._swayY * 0.03 + ks * k * 0.06;                                // roll do coice
