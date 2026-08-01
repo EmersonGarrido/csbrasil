@@ -118,11 +118,15 @@ for (const mesh of doc.getRoot().listMeshes()) {
       posA.getElement(i, el);
       const p = alignPt(el);
       posArr[i * 3] = p.x; posArr[i * 3 + 1] = p.y; posArr[i * 3 + 2] = p.z;
-      let b0 = -1, b1 = -1, d0 = 1e18, d1 = 1e18;
-      for (const s of segs) { const d = segDist(p, s); if (d < d0) { d1 = d0; b1 = b0; d0 = d; b0 = s.idx; } else if (d < d1) { d1 = d; b1 = s.idx; } }
-      const w0 = 1 / (d0 + 1e-6), w1 = b1 >= 0 ? 1 / (d1 + 1e-6) : 0, ws = w0 + w1;
-      JI[i * 4] = b0; JI[i * 4 + 1] = b1 >= 0 ? b1 : 0;
-      JW[i * 4] = w0 / ws; JW[i * 4 + 1] = ws > 0 ? w1 / ws : 0;
+      // nearest-4 bone segments com falloff suave (potência 1.5): mistura ao longo da
+      // articulação em vez de pular entre 2 ossos (nearest-2 rígido pinçava cotovelo/joelho).
+      const best = [{ i: 0, d: 1e18 }, { i: 0, d: 1e18 }, { i: 0, d: 1e18 }, { i: 0, d: 1e18 }];
+      for (const s of segs) {
+        const d = segDist(p, s);
+        if (d < best[3].d) { best[3] = { i: s.idx, d }; best.sort((a, b) => a.d - b.d); }
+      }
+      let ws = 0; const w = best.map((b) => { const x = 1 / Math.pow(b.d + 1e-5, 1.5); ws += x; return x; });
+      for (let k = 0; k < 4; k++) { JI[i * 4 + k] = best[k].i; JW[i * 4 + k] = w[k] / ws; }
     }
     posA.setArray(posArr);
     prim.setAttribute('JOINTS_0', doc.createAccessor().setType('VEC4').setArray(JI).setBuffer(buffer));

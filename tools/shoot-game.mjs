@@ -10,7 +10,8 @@ await p.waitForTimeout(1500);
 await p.mouse.click(640,400);            // dispensa splash
 await p.keyboard.press('Space');
 await p.waitForTimeout(6000);            // carrega mapa+char
-if (ads==='ads'){ await p.mouse.move(640,400); await p.mouse.down({button:'right'}); await p.waitForTimeout(1200); }
+if (ads==='ads'){ await p.mouse.move(960,540); await p.mouse.down({button:'right'}); await p.waitForTimeout(1200); }
+if (ads==='fire'){ await p.mouse.move(960,540); await p.mouse.down({button:'left'}); await p.waitForTimeout(180); }
 await p.screenshot({ path: out });
 await b.close();
 console.log('shot ->', out, errs.length?('\nERR '+[...new Set(errs)].slice(0,4).join(' | ')):'');
