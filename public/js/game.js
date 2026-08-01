@@ -305,7 +305,7 @@ function vmFovForAspect(aspect) {
 }
 // Offset base do viewmodel em VIEW SPACE (x=direita, y=cima, z=frente) — empurra a arma pro
 // CANTO inferior-direito (ev.io). Default desce/direita um pouco; tunável ao vivo com ?vmoff=x,y,z.
-const VM_OFF = (() => { const s = (new URLSearchParams(location.search).get('vmoff') || '').split(',').map(Number); return s.length === 3 && s.every((n) => !isNaN(n)) ? s : [0.03, -0.055, 0]; })();
+const VM_OFF = (() => { const s = (new URLSearchParams(location.search).get('vmoff') || '').split(',').map(Number); return s.length === 3 && s.every((n) => !isNaN(n)) ? s : [0.10, -0.15, 0.02]; })();
 // chave do staticVm por arma (variante por id quando existe; senão a classe)
 function staticVmKey(w) {
   return (SNIPER_VM[w] || RIFLE_VM[w] || PISTOL_VM[w] || SHOTGUN_VM[w]) ? w : (STATIC_CLASS[w] || null);
@@ -1087,7 +1087,9 @@ export class Game {
        quiser continuar o trabalho de rig. No caminho Tripo (?tripovm=1) nada muda.
        PENDÊNCIA REGISTRADA: refazer a escala/pose de buildFPArms contra o grip da Mint. */
     const _qsHands = new URLSearchParams(location.search).get('hands');
-    const WEAPON_ONLY = MINT_VM ? (_qsHands !== '1') : (_qsHands === '0');
+    // SÓ-ARMA por padrão, estilo UNREAL TOURNAMENT (dono é fã de UT — arcade, só a arma no
+    // canto, sem mão). As mãos ficavam esquisitas/centralizadas. ?hands=1 liga o braço FP.
+    const WEAPON_ONLY = _qsHands !== '1';
     if (!FP_OFF && !WEAPON_ONLY) arms = buildFPArms({ id: this.playerCharId, team: this.playerFaction });
     if (arms) {
       root.add(arms.group);
