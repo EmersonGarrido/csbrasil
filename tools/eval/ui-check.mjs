@@ -908,22 +908,32 @@ async function ui2(H) {
      Δh  <= 25° — só vale quando AS DUAS cores têm C* >= 10. Abaixo disso o matiz é ruído
                   numérico (um cinza com C* 1,4 tem matiz aleatório: a referência mede
                   h 129° no fundo e h 110° na tinta, e é o MESMO cinza).
-   FUNDOS FORA DO PORTÃO (medidos e reportados, não cobrados): --bg-900/800/700 daqui são
-   azul-asfalto (C* 1,5-6,6, h ~253°) contra o marrom-neutro da referência (C* 1,4-4,5,
-   h ~84-129°). A diferença é real e está no relatório, mas metade dos scrims do HUD é
-   `rgba(5,8,11,...)` LITERAL no CSS (e duas mutações desta régua casam nesse literal);
-   trocar token e literal no mesmo commit da correção do CTF é o tipo de mudança larga que
-   estoura outra coisa numa sexta de release. Fica medido, com nome, pra próxima rodada. */
-const UI5_DC = 4, UI5_DH = 25, UI5_CMIN_H = 10;
+     b*  >= 0    — O EIXO AZUL↔AMARELO, e é a cláusula que faltava. Este portão nasceu
+                  deixando --bg-900/800/700 FORA ("medido, não cobrado") porque metade dos
+                  scrims era literal no CSS. Os literais morreram (style.css agora deriva
+                  tudo de --bg-900-rgb) e os fundos entraram — mas entrar não bastava:
+                  como fundo é NEUTRO (C* 1-6), as duas cláusulas acima são CEGAS pra ele.
+                  A azul #05080b tem C* 1,5 e passaria em ΔC* por 0,1; o matiz nem é
+                  cobrado, porque C* < 10. Um portão que aceita o defeito que o motivou é
+                  decoração — de novo.
+                  O que SEPARA os dois casos, e separa com folga, é o SINAL de b*:
+                     referência  fundo +1,08 · painel +4,43 · tinta_alta +1,44 · média +1,05
+                     azul antigo bg-900 -1,42 · bg-800 -3,79 · bg-700 -6,28
+                     corrigido   bg-900 +1,32 · bg-800 +3,98 · bg-700 +4,58
+                  Não existe uma cor da referência com b* negativo, e não existia uma cor
+                  azul desta base com b* positivo. O corte em 0 tem +1,05 de folga de um
+                  lado e -1,42 do outro. A mutação `ui5_fundo_azul` devolve o triplo antigo
+                  e TEM que ficar vermelha; sem essa cláusula ela ficava VERDE. */
+const UI5_DC = 4, UI5_DH = 25, UI5_CMIN_H = 10, UI5_B_MIN = 0;
 const UI5_PAPEIS = [
   ['--ink-100', 'tinta_alta', true, 'números de HUD e títulos'],
   ['--ink-200', 'tinta_alta', true, 'corpo de texto'],
   ['--ink-300', 'tinta_media', true, 'rótulos/meta'],
   ['--ink-400', 'tinta_media', true, 'régua/ícone decorativo'],
   ['--am', 'acento', true, 'objetivo e conquista'],
-  ['--bg-900', 'fundo', false, 'fundo de tela'],
-  ['--bg-800', 'painel', false, 'painel'],
-  ['--bg-700', 'painel', false, 'painel 2'],
+  ['--bg-900', 'fundo', true, 'fundo de tela'],
+  ['--bg-800', 'painel', true, 'painel'],
+  ['--bg-700', 'painel', true, 'painel 2'],
 ];
 function ui5(ctxCss) {
   let ref = null;
@@ -942,8 +952,11 @@ function ui5(ctxCss) {
     const dhBruto = Math.abs(A.h - B.h);
     const dh = Math.min(dhBruto, 360 - dhBruto);
     const matizVale = A.C >= UI5_CMIN_H && B.C >= UI5_CMIN_H;
-    const ok = !cobrado || (dC <= UI5_DC && (!matizVale || dh <= UI5_DH));
-    achados.push({ token, papel, uso, cobrado, ok,
+    /* b* do EIXO AZUL↔AMARELO. Vale pra TODO papel, não só pros fundos: é a única
+       cláusula que enxerga "azulado" quando o croma é baixo demais pro matiz valer. */
+    const bOk = A.b >= UI5_B_MIN;
+    const ok = !cobrado || (dC <= UI5_DC && (!matizVale || dh <= UI5_DH) && bOk);
+    achados.push({ token, papel, uso, cobrado, ok, bOk, b: +A.b.toFixed(2), bRef: +B.b.toFixed(2),
       meuHex: '#' + meu.slice(0, 3).map(v => Math.round(v).toString(16).padStart(2, '0')).join(''),
       refHex: alvo.hexNucleo,
       meu: { L: +A.L.toFixed(1), C: +A.C.toFixed(1), h: +A.h.toFixed(1) },
@@ -951,7 +964,7 @@ function ui5(ctxCss) {
       dC: +dC.toFixed(1), dh: matizVale ? +dh.toFixed(1) : null });
   }
   const falhas = achados.filter(a => !a.ok);
-  return { nome: 'UI5', titulo: `PALETA — cada papel do jogo dentro de ΔC* <= ${UI5_DC} e Δh <= ${UI5_DH}° do MESMO papel medido nas 9 telas (tools/eval/ref_ui.json)`,
+  return { nome: 'UI5', titulo: `PALETA — cada papel do jogo dentro de ΔC* <= ${UI5_DC}, Δh <= ${UI5_DH}° e b* >= ${UI5_B_MIN} (nada de azulado) do MESMO papel medido nas 9 telas (tools/eval/ref_ui.json)`,
     ok: falhas.length === 0, achados, falhas };
 }
 
@@ -1023,6 +1036,15 @@ async function ui4(H) {
    memória; `sim` mexe no objeto Game já bootado (pra desfazer coisa que mora no game.js
    sem ter que reescrever o arquivo em disco no meio de uma rodada com outros agentes). */
 const MUTACOES = {
+  /* A MUTAÇÃO QUE PROVA A CLÁUSULA b*. Devolve o triplo azul de antes do BUG-05. Como o
+     style.css agora DERIVA token e scrim do mesmo `--bg-900-rgb`, uma linha desfaz a
+     rodada inteira — que é exatamente por isso que ela é o teste certo. Sem `UI5_B_MIN`
+     esta mutação passa VERDE (ΔC* do azul contra o fundo da referência é 0,1). */
+  ui5_fundo_azul: {
+    portao: 'UI5', o_que: 'volta as superfícies pro azul-asfalto de antes (--bg-900/800/700 h ~253°)',
+    css: (c) => c.replace('--bg-900-rgb:9,7,4;      --bg-800-rgb:20,16,8;    --bg-700-rgb:28,24,18;',
+      '--bg-900-rgb:5,8,11;     --bg-800-rgb:10,17,22;   --bg-700-rgb:16,26,33;'),
+  },
   ui1_ctf_scrim_fraco: {
     portao: 'UI1', o_que: 'volta o fundo da faixa de CTF pro .55 de antes (defeito 2 do dono)',
     css: (c) => c.replace(/(#ctf-hud\{[^}]*background:)rgba\(var\(--bg-900-rgb\),\.92\)/, '$1rgba(var(--bg-900-rgb),.55)'),
@@ -1189,6 +1211,7 @@ for (const r of res) {
         `jogo L*${String(a.meu.L).padStart(5)} C*${String(a.meu.C).padStart(5)} h${String(a.meu.h).padStart(5)}  |  ` +
         `ref L*${String(a.ref.L).padStart(5)} C*${String(a.ref.C).padStart(5)} h${String(a.ref.h).padStart(5)}  ` +
         `ΔC*=${a.dC}${a.dh === null ? ' (matiz: croma baixo demais pra cobrar)' : ' Δh=' + a.dh + '°'}` +
+        `  b*=${a.b}${a.bOk ? '' : ' ✗ AZULADO'} (ref ${a.bRef})` +
         `${a.cobrado ? '' : '  [medido, fora do portão]'}`);
     }
   } else if (r.nome === 'UI4') {
