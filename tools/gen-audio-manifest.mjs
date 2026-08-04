@@ -56,9 +56,21 @@ function listAudio(dir) {
     .map(f => join(dir, f));
 }
 
-/** caminho de disco -> caminho do manifest, com cada segmento codificado pra URL */
-const toUrl = (abs) =>
-  relative(join(ROOT, 'public'), abs).split('/').map(encodeURIComponent).join('/');
+/* caminho de disco -> caminho do manifest, CRU (sem codificar).
+
+   NÃO CODIFIQUE AQUI. `audio.js/_sample()` já faz `new Audio(encodeURI(url))`, e codificar
+   dos dois lados vira DUPLA CODIFICAÇÃO: `%20` (espaço) vira `%2520`, o arquivo não existe
+   nesse caminho e o áudio some sem erro nenhum na tela.
+
+   Foi exatamente o que aconteceu em 04/08: eu codifiquei aqui pra resolver nomes com espaço
+   e parêntese (`...olodum (1).mp3`), sem ver que o `_sample` já codificava. Efeito: as 20
+   faixas de round dos FUNKEIROS, que têm espaço no nome, pararam de tocar — e só elas, o
+   que fez o defeito parecer "problema dos funkeiros" em vez de "manifest quebrado".
+   O dono pegou jogando: "quando acaba um round não está tocando música mais, pelo menos
+   pro funkeiro".
+
+   Quem grava o caminho não codifica; quem monta a URL codifica. Um lado só. */
+const toUrl = (abs) => relative(join(ROOT, 'public'), abs).split('/').join('/');
 
 const used = new Set();
 const take = (files) => { files.forEach(f => used.add(f)); return files.map(toUrl); };

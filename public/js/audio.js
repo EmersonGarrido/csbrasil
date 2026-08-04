@@ -25,7 +25,7 @@ export class Sfx {
     // Local pack first (audio/manifest.json, gitignored — dev's own CS samples);
     // fall back to the committed CC0 pack (real gun recordings, public domain) so
     // production plays real shots instead of the synth. Never throws.
-    for (const url of ['audio/manifest.json?v=6', 'audio/manifest.default.json?v=1']) {
+    for (const url of ['audio/manifest.json?v=7', 'audio/manifest.default.json?v=1']) {
       try {
         const r = await fetch(url, { cache: 'no-cache' });
         if (r.ok) { this.pack = await r.json(); return; }
