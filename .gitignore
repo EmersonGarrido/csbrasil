@@ -84,6 +84,17 @@ issues/
 # `fetch-audio.sh` copia quando o pacote não traz manifest. Sem ele o build fica sem rede
 # de segurança.
 
+# ── Decalques de graffiti (derivados de references/) ────────────────────────
+# `public/img/decals/` sai do recorte automático de `references/graffiti/` — acervo de
+# INSPIRAÇÃO baixado da web, não biblioteca licenciada (ver KNOWN-BUGS.md · BUG-23). Mesma
+# regra do `public/audio/` acima e pelo mesmo motivo: o repositório é PÚBLICO, e asset com
+# procedência incerta entra em commit, build e deploy antes de alguém revisar.
+# O que fica versionado é o CÓDIGO que reproduz os PNGs: `tools/gen-graffiti-decals.mjs`,
+# que também mantém a lista `DECAL_FILES` dentro do `public/js/textures.js`.
+# CONSEQUÊNCIA A NÃO ESQUECER: quem clonar não tem os PNGs, e `T.decals` vira 179 caminhos
+# que dão 404. Quem for usar decalque em mapa precisa tolerar textura ausente.
+public/img/decals/
+
 # ── Sistema operacional e editor ────────────────────────────────────────────
 .DS_Store
 Thumbs.db
@@ -92,3 +103,7 @@ Thumbs.db
 .idea/
 .vscode/
 !.vscode/extensions.json
+
+# cache do vocabulário schema.org baixado por tools/eval/jsonld-validate.mjs
+# (1,5 MB, reproduzível com --refresh; não é fonte, é cache)
+tools/eval/.cache/
