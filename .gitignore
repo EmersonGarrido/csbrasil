@@ -68,7 +68,14 @@ tools/eval/*.webm
 # `issues/` são 2,5 GB de captura de rodada. Nunca esteve versionado; só não
 # estava ignorado, e por isso poluía todo `git status`.
 references/
-issues/
+# BARRA INICIAL OBRIGATÓRIA AQUI. Padrão do gitignore: `issues/` sem barra
+# inicial casa com um diretório `issues` em QUALQUER nível — e por isso ele
+# estava engolindo `docs/issues/`, as 15 good-first-issues escritas pro
+# contribuidor novo. Efeito medido: `git add -A --dry-run docs` listava 31
+# arquivos e NENHUM deles era issue; o link "docs/issues" do README, do
+# /sobre e do llms.txt apontava para 404 no GitHub. `/issues/` casa só com o
+# diretório da RAIZ, que é o acervo de 2,5 GB que a regra queria ignorar.
+/issues/
 
 # `public/audio/` já está ignorado lá em cima (linha 18). O que mudou em 04/08: os 20
 # arquivos que ainda estavam VERSIONADOS lá dentro (os 16 sons CC0, o LEIA-ME e o

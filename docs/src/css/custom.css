@@ -1,0 +1,50 @@
+/* Paleta puxada do HUD do jogo (public/style.css): ciano de acento sobre fundo
+   quase-preto. Nada de gradiente de landing page — isto é documentação técnica. */
+
+:root {
+  --ifm-color-primary: #12808c;
+  --ifm-color-primary-dark: #107480;
+  --ifm-color-primary-darker: #0f6d78;
+  --ifm-color-primary-darkest: #0c5a63;
+  --ifm-color-primary-light: #149098;
+  --ifm-color-primary-lighter: #15959e;
+  --ifm-color-primary-lightest: #18a8b3;
+  --ifm-code-font-size: 92%;
+  --ifm-font-family-monospace: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.1);
+}
+
+[data-theme='dark'] {
+  --ifm-color-primary: #39d6e0;
+  --ifm-color-primary-dark: #22ccd7;
+  --ifm-color-primary-darker: #20c1cb;
+  --ifm-color-primary-darkest: #1a9fa7;
+  --ifm-color-primary-light: #52dbe4;
+  --ifm-color-primary-lighter: #5edee6;
+  --ifm-color-primary-lightest: #83e6ec;
+  --ifm-background-color: #060b0f;
+  --ifm-background-surface-color: #0b1319;
+  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
+}
+
+/* Tabela de números: a doc é cheia de medida, e medida se lê em coluna alinhada. */
+.markdown table td:not(:first-child),
+.markdown table th:not(:first-child) {
+  font-variant-numeric: tabular-nums;
+}
+
+.markdown table {
+  display: table;
+  width: 100%;
+}
+
+/* Bloco de saída de terminal colada de verdade — precisa caber sem quebrar linha. */
+.markdown pre code {
+  font-size: 0.86rem;
+  line-height: 1.45;
+}
+
+/* Citação de arquivo:linha aparece o tempo todo; deixa ela legível e discreta. */
+.markdown code {
+  border: 1px solid rgba(127, 127, 127, 0.25);
+}

@@ -1,0 +1,287 @@
+---
+id: colaborar
+title: Como colaborar
+sidebar_label: Como colaborar
+sidebar_position: 4
+description: Setup, como rodar o portão, o que um PR precisa, como adicionar arma / personagem / mapa, e as boas primeiras tarefas.
+---
+
+# Como colaborar
+
+O projeto tem 5 contribuidores na v1 e quer muito mais na v2. A barreira é baixa **de
+propósito** (`ROADMAP.md:16`) — mas a régua não é.
+
+Resumo em uma frase: **traga o número.** Um PR que muda comportamento visível e não traz
+nem uma invariante nova nem a razão de não precisar de uma vai voltar com uma pergunta.
+
+## Setup
+
+```bash
+git clone https://github.com/rubenmarcus/csbrasil.git && cd csbrasil
+npm install
+npm run dev          # http://localhost:4321 — a rota raiz JÁ É o jogo
+```
+
+Opcional:
+
+```bash
+npm run fetch-audio  # pacote de áudio (sem ele: sons sintetizados)
+```
+
+Requisitos: Node 22 (é o que o CI usa, `.github/workflows/ci.yml:14`) e Python 3 para
+parte do arnês (`ref-measure.py`, `char_probe.py`, `mat_shade.py` — usam numpy e PIL).
+
+:::caution Servir `public/` NÃO roda o jogo
+Não existe `public/index.html`: o HTML do jogo é `src/pages/index.astro`, na rota raiz.
+Use `npm run dev`. Detalhes e prova em
+[Começando](./comecando.md#a-pegadinha-que-custa-a-primeira-hora-de-todo-mundo).
+:::
+
+## Rodar o portão
+
+```bash
+node tools/eval/invariants.mjs           # o portão inteiro
+node tools/eval/invariants.mjs --json    # saída pra máquina
+npm run check                            # syntax + portão + vm + coice + bots
+```
+
+Custo real: numa máquina de 2 CPUs, **cerca de 10 minutos**. Ele sobe o jogo real cinco
+vezes (uma por mapa), roda 60 s de simulação de bot por mapa e audita os 26 GLBs de arma.
+Rode antes de abrir o PR, não depois de receber a review.
+
+Arnêses individuais, quando você quiser iterar rápido numa frente só:
+
+```bash
+node tools/eval/vm-mint-audit.mjs      # enquadramento de viewmodel (26 armas)
+node tools/eval/vm-solve.mjs           # existe ponto viável pras invariantes de VM?
+node tools/eval/vm-solve.mjs --atual    # só as margens da config atual (instantâneo)
+node tools/eval/botsim.mjs 60 all      # navegação de bots, 5 mapas, sementes fixas
+node tools/eval/char-probe.mjs         # personagens (C1..C6)
+node tools/eval/map-check.mjs all      # geometria de mapa (MAP1-MAP3, CTF1)
+node tools/eval/mat-check.mjs          # material/luz/fog/textura
+node tools/eval/pickup-check.mjs       # todo pickup é alcançável?
+node tools/eval/ui-check.mjs           # UI1 contraste · UI2 poluição · UI3 área morta · UI4 ritmo
+```
+
+### Antes de dizer que consertou: mute
+
+```bash
+MUT=ui1_ctf_scrim_fraco node tools/eval/ui-check.mjs   # espera UI1 VERMELHA
+```
+
+Desfaça a sua própria correção e confira que o portão **fica vermelho**. Se ficar verde,
+o que você mediu não é o que você consertou. É a lição mais cara deste repositório e ela
+tem uma página inteira: [Teste de mutação](./quality-gates.md#teste-de-mutação-da-própria-régua).
+
+## O que um PR precisa
+
+### 1. Uma invariante nova — ou a razão de não precisar
+
+Esta é a regra que define o projeto. Todo PR que muda **comportamento observável** traz
+uma das duas coisas:
+
+- **Uma invariante nova** em `tools/eval/invariants.mjs`, com teto que tem procedência
+  (arquivo de referência + pixel medido + script que reproduz), ou
+- **Uma frase na descrição do PR** dizendo por que não precisa. Razões válidas: "já é
+  coberto pela invariante X" (diga qual), "é refatoração sem mudança observável — o
+  portão dá o mesmo placar antes e depois" (cole os dois), "é conteúdo puro (texto,
+  asset) sem regra de jogo associada".
+
+Razão inválida: "testei manualmente e ficou bom".
+
+Por quê: **intenção que não vira invariante é otimizada para fora**. Uma rodada levou o
+portão de 16/21 para 19/21 sem afrouxar um teto sequer, e foi reprovada, porque destruiu
+em silêncio uma decisão estética que nenhuma invariante codificava. Caso completo em
+[Quality gates](./quality-gates.md#lei-1--intenção-que-não-vira-invariante-é-otimizada-para-fora).
+
+### 2. O portão não pode piorar
+
+Cole a saída de `node tools/eval/invariants.mjs` antes e depois. Se alguma crítica ficou
+vermelha, o PR não entra. Se você **consertou** uma vermelha, diga qual e mostre.
+
+O portão está vermelho hoje em 11 críticas ([veja quais](./estado.md)). Isso não é licença
+para piorar: o compromisso é *"a sua mudança não acrescenta vermelho"*.
+
+### 3. Números, com `arquivo:linha`
+
+A afirmação "melhorei a iluminação" não é revisável. "O chão do `awp_map` estava 8 pontos
+de L\* acima das paredes, causa em `map_brasilia.js:NNN`, corrigido para X" é. Essa
+exigência não é estilo — é o que permite que a próxima rodada confira o seu trabalho.
+
+### 4. Uma frente por PR
+
+Consulte a tabela de conflito ([Arquitetura](./arquitetura.md#a-tabela-de-conflito)). Um
+PR que toca armas + UI + mapa é três PRs escondidos, e vai colidir com três frentes. Em
+`game.js`, edite por trecho; nunca sobrescreva o arquivo inteiro.
+
+### 5. Higiene do repositório
+
+- `node --check` em cada arquivo de `public/js/` que você editou (o CI faz isso primeiro,
+  `.github/workflows/ci.yml:19-20`).
+- Comentário **em português explicando o porquê**, não o quê. É a cultura do repo e é o
+  que sobrevive ao próximo handoff.
+- **Nunca delete comentário de procedência** num PR de limpeza. Aquele parágrafo longo
+  explicando de onde veio o número 0,513 é o que impede a próxima rodada de repetir três
+  dias perdidos.
+- Mexeu em `public/js/*.js`? **Bump o `?v=` nos dois lados** — `public/js/version.js` e o
+  import map de `src/pages/index.astro`. Já custou dias de "correção que não chegava".
+- Nada de asset com copyright. Nada de `service_role` key commitada.
+- Nada de dependência de runtime no jogo. Three.js é vendorizado; o jogo tem que rodar
+  arrastando a pasta pra um host estático.
+
+### 6. Linha editorial
+
+De `CONTRIBUTING.md:7-16`: o jogo não tem lado político (os dois times têm a mesma
+mecânica), não incita ódio, não usa pessoas reais — só arquétipos originais, sem gore.
+Contribuições que violem isso são recusadas. Não é burocracia: é o que protege o projeto
+de takedown e de virar outra coisa.
+
+## Como adicionar uma arma
+
+O pipeline é data-driven a partir do GLB. Os 26 GLBs vivem em `public/models/weapons/`.
+
+1. **Coloque o GLB** em `public/models/weapons/<id>.glb`. Só geometria — o material vem
+   do pipeline (`MAT1` exige `metallicFactor 1 / roughnessFactor 1` com mapa
+   metallicRoughness, que é o padrão das 26 atuais).
+2. **Declare a arma** em `public/js/weapons.js`. Os campos que o portão lê:
+   - `len` — comprimento em metros. **`ARM4` reprova acima de 1,25 m** fora de sniper de
+     ferrolho. É o campo que normaliza a escala; não é decoração.
+   - `gripZ` — fração do comprimento, contada **a partir da boca**, onde fica o grip
+     (ak/m4 usam 0,62 — cai no guarda-mato). É o que ancora a mão.
+   - `vm` — multiplicador de escala do mesh no viewmodel. Existe porque a `m92` batia
+     14,50% contra o teto medido de 13,09% da VM18b.
+   - `scope: true` **exige** `spreadScope` declarado — é a `ARM1`, e ela existe por causa
+     do "sniper sem zoom".
+3. **Rode o auditor:** `node tools/eval/vm-mint-audit.mjs`. Ele abre o GLB com parser
+   próprio, projeta o viewmodel nos dois aspectos e escreve `tools/eval/vm_mint_audit.json`.
+   **Esse JSON é versionado** — sem ele, VM1–VM6/VM9/VM10 viram PULADAS, que é portão
+   verde por ausência de dado (`.github/workflows/ci.yml:24-27`).
+4. **Rode o portão.** Você vai enfrentar VM1, VM3, VM5, VM9, VM12, VM16, VM18, VM18b,
+   VM19 — nove invariantes de enquadramento, todas com faixa medida em frame de
+   referência. Se não fechar, use `node tools/eval/vm-solve.mjs` em vez de tunar no olho:
+   ele lê os tetos do próprio `invariants.mjs` e diz se existe ponto viável, ou **qual par
+   de invariantes se cruza vazio e por quanto**.
+5. **Commite o `vm_mint_audit.json` atualizado** junto com o resto.
+
+## Como adicionar um personagem
+
+45 GLBs em `public/models/characters/`, 44 medidos pelo `char-probe.mjs`.
+
+1. **GLB com rig**, na bind pose, pés no chão. `CHR3` exige `|base da bbox| ≤ 0,01 m` na
+   bind pose **e em cada clipe** — o sinal separa dois defeitos: `y < 0` é pé dentro do
+   chão, `y > 0` é boneco no ar.
+2. **Declare** em `public/js/characters.js` / `public/js/glbchars.js`.
+3. **Rode `node tools/eval/char-probe.mjs`.** O que ele vai cobrar:
+   - `CHR1` — proporção antropométrica e índice de "balão". Hoje **está vermelha para o
+     elenco inteiro**, então não é você que a quebrou; mas não a piore.
+   - `CHR2` — altura do corpo dentro de meia hitbox de cabeça (dispersão ≤ 0,15 m). Medida
+     **sem adereço**: chapéu/cabelo/mastro inflam a bbox e fazem o caminho GLB (a evidência da própria CHR2 aponta `glbchars.js:319-322`)
+     encolher o corpo.
+   - `CHR4` — nenhuma palma nasce enterrada no corpo.
+   - `CHR5`/`CHR5B` — acabamento. Hoje 27 dos 44 personagens têm **zero** mapa de
+     superfície contra 70 normalMaps no melhor mapa. Se o seu personagem novo vier com
+     normal + roughness, você **melhora** a CHR5B — é contribuição de alto valor.
+   - `CHR6` — nenhum par com a mesma silhueta (IoU ≤ 0,98).
+
+## Como adicionar um mapa
+
+Hoje mapas são **código**, não dado: `public/js/map_havan.js` tem 1.458 linhas de
+geometria declarada à mão. Migrar isso para JSON é a Fase 2 do `ROADMAP.md` e é a
+contribuição de maior alavancagem do projeto.
+
+Para adicionar um mapa no formato de hoje:
+
+1. **Crie `public/js/map_<nome>.js`** exportando uma função `build<Nome>()`. Use
+   `map_pool_day.js` (363 linhas) como referência — é o menor dos cinco registrados.
+2. **Registre em `public/js/maps.js:8-19`** — nome exibido, `build`, e `ctfMode: true` se
+   a geometria foi desenhada em volta de bandeiras. **Não** existe mais `ctfOnly`: `MOD1`
+   reprova qualquer mapa que force o modo. O jogador escolhe.
+3. **Rode `node tools/eval/map-check.mjs <mapId>`.** O que ele mede, tudo por raycast
+   contra o mundo real:
+   - `MAP1` — nenhum spawn e nenhum chão andável com o corpo dentro de geometria sólida.
+     Teto = degrau de 0,30 m (acima disso não é "passar por cima", é "estar dentro").
+   - `MAP2` — cada time nasce todo no mesmo andar; respawn não visível de fora (medido com
+     o `_losClear` **do jogo**, a mesma função que decide se o bot atira em você).
+   - `MAP3` — escada dentro da NBR 9077 / Blondel (espelho 16–18 cm, piso 25–32 cm,
+     2h+p 63–65 cm, largura ≥ 1,20 m) **e** o grafo de navegação + o flood-fill sobem por
+     ela.
+   - `CTF1` — bandeiras não colineares, ≥ 2 raios do spawn mais próximo, nenhuma enterrada.
+4. **Rode `node tools/eval/pickup-check.mjs`** (alimenta a `VM14`): todo pickup precisa
+   ser alcançável **a pé**, por flood-fill de conectividade real em grade de 0,25 m
+   semeado nos spawns dos dois times. Já aconteceu de armas caírem dentro da piscina do
+   `fy_pool_day` com o portão marcando vão **0,0000 — VERDE**.
+5. **Rode `node tools/eval/botsim.mjs 60 <mapId>`**: os bots precisam navegar o seu mapa
+   sem travar (`BOT3` stuck ≤ 4%), sem andar de lado (`BOT1`) e sem girar parados (`BOT2`).
+   Waypoint desconexo é o defeito mais comum de mapa novo, e já quebrou PRs antes
+   (`ROADMAP.md`, Fase 2).
+
+## Boas primeiras tarefas
+
+Ordenadas por (impacto ÷ esforço). Todas são reais, verificadas nesta árvore, e nenhuma
+exige entender o jogo inteiro.
+
+### Muito boas para o primeiro PR
+
+As 15 tarefas de entrada moram em **[`docs/issues/`](https://github.com/rubenmarcus/csbrasil/tree/main/docs/issues)**,
+uma por arquivo, cada uma com contexto, o que fazer, critério de aceite e quais arquivos
+tocar. O `README.md` de lá indexa por tempo disponível (30 min / 1 h / 2-3 h) e por área
+(SEO, UI, backend, CI). **Nenhuma delas exige tocar em `public/js/*.js`**, de propósito:
+é o código onde os agentes de gameplay trabalham em paralelo e onde a tabela de conflito
+do `tools/eval/ARCH.md` manda.
+
+:::note Esta lista já teve cinco itens, e quatro foram feitos
+Ela mandava corrigir o `README.md` (feito), adicionar `arch`/`arch:check` ao
+`package.json` (existem hoje), regenerar o `ARCH.md` (`npm run arch:check` sai
+**verde**: `game.js` 6.428 linhas, 228 símbolos) e fazer o `tp-mount-probe` pular quando
+faltasse `public/models/anims/` — pasta que **hoje está versionada**, 438 arquivos em
+`git ls-files`. Doc que manda fazer o que já foi feito queima a primeira contribuição de
+alguém; por isso a lista virou ponteiro para `docs/issues/`, que é mantida.
+
+O único item da lista antiga que **continua valendo**: a mensagem das invariantes
+PX1–PX4 manda usar `tools/eval/motion.mjs`, que não existe (`ls` confirma). Apontar para
+o arnês certo, ou marcar como "arnês a escrever", é um PR de 15 minutos.
+:::
+
+### Trabalho de verdade, ainda acessível
+
+1. **VM12 e VM1 nas armas específicas.** VM12 falha em 5 de 52 medidas (pior `famas`@3:2
+   com 0,660 contra o teto 0,62); VM1 em 2 de 26 (`famas`, `uzi`). São correções por arma,
+   com faixa medida e `vm-solve.mjs` disponível para provar viabilidade. *Frente:
+   ARMAS/VIEWMODEL.*
+
+2. **BOT8 — bot com linha de visão e sem atirar.** 2,7 episódios medidos, silêncio máximo
+   de 3,03 s. Defeito visível em jogo, com invariante já escrita esperando ficar verde.
+   *Frente: BOTS/JOGABILIDADE.*
+
+3. **Mapas de superfície nos personagens (CHR5B).** 27 dos 44 personagens têm zero mapa
+   (normal + roughness + AO). Cada personagem que ganhar mapas melhora a invariante de
+   forma medível. Dá para fatiar em vários PRs pequenos. *Frente: PERSONAGENS.*
+
+4. **`setTimeout` não limpos no `dispose()`** — `game.js:554,666,673,684,1104`, apontados
+   em `RELATORIO-ANALISE.md:134`. Vazamento entre partidas. Bom PR de higiene com efeito
+   medível no heap. *Frente: zona vermelha `constructor`/`update` — coordene antes.*
+
+### Alto valor, precisa de conversa antes
+
+5. **Extrair `_updateBot()` (772 linhas).** Marcado como candidato a extração pelo
+    próprio índice gerado. Precisa de acordo prévio sobre a partição, porque a região é
+    disputada.
+
+6. **Mapas como JSON (Fase 2).** Geometria, colliders, occluders, spawns, pickups e
+    waypoints em dado, com loader único e **waypoints validados por teste**. É o que
+    transforma "PR de código arriscado" em "abre um JSON". Abra uma issue primeiro.
+
+7. **Job de CI noturno com browser** para destravar PX1–PX4. Quatro invariantes de pixel
+    estão puladas desde sempre.
+
+## Processo
+
+1. Feature grande? **Abra uma issue antes** (veja `IDEAS.md`).
+2. Fork + branch (`feat/minha-ideia`).
+3. Rode `npm run check`. Cole a saída no PR.
+4. PR pequeno, uma frente, descrição com números e `arquivo:linha`.
+5. Ao contribuir você licencia sob **MIT** (`LICENSE`).
+
+Reportando bug: o que aconteceu, o que esperava, passos pra reproduzir, navegador/SO e
+print do console (F12). E se o bug for de comportamento, ele vai virar invariante — é
+assim que ele nunca volta (`tools/eval/invariants.mjs:20-21`).

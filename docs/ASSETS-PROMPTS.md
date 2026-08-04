@@ -103,3 +103,23 @@ Paródia fictícia, sem logos/nomes reais. Asset IDs Mint em geração (31/jul�
 > Small red top hat, red/white checkered suit, round white ruffle collar, pom-pom buttons, big red shoes.
 
 **bonzo** (time Palhaços) — *Bonzo* (ex-Bozo, reaproveita `bozo.glb` existente, só renomear)
+
+---
+
+## 🎤 Time dos Funkeiros (5ª facção — gerado via Mint 02/ago, integrado na 3.3.0)
+
+`team:'F'` + `tribe:'funkeiros'`. Raul/Oakley/Cria RJ/Chave regerados com as referências
+de `references/funkeiros/`; Pagodeiro (slot dos Tribos) é novo; Mandrake = antigo
+`funkeiro.glb` renomeado. Todos riggados offline (`tools/rig-from-donor.mjs`) — os GLBs
+da Mint vêm sem esqueleto.
+
+**mandrake** — *Mandrake* — reusa `mandrake.glb` (ex-`funkeiro.glb`)
+**raul** — *Raul da Franja* — asset `ks7602v45wgd5n8nbjc32g2k058bq2kq` — franja açucarada, polo navy, cordões de ouro, chinelão
+**oakley** — *Oakley* — asset `ks787xw7teermt7cyrf8605eyd8bpzhj` — chapéu Medusa + goggles, colete tático, tattoos
+**criarj** — *Cria RJ* — asset `ks73dqymge0qwfqd7ny000gd318bpvay` — cabelo platinado zebrado, camisa vermelho/preto
+**chave** — *Chave SP* — asset `ks77yzh9sfhcm56vy5qgthe7gx8bq0se` — polo, boné, corrente, óculos
+**pagodeiro** (time U/tribos) — *Pagodeiro* — asset `ks7339yj2w2ks6yr8xkt9bkx298bqyrc` — platinado, roupa toda branca, corrente
+**funkraiz** — *Funk Raiz* — asset `ks7f6wrqj6xk4ppkvnzsg965gx8bn0jq` (pack original)
+**trapfunk** — *Trap Funk* — asset `ks70b059ka7pbhyc13tc8avrmn8bmkdb` (pack original)
+**fluxo** — *Fluxo* — asset `ks73q540vsa53vg5eevwbtshv98bn82a` (pack original)
+**ostentacao** — *Ostentação* — asset `ks74pa780389fayggzj5yezjmh8bnkh0` (pack original)
