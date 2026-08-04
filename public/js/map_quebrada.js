@@ -632,6 +632,58 @@ export function buildQuebrada(scene, T) {
     if (!gprop('tent', sx2, sz2, 2.4, ry2)) { occ(addBox(3.0, 2.4, 2.4, MAT_BARRACO[2], sx2, 0, sz2, { ry: ry2, collide: false })); colRot(sx2, sz2, 3.0, 2.4, 0, 2.4, ry2, 3, 2); }
   if (!gprop('kombi', -7.5, -21.5, 2.0, 0.1)) addBox(2.0, 2.0, 4.6, MAT_BARRACO[6], -7.5, 0, -21.5);
 
+  /* ===================== GAMBIARRA, LUZ DE BAILE E MATO =====================
+     Três acabamentos baratos que fazem mais pela leitura do lugar do que qualquer polígono a
+     mais nas casas. Todos SEM colisor e SEM luz nova: fiação e varal ficam a 4,8 m (o
+     `_collide` só olha até 1,5 m), as lâmpadas são quads emissivos e não PointLight — luz
+     dinâmica extra é o jeito mais caro de decorar e a máquina fraca é requisito do projeto. */
+  const MAT_FIO = new THREE.MeshBasicMaterial({ color: 0x141414, fog: true });
+  const fio = (x0, z0, x1, z1, y) => {   // catenária pobre: 3 segmentos com barriga no meio
+    const pts = [[x0, y, z0], [(x0 + x1) / 2, y - 0.55, (z0 + z1) / 2], [x1, y, z1]];
+    for (let i = 0; i < 2; i++) {
+      const a = pts[i], b = pts[i + 1], len = Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
+      const m = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, len, 4), MAT_FIO);
+      m.position.set((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2);
+      m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(b[0] - a[0], b[1] - a[1], b[2] - a[2]).normalize());
+      m.frustumCulled = true; root.add(m);
+    }
+  };
+  for (let i = 0; i < POSTES.length - 2; i += 2) fio(POSTES[i][0], POSTES[i][1], POSTES[i + 2][0], POSTES[i + 2][1], 5.6);
+  for (const [px, pz] of POSTES) { fio(px, pz, px < 0 ? -12.4 : 12.4, pz + 3, 5.2); fio(px, pz, px < 0 ? -12.4 : 12.4, pz - 4, 5.0); }
+  // varal de lâmpada colorida cruzando a rotunda — o "baile" que dá nome à praça
+  const CORES_LAMP = [0xff4d3d, 0x4dff8a, 0x4d9dff, 0xffd24d, 0xd94dff];
+  for (const [ax, az, bx, bz] of [[-11, -38, 11, -25], [-11, -25, 11, -38], [-11, -31.5, 11, -31.5]]) {
+    fio(ax, az, bx, bz, 5.0);
+    for (let i = 1; i < 10; i++) {
+      const t = i / 10, lx = ax + (bx - ax) * t, lz = az + (bz - az) * t;
+      const c = CORES_LAMP[i % CORES_LAMP.length];
+      const b = new THREE.Mesh(new THREE.SphereGeometry(0.13, 6, 5), new THREE.MeshBasicMaterial({ color: c, fog: true }));
+      b.position.set(lx, 5.0 - 0.55 * Math.sin(Math.PI * t) - 0.18, lz); root.add(b);
+    }
+  }
+  // MATO nas frestas: capim no pé dos muros das vielas e nas quinas do campinho. Cruzeta de
+  // dois quads com alpha; sem colisor, sem sombra — é o detalhe que tira o ar de maquete.
+  if (QP.get('mato') !== '0' && !LOWQ) {
+    const S = 64, cv = document.createElement('canvas'); cv.width = cv.height = S; const cx2 = cv.getContext('2d');
+    let sd = 401; const rn = () => (sd = (sd * 16807) % 2147483647) / 2147483647;
+    for (let i = 0; i < 22; i++) {
+      cx2.strokeStyle = rn() > 0.85 ? 'rgba(178,166,86,0.95)' : `rgba(${62 + rn() * 40 | 0},${112 + rn() * 52 | 0},${52 + rn() * 30 | 0},0.95)`;
+      cx2.lineWidth = 1.4 + rn() * 1.8; cx2.lineCap = 'round';
+      const px = 4 + rn() * (S - 8), h = S * (0.45 + rn() * 0.45);
+      cx2.beginPath(); cx2.moveTo(px, S); cx2.quadraticCurveTo(px + (rn() - 0.5) * 10, S - h * 0.5, px + (rn() - 0.5) * 20, S - h); cx2.stroke();
+    }
+    const tx = new THREE.CanvasTexture(cv); tx.colorSpace = THREE.SRGBColorSpace;
+    const matoMat = new THREE.MeshStandardMaterial({ map: tx, transparent: true, alphaTest: 0.35, side: THREE.DoubleSide, roughness: 1 });
+    const geo = new THREE.PlaneGeometry(0.9, 0.65);
+    let ms = 9161; const rr = () => (ms = (ms * 48271) % 2147483647) / 2147483647;
+    for (let i = 0; i < 190; i++) {
+      const lado = rr();
+      const x = lado < 0.5 ? (rr() < 0.5 ? -21.4 : -24.6) : (rr() < 0.5 ? 21.4 : 24.6);
+      const z = -38 + rr() * 66, y = 0.32;
+      for (const rot of [0, Math.PI / 2]) { const m = new THREE.Mesh(geo, matoMat); m.position.set(x + (rr() - 0.5) * 0.5, y, z); m.rotation.y = rot + rr(); root.add(m); }
+    }
+  }
+
   // ===== ground height: o mapa é PLANO (nenhum degrau, nenhum mezanino) =====
   const groundHeightAt = () => 0;
 
