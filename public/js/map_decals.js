@@ -33,10 +33,38 @@
      · peça passando do topo do muro               -> a fileira de cima não bate
      · peça em vão de porta / recuo de fachada     -> as amostras do vão não batem
 
-   O que ele NÃO vê, e continua sendo motivo pra CAPTURAR E OLHAR: vidro é sólido
-   igual concreto. Cartaz em vidro de abrigo de ônibus passa aqui e ainda assim é
-   errado — esse caso sai por decisão de onde chamar, não por régua.
+   ── E MESMO ASSIM ELE VIU PEÇA EM LUGAR ERRADO (05/08) ───────────────────────
+   Reprovação nº 2, com o portão VERDE: `decal-probe` dizia "0 sem parede atrás"
+   nos 5 mapas e ele continuou vendo grafite onde não há parede. Ele estava certo:
+   a régua media contra a LISTA DE SÓLIDOS DECLARADOS (`colliders` / `caixaDeBox3`),
+   e caixa declarada MENTE de três jeitos diferentes, todos medidos no navegador:
+
+     · **awp_map — 16 de 16 peças NO AR.** O ministério é um GLB sobre PILOTIS: o
+       térreo é vazado, com colunas. `caixaDeBox3(Box3.setFromObject(b))` é a caixa
+       do prédio INTEIRO, então o vão aberto entra como "parede". Capturado: a peça
+       flutua entre as colunas e dá pra ver o gramado através dela.
+       (`scratchpad/shots/awp_map_01_25de25_*.png`)
+     · **fy_quebrada — 21 de 47 sem malha nenhuma atrás** e 3 TAPADAS, com sólido
+       a 1-5 cm NA FRENTE (a peça nasce do lado errado da parede: existe, é
+       desenhada, e ninguém nunca vai ver).
+     · vidro conta como parede — era um limite declarado desta régua.
+
+   O critério certo não é uma lista: é a MALHA QUE O JOGADOR VÊ. Por isso
+   `paredeAtras` passou a aceitar **Object3D** no lugar de caixa e a medir com
+   raycast na geometria desenhada, com três cláusulas:
+     1. os 25 raios ATRÁS batem em malha VISÍVEL e OPACA dentro de `alcance`;
+     2. nenhum raio bate em nada nos 25 cm À FRENTE (peça tapada = peça invisível);
+     3. a profundidade dos 25 acertos não varia mais que 25 cm (é UM plano, não
+        duas paredes em degrau).
+   Malha invisível (as caixas-occluder de bala, `material.visible = false`) e malha
+   transparente (vidro, água) deixam de contar — que é a resposta pro limite que
+   esta docstring declarava e nunca fechava.
+
+   O caminho antigo de CAIXAS continua aqui e continua valendo pra quem passa
+   caixa: é ele que atende o Ferro Velho (folhas giradas do portão) e qualquer
+   sólido que não tenha malha própria.
    ============================================================================ */
+import * as THREE from 'three';
 
 /* Índices de `T.decals` a partir dos nomes de arquivo. Nome que não existe no
    pacote é AVISO ALTO e não entra no pool: pool vazio desenha nada (visível),
@@ -110,7 +138,12 @@ function _bate(solids, px, py, pz, dx, dz, alcance) {
    não é a parede daquele decalque, é outra coisa lá longe, e a peça está
    flutuando na frente dela. */
 export function paredeAtras(solids, x, y, z, ry, w, h, alcance = 0.8) {
-  if (!solids || !solids.length) return false;
+  if (!solids) return false;
+  const lista = Array.isArray(solids) ? solids : [solids];
+  if (!lista.length) return false;
+  // Object3D na lista = medir a MALHA DESENHADA (o critério honesto). Ver docstring.
+  const raizes = lista.filter((s) => s && s.isObject3D);
+  if (raizes.length) return _paredeMalha(raizes, x, y, z, ry, w, h, alcance);
   const nx = Math.sin(ry), nz = Math.cos(ry);      // normal (a face que aparece)
   const ux = Math.cos(ry), uz = -Math.sin(ry);     // eixo horizontal do quad
   const N = 5, INSET = 0.94;
@@ -119,8 +152,92 @@ export function paredeAtras(solids, x, y, z, ry, w, h, alcance = 0.8) {
     const px = x + ux * su, pz = z + uz * su;
     for (let b = 0; b < N; b++) {
       const py = y + (b / (N - 1) - 0.5) * h * INSET;
-      if (!_bate(solids, px, py, pz, -nx, -nz, alcance)) return false;
+      if (!_bate(lista, px, py, pz, -nx, -nz, alcance)) return false;
     }
   }
   return true;
+}
+
+/* ── O CRITÉRIO CONTRA A MALHA DESENHADA ─────────────────────────────────────
+   FRENTE_LIVRE: 25 cm. Peça com sólido na frente é peça que ninguém vê — foram 3
+   assim na Quebrada, com a parede a 1 cm do quad (nascidas do lado de dentro).
+   PLANO: 25 cm de variação de profundidade entre os 25 acertos. Mais que isso não
+   é uma parede, são duas — a peça está em degrau e metade dela flutua. */
+const FRENTE_LIVRE = 0.25, PLANO = 0.25;
+const _rc = new THREE.Raycaster();
+const _o = new THREE.Vector3(), _d = new THREE.Vector3(), _c = new THREE.Vector3();
+const _centro = new THREE.Vector3();
+
+/* Malha serve de parede? Tem que ser DESENHADA (visível) e OPACA. Caixa-occluder de
+   bala (`material.visible = false`) e vidro/água (`transparent`) não são parede pra
+   tinta — o cartaz em vidro era a reclamação nº 1 do dono e era limite declarado. */
+function _pintavel(o) {
+  if (!o.isMesh || !o.visible || !o.material) return false;
+  if (String(o.name).startsWith('decal:')) return false;
+  const teste = (m) => m && m.visible !== false && !(m.transparent && (m.opacity === undefined || m.opacity < 0.9));
+  return Array.isArray(o.material) ? o.material.some(teste) : teste(o.material);
+}
+
+/* MEDIR SEM DEIXAR MARCA. `Mesh.raycast` (e o filtro por distância aqui) COMPUTA e
+   GUARDA `geometry.boundingSphere` — e essa esfera vira cache velho se a geometria for
+   transformada depois, o que num mapa em construção acontece o tempo todo (batch,
+   merge, normalizeGeo). Efeito medido: só de rodar esta régua, o `botsim` do Piscinão
+   saía de 15,94 latFlips / 1,42% stuck para 14,00 / 3,51% — com os MESMOS 72 decalques,
+   conferidos peça a peça. Uma régua que muda o que mede é a Lei 1 da casa ao contrário.
+   Por isso guardamos quem estava com a esfera nula e devolvemos ao estado anterior. */
+function _alvos(raizes, x, y, z, raio, limpar) {
+  _centro.set(x, y, z);
+  const out = [];
+  for (const r of raizes) {
+    r.traverse((o) => {
+      if (!_pintavel(o)) return;
+      const g = o.geometry;
+      if (!g) return;
+      if (!g.boundingSphere) { g.computeBoundingSphere(); limpar.add(g); }
+      const bs = g.boundingSphere;
+      if (!bs) return;
+      _c.copy(bs.center).applyMatrix4(o.matrixWorld);
+      const e = o.matrixWorld.getMaxScaleOnAxis();
+      if (_c.distanceTo(_centro) > raio + bs.radius * e) return;   // longe: nem entra no raycast
+      out.push(o);
+    });
+  }
+  return out;
+}
+
+function _tiro(alvos) {
+  const hits = _rc.intersectObjects(alvos, false);
+  for (const h of hits) if (h.distance > 1e-4) return h.distance;
+  return null;
+}
+
+function _paredeMalha(raizes, x, y, z, ry, w, h, alcance) {
+  const limpar = new Set();
+  for (const r of raizes) r.updateMatrixWorld(true);
+  try {
+    const alvos = _alvos(raizes, x, y, z, Math.hypot(w, h) / 2 + alcance + 0.5, limpar);
+    if (!alvos.length) return false;
+    const nx = Math.sin(ry), nz = Math.cos(ry);
+    const ux = Math.cos(ry), uz = -Math.sin(ry);
+    const N = 5, INSET = 0.94;
+    let dmin = Infinity, dmax = -Infinity;
+    for (let a = 0; a < N; a++) {
+      const su = (a / (N - 1) - 0.5) * w * INSET;
+      for (let b = 0; b < N; b++) {
+        _o.set(x + ux * su, y + (b / (N - 1) - 0.5) * h * INSET, z + uz * su);
+        _rc.far = alcance;
+        _rc.set(_o, _d.set(-nx, 0, -nz).normalize());
+        const t = _tiro(alvos);
+        if (t == null) return false;                       // nada atrás: peça no ar
+        if (t < dmin) dmin = t;
+        if (t > dmax) dmax = t;
+        _rc.far = FRENTE_LIVRE;
+        _rc.set(_o, _d.set(nx, 0, nz).normalize());
+        if (_tiro(alvos) != null) return false;            // tapada: nasceu do lado errado
+      }
+    }
+    return dmax - dmin <= PLANO;
+  } finally {
+    for (const g of limpar) g.boundingSphere = null;       // devolve o mapa ao estado de antes
+  }
 }

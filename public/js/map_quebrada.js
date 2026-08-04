@@ -391,7 +391,10 @@ export function buildQuebrada(scene, T) {
        lugares que não são parede" — mata peça no ar, peça passando do topo do muro e peça
        cruzando a divisa de dois volumes, em vez de consertar os que aparecem na captura.
        Vem antes do `_usados` de propósito: peça reprovada não gasta vaga da anti-repetição. */
-    if (!paredeAtras(colliders, x, y + h / 2, z, ry, w, h)) return null;
+    /* `[root]` e não `colliders` (05/08): medido no navegador, 22 das 47 peças deste mapa
+       não tinham MALHA nenhuma atrás e 8 nasciam TAPADAS (parede a 1-5 cm na FRENTE, peça
+       que ninguém veria) — todas com a régua de caixas VERDE. Ver map_decals.js. */
+    if (!paredeAtras([root], x, y + h / 2, z, ry, w, h)) return null;
     _usados.push({ i, x, z });
     const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), decalMat(i));
     m.position.set(x, y + h / 2, z); m.rotation.y = ry; m.renderOrder = 2;
@@ -1309,7 +1312,7 @@ export function buildQuebrada(scene, T) {
   PB.build(root);       // instancia barraco e fachada: 1 draw call por (material, bloco de 24 m)
   SKIRT.build(root);
   return {
-    root, colliders, occluders, decalSolids: colliders, groundHeightAt, spawns, sun, hemi, pickups, ctfPoints,
+    root, colliders, occluders, decalSolids: [root], groundHeightAt, spawns, sun, hemi, pickups, ctfPoints,
     waypoints: { nodes, adj }, nearestWaypoint, findPath,
     bounds: { minX: -HALF_X + 0.5, maxX: HALF_X - 0.5, minZ: -HALF_Z + 0.5, maxZ: HALF_Z - 0.5 },
   };

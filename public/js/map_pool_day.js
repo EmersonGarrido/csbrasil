@@ -325,7 +325,11 @@ export function buildPoolDay(scene, T) {
       let h = alt, w = alt * a;
       if (w > larg) { w = larg; h = larg / a; }    // encolhe inteiro; NUNCA estica
       // parede atrás ANTES de desenhar (map_decals.js) — sem sólido, não vira tinta
-      if (!paredeAtras(colliders, x, y0 + h / 2, z, ry, w, h)) return null;
+      /* `[root]` e não `colliders`: o critério mede a MALHA DESENHADA (map_decals.js). A
+         lista de caixas declarava parede onde havia vão de piloti e onde havia vidro —
+         as 72 peças daqui passam nos dois critérios, e é isso que prova que o novo não
+         mata peça boa: medido antes 72, depois 72. */
+      if (!paredeAtras([root], x, y0 + h / 2, z, ry, w, h)) return null;
       _usados.push({ i, x, z });
       let m = _dmat.get(i);
       if (!m) {
@@ -648,7 +652,7 @@ export function buildPoolDay(scene, T) {
   // pessoa ache que ficou faltando.
   const slowAt = () => false;
   return {
-    root, colliders, occluders, decalSolids: colliders, groundHeightAt, slowAt, spawns, sun, hemi, pickups,
+    root, colliders, occluders, decalSolids: [root], groundHeightAt, slowAt, spawns, sun, hemi, pickups,
     waypoints: { nodes, adj }, nearestWaypoint, findPath,
     bounds: { minX: -HALF_X + 0.5, maxX: HALF_X - 0.5, minZ: -HALF_Z + 0.5, maxZ: HALF_Z - 0.5 },
   };
