@@ -968,7 +968,14 @@ export function buildQuebrada(scene, T) {
     for (let i = 0; i < 4; i++) addBox(0.5, 0.62, 0.03, MAT_ROUPA, vx - 0.9 + i * 0.6, 2.0, vz, { collide: false, cast: false });
   }
   // camelô e caçamba na praça (o largo é grande: sem peça no meio ele vira arena de sniper)
-  for (const [sx2, sz2, ry2] of [[-9.4, -24.5, 0.3], [9.6, -25.5, -0.4], [-9.8, -39, 0.5], [9.4, -38.5, -0.5]])
+  /* AS DUAS BARRACAS DO FUNDO DA PRAÇA SAÍRAM (pedido do dono, 04/08: "no mapa da quebrada
+     não precisa ter barracas no respawn primeiro (o do time inverso do campinho)"). Eram as
+     de (-9,8, -39) e (9,4, -38,5): as duas caíam DENTRO da faixa de respawn do P (a vila do
+     baile é z ∈ [-46,5; -38] e os 4 pontos de nascimento estão em z = -42,5), ou seja, o
+     jogador nascia e a primeira coisa na frente dele era uma barraca. As duas de z ≈ -25
+     ficam, porque estão no MEIO da praça e não no respawn — o pedido foi "não precisa ter",
+     não "tire as barracas do mapa". Efeito medido em map-check está no relatório da rodada. */
+  for (const [sx2, sz2, ry2] of [[-9.4, -24.5, 0.3], [9.6, -25.5, -0.4]])
     if (!gprop('tent', sx2, sz2, 2.4, ry2)) { occ(addBox(3.0, 2.4, 2.4, MAT_BARRACO[2], sx2, 0, sz2, { ry: ry2, collide: false })); colRot(sx2, sz2, 3.0, 2.4, 0, 2.4, ry2, 3, 2); }
   if (!gprop('kombi', -7.5, -21.5, 2.0, 0.1)) addBox(2.0, 2.0, 4.6, MAT_BARRACO[6], -7.5, 0, -21.5);
 
@@ -1005,8 +1012,9 @@ export function buildQuebrada(scene, T) {
       }
     }
   }
-  // as 4 barracas da praça e as 2 do campinho ganham tabuleiro cheio + botijão do lado
-  for (const [sx2, sz2, ry2, k] of [[-9.4, -24.5, 0.3, 0], [9.6, -25.5, -0.4, 1], [-9.8, -39, 0.5, 2], [9.4, -38.5, -0.5, 3]]) {
+  // as 2 barracas da praça e as 2 do campinho ganham tabuleiro cheio + botijão do lado
+  // (as 2 que ficavam no respawn do P saíram junto com as barracas — ver o bloco do camelô)
+  for (const [sx2, sz2, ry2, k] of [[-9.4, -24.5, 0.3, 0], [9.6, -25.5, -0.4, 1]]) {
     mercadoria(sx2 + Math.sin(ry2) * 1.15, sz2 + Math.cos(ry2) * 1.15, ry2, 3 + (k % 2));
     if (!gpropC('botijao_gas', sx2 - Math.sin(ry2) * 1.2, sz2 - Math.cos(ry2) * 1.2, 0.62, ry2 + k))
       addBox(0.36, 0.62, 0.36, MAT_TAMBOR, sx2 - Math.sin(ry2) * 1.2, 0, sz2 - Math.cos(ry2) * 1.2);
