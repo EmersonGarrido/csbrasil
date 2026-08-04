@@ -377,43 +377,194 @@ export function buildVmAttachment(cls, kind) {
    exatamente a identidade que a Mint traz (SMG curta, sniper longa).
    Kill-switch: ?tripovm=1 volta ao pipeline Tripo inteiro (ver game.js).                */
 export const VM_FRAME = {
-  vmScale: 0.72,        // escala global do GLB no viewmodel (par com a lente V0=62 do vmFovForAspect)
-  tanBarrel: 0.2217,    // tan(12.5°) — alvo do dono: cano entre 11° e 14° na tela
+  vmScale: 0.72,        // escala global do GLB no viewmodel (invariante ao enquadramento — não encolhe a arma na tela)
+  /* tanBarrel 0,28 -> 0,22 (RODADA DA REFERENCIA MEDIDA).
+     ATENCAO AO QUE ESTE NUMERO NAO E: ele NAO e "o angulo do cano na tela". atan(0,22)=12,4°
+     e a direcao em que o GRUPO da arma foi deslocado dentro do vm.root, ignorando o
+     VM_OFF[1] — que e o termo que domina a posicao na tela. O angulo que o olho ve (e que a
+     VM3 passou a medir) e o PCA da silhueta em pixel, e ele estava em 33-61° enquanto este
+     campo dizia 15,64°. Ver o comentario da VM3 em tools/eval/invariants.mjs.
+     0,22 sai da busca do vm-solve com a lente nova (V0=42): e o valor que, junto com
+     tanH 0,20, poe o eixo da silhueta dos rifles em 24-31° — a faixa medida no CS 1.6
+     (27,3° na AK do dust, 34,8° na M4 do dust2). Continua sendo o unico termo que depende
+     do aspecto na altura do grip (Delta VM10 = 0,0931·tanH·tanBarrel = 0,004, bem abaixo
+     do teto 0,03). */
+  tanBarrel: 0.22,      // par do tanH 0,20 e da lente V0=42 — os tres so funcionam juntos
   adsPullZ: 0.02,       // ADS traz a arma 2 cm em direção à lente (sem cruzar a coronha)
+  /* LOOK FINAL ESCOLHIDO PELO DONO (08/2026): CS 1.6 — medido frame a frame no vídeo de
+     referência (aim_ak-colt). A arma fica BAIXA (boca a ~0,66H, ABAIXO da mira — é
+     "segurada relaxada", não "apontada pro crosshair"), mostra o FLANCO, e a coronha
+     termina no canto inferior-direito INTEIRA (no máximo beijando a borda). O trio que
+     faz o look: lente moderada (V0=80 no vmFovForAspect) + arma mais longe (recuoZ 1,10)
+     + VM_OFF y −0,23 (game.js), que desce a arma até a boca ficar abaixo da mira.
+     ATUALIZAÇÃO (rodada do vm-solve): O OFFSET VERTICAL MUDOU DE FORMA, NÃO DE VALOR.
+     VM_OFF[1] = −0,23 continua sendo o número do look, mas agora vale NA REFERÊNCIA 16:9;
+     o offset REAL aplicado ao vm.root é −0,23 · V(aspecto)/V(16:9) = −0,23 · (16/9)/aspecto
+     (game.js, `vmOffY`). Em 16:9 nada muda — em 3:2 o offset vira −0,2726, que é o mesmo
+     deslocamento EM FRAÇÃO DE ALTURA DE TELA. Isso não é tuning, é a única forma que fecha:
+     com offset constante em metros, (gripY − 0,5) escala com o aspecto na razão fixa
+     (16/9)/(3/2) = 1,1852, então grip a ≥ 0,84 nos dois aspectos (VM9) implica Δ ≥ 0,0630
+     entre eles, contra o teto de 0,03 da VM10 — VM9 e VM10 eram IMPOSSÍVEIS juntas, para
+     qualquer valor de recuoZ/tanH/minz/zMul/vmScale/V0. A prova numérica e a busca estão em
+     tools/eval/vm-solve.mjs. O look medido (boca ABAIXO da mira, VM12) fica PRESERVADO:
+     a boca do cano vai a 0,667-0,803 da altura, contra o teto de 0,66.
+     A rodada anterior foi o look Quake 4 (lente 92, recuoZ 0,75, nearX 1,35, tanH 0,80 —
+     arma grande, por trás, coronha cortada); o dono comparou e escolheu CS. Quake fica
+     reproduzível: ?vmfov=92&vmzmul=0.75&vmnearx=1.35&vmtanh=0.80&vmtanb=0.30&vmoff=0.03,-0.10,0
+     Tunáveis ao vivo: ?vmzmul= ?vmnearx= (mais ?vmfov= ?vmtanh= ?vmtanb= ?vmoff=). */
+  /* recuoZ 1,10 -> 1,00 e nearX 1,05 -> 6,00 (RODADA DA REFERENCIA MEDIDA).
+     recuoZ: era o multiplicador global de Zg. Com o minz por classe resolvido pelo solver
+       (o valor JA e o Zg alvo), um multiplicador extra so obrigaria a dividir os seis minz
+       por 1,10 e esconder o numero. 1,00 = "o minz da classe E a profundidade do grip".
+     nearX: ERA UMA TRAVA ASSERIDA, e ela contradizia a foto. "A coronha pode projetar no
+       maximo 1,05 da meia-largura" e a mesma afirmacao do doc antigo ("a coronha termina no
+       canto INTEIRA, no maximo beijando a borda") que o dono desmentiu: nos 3 frames de
+       referencia a silhueta CRUZA a borda direita (ref_viewmodel.json ->
+       faixas.cruzaBordaDireita: true) e sai pela base (fatiaBaixo 0,383 e 0,480). Com a
+       lente fechada (V0=42) a coronha fica angularmente grande e a trava de 1,05 empurrava
+       o grip para Zg 0,46 — FORA da janela da VM9 — em g3/lmg/carbine.
+       O que substitui a trava, com numero medido em vez de asserido:
+         VM8  (invariants.mjs) — coronha <= -0,05 no PICO DO COICE: e ela que impede a
+              coronha de atravessar a lente, que era o perigo real.
+         VM16 (invariants.mjs) — fatia na borda direita entre 0,02 e 0,20 da altura
+              (ref 0,053-0,095): e ela que impede a arma de sair pela lateral em vez de
+              raspar a quina, que era o perigo estetico.
+       6,00 e "praticamente solta": o piso que ela impoe vira back·1,051, abaixo do minz de
+       todas as classes. Nao foi zerada para o parametro continuar existindo e tunavel
+       (?vmnearx=) — quem quiser o comportamento antigo poe 1,05 e ve a arma encolher. */
+  recuoZ: 1.00,         // recuo de tamanho aparente: multiplica o Zg do enquadramento (?vmzmul=)
+  nearX: 6.00,          // trava de borda: coronha pode projetar até esta fração da meia-largura (?vmnearx=)
   cls: {
-    // tanH  = tangente do ângulo horizontal do grip (0.50 = 26.6°: é o que põe a borda
-    //         esquerda do VM em 0,62-0,65 W; abaixo disso a silhueta colapsa — regressão R1)
+    // tanH  = tangente do ângulo horizontal do grip. 0,800 (Quake) → 0,670 (CS 1.6): arma
+    //         mais longe e lente mais fechada pedem menos ângulo pra borda esquerda do VM
+    //         ficar em ~0,62-0,66 W (medido no vídeo do CS 1.6). MESMO valor nas 6 classes
+    //         (validado em captura) — a variação de tamanho por classe vem de len/gripZ/zMul.
     // clear = folga em metros entre a coronha e a lente
-    // minz  = profundidade mínima do grip (alcance do braço FP: ombro→grip ≤ 0,60 m)
+    // minz  = profundidade mínima do grip (alcance do braço FP: ombro→grip ≤ 0,60 m).
+    //         0,4200 nas 6 classes (era 0,230-0,360, uma por classe). PORQUÊ UNIFORME: com o
+    //         offset vertical em fração de altura, gripY = 0,5 + 0,5·c/Zg + k·tanH·tanBarrel,
+    //         e a VM9 (grip entre 0,84 e 0,92 nos DOIS aspectos) vira uma janela ESTREITA de
+    //         Zg — [0,445 ; 0,558] com c = 0,23·(16/9)/H. Zg fora dela = grip fora da banda,
+    //         não importa a arma: a faca e as pistolas iam a Zg 0,25 e o grip caía a 1,16 da
+    //         altura (mão FORA da tela). 0,42·recuoZ = 0,462 põe as 26 dentro (Zg 0,462-0,503,
+    //         VM9 0,873-0,886, folga 0,0116).
+    //         POR QUE 0,42 E NÃO 0,4545 (que daria folga 0,027 na VM9): acima de 0,4245 o grip
+    //         de TODAS as 26 passa a ficar a menos de 2 cm do limite do braço direito, e o
+    //         vm-mint-audit passa a acusar "MÃO SOLTA NO AR" em 26 armas em vez das 5 que já
+    //         acusava. Isso não entra em nenhuma invariante do portão (os braços FP estão
+    //         desligados por padrão — WEAPON_ONLY em game.js), então seria uma regressão
+    //         INVISÍVEL para a régua e visível com ?hands=1. 0,42 mantém o alcance do braço
+    //         EXATAMENTE como estava (5 armas acusadas, as mesmas de antes) e ainda deixa a
+    //         VM9 com 23× a resolução do JSON. Medido em tools/eval/vm-solve.mjs.
     // fwdTan = teto de (cano à frente do grip)/(profundidade do grip) — trava o tamanho
     //         aparente das atarracadas sem achatar a identidade das longas
     // roll   = cant (rad) em torno do EIXO DA CÂMERA. É de graça no que importa: girar em Z
     //         não move a direção do cano (0,0,-1) nem 1 grau, então a arma continua apontada
     //         exatamente pra mira — só mostra o topo do receiver, como no CS.
-    // tanH 0,600 -> 0,460 (P0.1). Com 0,600 o grip ficava a 31 graus do eixo da lente, e a
-    // CORONHA (o ponto mais perto do olho, que e o que projeta mais largo) saia da tela: o
-    // probe mediu a caixa do viewmodel indo ate NDC x 2,11 com o centro em 1,17 — a arma
-    // estava mais fora do quadro do que dentro. Empurrar a arma pro fundo ate caber (a trava
-    // de borda do _vmFrame) resolvia a borda mas mandava o AK pra 0,82 m do olho, e ai ele
-    // fica pequeno demais. Baixar o angulo horizontal e a solucao certa: com 0,460 a arma
-    // cabe INTEIRA com Zg ~0,45 m (distancia de viewmodel de FPS de verdade), a boca cai em
-    // NDC 0,23 (borda esquerda ~0,62 W, o alvo medido nas referencias) e a coronha em ~0,94.
-    rifle:   { roll: -0.070, tanH: 0.460, clear: 0.040, minz: 0.345, fwdTan: 1.60 },
-    sniper:  { roll: -0.055, tanH: 0.460, clear: 0.040, minz: 0.360, fwdTan: 1.60 },
-    shotgun: { roll: -0.078, tanH: 0.460, clear: 0.040, minz: 0.345, fwdTan: 1.60 },
-    smg:     { roll: -0.085, tanH: 0.445, clear: 0.040, minz: 0.300, fwdTan: 1.60 },
-    pistol:  { roll: -0.050, tanH: 0.400, clear: 0.040, minz: 0.258, fwdTan: 1.60 },
-    knife:   { roll: 0, tanH: 0.430, clear: 0.040, minz: 0.230, fwdTan: 1.60 },
+    /* pitch/yaw = INCLINAÇÃO PRÓPRIA DA ARMA (RODADA DO GRIP + PITCH). Euler XYZ em rad,
+       aplicado ao MESMO grupo do roll (game.js `_vmFrame`), então a ordem é RX·RY·RZ e com
+       pitch=yaw=0 a cadeia inteira volta a ser exatamente a de antes.
+         pitch > 0  levanta a BOCA (ponto em z=-d vai para y=+d·sin(pitch))
+         yaw   > 0  leva a BOCA para a ESQUERDA (x = -d·sin(yaw)), ou seja em direção à mira
+
+       POR QUE ISTO PRECISOU EXISTIR — é uma IMPOSSIBILIDADE, não um gosto. Com o cano
+       paralelo ao eixo da câmera (só roll), a boca fica rigidamente amarrada ao grip:
+           bocaY − 0,5 = (gripY − 0,5)·Zg/(Zg + S·fwd) − 0,5·S·mzY/((Zg + S·fwd)·V)
+       Com a VM9 MEDIDA (grip ≥ 0,90 — ref-measure.py) e a VM12 MEDIDA (boca ≤ 0,62), e com
+       a VM8 exigindo Zg ≥ S·back + 0,05 (a coronha não cruza a lente), sai a condição
+           0,05 ≤ S·( (3/7)·mzZ − back )
+       que é NEGATIVA para as 26 armas do arsenal (a AK, por exemplo: (3/7)·0,539 = 0,231
+       contra back 0,334). Ou seja: a interseção VM8 ∩ VM9 ∩ VM12 é VAZIA para QUALQUER
+       vmScale, V0, tanH, tanBarrel, offY, minz ou zMul. Prova reproduzível em
+       `node tools/eval/vm-solve.mjs --prova-vazio`.
+       O CS 1.6 escapa disso porque o v_model dele TEM inclinação própria: por isso ele
+       consegue grip fora da tela E boca em 0,513 no mesmo frame. É a explicação literal do
+       "o ângulo, a perspectiva, a escala, o tamanho está tudo diferente".
+
+       E O CANO CONTINUA APONTANDO PRA ONDE A BALA VAI? A bala nunca saiu do cano: a direção
+       do tiro é `camera.quaternion` (game.js `_tryShoot`) e a do clarão é
+       `camera.getWorldDirection()` — o viewmodel é DECORATIVO, como no CS 1.6. O que segue
+       a arma é só a ORIGEM do clarão/tracer (`_vmMuzzleExt[id]`, derivada de `rw.localToWorld`
+       DENTRO deste grupo), e ela acompanha o pitch/yaw de graça, que é o comportamento
+       certo: o fogo nasce na boca desenhada e o tiro vai pro centro da mira.
+       NO ADS o pitch/yaw são ZERADOS (game.js `vmAdsRot`, invariante VM17): com a arma
+       inclinada, mirar deixaria a alça fora do eixo. O roll NÃO é zerado — ele não desalinha
+       nada e já era assim. */
+    /* RODADA DA REFERENCIA MEDIDA — tanH 0,670 -> 0,200, clear 0,040 -> 0,030 e minz
+       DE VOLTA A SER POR CLASSE (era 0,4200 uniforme).
+       tanH: com a lente fechada (V0=42) o mesmo tanH jogava a arma pra FORA do quadro pela
+         direita — a borda esquerda da silhueta ia a 0,63-0,69 e a referencia medida da
+         0,520-0,565 (ref-measure.py). 0,20 poe os rifles em 0,58-0,60.
+       minz: o 0,4200 uniforme da rodada passada foi escolhido pra uniformizar profundidade e
+         custou 77% do tamanho angular da faca e 67% do das pistolas. Com a boca subindo para
+         0,50-0,62 a restricao muda de sinal, entao ele volta a ser por classe. A VARIACAO E
+         PEQUENA DE PROPOSITO: a VM9 (grip entre 0,84 e 0,92, intocada) fecha uma janela de Zg
+         de [0,2936 ; 0,3651] — so 24% de ponta a ponta — e cada classe fica no ponto DELA
+         dentro dessa janela (tools/eval/vm-solve.mjs escolhe maximizando a soma das margens
+         das armas da classe). "Faca perto do rosto, sniper longe" cabe ai dentro; mais que
+         isso tira o grip da banda da VM9.
+       clear: 0,030 abre 1 cm de aproximacao. A VM8 (coronha <= -0,05 no pico do coice)
+         continua sendo quem trava — e continua verde. */
+    /* RODADA DO GRIP + PITCH — pitch/yaw RESOLVIDOS (tools/eval/vm-solve.mjs + a varredura
+       por classe descrita no relatório), e tanH 0,200 -> 0,360 junto com eles.
+       Os números em GRAUS, que é como se compara com a foto (rad = graus·π/180):
+         rifle    pitch  9°  yaw 16°      shotgun  pitch  6°  yaw 20°
+         sniper   pitch  9°  yaw 12°      pistol   pitch 15°  yaw 28°
+         smg      pitch 24°  yaw 28°      knife    n/a (usa knifeRot)
+       POR QUE tanH SUBIU JUNTO: yaw>0 leva a BOCA para a esquerda e a CORONHA para a
+       direita. Com tanH 0,20 a coronha ia para a direita mas parava antes da borda, e a
+       VM16 (a coronha tem que RASPAR a quina — 0,02 a 0,20 da altura) continuava em 0,000
+       em 26/26. Com tanH 0,36 as medidas fora de banda da VM16 caem de 42/52 para 21/52 e
+       as da VM3 (eixo da silhueta) de 35/52 para 2/52. Os dois SÓ funcionam juntos: tanH
+       0,36 sozinho (sem yaw) joga a borda esquerda da silhueta para fora da VM1.
+       EFEITO MEDIDO NO CONJUNTO (medidas fora de banda, 52 = 26 armas × 2 aspectos):
+         antes (5737ce8 + VM9 nova): VM1 20 VM3 35 VM5 19 VM9 44 VM12 33 VM16 42 = 193
+         depois:                     VM1 10 VM3  2 VM5  6 VM9  0 VM12 14 VM16 21 =  53
+       O que NÃO fechou está declarado no relatório: pistola e faca (sem foto de referência)
+       e a borda esquerda de 5 armas. */
+    rifle:   { roll: -0.070, pitch: 0.1571, yaw: 0.2793, tanH: 0.360, clear: 0.020, minz: 0.3450, fwdTan: 1.60 },
+    sniper:  { roll: -0.055, pitch: 0.1571, yaw: 0.2094, tanH: 0.360, clear: 0.020, minz: 0.3350, fwdTan: 1.60 },
+    shotgun: { roll: -0.078, pitch: 0.1047, yaw: 0.3491, tanH: 0.360, clear: 0.020, minz: 0.3450, fwdTan: 1.60 },
+    smg:     { roll: -0.085, pitch: 0.4189, yaw: 0.4887, tanH: 0.360, clear: 0.020, minz: 0.3500, fwdTan: 1.60 },
+    pistol:  { roll: -0.050, pitch: 0.4712, yaw: 0.5585, tanH: 0.280, clear: 0.020, minz: 0.2700, fwdTan: 1.60 },
+    knife:   { roll: 0, pitch: 0.000, yaw: 0.000, tanH: 0.240, clear: 0.020, minz: 0.3100, fwdTan: 1.60 },   // pitch/yaw n/a: a faca usa knifeRot
   },
   // A faca não tem cano: em vez do cant ela leva a pose CS clássica (lâmina atravessada,
   // gume pra dentro do quadro). Euler XYZ em rad, aplicado ao grupo do viewmodel.
-  knifeRot: [-0.14, 0.42, -0.40],
-  // Exceções de tamanho aparente (3 em 26): armas ATARRACADAS cuja área na tela vem da
-  // GROSSURA do corpo, não do comprimento — nenhuma fórmula de len/gripZ as pega. zMul
-  // empurra a arma p/ o fundo. Medido em tools/eval/vm-mint-audit.mjs (16:9 e 3:2).
-  // As demais 23 NÃO têm entrada: a variação de área que sobra (5-10%) é identidade
-  // (uma AWP é longa e fina, uma UZI é um tijolo) e o dono pediu justamente isso.
-  zMul: { m92: 1.12, p90: 1.12, uzi: 1.12, famas: 1.08, tavor: 1.06 },
+  /* knifeRot RE-RESOLVIDO (RODADA DO GRIP + PITCH) — era [-0,14 ; 0,42 ; -0,40].
+     Um crítico mediu que mutar este campo para [1.5,1.5,1.5] passava o portão VERDE: os
+     espelhos (vm-mint-audit/vm-project/vm-solve) projetavam a faca com rotação ZERO, ou
+     seja mediam uma faca que não é a desenhada. Agora eles usam knifeRot (ver o frame() do
+     vm-mint-audit), então o campo virou MENSURÁVEL — e, medido, o valor antigo punha a faca
+     em eixo 5,2°, área 1,4% e boca 0,927: fora de VM3, VM5 e VM12 ao mesmo tempo.
+     [0,45 ; −0,90 ; 0,30] (26° / −52° / 17°) + tanH 0,24 + minz 0,31 + vm 2,2 (weapons.js)
+     põem a faca DENTRO das 6 bandas: esq 0,582 · eixo 30,0°/33,2° · área 7,2%/6,4% ·
+     boca 0,588/0,618 · fatiaDir 0,063 · grip 0,989/0,978. É a pose CS clássica com a lâmina
+     mais atravessada (yaw maior) — o que sobe o eixo da silhueta de 5° para 30°. */
+  /* ESPELHADA EM 04/08 — "a faca é a pior, ela está ao contrário da direção normal" (dono).
+     E ele está certo: o valor anterior [0,45 ; −0,90 ; 0,30] foi resolvido para CABER em 6
+     bandas de medição (borda, eixo, área, boca, fatia, grip) e nenhuma delas enxerga PARA
+     QUE LADO a lâmina aponta. Silhueta de faca virada e faca certa medem quase igual — é a
+     Lei 1 da casa acontecendo: o que não virou invariante foi otimizado para fora.
+
+     CONFIRMADO OLHANDO (tools/eval/vm-quake-capture.mjs, 3 capturas):
+       [0,45 ; −0,90 ;  0,30]  ponta saindo pela borda DIREITA, lâmina apontando pra fora
+       [0,45 ;  2,24 ;  0,30]  giro de 180°: a faca sai quase inteira do quadro
+       [0,45 ;  0,90 ; −0,30]  ponta pra dentro da cena, punho no canto  ← esta
+     Espelhar yaw E roll (não só o yaw) é o que mantém o gume virado pra dentro em vez de
+     mostrar as costas da lâmina.
+
+     A RÉGUA QUE FALTA e que este defeito exige: nenhuma invariante mede direção de lâmina.
+     Enquanto não existir, qualquer solver que mexer aqui pode virar a faca de novo e passar
+     verde. É o item de maior risco de regressão do viewmodel. */
+  knifeRot: [0.45, 0.90, -0.30],
+  /* zMul VAZIO — as 5 exceções por arma (m92/p90/uzi/famas/tavor) FORAM REMOVIDAS, não
+     substituídas. Elas empurravam armas atarracadas p/ o fundo para corrigir tamanho
+     aparente; com minz uniforme o Zg já é o mesmo (0,500-0,503) para as 26, e cada entrada
+     que sobrasse só tiraria o grip da banda da VM9 (m92 com 1,12 ia a Zg 0,560 e o grip
+     saía por 0,0009). DÍVIDA REMOVIDA: 5 exceções por arma -> 0. Se alguém precisar de uma,
+     o custo é medido: a janela inteira de Zg da VM9 é [0,445 ; 0,558], ou seja ±11%. */
+  zMul: {},
   // classe de ENQUADRAMENTO (≠ STATIC_CLASS do pipeline Tripo, ≠ BALL_CLASS da balística)
   classOf: {
     ak: 'rifle', akm: 'rifle', m4: 'rifle', m92: 'rifle', g3: 'rifle', carbine: 'rifle',
