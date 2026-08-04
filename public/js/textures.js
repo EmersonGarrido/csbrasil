@@ -332,6 +332,223 @@ export function initTextures() {
   });
   T.posterAspects = POSTER_FILES.map(([, a]) => a);
 
+  /* --- graffiti decals (public/img/decals) — elementos recortados com fundo
+     transparente por `tools/gen-graffiti-decals.mjs` a partir de `references/graffiti/`.
+     Mesmo formato dos cartazes: `T.decals[i]` é a textura e `T.decalAspects[i]` o w/h.
+
+     DUAS DIFERENÇAS que importam pra quem for usar:
+     1. CARREGAM SOB DEMANDA. São centenas de arquivos (folha de alfabeto vira 26
+        recortes); pedir todos no boot seriam centenas de requisições por nada. Cada
+        índice é um getter que só chama o loader na primeira leitura, então
+        `T.decals[7]` funciona igual `T.posterImgs[7]` — mas NÃO faça spread nem
+        `.map()` no array, que isso acorda o pacote inteiro.
+     2. TÊM ALPHA. O material precisa de `transparent: true` (ou `alphaTest`), senão
+        o fundo transparente vira retângulo preto na parede.
+
+     `T.decalTipos[i]`  : 'alfabeto' | 'tag' | 'peca' | 'ilustracao' | 'cartaz'
+     `T.decalClaro[i]`  : true = tinta clara (só legível em parede escura)
+     `T.decalFiles[i]`  : nome do arquivo, pra depurar
+     A lista abaixo é GERADA — edite o script, não ela.                              */
+  /* DECALS:GERADO-INICIO */
+  const DECAL_FILES = [
+    ['alfabeto-bolha.png', 0.598, 'alfabeto', 1],
+    ['alfabeto-bolha2.png', 0.555, 'alfabeto', 1],
+    ['alfabeto-escuro-01.png', 1.643, 'alfabeto', 1],
+    ['alfabeto-escuro-02.png', 1.361, 'alfabeto', 1],
+    ['alfabeto-escuro-03.png', 1.806, 'alfabeto', 1],
+    ['alfabeto-escuro-04.png', 1.6, 'alfabeto', 1],
+    ['alfabeto-escuro-05.png', 1.4, 'alfabeto', 1],
+    ['alfabeto-escuro-06.png', 0.897, 'alfabeto', 1],
+    ['alfabeto-escuro-07.png', 0.69, 'alfabeto', 1],
+    ['alfabeto-escuro-08.png', 1, 'alfabeto', 1],
+    ['alfabeto-escuro-09.png', 1.549, 'alfabeto', 1],
+    ['alfabeto-escuro-10.png', 1.429, 'alfabeto', 1],
+    ['alfabeto-fino-01.png', 2.151, 'alfabeto', 0],
+    ['alfabeto-fino-02.png', 0.6, 'alfabeto', 0],
+    ['alfabeto-fino-03.png', 0.945, 'alfabeto', 0],
+    ['alfabeto-fino-04.png', 0.644, 'alfabeto', 0],
+    ['alfabeto-fino-05.png', 0.684, 'alfabeto', 0],
+    ['alfabeto-fino-06.png', 0.6, 'alfabeto', 0],
+    ['alfabeto-gotico-01.png', 0.595, 'alfabeto', 0],
+    ['alfabeto-gotico-02.png', 0.676, 'alfabeto', 1],
+    ['alfabeto-gotico-03.png', 0.649, 'alfabeto', 0],
+    ['alfabeto-gotico-04.png', 0.564, 'alfabeto', 0],
+    ['alfabeto-gotico-05.png', 0.763, 'alfabeto', 0],
+    ['alfabeto-gotico-06.png', 0.632, 'alfabeto', 0],
+    ['alfabeto-gotico-07.png', 0.579, 'alfabeto', 1],
+    ['alfabeto-gotico-08.png', 0.676, 'alfabeto', 0],
+    ['alfabeto-gotico-09.png', 0.789, 'alfabeto', 0],
+    ['alfabeto-gotico-10.png', 1.4, 'alfabeto', 0],
+    ['alfabeto-gotico-11.png', 0.629, 'alfabeto', 0],
+    ['alfabeto-gotico-12.png', 0.629, 'alfabeto', 0],
+    ['alfabeto-grosso-01.png', 1.07, 'alfabeto', 0],
+    ['alfabeto-grosso-02.png', 2.119, 'alfabeto', 0],
+    ['alfabeto-grosso-03.png', 3.348, 'alfabeto', 0],
+    ['alfabeto-grosso-04.png', 3.956, 'alfabeto', 0],
+    ['alfabeto-reto-01.png', 0.735, 'alfabeto', 0],
+    ['alfabeto-reto-02.png', 0.706, 'alfabeto', 0],
+    ['alfabeto-reto-03.png', 0.701, 'alfabeto', 0],
+    ['alfabeto-reto-04.png', 0.647, 'alfabeto', 0],
+    ['alfabeto-reto-05.png', 1.353, 'alfabeto', 0],
+    ['alfabeto-reto-06.png', 0.667, 'alfabeto', 0],
+    ['alfabeto-reto-07.png', 1.118, 'alfabeto', 0],
+    ['alfabeto-reto-08.png', 0.676, 'alfabeto', 0],
+    ['alfabeto-reto-09.png', 0.647, 'alfabeto', 0],
+    ['alfabeto-reto-10.png', 0.735, 'alfabeto', 0],
+    ['alfabeto-reto-11.png', 0.697, 'alfabeto', 0],
+    ['bandeira-vira-lata.png', 0.967, 'ilustracao', 0],
+    ['bola-amarela.png', 0.719, 'ilustracao', 1],
+    ['caras-cartoon-01.png', 0.828, 'ilustracao', 0],
+    ['caras-cartoon-02.png', 0.914, 'ilustracao', 0],
+    ['caras-cartoon-03.png', 0.875, 'ilustracao', 0],
+    ['caras-cartoon-04.png', 1.395, 'ilustracao', 0],
+    ['caras-cartoon-05.png', 0.82, 'ilustracao', 0],
+    ['caras-cartoon-06.png', 0.962, 'ilustracao', 0],
+    ['caras-cartoon-07.png', 0.926, 'ilustracao', 0],
+    ['caras-cartoon-08.png', 1.085, 'ilustracao', 0],
+    ['caras-cartoon-09.png', 0.509, 'ilustracao', 0],
+    ['caras-cartoon-10.png', 0.894, 'ilustracao', 0],
+    ['caras-cartoon-11.png', 1.211, 'ilustracao', 1],
+    ['caras-cartoon-12.png', 1.625, 'ilustracao', 0],
+    ['caras-cartoon-13.png', 0.897, 'ilustracao', 0],
+    ['caras-cartoon-14.png', 1.25, 'ilustracao', 0],
+    ['caras-cartoon-15.png', 0.978, 'ilustracao', 0],
+    ['caras-cartoon-16.png', 0.978, 'ilustracao', 1],
+    ['caras-cartoon-17.png', 1.19, 'ilustracao', 0],
+    ['caras-cartoon-18.png', 0.809, 'ilustracao', 0],
+    ['caras-cartoon-19.png', 1.045, 'ilustracao', 1],
+    ['caras-cartoon-20.png', 1.091, 'ilustracao', 0],
+    ['caras-cartoon-21.png', 0.978, 'ilustracao', 1],
+    ['caras-cartoon-22.png', 0.723, 'ilustracao', 0],
+    ['caras-cartoon-23.png', 1.279, 'ilustracao', 0],
+    ['caras-cartoon-24.png', 1.047, 'ilustracao', 0],
+    ['caras-cartoon-25.png', 1.023, 'ilustracao', 0],
+    ['caras-vintage-01.png', 0.832, 'ilustracao', 0],
+    ['caras-vintage-02.png', 0.843, 'ilustracao', 0],
+    ['caras-vintage-03.png', 1.019, 'ilustracao', 0],
+    ['caras-vintage-04.png', 0.505, 'ilustracao', 0],
+    ['caras-vintage-05.png', 0.322, 'ilustracao', 0],
+    ['caras-vintage-06.png', 0.556, 'ilustracao', 0],
+    ['caras-vintage-07.png', 1.036, 'ilustracao', 0],
+    ['caras-vintage-08.png', 0.778, 'ilustracao', 0],
+    ['caras-vintage-09.png', 1.154, 'ilustracao', 0],
+    ['caras-vintage-10.png', 2.48, 'ilustracao', 0],
+    ['caras-vintage-11.png', 0.606, 'ilustracao', 0],
+    ['caras-vintage-12.png', 0.96, 'ilustracao', 0],
+    ['caras-vintage-13.png', 1.133, 'ilustracao', 0],
+    ['caras-vintage-14.png', 0.929, 'ilustracao', 0],
+    ['caras-vintage-15.png', 0.855, 'ilustracao', 0],
+    ['caras-vintage-16.png', 1.103, 'ilustracao', 0],
+    ['cartaz-america-latina.png', 0.805, 'cartaz', 0],
+    ['cartaz-medo.png', 0.703, 'cartaz', 1],
+    ['cartaz-neutro.png', 0.762, 'cartaz', 0],
+    ['coelho-rosa.png', 0.736, 'ilustracao', 1],
+    ['dont-overthink.png', 0.637, 'cartaz', 1],
+    ['gratidao-sol.png', 0.836, 'cartaz', 1],
+    ['malabares-smiley.png', 0.652, 'ilustracao', 1],
+    ['meio-ano.png', 0.828, 'cartaz', 0],
+    ['olhos-bocas-01.png', 0.668, 'ilustracao', 0],
+    ['olhos-bocas-02.png', 0.375, 'ilustracao', 1],
+    ['olhos-bocas-03.png', 0.314, 'ilustracao', 0],
+    ['olhos-bocas-04.png', 3.177, 'ilustracao', 0],
+    ['olhos-bocas-05.png', 0.689, 'ilustracao', 1],
+    ['olhos-bocas-06.png', 1.331, 'ilustracao', 1],
+    ['olhos-bocas-07.png', 0.844, 'ilustracao', 0],
+    ['olhos-bocas-08.png', 0.713, 'ilustracao', 0],
+    ['olhos-bocas-09.png', 0.576, 'ilustracao', 0],
+    ['olhos-bocas-10.png', 0.949, 'ilustracao', 0],
+    ['olhos-bocas-11.png', 2.309, 'ilustracao', 0],
+    ['olhos-bocas-12.png', 0.229, 'ilustracao', 0],
+    ['olhos-bocas-13.png', 2.524, 'ilustracao', 0],
+    ['olhos-bocas-14.png', 1.258, 'ilustracao', 1],
+    ['olhos-bocas-15.png', 0.511, 'ilustracao', 0],
+    ['olhos-bocas-16.png', 1.163, 'ilustracao', 0],
+    ['olhos-bocas-17.png', 1.199, 'ilustracao', 1],
+    ['olhos-bocas-18.png', 1, 'ilustracao', 1],
+    ['olhos-bocas-19.png', 0.669, 'ilustracao', 0],
+    ['olhos-bocas-20.png', 1.405, 'ilustracao', 0],
+    ['olhos-bocas-21.png', 0.409, 'ilustracao', 1],
+    ['olhos-bocas-22.png', 1.197, 'ilustracao', 0],
+    ['olhos-bocas-23.png', 1.097, 'ilustracao', 0],
+    ['olhos-bocas-24.png', 1.885, 'ilustracao', 1],
+    ['olhos-bocas-25.png', 0.505, 'ilustracao', 0],
+    ['olhos-bocas-26.png', 0.489, 'ilustracao', 1],
+    ['olhos-bocas-27.png', 0.978, 'ilustracao', 0],
+    ['olhos-bocas-28.png', 1.175, 'ilustracao', 1],
+    ['olhos-cartoon-01.png', 1.403, 'ilustracao', 1],
+    ['olhos-cartoon-02.png', 1.108, 'ilustracao', 1],
+    ['olhos-cartoon-03.png', 2.053, 'ilustracao', 0],
+    ['olhos-cartoon-04.png', 1.882, 'ilustracao', 0],
+    ['olhos-cartoon-05.png', 1.722, 'ilustracao', 1],
+    ['olhos-cartoon-06.png', 1.253, 'ilustracao', 1],
+    ['olhos-cartoon-07.png', 1.213, 'ilustracao', 1],
+    ['olhos-cartoon-08.png', 2, 'ilustracao', 0],
+    ['olhos-cartoon-09.png', 2.2, 'ilustracao', 0],
+    ['olhos-cartoon-10.png', 2.727, 'ilustracao', 0],
+    ['olhos-cartoon-11.png', 2.256, 'ilustracao', 1],
+    ['olhos-cartoon-12.png', 1.319, 'ilustracao', 1],
+    ['olhos-cartoon-13.png', 1.823, 'ilustracao', 1],
+    ['olhos-cartoon-14.png', 1.803, 'ilustracao', 1],
+    ['olhos-cartoon-15.png', 1.472, 'ilustracao', 1],
+    ['olhos-cartoon-16.png', 1.2, 'ilustracao', 1],
+    ['olhos-cartoon-17.png', 1.13, 'ilustracao', 1],
+    ['olhos-cartoon-18.png', 2.405, 'ilustracao', 0],
+    ['olhos-cartoon-19.png', 2.612, 'ilustracao', 0],
+    ['olhos-cartoon-20.png', 3.108, 'ilustracao', 0],
+    ['olhos-cartoon-21.png', 2.548, 'ilustracao', 0],
+    ['olhos-cartoon-22.png', 2.214, 'ilustracao', 0],
+    ['olhos-cartoon-23.png', 3.75, 'ilustracao', 0],
+    ['palhaco-azul.png', 1.073, 'ilustracao', 0],
+    ['palhaco-bobo.png', 0.703, 'ilustracao', 1],
+    ['palhaco-classico.png', 0.953, 'ilustracao', 0],
+    ['palhaco-meiotom.png', 0.666, 'ilustracao', 0],
+    ['palhaco-vintage.png', 0.846, 'ilustracao', 0],
+    ['peca-bolha.png', 1.209, 'peca', 0],
+    ['personagem-muro.png', 0.699, 'ilustracao', 1],
+    ['personagens-graffiti-01.png', 1.423, 'ilustracao', 1],
+    ['personagens-graffiti-02.png', 0.83, 'ilustracao', 1],
+    ['personagens-graffiti-03.png', 0.765, 'ilustracao', 0],
+    ['personagens-graffiti-04.png', 0.991, 'ilustracao', 1],
+    ['personagens-graffiti-05.png', 1.159, 'ilustracao', 1],
+    ['personagens-graffiti-06.png', 0.879, 'ilustracao', 1],
+    ['personagens-graffiti-07.png', 1.121, 'ilustracao', 0],
+    ['pra-gringo.png', 0.707, 'cartaz', 1],
+    ['tag-fina.png', 1.5, 'tag', 0],
+    ['tag-flop.png', 1.299, 'tag', 0],
+    ['tag-larga.png', 1.5, 'tag', 0],
+    ['tag-money.png', 1.336, 'tag', 0],
+    ['tag-pingo.png', 1.5, 'tag', 0],
+    ['tag-selvagem.png', 1.444, 'tag', 0],
+    ['tags-treino-01.png', 1.111, 'tag', 0],
+    ['tags-treino-02.png', 0.798, 'tag', 0],
+    ['tags-treino-03.png', 0.504, 'tag', 0],
+    ['tags-treino-04.png', 2.992, 'tag', 0],
+    ['tags-treino-05.png', 1.313, 'tag', 0],
+    ['tags-treino-06.png', 0.375, 'tag', 1],
+  ];
+  /* DECALS:GERADO-FIM */
+  T.decals = [];
+  DECAL_FILES.forEach(([f], i) => {
+    Object.defineProperty(T.decals, i, {
+      enumerable: true, configurable: true,
+      get() {
+        const t = _tl.load('img/decals/' + f);
+        t.colorSpace = THREE.SRGBColorSpace;
+        t.minFilter = THREE.LinearMipmapLinearFilter;
+        // memoiza: troca o getter pela textura, então a 2ª leitura não repete nada
+        Object.defineProperty(T.decals, i, { value: t, enumerable: true, configurable: true, writable: true });
+        return t;
+      },
+    });
+  });
+  T.decalAspects = DECAL_FILES.map(([, a]) => a);
+  T.decalTipos = DECAL_FILES.map(([, , k]) => k);
+  T.decalClaro = DECAL_FILES.map(([, , , c]) => !!c);
+  T.decalFiles = DECAL_FILES.map(([f]) => f);
+  /* Índices de um tipo — `T.decalsDoTipo('tag')`. Devolve índice, não textura, de
+     propósito: assim dá pra sortear e carregar só o que a parede vai usar. */
+  T.decalsDoTipo = (tipo) => T.decalTipos.reduce((a, k, i) => (k === tipo && a.push(i), a), []);
+
   // --- billboard: fictional social network ---
   {
     const c = canvas(512, 256), x = c.getContext('2d');
