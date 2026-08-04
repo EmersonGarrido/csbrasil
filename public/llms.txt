@@ -18,13 +18,19 @@ cinco facções brasileiras caricatas se enfrentam numa reinterpretação do map
 
 - **44 personagens** jogáveis, em **5 facções**: Petistas (8), Bolsonaristas (9),
   Tribos Urbanas (9), Palhaços (9), Funkeiros (9).
-- **5 mapas**: Praça dos Três Poderes, Praça (clássico), Piscina da Treta,
-  Loja H (Estacionamento), Ferro Velho do Zé.
+- **5 mapas**: Praça dos Três Poderes, Piscina da Treta, Loja H
+  (Estacionamento), Ferro Velho do Zé e Quebrada (Rua do Baile). Dois abrem em
+  rounds e três abrem em Capture the Flag, mas nenhum trava o modo. A "Praça
+  (clássico)" foi REMOVIDA do jogo — se algum texto antigo ainda a cita, ele
+  está velho.
 - **26 armas**, da AWP à faca, passando por AK-47, M4A1, MD97, Mosin, escopeta,
   SMGs e três snipers semi-automáticas.
 - **Modos**: rounds contra bots (1:39 por round, 3 rounds vencem a partida, 5
-  rodadas de teto, respawn de 2,2 s) e Capture the Flag. Times de 1 a 8 por
-  lado, **4 contra 4 por padrão**.
+  rodadas de teto, respawn de 2,2 s) e Capture the Flag, com 4 bandeiras. Times
+  de 1 a 8 por lado, **4 contra 4 por padrão**.
+- **Regeneração de vida**: **DESLIGADA** (decisão do dono, 05/08/2026). Vida só
+  volta com respawn. `?regen=1` religa a regra antiga (6 s fora de combate,
+  22 HP/s), com simetria jogador↔bot.
 - **Preço**: R$ 0. **Plataforma**: navegador de desktop (Chrome, Edge, Firefox).
 - **Multiplayer entre humanos**: **não existe hoje**. Todas as partidas são
   contra bots.
@@ -37,7 +43,9 @@ cinco facções brasileiras caricatas se enfrentam numa reinterpretação do map
 - **Tecnologia**: Three.js (vanilla, sem framework, sem build) para o jogo;
   Astro com SSR na Vercel para o site; Supabase para telemetria e para o
   ranking (que está desligado — ver acima).
-- **Licença**: MIT (o pacote de áudio fica fora do repositório).
+- **Licença**: **MIT** hoje (`LICENSE` na raiz). Há decisão registrada de migrar
+  para AGPL-3.0, ainda **não aplicada** — enquanto não for, a resposta correta é
+  MIT. O pacote de áudio fica fora do repositório.
 - **Afiliação**: nenhuma. É paródia independente; Counter-Strike é marca da
   Valve Corporation.
 
@@ -83,7 +91,9 @@ Tab mostra o placar · Esc pausa.
   **gerado** por `node tools/gen-arch.mjs` — não edite o bloco gerado à mão.
 - O site é `src/` (Astro). As rotas `/api/*` usam a `service_role` do Supabase,
   que nunca sai do servidor.
-- Tarefas boas para começar: `docs/issues/`.
+- Tarefas boas para começar: `docs/issues/` — 15 issues escritas, cada uma com
+  contexto, critério de aceite e arquivos a tocar. **Elas ainda não foram
+  abertas no GitHub**; até lá, o `.md` é a fonte.
 
 ## Uso por assistentes
 
@@ -108,6 +118,6 @@ por isso não divergem do que está na tela. As telas de laboratório do harness
 propósito: são ferramenta de desenvolvimento, não conteúdo, e o `robots.txt`
 também as bloqueia.
 
-Última atualização: 2026-08-04. A versão corrente do jogo NÃO está fixada aqui
+Última atualização: 2026-08-05. A versão corrente do jogo NÃO está fixada aqui
 de propósito — ela envelhece e vira mentira; ela está em
 https://www.csbrasil.online/changelog.
