@@ -130,10 +130,46 @@ export function buildQuebrada(scene, T) {
     if (_asp.has(id)) return _asp.get(id);
     let a = null;
     const o = placeProp(id, { targetH: 1 });
-    if (o) { const b = new THREE.Box3().setFromObject(o); a = { w: b.max.x - b.min.x, d: b.max.z - b.min.z }; }
+    if (o) {
+      const b = new THREE.Box3().setFromObject(o);
+      a = { w: b.max.x - b.min.x, d: b.max.z - b.min.z, cx: (b.min.x + b.max.x) / 2, cz: (b.min.z + b.max.z) / 2 };
+    }
     _asp.set(id, a);
     return a;
   }
+  /* CENTRAGEM EM X/Z — defeito de integração que custou uma captura inteira.
+     `placeProp` (mapprops.js) só corrige o EIXO Y: `o.position.set(x, y - box.min.y*s, z)`.
+     Em X e Z ele usa a origem que o modelo trouxe do autor. Modelo cuja origem está numa
+     quina — que é a maioria dos GLB de cenário — nasce deslocado de até meio prédio. Foi o
+     que a captura `after2` mostrou: os barracos do quarteirão leste invadiram a calçada e o
+     beco de x = 11 apareceu EMPAREDADO, com tijolo dos dois lados onde deveria haver rua.
+     Aqui a correção é local (`mapprops.js` não é meu arquivo) e usa a mesma conversão de
+     giro do `colRot`: world = (lx·cos + lz·sen, −lx·sen + lz·cos). */
+  function centro(id, x, z, s, ry) {
+    const a = glbAspect(id);
+    if (!a) return [x, z];
+    const lx = a.cx * s, lz = a.cz * s, cs = Math.cos(ry), sn = Math.sin(ry);
+    return [x - (lx * cs + lz * sn), z - (-lx * sn + lz * cs)];
+  }
+  // gprop centrado: mesma assinatura do `gprop`, mas o modelo fica com o CENTRO em (x,z).
+  const gpropC = (id, x, z, h, ry = 0) => {
+    if (!useGlb(id)) return false;
+    const [px, pz] = centro(id, x, z, h, ry);
+    const o = placeProp(id, { x: px, z: pz, targetH: h, ry });
+    if (o) root.add(o);
+    return !!o;
+  };
+  // idem para o lote instanciado
+  const pbAdd = (batch, id, o) => {
+    const [px, pz] = centro(id, o.x, o.z, o.targetH, o.ry || 0);
+    return batch.add(id, { ...o, x: px, z: pz });
+  };
+  /* Lote SEPARADO para os carros: o `paintTest` do PropBatch pinta por instância, e um teste
+     que serve pra lataria (clarear e multiplicar pela cor da instância) não pode valer para
+     tijolo de barraco. O corte por luminância deixa pneu, vidro e borracha escuros de fora —
+     senão os dois carros do baile saem monocromáticos, que foi o que a captura mostrou:
+     dois cupês BRANCOS idênticos numa praça que a spec pede "2 carros tunados". */
+  const PBC = new PropBatch({ bucket: 0, tag: 'car', paintTest: (m) => !!m.color && (m.color.r + m.color.g + m.color.b) / 3 > 0.32 });
 
   /* COLISOR DE PROP GIRADO — BUG-21 (KNOWN-BUGS.md), medido no ônibus da Brasília.
      O motor NÃO tem collider rotacionado em lugar nenhum (nem `_collide`, nem o A* dos bots):
@@ -450,7 +486,7 @@ export function buildQuebrada(scene, T) {
       const s = w / nx / a.w;                                  // altura = escala (aspecto medido a targetH=1)
       const nz = Math.max(1, Math.ceil(d / (s * a.d)));
       for (let j = 0; j < nz; j++)
-        PB.add(id, {
+        pbAdd(PB, id, {
           x: x0 + w * (i + 0.5) / nx, z: z0 + d * (j + 0.5) / nz,
           targetH: s * (1 + (((k >> (5 + j)) & 3) - 1.5) * 0.03),   // ±4,5% de gabarito
           ry: ((k >> (7 + i + j)) & 1) ? Math.PI : 0,
@@ -569,7 +605,7 @@ export function buildQuebrada(scene, T) {
        (ver "ACABAMENTO GLB"). */
     const glbCar = useGlb('tiara_gt83');
     const vis = (m) => (glbCar ? hide(m) : m);
-    if (glbCar) gprop('tiara_gt83', cx, cz, 1.25, ry);
+    if (glbCar) pbAdd(PBC, 'tiara_gt83', { x: cx, z: cz, targetH: 1.25, ry, color: cor });
     const pint = lam({ color: cor, roughness: 0.28, metalness: 0.55, envMapIntensity: 1.6 });
     occ(vis(addBox(4.4, 0.62, 1.82, pint, cx, 0.28, cz, { ry, collide: false })));        // lataria rebaixada
     occ(vis(addBox(2.3, 0.58, 1.66, MAT_VIDRO, cx, 0.90, cz, { ry, collide: false })));   // cabine/vidros
@@ -610,7 +646,7 @@ export function buildQuebrada(scene, T) {
        ISTO TAMBÉM CONSERTA UM DEFEITO REAL do caminho antigo: `gprop` não recebe `y`, então
        as N cópias de `caixa_som` eram todas plantadas em y = 0, uma DENTRO da outra — o que
        aparecia na captura como uma caixinha solta no chão em vez de um paredão. */
-    if (!gprop('caixa_som_baile', cx, cz, H, ry)) for (let i = 0; i < n; i++) {
+    if (!gpropC('caixa_som_baile', cx, cz, H, ry)) for (let i = 0; i < n; i++) {
       const y = i * (H / n);
       addBox(W, H / n, D, MAT_CAIXA, cx, y, cz, { ry, collide: false });
       occ(addBox(W * 0.62, W * 0.62, 0.06, MAT_CONE, cx + Math.sin(ry) * (D / 2 + 0.03), y + H / (n * 2) - W * 0.31, cz + Math.cos(ry) * (D / 2 + 0.03), { ry, collide: false, cast: false }));
@@ -749,7 +785,7 @@ export function buildQuebrada(scene, T) {
       if (a) {
         const s = 2.55, n = Math.max(1, Math.round(d / (s * a.d)));
         for (let i = 0; i < n; i++)
-          PB.add('fachada_comercio', { x: fx + side * (s * a.w) / 2, z: z0 + d * (i + 0.5) / n, targetH: s, ry: side > 0 ? 0 : Math.PI });
+          pbAdd(PB, 'fachada_comercio', { x: fx + side * (s * a.w) / 2, z: z0 + d * (i + 0.5) / n, targetH: s, ry: side > 0 ? 0 : Math.PI });
       }
     }
     /* PIXO NA PORTA DE AÇO — comércio de rua no Brasil tem a porta pichada assim que fecha, e
@@ -820,8 +856,7 @@ export function buildQuebrada(scene, T) {
     const visB = (m) => (glbBus ? hide(m) : m);
     if (glbBus) {
       // ry = +π/2: o comprimento do modelo está no X local e a rua corre em Z.
-      const o = placeProp('onibus_sptrans', { x: BX, z: BZ, targetH: BH, ry: Math.PI / 2 });
-      if (o) root.add(o);
+      gpropC('onibus_sptrans', BX, BZ, BH, Math.PI / 2);
     }
     const branco = lam({ color: 0xf2f0ec, roughness: 0.45, metalness: 0.15 });
     const vermelho = lam({ color: 0xc4161c, roughness: 0.42, metalness: 0.15 });
@@ -949,7 +984,7 @@ export function buildQuebrada(scene, T) {
   // as 4 barracas da praça e as 2 do campinho ganham tabuleiro cheio + botijão do lado
   for (const [sx2, sz2, ry2, k] of [[-9.4, -24.5, 0.3, 0], [9.6, -25.5, -0.4, 1], [-9.8, -39, 0.5, 2], [9.4, -38.5, -0.5, 3]]) {
     mercadoria(sx2 + Math.sin(ry2) * 1.15, sz2 + Math.cos(ry2) * 1.15, ry2, 3 + (k % 2));
-    if (!gprop('botijao_gas', sx2 - Math.sin(ry2) * 1.2, sz2 - Math.cos(ry2) * 1.2, 0.62, ry2 + k))
+    if (!gpropC('botijao_gas', sx2 - Math.sin(ry2) * 1.2, sz2 - Math.cos(ry2) * 1.2, 0.62, ry2 + k))
       addBox(0.36, 0.62, 0.36, MAT_TAMBOR, sx2 - Math.sin(ry2) * 1.2, 0, sz2 - Math.cos(ry2) * 1.2);
   }
   for (const [sx2, sz2] of [[19, 39.5], [-19.4, 43.5]]) mercadoria(sx2, sz2 + 1.2, 0, 3);
@@ -961,7 +996,7 @@ export function buildQuebrada(scene, T) {
        (11,5 · 0,5), 1,2 m de penetração. (A pilha antiga do bar, em 12,0 · 4,0, tem o mesmo
        `collide: i === 0` e só escapa porque nenhuma amostra de 1 m cai em cima dela.) */
     for (let i = 0; i < 5; i++) addBox(0.5, 0.3, 0.36, MAT_ENGRADADO, ax, i * 0.3, az);
-    if (!gprop('botijao_gas', ax, az + 1.0, 0.62, ary)) addBox(0.36, 0.62, 0.36, MAT_TAMBOR, ax, 0, az + 1.0);
+    if (!gpropC('botijao_gas', ax, az + 1.0, 0.62, ary)) addBox(0.36, 0.62, 0.36, MAT_TAMBOR, ax, 0, az + 1.0);
   }
   // SORVETERIA / AÇAÍ: freezer de porta de vidro na calçada (cover baixo de 1,0 m)
   for (const [fx2, fz2] of [[-11.6, -5.2], [-11.6, 7.4]]) {
@@ -990,7 +1025,7 @@ export function buildQuebrada(scene, T) {
       // ESCADA EXTERNA de laje — o degrau é o cartão-postal do beco de favela
       // cada degrau colide: degrau em balanço sobre chão livre é MAP1 (ver `mercadoria`)
       for (let i = 0; i < 6; i++) addBox(1.0, 0.19, 0.26, MAT.concreteDark, x0 + 1.2, i * 0.19, bz + 1.28 - i * 0.26);
-      if (!gprop('botijao_gas', x1 - 1.4, bz + 1.15, 0.62)) addBox(0.36, 0.62, 0.36, MAT_TAMBOR, x1 - 1.4, 0, bz + 1.15);
+      if (!gpropC('botijao_gas', x1 - 1.4, bz + 1.15, 0.62)) addBox(0.36, 0.62, 0.36, MAT_TAMBOR, x1 - 1.4, 0, bz + 1.15);
     } else if (k === 1) {
       // ENGRADADO EMPILHADO ATÉ O ALTO contra a parede sul + varal baixo cruzando
       for (let i = 0; i < 6; i++) addBox(0.5, 0.3, 0.36, MAT_ENGRADADO, xm - 1.6 + (i % 2) * 0.52, ((i / 2) | 0) * 0.3, bz - 1.25);
@@ -1032,7 +1067,7 @@ export function buildQuebrada(scene, T) {
      rua, então UMA AABB é exata e não há `colRot` nem parede invisível (BUG-21). */
   {
     const TX = -5.6, TZ = 3.2, TH = 3.0, TW = 1.96, TL = 6.19;   // 3,0 m de altura × aspecto medido
-    const glbT = gprop('vw_9150', TX, TZ, TH);
+    const glbT = gpropC('vw_9150', TX, TZ, TH);
     // a caixa continua existindo como OCCLUDER mesmo com o GLB na tela: é ela que a bala
     // testa, e um baú de 6 m que a bala atravessa seria pior que um baú de caixa (§ACABAMENTO)
     const bau = addBox(TW, TH, TL, lam({ color: 0xdcdad4, roughness: 0.55, metalness: 0.2 }), TX, 0, TZ, { collide: false });
@@ -1234,6 +1269,7 @@ export function buildQuebrada(scene, T) {
   place('ak', 10.5, 34);         place('m4', -10.5, 40);
   place('mp5', -20, 26);         place('deagle', 20, 26);
 
+  PBC.build(root);      // carros pintados por instância
   PB.build(root);       // instancia barraco e fachada: 1 draw call por (material, bloco de 24 m)
   SKIRT.build(root);
   return {
