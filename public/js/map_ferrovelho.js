@@ -11,6 +11,7 @@ import { placeProp } from './mapprops.js';
 import { VAO_BANDS, aoBoxGeo, aoMatFactory, ContactSkirt, BASE_FLOATING, onGround } from './vao.js';
 import { makeAerialFog } from './bloom.js';   // névoa exponencial + cor por direção do olhar
 import { detailFor } from './textures.js';   // normal+rough por Sobel (ver lam)
+import { decalIds, paredeAtras, caixaGirada } from './map_decals.js';   // pool por NOME + raycast de parede
 
 // kill-switches (padrão do projeto): ?nofog=1 sem névoa, ?rays=0 sem god rays,
 // ?dust=0 sem poeira em suspensão, ?mato=0 sem vegetação invasora.
@@ -632,9 +633,19 @@ export function buildFerroVelho(scene, T) {
         cada carregamento é defeito.
      Fora do pool: as 47 folhas de 'alfabeto' (uma letra fina e clara, some a 10 m — BAR
      §2.1) e os recortes de olho/boca soltos (viram mancha abstrata ampliados a 3 m). */
-  const D_MURAL = [157, 158, 159, 160, 161, 162, 163, 164, 156, 97, 166];
-  const D_TAG = [167, 168, 169, 170, 171, 172, 174, 175, 176, 177];
-  const D_LAMBE = [90, 91, 92, 94, 96, 99, 165];
+  const D_MURAL = decalIds(T, ['personagem-muro.png', 'personagens-graffiti-01.png',
+    'personagens-graffiti-02.png', 'personagens-graffiti-03.png', 'personagens-graffiti-04.png',
+    'personagens-graffiti-05.png', 'personagens-graffiti-06.png', 'personagens-graffiti-07.png',
+    'peca-bolha.png']);
+  const D_TAG = decalIds(T, ['tag-fina.png', 'tag-flop.png', 'tag-larga.png', 'tag-money.png',
+    'tag-pingo.png', 'tag-selvagem.png', 'tags-treino-02.png', 'tags-treino-05.png']);
+  const D_LAMBE = decalIds(T, ['cartaz-america-latina.png', 'cartaz-medo.png', 'cartaz-neutro.png',
+    'dont-overthink.png', 'gratidao-sol.png', 'meio-ano.png', 'pra-gringo.png']);
+  /* Sólidos que NÃO são collider e ainda assim são parede legítima de decalque. Hoje: as
+     duas folhas do portão, que são caixas GIRADAS (ry = ∓0,9) — o collider delas é a AABB
+     não-girada, então o raio de `paredeAtras` sai pela lateral e reprovaria a peça certa.
+     MEDIDO: 5 de 25 amostras batiam antes desta lista existir. */
+  const decalSolids = [];
   const _dmat = new Map(), _usados = [];
   const decalMat = (i) => {
     let m = _dmat.get(i);
@@ -648,7 +659,7 @@ export function buildFerroVelho(scene, T) {
     return m;
   };
   function decal(pool, x, y, z, ry, alt, larg = 99) {
-    if (!T.decals || !T.decalAspects || !T.decalAspects.length) return null;
+    if (!T.decals || !T.decalAspects || !pool.length) return null;
     const k = mix32(mix32(Math.round(x * 10) + 9973) + Math.round(z * 10) * 131 + 7);
     // anti-repetição local: pool de 7-11 peças com 13 vagas no perímetro repete por
     // aniversário, e arte repetida a 10 m lê como falha de asset, não como pátio.
@@ -657,10 +668,13 @@ export function buildFerroVelho(scene, T) {
       const j = pool[(k + t) % pool.length];
       if (!_usados.some((u) => u.i === j && Math.hypot(u.x - x, u.z - z) < 16)) { i = j; break; }
     }
-    _usados.push({ i, x, z });
     const a = T.decalAspects[i] || 1;
     let h = alt, w = alt * a;
     if (w > larg) { w = larg; h = larg / a; }          // encolhe inteiro; NUNCA estica
+    /* PAREDE ATRÁS ANTES DE DESENHAR (map_decals.js). Antes do `_usados` de propósito:
+       peça reprovada não gasta a vaga da anti-repetição. */
+    if (!paredeAtras(colliders.concat(decalSolids), x, y + h / 2, z, ry, w, h)) return null;
+    _usados.push({ i, x, z });
     const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), decalMat(i));
     m.position.set(x, y + h / 2, z); m.rotation.y = ry; m.renderOrder = 2;
     m.receiveShadow = true;                            // tinta escurece junto com a chapa
@@ -817,6 +831,8 @@ export function buildFerroVelho(scene, T) {
      folhas recolhidas nas laterais. Colliders idênticos aos das folhas antigas. */
   addBox(0.25, 3.4, 4.6, MAT.zincOld, -5.2, 0, HALF_Z - 2.2, { ry: 0.9 });
   addBox(0.25, 3.4, 4.6, MAT.zincOld, 5.2, 0, HALF_Z - 2.2, { ry: -0.9 });
+  // as duas folhas como sólido GIRADO, pro `paredeAtras` do decalque (ver decalSolids lá em cima)
+  for (const sgn of [-1, 1]) decalSolids.push(caixaGirada(0.25, 3.4, 4.6, sgn * 5.2, 0, HALF_Z - 2.2, sgn * -0.9));
   {
     const angle = lam({ map: rustStageTex(1, 51, null, 2, 1), metalness: 0.35, roughness: 0.8 });
     for (const sgn of [-1, 1]) {   // moldura de cantoneira nas folhas
@@ -1812,6 +1828,9 @@ export function buildFerroVelho(scene, T) {
 
   return {
     root, colliders, occluders, groundHeightAt, spawns, sun, hemi, pickups, ctfPoints,
+    /* DECLARAÇÃO PRA RÉGUA (tools/eval/decal-probe.mjs): a lista COMPLETA contra a qual o
+       `paredeAtras` validou cada decalque = colliders + as duas folhas giradas do portão. */
+    decalSolids: colliders.concat(decalSolids),
     waypoints: { nodes, adj }, nearestWaypoint, findPath,
     bounds: { minX: -HALF_X + 0.5, maxX: HALF_X - 0.5, minZ: -HALF_Z + 0.5, maxZ: HALF_Z - 0.5 },
   };
