@@ -18,6 +18,7 @@
 // Contrato buildWorld idêntico ao map_ferrovelho.js / map_havan.js.
 import * as THREE from 'three';
 import { placeProp, hasProp, PropBatch } from './mapprops.js';
+import { decalIds, paredeAtras } from './map_decals.js';   // pool por NOME + raycast de parede
 import { VAO_BANDS, aoBoxGeo, aoMatFactory, ContactSkirt, BASE_FLOATING, onGround } from './vao.js';
 import { makeAerialFog } from './bloom.js';
 import { detailFor } from './textures.js';
@@ -328,19 +329,28 @@ export function buildQuebrada(scene, T) {
      §2.1: "nenhum detalhe de textura pode ser invisível a 10 m"). Ruído de parede foi o que
      REPROVOU o Piscinão de Ramos ("muito poluído, não dá pra entender nada"), então o que
      entra aqui é só o que tem contorno preto fechado e silhueta reconhecível de longe. */
-  const D_MURAL = [157, 158, 159, 160, 161, 162, 163, 164, 156, 97, 166, 47];  // personagens/peças
+  const D_MURAL = decalIds(T, ['personagem-muro.png', 'personagens-graffiti-01.png',
+    'personagens-graffiti-02.png', 'personagens-graffiti-03.png', 'personagens-graffiti-04.png',
+    'personagens-graffiti-05.png', 'personagens-graffiti-06.png', 'personagens-graffiti-07.png',
+    'peca-bolha.png', 'bandeira-vira-lata.png']);   // personagens/peças
   /* CARAS: só as folhas que têm OLHOS + BOCA na mesma peça. O pacote tem ~50 recortes de
      olho ou boca SOLTOS ('olhos-bocas-*', e 'caras-cartoon-14'/'caras-vintage-04' são um
      olho só): ampliados a 3 m viram uma mancha preta abstrata na parede — foi o que
      apareceu na 1ª captura. Cara inteira lê como mural; fragmento lê como borrão. */
-  const D_CARA = [50, 53, 56, 59, 65, 68, 71, 74, 80, 84, 87, 89];
+  const D_CARA = decalIds(T, ['caras-cartoon-02.png', 'caras-cartoon-05.png', 'caras-cartoon-08.png',
+    'caras-cartoon-11.png', 'caras-cartoon-17.png', 'caras-cartoon-20.png', 'caras-cartoon-23.png',
+    'caras-vintage-01.png', 'caras-vintage-07.png', 'caras-vintage-11.png', 'caras-vintage-14.png',
+    'caras-vintage-16.png']);
   const D_FACHADA = D_MURAL.concat(D_CARA);
-  const D_TAG = [167, 168, 169, 170, 171, 172, 174, 175, 176, 177];            // tags (aspecto largo)
-  const D_LAMBE = [90, 91, 92, 94, 96, 99, 165];                               // cartaz/lambe-lambe
+  const D_TAG = decalIds(T, ['tag-fina.png', 'tag-flop.png', 'tag-larga.png', 'tag-money.png',
+    'tag-pingo.png', 'tag-selvagem.png', 'tags-treino-02.png', 'tags-treino-05.png']);
+  const D_LAMBE = decalIds(T, ['cartaz-america-latina.png', 'cartaz-medo.png', 'cartaz-neutro.png',
+    'dont-overthink.png', 'gratidao-sol.png', 'meio-ano.png', 'pra-gringo.png']);
   /* PORTA DE AÇO: pool de tinta CLARA (a chapa é 0x2b2926) e SÓ peça em pé (aspecto < 1).
      Porta tem ~1,3-2,3 m de vão: arte deitada encolhe pra caber na largura e sobra uma
      tarja de 1,1 m no meio de uma porta de 2,1 m — pequena e sem intenção. */
-  const D_PORTA = [157, 159, 161, 163, 97, 178];
+  const D_PORTA = decalIds(T, ['personagem-muro.png', 'personagens-graffiti-02.png',
+    'personagens-graffiti-04.png', 'personagens-graffiti-06.png', 'tags-treino-06.png']);
   const _dmat = new Map(), _usados = [];
   const decalMat = (i) => {
     let m = _dmat.get(i);
@@ -357,7 +367,7 @@ export function buildQuebrada(scene, T) {
      pra caber no módulo de parede, com o aspecto original de `T.decalAspects`. Arte esticada
      é a primeira coisa que denuncia decalque colado no automático. */
   function decal(pool, x, y, z, ry, alt, larg = 99) {
-    if (!T.decals || !T.decalAspects || !T.decalAspects.length) return null;
+    if (!T.decals || !T.decalAspects || !pool.length) return null;
     /* HASH EM DUAS PASSADAS. A 1ª versão era `round(x*10)*73856093 ^ round(z*10)*19349663`:
        os dois produtos estouram 2^32, o `^` do JS trunca pra int32 e o resultado colide —
        a MESMA arte saía 3× na mesma parede da viela. Passar x pelo mix32 antes de somar z
@@ -373,10 +383,16 @@ export function buildQuebrada(scene, T) {
       const j = pool[(k + t) % pool.length];
       if (!_usados.some((u) => u.i === j && Math.hypot(u.x - x, u.z - z) < 14)) { i = j; break; }
     }
-    _usados.push({ i, x, z });
     const a = T.decalAspects[i] || 1;
     let h = alt, w = alt * a;
     if (w > larg) { w = larg; h = larg / a; }
+    /* PAREDE ATRÁS ANTES DE DESENHAR (map_decals.js): 25 raios pra trás, e se algum não
+       achar sólido em 0,80 m a peça não nasce. É o conserto ESTRUTURAL do "colocaste em
+       lugares que não são parede" — mata peça no ar, peça passando do topo do muro e peça
+       cruzando a divisa de dois volumes, em vez de consertar os que aparecem na captura.
+       Vem antes do `_usados` de propósito: peça reprovada não gasta vaga da anti-repetição. */
+    if (!paredeAtras(colliders, x, y + h / 2, z, ry, w, h)) return null;
+    _usados.push({ i, x, z });
     const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), decalMat(i));
     m.position.set(x, y + h / 2, z); m.rotation.y = ry; m.renderOrder = 2;
     // nome = quem é o arquivo: em node a textura nunca carrega, então esta é a ÚNICA forma
@@ -939,10 +955,18 @@ export function buildQuebrada(scene, T) {
   // sem estrangular a passagem que a CTF2 depende.
   for (const [bx, bz] of [[-11.6, -8.0], [-11.6, 5.0], [-11.6, 13.6], [11.6, -6.4], [11.6, 13.2], [11.6, 23.2]])
     addBox(1.15, 1.15, 1.15, MAT_BARRACO[1], bx, 0, bz);
-  // varais entre os barracos — só silhueta, a 2,6 m e sem colisor
+  /* varais entre os barracos — só silhueta, a 2,6 m e sem colisor.
+     O ARAME (`MAT_ARAME`) NÃO É ENFEITE. Sem ele o varal é um punhado de retângulos bege de
+     3 cm pendurados no nada, e no fundo da viela, recortados contra o céu, é exatamente isso
+     que se vê: está na captura que o dono mandou (issues/5, 09.10.36 — cinco quadrados
+     boiando no ar) e foi uma das coisas que ele chamou de "lugar que não é parede". Custa uma
+     caixa fina por varal e resolve a leitura inteira. */
   const MAT_ROUPA = new THREE.MeshStandardMaterial({ color: 0xd7cfc0, roughness: 0.95, side: THREE.DoubleSide });
-  for (const [vx, vz] of [[-23, -22], [-23, 8], [23, -18], [23, 14], [-16.6, 6], [16.6, 15]])
+  const MAT_ARAME = new THREE.MeshBasicMaterial({ color: 0x1a1a1a, fog: true });
+  for (const [vx, vz] of [[-23, -22], [-23, 8], [23, -18], [23, 14], [-16.6, 6], [16.6, 15]]) {
+    addBox(3.2, 0.025, 0.025, MAT_ARAME, vx - 0.15, 2.64, vz, { collide: false, cast: false });
     for (let i = 0; i < 4; i++) addBox(0.5, 0.62, 0.03, MAT_ROUPA, vx - 0.9 + i * 0.6, 2.0, vz, { collide: false, cast: false });
+  }
   // camelô e caçamba na praça (o largo é grande: sem peça no meio ele vira arena de sniper)
   for (const [sx2, sz2, ry2] of [[-9.4, -24.5, 0.3], [9.6, -25.5, -0.4], [-9.8, -39, 0.5], [9.4, -38.5, -0.5]])
     if (!gprop('tent', sx2, sz2, 2.4, ry2)) { occ(addBox(3.0, 2.4, 2.4, MAT_BARRACO[2], sx2, 0, sz2, { ry: ry2, collide: false })); colRot(sx2, sz2, 3.0, 2.4, 0, 2.4, ry2, 3, 2); }
@@ -1029,6 +1053,7 @@ export function buildQuebrada(scene, T) {
     } else if (k === 1) {
       // ENGRADADO EMPILHADO ATÉ O ALTO contra a parede sul + varal baixo cruzando
       for (let i = 0; i < 6; i++) addBox(0.5, 0.3, 0.36, MAT_ENGRADADO, xm - 1.6 + (i % 2) * 0.52, ((i / 2) | 0) * 0.3, bz - 1.25);
+      addBox(3.1, 0.025, 0.025, MAT_ARAME, x0 + 1.6 + 2 * 0.56, 2.72, bz, { collide: false, cast: false });   // o arame (ver varais)
       for (let i = 0; i < 5; i++) addBox(0.46, 0.58, 0.03, MAT_ROUPA, x0 + 1.6 + i * 0.56, 2.1, bz, { collide: false, cast: false });
     } else if (k === 2) {
       // OBRA PARADA: pilha de tijolo, betoneira improvisada e caixa d'água no chão
@@ -1159,8 +1184,11 @@ export function buildQuebrada(scene, T) {
   for (const x of [-18.5, 0, 18.5]) decal(D_TAG, x, 0.35, 27.76, Math.PI, 1.5, x === 0 ? 8.0 : 5.6);
   for (const x of [-17, 5]) decal(D_TAG, x, 0.35, 28.24, 0, 1.5, 5.6);
   decal(D_MURAL, -18, 0.4, -39.75, 0, 1.7, 4.4);
-  // --- lambe-lambe no vidro do ponto de ônibus (cartaz colado é o que se cola em abrigo) ---
-  for (const z of [-8.6, -3.4]) decal(D_LAMBE, -11.7, 0.62, z, Math.PI / 2, 1.3, 2.4);
+  /* O ABRIGO DO PONTO DE ÔNIBUS PERDEU OS DOIS LAMBE-LAMBES. Eles estavam colados nas
+     COSTAS DE VIDRO do abrigo (`MAT_VIDRO`, x = -11,85, `collide: false`) — ou seja, em
+     vidro e sem sólido nenhum atrás. É literalmente a reclamação do dono ("colocaste em
+     lugares que não são parede") e o `paredeAtras` já os reprovaria em silêncio; estão
+     removidos daqui para a lista dizer a verdade sobre o que o mapa cola. */
   /* O ÔNIBUS FICOU DE FORA DE PROPÓSITO. Ele é o único volume do mapa cuja malha visível
      passou a vir de um GLB (`onibus_sptrans`) encaixado por ALTURA — a largura e o
      comprimento são os do modelo, não os BW/BL do colisor. Decalque colado em ∓BW/2 ficaria
@@ -1273,7 +1301,7 @@ export function buildQuebrada(scene, T) {
   PB.build(root);       // instancia barraco e fachada: 1 draw call por (material, bloco de 24 m)
   SKIRT.build(root);
   return {
-    root, colliders, occluders, groundHeightAt, spawns, sun, hemi, pickups, ctfPoints,
+    root, colliders, occluders, decalSolids: colliders, groundHeightAt, spawns, sun, hemi, pickups, ctfPoints,
     waypoints: { nodes, adj }, nearestWaypoint, findPath,
     bounds: { minX: -HALF_X + 0.5, maxX: HALF_X - 0.5, minZ: -HALF_Z + 0.5, maxZ: HALF_Z - 0.5 },
   };
