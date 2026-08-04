@@ -9,7 +9,7 @@ import { VM_GUNSPACE, gunBasis, buildVmAttachment, VM_FRAME } from './vmattach.j
 import { GPUParticles } from './gpuparticles.js';
 // radiância do céu MEDIDA por mapa (r3_fog.py) — teto de brilho da fumaça, ver _corDaFumaca
 import { skyRadiance } from './bloom.js';
-import { RecoilAxis } from './springs.js';
+import { RecoilAxis, ViewModelRig } from './springs.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 export const WEAPONS = {
@@ -1795,7 +1795,18 @@ export class Game {
     // espaço do vm.root — contrato combinado com o agente de animação, que prende a mão nele
     // em todos os frames (saque/recarga/tiro) em vez de chutar um offset por classe.
     // `ads[id]` é o delta que centraliza a alça de mira. Ambos repovoados pelo _vmFrame.
-    const vmObj = { root, models, awp, pistol, knife, arms, grip: gripPt, ads: adsPt, rot: vmRot, kick: 0, kickSide: 0, bobPhase: 0, reloadDip: 0, recoil: new RecoilAxis(11, 0.5, 0.12, 0.15), staticVms };
+    /* BUG-04 — o ViewModelRig (springs.js) estava escrito, TESTADO (vmrig-test.mjs, e a
+       invariante RIG rodando em cima dele) e NUNCA IMPORTADO: o game.js só trazia o
+       RecoilAxis. Ou seja, a régua validava código que não rodava, e o jogador ficava sem
+       a recarga em fases e sem o carregador caindo. Aqui ele entra no viewmodel.
+       O QUE O RIG PASSA A MANDAR: recarga (5 fases), saque, sway e respiração de idle.
+       O QUE FICA NO CAMINHO ANTIGO, e por quê:
+         • coice — os GANHOS (0.070/0.050/…) são lidos do TEXTO deste arquivo por
+           tools/eval/vm-kick-sim.mjs (VM7/VM8). Trocar a fonte do coice cegaria as duas.
+         • pose de ADS — `_adsPose`+`STATIC_CLASS` são lidos pelo auditor e pela AUD1.
+         • bob — travado em `p.stepPhase`, o MESMO contador que dispara o som de passo
+           (daí `bobGain: 0`: o rig calcula bobAmp, mas não soma deslocamento). */
+    const vmObj = { root, models, awp, pistol, knife, arms, grip: gripPt, ads: adsPt, rot: vmRot, kick: 0, kickSide: 0, bobPhase: 0, rig: new ViewModelRig({ bobGain: 0 }), recoil: new RecoilAxis(11, 0.5, 0.12, 0.15), staticVms };
     // R1.b — ACÚMULO EM RAJADA. O 3º/4º argumento do RecoilAxis é o residual (tau, share):
     // a fatia do coice que NÃO volta pela mola e decai por `approach` com constante de tempo
     // tau. Com (0.28, 0.30) o resíduo de um tiro ainda valia ~70% quando o próximo saía
@@ -1951,9 +1962,9 @@ export class Game {
       this.player.yaw -= e.movementX * s;
       this.player.pitch -= e.movementY * s;
       this.player.pitch = Math.max(-1.45, Math.min(1.45, this.player.pitch));
-      // viewmodel sway: the gun lags the mouse slightly (ev.io feel)
-      this._swayX = Math.max(-1, Math.min(1, (this._swayX || 0) + e.movementX * 0.002));
-      this._swayY = Math.max(-1, Math.min(1, (this._swayY || 0) + e.movementY * 0.002));
+      // viewmodel sway: saiu daqui (BUG-04). Quem produz o sway agora é o ViewModelRig, a
+      // partir do Δyaw/Δpitch REAL do quadro — que já embute a sensibilidade e não depende
+      // do DPI do mouse nem do framerate, como estes dois acumuladores dependiam.
     };
     this._cc = e => e.preventDefault();
     this._blur = () => { this.keys = {}; };   // alt-tab com tecla pressionada não deixa tecla presa
@@ -2240,6 +2251,9 @@ export class Game {
     // viewmodel estático Tripo por classe (mesma regra do _switchWeapon, agora num método
     // só — cobre também o lazy-load: classe não carregada cai no procedural e carrega).
     this._applyVmVisibility();
+    // BUG-04: início de round/respawn zera o rig e SACA — sem isso o viewmodel podia
+    // reaparecer no meio de uma recarga interrompida pela morte.
+    this.vm.rig.reset(); this.vm.rig.startDraw();
     this.el.weaponName.textContent = WEAPONS[this.player.weapon].name;
     const slots = { P: 1, B: 0 };
     for (const b of this.bots) {
@@ -2597,16 +2611,21 @@ export class Game {
     if (p.weapon === w || !p.alive || !WEAPONS[w]) return;
     if (w !== 'knife' && !p.ammo[w]) p.ammo[w] = { mag: WEAPONS[w].mag, res: WEAPONS[w].reserve };
     // GUNFEEL: deploy por CLASSE (era 0.28 fixo p/ as 26 armas — a AWP sacava tão rápido
-    // quanto a faca). Teto de 0.45s de propósito: a animação de saque divide por 0.28 no
-    // _updatePlayer (fora deste arquivo-região), então drawF chega a ~1.6 = entrada de
-    // y -0.35 / rx -0.9, que é justamente a curva pedida pelo crítico.
+    // quanto a faca). Estes segundos alimentam DUAS coisas: `p.drawUntil` (trava do tiro) e
+    // a duração do estado 'draw' do rig (a arma entrando pela borda de baixo, y -0,34 /
+    // rx -1,05 no início do arco) — antes era uma rampa linear dividida por 0,28 fixo.
     const DEPLOY = { knife: 0.25, pistol: 0.34, smg: 0.38, rifle: 0.42, shotgun: 0.42, awp: 0.45 };
     const _dcls = BALL_CLASS[w] === 'smg' ? 'smg' : (STATIC_CLASS[w] || 'rifle');
     p.weapon = w; p.reloadUntil = 0; p.drawUntil = this.time + (GUNFEEL ? (DEPLOY[_dcls] || 0.38) : 0.28);
     p.sprayI = 0; p.lastShotAt = -9;   // rajada nova: padrão de recuo recomeça do tiro 1
     // remember the slot so 1/2 recall the LAST weapon of that kind (primary vs sidearm)
     if (w !== 'knife') { if (PISTOLS.has(w)) p.secondary = w; else p.primary = w; }
-    this.vm.reloadDip = 0;   // evita arma travada inclinada ao trocar no meio da recarga
+    // BUG-04: o saque vira o arco do rig (entra pela borda de baixo). `startDraw` também
+    // tira o rig de 'reload', que é o que impedia a arma de ficar travada inclinada ao
+    // trocar no meio da recarga. Sem `startSwap` de propósito: o holster do rig exige adiar
+    // a TROCA DA MALHA até o fundo do arco, e a malha visível é lida por `poseToWeapon`,
+    // pelo flash de boca e pelo ADS a partir de `p.weapon` — adiar isso é outra tarefa.
+    this.vm.rig.startDraw(GUNFEEL ? (DEPLOY[_dcls] || 0.38) : 0.28);
     this.bloom = 0;
     this._scope(false, true);
     this._applyVmVisibility();
@@ -2657,6 +2676,9 @@ export class Game {
     if (a.mag >= WEAPONS[w].mag || a.res <= 0) return;
     this._scope(false, true);
     p.reloadUntil = this.time + WEAPONS[w].reload;
+    // BUG-04: MESMA duração da tabela de armas nos dois lados — o relógio de jogo
+    // (reloadUntil, que devolve a munição) e a animação terminam no mesmo quadro.
+    this.vm.rig.startReload(WEAPONS[w].reload);
     p.sprayI = 0;   // recarregou = rajada nova (padrão de recuo do tiro 1)
     this.el.reloadNote.classList.remove('hidden');
     this.sfx.reloadStart();
@@ -4568,26 +4590,20 @@ export class Game {
     const gap = precAds ? 3 : Math.max(3, Math.min(26, 5 + sp * 1.15 + this.vm.kick * 20 - p.crouchF * 2.5 - (p.scoped ? 4 : 0)));
     this.el.crosshair.style.setProperty('--ch', gap.toFixed(1) + 'px');
     this.vm.root.visible = !(realScope && mask > 0.55);   // a arma só sai de cena depois que a luneta cobre
-    // reload completion
-    if (this._reloading()) {
-      this.vm.reloadDip = Math.min(1, this.vm.reloadDip + dt * 3);   // sobe mais suave (menos truncado)
-    } else {
-      this.vm.reloadDip = Math.max(0, this.vm.reloadDip - dt * 4); // volta mais suave; safety: nunca trava inclinado
-      if (p.reloadUntil > 0) {
-        p.reloadUntil = 0;
-        for (const k of Object.keys(p.ammo)) {
-          const am = p.ammo[k], wm = WEAPONS[k].mag;
-          if (am.mag < wm && am.res > 0) { const need = wm - am.mag, take = Math.min(need, am.res); am.mag += take; am.res -= take; }
-        }
-        this.el.reloadNote.classList.add('hidden');
-        this.sfx.reloadEnd();
-        this.vm.reloadDip = 0;
+    // reload completion — RELÓGIO DE JOGO (devolve a munição). A ANIMAÇÃO é do rig e usa a
+    // mesma duração da tabela, então as duas pontas chegam no mesmo quadro (BUG-04).
+    if (!this._reloading() && p.reloadUntil > 0) {
+      p.reloadUntil = 0;
+      for (const k of Object.keys(p.ammo)) {
+        const am = p.ammo[k], wm = WEAPONS[k].mag;
+        if (am.mag < wm && am.res > 0) { const need = wm - am.mag, take = Math.min(need, am.res); am.mag += take; am.res -= take; }
       }
+      this.el.reloadNote.classList.add('hidden');
+      this.sfx.reloadEnd();
     }
     // view model animation — recoil via RecoilAxis (spring snappy + residual, port CoD:
     // sobe instantâneo, volta quase tudo, settle lento; era decaimento linear dt*11)
     this.vm.kick = this.vm.recoil.step(dt);
-    this._swayX = (this._swayX || 0) * Math.max(0, 1 - dt * 7); this._swayY = (this._swayY || 0) * Math.max(0, 1 - dt * 7);
     const bobAmp = Math.min(1, sp / 6.6);
     // bob figure-eight (Lissajous 1:2 travado na cadência dos passos, port CoD)
     const bobY = moving ? Math.sin(p.stepPhase * 2) * 0.010 * bobAmp : 0;
@@ -4606,6 +4622,23 @@ export class Game {
     }
     const a0 = this.vm.adsF;
     const a = a0 * a0 * (3 - 2 * a0);   // smoothstep: entra sem estalo, sem overshoot
+    /* ===== RIG PROCEDURAL DO VIEWMODEL (BUG-04) =====
+       `rg.pos`/`rg.rot` são OFFSETS somados ao enquadramento — nunca posição absoluta —, e
+       valem ZERO em repouso. É isso que deixa o enquadramento medido (VM1/VM5/VM9/VM12/…)
+       intacto: o auditor projeta o quadro parado, e parado o rig não desloca nada.
+       SWAY vem do giro REAL do quadro (Δyaw/Δpitch em rad), não do `movementX` cru que os
+       dois acumuladores `_swayX/_swayY` guardavam: aquilo dependia de DPI do mouse e de
+       framerate (decaimento `1 - dt*7`) e ignorava a sensibilidade, então a arma balançava
+       diferente em cada máquina. O sinal foi conferido contra o comportamento antigo —
+       mouse pra direita continua levando a arma pra direita, mouse pra baixo pra cima.
+       `lookDY` é positivo pra CIMA da tela, daí o `-`. */
+    const dYaw = p.yaw - (this._vmYaw ?? p.yaw), dPit = p.pitch - (this._vmPit ?? p.pitch);
+    this._vmYaw = p.yaw; this._vmPit = p.pitch;
+    this.vm.rig.setAds(adsWant === 1);
+    const rg = this.vm.rig.update(dt, {
+      speed: sp, grounded: p.grounded !== false, crouch: p.crouchF > 0.5,
+      lookDX: dYaw, lookDY: -dPit,
+    });
     // POSE DE ADS (G3-R1). MINT_VM: o delta vem MEDIDO por arma (vm.ads[id], calculado no
     // _vmFrame a partir da alça de mira do GLB) e leva a alça ao centro EXATO da tela — é
     // literalmente sight picture, não "arma deslizando pro canto". Sem MINT_VM, cai na
@@ -4625,8 +4658,8 @@ export class Game {
     const sl01 = Math.min(1, Math.max(0, (a0 - 0.8) / 0.2));
     const sl = (!MINT_VM && adsWant && (_adsCls === 'rifle' || _adsCls === 'shotgun')) ? sl01 * sl01 * (3 - 2 * sl01) : 0;
     this._adsSlide = sl;
-    // draw animation: arma sobe de baixo ao trocar (drawUntil já existia p/ travar o tiro)
-    const drawF = Math.max(0, (p.drawUntil - this.time) / 0.28);
+    // draw animation: agora é o estado 'draw' do rig (ver _switchWeapon). `p.drawUntil`
+    // continua sendo o que TRAVA o tiro — gameplay e animação seguem em variáveis separadas.
     // Kick mais PUNCHY (dono: "animação de tiro ruim"): recuo pra trás + salto pra cima + subida
     // do cano + um jolt lateral (roll/yaw) aleatório por tiro, escalado por arma (ver _tryShoot).
     // R1.d — KILL-SWITCH ?vmkick=<mult>. Multiplica em bloco os ganhos do kick do viewmodel
@@ -4660,10 +4693,10 @@ export class Game {
     // Os ganhos abaixo mantêm a MESMA forma de curva (mesma mola, mesma assinatura por
     // arma), só reduzem a amplitude cosmética. Esta camada NÃO mexe na mira: o recuo de
     // câmera é _shotRecoil/_installRecoil e continua intocado.
-    this.vm.root.position.set(VM_OFF[0] + pose.x * a + sl * 0.3 + this._swayX * 0.02 + bobX, vmOffY((this.vmCamera && this.vmCamera.aspect) || this.camera.aspect) + bobY - this.vm.reloadDip * 0.18 - p.crouchF * 0.02 + pose.y * a - sl * 0.38 + this._swayY * 0.015 - drawF * 0.22 + k * 0.015, VM_OFF[2] + k * 0.050 + pose.z * a - swPz);
-    this.vm.root.rotation.x = k * 0.070 + this.vm.reloadDip * 0.6 - drawF * 0.55 + pose.rx * a + swRx;   // subida do cano + ADS + golpe da faca
-    this.vm.root.rotation.y = ks * k * 0.018 + pose.ry * a + swRy;                                       // yaw do coice/ADS + varredura da faca
-    this.vm.root.rotation.z = this._swayY * 0.03 + ks * k * 0.022 + swRz;                                // roll do coice + giro da lâmina
+    this.vm.root.position.set(VM_OFF[0] + pose.x * a + sl * 0.3 + bobX + rg.pos.x, vmOffY((this.vmCamera && this.vmCamera.aspect) || this.camera.aspect) + bobY - p.crouchF * 0.02 + pose.y * a - sl * 0.38 + k * 0.015 + rg.pos.y, VM_OFF[2] + k * 0.050 + pose.z * a - swPz + rg.pos.z);
+    this.vm.root.rotation.x = k * 0.070 + pose.rx * a + swRx + rg.rot.x;   // subida do cano + ADS + golpe da faca + rig (recarga/saque/respiração)
+    this.vm.root.rotation.y = ks * k * 0.018 + pose.ry * a + swRy + rg.rot.y;                            // yaw do coice/ADS + varredura da faca
+    this.vm.root.rotation.z = ks * k * 0.022 + swRz + rg.rot.z;                                          // roll do coice + giro da lâmina + sway
     this.vm.root.scale.setScalar(1 - (1 - pose.s) * a);                                          // scale-down do VM em ADS
     /* ADS ZERA O PITCH/YAW PRÓPRIOS DA ARMA (RODADA DO GRIP + PITCH).
        O `_adsPose` acima gira o vm.root INTEIRO (rx/ry por classe) e não enxerga a

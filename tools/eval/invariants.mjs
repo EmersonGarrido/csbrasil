@@ -902,12 +902,32 @@ function runNode(script, env = {}, args = []) {
        Sem a 2ª, `_adsPose` viraria uma tabela decorativa e mirar não moveria a arma. */
     adsPoseLida: /this\._adsPose\[\s*STATIC_CLASS\[/.test(gsrc),
     adsPoseAplicada: !!argsVmRoot && /\bpose\.x\b/.test(argsVmRoot[0]) && /\bpose\.y\b/.test(argsVmRoot[1]) && /\bpose\.z\b/.test(argsVmRoot[2]),
+    /* AS QUATRO ETAPAS DO RIG PROCEDURAL (BUG-04) — o mesmo buraco do vmOffY, na sua forma
+       mais cara já paga: o `ViewModelRig` de springs.js estava ESCRITO, com teste dedicado
+       (vmrig-test.mjs) e com a invariante RIG VERDE em cima dele — e o game.js importava
+       só o `RecoilAxis`. Ou seja: a RIG passava medindo código que NÃO RODAVA NO JOGO, e o
+       jogador ficava sem a recarga em fases. É a definição de portão mentindo verde.
+       Enquanto a RIG olhar só para springs.js, é AQUI que se prova que o rig está LIGADO:
+         rigImportado    — o game.js importa a classe (era isto que faltava)
+         rigAtualizado   — e a chama por quadro (importar sem chamar é o mesmo nada)
+         rigRecarga      — a recarga do jogo dispara o estado do rig (a fase visível)
+         rigConsumido    — e as saídas entram nos 3 eixos do vm.root.position.set...
+         rigRotConsumida — ...e nos eixos X e Z do vm.root.rotation (dip da recarga e sway)
+       MUTAÇÃO QUE FAZ ESTA CLÁUSULA MORDER: apague `+ rg.pos.y` do argumento Y do
+       `this.vm.root.position.set(...)` — a recarga deixa de descer na tela e, sem
+       `rigConsumido`, o portão inteiro continuava verde. */
+    rigImportado: /import\s*\{[^}]*\bViewModelRig\b[^}]*\}\s*from\s*'\.\/springs\.js'/.test(gsrc),
+    rigAtualizado: /this\.vm\.rig\.update\s*\(/.test(gsrc),
+    rigRecarga: /this\.vm\.rig\.startReload\s*\(/.test(gsrc),
+    rigConsumido: !!argsVmRoot && /\brg\.pos\.x\b/.test(argsVmRoot[0]) && /\brg\.pos\.y\b/.test(argsVmRoot[1]) && /\brg\.pos\.z\b/.test(argsVmRoot[2]),
+    rigRotConsumida: /this\.vm\.root\.rotation\.x\s*=[^\n;]*\brg\.rot\.x\b/.test(gsrc)
+      && /this\.vm\.root\.rotation\.z\s*=[^\n;]*\brg\.rot\.z\b/.test(gsrc),
   };
   const faltando = Object.entries(etapas).filter(([, v]) => !v).map(([k]) => k);
   if (!existsSync(pj)) {
     skip('AUD1', 'régua de viewmodel bate com o game.js', 'vm_mint_audit.json ausente');
   } else if (faltando.length) {
-    put('AUD1', 'o frame() do vm-mint-audit espelha o _vmFrame do game.js (recuoZ, nearX, VM_OFF, vmOffY, pitch/yaw/roll, ADS)',
+    put('AUD1', 'o frame() do vm-mint-audit espelha o _vmFrame do game.js (recuoZ, nearX, VM_OFF, vmOffY, pitch/yaw/roll, ADS, rig)',
       false, `etapa(s) sumiram do game.js: ${faltando.join(', ')} — o auditor virou ficção` +
       (faltando.includes('vmOffYChamado')
         ? ` (o argumento Y de this.vm.root.position.set não chama vmOffY(): ${(argsVmRoot ? argsVmRoot[1] : '<não parseei o set()>').trim().slice(0, 90)})`

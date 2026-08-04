@@ -95,6 +95,14 @@ export class ViewModelRig {
   constructor(opts = {}) {
     const o = opts;
     this.scale = o.scale ?? 1;            // multiplicador global (knob de tuning)
+    /* GANHO DO BOB, separado do `scale`. Existe porque quem plugou o rig no game.js já
+       tinha um bob TRAVADO NA CADÊNCIA DOS PASSOS (`p.stepPhase`, o mesmo contador que
+       dispara o som de passo): somar o bob daqui, que roda em fase própria, dobraria a
+       amplitude E dessincronizaria a arma do som. `bobGain: 0` deixa isso EXPLÍCITO no
+       construtor — a alternativa era o caller mentir `speed: 0` no update, o que também
+       mataria a atenuação da respiração em corrida e não diria a ninguém o porquê.
+       `bobAmp` continua sendo calculado (é ele que atenua a respiração andando). */
+    this.bobGain = o.bobGain ?? 1;
     this.runSpeed = o.runSpeed ?? 6.6;    // m/s do sprint: normaliza a amplitude do bob
     // Molas: o viewmodel ATRASA em relação à câmera. Sem esse atraso a arma fica
     // colada na mira e o jogo lê como "cenário grudado na tela", nunca como arma.
@@ -218,7 +226,7 @@ export class ViewModelRig {
       : approach(this.bobAmp, want, VM_TIMES.bobStopTau, dt);   // e cai em 300 ms
     // cadência do passo acompanha a velocidade (não é frequência fixa)
     this.bobPhase += dt * (4.2 + 3.2 * clamp(speed / this.runSpeed, 0, 1)) * (this.bobAmp > 1e-3 ? 1 : 0);
-    const bA = this.bobAmp * this.scale * (0.35 + 0.65 * hip) * (s.crouch ? 0.6 : 1);
+    const bA = this.bobAmp * this.scale * this.bobGain * (0.35 + 0.65 * hip) * (s.crouch ? 0.6 : 1);
     const bobX = Math.sin(this.bobPhase) * 0.016 * bA;
     const bobY = -Math.abs(Math.cos(this.bobPhase)) * 0.011 * bA;   // 2 passos por ciclo
     const bobR = Math.sin(this.bobPhase) * 0.030 * bA;
