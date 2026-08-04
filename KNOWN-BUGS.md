@@ -10,11 +10,18 @@
 **Portão na data deste arquivo** (`node tools/eval/invariants.mjs`, ~10-12 min):
 
 ```
-CRÍTICAS: 36/48 passam  ← VM1, VM3, VM5, VM12, VM16, VM18, VM18b, VM19,
-                          BOT8, CHR1, CHR3, CHR4 VERMELHAS
-AVISOS:   BOT1, CHR5B fora do alvo
+CRÍTICAS: 36/49 passam  ← VM1, VM3, VM5, VM12, VM16, VM18, VM18b, VM19,
+                          BOT8, CHR1, CHR3, CHR4, TEX1 VERMELHAS
+AVISOS:   nenhum
 PULADAS:  4 (exigem browser)
 ```
+
+Mudou em 04/08: **CHR5B saiu do aviso e ficou VERDE** (27/44 personagens sem mapa de
+superfície → 0/44) e entrou a **CHR7** (convenção de skin), verde — daí 49 e não 48.
+**TEX1 ficou vermelha** por 10 superfícies grandes e claras sem albedo, **todas no
+`fy_quebrada`**, que é mapa em obra — não é regressão de personagem.
+CHR1/CHR3/CHR4 seguem exatamente como estavam (conferido personagem a personagem: a
+lista de "balão" do CHR1 tem os mesmos 13 antes e depois).
 
 ---
 
@@ -339,6 +346,39 @@ A causa de fundo é o re-rig (C1 do handoff): 18 modelos compartilham **um únic
 (o do `mst`, transplantado por auto-skin), com raio de skin 1,55×–1,97× maior que o normal.
 **Não tem conserto em runtime.**
 
+#### O "BALÃO" — CAUSA RAIZ ACHADA E CORRIGIDA (04/08)
+
+Não era proporção, não era `MAX_R` e não era o `raioSkin`. Era a **convenção de segmento**
+do auto-skin: `rig-from-donor.mjs` montava o osso como `[junta → PAI]`, e num rig Meshy o
+osso aponta pro filho (`LeftArm` = OMBRO, `LeftForeArm` = COTOVELO, `LeftHand` = PUNHO).
+Resultado: **todo membro pintado com a junta DISTAL** — a carne do braço obedecendo ao
+cotovelo, a da coxa ao joelho. Dobrar uma junta girava o membro inteiro.
+
+Medido por `tools/eval/skin-offbyone.mjs`: **raul 15×0** para o pai, **mandrake 0×17** para
+o filho. 17 dos 44 estavam invertidos (8 palhaços + 9 funkeiros).
+
+Duas coisas que a régua antiga dizia e que são **falso positivo**, com número:
+
+- `raioSkin` do C7 — 60% dos vértices caem no `head_end`, uma FOLHA rígida 29,5 cm acima do
+  `Head`, e o C7 mede folha como PONTO. Deformação de folha rígida é idêntica à do pai
+  (M_f·IBM_f = M_p·L·L⁻¹·IBM_p) e as tracks de `head_end` nos clipes são constantes
+  (conferido). Remapear folha→pai leva raul de 0,171 pra 0,074 **sem mover um vértice**.
+- `MAX_R` — o sweep 0,22→0,09 já tinha sido refutado, e continua irrelevante.
+
+**Régua que enxerga o defeito:** `tools/eval/pose-inflate.mjs` — LBS na unha com os clipes
+reais, esticamento de aresta em razão **simétrica** `max(L/L0, L0/L) − 1`. A primeira versão
+usava `|L/L0 − 1|`, que satura em 1,0 no colapso e **premiava malha rasgada** (o jozo
+marcava melhor com o tronco aberto num talho). Corrigida antes de valer nota.
+
+Consertado por `tools/reskin-glb.mjs`, que repinta só `JOINTS_0`/`WEIGHTS_0` do GLB pronto
+(malha, textura, esqueleto, IBM e clipes intactos) — **custo em disco: ZERO byte**.
+Mediana do lote **1,152 → 0,535**; oakley 1,835 → 0,591; raul 1,131 → 0,424.
+Referência: mandrake 0,402 (rigado no Mint), mst 0,312 (doador). `raioSkinP50` da família
+transplantada: 0,150 → 0,078 (critério era ≤ 0,10). Guarda: **invariante CHR7**, teto zero.
+
+**Continua aberto:** a POSTURA encurvada (o personagem anda dobrado pra frente) é outro
+defeito, do retarget de clipe (C2 do handoff), e aparece igual antes e depois do reskin.
+
 ### BUG-11 · VM18 / VM18b — a silhueta é um cano, não uma arma
 
 12 das 26 armas têm espessura perpendicular **abaixo do piso medido no CS 1.6** (shotgun 0,269 ·
@@ -498,8 +538,14 @@ publicação em potencial, e o `.gitignore` não protege de um deploy local.
   `this.ctf → _initCTF → _updateCtfHud` sempre desconde, então o mecanismo não é o mesmo do
   BUG-01. Precisa de mapa + modo + se houve recarga de página.
 - **BOT1** (aviso) — bot indo de lado, 12,9 flips/min contra teto de 12/min.
-- **CHR5B** (aviso) — 27 dos 44 personagens com **zero** mapa de superfície
-  (normal+rough+ao) contra 18 normalMaps no `fy_havan`: é o "três níveis de acabamento na
-  mesma tela".
+- ~~**CHR5B** (aviso) — 27 dos 44 personagens com **zero** mapa de superfície~~ · **RESOLVIDO
+  04/08**: `tools/char-surface-maps.mjs` deriva normal+roughness do próprio albedo do GLB
+  com a MESMA fórmula do `textures.js` (Sobel + `hi+(lo−hi)·lum`), 512 px, FORÇA 1,8
+  escolhida comparando imagem a 1,1/1,8/3,0. **27/44 → 0/44**, custo +1,64 MB nos 27
+  arquivos (11.624.996 → 13.347.320 bytes).
+  No caminho apareceu um defeito maior: `upgradeCharMaterial` (characters.js) carregava
+  `map` e `normalMap` e **largava o `roughnessMap`** — os 17 personagens com
+  metallicRoughnessTexture do Mint pagavam o download e a tela desenhava `roughness: 0.86`
+  fixo. O CHR5B contava ARQUIVO, o jogador via CONSTANTE. Corrigido junto.
 - **C10** — `_freeSpot` (`game.js`) ignora colisores com `minY ≥ 1,5`; no mezanino não empurra
   arma para fora de parede. Não mordeu ainda; é armadilha para o próximo mapa com andar de cima.
