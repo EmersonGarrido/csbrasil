@@ -2,11 +2,15 @@
 // B no GALPÃO (norte). O pátio é um labirinto de MUROS DE CARROS EMPILHADOS (wall_of_cars) e
 // fileiras de carros prensados (crushed_classic) — scans reais texturizados, corredores ≥5m.
 // 4 bandeiras: portão, beco oeste, pátio leste, galpão. Contrato buildWorld + A*.
-// Props otimizados de /Users/ruben/glb (tools/optimize-static.mjs).
+// v3 BECO OESTE (08/2026): o flanco oeste vira o CÂNION da imagem-conceito do dono — muros
+// DUPLOS de carros (~5,6 m) contínuos de z=+33 a z=-25, placa suspensa na boca sul, bandeira
+// W no miolo do beco. ?beco=0 restaura o layout antigo. Props otimizados de /Users/ruben/glb
+// (tools/optimize-static.mjs).
 import * as THREE from 'three';
 import { placeProp } from './mapprops.js';
 import { VAO_BANDS, aoBoxGeo, aoMatFactory, ContactSkirt, BASE_FLOATING, onGround } from './vao.js';
 import { makeAerialFog } from './bloom.js';   // névoa exponencial + cor por direção do olhar
+import { detailFor } from './textures.js';   // normal+rough por Sobel (ver lam)
 
 // kill-switches (padrão do projeto): ?nofog=1 sem névoa, ?rays=0 sem god rays,
 // ?dust=0 sem poeira em suspensão, ?mato=0 sem vegetação invasora.
@@ -14,6 +18,9 @@ const QP = new URLSearchParams(typeof location !== 'undefined' ? location.search
 // quality vem do localStorage (o buildFerroVelho recebe só scene+T; game.js não passa
 // settings). 'low' = notebook fraco: cortamos contagem de painéis, mato e partículas.
 const LOWQ = (() => { try { return JSON.parse(localStorage.getItem('awpbr_settings') || '{}').quality === 'low'; } catch (e) { return false; } })();
+// BECO OESTE (08/2026): flanco oeste vira o cânion da imagem-conceito do dono. ?beco=0
+// restaura o layout antigo (padrão kill-switch do projeto, segue o modelo do ?rack=old).
+const BECO = QP.get('beco') !== '0';
 
 const HALF_X = 32, HALF_Z = 36;
 export const FERRO_PROPS = [
@@ -463,7 +470,28 @@ function puddleTex(seed = 617) {
 export function buildFerroVelho(scene, T) {
   const colliders = [], occluders = [], pickups = [];
   const root = new THREE.Group(); scene.add(root);
-  const lam = (o) => new THREE.MeshStandardMaterial({ roughness: 0.95, metalness: 0, ...o });
+  /* PBR DE SUPERFÍCIE — o MESMO caminho do map.js:17-28, que era o único mapa a ter.
+     MEDIDO antes desta rodada, varrendo a cena dos 5 mapas reais em runtime: 877 materiais,
+     70 normalMap e 70 roughnessMap, TODOS no praca_old (o único que chamava `detailFor`).
+     Este mapa tinha ZERO. Depois: 113/113 no total. O `detailFor`
+     pendura normal+roughness derivados do PRÓPRIO albedo por Sobel (textures.js), então a
+     superfície deixa de ser cor chapada e passa a reagir ao sol e ao env map — sem asset
+     externo e sem textura nova: os dois mapas derivados são gerados UMA vez por canvas de
+     albedo e cacheados num WeakMap, e materiais que compartilham o mesmo albedo compartilham
+     os mesmos derivados.
+     CUSTO NA MÁQUINA FRACA (a preocupação do dono): zero. O `withDetail` do textures.js já
+     sai fora em quality 'low' e com ?detail=0, e nesses casos `detailFor` devolve null e o
+     material fica exatamente como era. normalScale 0,65 é o mesmo do map.js — relevo por
+     Sobel exagera fácil e vira plástico. */
+  const lam = (o) => {
+    const m = new THREE.MeshStandardMaterial({ roughness: 0.95, metalness: 0, ...o });
+    const det = m.map && detailFor(m.map);
+    if (det) {
+      if (det.normalMap && !m.normalMap) { m.normalMap = det.normalMap; m.normalScale.set(0.65, 0.65); }
+      if (det.roughnessMap && !m.roughnessMap) m.roughnessMap = det.roughnessMap;
+    }
+    return m;
+  };
   const MAT = {
     // terra batida: tiling FINO (crítico R6: "chão borrão de baixa frequência") — cascalho,
     // óxido e tonalidade em escala de ~1.4m por tile (antes ~3.2m = manchão)
@@ -582,6 +610,73 @@ export function buildFerroVelho(scene, T) {
   const gpropV = (id, x, z, h, ry = 0) => { const flip = _pv % 2 ? Math.PI : 0; const o = placeProp(id, { x, z, targetH: h, ry: ry + flip }); if (o) { vary(o); root.add(o); } return !!o; };
   // collider AABB por footprint (props só entram em ry 0 ou π/2, então o AABB é exato)
   const collide = (x, z, hw, hd, h) => colliders.push({ minX: x - hw, maxX: x + hw, minY: 0, maxY: h, minZ: z - hd, maxZ: z + hd });
+
+  /* ===================== DECALQUE DE RUA (public/img/decals) =====================
+     Pedido do dono (04/08): aplicar os recortes de `public/img/decals` "na textura de todos
+     mapas onde faz sentido: laterais de prédios, portas, portões, carros, pilastras, paredes"
+     e "num tamanho MAIOR que os posters atuais para serem bem visíveis".
+
+     ESTE MAPA JÁ TINHA DOIS SISTEMAS DE TINTA, e o novo NÃO substitui nenhum:
+       · `T.graffiti` — 9 murais 6,2 × 2,7 m em escala arquitetônica nos muros internos;
+       · `pixacaoTex` — 6 pixações procedurais de traço reto nas chapas.
+     O que faltava era o acervo recortado de verdade (179 PNG com alpha). Ele entra onde os
+     outros dois NÃO estão: chapa livre do perímetro, galpão do Zé e as duas folhas do portão.
+
+     CINCO REGRAS, cada uma com um defeito real atrás:
+     1. `T.decals[i]` é getter memoizado (textures.js:696): ler por ÍNDICE baixa UM PNG.
+        Spread/`.map()` acordaria os 179 (7 MB) de uma vez.
+     2. `transparent: true` — sem isso o alpha vira retângulo preto na chapa.
+     3. PLANO, nunca `collide`: decalque com colisor vira parede invisível (BUG-21).
+     4. 6-8 cm de afastamento da face + polygonOffset contra z-fighting.
+     5. Escolha determinística por posição — o `botsim` é determinístico e mapa que muda a
+        cada carregamento é defeito.
+     Fora do pool: as 47 folhas de 'alfabeto' (uma letra fina e clara, some a 10 m — BAR
+     §2.1) e os recortes de olho/boca soltos (viram mancha abstrata ampliados a 3 m). */
+  const D_MURAL = [157, 158, 159, 160, 161, 162, 163, 164, 156, 97, 166];
+  const D_TAG = [167, 168, 169, 170, 171, 172, 174, 175, 176, 177];
+  const D_LAMBE = [90, 91, 92, 94, 96, 99, 165];
+  const _dmat = new Map(), _usados = [];
+  const decalMat = (i) => {
+    let m = _dmat.get(i);
+    if (!m) {
+      m = new THREE.MeshStandardMaterial({
+        map: T.decals[i], transparent: true, alphaTest: 0.22, roughness: 0.98, metalness: 0,
+        polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4,
+      });
+      _dmat.set(i, m);
+    }
+    return m;
+  };
+  function decal(pool, x, y, z, ry, alt, larg = 99) {
+    if (!T.decals || !T.decalAspects || !T.decalAspects.length) return null;
+    const k = mix32(mix32(Math.round(x * 10) + 9973) + Math.round(z * 10) * 131 + 7);
+    // anti-repetição local: pool de 7-11 peças com 13 vagas no perímetro repete por
+    // aniversário, e arte repetida a 10 m lê como falha de asset, não como pátio.
+    let i = pool[k % pool.length];
+    for (let t = 0; t < pool.length; t++) {
+      const j = pool[(k + t) % pool.length];
+      if (!_usados.some((u) => u.i === j && Math.hypot(u.x - x, u.z - z) < 16)) { i = j; break; }
+    }
+    _usados.push({ i, x, z });
+    const a = T.decalAspects[i] || 1;
+    let h = alt, w = alt * a;
+    if (w > larg) { w = larg; h = larg / a; }          // encolhe inteiro; NUNCA estica
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), decalMat(i));
+    m.position.set(x, y + h / 2, z); m.rotation.y = ry; m.renderOrder = 2;
+    m.receiveShadow = true;                            // tinta escurece junto com a chapa
+    m.name = 'decal:' + (T.decalFiles ? T.decalFiles[i] : i);
+    root.add(m);            // NUNCA em `occluders`/`colliders`: é tinta, não é peça
+    return m;
+  }
+  /* Face de uma caixa GIRADA (as duas folhas do portão têm ry = ∓0,9). A normal da face
+     local ±x de uma caixa com `rotation.y = ryBox` é (±cos ry, 0, ∓sin ry); um PlaneGeometry
+     com `rotation.y = θ` tem normal (sin θ, 0, cos θ), daí o `atan2(nx, nz)`. Sem esta
+     conversão o decalque sai atravessado na folha — o mesmo erro de eixo local que produziu
+     o aerofólio 1,9 m ao lado do carro na Quebrada. */
+  const decalFace = (pool, cx, cz, ryBox, lado, off, y0, alt, larg) => {
+    const nx = lado * Math.cos(ryBox), nz = -lado * Math.sin(ryBox);
+    return decal(pool, cx + nx * off, y0, cz + nz * off, Math.atan2(nx, nz), alt, larg);
+  };
 
   /* ===== TERRENO VIZINHO (regressão medida: "massa branca/cinza gigante em ~25% do frame")
      O chão do pátio termina em x=±32 / z=±36. Além dessa borda não havia NADA: o frame
@@ -836,10 +931,10 @@ export function buildFerroVelho(scene, T) {
   wallAtNS(11, 1);      // B — centro-leste
   wallAtNS(-11, 15);    // C — centro-oeste sul
   wallAtNS(21, -20);    // D — leste norte
-  rowAt(-24, 6);        // E — oeste
   rowAt(10, -26);       // F — norte (leste do galpão)
   rowAt(24, 18);        // G — leste sul
   rowAt(-14, 30);       // H — sul (oeste do portão)
+  if (!BECO) rowAt(-24, 6);   // E — oeste (no BECO vira muro duplo do cânion)
   // REFORÇO DE RESPAWN (G2-R6B): cover extra nos DOIS spawns — fileiras prensadas fecham
   // o "bolso" do portão (P) e a aproximação norte do galpão (B). h≤1.2: o LOS
   // spawn↔spawn (já 0) não muda; o A* contorna — corredores ≥4m preservados.
@@ -850,11 +945,51 @@ export function buildFerroVelho(scene, T) {
   wallAtEW(0, -6);      // J — muro E-W no miolo centro (mata LOS spawn↔spawn)
   // montes de carros (cover médio nos cantos largos)
   const heapAt = (x, z, ry = 0) => { gpropV('monte_carros', x, z, 2.2, ry) || addBox(2.8, 2.2, 2.8, nextRust(), x, 0, z, { ry }); collide(x, z, 1.5, 1.5, 2.2); };
-  heapAt(-22, -24, 0.4);
+  if (!BECO) heapAt(-22, -24, 0.4);   // no BECO o monte sai da boca norte do cânion
   heapAt(24, 32, -0.3);
-  // máquinas do ferro velho: guindaste (marco leste) + prensa (canto SW)
+  // máquinas do ferro velho: guindaste (marco leste) + prensa (canto SW; no BECO ela sai do
+  // vão do cânion pra faixa atrás do muro oeste — continua marco visual, não bloqueia a boca)
   gprop('guindaste', 26, -6, 7) || addBox(5.7, 7, 5.5, MAT.steel, 26, 0, -6); collide(26, -6, 2.9, 2.8, 6.5);
-  gprop('prensa_carros', -26, 32, 2.6) || addBox(2.3, 2.6, 1.1, nextRust(), -26, 0, 32); collide(-26, 32, 1.2, 0.6, 2.6);
+  const _prensaX = BECO ? -29.7 : -26;
+  gprop('prensa_carros', _prensaX, 32, 2.6) || addBox(2.3, 2.6, 1.1, nextRust(), _prensaX, 0, 32); collide(_prensaX, 32, 1.2, 0.6, 2.6);
+
+  /* ===== BECO OESTE — o cânion da imagem-conceito do dono (08/2026) =====
+     Vão de ~6,6 m (x ∈ ]-26,3,-19,7[), de z=+32 a z=-24. Muros DUPLOS de muro_carros
+     (base 3,0 m + topo 2,6 m ≈ 5,6 m — não se vê por cima de lugar nenhum), contínuos
+     no lado oeste e com DUAS saídas de 5,6 m pro miolo no lado leste (z∈]3,8[ e
+     z∈]-14,-9[) — é beco, não beco-sem-saída. A faixa entre o muro oeste e a cerca
+     (x∈]-32,-27,7[) vira cenário com montes de carros fechando as duas pontas. */
+  if (BECO) {
+    const panel = (x, z) => {
+      const ry = Math.PI / 2;
+      const base = placeProp('muro_carros', { x, z, targetH: 3.0, ry });
+      if (base) { vary(base); root.add(base); }
+      // topo: leve jitter de z/rotação pra quebrar a linha reta do serrilhado (crítico gauntlet)
+      const top = placeProp('muro_carros', { x, z: z + 0.3, y: 2.7, targetH: 2.6, ry: ry + 0.13 });
+      if (top) { vary(top); root.add(top); }
+      if (!base && !top) addBox(1.3, 5.6, 2.8, nextRust(), x, 0, z);   // fallback em peça única
+      collide(x, z, 0.7, 1.5, 5.6);
+    };
+    for (let z = 32; z >= -24; z -= 2.8) {
+      panel(-27, z);                                            // muro oeste: contínuo
+      if ((z > 3 && z < 8) || (z > -14 && z < -9)) continue;    // as 2 saídas pro miolo
+      panel(-19, z);                                            // muro leste
+    }
+    // fecha a faixa cenário atrás do muro oeste (sem ratinho apertado atrás da parede)
+    heapAt(-29.7, 27, 0.2); heapAt(-29.7, -22, -0.4);
+    // pórtico da placa na boca sul (z=+29): postes fora do vão + placa dupla-face a 4,7 m
+    for (const px of [-27.9, -18.1]) {
+      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 5.2, 8), MAT.steel);
+      post.position.set(px, 2.6, 29); post.castShadow = true; root.add(post);
+      collide(px, 29, 0.15, 0.15, 5.2);
+    }
+    const becoSignT = handSignTex([{ t: 'BECO OESTE', size: 0.9, color: '#191410', outline: '#f0e6cc', shadow: '#f0e6cc', cond: 0.8, center: true }],
+      { bg: '#e0b21e', w: 1024, h: 192, seed: 4242 });
+    for (const face of [0, Math.PI]) {
+      const s = new THREE.Mesh(new THREE.PlaneGeometry(8.6, 1.6), new THREE.MeshBasicMaterial({ map: becoSignT, transparent: true }));
+      s.position.set(-23, 4.7, 29); s.rotation.y = face; root.add(s);
+    }
+  }
 
   // ===== carros unitários + cover baixo nos corredores =====
   let ci = 0;
@@ -864,15 +999,18 @@ export function buildFerroVelho(scene, T) {
     if (!gpropV(id, x, z, 1.45, ry)) addBox(2, 1.3, 4.2, nextRust(), x, 0, z, { ry });
     collide(x, z, 1.2, 2.2, 1.3);
   };
-  carAt(-24, 22, 0.3); carAt(2, 12, -2.9); carAt(18, -10, 1.7);
-  carAt(-2, -18, 0.1); carAt(-26, -2, 2.2); carAt(8, 24, -0.6);
+  carAt(2, 12, -2.9); carAt(18, -10, 1.7);
+  carAt(-2, -18, 0.1); carAt(8, 24, -0.6);
+  if (!BECO) { carAt(-24, 22, 0.3); carAt(-26, -2, 2.2); }   // no BECO o vão é do cânion
   // jersey barriers + sacos de areia + bloqueio de concreto
   const jerseyAt = (x, z, ry = 0) => { gprop('jersey_barrier', x, z, 1.1, ry) || addBox(0.8, 1.1, 2, MAT.wall, x, 0, z, { ry }); collide(x, z, 0.5, 1.1, 1.1); };
-  jerseyAt(-6, 26); jerseyAt(14, 12); jerseyAt(-18, -8); jerseyAt(8, -20);
+  jerseyAt(-6, 26); jerseyAt(14, 12); jerseyAt(8, -20);
+  if (!BECO) jerseyAt(-18, -8);
   jerseyAt(1, 26);            // G2-R6B: bloqueio central à frente do spawn P (portão)
   jerseyAt(-13, -21);         // G2-R6B: bloqueio no flanco oeste do spawn B (galpão)
   const sandAt = (x, z) => { gprop('sandbags', x, z, 0.6) || addBox(1.5, 0.6, 1.7, MAT.wall, x, 0, z); collide(x, z, 0.8, 0.9, 0.6); };
-  sandAt(-20, 14); sandAt(12, 28); sandAt(26, -12);
+  sandAt(12, 28); sandAt(26, -12);
+  if (!BECO) sandAt(-20, 14);
   gprop('concrete_roadblock', 0, 20, 1.1, Math.PI / 2) || addBox(2.7, 1.1, 0.7, MAT.wall, 0, 0, 20); collide(0, 20, 0.5, 1.6, 1.1);
 
   /* ===== PNEUS EMPILHADOS + TAMBORES DE 200 L (props de identidade, BAR §4.4) =====
@@ -1058,6 +1196,17 @@ export function buildFerroVelho(scene, T) {
       const m = new THREE.Mesh(new THREE.PlaneGeometry(w, w * (0.6 + drnd() * 0.4)), puddleMat);
       m.rotation.x = -Math.PI / 2; m.rotation.z = drnd() * 6.3; m.position.set(x, 0.021, z); root.add(m);
     }
+    if (BECO) {
+      /* BARRO ÚMIDO DO CÂNION (08/2026): a referência do dono tem chão de barro molhado,
+         mais escuro e fechado que o dirt do pátio, com poças de CHUVA espelhadas. Sobrepõe
+         o chão só na faixa do vão (sem collider, LOS/A* intactos). */
+      const mudMat = lam({ map: noiseTex('#4a3a2c', [['#3a2d22', 30, 10, 30, 0.5], ['#5c4836', 26, 8, 22, 0.45], ['#2e241b', 12, 4, 10, 0.5]], 4, 24, { seed: 991, cracks: '#241b14' }) });
+      addFloor(9.6, 60, -23, 4, mudMat, 0.008);
+      for (const [x, z, w] of [[-23.5, 26, 2.6], [-22, 12, 2.0], [-24, -3, 2.8], [-22.6, -16, 2.2]]) {
+        const m = new THREE.Mesh(new THREE.PlaneGeometry(w, w * (0.6 + drnd() * 0.4)), puddleMat);
+        m.rotation.x = -Math.PI / 2; m.rotation.z = drnd() * 6.3; m.position.set(x, 0.022, z); root.add(m);
+      }
+    }
     /* CACOS DE VIDRO — carcaça "sem vidro" tem que ter o vidro NO CHÃO. Quadradinhos
        verdes de para-brisa laminado, levemente especulares: piscam com o sol rasante. */
     {  // InstancedMesh: 90 cacos em 1 draw call (eram 90 chamadas — alvo é 60fps em notebook)
@@ -1165,13 +1314,16 @@ export function buildFerroVelho(scene, T) {
     if (QP.get('mato') !== '0') {
       const grassMat = new THREE.MeshLambertMaterial({ map: bladeTex(457, true), transparent: true, alphaTest: 0.4, side: THREE.DoubleSide, depthWrite: true });
       // bolsões mortos: encostados na cerca, atrás das pilhas, cantos que ninguém cruza
-      const clumps = [
+      const clumpsAll = [
         [-29.5, -30], [-29.5, -22], [-29.5, -6], [-29.5, 10], [-29.5, 26], [-29.5, 33],
         [29.5, -32], [29.5, -24], [29.5, -8], [29.5, 6], [29.5, 20], [29.5, 33],
         [-26, -34], [-8, -34], [16, -34], [24, -34], [-27, 34.5], [22, 34.5],
         [-19.5, -13], [-19.5, 15], [19.5, 1], [-13, -22], [13, -30], [27, -18],
         [-22, 8], [-27, 20], [26, 14], [-24, 28], [21, 27], [-17, 4], [17, -22],
       ];
+      // BECO OESTE: o vão do cânion é barro limpo (referência do dono) — o capim alto
+      // fica do lado de fora dos muros. O verde×ferrugem do BAR §4.4 segue no resto do pátio.
+      const clumps = BECO ? clumpsAll.filter(([cx, cz]) => !(cx > -28 && cx < -18 && cz > -26 && cz < 34)) : clumpsAll;
       const perClump = LOWQ ? 3 : 7;
       const total = clumps.length * perClump;
       const geo = new THREE.PlaneGeometry(1, 1);
@@ -1209,12 +1361,13 @@ export function buildFerroVelho(scene, T) {
       drape(-11.75, -13, Math.PI / 2, 12, 3.0); drape(11.75, 1, -Math.PI / 2, 12, 3.0);
       drape(-11.75, 15, Math.PI / 2, 9, 2.8); drape(21.75, -20, -Math.PI / 2, 10, 3.0);
       // montes e prensa: a trepadeira desce do topo
-      drape(-22, -25.6, 0, 4.2, 2.4); drape(24, 33.6, Math.PI, 4.2, 2.4);
-      drape(-26, 32.7, 0, 3.0, 2.6);
+      if (!BECO) drape(-22, -25.6, 0, 4.2, 2.4);   // o monte (-22,-24) não existe no BECO
+      drape(24, 33.6, Math.PI, 4.2, 2.4);
+      drape(BECO ? -29.7 : -26, 32.7, 0, 3.0, 2.6);   // segue a prensa (atrás do muro oeste no BECO)
       // capim saindo de DENTRO das carcaças (o mato cresce por dentro da sucata)
       // gy = topo da peça (paredes de carcaça 3.0 m, montes 2.2 m): o capim tem que sair
       // POR CIMA da pilha, não ficar embutido nela
-      for (const [gx, gz, gy] of [[-11, -16, 3.0], [11, 4, 3.0], [-11, 12, 3.0], [21, -17, 3.0], [-22, -24, 2.2], [24, 32, 2.2]]) {
+      for (const [gx, gz, gy] of [[-11, -16, 3.0], [11, 4, 3.0], [-11, 12, 3.0], [21, -17, 3.0], ...(BECO ? [] : [[-22, -24, 2.2]]), [24, 32, 2.2]]) {
         for (let k = 0; k < 3; k++) {
           const m = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 1.3), grassMat);
           m.position.set(gx + (drnd() - 0.5) * 1.6, gy + 0.55, gz + (drnd() - 0.5) * 1.6);
@@ -1281,7 +1434,8 @@ export function buildFerroVelho(scene, T) {
     dirSign('PÁTIO LESTE →', 13.5, -3, Math.PI / 2, VERM, '#f7e9c8');
     dirSign('← BECO OESTE', -13.5, 3, -Math.PI / 2, VERDE, '#f4e7c4');
     dirSign('↑ GALPÃO', 1, -21, Math.PI, AZUL, '#f4e7c4');       // aproximação do galpão
-    dirSign('PRENSA', -23.5, 29.5, 0.6, AMAR);
+    if (!BECO) dirSign('PRENSA', -23.5, 29.5, 0.6, AMAR);
+    else dirSign('PRENSA', -29.7, 29.2, 0.6, AMAR);   // a prensa saiu do vão p/ trás do muro oeste
     dirSign('GUINDASTE', 23, -3.5, Math.PI / 2, VERM, '#f7e9c8');
     dirSign('EMPILHADEIRA', 17.5, 8.5, -Math.PI / 2, VERM, '#f7e9c8');   // marco novo do pátio leste
     dirSign('PORTÃO →', 1, -33, Math.PI, AMAR);                  // saída do spawn B de volta ao portão
@@ -1322,6 +1476,26 @@ export function buildFerroVelho(scene, T) {
         m.position.set(x, 2.65, z); m.rotation.y = ry; root.add(m);
       }
     }
+    /* ===== DECALQUE RECORTADO (public/img/decals) — 3ª camada de tinta =====
+       As vagas abaixo são as que SOBRAM: cada uma foi escolhida por não colidir com nenhum
+       dos 9 murais de `T.graffiti` (6,2 m de largura), nenhuma das 6 pixações (3,4 m), nenhuma
+       das 7 folhas de zinco escoradas (`leanZinc`, 2,6 m) e nem com a seta "↓ ENTRADA" do
+       muro sul. Duas peças sobrepostas na mesma chapa não leem como muro pichado, leem como
+       erro de asset — e chapa de 3,2 m não tem altura pra empilhar.
+       2,60 m de altura contra os 2,2 m dos cartazes do Piscinão, que é o que foi pedido. */
+    for (const x of [-30, -14, 2]) decal(D_MURAL, x, 0.3, -35.40, 0, 2.6, 4.5);           // muro norte
+    for (const z of [-32, -14, 30]) decal(D_TAG, -31.40, 0.3, z, Math.PI / 2, 2.6, 4.5);   // muro oeste
+    for (const z of [-32, -9, 16]) decal(D_TAG, 31.40, 0.3, z, -Math.PI / 2, 2.6, 4.5);    // muro leste
+    for (const x of [-30, -8, 9, 30]) decal(D_MURAL, x, 0.3, 35.40, Math.PI, 2.6, 4.5);    // muro sul
+    /* GALPÃO DO ZÉ — é o marco do spawn B e a única alvenaria do mapa. Frente (2 peças),
+       lateral oeste e o trecho de lateral leste que não é vão de porta. */
+    for (const x of [-9, -1]) decal(D_MURAL, x, 0.3, -26.68, 0, 2.7, 5.5);
+    decal(D_MURAL, -12.32, 0.3, -31, -Math.PI / 2, 2.7, 6.0);
+    decal(D_LAMBE, 2.32, 0.3, -28.25, Math.PI / 2, 2.7, 2.1);
+    /* AS DUAS FOLHAS DO PORTÃO (ry = ∓0,9) — "portões" está na lista literal do dono, e
+       portão de ferro velho pichado é o clichê certo. Face local ±x via `decalFace`. */
+    decalFace(D_TAG, -5.2, HALF_Z - 2.2, 0.9, 1, 0.19, 0.35, 2.4, 3.8);
+    decalFace(D_TAG, 5.2, HALF_Z - 2.2, -0.9, -1, 0.19, 0.35, 2.4, 3.8);
     // sucata/pneus encostados na base dos muros (quebra a linha reta do rodapé)
     const wallJunk = [[-30.6, -12, 0.3], [-30.6, 4, 1.2], [30.6, -22, 2.1], [30.6, 14, 0.6], [-8, -34.6, 1.7], [20, -34.6, 0.2], [-24, 34.6, 2.8], [12, 34.6, 1.1]];
     for (const [x, z, ry] of wallJunk) {
@@ -1417,6 +1591,23 @@ export function buildFerroVelho(scene, T) {
         x.fillStyle = g(140); x.fillRect(tx - 2, base - 96, 4, 96);
         x.fillStyle = g(190); x.fillRect(tx - 10, base - 110, 20, 14);
         x.fillStyle = g(130); x.fillRect(tx - 10, base - 110, 20, 3);
+      } else if (kind === 'favela') {
+        /* ENCOSTA DE FAVELA (08/2026 — a silhueta do fundo do beco na referência do dono):
+           caixinhas empilhadas em fileiras que sobem em degraus, tons quentes variados,
+           janelinha, laje e caixa d'água de amianto. O tint do material dá a cor final. */
+        for (let row = 0; row < 7; row++) {
+          const ry0 = base - row * 13;
+          const xOff = (6 - row) * 9 + rnd() * 6;                 // encosta recua à esquerda ao subir
+          for (let bx = xOff; bx < W - 10; bx += 9 + rnd() * 7) {
+            if (rnd() < 0.12) continue;                           // clareiras/vegetação
+            const bw = 8 + rnd() * 6, bh = 7 + rnd() * 6, tone = 150 + rnd() * 70;
+            x.fillStyle = g(tone); x.fillRect(bx, ry0 - bh, bw, bh);
+            x.fillStyle = g(tone * 0.72); x.fillRect(bx, ry0 - bh - 2, bw, 2);          // laje
+            if (rnd() > 0.4) { x.fillStyle = g(tone * 0.5); x.fillRect(bx + 2, ry0 - bh + 2, 2, 3); }   // janela
+            if (rnd() > 0.75) { x.fillStyle = g(120); x.fillRect(bx + bw / 2 - 1, ry0 - bh - 6, 2, 5); } // caixa d'água
+          }
+        }
+        x.fillStyle = g(110, 0.6); x.fillRect(0, base - 3, W, 3);   // sombra de contato
       } else {
         for (const [ttx, tr] of [[30 + rnd() * 14, 26 + rnd() * 12], [112 + rnd() * 18, 30 + rnd() * 12], [196 + rnd() * 16, 22 + rnd() * 12]]) {
           x.fillStyle = g(120); x.fillRect(ttx - 3, base - 34, 6, 34);                  // tronco
@@ -1453,6 +1644,9 @@ export function buildFerroVelho(scene, T) {
     // camada 2 (longe, lavada de haze — tint puxado pra cor da névoa 0xd9b98c)
     skyCard('sheds', 29, '#c6b79c', 6, -60, 0, 34, 12); skyCard('trees', 41, '#c2bda4', -58, -20, Math.PI / 2, 30, 11, true);
     skyCard('sheds', 13, '#c6b79c', 60, 22, -Math.PI / 2, 32, 12, true); skyCard('trees', 24, '#c2bda4', -8, 60, Math.PI, 30, 11);
+    // FAVELA no fundo norte (a silhueta da imagem-conceito, no fim do cânion do beco)
+    skyCard('favela', 51, '#c9a882', -10, -62, 0, 40, 13);
+    skyCard('favela', 77, '#b89a80', 26, -58, 0, 30, 11, true);
     // chapas de zinco grandes no muro SUL do spawn (opcional do crítico: "2 chapas marrom-chapadas")
     for (const px of [-16.5, 16.5]) {
       const m = new THREE.Mesh(new THREE.PlaneGeometry(11, 3.0), lam({ map: zincTex(4.5, 1.2) }));
@@ -1476,8 +1670,10 @@ export function buildFerroVelho(scene, T) {
      ~22° de elevação: a sombra fica ~2,5× mais longa e é ELA que desenha os corredores
      entre as pilhas. Cor mais quente e âmbar; o hemi ganha bounce quente do chão de terra. */
   scene.background = T.sky || new THREE.Color(0xc8b49a);
-  const hemi = new THREE.HemisphereLight(0xffe7c2, 0x5a4530, 1.0); scene.add(hemi);
-  const sun = new THREE.DirectionalLight(0xffd39a, 1.65); sun.position.set(-46, 20, 32); sun.castShadow = true;
+  // Sol de FIM DE TARDE (08/2026 — clima da referência BECO OESTE): mais baixo (sombras
+  // longas atravessando o pátio) e mais quente; hemi acompanha. Era 0xffd39a em (-46,20,32).
+  const hemi = new THREE.HemisphereLight(0xffdfb0, 0x5a4530, 0.95); scene.add(hemi);
+  const sun = new THREE.DirectionalLight(0xffc07a, 1.65); sun.position.set(-52, 14, 36); sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048); sun.shadow.camera.left = -50; sun.shadow.camera.right = 50; sun.shadow.camera.top = 50; sun.shadow.camera.bottom = -50; sun.shadow.camera.far = 200; sun.shadow.bias = -0.0006; sun.shadow.normalBias = 0.02;
   scene.add(sun);
   /* NÉVOA: o mapa era o único dos quatro sem fog e por isso o fundo colava no primeiro
@@ -1579,7 +1775,12 @@ export function buildFerroVelho(scene, T) {
   // spawns: P no PORTÃO (sul, olhando pro pátio -z → yaw 0); B ao lado do GALPÃO (norte,
   // olhando +z → yaw π). Convenção do game.js: forward = (-sin yaw, -cos yaw).
   const spawns = {
-    P: [-6, -2, 2, 6].map(x => ({ x, z: HALF_Z - 3, yaw: 0 })),
+    /* [-6,-2,2,6] -> [-3.6,-1.2,1.2,3.6] (invariante MAP2B). O vão do portão de correr é
+       x ∈ [−5,1 , 5,1]; os slots das pontas estavam em ±6, ou seja, FORA do vão, a 0,67 m da
+       folha recolhida — o corpo tem 0,38 m de raio, então dois dos quatro jogadores nasciam
+       praticamente encostados na chapa de zinco. Dentro do vão a folga vira 1,50 m e os 4
+       slots ficam a 2,4 m um do outro. */
+    P: [-3.6, -1.2, 1.2, 3.6].map(x => ({ x, z: HALF_Z - 3, yaw: 0 })),
     B: [-14, -9, -4, 1].map(x => ({ x, z: -25, yaw: Math.PI })),
   };
   // 4 bandeiras (dono): 1 CENTRAL + as outras ESPAÇADAS, e NENHUMA no respawn (a antiga
@@ -1587,8 +1788,15 @@ export function buildFerroVelho(scene, T) {
   // Agora: centro + sudoeste (13 m à frente do spawn P) + leste + norte (11 m à frente do B).
   const ctfPoints = [
     { id: 'P', label: 'CENTRO', x: 0, z: 2 },
-    { id: 'W', label: 'BECO SUL', x: -20, z: 20 },
-    { id: 'E', label: 'PÁTIO LESTE', x: 24, z: 0 },
+    { id: 'W', label: BECO ? 'BECO OESTE' : 'BECO SUL', x: BECO ? -23 : -20, z: BECO ? 4 : 20 },
+    /* PÁTIO LESTE saiu de (24, 0) para (26, -16). Motivo MEDIDO (tools/eval/map-check.mjs,
+       invariante CTF1): com CENTRO (0,2), BECO OESTE (-23,4) e PÁTIO LESTE (24,0) as três
+       ficavam praticamente na MESMA RETA — a altura desse triângulo era 0,04 m, contra um
+       raio de captura de 4,5 m. Três bandeiras colineares viram um corredor: o caminho mais
+       curto entre as duas pontas passa DENTRO do anel do meio, que é o mecanismo do "os bots
+       ficam todos na bandeira do meio". Com o pátio deslocado 16 m pro norte a menor altura
+       de triângulo entre as 4 bandeiras vai a 6,8 m — acima do raio do anel. */
+    { id: 'E', label: 'PÁTIO LESTE', x: 26, z: -16 },
     { id: 'B', label: 'GALPÃO', x: -8, z: -14 },
   ];
 
