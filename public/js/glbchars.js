@@ -34,7 +34,11 @@ export const GLB_CHARS = new Set([
   // então usam os clips compartilhados por nome de osso, sem retarget por char.
   'palhacomal', 'jozo', 'adjim', 'esbirro', 'titica', 'padati', 'padata', 'cadequinha',
   // Tribos Urbanas (3º grupo, GLB Mint riggado).
-  'emo', 'blackmetal', 'metaleiro', 'punk', 'skatista', 'clubber', 'rapper', 'reggae', 'funkeiro',
+  'emo', 'blackmetal', 'metaleiro', 'punk', 'skatista', 'clubber', 'rapper', 'reggae', 'pagodeiro',
+  // Funkeiros (5ª facção). mandrake = o antigo funkeiro.glb renomeado (com clips próprios);
+  // os outros 8 são GLBs Mint riggados offline (tools/rig-from-donor.mjs, esqueleto do mst)
+  // com clips retargetados em models/anims/<id>/ (tools/retarget-glb.mjs).
+  'mandrake', 'raul', 'oakley', 'criarj', 'chave', 'funkraiz', 'trapfunk', 'fluxo', 'ostentacao',
 ]);
 
 // Mascotes de braços-toco: a mão de apoio via IK vira uma mão gigante flutuando
@@ -46,6 +50,24 @@ const STATES = ['idle', 'walk', 'run', 'shoot', 'death', 'crouch', 'crouchwalk',
 // o load falha em silêncio e cai no comportamento padrão (idle/walk/shoot de 2 mãos).
 const OPT_STATES = ['idle1h', 'walk1h', 'walkfire'];
 const qp = new URLSearchParams(location.search);
+/* CORREÇÃO DE PÉ NO CHÃO, POR CLIPE (invariante CHR3) — tabela GERADA por
+   `npm run feet` a partir da medição do char-probe. Ver tools/gen-foot-offsets.mjs.
+
+   Por que por CLIPE e não por personagem: o probe mede `bind = 0.000` nos 44 — o rig está
+   certo. Quem tira o pé do chão é o clipe (walk ≈ -2,8 cm, crouch ≈ -1,7 cm…), e 38 dos 44
+   compartilham os mesmos clipes, logo os mesmos desvios.
+
+   Carrega assíncrono e falha em silêncio: sem a tabela o jogo fica exatamente como estava
+   (offset 0), nunca quebra. `?feet=0` desliga pra comparar lado a lado. */
+let _footOff = null;
+if (qp.get('feet') !== '0') {
+  fetch(`models/anims/foot-offsets.json?v=${VERSION}`)
+    .then(r => (r.ok ? r.json() : null))
+    .then(j => { _footOff = (j && j.offsets) || null; })
+    .catch(() => {});
+}
+export function footOffset(id, pose) { return (_footOff && _footOff[id] && _footOff[id][pose]) || 0; }
+
 const ANIM_DIR = qp.get('animdir') || 'models/anims/mixamo';   // pack Mixamo rifle (retarget próprio, tools/retarget-mixamo.mjs) — padrão desde 22/07; override via ?animdir=
 const TARGET_HEIGHT = parseFloat(qp.get('charh')) || 1.72;      // meters (match box silhouette)
 // Per-clip natural ground speed (m/s) that plants the feet at timeScale 1, MEASURED from
@@ -78,6 +100,9 @@ const TP_FLIP_Y = new Set(['p90']);   // armas que precisam de +180° só na 3ª
 // inclinação) é constante, e ele é o mesmo pra todo mundo — consistência antes de tudo.
 // Kill-switch: ?tpmount=0 volta ao algoritmo antigo (linha do antebraço).
 const TP_MOUNT_V2 = qp.get('tpmount') !== '0';
+// ?tpmountlive=0 -> mount volta a ser resolvido só uma vez, na pose de idle (ver o bloco
+// longo em buildCharacterModel). Existe pra permitir A/B do defeito, não pra uso normal.
+const TP_MOUNT_LIVE = qp.get('tpmountlive') !== '0';
 const _tpc = (qp.get('tpcarry') || '').split(',').map(Number);
 const TP_CARRY_PITCH = ((_tpc.length === 2 && !isNaN(_tpc[0]) ? _tpc[0] : -6)) * Math.PI / 180;  // cano levemente pro chão (porte)
 const TP_CARRY_YAW = ((_tpc.length === 2 && !isNaN(_tpc[1]) ? _tpc[1] : 4)) * Math.PI / 180;     // levemente cruzando o corpo
@@ -89,6 +114,9 @@ const TP_CLEAR = parseFloat(qp.get('tpclear')) || 0.06;   // folga mínima entre
 // propósito: arma longe da mão é mão solta (C7), que é pior que um encosto na roupa.
 const TP_BURIED_TOL = 0.10;
 const TP_CLEAR_MAX = 0.20;
+// Guarda de palma (ver measurePalmLocal): teto de alavanca do mount, em antebraços.
+const PALM_GUARD = qp.get('palmguard') !== '0';
+const PALM_MAX_LEVER = parseFloat(qp.get('palmlever')) || 0.9;
 
 const loader = new GLTFLoader();
 const loadGLB = (url) => new Promise((res, rej) => loader.load(url, res, undefined, rej));
@@ -117,14 +145,16 @@ export function measurePalmLocal(model, hand, curl) {
   const bones = sk.skeleton.bones;
   const hi = bones.indexOf(hand);
   if (hi < 0) return fallback;
-  const ci = curl ? bones.indexOf(curl) : -1;
+  // `curl` agora pode ser UMA LISTA de ossos (ver o bloco de curl em buildCharacterModel):
+  // nos 18 GLB de 28 juntas o Curl_R e o Curl_L aparecem DUPLICADOS na hierarquia.
+  const ci = (Array.isArray(curl) ? curl : [curl]).map((b) => (b ? bones.indexOf(b) : -1)).filter((i) => i >= 0);
   const pos = sk.geometry.attributes.position, si = sk.geometry.attributes.skinIndex, sw = sk.geometry.attributes.skinWeight;
   const at = (a, i, k) => (k === 0 ? a.getX(i) : k === 1 ? a.getY(i) : k === 2 ? a.getZ(i) : a.getW(i));
   const c = new THREE.Vector3(), v = new THREE.Vector3();
   let n = 0;
   for (let i = 0; i < pos.count; i++) {
     let w = 0;
-    for (let k = 0; k < 4; k++) { const bi = at(si, i, k); if (bi === hi || bi === ci) w += at(sw, i, k); }
+    for (let k = 0; k < 4; k++) { const bi = at(si, i, k); if (bi === hi || ci.includes(bi)) w += at(sw, i, k); }
     if (w > 0.5) { c.add(v.fromBufferAttribute(pos, i)); n++; }
   }
   if (!n) return fallback;
@@ -132,7 +162,37 @@ export function measurePalmLocal(model, hand, curl) {
   // bind: posição do vértice no espaço local do osso = inv(handBindWorld) × meshBindWorld × c
   // (boneInverses[hi] já É inv(handBindWorld) por definição do esqueleto)
   const toLocal = new THREE.Matrix4().copy(sk.skeleton.boneInverses[hi]).multiply(sk.bindMatrix);
-  return c.applyMatrix4(toLocal);
+  c.applyMatrix4(toLocal);
+  /* ── glbchars.js:143 — GUARDA DE PALMA: "o jozo tá com a arma por trás" ─────────────
+     O vetor devolvido aqui vira `mount.position` (linha ~403), e o mount é FILHO do osso
+     da mão. Ou seja: este vetor é um BRAÇO DE ALAVANCA. Quando o clipe gira a mão em θ, a
+     arma varre um arco de 2·|palma|·sin(θ/2). Meio palmo de alavanca é invisível; um braço
+     inteiro joga a arma pro outro lado do corpo.
+     MEDIDO nos 45 GLB (tools/eval/tp-mount-probe.mjs, seção 5, personagem em 1,72 m):
+       mediana do elenco   |palma| = 0,45 do antebraço  -> arco a 90° = 15 cm
+       pior rig SÃO         0,85 (blackmetal, manga larga)
+       jozo                 1,38  -> arco a 90° = 46 cm   <- a arma vai parar nas costas
+       trapfunk             1,15  -> arco a 90° = 38 cm
+     A CAUSA: os 18 GLB de 28 juntas compartilham UM esqueleto (translações de junta
+     byte-idênticas — o doador `mst`, tools/rig-from-donor.mjs) que está em T-POSE, mas a
+     malha do jozo e a do trapfunk está em A-POSE (braços caídos ~40°). O osso da mão
+     direita fica em [-0,634, 1,230, -0,025] nos 18; a mão VISÍVEL do jozo está 32 cm dali.
+     A auto-skinagem por proximidade pendurou no osso `RightHand` um pedaço de malha que
+     não está na mão, e o centroide sai fora de alcance.
+     Regra: acima de 0,9 antebraço o centroide não é palma — é ruído de skin. Volta pro
+     fallback (25% do antebraço ao longo de +Y, a direção dos dedos na cadeia), que é onde
+     o punho está. Teto 0,9 escolhido NO VÃO MEDIDO entre o pior rig são (0,85) e o pior
+     quebrado (1,15): não é palpite, é o meio do buraco. Nos outros 43 personagens este
+     ramo NUNCA dispara — a mudança é cirúrgica.
+     Kill-switch: ?palmguard=0. */
+  if (PALM_GUARD) {
+    const antebraco = hand.position.length() || 0;
+    if (antebraco > 0 && c.length() > PALM_MAX_LEVER * antebraco) {
+      if (qp.get('chartune')) console.log(`[glbchars] palma descolada do osso (${(c.length() / antebraco).toFixed(2)}x antebraço) — mount volta pro punho`);
+      return fallback;
+    }
+  }
+  return c;
 }
 
 // Perfil de RAIO DO TRONCO por altura, medido nos vértices (bind), sem braços/mãos.
@@ -337,7 +397,7 @@ export function buildCharacterModel(def, opts = {}) {
   const clips = _clipsByChar[def.id] || _clips;   // clipes retargetados por personagem
   for (const name of [...STATES, ...OPT_STATES]) if (clips[name]) actions[name] = mixer.clipAction(clips[name]);
 
-  const ctrl = new CharController(mixer, actions, group, headBone, head);
+  const ctrl = new CharController(mixer, actions, group, headBone, head, def.id, model);
   ctrl.shadow = shadow;   // antes do settle loop abaixo (ctrl.update já a atualiza)
   // Arma de 1 mão (pistol/deagle/revolver38/knife): usa idle1h/walk1h quando carregados.
   ctrl.oneHanded = !!(opts.weaponId && ONE_HANDED.has(opts.weaponId));
@@ -352,8 +412,38 @@ export function buildCharacterModel(def, opts = {}) {
     for (let i = 0; i < 10; i++) ctrl.update(1 / 30, 0, false, 0);
     model.updateMatrixWorld(true);
     const mount = handBone.children.find((c) => c.isGroup);
-    let curlR = null, curlL = null;
-    model.traverse(o => { if (o.isBone) { if (o.name === 'Curl_R') curlR = o; if (o.name === 'Curl_L') curlL = o; } });
+    /* ── glbchars.js:365 — OS OSSOS DE CURL VÊM DUPLICADOS EM 18 PERSONAGENS ───────────
+       Medido nos GLB: os 18 modelos de 28 juntas (palhaços + funkeiros rigados offline por
+       tools/rig-from-donor.mjs, mais o próprio doador `mst`) trazem `Curl_R` e `Curl_L`
+       DUAS VEZES cada, ambos filhos da mesma mão — 4 ossos de dedo em vez de 2. É um
+       defeito do transplante de esqueleto, não do modelo.
+       O código antigo (`if (o.name === 'Curl_R') curlR = o`) não parava no primeiro: ele
+       varria a árvore inteira e ficava com o ÚLTIMO. E o último é justamente a cópia SEM
+       PESO NENHUM — no `mst`, o primeiro Curl_R tem 185 vértices e o segundo tem 0. Ou
+       seja: o `curlR.rotation.x += curl` fechava os dedos de um osso que não move malha
+       nenhuma, e a mão ficava aberta na arma nos 18. E o mesmo `curlR` era passado pro
+       measurePalmLocal, que perdia os vértices dos dedos na média da palma.
+       Agora: junta TODOS os ossos com esse nome e prefere os que têm peso de skin. */
+    const curlsR = [], curlsL = [];
+    model.traverse((o) => { if (o.isBone) { if (o.name === 'Curl_R') curlsR.push(o); if (o.name === 'Curl_L') curlsL.push(o); } });
+    const comPeso = (lista) => {
+      if (lista.length < 2) return lista;
+      let sk = null;
+      model.traverse((o) => { if (o.isSkinnedMesh && !sk) sk = o; });
+      if (!sk) return lista;
+      const bones = sk.skeleton.bones, si = sk.geometry.attributes.skinIndex, sw = sk.geometry.attributes.skinWeight;
+      if (!si || !sw) return lista;
+      const at = (a, i, k) => (k === 0 ? a.getX(i) : k === 1 ? a.getY(i) : k === 2 ? a.getZ(i) : a.getW(i));
+      const peso = new Map(lista.map((b) => [b, 0]));
+      const idx = new Map(lista.map((b) => [bones.indexOf(b), b]));
+      for (let i = 0; i < si.count; i++) for (let k = 0; k < 4; k++) {
+        const b = idx.get(at(si, i, k));
+        if (b) peso.set(b, peso.get(b) + at(sw, i, k));
+      }
+      const uteis = lista.filter((b) => peso.get(b) > 0);
+      return uteis.length ? uteis : lista;
+    };
+    const curlRs = comPeso(curlsR), curlLs = comPeso(curlsL);
     if (TP_MOUNT_V2 && mount) {
       // 1) ORIENTAÇÃO: cano na direção do CORPO + ângulo de porte fixo (igual pra todos).
       const bodyQ = model.getWorldQuaternion(new THREE.Quaternion());
@@ -361,9 +451,25 @@ export function buildCharacterModel(def, opts = {}) {
       const desired = bodyQ.multiply(carry);
       const handQ = handBone.getWorldQuaternion(new THREE.Quaternion());
       mount.quaternion.copy(handQ.invert().multiply(desired));
+      /* ── O MOUNT ESTAVA CONGELADO NA POSE DE IDLE (rodada da RÉGUA) ──────────────
+         O bloco acima roda UMA VEZ, aqui na construção, depois do settle de 10 quadros de
+         idle (linha ~352). Ele resolve `mount.quaternion` para que, NAQUELE INSTANTE, o
+         cano aponte pra frente do corpo. Mas o mount é filho do OSSO DA MÃO: assim que o
+         clipe começa a girar a mão — andar, correr, atirar, agachar, morrer — o cano gira
+         JUNTO, e a correção calculada no idle deixa de valer. Ou seja, a promessa do MOUNT
+         V2 ("em 3ª pessoa a arma aponta pra onde o boneco olha, ponto", linha ~76) só era
+         cumprida em UMA pose, justamente a pose em que ninguém está olhando pro bot.
+         Conserto: guardar o que a conta precisa e REFAZER a orientação por quadro, no fim
+         do CharController.update (depois do mixer). É uma inversão de quaternion e duas
+         multiplicações por bot — comparável ao que o pitch da cabeça já faz ali.
+         A POSIÇÃO não entra: `mount.position` está no espaço LOCAL DO OSSO e a palma é
+         rígida em relação a ele (measurePalmLocal mede em bind), então ela acompanha o
+         osso sozinha e recalcular seria custo sem efeito.
+         Kill-switch: ?tpmountlive=0 volta ao comportamento congelado. */
+      if (TP_MOUNT_LIVE) ctrl.tpMount = { mount, handBone, model, carry };
       // 2) POSIÇÃO: no centro medido da PALMA, não na origem do osso (que é o PULSO).
       // É a diferença entre "a mão segura a arma" e "a arma flutua perto da mão" (C7).
-      const palmLocal = measurePalmLocal(model, handBone, curlR);
+      const palmLocal = measurePalmLocal(model, handBone, curlRs);
       const palmW = handBone.localToWorld(palmLocal.clone());
       // 3) FOLGA: se a palma nasce dentro da silhueta do corpo, empurra a arma pra fora
       // na medida exata (Dollynho: 25 cm dentro da garrafa; humano típico: 0).
@@ -398,8 +504,30 @@ export function buildCharacterModel(def, opts = {}) {
     // Grip curl: close the fingers onto the grip (the auto-skinned curl bones).
     // Two-handed weapons curl both hands; one-handed only the grip (right) hand.
     const twoHanded = !ONE_HANDED.has(opts.weaponId || 'awp');
-    if (curlR) { curlR.rotation.x += 0.5; }
-    if (twoHanded && curlL) { curlL.rotation.x += 0.5; }
+    /* CURL DOS DEDOS: era 0,5 rad CRAVADO nas duas mãos, para as 26 armas.
+       O curl é o quanto os dedos fecham em volta do PUNHO da arma, então o valor certo é
+       função da GROSSURA do que a mão agarra — um punho de pistola e o guarda-mão de uma
+       AWP não fecham a mão no mesmo ângulo. Com 0,5 fixo, ou a mão fica aberta na arma
+       fina ou os dedos atravessam a arma grossa; nos dois casos lê como "mão solta".
+       Aqui o ângulo sai da própria arma: `gripPoints` dá o ponto do guarda-mão e o
+       weaponModel dá a caixa, então a espessura no grip é MEDIDA e não tabelada.
+       Faixa 0,35-0,80 rad: abaixo disso a mão não fecha, acima os dedos entram na palma.
+       RESSALVA HONESTA: sem os GLB de personagem nesta árvore não deu pra conferir o
+       resultado em imagem. A faixa é conservadora e contém o 0,5 antigo, então o pior
+       caso é ficar igual ao que já estava. */
+    const curlPara = (obj) => {
+      if (!obj) return 0.5;
+      const sz = new THREE.Vector3();
+      new THREE.Box3().setFromObject(obj).getSize(sz);
+      const esp = Math.min(sz.x, sz.y, sz.z);            // menor dimensão = espessura do corpo da arma
+      if (!isFinite(esp) || esp <= 0) return 0.5;
+      // mão humana fecha ~0,8 rad em volta de 3 cm e ~0,35 rad em volta de 9 cm
+      return Math.max(0.35, Math.min(0.80, 0.80 - (esp - 0.03) * (0.45 / 0.06)));
+    };
+    const curl = gunObj ? curlPara(gunObj) : 0.5;
+    // fecha TODOS os ossos de curl com peso (nos 18 rigs transplantados eles vêm em par)
+    for (const b of curlRs) b.rotation.x += curl;
+    if (twoHanded) for (const b of curlLs) b.rotation.x += curl;
     // IK da mão de apoio (FASE 2): em armas de 2 mãos, o CharController trava a palma L
     // no guarda-mão depois de cada mixer.update — vale pra idle/walk dos bots E pro
     // preview da tela de seleção (mesmo ctrl.update). Posicional apenas: os clipes já
@@ -408,7 +536,7 @@ export function buildCharacterModel(def, opts = {}) {
       let lArm = null, lFore = null;
       model.traverse(o => { if (o.isBone) { if (o.name === 'LeftArm') lArm = o; if (o.name === 'LeftForeArm') lFore = o; } });
       const gp = gripPoints(opts.weaponId || 'awp');
-      if (lArm && lFore && gp.fore && gunObj && !IK_L_SKIP.has(def.id)) ctrl.ikL = { chain: [lArm, lFore], end: lhandBone, endOffset: measurePalmLocal(model, lhandBone, curlL), gun: gunObj, fore: gp.fore.clone() };
+      if (lArm && lFore && gp.fore && gunObj && !IK_L_SKIP.has(def.id)) ctrl.ikL = { chain: [lArm, lFore], end: lhandBone, endOffset: measurePalmLocal(model, lhandBone, curlLs), gun: gunObj, fore: gp.fore.clone() };
     }
   }
   return { group, parts: { head }, isGLB: true, mixer, ctrl };
@@ -417,9 +545,14 @@ export function buildCharacterModel(def, opts = {}) {
 const FADE = 0.16;
 
 class CharController {
-  constructor(mixer, actions, group, headBone, head) {
+  constructor(mixer, actions, group, headBone, head, charId, model) {
     this.mixer = mixer; this.actions = actions;
     this.group = group; this.headBone = headBone; this.head = head;
+    /* Base do Y vem do enquadramento da bind (`model.position.y = -bbox.min.y * s`, acima).
+       A correção do clipe é somada A ELA, nunca substitui — senão o personagem perde o
+       alinhamento de bind que já estava certo em todos os 44. */
+    this.charId = charId; this.model = model || null;
+    this._footBase = model ? model.position.y : 0;
     this.cur = null; this.dead = false; this.shooting = false; this.crouch = false; this.jumping = false;
     this.shadow = null; this._airK = 0;   // sombra de contato + fator "está no ar" (0..1, suavizado)
     this.oneHanded = false; // arma de 1 mão: idle/walk trocam p/ idle1h/walk1h (setado em buildCharacterModel)
@@ -440,6 +573,8 @@ class CharController {
     a.enabled = true; a.fadeIn(FADE); a.play();
     if (this.cur) this.cur.fadeOut(FADE);
     this.cur = a;
+    // pé no chão: o offset do clipe que ENTRA (ver footOffset)
+    if (this.model) this.model.position.y = this._footBase + footOffset(this.charId, name);
   }
 
   setCrouch(v) { this.crouch = !!v; }
@@ -564,6 +699,18 @@ class CharController {
       s.scale.set(sc, sc, 1);
       s.material.opacity = CHAR_FX.csOp * (0.12 + 0.88 * k) * (this.crouch ? 1.15 : 1) * (this.dead ? 0.5 : 1);
       s.visible = s.material.opacity > 0.02;
+    }
+    // ORIENTAÇÃO DO MOUNT, POR QUADRO (ver o bloco em buildCharacterModel): sem isto o
+    // cano acompanha a rotação da mão do clipe e a arma sai apontando pra qualquer lado
+    // fora do idle. Roda DEPOIS do mixer e depois da correção de cabeça — as duas mexem
+    // em osso e a conta aqui depende da matriz de mundo já resolvida.
+    if (this.tpMount && !this.dead) {
+      const t = this.tpMount;
+      t.handBone.updateWorldMatrix(true, false);
+      t.model.getWorldQuaternion(_gq);
+      _wq.copy(_gq).multiply(t.carry);                  // orientação desejada do cano (mundo)
+      t.handBone.getWorldQuaternion(_pq);
+      t.mount.quaternion.copy(_pq.invert().multiply(_wq));
     }
     // IK da mão de apoio (FASE 2): palma L no guarda-mão da arma montada (só 2 mãos).
     // Roda depois do mixer/pose — corrige o contato por arma sem tocar na orientação.

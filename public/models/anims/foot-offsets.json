@@ -1,0 +1,302 @@
+{
+ "gerado": "2026-08-04T02:29:33.064Z",
+ "fonte": "tools/eval/char_probe.json (C3.porPose) — via tools/gen-foot-offsets.mjs",
+ "nota": "offset em METROS somado ao Y do modelo enquanto o clipe está ativo. offset = -desvio medido.",
+ "tolerancia": 0.01,
+ "teto": 0.08,
+ "offsets": {
+  "esquerdomacho": {
+   "walk": 0.0281,
+   "run": -0.0149,
+   "crouch": 0.0174
+  },
+  "sindicato": {
+   "walk": 0.0291,
+   "run": 0.0315,
+   "shoot": -0.0125
+  },
+  "mst": {
+   "idle": -0.0242,
+   "walk": -0.0428,
+   "run": 0.0361,
+   "shoot": -0.029,
+   "crouch": -0.0415
+  },
+  "doutora": {
+   "idle": -0.0109,
+   "walk": 0.0281,
+   "run": 0.0184,
+   "shoot": -0.0154,
+   "crouch": -0.0176
+  },
+  "mistico": {
+   "walk": 0.0265,
+   "run": 0.034,
+   "crouch": 0.0103
+  },
+  "caminhoneiro": {
+   "walk": 0.0495,
+   "run": 0.0738,
+   "shoot": -0.0129,
+   "crouch": 0.0104
+  },
+  "sertanejo": {
+   "walk": 0.0347,
+   "run": 0.0437,
+   "crouch": 0.0415
+  },
+  "coach": {
+   "walk": 0.0276,
+   "run": 0.0282
+  },
+  "gotinha": {
+   "walk": 0.0378,
+   "run": 0.047,
+   "crouch": 0.0516
+  },
+  "farialimer": {
+   "walk": -0.0282,
+   "run": -0.0208
+  },
+  "bombado": {
+   "walk": 0.0429,
+   "run": 0.0297,
+   "crouch": 0.0493
+  },
+  "hipster": {
+   "walk": 0.0213,
+   "run": 0.0215,
+   "crouch": 0.0378
+  },
+  "dollynho": {
+   "idle": 0.0113,
+   "walk": 0.0528,
+   "run": 0.0309
+  },
+  "et": {
+   "idle": -0.0129,
+   "walk": -0.0362,
+   "run": -0.0433
+  },
+  "ancap": {
+   "idle": 0.0529,
+   "shoot": 0.0575
+  },
+  "canarinho": {
+   "idle": -0.0117,
+   "walk": 0.0385,
+   "run": -0.0198,
+   "shoot": -0.0147
+  },
+  "proerd": {
+   "idle": -0.0104,
+   "walk": 0.0386,
+   "run": 0.044,
+   "shoot": -0.0146
+  },
+  "bonzo": {
+   "walk": -0.0267,
+   "run": 0.0485,
+   "crouch": 0.0131
+  },
+  "palhacomal": {
+   "idle": -0.0248,
+   "walk": -0.0514,
+   "run": -0.0356,
+   "shoot": -0.0306,
+   "crouch": -0.0497
+  },
+  "jozo": {
+   "idle": -0.0247,
+   "walk": -0.0504,
+   "run": -0.0348,
+   "shoot": -0.0305,
+   "crouch": -0.0459
+  },
+  "adjim": {
+   "idle": -0.0248,
+   "walk": -0.0546,
+   "run": -0.035,
+   "shoot": -0.0309,
+   "crouch": -0.044
+  },
+  "esbirro": {
+   "idle": -0.0249,
+   "walk": -0.058,
+   "run": -0.0446,
+   "shoot": -0.0315,
+   "crouch": -0.0672
+  },
+  "titica": {
+   "idle": -0.0247,
+   "walk": -0.052,
+   "run": -0.0371,
+   "shoot": -0.0304,
+   "crouch": -0.0458
+  },
+  "padati": {
+   "idle": -0.0248,
+   "walk": -0.054,
+   "run": -0.0365,
+   "shoot": -0.0311,
+   "crouch": -0.0444
+  },
+  "padata": {
+   "idle": -0.0248,
+   "walk": -0.0521,
+   "run": -0.0371,
+   "shoot": -0.0307,
+   "crouch": -0.044
+  },
+  "cadequinha": {
+   "idle": -0.0247,
+   "walk": -0.0503,
+   "run": -0.0346,
+   "shoot": -0.0303,
+   "crouch": -0.0469
+  },
+  "emo": {
+   "walk": 0.0216,
+   "run": 0.0133,
+   "crouch": 0.035
+  },
+  "blackmetal": {
+   "walk": 0.043,
+   "run": 0.0493,
+   "crouch": 0.0372
+  },
+  "metaleiro": {
+   "walk": 0.0358,
+   "run": -0.0248,
+   "crouch": 0.0342
+  },
+  "punk": {
+   "walk": 0.0385,
+   "run": 0.022,
+   "crouch": 0.0345
+  },
+  "skatista": {
+   "walk": 0.0253,
+   "run": -0.0165,
+   "crouch": 0.0241
+  },
+  "clubber": {
+   "walk": 0.0316,
+   "run": 0.0173,
+   "crouch": 0.0383
+  },
+  "rapper": {
+   "idle": -0.0178,
+   "walk": 0.0411,
+   "run": 0.0307,
+   "shoot": -0.0229
+  },
+  "reggae": {
+   "walk": 0.0411,
+   "run": 0.054,
+   "shoot": -0.0124,
+   "crouch": 0.0282
+  },
+  "pagodeiro": {
+   "idle": -0.0252,
+   "walk": -0.0524,
+   "run": -0.0368,
+   "shoot": -0.0318,
+   "crouch": -0.0486
+  },
+  "mandrake": {
+   "idle": -0.0169,
+   "walk": -0.0426,
+   "run": -0.0738,
+   "shoot": -0.0153
+  },
+  "raul": {
+   "idle": -0.0248,
+   "walk": -0.0453,
+   "run": -0.0384,
+   "shoot": -0.0305,
+   "crouch": -0.0444
+  },
+  "oakley": {
+   "idle": -0.0247,
+   "walk": -0.0442,
+   "run": -0.0376,
+   "shoot": -0.0305,
+   "crouch": -0.0423
+  },
+  "criarj": {
+   "idle": -0.0247,
+   "walk": -0.0499,
+   "run": -0.0365,
+   "shoot": -0.0303,
+   "crouch": -0.0439
+  },
+  "chave": {
+   "idle": -0.0247,
+   "walk": -0.0498,
+   "run": -0.0463,
+   "shoot": -0.0303,
+   "crouch": -0.0438
+  },
+  "funkraiz": {
+   "idle": -0.0247,
+   "walk": -0.0515,
+   "run": -0.0375,
+   "shoot": -0.0303,
+   "crouch": -0.047
+  },
+  "trapfunk": {
+   "idle": -0.0247,
+   "walk": -0.0508,
+   "run": -0.034,
+   "shoot": -0.0303,
+   "crouch": -0.0433
+  },
+  "fluxo": {
+   "idle": -0.0247,
+   "walk": -0.0504,
+   "run": -0.0349,
+   "shoot": -0.0304,
+   "crouch": -0.051
+  },
+  "ostentacao": {
+   "idle": -0.0248,
+   "walk": -0.0501,
+   "run": -0.0364,
+   "shoot": -0.0305,
+   "crouch": -0.0461
+  }
+ },
+ "suspeitos": [
+  {
+   "id": "proerd",
+   "pose": "crouch",
+   "desvio": -0.4328
+  },
+  {
+   "id": "canarinho",
+   "pose": "crouch",
+   "desvio": -0.3669
+  },
+  {
+   "id": "ancap",
+   "pose": "crouch",
+   "desvio": -0.1403
+  },
+  {
+   "id": "ancap",
+   "pose": "walk",
+   "desvio": -0.1308
+  },
+  {
+   "id": "dollynho",
+   "pose": "crouch",
+   "desvio": -0.1205
+  },
+  {
+   "id": "ancap",
+   "pose": "run",
+   "desvio": -0.1086
+  }
+ ]
+}
