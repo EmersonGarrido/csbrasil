@@ -526,9 +526,41 @@ body{font-family:var(--font);font-weight:600;color:var(--ink1)}
 /* ---------- pause ---------- */
 /* Fundo translúcido em vez do gradiente opaco de .screen: a partida pausada continua
    visível atrás (o canvas segue renderizando congelado) — o jogador não perde o contexto. */
+/* ---------- 06 menu de pausa (referência 06_menu_pausa.png) ----------
+   Lá: título ÂMBAR solto sobre o cenário borrado, e embaixo um painel fechado com CINCO
+   FILAS coladas ocupando a largura inteira dele — a primeira SÓLIDA em âmbar, as outras
+   quatro chapadas. O jogo tinha título branco com régua de tinta embaixo e cinco pílulas
+   de contorno espaçadas, que liam como cinco opções de igual peso dentro de uma caixa
+   grande demais. */
 #pause-menu{background:rgba(var(--bg-900-rgb),.78)}
-.pause-actions{display:flex;flex-direction:column;gap:var(--s-3);min-width:min(340px,86vw);text-align:center}
+/* NA PAUSA O HUD RECUA. Na referência 06 não há vida/munição/placar na tela: o assunto
+   é o menu. Sem isso a dica "ESC CONTINUAR" (que a referência põe no canto inferior
+   esquerdo) caía EM CIMA do bloco de vida, que mora no mesmo canto — texto sobre texto.
+   O `:has()` espelha o estado que o main.js já mantém na classe `.hidden`, sem pedir uma
+   linha de JS: mesma manobra usada pra separar as colunas de time no placar da tela 08. */
+body:has(#pause-menu:not(.hidden)) #hud{opacity:.12;transition:opacity var(--t) var(--ease)}
+#pause-menu .screen-title{color:var(--br-faixa);padding-bottom:0}
+#pause-menu .screen-title::after{display:none}   /* a referência não tem régua aqui */
+#pause-menu .panel::before{display:none}         /* nem a barra de risco no canto */
+#pause-menu .panel{padding:var(--s-4)}
+.pause-actions{display:flex;flex-direction:column;gap:4px;min-width:min(420px,86vw);text-align:center}
+/* FILAS, não pílulas: sem contorno, chapadas, coladas uma na outra. O CONTINUAR fica
+   sólido (vem do `.btn-big`) e é o único com peso — é a leitura da referência.
+   O `:not(.btn-big)` NÃO É ENFEITE: sem ele esta regra (0,2,0) ganha do `.btn-big`
+   (0,1,0) e repinta o fundo do CONTINUAR de escuro SEM mexer na cor do texto, que o
+   `.btn-big` deixou escura — botão principal preto no preto. Aconteceu, foi visto na
+   captura, está aqui pra não voltar. */
 .pause-actions .btn{width:100%}
+.pause-actions .btn:not(.btn-big){border-color:transparent;background:rgba(var(--bg-700-rgb),.55)}
+.pause-actions .btn:not(.btn-big):hover,
+.pause-actions .btn:not(.btn-big):focus-visible{background:rgba(var(--bg-500-rgb),.9);border-color:var(--line-2)}
+/* DICA NO CANTO INFERIOR ESQUERDO com a tecla em cápsula, como na referência — era texto
+   solto centralizado no rodapé, onde competia com o painel pelo eixo central. */
+#pause-menu .footnote{left:min(4vw,42px);bottom:26px;color:var(--ink-300);letter-spacing:var(--tr-2);
+  display:flex;align-items:center;gap:var(--s-2)}
+#pause-menu .footnote kbd{font-family:var(--mono);font-size:var(--fs-50);letter-spacing:var(--tr-1);
+  color:var(--ink-200);background:rgba(var(--bg-700-rgb),.9);border:1px solid var(--line-2);
+  padding:3px 8px;clip-path:var(--cut-sm)}
 .howto-grid{display:grid;grid-template-columns:auto auto;gap:var(--s-2) var(--s-5);font-size:var(--fs-200);
   font-weight:600;letter-spacing:var(--tr-1);text-align:left;color:var(--ink-200)}
 .howto-grid span:nth-child(odd){color:var(--br-faixa);font-family:var(--mono);font-size:var(--fs-100)}
