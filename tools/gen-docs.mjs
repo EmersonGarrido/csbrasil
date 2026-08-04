@@ -323,12 +323,12 @@ const BLOCOS = {
 
   /* O registro de mapas. Quem não está aqui não é jogável. */
   mapas: (f) => [
-    '| Id | Nome no menu | Abre em | Arquivo |',
-    '|---|---|---|---|',
+    '| Id | Nome no menu | Abre em | Arquivo em `public/js/` | Linhas |',
+    '|---|---|---|---|---:|',
     ...f.mapas.registrados.map((m) => {
       const arq = glob('public/js', (x) => /^map_.*\.js$/.test(x))
         .find((a) => a.replace(/^map_|\.js$/g, '') === m.id.replace(/^fy_|^awp_/, '') || (m.id === 'awp_map' && a === 'map_brasilia.js'));
-      return `| \`${m.id}\` | ${m.nome} | ${m.ctf ? '**captura**' : 'rodadas'} | ${arq ? `\`public/js/${arq}\` (${num(linhas('public/js/' + arq))} linhas)` : '—'} |`;
+      return `| \`${m.id}\` | ${m.nome} | ${m.ctf ? '**captura**' : 'rodadas'} | \`${arq || '—'}\` | ${arq ? num(linhas('public/js/' + arq)) : '—'} |`;
     }),
     '',
     `**${f.mapas.total} mapas registrados** — ${f.mapas.emRodadas} abrem em rodadas e ${f.mapas.emCaptura} em captura. ` +
@@ -354,20 +354,29 @@ const BLOCOS = {
   },
 
   /* A stack — o que este projeto usa, com a versão declarada. */
+  /* 4 colunas com caminho longo estouravam a largura do conteúdo do Docusaurus a
+     1200 px e a última coluna era CORTADA (capturado antes de commitar). 3 colunas
+     curtas cabem; o detalhe de cada linha está na prosa logo abaixo do bloco. */
   stack: (f) => [
-    '| Camada | Ferramenta | Versão | Onde está declarada |',
-    '|---|---|---|---|',
-    `| Motor 3D | **Three.js** (WebGL) | \`${f.stack.three}\` | \`public/vendor/three.module.js\` — **vendorizado**, sem CDN e sem npm no runtime |`,
-    `| Jogo | ES modules vanilla | — | \`public/js/\` (${f.jogo.arquivos} arquivos, **zero build**) |`,
-    `| Site | **Astro** com SSR | \`${f.stack.astro}\` | \`package.json\` · \`astro.config.mjs\` |`,
-    `| Hospedagem | adapter **Vercel** | \`${f.stack.adapter}\` | \`package.json\` · \`vercel.json\` |`,
-    `| Banco | **Supabase** (Postgres + RLS) | \`${f.stack.supabase}\` | \`supabase/\` (${f.supabase.migrations} migrations) |`,
-    `| Browser nas réguas | **Playwright** | \`${f.stack.playwright}\` | ${f.pipeline.playwright} scripts de \`tools/\` importam |`,
-    `| Pipeline de GLB | **gltf-transform** | \`${f.stack.gltfTransform}\` | ${f.pipeline.gltf} scripts de \`tools/\` importam |`,
-    `| Compressão de malha | **meshoptimizer** | \`${f.stack.meshopt}\` | ${f.pipeline.meshopt} scripts de \`tools/\` importam |`,
-    `| Imagem (build/API) | **sharp** · **resvg** | \`${f.stack.sharp}\` · \`${f.stack.resvg}\` | badge PNG em runtime, textura em WebP |`,
-    `| Esta documentação | **Docusaurus** | \`${f.stack.docusaurus}\` | \`docs/package.json\` |`,
-    `| Runtime de CI | **Node** | \`${f.stack.node}\` | \`.github/workflows/ci.yml\` |`,
+    '| Camada | Ferramenta | Versão |',
+    '|---|---|---|',
+    `| Motor 3D (WebGL) | **Three.js**, vendorizado | \`${f.stack.three}\` |`,
+    `| Jogo | ES modules vanilla, **zero build** | ${f.jogo.arquivos} arquivos |`,
+    `| Site | **Astro** com SSR | \`${f.stack.astro}\` |`,
+    `| Hospedagem | adapter **Vercel** | \`${f.stack.adapter}\` |`,
+    `| Banco | **Supabase** (Postgres + RLS) | \`${f.stack.supabase}\` |`,
+    `| Browser nas réguas | **Playwright** | \`${f.stack.playwright}\` |`,
+    `| Pipeline de GLB | **gltf-transform** | \`${f.stack.gltfTransform}\` |`,
+    `| Compressão de malha | **meshoptimizer** | \`${f.stack.meshopt}\` |`,
+    `| Imagem (build e API) | **sharp** · **resvg** | \`${f.stack.sharp}\` · \`${f.stack.resvg}\` |`,
+    `| Esta documentação | **Docusaurus** | \`${f.stack.docusaurus}\` |`,
+    `| Runtime de CI | **Node** | \`${f.stack.node}\` |`,
+    '',
+    `Three.js sai de \`public/vendor/three.module.js\` (**sem CDN, sem npm no runtime**). ` +
+    `Astro e Vercel de \`package.json\` + \`astro.config.mjs\` + \`vercel.json\`. ` +
+    `Supabase tem ${f.supabase.migrations} migrations em \`supabase/\`. ` +
+    `Dos scripts de \`tools/\`, **${f.pipeline.playwright}** importam Playwright, ` +
+    `**${f.pipeline.gltf}** importam gltf-transform e **${f.pipeline.meshopt}** importam meshoptimizer.`,
     rodape(f.stack.cmd),
   ].join('\n'),
 

@@ -14,19 +14,21 @@ a partir do `package.json`, do `docs/package.json` e do próprio Three.js vendor
 
 {/* BEGIN:GERADO:stack — não edite à mão, rode `npm run docs` */}
 
-| Camada | Ferramenta | Versão | Onde está declarada |
-|---|---|---|---|
-| Motor 3D | **Three.js** (WebGL) | `r160` | `public/vendor/three.module.js` — **vendorizado**, sem CDN e sem npm no runtime |
-| Jogo | ES modules vanilla | — | `public/js/` (26 arquivos, **zero build**) |
-| Site | **Astro** com SSR | `^7.1.1` | `package.json` · `astro.config.mjs` |
-| Hospedagem | adapter **Vercel** | `^11.0.3` | `package.json` · `vercel.json` |
-| Banco | **Supabase** (Postgres + RLS) | `^2.110.7` | `supabase/` (12 migrations) |
-| Browser nas réguas | **Playwright** | `^1.62.1` | 89 scripts de `tools/` importam |
-| Pipeline de GLB | **gltf-transform** | `^4.4.1` | 35 scripts de `tools/` importam |
-| Compressão de malha | **meshoptimizer** | `^1.2.0` | 4 scripts de `tools/` importam |
-| Imagem (build/API) | **sharp** · **resvg** | `^0.35.3` · `^2.6.2` | badge PNG em runtime, textura em WebP |
-| Esta documentação | **Docusaurus** | `3.6.3` | `docs/package.json` |
-| Runtime de CI | **Node** | `22` | `.github/workflows/ci.yml` |
+| Camada | Ferramenta | Versão |
+|---|---|---|
+| Motor 3D (WebGL) | **Three.js**, vendorizado | `r160` |
+| Jogo | ES modules vanilla, **zero build** | 26 arquivos |
+| Site | **Astro** com SSR | `^7.1.1` |
+| Hospedagem | adapter **Vercel** | `^11.0.3` |
+| Banco | **Supabase** (Postgres + RLS) | `^2.110.7` |
+| Browser nas réguas | **Playwright** | `^1.62.1` |
+| Pipeline de GLB | **gltf-transform** | `^4.4.1` |
+| Compressão de malha | **meshoptimizer** | `^1.2.0` |
+| Imagem (build e API) | **sharp** · **resvg** | `^0.35.3` · `^2.6.2` |
+| Esta documentação | **Docusaurus** | `3.6.3` |
+| Runtime de CI | **Node** | `22` |
+
+Three.js sai de `public/vendor/three.module.js` (**sem CDN, sem npm no runtime**). Astro e Vercel de `package.json` + `astro.config.mjs` + `vercel.json`. Supabase tem 12 migrations em `supabase/`. Dos scripts de `tools/`, **89** importam Playwright, **35** importam gltf-transform e **4** importam meshoptimizer.
 
 > Bloco gerado por `node tools/gen-docs.mjs`. Fonte: `dependencies/devDependencies do package.json · REVISION de public/vendor/three.module.js`
 

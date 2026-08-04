@@ -242,6 +242,18 @@ otimizado para fora.** Um gerador que ninguém é obrigado a rodar desatualiza e
 e aí a documentação volta a mentir com a aparência de rigor — que é pior do que mentir sem
 ela.
 
+:::danger Onde você põe o portão novo na corrente importa
+O `check:fast` é uma corrente de `&&`: o primeiro erro corta o resto. O `arch:check` está
+vermelho há dias, então **todo portão colocado depois dele nasce morto** — roda zero vezes
+e ninguém percebe, porque a saída para antes. Foi exatamente o que aconteceu na primeira
+versão do `docs:check`, e é o mesmo modo de falha do BUG-02 (o portão medindo o viewmodel
+de ontem porque o `&&` cortava antes de o JSON ser regenerado).
+
+Por isso o `docs:check` vem **antes** do `arch:check` no `package.json`, com o motivo
+escrito na chave `//check:fast`. Quando o `ARCH.md` for regenerado e o `arch:check` voltar
+a verde, a ordem deixa de importar; até lá, importa.
+:::
+
 Colar um bloco novo é escrever o marcador e rodar `npm run docs`:
 
 ```

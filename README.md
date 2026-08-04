@@ -68,19 +68,21 @@ arquitetura): `cd docs && npm install && npm start` → <http://localhost:3000/d
 
 <!-- BEGIN:GERADO:stack — não edite à mão, rode `npm run docs` -->
 
-| Camada | Ferramenta | Versão | Onde está declarada |
-|---|---|---|---|
-| Motor 3D | **Three.js** (WebGL) | `r160` | `public/vendor/three.module.js` — **vendorizado**, sem CDN e sem npm no runtime |
-| Jogo | ES modules vanilla | — | `public/js/` (26 arquivos, **zero build**) |
-| Site | **Astro** com SSR | `^7.1.1` | `package.json` · `astro.config.mjs` |
-| Hospedagem | adapter **Vercel** | `^11.0.3` | `package.json` · `vercel.json` |
-| Banco | **Supabase** (Postgres + RLS) | `^2.110.7` | `supabase/` (12 migrations) |
-| Browser nas réguas | **Playwright** | `^1.62.1` | 89 scripts de `tools/` importam |
-| Pipeline de GLB | **gltf-transform** | `^4.4.1` | 35 scripts de `tools/` importam |
-| Compressão de malha | **meshoptimizer** | `^1.2.0` | 4 scripts de `tools/` importam |
-| Imagem (build/API) | **sharp** · **resvg** | `^0.35.3` · `^2.6.2` | badge PNG em runtime, textura em WebP |
-| Esta documentação | **Docusaurus** | `3.6.3` | `docs/package.json` |
-| Runtime de CI | **Node** | `22` | `.github/workflows/ci.yml` |
+| Camada | Ferramenta | Versão |
+|---|---|---|
+| Motor 3D (WebGL) | **Three.js**, vendorizado | `r160` |
+| Jogo | ES modules vanilla, **zero build** | 26 arquivos |
+| Site | **Astro** com SSR | `^7.1.1` |
+| Hospedagem | adapter **Vercel** | `^11.0.3` |
+| Banco | **Supabase** (Postgres + RLS) | `^2.110.7` |
+| Browser nas réguas | **Playwright** | `^1.62.1` |
+| Pipeline de GLB | **gltf-transform** | `^4.4.1` |
+| Compressão de malha | **meshoptimizer** | `^1.2.0` |
+| Imagem (build e API) | **sharp** · **resvg** | `^0.35.3` · `^2.6.2` |
+| Esta documentação | **Docusaurus** | `3.6.3` |
+| Runtime de CI | **Node** | `22` |
+
+Three.js sai de `public/vendor/three.module.js` (**sem CDN, sem npm no runtime**). Astro e Vercel de `package.json` + `astro.config.mjs` + `vercel.json`. Supabase tem 12 migrations em `supabase/`. Dos scripts de `tools/`, **89** importam Playwright, **35** importam gltf-transform e **4** importam meshoptimizer.
 
 > Bloco gerado por `node tools/gen-docs.mjs`. Fonte: `dependencies/devDependencies do package.json · REVISION de public/vendor/three.module.js`
 
@@ -175,7 +177,7 @@ está lá. Use `npm run dev`.
 
 ```bash
 npm run check        # npm run syntax && npm run audio:check && npm run eval:ctfhud && npm run eval:vm && npm run eval:invariants && npm run eval:kick && npm run eval:bots
-npm run check:fast   # npm run syntax && npm run arch:check && npm run docs:check && npm run audio:check && npm run feet:check && npm run anims:check && npm run eval:ctfhud && npm run eval:pause && npm run eval:ctfround && npm run eval:regen
+npm run check:fast   # npm run syntax && npm run docs:check && npm run arch:check && npm run audio:check && npm run feet:check && npm run anims:check && npm run eval:ctfhud && npm run eval:pause && npm run eval:ctfround && npm run eval:regen
 ```
 
 `package.json` tem **34 scripts**. Vários trazem uma chave `//nome` logo acima com o motivo de existirem — é onde mora o porquê.
@@ -251,13 +253,13 @@ Os mapas registrados, e em que modo cada um abre:
 
 <!-- BEGIN:GERADO:mapas — não edite à mão, rode `npm run docs` -->
 
-| Id | Nome no menu | Abre em | Arquivo |
-|---|---|---|---|
-| `awp_map` | Praça dos Três Poderes | rodadas | `public/js/map_brasilia.js` (1.730 linhas) |
-| `fy_pool_day` | Piscina da Treta | rodadas | `public/js/map_pool_day.js` (701 linhas) |
-| `fy_havan` | Loja H (Estacionamento) | **captura** | `public/js/map_havan.js` (1.866 linhas) |
-| `fy_ferrovelho` | Ferro Velho do Zé | **captura** | `public/js/map_ferrovelho.js` (1.837 linhas) |
-| `fy_quebrada` | Quebrada (Rua do Baile) | **captura** | `public/js/map_quebrada.js` (1.319 linhas) |
+| Id | Nome no menu | Abre em | Arquivo em `public/js/` | Linhas |
+|---|---|---|---|---:|
+| `awp_map` | Praça dos Três Poderes | rodadas | `map_brasilia.js` | 1.730 |
+| `fy_pool_day` | Piscina da Treta | rodadas | `map_pool_day.js` | 701 |
+| `fy_havan` | Loja H (Estacionamento) | **captura** | `map_havan.js` | 1.866 |
+| `fy_ferrovelho` | Ferro Velho do Zé | **captura** | `map_ferrovelho.js` | 1.837 |
+| `fy_quebrada` | Quebrada (Rua do Baile) | **captura** | `map_quebrada.js` | 1.319 |
 
 **5 mapas registrados** — 2 abrem em rodadas e 3 em captura. `ctfMode` **abre** o mapa em captura, não prende: o jogador troca no menu (é a `MOD1`). Há 6 arquivos `map_*.js` em `public/js/` — arquivo no disco **não** implica mapa jogável.
 

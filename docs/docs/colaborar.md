@@ -14,7 +14,7 @@ O número abaixo não é retórica, e não é escrito à mão: sai de `git short
 
 {/* BEGIN:GERADO:pessoas — não edite à mão, rode `npm run docs` */}
 
-**3 pessoas** assinam commit neste repositório (`ruben-cytonic`, `Ruben`, `daltonfontes`), mais 10 commits assinados por agentes de IA, de 322 no total.
+**3 pessoas** assinam commit neste repositório (`ruben-cytonic`, `Ruben`, `daltonfontes`), mais 10 commits assinados por agentes de IA, de 323 no total.
 
 > Bloco gerado por `node tools/gen-docs.mjs`. Fonte: `git shortlog -sn --no-merges (descontando autores que são agentes)`
 
@@ -156,6 +156,9 @@ PR que toca armas + UI + mapa é três PRs escondidos, e vai colidir com três f
   dias perdidos.
 - Mexeu em `public/js/*.js`? **Bump o `?v=` nos dois lados** — `public/js/version.js` e o
   import map de `src/pages/index.astro`. Já custou dias de "correção que não chegava".
+- Mexeu em `public/js/*.js`, no `maps.js`, no `characters.js` ou numa dependência?
+  **Rode `npm run docs`** e commite junto. O `docs:check` está no `check:fast` e vai
+  reprovar — leva menos de um segundo e é o que impede a doc de voltar a mentir.
 - Nada de asset com copyright. Nada de `service_role` key commitada.
 - Nada de dependência de runtime no jogo. Three.js é vendorizado; o jogo tem que rodar
   arrastando a pasta pra um host estático.
@@ -226,13 +229,13 @@ O registro, gerado do `MAPS` de `public/js/maps.js`:
 
 {/* BEGIN:GERADO:mapas — não edite à mão, rode `npm run docs` */}
 
-| Id | Nome no menu | Abre em | Arquivo |
-|---|---|---|---|
-| `awp_map` | Praça dos Três Poderes | rodadas | `public/js/map_brasilia.js` (1.730 linhas) |
-| `fy_pool_day` | Piscina da Treta | rodadas | `public/js/map_pool_day.js` (701 linhas) |
-| `fy_havan` | Loja H (Estacionamento) | **captura** | `public/js/map_havan.js` (1.866 linhas) |
-| `fy_ferrovelho` | Ferro Velho do Zé | **captura** | `public/js/map_ferrovelho.js` (1.837 linhas) |
-| `fy_quebrada` | Quebrada (Rua do Baile) | **captura** | `public/js/map_quebrada.js` (1.319 linhas) |
+| Id | Nome no menu | Abre em | Arquivo em `public/js/` | Linhas |
+|---|---|---|---|---:|
+| `awp_map` | Praça dos Três Poderes | rodadas | `map_brasilia.js` | 1.730 |
+| `fy_pool_day` | Piscina da Treta | rodadas | `map_pool_day.js` | 701 |
+| `fy_havan` | Loja H (Estacionamento) | **captura** | `map_havan.js` | 1.866 |
+| `fy_ferrovelho` | Ferro Velho do Zé | **captura** | `map_ferrovelho.js` | 1.837 |
+| `fy_quebrada` | Quebrada (Rua do Baile) | **captura** | `map_quebrada.js` | 1.319 |
 
 **5 mapas registrados** — 2 abrem em rodadas e 3 em captura. `ctfMode` **abre** o mapa em captura, não prende: o jogador troca no menu (é a `MOD1`). Há 6 arquivos `map_*.js` em `public/js/` — arquivo no disco **não** implica mapa jogável.
 
