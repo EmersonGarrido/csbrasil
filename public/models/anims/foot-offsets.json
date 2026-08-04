@@ -1,5 +1,5 @@
 {
- "gerado": "2026-08-04T02:29:33.064Z",
+ "gerado": "2026-08-04T07:09:29.416Z",
  "fonte": "tools/eval/char_probe.json (C3.porPose) — via tools/gen-foot-offsets.mjs",
  "nota": "offset em METROS somado ao Y do modelo enquanto o clipe está ativo. offset = -desvio medido.",
  "tolerancia": 0.01,
@@ -100,60 +100,60 @@
    "crouch": 0.0131
   },
   "palhacomal": {
-   "idle": -0.0248,
-   "walk": -0.0514,
-   "run": -0.0356,
-   "shoot": -0.0306,
-   "crouch": -0.0497
+   "idle": -0.0224,
+   "walk": -0.0529,
+   "run": -0.034,
+   "shoot": -0.0318,
+   "crouch": -0.0154
   },
   "jozo": {
-   "idle": -0.0247,
-   "walk": -0.0504,
-   "run": -0.0348,
+   "idle": -0.0233,
+   "walk": -0.0498,
+   "run": -0.0327,
    "shoot": -0.0305,
-   "crouch": -0.0459
+   "crouch": -0.0445
   },
   "adjim": {
-   "idle": -0.0248,
-   "walk": -0.0546,
-   "run": -0.035,
-   "shoot": -0.0309,
-   "crouch": -0.044
+   "idle": -0.0259,
+   "walk": -0.0583,
+   "run": -0.0307,
+   "shoot": -0.0304,
+   "crouch": -0.0445
   },
   "esbirro": {
-   "idle": -0.0249,
-   "walk": -0.058,
-   "run": -0.0446,
-   "shoot": -0.0315,
-   "crouch": -0.0672
+   "idle": -0.0308,
+   "walk": -0.0623,
+   "run": -0.0537,
+   "shoot": -0.0313,
+   "crouch": -0.0543
   },
   "titica": {
-   "idle": -0.0247,
-   "walk": -0.052,
-   "run": -0.0371,
-   "shoot": -0.0304,
-   "crouch": -0.0458
+   "idle": -0.0236,
+   "walk": -0.0521,
+   "run": -0.0329,
+   "shoot": -0.03,
+   "crouch": -0.0455
   },
   "padati": {
-   "idle": -0.0248,
-   "walk": -0.054,
-   "run": -0.0365,
-   "shoot": -0.0311,
-   "crouch": -0.0444
+   "idle": -0.0261,
+   "walk": -0.0559,
+   "run": -0.0313,
+   "shoot": -0.0316,
+   "crouch": -0.0439
   },
   "padata": {
-   "idle": -0.0248,
-   "walk": -0.0521,
-   "run": -0.0371,
-   "shoot": -0.0307,
-   "crouch": -0.044
+   "idle": -0.0243,
+   "walk": -0.0529,
+   "run": -0.0319,
+   "shoot": -0.0322,
+   "crouch": -0.035
   },
   "cadequinha": {
-   "idle": -0.0247,
-   "walk": -0.0503,
-   "run": -0.0346,
+   "idle": -0.0223,
+   "walk": -0.049,
+   "run": -0.0316,
    "shoot": -0.0303,
-   "crouch": -0.0469
+   "crouch": -0.0463
   },
   "emo": {
    "walk": 0.0216,
@@ -198,11 +198,11 @@
    "crouch": 0.0282
   },
   "pagodeiro": {
-   "idle": -0.0252,
-   "walk": -0.0524,
-   "run": -0.0368,
-   "shoot": -0.0318,
-   "crouch": -0.0486
+   "idle": -0.0265,
+   "walk": -0.0513,
+   "run": -0.0375,
+   "shoot": -0.0323,
+   "crouch": -0.0475
   },
   "mandrake": {
    "idle": -0.0169,
@@ -211,60 +211,60 @@
    "shoot": -0.0153
   },
   "raul": {
-   "idle": -0.0248,
-   "walk": -0.0453,
-   "run": -0.0384,
-   "shoot": -0.0305,
-   "crouch": -0.0444
+   "idle": -0.023,
+   "walk": -0.045,
+   "run": -0.0323,
+   "shoot": -0.0298,
+   "crouch": -0.0405
   },
   "oakley": {
-   "idle": -0.0247,
-   "walk": -0.0442,
-   "run": -0.0376,
-   "shoot": -0.0305,
-   "crouch": -0.0423
+   "idle": -0.0228,
+   "walk": 0.0453,
+   "run": -0.0373,
+   "shoot": -0.0294,
+   "crouch": -0.0354
   },
   "criarj": {
-   "idle": -0.0247,
-   "walk": -0.0499,
-   "run": -0.0365,
-   "shoot": -0.0303,
-   "crouch": -0.0439
+   "idle": -0.0231,
+   "walk": -0.0487,
+   "run": -0.0351,
+   "shoot": -0.03,
+   "crouch": -0.044
   },
   "chave": {
-   "idle": -0.0247,
-   "walk": -0.0498,
-   "run": -0.0463,
+   "idle": -0.0235,
+   "walk": -0.0489,
+   "run": -0.0363,
    "shoot": -0.0303,
-   "crouch": -0.0438
+   "crouch": -0.0434
   },
   "funkraiz": {
-   "idle": -0.0247,
-   "walk": -0.0515,
-   "run": -0.0375,
+   "idle": -0.0229,
+   "walk": -0.0506,
+   "run": -0.0377,
    "shoot": -0.0303,
-   "crouch": -0.047
+   "crouch": -0.0457
   },
   "trapfunk": {
-   "idle": -0.0247,
-   "walk": -0.0508,
-   "run": -0.034,
-   "shoot": -0.0303,
-   "crouch": -0.0433
+   "idle": -0.0232,
+   "walk": -0.0503,
+   "run": -0.0325,
+   "shoot": -0.0305,
+   "crouch": -0.0416
   },
   "fluxo": {
-   "idle": -0.0247,
-   "walk": -0.0504,
-   "run": -0.0349,
+   "idle": -0.0226,
+   "walk": -0.0492,
+   "run": -0.0315,
    "shoot": -0.0304,
-   "crouch": -0.051
+   "crouch": -0.052
   },
   "ostentacao": {
-   "idle": -0.0248,
-   "walk": -0.0501,
-   "run": -0.0364,
+   "idle": -0.0235,
+   "walk": -0.0496,
+   "run": -0.0328,
    "shoot": -0.0305,
-   "crouch": -0.0461
+   "crouch": -0.0481
   }
  },
  "suspeitos": [

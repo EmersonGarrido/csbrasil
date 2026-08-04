@@ -1515,6 +1515,32 @@ function runNode(script, env = {}, args = []) {
       + (iguais.length ? ` [${iguais.slice(0, 4).map((x) => `${x.a}×${x.b} ${x.pior.toFixed(3)}`).join(', ')}]` : '')
       + (j.C6grupos && j.C6grupos.length ? ` | maior grupo de clones: ${j.C6grupos[0].length} (${j.C6grupos[0].slice(0, 5).join(', ')}${j.C6grupos[0].length > 5 ? '…' : ''})` : '')
       + (inter ? ` | pior par ALIADO×INIMIGO: ${inter.a}×${inter.b} ${inter.pior.toFixed(3)}` : ''));
+
+    /* ── CHR7 CONVENÇÃO DE SKIN ────────────────────────────────────────────────
+       A causa raiz do "balão" (04/08): o auto-skin do tools/rig-from-donor.mjs montava
+       o segmento do osso como [junta→PAI], e num rig Meshy o osso aponta pro filho.
+       Isso pintava TODO membro com a junta DISTAL — carne do braço obedecendo ao
+       cotovelo, coxa obedecendo ao joelho —, então dobrar uma junta girava o membro
+       inteiro. 17 dos 44 personagens estavam assim (os 8 palhaços e os 9 funkeiros
+       rigados por transplante); os outros 27, rigados no Mint, nunca estiveram.
+       Efeito medido em `tools/eval/pose-inflate.mjs` (esticamento de aresta com o
+       clipe rodando, razão simétrica): mediana do lote 1,152 -> 0,535 depois do
+       `tools/reskin-glb.mjs`. Referência: mandrake 0,402, mst 0,312.
+       O teto aqui é ZERO e não é arbitrário: `convencaoSkinPai` só conta junta cujo
+       centroide da carne dominada fica 25% mais perto do meio do segmento junta→pai
+       do que do meio do junta→filho. Rig correto dá 0 por construção — os 27 do Mint
+       dão 0, o doador `mst` dá 0×18.
+       MUTAÇÃO QUE FAZ FICAR VERMELHA: reponha um GLB pré-reskin (backup de qualquer um
+       dos 17) em public/models/characters/ e rode o char-probe — conferido com o raul,
+       que volta a marcar 13×0 e derruba esta invariante. */
+    const invertidos = P.filter((c) => c.C7 && (c.C7.convencaoSkinPai || 0) > (c.C7.convencaoSkinFilho || 0));
+    const semDado = P.filter((c) => !c.C7 || c.C7.convencaoSkinPai == null).length;
+    put('CHR7', 'nenhum personagem com a convenção de skin invertida (carne pintada pela junta DISTAL)',
+      invertidos.length === 0,
+      `${invertidos.length}/${P.length} invertidos`
+      + (invertidos.length ? ` [${invertidos.slice(0, 5).map((c) => `${c.id} ${c.C7.convencaoSkinPai}×${c.C7.convencaoSkinFilho} (${(c.C7.ossosInvertidos || []).slice(0, 3).join(',')})`).join(', ')}]` : '')
+      + (semDado ? ` | ${semDado} sem medida (fonte procedural)` : '')
+      + ' — osso distal pintando o membro inteiro é a causa raiz do "balão"; ver tools/reskin-glb.mjs');
   }
 }
 

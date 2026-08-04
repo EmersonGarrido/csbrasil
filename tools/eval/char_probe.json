@@ -1,0 +1,5985 @@
+{
+ "gerado": "2026-08-04T07:14:02.543Z",
+ "protocolo": "node puro; DOM stubado + three vendorizado (mesmo protocolo de botsim.mjs/pickup-check.mjs); GLB lido por tp-mount-probe.mjs",
+ "fontes": {
+  "glb": 44,
+  "procedural": 0,
+  "erro": 0
+ },
+ "semGLB": [],
+ "avisoDeProcedencia": null,
+ "poseMedida": "clipes disponíveis",
+ "refHumano": {
+  "procedencia": "FALLBACK PUBLICADO (Drillis & Contini 1966 / Winter fig.4.1) — NÃO é foto medida",
+  "cabecaSobreAltura": 0.13,
+  "ombroSobreAltura": 0.259,
+  "cinturaSobreOmbro": 0.74,
+  "larguraTorsoSobreAltura": 0.174,
+  "bracoSobreAltura": 0.44,
+  "pernaSobreAltura": 0.53,
+  "tolerancia": 0.35
+ },
+ "coorteC1": {
+  "cabecaSobreAltura": {
+   "mediana": 0.22267272447700642,
+   "mad": 0.011759943761175451,
+   "sigma": 0.01743529262031872,
+   "n": 44
+  },
+  "ombroSobreAltura": {
+   "mediana": 0.19448287365803935,
+   "mad": 0.004211140494818216,
+   "sigma": 0.006243436897617487,
+   "n": 44
+  },
+  "cinturaSobreOmbro": {
+   "mediana": 1.0813956226718928,
+   "mad": 0.08039086636377013,
+   "sigma": 0.11918749847092559,
+   "n": 44
+  },
+  "larguraTorsoSobreAltura": {
+   "mediana": 0.21707043222763844,
+   "mad": 0.023953633156284612,
+   "sigma": 0.03551365651750756,
+   "n": 44
+  },
+  "bracoSobreAltura": {
+   "mediana": 0.27784898863451346,
+   "mad": 0.0014223947090242772,
+   "sigma": 0.002108842395599393,
+   "n": 44
+  },
+  "pernaSobreAltura": {
+   "mediana": 0.3782640508366012,
+   "mad": 0.004453994273939693,
+   "sigma": 0.006603491910542989,
+   "n": 44
+  }
+ },
+ "C2": {
+  "min": 1.7199999999999998,
+  "max": 1.7200000000000002,
+  "dispersao": 4.440892098500626e-16,
+  "teto": 0.15
+ },
+ "C4": {
+  "estado": "ok",
+  "semModelo": 0,
+  "enterrados": [
+   {
+    "id": "caminhoneiro",
+    "raioPalma": 0.22,
+    "raioCorpo": 0.213,
+    "folga": 0.007
+   },
+   {
+    "id": "farialimer",
+    "raioPalma": 0.21,
+    "raioCorpo": 0.192,
+    "folga": 0.018
+   },
+   {
+    "id": "gotinha",
+    "raioPalma": 0.193,
+    "raioCorpo": 0.208,
+    "folga": -0.015
+   }
+  ],
+  "nota": "medido por tools/eval/tp-mount-probe.mjs (seção 3: palma dentro da silhueta do corpo)"
+ },
+ "escalaDoMundoC5": {
+  "medidoEm": "runtime (MAPS[id].build)",
+  "porMapa": [
+   {
+    "mapa": "awp_map",
+    "materiais": 45,
+    "map": 30,
+    "normalMap": 16,
+    "roughnessMap": 16,
+    "aoMap": 0,
+    "meshes": 115,
+    "triangulos": 2915
+   },
+   {
+    "mapa": "fy_pool_day",
+    "materiais": 38,
+    "map": 17,
+    "normalMap": 0,
+    "roughnessMap": 0,
+    "aoMap": 0,
+    "meshes": 299,
+    "triangulos": 3676
+   },
+   {
+    "mapa": "fy_havan",
+    "materiais": 200,
+    "map": 33,
+    "normalMap": 18,
+    "roughnessMap": 18,
+    "aoMap": 0,
+    "meshes": 326,
+    "triangulos": 18006
+   },
+   {
+    "mapa": "fy_ferrovelho",
+    "materiais": 211,
+    "map": 173,
+    "normalMap": 9,
+    "roughnessMap": 9,
+    "aoMap": 0,
+    "meshes": 591,
+    "triangulos": 21854
+   },
+   {
+    "mapa": "fy_quebrada",
+    "materiais": 180,
+    "map": 56,
+    "normalMap": 10,
+    "roughnessMap": 10,
+    "aoMap": 0,
+    "meshes": 1252,
+    "triangulos": 24872
+   }
+  ],
+  "total": {
+   "materiais": 674,
+   "map": 309,
+   "normalMap": 53,
+   "roughnessMap": 53,
+   "aoMap": 0
+  }
+ },
+ "personagens": [
+  {
+   "id": "esquerdomacho",
+   "nome": "Esquerdomacho",
+   "time": "P",
+   "tribo": null,
+   "fonte": "glb",
+   "marcos": {
+    "alturaTotal": 1.72,
+    "cabeca": 0.3710584579940428,
+    "ombroLargura": 0.3130803616175729,
+    "cinturaLargura": 0.38368108067502626,
+    "torsoLargura": 0.3368332546552031,
+    "torsoProfundidade": 0.24094832611112005,
+    "braco": 0.5197098897868371,
+    "perna": 0.6867845493356406,
+    "larguraMax": 1.6531506897616812
+   },
+   "marcosUsados": {
+    "cabeca": "Head",
+    "pescoco": "neck",
+    "quadril": "Hips",
+    "ombroE": "LeftArm",
+    "ombroD": "RightArm",
+    "maoE": "LeftHand",
+    "coxaE": "LeftUpLeg",
+    "peE": "LeftFoot"
+   },
+   "C7": {
+    "familia": "28n/26j",
+    "juntas": 26,
+    "nos": 28,
+    "clipesNoGLB": 1,
+    "impressaoEsqueleto": 530.99,
+    "curlDuplicado": 2,
+    "convencaoSkinPai": 0,
+    "convencaoSkinFilho": 19,
+    "ossosInvertidos": [],
+    "raioSkinP50": 0.08,
+    "raioSkinP95": 0.153,
+    "desalinhamentoRMS": 0.1146,
+    "piorJunta": "RightLeg",
+    "piorDesalinhamento": 0.206,
+    "antebraco": 0.267,
+    "dPalmaOsso": 0.095,
+    "alavancaPalma": 0.36,
+    "abducaoBraco": 86.2
+   },
+   "C1": {
+    "razoes": {
+     "cabecaSobreAltura": 0.2157316616244435,
+     "ombroSobreAltura": 0.18202346605672845,
+     "cinturaSobreOmbro": 1.2255035055302894,
+     "larguraTorsoSobreAltura": 0.19583328759023436,
+     "bracoSobreAltura": 0.30215691266676575,
+     "pernaSobreAltura": 0.39929334263700034
+    },
+    "pctElenco": {
+     "cabecaSobreAltura": -0.031171589914595406,
+     "ombroSobreAltura": -0.0640642919706049,
+     "cinturaSobreOmbro": 0.1332610192210113,
+     "larguraTorsoSobreAltura": -0.09783527134240474,
+     "bracoSobreAltura": 0.08748609865997131,
+     "pernaSobreAltura": 0.05559421191067181
+    },
+    "piorPct": 0.1332610192210113,
+    "piorPctRazao": "cinturaSobreOmbro",
+    "zElenco": {
+     "cabecaSobreAltura": -0.39810417890399885,
+     "ombroSobreAltura": -1.995600789376992,
+     "cinturaSobreOmbro": 1.2090855560119842,
+     "larguraTorsoSobreAltura": -0.5979993816444831,
+     "bracoSobreAltura": 11.526666991794466,
+     "pernaSobreAltura": 3.184571448754899
+    },
+    "desvioRef": {
+     "cabecaSobreAltura": 0.6594743201880268,
+     "ombroSobreAltura": -0.2972066947616662,
+     "cinturaSobreOmbro": 0.6560858182841749,
+     "larguraTorsoSobreAltura": 0.12547866431169177,
+     "bracoSobreAltura": -0.31327974393916874,
+     "pernaSobreAltura": -0.2466163346471692
+    },
+    "elencoDegenerado": false,
+    "piorZ": 11.526666991794466,
+    "piorZRazao": "bracoSobreAltura",
+    "piorDesvioRef": 0.6594743201880268,
+    "piorDesvioRefRazao": "cabecaSobreAltura",
+    "indiceBalao": 1.1254786643116919
+   },
+   "C2": {
+    "alturaM": 1.72,
+    "alturaBBox": 1.72,
+    "adereçoAcima": null
+   },
+   "C3": {
+    "porPose": {
+     "bind": 0,
+     "idle": -0.0006986205772345415,
+     "walk": -0.0281227674799453,
+     "run": 0.014894935698772484,
+     "shoot": -0.0006576582624031332,
+     "crouch": -0.017374880817983728
+    },
+    "afunda": -0.0281227674799453,
+    "flutua": 0.014894935698772484,
+    "piorDesvio": -0.0281227674799453
+   },
+   "C5": {
+    "materiais": 1,
+    "triangulos": 5072,
+    "map": 1,
+    "normalMap": 0,
+    "roughnessMap": 0,
+    "aoMap": 0,
+    "texturas": [
+     "base 512x512"
+    ],
+    "mapasDeSuperficie": 0
+   },
+   "C6": {
+    "piorIoU": 0.7486754966887417,
+    "contra": "farialimer"
+   }
+  },
+  {
+   "id": "sindicato",
+   "nome": "Líder do Sindicato",
+   "time": "P",
+   "tribo": null,
+   "fonte": "glb",
+   "marcos": {
+    "alturaTotal": 1.72,
+    "cabeca": 0.3641486341109015,
+    "ombroLargura": 0.4099598936990289,
+    "cinturaLargura": 0.5906324015937909,
+    "torsoLargura": 0.46545450862114857,
+    "torsoProfundidade": 0.35830990458728196,
+    "braco": 0.5276605475941488,
+    "perna": 0.6401529098583525,
+    "larguraMax": 1.8306029776532946
+   },
+   "marcosUsados": {
+    "cabeca": "Head",
+    "pescoco": "neck",
+    "quadril": "Hips",
+    "ombroE": "LeftArm",
+    "ombroD": "RightArm",
+    "maoE": "LeftHand",
+    "coxaE": "LeftUpLeg",
+    "peE": "LeftFoot"
+   },
+   "C7": {
+    "familia": "28n/26j",
+    "juntas": 26,
+    "nos": 28,
+    "clipesNoGLB": 1,
+    "impressaoEsqueleto": 521.95,
+    "curlDuplicado": 2,
+    "convencaoSkinPai": 0,
+    "convencaoSkinFilho": 16,
+    "ossosInvertidos": [],
+    "raioSkinP50": 0.118,
+    "raioSkinP95": 0.185,
+    "desalinhamentoRMS": 0.1253,
+    "piorJunta": "LeftLeg",
+    "piorDesalinhamento": 0.239,
+    "antebraco": 0.265,
+    "dPalmaOsso": 0.122,
+    "alavancaPalma": 0.46,
+    "abducaoBraco": 87
+   },
+   "C1": {
+    "razoes": {
+     "cabecaSobreAltura": 0.21171432215750086,
+     "ombroSobreAltura": 0.23834877540641217,
+     "cinturaSobreOmbro": 1.440707763543822,
+     "larguraTorsoSobreAltura": 0.27061308640764453,
+     "bracoSobreAltura": 0.30677938813613304,
+     "pernaSobreAltura": 0.37218192433625147
+    },
+    "pctElenco": {
+     "cabecaSobreAltura": -0.04921304279742242,
+     "ombroSobreAltura": 0.22555148905040634,
+     "cinturaSobreOmbro": 0.3322670568835364,
+     "larguraTorsoSobreAltura": 0.24666028270426404,
+     "bracoSobreAltura": 0.10412274539417178,
+     "pernaSobreAltura": -0.016079049771972713
+    },
+    "piorPct": 0.3322670568835364,
+    "piorPctRazao": "cinturaSobreOmbro",
+    "zElenco": {
+     "cabecaSobreAltura": -0.6285184056351814,
+     "ombroSobreAltura": 7.025922175190426,
+     "cinturaSobreOmbro": 3.0146797733117885,
+     "larguraTorsoSobreAltura": 1.5076637955770782,
+     "bracoSobreAltura": 13.718616223758499,
+     "pernaSobreAltura": -0.921047013117278
+    },
+    "desvioRef": {
+     "cabecaSobreAltura": 0.6285717089038527,
+     "ombroSobreAltura": -0.07973445789030055,
+     "cinturaSobreOmbro": 0.9469023831673269,
+     "larguraTorsoSobreAltura": 0.5552476230324399,
+     "bracoSobreAltura": -0.3027741178724249,
+     "pernaSobreAltura": -0.2977699540825444
+    },
+    "elencoDegenerado": false,
+    "piorZ": 13.718616223758499,
+    "piorZRazao": "bracoSobreAltura",
+    "piorDesvioRef": 0.9469023831673269,
+    "piorDesvioRefRazao": "cinturaSobreOmbro",
+    "indiceBalao": 1.55524762303244
+   },
+   "C2": {
+    "alturaM": 1.72,
+    "alturaBBox": 1.72,
+    "adereçoAcima": null
+   },
+   "C3": {
+    "porPose": {
+     "bind": 0,
+     "idle": 0.008316929613471982,
+     "walk": -0.029132433950694828,
+     "run": -0.03154027120148644,
+     "shoot": 0.012532486692915758,
+     "crouch": -0.00025239950708372613
+    },
+    "afunda": -0.03154027120148644,
+    "flutua": 0.012532486692915758,
+    "piorDesvio": -0.03154027120148644
+   },
+   "C5": {
+    "materiais": 1,
+    "triangulos": 4809,
+    "map": 1,
+    "normalMap": 0,
+    "roughnessMap": 0,
+    "aoMap": 0,
+    "texturas": [
+     "base 512x512"
+    ],
+    "mapasDeSuperficie": 0
+   },
+   "C6": {
+    "piorIoU": 0.6892341842397336,
+    "contra": "esbirro"
+   }
+  },
+  {
+   "id": "mst",
+   "nome": "Líder do MST",
+   "time": "P",
+   "tribo": null,
+   "fonte": "glb",
+   "marcos": {
+    "alturaTotal": 1.72,
+    "cabeca": 0.38299718362511337,
+    "ombroLargura": 0.3345105188600539,
+    "cinturaLargura": 0.3412056542012279,
+    "torsoLargura": 0.419794455332487,
+    "torsoProfundidade": 0.44622189761566655,
+    "braco": 0.4779002261332287,
+    "perna": 0.650614121440018,
+    "larguraMax": 1.6868642028761793
+   },
+   "marcosUsados": {
+    "cabeca": "Head",
+    "pescoco": "neck",
+    "quadril": "Hips",
+    "ombroE": "LeftArm",
+    "ombroD": "RightArm",
+    "maoE": "LeftHand",
+    "coxaE": "LeftUpLeg",
+    "peE": "LeftFoot"
+   },
+   "C7": {
+    "familia": "30n/28j",
+    "juntas": 28,
+    "nos": 30,
+    "clipesNoGLB": 1,
+    "impressaoEsqueleto": 531.45,
+    "curlDuplicado": 4,
+    "convencaoSkinPai": 0,
+    "convencaoSkinFilho": 18,
+    "ossosInvertidos": [],
+    "raioSkinP50": 0.093,
+    "raioSkinP95": 0.265,
+    "desalinhamentoRMS": 0.1348,
+    "piorJunta": "LeftLeg",
+    "piorDesalinhamento": 0.266,
+    "antebraco": 0.234,
+    "dPalmaOsso": 0.121,
+    "alavancaPalma": 0.52,
+    "abducaoBraco": 86.5
+   },
+   "C1": {
+    "razoes": {
+     "cabecaSobreAltura": 0.2226727811773915,
+     "ombroSobreAltura": 0.1944828598023569,
+     "cinturaSobreOmbro": 1.0200147228971743,
+     "larguraTorsoSobreAltura": 0.24406654379795756,
+     "bracoSobreAltura": 0.27784896868210973,
+     "pernaSobreAltura": 0.3782640240930337
+    },
+    "pctElenco": {
+     "cabecaSobreAltura": 2.546355204244956e-7,
+     "ombroSobreAltura": -7.124371505888713e-8,
+     "cinturaSobreOmbro": -0.05676081767656843,
+     "larguraTorsoSobreAltura": 0.12436567842647821,
+     "bracoSobreAltura": -7.181024421669628e-8,
+     "pernaSobreAltura": -7.070079065808165e-8
+    },
+    "piorPct": 0.12436567842647821,
+    "piorPctRazao": "larguraTorsoSobreAltura",
+    "zElenco": {
+     "cabecaSobreAltura": 0.0000032520466571043046,
+     "ombroSobreAltura": -0.0000022192396050345715,
+     "cinturaSobreOmbro": -0.5149944462479985,
+     "larguraTorsoSobreAltura": 0.7601614200726006,
+     "bracoSobreAltura": -0.000009461306245948947,
+     "pernaSobreAltura": -0.000004049912960289739
+    },
+    "desvioRef": {
+     "cabecaSobreAltura": 0.7128675475183961,
+     "ombroSobreAltura": -0.2491009274040274,
+     "cinturaSobreOmbro": 0.3783982741853707,
+     "larguraTorsoSobreAltura": 0.40268128619515847,
+     "bracoSobreAltura": -0.3685250711770233,
+     "pernaSobreAltura": -0.28629429416408736
+    },
+    "elencoDegenerado": false,
+    "piorZ": 0.7601614200726006,
+    "piorZRazao": "larguraTorsoSobreAltura",
+    "piorDesvioRef": 0.7128675475183961,
+    "piorDesvioRefRazao": "cabecaSobreAltura",
+    "indiceBalao": 1.4026812861951585
+   },
+   "C2": {
+    "alturaM": 1.72,
+    "alturaBBox": 1.72,
+    "adereçoAcima": null
+   },
+   "C3": {
+    "porPose": {
+     "bind": 0,
+     "idle": 0.02420231891880496,
+     "walk": 0.042809858228644936,
+     "run": -0.036079217246451835,
+     "shoot": 0.02896698985268674,
+     "crouch": 0.04151151735879354
+    },
+    "afunda": -0.036079217246451835,
+    "flutua": 0.042809858228644936,
+    "piorDesvio": 0.042809858228644936
+   },
+   "C5": {
+    "materiais": 1,
+    "triangulos": 4929,
+    "map": 1,
+    "normalMap": 0,
+    "roughnessMap": 0,
+    "aoMap": 0,
+    "texturas": [
+     "base 512x512"
+    ],
+    "mapasDeSuperficie": 0
+   },
+   "C6": {
+    "piorIoU": 0.6725451467268623,
+    "contra": "sertanejo"
+   }
+  },
+  {
+   "id": "doutora",
+   "nome": "Doutora do SUS",
+   "time": "P",
+   "tribo": null,
+   "fonte": "glb",
+   "marcos": {
+    "alturaTotal": 1.72,
+    "cabeca": 0.33854555046901624,
+    "ombroLargura": 0.3388383026138465,
+    "cinturaLargura": 0.37909442277710886,
+    "torsoLargura": 0.3399609859077608,
+    "torsoProfundidade": 0.5284540310888685,
+    "braco": 0.4428372687233188,
+    "perna": 0.6823383589051639,
+    "larguraMax": 1.5455475648353514
+   },
+   "marcosUsados": {
+    "cabeca": "Head",
+    "pescoco": "neck",
+    "quadril": "Hips",
+    "ombroE": "LeftArm",
+    "ombroD": "RightArm",
+    "maoE": "LeftHand",
+    "coxaE": "LeftUpLeg",
+    "peE": "LeftFoot"
+   },
+   "C7": {
+    "familia": "28n/26j",
+    "juntas": 26,
+    "nos": 28,
+    "clipesNoGLB": 1,
+    "impressaoEsqueleto": 533.77,
+    "curlDuplicado": 2,
+    "convencaoSkinPai": 0,
+    "convencaoSkinFilho": 18,
+    "ossosInvertidos": [],
+    "raioSkinP50": 0.096,
+    "raioSkinP95": 0.251,
+    "desalinhamentoRMS": 0.122,
+    "piorJunta": "neck",
+    "piorDesalinhamento": 0.221,
+    "antebraco": 0.224,
+    "dPalmaOsso": 0.096,
+    "alavancaPalma": 0.43,
+    "abducaoBraco": 88.1
+   },
+   "C1": {
+    "razoes": {
+     "cabecaSobreAltura": 0.19682880841221875,
+     "ombroSobreAltura": 0.1969990131475852,
+     "cinturaSobreOmbro": 1.118806285631586,
+     "larguraTorsoSobreAltura": 0.1976517359928842,
+     "bracoSobreAltura": 0.25746352832751096,
+     "pernaSobreAltura": 0.3967083482006767
+    },
+    "pctElenco": {
+     "cabecaSobreAltura": -0.11606233374782442,
+     "ombroSobreAltura": 0.012937589013467558,
+     "cinturaSobreOmbro": 0.03459479784767345,
+     "larguraTorsoSobreAltura": -0.0894580438039123,
+     "bracoSobreAltura": -0.07336884833443762,
+     "pernaSobreAltura": 0.04876037604758502
+    },
+    "piorPct": -0.11606233374782442,
+    "piorPctRazao": "cabecaSobreAltura",
+    "zElenco": {
+     "cabecaSobreAltura": -1.4822760149531253,
+     "ombroSobreAltura": 0.4030055129580976,
+     "cinturaSobreOmbro": 0.31388076299645623,
+     "larguraTorsoSobreAltura": -0.5467951807547952,
+     "bracoSobreAltura": -9.66665899241293,
+     "pernaSobreAltura": 2.7931127370092987
+    },
+    "desvioRef": {
+     "cabecaSobreAltura": 0.5140677570170673,
+     "ombroSobreAltura": -0.2393860496232232,
+     "cinturaSobreOmbro": 0.5119003859886296,
+     "larguraTorsoSobreAltura": 0.1359295172004839,
+     "bracoSobreAltura": -0.4148556174374751,
+     "pernaSobreAltura": -0.2514936826402327
+    },
+    "elencoDegenerado": false,
+    "piorZ": -9.66665899241293,
+    "piorZRazao": "bracoSobreAltura",
+    "piorDesvioRef": 0.5140677570170673,
+    "piorDesvioRefRazao": "cabecaSobreAltura",
+    "indiceBalao": 1.135929517200484
+   },
+   "C2": {
+    "alturaM": 1.72,
+    "alturaBBox": 1.72,
+    "adereçoAcima": null
+   },
+   "C3": {
+    "porPose": {
+     "bind": 0,
+     "idle": 0.010947900955162538,
+     "walk": -0.028055773844301492,
+     "run": -0.018371309485569892,
+     "shoot": 0.015396573184316744,
+     "crouch": 0.01757691744343904
+    },
+    "afunda": -0.028055773844301492,
+    "flutua": 0.01757691744343904,
+    "piorDesvio": -0.028055773844301492
+   },
+   "C5": {
+    "materiais": 1,
+    "triangulos": 5008,
+    "map": 1,
+    "normalMap": 0,
+    "roughnessMap": 0,
+    "aoMap": 0,
+    "texturas": [
+     "base 512x512"
+    ],
+    "mapasDeSuperficie": 0
+   },
+   "C6": {
+    "piorIoU": 0.6459470810583788,
+    "contra": "mandrake"
+   }
+  },
+  {
+   "id": "mistico",
+   "nome": "Jovem Místico",
+   "time": "P",
+   "tribo": null,
+   "fonte": "glb",
+   "marcos": {
+    "alturaTotal": 1.72,
+    "cabeca": 0.33717018415295885,
+    "ombroLargura": 0.3276051382163856,
+    "cinturaLargura": 0.33996052831780665,
+    "torsoLargura": 0.32649681672412745,
+    "torsoProfundidade": 0.36688830118632776,
+    "braco": 0.46400387439299373,
+    "perna": 0.6471993922213456,
+    "larguraMax": 1.5995121294578278
+   },
+   "marcosUsados": {
+    "cabeca": "Head",
+    "pescoco": "neck",
+    "quadril": "Hips",
+    "ombroE": "LeftArm",
+    "ombroD": "RightArm",
+    "maoE": "LeftHand",
+    "coxaE": "LeftUpLeg",
+    "peE": "LeftFoot"
+   },
+   "C7": {
+    "familia": "28n/26j",
+    "juntas": 26,
+    "nos": 28,
+    "clipesNoGLB": 1,
+    "impressaoEsqueleto": 518.58,
+    "curlDuplicado": 2,
+    "convencaoSkinPai": 0,
+    "convencaoSkinFilho": 19,
+    "ossosInvertidos": [],
+    "raioSkinP50": 0.061,
+    "raioSkinP95": 0.151,
+    "desalinhamentoRMS": 0.1308,
+    "piorJunta": "LeftLeg",
+    "piorDesalinhamento": 0.24,
+    "antebraco": 0.21,
+    "dPalmaOsso": 0.113,
+    "alavancaPalma": 0.54,
+    "abducaoBraco": 89.3
+   },
+   "C1": {
+    "razoes": {
+     "cabecaSobreAltura": 0.1960291768331156,
+     "ombroSobreAltura": 0.19046810361417768,
+     "cinturaSobreOmbro": 1.0377142744728876,
+     "larguraTorsoSobreAltura": 0.18982373065356248,
+     "bracoSobreAltura": 0.26976969441453125,
+     "pernaSobreAltura": 0.37627871640775906
+    },
+    "pctElenco": {
+     "cabecaSobreAltura": -0.11965339583673203,
+     "ombroSobreAltura": -0.02064330893691372,
+     "cinturaSobreOmbro": -0.04039349455759602,
+     "larguraTorsoSobreAltura": -0.12552009637822423,
+     "bracoSobreAltura": -0.029078004781258472,
+     "pernaSobreAltura": -0.005248541130068263
+    },
+    "piorPct": -0.12552009637822423,
+    "piorPctRazao": "larguraTorsoSobreAltura",
+    "zElenco": {
+     "cabecaSobreAltura": -1.5281388287593747,
+     "ombroSobreAltura": -0.643038459377032,
+     "cinturaSobreOmbro": -0.3664927006556885,
+     "larguraTorsoSobreAltura": -0.7672175789796203,
+     "bracoSobreAltura": -3.831151268981316,
+     "pernaSobreAltura": -0.30064918012126174
+    },
+    "desvioRef": {
+     "cabecaSobreAltura": 0.50791674487012,
+     "ombroSobreAltura": -0.26460191654757653,
+     "cinturaSobreOmbro": 0.40231658712552376,
+     "larguraTorsoSobreAltura": 0.09094098076760053,
+     "bracoSobreAltura": -0.38688705814879265,
+     "pernaSobreAltura": -0.29004015772120934
+    },
+    "elencoDegenerado": false,
+    "piorZ": -3.831151268981316,
+    "piorZRazao": "bracoSobreAltura",
+    "piorDesvioRef": 0.50791674487012,
+    "piorDesvioRefRazao": "cabecaSobreAltura",
+    "indiceBalao": 1.0909409807676005
+   },
+   "C2": {
+    "alturaM": 1.72,
+    "alturaBBox": 1.72,
+    "adereçoAcima": null
+   },
+   "C3": {
+    "porPose": {
+     "bind": 0,
+     "idle": 0.0049032120329217,
+     "walk": -0.02654986425933912,
+     "run": -0.03399281311110309,
+     "shoot": 0.007533423229415867,
+     "crouch": -0.010348201982437997
+    },
+    "afunda": -0.03399281311110309,
+    "flutua": 0.007533423229415867,
+    "piorDesvio": -0.03399281311110309
+   },
+   "C5": {
+    "materiais": 1,
+    "triangulos": 5034,
+    "map": 1,
+    "normalMap": 0,
+    "roughnessMap": 0,
+    "aoMap": 0,
+    "texturas": [
+     "base 512x512"
+    ],
+    "mapasDeSuperficie": 0
+   },
+   "C6": {
+    "piorIoU": 0.8189360663738409,
+    "contra": "metaleiro"
+   }
+  },
+  {
+   "id": "caminhoneiro",
+   "nome": "Caminhoneiro",
+   "time": "B",
+   "tribo": null,
+   "fonte": "glb",
+   "marcos": {
+    "alturaTotal": 1.7199999999999998,
+    "cabeca": 0.3960887434225284,
+    "ombroLargura": 0.4103505481435592,
+    "cinturaLargura": 0.48561733590113987,
+    "torsoLargura": 0.4716700822601691,
+    "torsoProfundidade": 0.38301022359847925,
+    "braco": 0.5060361952675402,
+    "perna": 0.5942346903036035,
+    "larguraMax": 1.7867570847040057
+   },
+   "marcosUsados": {
+    "cabeca": "Head",
+    "pescoco": "neck",
+    "quadril": "Hips",
+    "ombroE": "LeftArm",
+    "ombroD": "RightArm",
+    "maoE": "LeftHand",
+    "coxaE": "LeftUpLeg",
+    "peE": "LeftFoot"
+   },
+   "C7": {
+    "familia": "28n/26j",
+    "juntas": 26,
+    "nos": 28,
+    "clipesNoGLB": 1,
+    "impressaoEsqueleto": 509.66,
+    "curlDuplicado": 2,
+    "convencaoSkinPai": 0,
+    "convencaoSkinFilho": 18,
+    "ossosInvertidos": [],
+    "raioSkinP50": 0.114,
+    "raioSkinP95": 0.199,
+    "desalinhamentoRMS": 0.1438,
+    "piorJunta": "RightLeg",
+    "piorDesalinhamento": 0.257,
+    "antebraco": 0.245,
+    "dPalmaOsso": 0.125,
+    "alavancaPalma": 0.51,
+    "abducaoBraco": 85.2
+   },
+   "C1": {
+    "razoes": {
+     "cabecaSobreAltura": 0.23028415315263284,
+     "ombroSobreAltura": 0.2385759000834647,
+     "cinturaSobreOmbro": 1.18342070724187,
+     "larguraTorsoSobreAltura": 0.2742267920117263,
+     "bracoSobreAltura": 0.29420709027182573,
+     "pernaSobreAltura": 0.3454852850602347
+    },
+    "pctElenco": {
+     "cabecaSobreAltura": 0.034182132964436736,
+     "ombroSobreAltura": 0.22671932801113598,
+     "cinturaSobreOmbro": 0.09434575323866722,
+     "larguraTorsoSobreAltura": 0.2633079005626563,
+     "bracoSobreAltura": 0.05887407299088626,
+     "pernaSobreAltura": -0.08665577842745084
+    },
+    "piorPct": 0.2633079005626563,
+    "piorPctRazao": "larguraTorsoSobreAltura",
+    "zElenco": {
+     "cabecaSobreAltura": 0.4365529642305069,
+     "ombroSobreAltura": 7.062300324081335,
+     "cinturaSobreOmbro": 0.856004915606691,
+     "larguraTorsoSobreAltura": 1.609419175294181,
+     "bracoSobreAltura": 7.756910460187725,
+     "pernaSobreAltura": -4.963853400658016
+    },
+    "desvioRef": {
+     "cabecaSobreAltura": 0.7714165627125603,
+     "ombroSobreAltura": -0.07885752863527151,
+     "cinturaSobreOmbro": 0.5992171719484731,
+     "larguraTorsoSobreAltura": 0.576016046044404,
+     "bracoSobreAltura": -0.331347522109487,
+     "pernaSobreAltura": -0.3481409715844629
+    },
+    "elencoDegenerado": false,
+    "piorZ": 7.756910460187725,
+    "piorZRazao": "bracoSobreAltura",
+    "piorDesvioRef": 0.7714165627125603,
+    "piorDesvioRefRazao": "cabecaSobreAltura",
+    "indiceBalao": 1.576016046044404
+   },
+   "C2": {
+    "alturaM": 1.7199999999999998,
+    "alturaBBox": 1.7199999999999998,
+    "adereçoAcima": null
+   },
+   "C3": {
+    "porPose": {
+     "bind": 0,
+     "idle": 0.006467423800177343,
+     "walk": -0.04952212426955486,
+     "run": -0.07377220802012804,
+     "shoot": 0.012874327652775882,
+     "crouch": -0.01043658468695372
+    },
+    "afunda": -0.07377220802012804,
+    "flutua": 0.012874327652775882,
+    "piorDesvio": -0.07377220802012804
+   },
+   "C5": {
+    "materiais": 1,
+    "triangulos": 4916,
+    "map": 1,
+    "normalMap": 0,
+    "roughnessMap": 0,
+    "aoMap": 0,
+    "texturas": [
+     "base 512x512"
+    ],
+    "mapasDeSuperficie": 0
+   },
+   "C6": {
+    "piorIoU": 0.7881727881727881,
+    "contra": "adjim"
+   }
+  },
+  {
+   "id": "sertanejo",
+   "nome": "Cantor Sertanejo",
+   "time": "B",
+   "tribo": null,
+   "fonte": "glb",
+   "marcos": {
+    "alturaTotal": 1.72,
+    "cabeca": 0.46980536330677136,
+    "ombroLargura": 0.3437501714406146,
+    "cinturaLargura": 0.30750495347304785,
+    "torsoLargura": 0.32777997896037675,
+    "torsoProfundidade": 0.2872298580875331,
+    "braco": 0.5044277020320744,
+    "perna": 0.6201269236479547,
+    "larguraMax": 1.7028581424285916
+   },
+   "marcosUsados": {
+    "cabeca": "Head",
+    "pescoco": "neck",
+    "quadril": "Hips",
+    "ombroE": "LeftArm",
+    "ombroD": "RightArm",
+    "maoE": "LeftHand",
+    "coxaE": "LeftUpLeg",
+    "peE": "LeftFoot"
+   },
+   "C7": {
+    "familia": "28n/26j",
+    "juntas": 26,
+    "nos": 28,
+    "clipesNoGLB": 1,
+    "impressaoEsqueleto": 518.82,
+    "curlDuplicado": 2,
+    "convencaoSkinPai": 0,
+    "convencaoSkinFilho": 19,
+    "ossosInvertidos": [],
+    "raioSkinP50": 0.107,
+    "raioSkinP95": 0.183,
+    "desalinhamentoRMS": 0.113,
+    "piorJunta": "RightArm",
+    "piorDesalinhamento": 0.173,
+    "antebraco": 0.247,
+    "dPalmaOsso": 0.115,
+    "alavancaPalma": 0.47,
+    "abducaoBraco": 86.3
+   },
+   "C1": {
+    "razoes": {
+     "cabecaSobreAltura": 0.2731426530853322,
+     "ombroSobreAltura": 0.19985475083756662,
+     "cinturaSobreOmbro": 0.8945594184995821,
+     "larguraTorsoSobreAltura": 0.19056975520952138,
+     "bracoSobreAltura": 0.2932719197860898,
+     "pernaSobreAltura": 0.36053890909764813
+    },
+    "pctElenco": {
+     "cabecaSobreAltura": 0.22665518970437437,
+     "ombroSobreAltura": 0.027621337953760854,
+     "cinturaSobreOmbro": -0.1727732203230851,
+     "larguraTorsoSobreAltura": -0.12208331068473761,
+     "bracoSobreAltura": 0.05550832208305743,
+     "pernaSobreAltura": -0.046859176016728586
+    },
+    "piorPct": 0.22665518970437437,
+    "piorPctRazao": "cabecaSobreAltura",
+    "zElenco": {
+     "cabecaSobreAltura": 2.894699257843782,
+     "ombroSobreAltura": 0.8604038556996071,
+     "cinturaSobreOmbro": -1.5675822260661612,
+     "larguraTorsoSobreAltura": -0.7462108838342999,
+     "bracoSobreAltura": 7.313458409106337,
+     "pernaSobreAltura": -2.6842073828626183
+    },
+    "desvioRef": {
+     "cabecaSobreAltura": 1.1010973314256323,
+     "ombroSobreAltura": -0.22836003537619065,
+     "cinturaSobreOmbro": 0.20886407905348933,
+     "larguraTorsoSobreAltura": 0.09522847821564019,
+     "bracoSobreAltura": -0.33347290957706865,
+     "pernaSobreAltura": -0.31973790736292806
+    },
+    "elencoDegenerado": false,
+    "piorZ": 7.313458409106337,
+    "piorZRazao": "bracoSobreAltura",
+    "piorDesvioRef": 1.1010973314256323,
+    "piorDesvioRefRazao": "cabecaSobreAltura",
+    "indiceBalao": 1.0952284782156403
+   },
+   "C2": {
+    "alturaM": 1.72,
+    "alturaBBox": 1.72,
+    "adereçoAcima": null
+   },
+   "C3": {
+    "porPose": {
+     "bind": 0,
+     "idle": -0.0037391752211182808,
+     "walk": -0.03466051500462342,
+     "run": -0.04365882385860157,
+     "shoot": -0.001550281607549934,
+     "crouch": -0.041522813823779696
+    },
+    "afunda": -0.04365882385860157,
+    "flutua": 0,
+    "piorDesvio": -0.04365882385860157
+   },
+   "C5": {
+    "materiais": 1,
+    "triangulos": 4825,
+    "map": 1,
+    "normalMap": 0,
+    "roughnessMap": 0,
+    "aoMap": 0,
+    "texturas": [
+     "base 512x512"
+    ],
+    "mapasDeSuperficie": 0
+   },
+   "C6": {
+    "piorIoU": 0.7140471717804217,
+    "contra": "padati"
+   }
+  },
+  {
+   "id": "coach",
+   "nome": "Coach Quântico",
+   "time": "B",
+   "tribo": null,
+   "fonte": "glb",
+   "marcos": {
+    "alturaTotal": 1.72,
+    "cabeca": 0.3508274963861302,
+    "ombroLargura": 0.3230788860375022,
+    "cinturaLargura": 0.3240595578170434,
+    "torsoLargura": 0.3197651463503635,
+    "torsoProfundidade": 0.25343679810944847,
+    "braco": 0.5030693203687451,
+    "perna": 0.7212549331044786,
+    "larguraMax": 1.1046149882251297
+   },
+   "marcosUsados": {
+    "cabeca": "Head",
+    "pescoco": "neck",
+    "quadril": "Hips",
+    "ombroE": "LeftArm",
+    "ombroD": "RightArm",
+    "maoE": "LeftHand",
+    "coxaE": "LeftUpLeg",
+    "peE": "LeftFoot"
+   },
+   "C7": {
+    "familia": "28n/26j",
+    "juntas": 26,
+    "nos": 28,
+    "clipesNoGLB": 1,
+    "impressaoEsqueleto": 537.78,
+    "curlDuplicado": 2,
+    "convencaoSkinPai": 0,
+    "convencaoSkinFilho": 19,
+    "ossosInvertidos": [],
+    "raioSkinP50": 0.08,
+    "raioSkinP95": 0.161,
+    "desalinhamentoRMS": 0.1208,
+    "piorJunta": "LeftLeg",
+    "piorDesalinhamento": 0.233,
+    "antebraco": 0.255,
+    "dPalmaOsso": 0.107,
+    "alavancaPalma": 0.42,
+    "abducaoBraco": 36
+   },
+   "C1": {
+    "razoes": {
+     "cabecaSobreAltura": 0.20396947464309895,
+     "ombroSobreAltura": 0.18783656164971058,
+     "cinturaSobreOmbro": 1.0030353942084205,
+     "larguraTorsoSobreAltura": 0.1859099688083509,
+     "bracoSobreAltura": 0.29248216300508434,
+     "pernaSobreAltura": 0.4193342634328364
+    },
+    "pctElenco": {
+     "cabecaSobreAltura": -0.08399434586268247,
+     "ombroSobreAltura": -0.03417427911937906,
+     "cinturaSobreOmbro": -0.07246212840205632,
+     "larguraTorsoSobreAltura": -0.1435500132353818,
+     "bracoSobreAltura": 0.05266592634540616,
+     "pernaSobreAltura": 0.10857551095696465
+    },
+    "piorPct": -0.1435500132353818,
+    "piorPctRazao": "larguraTorsoSobreAltura",
+    "zElenco": {
+     "cabecaSobreAltura": -1.0727235981179406,
+     "ombroSobreAltura": -1.064527778100075,
+     "cinturaSobreOmbro": -0.6574534197694183,
+     "larguraTorsoSobreAltura": -0.8774219969133854,
+     "bracoSobreAltura": 6.938960635989923,
+     "pernaSobreAltura": 6.219468904120777
+    },
+    "desvioRef": {
+     "cabecaSobreAltura": 0.5689959587930687,
+     "ombroSobreAltura": -0.2747623102327777,
+     "cinturaSobreOmbro": 0.3554532354167844,
+     "larguraTorsoSobreAltura": 0.06844809659971786,
+     "bracoSobreAltura": -0.33526781135208106,
+     "pernaSobreAltura": -0.20880327654181813
+    },
+    "elencoDegenerado": false,
+    "piorZ": 6.938960635989923,
+    "piorZRazao": "bracoSobreAltura",
+    "piorDesvioRef": 0.5689959587930687,
+    "piorDesvioRefRazao": "cabecaSobreAltura",
+    "indiceBalao": 1.0684480965997178
+   },
+   "C2": {
+    "alturaM": 1.72,
+    "alturaBBox": 1.72,
+    "adereçoAcima": null
+   },
+   "C3": {
+    "porPose": {
+     "bind": 0,
+     "idle": 0.005992979906364486,
+     "walk": -0.02762812684011293,
+     "run": -0.028237174735678463,
+     "shoot": 0.007298539870049555,
+     "crouch": 0.001919816683962794
+    },
+    "afunda": -0.028237174735678463,
+    "flutua": 0.007298539870049555,
+    "piorDesvio": -0.028237174735678463
+   },
+   "C5": {
+    "materiais": 1,
+    "triangulos": 4999,
+    "map": 1,
+    "normalMap": 0,
+    "roughnessMap": 0,
+    "aoMap": 0,
+    "texturas": [
+     "base 512x512"
+    ],
+    "mapasDeSuperficie": 0
+   },
+   "C6": {
+    "piorIoU": 0.6595441595441596,
+    "contra": "raul"
+   }
+  },
+  {
+   "id": "gotinha",
+   "nome": "Zé da Gotinha",
+   "time": "P",
+   "tribo": null,
+   "fonte": "glb",
+   "marcos": {
+    "alturaTotal": 1.72,
+    "cabeca": 0.7792157706762168,
+    "ombroLargura": 0.2906618837322987,
+    "cinturaLargura": 0.4476712174732816,
+    "torsoLargura": 0.430058321887553,
+    "torsoProfundidade": 0.410866407748517,
+    "braco": 0.42589044134876913,
+    "perna": 0.4333527080242968,
+    "larguraMax": 1.5356871110744197
+   },
+   "marcosUsados": {
+    "cabeca": "Head",
+    "pescoco": "neck",
+    "quadril": "Hips",
+    "ombroE": "LeftArm",
+    "ombroD": "RightArm",
+    "maoE": "LeftHand",
+    "coxaE": "LeftUpLeg",
+    "peE": "LeftFoot"
+   },
+   "C7": {
+    "familia": "28n/26j",
+    "juntas": 26,
+    "nos": 28,
+    "clipesNoGLB": 1,
+    "impressaoEsqueleto": 472.15,
+    "curlDuplicado": 2,
+    "convencaoSkinPai": 0,
+    "convencaoSkinFilho": 17,
+    "ossosInvertidos": [],
+    "raioSkinP50": 0.133,
+    "raioSkinP95": 0.283,
+    "desalinhamentoRMS": 0.1218,
+    "piorJunta": "Head",
+    "piorDesalinhamento": 0.258,
+    "antebraco": 0.201,
+    "dPalmaOsso": 0.106,
+    "alavancaPalma": 0.53,
+    "abducaoBraco": 86.3
+   },
+   "C1": {
+    "razoes": {
+     "cabecaSobreAltura": 0.453032424811754,
+     "ombroSobreAltura": 0.16898946728622016,
+     "cinturaSobreOmbro": 1.5401786148389152,
+     "larguraTorsoSobreAltura": 0.2500339080741587,
+     "bracoSobreAltura": 0.24761072171440066,
+     "pernaSobreAltura": 0.25194924885133535
+    },
+    "pctElenco": {
+     "cabecaSobreAltura": 1.034521407486236,
+     "ombroSobreAltura": -0.13108304033312684,
+     "cinturaSobreOmbro": 0.4242508315628924,
+     "larguraTorsoSobreAltura": 0.15185613032710032,
+     "bracoSobreAltura": -0.10882986138880157,
+     "pernaSobreAltura": -0.33393287494779694
+    },
+    "piorPct": 1.034521407486236,
+    "piorPctRazao": "cabecaSobreAltura",
+    "zElenco": {
+     "cabecaSobreAltura": 13.212264649134207,
+     "ombroSobreAltura": -4.083232807485816,
+     "cinturaSobreOmbro": 3.8492543098296266,
+     "larguraTorsoSobreAltura": 0.9281915487995411,
+     "bracoSobreAltura": -14.338798851546336,
+     "pernaSobreAltura": -19.12848591267212
+    },
+    "desvioRef": {
+     "cabecaSobreAltura": 2.4848648062442615,
+     "ombroSobreAltura": -0.3475310143389183,
+     "cinturaSobreOmbro": 1.0813224524850205,
+     "larguraTorsoSobreAltura": 0.43697648318482024,
+     "bracoSobreAltura": -0.43724835973999854,
+     "pernaSobreAltura": -0.5246240587710654
+    },
+    "elencoDegenerado": false,
+    "piorZ": -19.12848591267212,
+    "piorZRazao": "pernaSobreAltura",
+    "piorDesvioRef": 2.4848648062442615,
+    "piorDesvioRefRazao": "cabecaSobreAltura",
+    "indiceBalao": 1.4369764831848202
+   },
+   "C2": {
+    "alturaM": 1.72,
+    "alturaBBox": 1.72,
+    "adereçoAcima": null
+   },
+   "C3": {
+    "porPose": {
+     "bind": 0,
+     "idle": -0.005136033477871332,
+     "walk": -0.0378075668717366,
+     "run": -0.047006712764590945,
+     "shoot": 0.00016528334655447886,
+     "crouch": -0.05157070312055962
+    },
+    "afunda": -0.05157070312055962,
+    "flutua": 0.00016528334655447886,
+    "piorDesvio": -0.05157070312055962
+   },
+   "C5": {
+    "materiais": 1,
+    "triangulos": 4866,
+    "map": 1,
+    "normalMap": 0,
+    "roughnessMap": 0,
+    "aoMap": 0,
+    "texturas": [
+     "base 512x512"
+    ],
+    "mapasDeSuperficie": 0
+   },
+   "C6": {
+    "piorIoU": 0.6522026431718062,
+    "contra": "proerd"
+   }
+  },
+  {
+   "id": "farialimer",
+   "nome": "Faria Limer",
+   "time": "B",
+   "tribo": null,
+   "fonte": "glb",
+   "marcos": {
+    "alturaTotal": 1.72,
+    "cabeca": 0.294601928706105,
+    "ombroLargura": 0.35766275310692536,
+    "cinturaLargura": 0.3803521233492866,
+    "torsoLargura": 0.3736203161961328,
+    "torsoProfundidade": 0.3014231864150937,
+    "braco": 0.4798096450477973,
+    "perna": 0.7008400389992542,
+    "larguraMax": 1.679779790224757
+   },
+   "marcosUsados": {
+    "cabeca": "Head",
+    "pescoco": "neck",
+    "quadril": "Hips",
+    "ombroE": "LeftArm",
+    "ombroD": "RightArm",
+    "maoE": "LeftHand",
+    "coxaE": "LeftUpLeg",
+    "peE": "LeftFoot"
+   },
+   "C7": {
+    "familia": "28n/26j",
+    "juntas": 26,
+    "nos": 28,
+    "clipesNoGLB": 1,
+    "impressaoEsqueleto": 541.82,
+    "curlDuplicado": 2,
+    "convencaoSkinPai": 0,
+    "convencaoSkinFilho": 19,
+    "ossosInvertidos": [],
+    "raioSkinP50": 0.078,
+    "raioSkinP95": 0.165,
+    "desalinhamentoRMS": 0.1194,
+    "piorJunta": "LeftLeg",
+    "piorDesalinhamento": 0.228,
+    "antebraco": 0.228,
+    "dPalmaOsso": 0.107,
+    "alavancaPalma": 0.47,
+    "abducaoBraco": 85.4
+   },
+   "C1": {
+    "razoes": {
+     "cabecaSobreAltura": 0.17128019110820059,
+     "ombroSobreAltura": 0.20794346110867754,
+     "cinturaSobreOmbro": 1.063437889590863,
+     "larguraTorsoSobreAltura": 0.21722111406751907,
+     "bracoSobreAltura": 0.27895909595802165,
+     "pernaSobreAltura": 0.40746513895305475
+    },
+    "pctElenco": {
+     "cabecaSobreAltura": -0.23079851153531253,
+     "ombroSobreAltura": 0.06921219949837865,
+     "cinturaSobreOmbro": -0.01660607154730314,
+     "larguraTorsoSobreAltura": 0.0006941610533239523,
+     "bracoSobreAltura": 0.003995362117255869,
+     "pernaSobreAltura": 0.0771976296765974
+    },
+    "piorPct": -0.23079851153531253,
+    "piorPctRazao": "cabecaSobreAltura",
+    "zElenco": {
+     "cabecaSobreAltura": -2.947615189946056,
+     "ombroSobreAltura": 2.1559579557494666,
+     "cinturaSobreOmbro": -0.15066792500398404,
+     "larguraTorsoSobreAltura": 0.004242926655731431,
+     "bracoSobreAltura": 0.526406015842956,
+     "pernaSobreAltura": 4.422067674502902
+    },
+    "desvioRef": {
+     "cabecaSobreAltura": 0.3175399316015429,
+     "ombroSobreAltura": -0.19712949378888986,
+     "cinturaSobreOmbro": 0.4370782291768418,
+     "larguraTorsoSobreAltura": 0.24839720728459241,
+     "bracoSobreAltura": -0.3660020546408599,
+     "pernaSobreAltura": -0.2311978510319722
+    },
+    "elencoDegenerado": false,
+    "piorZ": 4.422067674502902,
+    "piorZRazao": "pernaSobreAltura",
+    "piorDesvioRef": 0.4370782291768418,
+    "piorDesvioRefRazao": "cinturaSobreOmbro",
+    "indiceBalao": 1.2483972072845924
+   },
+   "C2": {
+    "alturaM": 1.72,
+    "alturaBBox": 1.72,
+    "adereçoAcima": null
+   },
+   "C3": {
+    "porPose": {
+     "bind": 0,
+     "idle": 0.007287734568377686,
+     "walk": 0.02824870146618769,
+     "run": 0.020814649251806813,
+     "shoot": 0.008518481454202162,
+     "crouch": -0.00036417036851618033
+    },
+    "afunda": -0.00036417036851618033,
+    "flutua": 0.02824870146618769,
+    "piorDesvio": 0.02824870146618769
+   },
+   "C5": {
+    "materiais": 1,
+    "triangulos": 4831,
+    "map": 1,
+    "normalMap": 0,
+    "roughnessMap": 0,
+    "aoMap": 0,
+    "texturas": [
+     "base 512x512"
+    ],
+    "mapasDeSuperficie": 0
+   },
+   "C6": {
+    "piorIoU": 0.8437255821222066,
+    "contra": "pagodeiro"
+   }
+  },
+  {
+   "id": "bombado",
+   "nome": "Bombado da Academia",
+   "time": "B",
+   "tribo": null,
+   "fonte": "glb",
+   "marcos": {
+    "alturaTotal": 1.72,
+    "cabeca": 0.25568351280353663,
+    "ombroLargura": 0.4333559942760607,
+    "cinturaLargura": 0.3053481562219921,
+    "torsoLargura": 0.44449433285581197,
+    "torsoProfundidade": 0.39794655339216334,
+    "braco": 0.5762186116952641,
+    "perna": 0.7013836980811871,
+    "larguraMax": 1.949935747163196
+   },
+   "marcosUsados": {
+    "cabeca": "Head",
+    "pescoco": "neck",
+    "quadril": "Hips",
+    "ombroE": "LeftArm",
+    "ombroD": "RightArm",
+    "maoE": "LeftHand",
+    "coxaE": "LeftUpLeg",
+    "peE": "LeftFoot"
+   },
+   "C7": {
+    "familia": "28n/26j",
+    "juntas": 26,
+    "nos": 28,
+    "clipesNoGLB": 1,
+    "impressaoEsqueleto": 489.35,
+    "curlDuplicado": 2,
+    "convencaoSkinPai": 0,
+    "convencaoSkinFilho": 19,
+    "ossosInvertidos": [],
+    "raioSkinP50": 0.083,
+    "raioSkinP95": 0.17,
+    "desalinhamentoRMS": 0.1225,
+    "piorJunta": "LeftArm",
+    "piorDesalinhamento": 0.188,
+    "antebraco": 0.278,
+    "dPalmaOsso": 0.114,
+    "alavancaPalma": 0.41,
+    "abducaoBraco": 82.7
+   },
+   "C1": {
+    "razoes": {
+     "cabecaSobreAltura": 0.14865320511833524,
+     "ombroSobreAltura": 0.251951159462826,
+     "cinturaSobreOmbro": 0.7046127439222086,
+     "larguraTorsoSobreAltura": 0.2584269377068674,
+     "bracoSobreAltura": 0.33501082075306055,
+     "pernaSobreAltura": 0.40778121981464366
+    },
+    "pctElenco": {
+     "cabecaSobreAltura": -0.3324139475659695,
+     "ombroSobreAltura": 0.29549278414012714,
+     "cinturaSobreOmbro": -0.348422788894536,
+     "larguraTorsoSobreAltura": 0.1905211366413047,
+     "bracoSobreAltura": 0.20572985490956233,
+     "pernaSobreAltura": 0.07803323871977726
+    },
+    "piorPct": -0.348422788894536,
+    "piorPctRazao": "cinturaSobreOmbro",
+    "zElenco": {
+     "cabecaSobreAltura": -4.245384403380211,
+     "ombroSobreAltura": 9.204591436924218,
+     "cinturaSobreOmbro": -3.1612617395573244,
+     "larguraTorsoSobreAltura": 1.164524003853025,
+     "bracoSobreAltura": 27.105786680801273,
+     "pernaSobreAltura": 4.469933389471714
+    },
+    "desvioRef": {
+     "cabecaSobreAltura": 0.14348619321796335,
+     "ombroSobreAltura": -0.02721560052962945,
+     "cinturaSobreOmbro": -0.04782061632133968,
+     "larguraTorsoSobreAltura": 0.4852122856716519,
+     "bracoSobreAltura": -0.2386117710157715,
+     "pernaSobreAltura": -0.2306014720478422
+    },
+    "elencoDegenerado": false,
+    "piorZ": 27.105786680801273,
+    "piorZRazao": "bracoSobreAltura",
+    "piorDesvioRef": 0.4852122856716519,
+    "piorDesvioRefRazao": "larguraTorsoSobreAltura",
+    "indiceBalao": 1.4852122856716519
+   },
+   "C2": {
+    "alturaM": 1.72,
+    "alturaBBox": 1.72,
+    "adereçoAcima": null
+   },
+   "C3": {
+    "porPose": {
+     "bind": 0,
+     "idle": -0.006324473660224632,
+     "walk": -0.04294067292751666,
+     "run": -0.02966266695798289,
+     "shoot": -0.0072760936940534544,
+     "crouch": -0.049294241692285884
+    },
+    "afunda": -0.049294241692285884,
+    "flutua": 0,
+    "piorDesvio": -0.049294241692285884
+   },
+   "C5": {
+    "materiais": 1,
+    "triangulos": 4760,
+    "map": 1,
+    "normalMap": 0,
+    "roughnessMap": 0,
+    "aoMap": 0,
+    "texturas": [
+     "base 512x512"
+    ],
+    "mapasDeSuperficie": 0
+   },
+   "C6": {
+    "piorIoU": 0.7385542168674699,
+    "contra": "farialimer"
+   }
+  },
+  {
+   "id": "hipster",
+   "nome": "Hipster Alternativo",
+   "time": "P",
+   "tribo": null,
+   "fonte": "glb",
+   "marcos": {
+    "alturaTotal": 1.72,
+    "cabeca": 0.39903211999618327,
+    "ombroLargura": 0.28696490347894404,
+    "cinturaLargura": 0.27264186586441447,
+    "torsoLargura": 0.2793738160436895,
+    "torsoProfundidade": 0.1983670613023024,
+    "braco": 0.4779844837690429,
+    "perna": 0.6723211280500002,
+    "larguraMax": 1.539772294322372
+   },
+   "marcosUsados": {
+    "cabeca": "Head",
+    "pescoco": "neck",
+    "quadril": "Hips",
+    "ombroE": "LeftArm",
+    "ombroD": "RightArm",
+    "maoE": "LeftHand",
+    "coxaE": "LeftUpLeg",
+    "peE": "LeftFoot"
+   },
+   "C7": {
+    "familia": "28n/26j",
+    "juntas": 26,
+    "nos": 28,
+    "clipesNoGLB": 1,
+    "impressaoEsqueleto": 517.13,
+    "curlDuplicado": 2,
+    "convencaoSkinPai": 0,
+    "convencaoSkinFilho": 19,
+    "ossosInvertidos": [],
+    "raioSkinP50": 0.068,
+    "raioSkinP95": 0.139,
+    "desalinhamentoRMS": 0.1101,
+    "piorJunta": "RightLeg",
+    "piorDesalinhamento": 0.201,
+    "antebraco": 0.242,
+    "dPalmaOsso": 0.094,
+    "alavancaPalma": 0.39,
+    "abducaoBraco": 87
+   },
+   "C1": {
+    "razoes": {
+     "cabecaSobreAltura": 0.23199541860243214,
+     "ombroSobreAltura": 0.16684006016217678,
+     "cinturaSobreOmbro": 0.9500878419594593,
+     "larguraTorsoSobreAltura": 0.1624266372347032,
+     "bracoSobreAltura": 0.2778979556796761,
+     "pernaSobreAltura": 0.39088437677325594
+    },
+    "pctElenco": {
+     "cabecaSobreAltura": 0.04186724776158382,
+     "ombroSobreAltura": -0.14213494985922062,
+     "cinturaSobreOmbro": -0.12142436862098688,
+     "larguraTorsoSobreAltura": -0.25173301786044794,
+     "bracoSobreAltura": 0.00017623618283914004,
+     "pernaSobreAltura": 0.03336379946426986
+    },
+    "piorPct": -0.25173301786044794,
+    "piorPctRazao": "larguraTorsoSobreAltura",
+    "zElenco": {
+     "cabecaSobreAltura": 0.5347024755157391,
+     "ombroSobreAltura": -4.427499460499254,
+     "cinturaSobreOmbro": -1.1016908853445275,
+     "larguraTorsoSobreAltura": -1.5386699188802735,
+     "bracoSobreAltura": 0.02321986947191681,
+     "pernaSobreAltura": 1.9111594452785516
+    },
+    "desvioRef": {
+     "cabecaSobreAltura": 0.7845801430956318,
+     "ombroSobreAltura": -0.35582988354371897,
+     "cinturaSobreOmbro": 0.28390248913440447,
+     "larguraTorsoSobreAltura": -0.06651357911090117,
+     "bracoSobreAltura": -0.36841373709164515,
+     "pernaSobreAltura": -0.26248230797498884
+    },
+    "elencoDegenerado": false,
+    "piorZ": -4.427499460499254,
+    "piorZRazao": "ombroSobreAltura",
+    "piorDesvioRef": 0.7845801430956318,
+    "piorDesvioRefRazao": "cabecaSobreAltura",
+    "indiceBalao": 0.9334864208890988
+   },
+   "C2": {
+    "alturaM": 1.72,
+    "alturaBBox": 1.72,
+    "adereçoAcima": null
+   },
+   "C3": {
+    "porPose": {
+     "bind": 0,
+     "idle": -0.0003795606337237875,
+     "walk": -0.021278426195022612,
+     "run": -0.021517914559841908,
+     "shoot": 0.0013730280516338024,
+     "crouch": -0.03781412902051248
+    },
+    "afunda": -0.03781412902051248,
+    "flutua": 0.0013730280516338024,
+    "piorDesvio": -0.03781412902051248
+   },
+   "C5": {
+    "materiais": 1,
+    "triangulos": 4881,
+    "map": 1,
+    "normalMap": 0,
+    "roughnessMap": 0,
+    "aoMap": 0,
+    "texturas": [
+     "base 512x512"
+    ],
+    "mapasDeSuperficie": 0
+   },
+   "C6": {
+    "piorIoU": 0.7165912222003543,
+    "contra": "esquerdomacho"
+   }
+  },
+  {
+   "id": "dollynho",
+   "nome": "Dollynho",
+   "time": "B",
+   "tribo": null,
+   "fonte": "glb",
+   "marcos": {
+    "alturaTotal": 1.72,
+    "cabeca": 0.3380259942616226,
+    "ombroLargura": 0.24599789967054497,
+    "cinturaLargura": 0.3404029800408311,
+    "torsoLargura": 0.3731019706669434,
+    "torsoProfundidade": 0.3992191658999784,
+    "braco": 0.5381307713844513,
+    "perna": 0.7038533293046698,
+    "larguraMax": 1.884039877145048
+   },
+   "marcosUsados": {
+    "cabeca": "Head",
+    "pescoco": "neck",
+    "quadril": "Hips",
+    "ombroE": "LeftArm",
+    "ombroD": "RightArm",
+    "maoE": "LeftHand",
+    "coxaE": "LeftUpLeg",
+    "peE": "LeftFoot"
+   },
+   "C7": {
+    "familia": "28n/26j",
+    "juntas": 26,
+    "nos": 28,
+    "clipesNoGLB": 1,
+    "impressaoEsqueleto": 489.87,
+    "curlDuplicado": 2,
+    "convencaoSkinPai": 0,
+    "convencaoSkinFilho": 16,
+    "ossosInvertidos": [],
+    "raioSkinP50": 0.099,
+    "raioSkinP95": 0.277,
+    "desalinhamentoRMS": 0.1593,
+    "piorJunta": "RightLeg",
+    "piorDesalinhamento": 0.335,
+    "antebraco": 0.306,
+    "dPalmaOsso": 0.158,
+    "alavancaPalma": 0.52,
+    "abducaoBraco": 66.9
+   },
+   "C1": {
+    "razoes": {
+     "cabecaSobreAltura": 0.19652674084978058,
+     "ombroSobreAltura": 0.1430220346921773,
+     "cinturaSobreOmbro": 1.3837637658562085,
+     "larguraTorsoSobreAltura": 0.2169197503877578,
+     "bracoSobreAltura": 0.3128667275490996,
+     "pernaSobreAltura": 0.4092170519213197
+    },
+    "pctElenco": {
+     "cabecaSobreAltura": -0.11741888769105045,
+     "ombroSobreAltura": -0.2646034480976767,
+     "cinturaSobreOmbro": 0.2796091798829645,
+     "larguraTorsoSobreAltura": -0.0006941610533240802,
+     "bracoSobreAltura": 0.126031550759571,
+     "pernaSobreAltura": 0.08182908477890029
+    },
+    "piorPct": 0.2796091798829645,
+    "piorPctRazao": "cinturaSobreOmbro",
+    "zElenco": {
+     "cabecaSobreAltura": -1.4996010790639591,
+     "ombroSobreAltura": -8.2423895379642,
+     "cinturaSobreOmbro": 2.536911564244927,
+     "larguraTorsoSobreAltura": -0.004242926655732213,
+     "bracoSobreAltura": 16.60519486314344,
+     "pernaSobreAltura": 4.687368668582696
+    },
+    "desvioRef": {
+     "cabecaSobreAltura": 0.5117441603829275,
+     "ombroSobreAltura": -0.4477913718448753,
+     "cinturaSobreOmbro": 0.8699510349408224,
+     "larguraTorsoSobreAltura": 0.24666523211355063,
+     "bracoSobreAltura": -0.28893925557022815,
+     "pernaSobreAltura": -0.2278923548654346
+    },
+    "elencoDegenerado": false,
+    "piorZ": 16.60519486314344,
+    "piorZRazao": "bracoSobreAltura",
+    "piorDesvioRef": 0.8699510349408224,
+    "piorDesvioRefRazao": "cinturaSobreOmbro",
+    "indiceBalao": 1.2466652321135505
+   },
+   "C2": {
+    "alturaM": 1.72,
+    "alturaBBox": 1.72,
+    "adereçoAcima": null
+   },
+   "C3": {
+    "porPose": {
+     "bind": 0,
+     "idle": -0.011326628554392365,
+     "walk": -0.052792471844557855,
+     "run": -0.0308911576014779,
+     "shoot": -0.00262106828465502,
+     "crouch": -0.12046816716703998
+    },
+    "afunda": -0.12046816716703998,
+    "flutua": 0,
+    "piorDesvio": -0.12046816716703998
+   },
+   "C5": {
+    "materiais": 1,
+    "triangulos": 4547,
+    "map": 1,
+    "normalMap": 0,
+    "roughnessMap": 0,
+    "aoMap": 0,
+    "texturas": [
+     "base 512x512"
+    ],
+    "mapasDeSuperficie": 0
+   },
+   "C6": {
+    "piorIoU": 0.6848998459167951,
+    "contra": "padati"
+   }
+  },
+  {
+   "id": "et",
+   "nome": "ET de Varginha",
+   "time": "P",
+   "tribo": null,
+   "fonte": "glb",
+   "marcos": {
+    "alturaTotal": 1.7200000000000002,
+    "cabeca": 0.6174220329159157,
+    "ombroLargura": 0.21368502189161637,
+    "cinturaLargura": 0.24382102084873997,
+    "torsoLargura": 0.2376964851951343,
+    "torsoProfundidade": 0.188669564175831,
+    "braco": 0.5257731636647448,
+    "perna": 0.639989078379513,
+    "larguraMax": 1.6217881877632472
+   },
+   "marcosUsados": {
+    "cabeca": "Head",
+    "pescoco": "neck",
+    "quadril": "Hips",
+    "ombroE": "LeftArm",
+    "ombroD": "RightArm",
+    "maoE": "LeftHand",
+    "coxaE": "LeftUpLeg",
+    "peE": "LeftFoot"
+   },
+   "C7": {
+    "familia": "28n/26j",
+    "juntas": 26,
+    "nos": 28,
+    "clipesNoGLB": 1,
+    "impressaoEsqueleto": 518.14,
+    "curlDuplicado": 2,
+    "convencaoSkinPai": 0,
+    "convencaoSkinFilho": 17,
+    "ossosInvertidos": [],
+    "raioSkinP50": 0.121,
+    "raioSkinP95": 0.214,
+    "desalinhamentoRMS": 0.1326,
+    "piorJunta": "Head",
+    "piorDesalinhamento": 0.316,
+    "antebraco": 0.234,
+    "dPalmaOsso": 0.113,
+    "alavancaPalma": 0.48,
+    "abducaoBraco": 87.6
+   },
+   "C1": {
+    "razoes": {
+     "cabecaSobreAltura": 0.35896629820692766,
+     "ombroSobreAltura": 0.124235477843963,
+     "cinturaSobreOmbro": 1.1410300014963564,
+     "larguraTorsoSobreAltura": 0.13819563092740364,
+     "bracoSobreAltura": 0.3056820718981074,
+     "pernaSobreAltura": 0.372086673476461
+    },
+    "pctElenco": {
+     "cabecaSobreAltura": 0.6120802359158952,
+     "ombroSobreAltura": -0.3612009350375646,
+     "cinturaSobreOmbro": 0.05514575570143329,
+     "larguraTorsoSobreAltura": -0.3633604102170857,
+     "bracoSobreAltura": 0.10017341938287923,
+     "pernaSobreAltura": -0.016330860272018348
+    },
+    "piorPct": 0.6120802359158952,
+    "piorPctRazao": "cabecaSobreAltura",
+    "zElenco": {
+     "cabecaSobreAltura": 7.817108476349149,
+     "ombroSobreAltura": -11.251398382977644,
+     "cinturaSobreOmbro": 0.5003408880085746,
+     "larguraTorsoSobreAltura": -2.2209710019961197,
+     "bracoSobreAltura": 13.198275661412339,
+     "pernaSobreAltura": -0.9354713299909576
+    },
+    "desvioRef": {
+     "cabecaSobreAltura": 1.7612792169763665,
+     "ombroSobreAltura": -0.5203263403707993,
+     "cinturaSobreOmbro": 0.5419324344545356,
+     "larguraTorsoSobreAltura": -0.2057722360494043,
+     "bracoSobreAltura": -0.30526801841339224,
+     "pernaSobreAltura": -0.29794967268592265
+    },
+    "elencoDegenerado": false,
+    "piorZ": 13.198275661412339,
+    "piorZRazao": "bracoSobreAltura",
+    "piorDesvioRef": 1.7612792169763665,
+    "piorDesvioRefRazao": "cabecaSobreAltura",
+    "indiceBalao": 0.7942277639505957
+   },
+   "C2": {
+    "alturaM": 1.7200000000000002,
+    "alturaBBox": 1.7200000000000002,
+    "adereçoAcima": null
+   },
+   "C3": {
+    "porPose": {
+     "bind": 0,
+     "idle": 0.012901918419898368,
+     "walk": 0.03616703492433275,
+     "run": 0.043328054009019484,
+     "shoot": 0.0069287074071826965,
+     "crouch": -0.007480601513867178
+    },
+    "afunda": -0.007480601513867178,
+    "flutua": 0.043328054009019484,
+    "piorDesvio": 0.043328054009019484
+   },
+   "C5": {
+    "materiais": 1,
+    "triangulos": 4849,
+    "map": 1,
+    "normalMap": 0,
+    "roughnessMap": 0,
+    "aoMap": 0,
+    "texturas": [
+     "base 512x512"
+    ],
+    "mapasDeSuperficie": 0
+   },
+   "C6": {
+    "piorIoU": 0.662374151252634,
+    "contra": "sertanejo"
+   }
+  },
+  {
+   "id": "ancap",
+   "nome": "Ancap Medieval",
+   "time": "B",
+   "tribo": null,
+   "fonte": "glb",
+   "marcos": {
+    "alturaTotal": 1.72,
+    "cabeca": 0.308422493926793,
+    "ombroLargura": 0.406837725516207,
+    "cinturaLargura": 0.6467971905059628,
+    "torsoLargura": 0.5765763461052886,
+    "torsoProfundidade": 0.4413669535318958,
+    "braco": 0.4864999964084024,
+    "perna": 0.6472839843487795,
+    "larguraMax": 1.7843912999691378
+   },
+   "marcosUsados": {
+    "cabeca": "Head",
+    "pescoco": "neck",
+    "quadril": "Hips",
+    "ombroE": "LeftArm",
+    "ombroD": "RightArm",
+    "maoE": "LeftHand",
+    "coxaE": "LeftUpLeg",
+    "peE": "LeftFoot"
+   },
+   "C7": {
+    "familia": "28n/26j",
+    "juntas": 26,
+    "nos": 28,
+    "clipesNoGLB": 1,
+    "impressaoEsqueleto": 557.98,
+    "curlDuplicado": 2,
+    "convencaoSkinPai": 0,
+    "convencaoSkinFilho": 18,
+    "ossosInvertidos": [],
+    "raioSkinP50": 0.095,
+    "raioSkinP95": 0.197,
+    "desalinhamentoRMS": 0.1381,
+    "piorJunta": "LeftUpLeg",
+    "piorDesalinhamento": 0.252,
+    "antebraco": 0.238,
+    "dPalmaOsso": 0.114,
+    "alavancaPalma": 0.48,
+    "abducaoBraco": 87.1
+   },
+   "C1": {
+    "razoes": {
+     "cabecaSobreAltura": 0.17931540344580987,
+     "ombroSobreAltura": 0.23653356134663198,
+     "cinturaSobreOmbro": 1.5898161599573604,
+     "larguraTorsoSobreAltura": 0.33521880587516784,
+     "bracoSobreAltura": 0.2828488351211642,
+     "pernaSobreAltura": 0.3763278978771974
+    },
+    "pctElenco": {
+     "cabecaSobreAltura": -0.1947132103091221,
+     "ombroSobreAltura": 0.21621794710073372,
+     "cinturaSobreOmbro": 0.47015220574804184,
+     "larguraTorsoSobreAltura": 0.5442858911508915,
+     "bracoSobreAltura": 0.017994834212722723,
+     "pernaSobreAltura": -0.005118522246884527
+    },
+    "piorPct": 0.5442858911508915,
+    "piorPctRazao": "larguraTorsoSobreAltura",
+    "zElenco": {
+     "cabecaSobreAltura": -2.4867561431500635,
+     "ombroSobreAltura": 6.735182621071943,
+     "cinturaSobreOmbro": 4.265720346580567,
+     "larguraTorsoSobreAltura": 3.3268433958436376,
+     "bracoSobreAltura": 2.3708962305974746,
+     "pernaSobreAltura": -0.2932013827884886
+    },
+    "desvioRef": {
+     "cabecaSobreAltura": 0.37934925727546054,
+     "ombroSobreAltura": -0.08674300638366035,
+     "cinturaSobreOmbro": 1.148400216158595,
+     "larguraTorsoSobreAltura": 0.9265448613515395,
+     "bracoSobreAltura": -0.3571617383609904,
+     "pernaSobreAltura": -0.289947362495854
+    },
+    "elencoDegenerado": false,
+    "piorZ": 6.735182621071943,
+    "piorZRazao": "ombroSobreAltura",
+    "piorDesvioRef": 1.148400216158595,
+    "piorDesvioRefRazao": "cinturaSobreOmbro",
+    "indiceBalao": 1.9265448613515395
+   },
+   "C2": {
+    "alturaM": 1.72,
+    "alturaBBox": 1.72,
+    "adereçoAcima": null
+   },
+   "C3": {
+    "porPose": {
+     "bind": 0,
+     "idle": -0.05290919062935518,
+     "walk": -0.1308153452794951,
+     "run": -0.10861942512015449,
+     "shoot": -0.057506238536183564,
+     "crouch": -0.14029440641313207
+    },
+    "afunda": -0.14029440641313207,
+    "flutua": 0,
+    "piorDesvio": -0.14029440641313207
+   },
+   "C5": {
+    "materiais": 1,
+    "triangulos": 4894,
+    "map": 1,
+    "normalMap": 0,
+    "roughnessMap": 0,
+    "aoMap": 0,
+    "texturas": [
+     "base 512x512"
+    ],
+    "mapasDeSuperficie": 0
+   },
+   "C6": {
+    "piorIoU": 0.6861440851412198,
+    "contra": "rapper"
+   }
+  },
+  {
+   "id": "canarinho",
+   "nome": "Canarinho Pistola",
+   "time": "B",
+   "tribo": null,
+   "fonte": "glb",
+   "marcos": {
+    "alturaTotal": 1.72,
+    "cabeca": 0.5994601831689927,
+    "ombroLargura": 0.4178835631251189,
+    "cinturaLargura": 0.3913075076462323,
+    "torsoLargura": 0.4703392521566859,
+    "torsoProfundidade": 0.3742115968877412,
+    "braco": 0.46787003822021356,
+    "perna": 0.5175196163034463,
+    "larguraMax": 1.7543309938408267
+   },
+   "marcosUsados": {
+    "cabeca": "Head",
+    "pescoco": "neck",
+    "quadril": "Hips",
+    "ombroE": "LeftArm",
+    "ombroD": "RightArm",
+    "maoE": "LeftHand",
+    "coxaE": "LeftUpLeg",
+    "peE": "LeftFoot"
+   },
+   "C7": {
+    "familia": "26n/24j",
+    "juntas": 24,
+    "nos": 26,
+    "clipesNoGLB": 1,
+    "impressaoEsqueleto": 530.16,
+    "curlDuplicado": 0,
+    "convencaoSkinPai": 0,
+    "convencaoSkinFilho": 13,
+    "ossosInvertidos": [],
+    "raioSkinP50": 0.103,
+    "raioSkinP95": 0.229,
+    "desalinhamentoRMS": 0.1586,
+    "piorJunta": "Hips",
+    "piorDesalinhamento": 0.403,
+    "antebraco": 0.216,
+    "dPalmaOsso": 0.095,
+    "alavancaPalma": 0.44,
+    "abducaoBraco": 84.7
+   },
+   "C1": {
+    "razoes": {
+     "cabecaSobreAltura": 0.34852336230755393,
+     "ombroSobreAltura": 0.24295555995646448,
+     "cinturaSobreOmbro": 0.9364032045669874,
+     "larguraTorsoSobreAltura": 0.2734530535794686,
+     "bracoSobreAltura": 0.2720174640815195,
+     "pernaSobreAltura": 0.3008834978508409
+    },
+    "pctElenco": {
+     "cabecaSobreAltura": 0.5651820990924421,
+     "ombroSobreAltura": 0.24923884240652988,
+     "cinturaSobreOmbro": -0.1340789763386139,
+     "larguraTorsoSobreAltura": 0.2597434425924142,
+     "bracoSobreAltura": -0.02098810789865725,
+     "pernaSobreAltura": -0.20456755754245964
+    },
+    "piorPct": 0.5651820990924421,
+    "piorPctRazao": "cabecaSobreAltura",
+    "zElenco": {
+     "cabecaSobreAltura": 7.218154611519616,
+     "ombroSobreAltura": 7.763782527684783,
+     "cinturaSobreOmbro": -1.2165069320611221,
+     "larguraTorsoSobreAltura": 1.5876321077790054,
+     "bracoSobreAltura": -2.765272817524363,
+     "pernaSobreAltura": -11.71812641463469
+    },
+    "desvioRef": {
+     "cabecaSobreAltura": 1.680948940827338,
+     "ombroSobreAltura": -0.06194764495573563,
+     "cinturaSobreOmbro": 0.2654097359013344,
+     "larguraTorsoSobreAltura": 0.5715692734452219,
+     "bracoSobreAltura": -0.3817784907238193,
+     "pernaSobreAltura": -0.43229528707388515
+    },
+    "elencoDegenerado": false,
+    "piorZ": -11.71812641463469,
+    "piorZRazao": "pernaSobreAltura",
+    "piorDesvioRef": 1.680948940827338,
+    "piorDesvioRefRazao": "cabecaSobreAltura",
+    "indiceBalao": 1.5715692734452218
+   },
+   "C2": {
+    "alturaM": 1.72,
+    "alturaBBox": 1.72,
+    "adereçoAcima": null
+   },
+   "C3": {
+    "porPose": {
+     "bind": 0,
+     "idle": 0.011723854396732064,
+     "walk": -0.0385454256575833,
+     "run": 0.019822758175144842,
+     "shoot": 0.014697606881911223,
+     "crouch": -0.36689130282801924
+    },
+    "afunda": -0.36689130282801924,
+    "flutua": 0.019822758175144842,
+    "piorDesvio": -0.36689130282801924
+   },
+   "C5": {
+    "materiais": 1,
+    "triangulos": 5028,
+    "map": 1,
+    "normalMap": 0,
+    "roughnessMap": 0,
+    "aoMap": 0,
+    "texturas": [
+     "base 512x512"
+    ],
+    "mapasDeSuperficie": 0
+   },
+   "C6": {
+    "piorIoU": 0.654073199527745,
+    "contra": "dollynho"
+   }
+  },
+  {
+   "id": "proerd",
+   "nome": "Leão do Proerd",
+   "time": "B",
+   "tribo": null,
+   "fonte": "glb",
+   "marcos": {
+    "alturaTotal": 1.7200000000000002,
+    "cabeca": 0.4181655738458576,
+    "ombroLargura": 0.389457732573933,
+    "cinturaLargura": 0.40918748494746343,
+    "torsoLargura": 0.44430535805008153,
+    "torsoProfundidade": 0.3945464554487854,
+    "braco": 0.5004703462058961,
+    "perna": 0.5892338468750332,
+    "larguraMax": 1.7200003088709996
+   },
+   "marcosUsados": {
+    "cabeca": "Head",
+    "pescoco": "neck",
+    "quadril": "Hips",
+    "ombroE": "LeftArm",
+    "ombroD": "RightArm",
+    "maoE": "LeftHand",
+    "coxaE": "LeftUpLeg",
+    "peE": "LeftFoot"
+   },
+   "C7": {
+    "familia": "26n/24j",
+    "juntas": 24,
+    "nos": 26,
+    "clipesNoGLB": 1,
+    "impressaoEsqueleto": 576.82,
+    "curlDuplicado": 0,
+    "convencaoSkinPai": 0,
+    "convencaoSkinFilho": 15,
+    "ossosInvertidos": [],
+    "raioSkinP50": 0.114,
+    "raioSkinP95": 0.567,
+    "desalinhamentoRMS": 0.1854,
+    "piorJunta": "Hips",
+    "piorDesalinhamento": 0.549,
+    "antebraco": 0.23,
+    "dPalmaOsso": 0.101,
+    "alavancaPalma": 0.44,
+    "abducaoBraco": 84.8
+   },
+   "C1": {
+    "razoes": {
+     "cabecaSobreAltura": 0.24311951967782416,
+     "ombroSobreAltura": 0.22642891428717032,
+     "cinturaSobreOmbro": 1.0506595471686648,
+     "larguraTorsoSobreAltura": 0.2583170686337683,
+     "bracoSobreAltura": 0.2909711315150559,
+     "pernaSobreAltura": 0.34257781795060066
+    },
+    "pctElenco": {
+     "cabecaSobreAltura": 0.09182442640355404,
+     "ombroSobreAltura": 0.16426145926505556,
+     "cinturaSobreOmbro": -0.02842260025732844,
+     "larguraTorsoSobreAltura": 0.19001499182935766,
+     "bracoSobreAltura": 0.047227607143834074,
+     "pernaSobreAltura": -0.09434212108465978
+    },
+    "piorPct": 0.19001499182935766,
+    "piorPctRazao": "larguraTorsoSobreAltura",
+    "zElenco": {
+     "cabecaSobreAltura": 1.1727245218121247,
+     "ombroSobreAltura": 5.116739570367352,
+     "cinturaSobreOmbro": -0.2578800285058898,
+     "larguraTorsoSobreAltura": 1.161430290507992,
+     "bracoSobreAltura": 6.222438864054007,
+     "pernaSobreAltura": -5.404145771576503
+    },
+    "desvioRef": {
+     "cabecaSobreAltura": 0.8701501513678781,
+     "ombroSobreAltura": -0.1257570876943231,
+     "cinturaSobreOmbro": 0.4198101988765741,
+     "larguraTorsoSobreAltura": 0.48458085421705926,
+     "bracoSobreAltura": -0.33870197382941847,
+     "pernaSobreAltura": -0.35362675858377235
+    },
+    "elencoDegenerado": false,
+    "piorZ": 6.222438864054007,
+    "piorZRazao": "bracoSobreAltura",
+    "piorDesvioRef": 0.8701501513678781,
+    "piorDesvioRefRazao": "cabecaSobreAltura",
+    "indiceBalao": 1.4845808542170593
+   },
+   "C2": {
+    "alturaM": 1.7200000000000002,
+    "alturaBBox": 1.7200000000000002,
+    "adereçoAcima": null
+   },
+   "C3": {
+    "porPose": {
+     "bind": 0,
+     "idle": 0.010445445815320496,
+     "walk": -0.03861403680798969,
+     "run": -0.04402902143221251,
+     "shoot": 0.01459160189087436,
+     "crouch": -0.43278864634506115
+    },
+    "afunda": -0.43278864634506115,
+    "flutua": 0.01459160189087436,
+    "piorDesvio": -0.43278864634506115
+   },
+   "C5": {
+    "materiais": 1,
+    "triangulos": 5034,
+    "map": 1,
+    "normalMap": 0,
+    "roughnessMap": 0,
+    "aoMap": 0,
+    "texturas": [
+     "base 512x512"
+    ],
+    "mapasDeSuperficie": 0
+   },
+   "C6": {
+    "piorIoU": 0.7381854108348428,
+    "contra": "caminhoneiro"
+   }
+  },
+  {
+   "id": "bonzo",
+   "nome": "Bonzo",
+   "time": "C",
+   "tribo": "palhacos",
+   "fonte": "glb",
+   "marcos": {
+    "alturaTotal": 1.72,
+    "cabeca": 0.3319193927357582,
+    "ombroLargura": 0.41232746890776983,
+    "cinturaLargura": 0.3660542281485285,
+    "torsoLargura": 0.5135872037420862,
+    "torsoProfundidade": 0.4446493031497016,
+    "braco": 0.476469250499654,
+    "perna": 0.7334189532387144,
+    "larguraMax": 1.7613631043376214
+   },
+   "marcosUsados": {
+    "cabeca": "Head",
+    "pescoco": "neck",
+    "quadril": "Hips",
+    "ombroE": "LeftArm",
+    "ombroD": "RightArm",
+    "maoE": "LeftHand",
+    "coxaE": "LeftUpLeg",
+    "peE": "LeftFoot"
+   },
+   "C7": {
+    "familia": "26n/24j",
+    "juntas": 24,
+    "nos": 26,
+    "clipesNoGLB": 1,
+    "impressaoEsqueleto": 547.39,
+    "curlDuplicado": 0,
+    "convencaoSkinPai": 0,
+    "convencaoSkinFilho": 16,
+    "ossosInvertidos": [],
+    "raioSkinP50": 0.096,
+    "raioSkinP95": 0.227,
+    "desalinhamentoRMS": 0.1318,
+    "piorJunta": "LeftLeg",
+    "piorDesalinhamento": 0.244,
+    "antebraco": 0.227,
+    "dPalmaOsso": 0.123,
+    "alavancaPalma": 0.54,
+    "abducaoBraco": 87.4
+   },
+   "C1": {
+    "razoes": {
+     "cabecaSobreAltura": 0.19297639112544082,
+     "ombroSobreAltura": 0.23972527262079643,
+     "cinturaSobreOmbro": 0.8877755079431979,
+     "larguraTorsoSobreAltura": 0.2985972114779571,
+     "bracoSobreAltura": 0.27701700610445,
+     "pernaSobreAltura": 0.42640636816204325
+    },
+    "pctElenco": {
+     "cabecaSobreAltura": -0.13336313830673993,
+     "ombroSobreAltura": 0.23262921876764905,
+     "cinturaSobreOmbro": -0.17904651236732566,
+     "larguraTorsoSobreAltura": 0.3755775414167083,
+     "bracoSobreAltura": -0.0029943694744120454,
+     "pernaSobreAltura": 0.12727172254134744
+    },
+    "piorPct": 0.3755775414167083,
+    "piorPctRazao": "larguraTorsoSobreAltura",
+    "zElenco": {
+     "cabecaSobreAltura": -1.7032311414698094,
+     "ombroSobreAltura": 7.2463932453648585,
+     "cinturaSobreOmbro": -1.6245001968551784,
+     "larguraTorsoSobreAltura": 2.2956458794978625,
+     "bracoSobreAltura": -0.3945209617369122,
+     "pernaSobreAltura": 7.290433300687337
+    },
+    "desvioRef": {
+     "cabecaSobreAltura": 0.4844337778880063,
+     "ombroSobreAltura": -0.07441979683090184,
+     "cinturaSobreOmbro": 0.1996966323556729,
+     "larguraTorsoSobreAltura": 0.7160759280342363,
+     "bracoSobreAltura": -0.37041589521715906,
+     "pernaSobreAltura": -0.195459682713126
+    },
+    "elencoDegenerado": false,
+    "piorZ": 7.290433300687337,
+    "piorZRazao": "pernaSobreAltura",
+    "piorDesvioRef": 0.7160759280342363,
+    "piorDesvioRefRazao": "larguraTorsoSobreAltura",
+    "indiceBalao": 1.7160759280342364
+   },
+   "C2": {
+    "alturaM": 1.72,
+    "alturaBBox": 1.72,
+    "adereçoAcima": null
+   },
+   "C3": {
+    "porPose": {
+     "bind": 0,
+     "idle": 0.008069301093981674,
+     "walk": 0.026697743299181717,
+     "run": -0.04850842946484041,
+     "shoot": 0.009510439308696696,
+     "crouch": -0.013076410720041697
+    },
+    "afunda": -0.04850842946484041,
+    "flutua": 0.026697743299181717,
+    "piorDesvio": -0.04850842946484041
+   },
+   "C5": {
+    "materiais": 1,
+    "triangulos": 4851,
+    "map": 1,
+    "normalMap": 0,
+    "roughnessMap": 0,
+    "aoMap": 0,
+    "texturas": [
+     "base 512x512"
+    ],
+    "mapasDeSuperficie": 0
+   },
+   "C6": {
+    "piorIoU": 0.7488659793814433,
+    "contra": "palhacomal"
+   }
+  },
+  {
+   "id": "palhacomal",
+   "nome": "Palhaço do Mal",
+   "time": "C",
+   "tribo": "palhacos",
+   "fonte": "glb",
+   "marcos": {
+    "alturaTotal": 1.72,
+    "cabeca": 0.3829970917157661,
+    "ombroLargura": 0.334510542571803,
+    "cinturaLargura": 0.4322426920267904,
+    "torsoLargura": 0.37571150672829845,
+    "torsoProfundidade": 0.3343487944514699,
+    "braco": 0.47790026000914504,
+    "perna": 0.6506141675587436,
+    "larguraMax": 1.74451851093071
+   },
+   "marcosUsados": {
+    "cabeca": "Head",
+    "pescoco": "neck",
+    "quadril": "Hips",
+    "ombroE": "LeftArm",
+    "ombroD": "RightArm",
+    "maoE": "LeftHand",
+    "coxaE": "LeftUpLeg",
+    "peE": "LeftFoot"
+   },
+   "C7": {
+    "familia": "30n/28j",
+    "juntas": 28,
+    "nos": 30,
+    "clipesNoGLB": 0,
+    "impressaoEsqueleto": 531.45,
+    "curlDuplicado": 4,
+    "convencaoSkinPai": 2,
+    "convencaoSkinFilho": 10,
+    "ossosInvertidos": [
+     "LeftHand",
+     "RightHand"
+    ],
+    "raioSkinP50": 0.111,
+    "raioSkinP95": 0.269,
+    "desalinhamentoRMS": 0.151,
+    "piorJunta": "LeftUpLeg",
+    "piorDesalinhamento": 0.238,
+    "antebraco": 0.234,
+    "dPalmaOsso": 0.059,
+    "alavancaPalma": 0.25,
+    "abducaoBraco": 86.5
+   },
+   "C1": {
+    "razoes": {
+     "cabecaSobreAltura": 0.2226727277417245,
+     "ombroSobreAltura": 0.19448287358825758,
+     "cinturaSobreOmbro": 1.2921646316543494,
+     "larguraTorsoSobreAltura": 0.21843692251645258,
+     "bracoSobreAltura": 0.2778489883774099,
+     "pernaSobreAltura": 0.37826405090624626
+    },
+    "pctElenco": {
+     "cabecaSobreAltura": 1.4661508664242117e-8,
+     "ombroSobreAltura": -3.588067287788953e-10,
+     "cinturaSobreOmbro": 0.19490462561859856,
+     "larguraTorsoSobreAltura": 0.006295147039561425,
+     "bracoSobreAltura": -9.253356002016966e-10,
+     "pernaSobreAltura": 1.8411759546491482e-10
+    },
+    "piorPct": 0.19490462561859856,
+    "piorPctRazao": "cinturaSobreOmbro",
+    "zElenco": {
+     "cabecaSobreAltura": 1.872476791932585e-7,
+     "ombroSobreAltura": -1.1176818929232583e-8,
+     "cinturaSobreOmbro": 1.768381849492975,
+     "larguraTorsoSobreAltura": 0.03847788211108263,
+     "bracoSobreAltura": -1.2191691574489412e-7,
+     "pernaSobreAltura": 1.0546702931468658e-8
+    },
+    "desvioRef": {
+     "cabecaSobreAltura": 0.7128671364748038,
+     "ombroSobreAltura": -0.24910087417661167,
+     "cinturaSobreOmbro": 0.7461684211545262,
+     "larguraTorsoSobreAltura": 0.25538461216352065,
+     "bracoSobreAltura": -0.36852502641497753,
+     "pernaSobreAltura": -0.2862942435731203
+    },
+    "elencoDegenerado": false,
+    "piorZ": 1.768381849492975,
+    "piorZRazao": "cinturaSobreOmbro",
+    "piorDesvioRef": 0.7461684211545262,
+    "piorDesvioRefRazao": "cinturaSobreOmbro",
+    "indiceBalao": 1.2553846121635206
+   },
+   "C2": {
+    "alturaM": 1.72,
+    "alturaBBox": 1.72,
+    "adereçoAcima": null
+   },
+   "C3": {
+    "porPose": {
+     "bind": 0,
+     "idle": 0.022435985844673087,
+     "walk": 0.052916077291907615,
+     "run": 0.034001564541656266,
+     "shoot": 0.031777549580208925,
+     "crouch": 0.015365314441583977
+    },
+    "afunda": 0,
+    "flutua": 0.052916077291907615,
+    "piorDesvio": 0.052916077291907615
+   },
+   "C5": {
+    "materiais": 1,
+    "triangulos": 4853,
+    "map": 1,
+    "normalMap": 1,
+    "roughnessMap": 1,
+    "aoMap": 0,
+    "texturas": [
+     "base 1024x1024",
+     "normal 1024x1024",
+     "rough 1024x1024"
+    ],
+    "mapasDeSuperficie": 2
+   },
+   "C6": {
+    "piorIoU": 0.7717348673029154,
+    "contra": "cadequinha"
+   }
+  },
+  {
+   "id": "jozo",
+   "nome": "Jozo",
+   "time": "C",
+   "tribo": "palhacos",
+   "fonte": "glb",
+   "marcos": {
+    "alturaTotal": 1.7199999999999998,
+    "cabeca": 0.38299708881161787,
+    "ombroLargura": 0.3345105429508227,
+    "cinturaLargura": 0.3817824555747213,
+    "torsoLargura": 0.3769863807732393,
+    "torsoProfundidade": 0.3216659268600204,
+    "braco": 0.4779002605506335,
+    "perna": 0.6506141682959269,
+    "larguraMax": 1.2543530094908495
+   },
+   "marcosUsados": {
+    "cabeca": "Head",
+    "pescoco": "neck",
+    "quadril": "Hips",
+    "ombroE": "LeftArm",
+    "ombroD": "RightArm",
+    "maoE": "LeftHand",
+    "coxaE": "LeftUpLeg",
+    "peE": "LeftFoot"
+   },
+   "C7": {
+    "familia": "30n/28j",
+    "juntas": 28,
+    "nos": 30,
+    "clipesNoGLB": 0,
+    "impressaoEsqueleto": 531.45,
+    "curlDuplicado": 4,
+    "convencaoSkinPai": 0,
+    "convencaoSkinFilho": 12,
+    "ossosInvertidos": [],
+    "raioSkinP50": 0.087,
+    "raioSkinP95": 0.32,
+    "desalinhamentoRMS": 0.1536,
+    "piorJunta": "LeftHand",
+    "piorDesalinhamento": 0.288,
+    "antebraco": 0.234,
+    "dPalmaOsso": 0.313,
+    "alavancaPalma": 1.33,
+    "abducaoBraco": 86.5
+   },
+   "C1": {
+    "razoes": {
+     "cabecaSobreAltura": 0.22267272605326624,
+     "ombroSobreAltura": 0.1944828738086179,
+     "cinturaSobreOmbro": 1.1413166598783349,
+     "larguraTorsoSobreAltura": 0.21917812835653452,
+     "bracoSobreAltura": 0.27784898869222885,
+     "pernaSobreAltura": 0.37826405133484126
+    },
+    "pctElenco": {
+     "cabecaSobreAltura": 7.078818570247328e-9,
+     "ombroSobreAltura": 7.742509496951962e-10,
+     "cinturaSobreOmbro": 0.05541083757893362,
+     "larguraTorsoSobreAltura": 0.009709733874237519,
+     "bracoSobreAltura": 2.077221454286748e-10,
+     "pernaSobreAltura": 1.3171752885806833e-9
+    },
+    "piorPct": 0.05541083757893362,
+    "piorPctRazao": "cinturaSobreOmbro",
+    "zElenco": {
+     "cabecaSobreAltura": 9.04062725783254e-8,
+     "ombroSobreAltura": 2.4117894053938308e-8,
+     "cinturaSobreOmbro": 0.5027459924503667,
+     "larguraTorsoSobreAltura": 0.059348890978236105,
+     "bracoSobreAltura": 2.736827946212844e-8,
+     "pernaSobreAltura": 7.545099881547814e-8
+    },
+    "desvioRef": {
+     "cabecaSobreAltura": 0.7128671234866634,
+     "ombroSobreAltura": -0.24910087332579967,
+     "cinturaSobreOmbro": 0.5423198106463984,
+     "larguraTorsoSobreAltura": 0.25964441584215253,
+     "bracoSobreAltura": -0.36852502569947987,
+     "pernaSobreAltura": -0.2862942427644505
+    },
+    "elencoDegenerado": false,
+    "piorZ": 0.5027459924503667,
+    "piorZRazao": "cinturaSobreOmbro",
+    "piorDesvioRef": 0.7128671234866634,
+    "piorDesvioRefRazao": "cabecaSobreAltura",
+    "indiceBalao": 1.2596444158421525
+   },
+   "C2": {
+    "alturaM": 1.7199999999999998,
+    "alturaBBox": 1.7199999999999998,
+    "adereçoAcima": null
+   },
+   "C3": {
+    "porPose": {
+     "bind": 0,
+     "idle": 0.0232929315228174,
+     "walk": 0.049810169181192084,
+     "run": 0.03271726181565653,
+     "shoot": 0.030462717799093056,
+     "crouch": 0.044530997027732604
+    },
+    "afunda": 0,
+    "flutua": 0.049810169181192084,
+    "piorDesvio": 0.049810169181192084
+   },
+   "C5": {
+    "materiais": 1,
+    "triangulos": 4870,
+    "map": 1,
+    "normalMap": 1,
+    "roughnessMap": 1,
+    "aoMap": 0,
+    "texturas": [
+     "base 1024x1024",
+     "normal 1024x1024",
+     "rough 1024x1024"
+    ],
+    "mapasDeSuperficie": 2
+   },
+   "C6": {
+    "piorIoU": 0.6896190600863987,
+    "contra": "padata"
+   }
+  },
+  {
+   "id": "adjim",
+   "nome": "Adjim",
+   "time": "C",
+   "tribo": "palhacos",
+   "fonte": "glb",
+   "marcos": {
+    "alturaTotal": 1.72,
+    "cabeca": 0.3829970681723116,
+    "ombroLargura": 0.33451054871162567,
+    "cinturaLargura": 0.4761392903503806,
+    "torsoLargura": 0.3868344972693819,
+    "torsoProfundidade": 0.37951922060723153,
+    "braco": 0.47790026878083525,
+    "perna": 0.6506141795005365,
+    "larguraMax": 1.655827242318741
+   },
+   "marcosUsados": {
+    "cabeca": "Head",
+    "pescoco": "neck",
+    "quadril": "Hips",
+    "ombroE": "LeftArm",
+    "ombroD": "RightArm",
+    "maoE": "LeftHand",
+    "coxaE": "LeftUpLeg",
+    "peE": "LeftFoot"
+   },
+   "C7": {
+    "familia": "30n/28j",
+    "juntas": 28,
+    "nos": 30,
+    "clipesNoGLB": 0,
+    "impressaoEsqueleto": 531.45,
+    "curlDuplicado": 4,
+    "convencaoSkinPai": 2,
+    "convencaoSkinFilho": 10,
+    "ossosInvertidos": [
+     "LeftHand",
+     "RightHand"
+    ],
+    "raioSkinP50": 0.08,
+    "raioSkinP95": 0.251,
+    "desalinhamentoRMS": 0.1736,
+    "piorJunta": "LeftLeg",
+    "piorDesalinhamento": 0.276,
+    "antebraco": 0.234,
+    "dPalmaOsso": 0.047,
+    "alavancaPalma": 0.2,
+    "abducaoBraco": 86.5
+   },
+   "C1": {
+    "razoes": {
+     "cabecaSobreAltura": 0.22267271405366953,
+     "ombroSobreAltura": 0.1944828771579219,
+     "cinturaSobreOmbro": 1.423390957876339,
+     "larguraTorsoSobreAltura": 0.22490377748219878,
+     "bracoSobreAltura": 0.2778489934772298,
+     "pernaSobreAltura": 0.3782640578491491
+    },
+    "pctElenco": {
+     "cabecaSobreAltura": -4.681011970611141e-8,
+     "ombroSobreAltura": 1.7995839348781972e-8,
+     "cinturaSobreOmbro": 0.31625367075136696,
+     "larguraTorsoSobreAltura": 0.03608665249418045,
+     "bracoSobreAltura": 1.7429310658455246e-8,
+     "pernaSobreAltura": 1.8538763902409707e-8
+    },
+    "piorPct": 0.31625367075136696,
+    "piorPctRazao": "cinturaSobreOmbro",
+    "zElenco": {
+     "cabecaSobreAltura": -5.978297648935068e-7,
+     "ombroSobreAltura": 5.605698604521978e-7,
+     "cinturaSobreOmbro": 2.869389320121288,
+     "larguraTorsoSobreAltura": 0.22057276052942185,
+     "bracoSobreAltura": 0.0000022963860880045033,
+     "pernaSobreAltura": 0.000001061945411038177
+    },
+    "desvioRef": {
+     "cabecaSobreAltura": 0.7128670311820733,
+     "ombroSobreAltura": -0.24910086039412396,
+     "cinturaSobreOmbro": 0.9235012944274853,
+     "larguraTorsoSobreAltura": 0.2925504452999931,
+     "bracoSobreAltura": -0.36852501482447775,
+     "pernaSobreAltura": -0.28629423047330355
+    },
+    "elencoDegenerado": false,
+    "piorZ": 2.869389320121288,
+    "piorZRazao": "cinturaSobreOmbro",
+    "piorDesvioRef": 0.9235012944274853,
+    "piorDesvioRefRazao": "cinturaSobreOmbro",
+    "indiceBalao": 1.292550445299993
+   },
+   "C2": {
+    "alturaM": 1.72,
+    "alturaBBox": 1.72,
+    "adereçoAcima": null
+   },
+   "C3": {
+    "porPose": {
+     "bind": 0,
+     "idle": 0.025858083002660192,
+     "walk": 0.05834189583676161,
+     "run": 0.030719757611158024,
+     "shoot": 0.030442360177166238,
+     "crouch": 0.04447509643394263
+    },
+    "afunda": 0,
+    "flutua": 0.05834189583676161,
+    "piorDesvio": 0.05834189583676161
+   },
+   "C5": {
+    "materiais": 1,
+    "triangulos": 4824,
+    "map": 1,
+    "normalMap": 1,
+    "roughnessMap": 1,
+    "aoMap": 0,
+    "texturas": [
+     "base 1024x1024",
+     "normal 1024x1024",
+     "rough 1024x1024"
+    ],
+    "mapasDeSuperficie": 2
+   },
+   "C6": {
+    "piorIoU": 0.7881727881727881,
+    "contra": "caminhoneiro"
+   }
+  },
+  {
+   "id": "esbirro",
+   "nome": "Esbirro",
+   "time": "C",
+   "tribo": "palhacos",
+   "fonte": "glb",
+   "marcos": {
+    "alturaTotal": 1.7200000000000002,
+    "cabeca": 0.3829970839988248,
+    "ombroLargura": 0.33451054392054413,
+    "cinturaLargura": 0.45642880599776625,
+    "torsoLargura": 0.39045018854073354,
+    "torsoProfundidade": 0.3514319724969617,
+    "braco": 0.4779002619360311,
+    "perna": 0.6506141701820095,
+    "larguraMax": 1.6693196031347939
+   },
+   "marcosUsados": {
+    "cabeca": "Head",
+    "pescoco": "neck",
+    "quadril": "Hips",
+    "ombroE": "LeftArm",
+    "ombroD": "RightArm",
+    "maoE": "LeftHand",
+    "coxaE": "LeftUpLeg",
+    "peE": "LeftFoot"
+   },
+   "C7": {
+    "familia": "30n/28j",
+    "juntas": 28,
+    "nos": 30,
+    "clipesNoGLB": 0,
+    "impressaoEsqueleto": 531.45,
+    "curlDuplicado": 4,
+    "convencaoSkinPai": 2,
+    "convencaoSkinFilho": 12,
+    "ossosInvertidos": [
+     "LeftHand",
+     "RightHand"
+    ],
+    "raioSkinP50": 0.093,
+    "raioSkinP95": 0.269,
+    "desalinhamentoRMS": 0.15,
+    "piorJunta": "Spine",
+    "piorDesalinhamento": 0.256,
+    "antebraco": 0.234,
+    "dPalmaOsso": 0.046,
+    "alavancaPalma": 0.2,
+    "abducaoBraco": 86.5
+   },
+   "C1": {
+    "razoes": {
+     "cabecaSobreAltura": 0.22267272325513068,
+     "ombroSobreAltura": 0.19448287437240935,
+     "cinturaSobreOmbro": 1.3644676208059414,
+     "larguraTorsoSobreAltura": 0.2270059235701939,
+     "bracoSobreAltura": 0.27784898949769243,
+     "pernaSobreAltura": 0.3782640524314008
+    },
+    "pctElenco": {
+     "cabecaSobreAltura": -5.48731660937127e-9,
+     "ombroSobreAltura": 3.6731769443564087e-9,
+     "cinturaSobreOmbro": 0.2617654373656881,
+     "larguraTorsoSobreAltura": 0.04577081844171319,
+     "bracoSobreAltura": 3.106647884468517e-9,
+     "pernaSobreAltura": 4.216101482986419e-9
+    },
+    "piorPct": 0.2617654373656881,
+    "piorPctRazao": "cinturaSobreOmbro",
+    "zElenco": {
+     "cabecaSobreAltura": -7.008059836361346e-8,
+     "ombroSobreAltura": 1.144193525629283e-7,
+     "cinturaSobreOmbro": 2.3750141731777408,
+     "larguraTorsoSobreAltura": 0.27976537244644006,
+     "bracoSobreAltura": 4.09314121597877e-7,
+     "pernaSobreAltura": 2.41508530228745e-7
+    },
+    "desvioRef": {
+     "cabecaSobreAltura": 0.7128671019625437,
+     "ombroSobreAltura": -0.24910087114899865,
+     "cinturaSobreOmbro": 0.8438751632512722,
+     "larguraTorsoSobreAltura": 0.30463174465628684,
+     "bracoSobreAltura": -0.36852502386888086,
+     "pernaSobreAltura": -0.28629424069547016
+    },
+    "elencoDegenerado": false,
+    "piorZ": 2.3750141731777408,
+    "piorZRazao": "cinturaSobreOmbro",
+    "piorDesvioRef": 0.8438751632512722,
+    "piorDesvioRefRazao": "cinturaSobreOmbro",
+    "indiceBalao": 1.3046317446562867
+   },
+   "C2": {
+    "alturaM": 1.7200000000000002,
+    "alturaBBox": 1.7200000000000002,
+    "adereçoAcima": null
+   },
+   "C3": {
+    "porPose": {
+     "bind": 0,
+     "idle": 0.03082805317425459,
+     "walk": 0.06231259250023234,
+     "run": 0.05367087436606848,
+     "shoot": 0.03131105255020871,
+     "crouch": 0.05428175027662035
+    },
+    "afunda": 0,
+    "flutua": 0.06231259250023234,
+    "piorDesvio": 0.06231259250023234
+   },
+   "C5": {
+    "materiais": 1,
+    "triangulos": 4856,
+    "map": 1,
+    "normalMap": 1,
+    "roughnessMap": 1,
+    "aoMap": 0,
+    "texturas": [
+     "base 1024x1024",
+     "normal 1024x1024",
+     "rough 1024x1024"
+    ],
+    "mapasDeSuperficie": 2
+   },
+   "C6": {
+    "piorIoU": 0.7880089652596189,
+    "contra": "adjim"
+   }
+  },
+  {
+   "id": "titica",
+   "nome": "Titica",
+   "time": "C",
+   "tribo": "palhacos",
+   "fonte": "glb",
+   "marcos": {
+    "alturaTotal": 1.72,
+    "cabeca": 0.38299710567920187,
+    "ombroLargura": 0.33451053913178114,
+    "cinturaLargura": 0.4342074989906728,
+    "torsoLargura": 0.43420754407696693,
+    "torsoProfundidade": 0.3689925455737353,
+    "braco": 0.47790025509453943,
+    "perna": 0.6506141608679918,
+    "larguraMax": 1.662569133780943
+   },
+   "marcosUsados": {
+    "cabeca": "Head",
+    "pescoco": "neck",
+    "quadril": "Hips",
+    "ombroE": "LeftArm",
+    "ombroD": "RightArm",
+    "maoE": "LeftHand",
+    "coxaE": "LeftUpLeg",
+    "peE": "LeftFoot"
+   },
+   "C7": {
+    "familia": "30n/28j",
+    "juntas": 28,
+    "nos": 30,
+    "clipesNoGLB": 0,
+    "impressaoEsqueleto": 531.45,
+    "curlDuplicado": 4,
+    "convencaoSkinPai": 2,
+    "convencaoSkinFilho": 13,
+    "ossosInvertidos": [
+     "LeftHand",
+     "RightHand"
+    ],
+    "raioSkinP50": 0.05,
+    "raioSkinP95": 0.239,
+    "desalinhamentoRMS": 0.1412,
+    "piorJunta": "LeftLeg",
+    "piorDesalinhamento": 0.247,
+    "antebraco": 0.234,
+    "dPalmaOsso": 0.059,
+    "alavancaPalma": 0.25,
+    "abducaoBraco": 86.5
+   },
+   "C1": {
+    "razoes": {
+     "cabecaSobreAltura": 0.22267273586000108,
+     "ombroSobreAltura": 0.19448287158824484,
+     "cinturaSobreOmbro": 1.298038322253326,
+     "larguraTorsoSobreAltura": 0.25244624655637615,
+     "bracoSobreAltura": 0.2778489855200811,
+     "pernaSobreAltura": 0.3782640470162743
+    },
+    "pctElenco": {
+     "cabecaSobreAltura": 5.1119842740985335e-8,
+     "ombroSobreAltura": -1.0642554089860842e-8,
+     "cinturaSobreOmbro": 0.20033620909816183,
+     "larguraTorsoSobreAltura": 0.1629692905003277,
+     "bracoSobreAltura": -1.120908301291652e-8,
+     "pernaSobreAltura": -1.009962982134186e-8
+    },
+    "piorPct": 0.20033620909816183,
+    "piorPctRazao": "cinturaSobreOmbro",
+    "zElenco": {
+     "cabecaSobreAltura": 6.52870869784303e-7,
+     "ombroSobreAltura": -3.315152433505167e-7,
+     "cinturaSobreOmbro": 1.8176629458691147,
+     "larguraTorsoSobreAltura": 0.9961186145757225,
+     "bracoSobreAltura": -0.0000014768445404730918,
+     "pernaSobreAltura": -5.785313194783296e-7
+    },
+    "desvioRef": {
+     "cabecaSobreAltura": 0.7128671989230851,
+     "ombroSobreAltura": -0.24910088189866858,
+     "cinturaSobreOmbro": 0.754105840882873,
+     "larguraTorsoSobreAltura": 0.45084049745043775,
+     "bracoSobreAltura": -0.36852503290890665,
+     "pernaSobreAltura": -0.28629425091269
+    },
+    "elencoDegenerado": false,
+    "piorZ": 1.8176629458691147,
+    "piorZRazao": "cinturaSobreOmbro",
+    "piorDesvioRef": 0.754105840882873,
+    "piorDesvioRefRazao": "cinturaSobreOmbro",
+    "indiceBalao": 1.4508404974504379
+   },
+   "C2": {
+    "alturaM": 1.72,
+    "alturaBBox": 1.72,
+    "adereçoAcima": null
+   },
+   "C3": {
+    "porPose": {
+     "bind": 0,
+     "idle": 0.023554810172077802,
+     "walk": 0.05212025670380331,
+     "run": 0.03291875662108981,
+     "shoot": 0.029973788858311718,
+     "crouch": 0.04548285806862026
+    },
+    "afunda": 0,
+    "flutua": 0.05212025670380331,
+    "piorDesvio": 0.05212025670380331
+   },
+   "C5": {
+    "materiais": 1,
+    "triangulos": 4883,
+    "map": 1,
+    "normalMap": 1,
+    "roughnessMap": 1,
+    "aoMap": 0,
+    "texturas": [
+     "base 1024x1024",
+     "normal 1024x1024",
+     "rough 1024x1024"
+    ],
+    "mapasDeSuperficie": 2
+   },
+   "C6": {
+    "piorIoU": 0.8168974286521616,
+    "contra": "pagodeiro"
+   }
+  },
+  {
+   "id": "padati",
+   "nome": "Padati",
+   "time": "C",
+   "tribo": "palhacos",
+   "fonte": "glb",
+   "marcos": {
+    "alturaTotal": 1.7199999999999998,
+    "cabeca": 0.38299709924679126,
+    "ombroLargura": 0.33451054007811665,
+    "cinturaLargura": 0.364839928137077,
+    "torsoLargura": 0.35005878149892655,
+    "torsoProfundidade": 0.27600789764588013,
+    "braco": 0.4779002564465266,
+    "perna": 0.6506141627085895,
+    "larguraMax": 1.655860202751762
+   },
+   "marcosUsados": {
+    "cabeca": "Head",
+    "pescoco": "neck",
+    "quadril": "Hips",
+    "ombroE": "LeftArm",
+    "ombroD": "RightArm",
+    "maoE": "LeftHand",
+    "coxaE": "LeftUpLeg",
+    "peE": "LeftFoot"
+   },
+   "C7": {
+    "familia": "30n/28j",
+    "juntas": 28,
+    "nos": 30,
+    "clipesNoGLB": 0,
+    "impressaoEsqueleto": 531.45,
+    "curlDuplicado": 4,
+    "convencaoSkinPai": 2,
+    "convencaoSkinFilho": 11,
+    "ossosInvertidos": [
+     "LeftHand",
+     "RightHand"
+    ],
+    "raioSkinP50": 0.084,
+    "raioSkinP95": 0.296,
+    "desalinhamentoRMS": 0.1526,
+    "piorJunta": "LeftLeg",
+    "piorDesalinhamento": 0.221,
+    "antebraco": 0.234,
+    "dPalmaOsso": 0.083,
+    "alavancaPalma": 0.35,
+    "abducaoBraco": 86.5
+   },
+   "C1": {
+    "razoes": {
+     "cabecaSobreAltura": 0.2226727321202275,
+     "ombroSobreAltura": 0.19448287213843993,
+     "cinturaSobreOmbro": 1.0906679593769382,
+     "larguraTorsoSobreAltura": 0.20352254738309686,
+     "bracoSobreAltura": 0.27784898630612015,
+     "pernaSobreAltura": 0.3782640480863893
+    },
+    "pctElenco": {
+     "cabecaSobreAltura": 3.432490935641645e-8,
+     "ombroSobreAltura": -7.813538487672307e-9,
+     "cinturaSobreOmbro": 0.008574416717292997,
+     "larguraTorsoSobreAltura": -0.06241239170857745,
+     "bracoSobreAltura": -8.380067614905645e-9,
+     "pernaSobreAltura": -7.2706139678699596e-9
+    },
+    "piorPct": -0.06241239170857745,
+    "piorPctRazao": "larguraTorsoSobreAltura",
+    "zElenco": {
+     "cabecaSobreAltura": 4.383764155992594e-7,
+     "ombroSobreAltura": -2.4339149148765875e-7,
+     "cinturaSobreOmbro": 0.07779621876456469,
+     "larguraTorsoSobreAltura": -0.3814838057540691,
+     "bracoSobreAltura": -0.0000011041096842272925,
+     "pernaSobreAltura": -4.1647842214582527e-7
+    },
+    "desvioRef": {
+     "cabecaSobreAltura": 0.7128671701555962,
+     "ombroSobreAltura": -0.24910087977436324,
+     "cinturaSobreOmbro": 0.4738756207796462,
+     "larguraTorsoSobreAltura": 0.16966981254653374,
+     "bracoSobreAltura": -0.3685250311224542,
+     "pernaSobreAltura": -0.2862942488936051
+    },
+    "elencoDegenerado": false,
+    "piorZ": -0.3814838057540691,
+    "piorZRazao": "larguraTorsoSobreAltura",
+    "piorDesvioRef": 0.7128671701555962,
+    "piorDesvioRefRazao": "cabecaSobreAltura",
+    "indiceBalao": 1.1696698125465337
+   },
+   "C2": {
+    "alturaM": 1.7199999999999998,
+    "alturaBBox": 1.7199999999999998,
+    "adereçoAcima": null
+   },
+   "C3": {
+    "porPose": {
+     "bind": 0,
+     "idle": 0.02608270038773848,
+     "walk": 0.05588653202796036,
+     "run": 0.03127497577286631,
+     "shoot": 0.03157558924326652,
+     "crouch": 0.04386801606488474
+    },
+    "afunda": 0,
+    "flutua": 0.05588653202796036,
+    "piorDesvio": 0.05588653202796036
+   },
+   "C5": {
+    "materiais": 1,
+    "triangulos": 4838,
+    "map": 1,
+    "normalMap": 1,
+    "roughnessMap": 1,
+    "aoMap": 0,
+    "texturas": [
+     "base 1024x1024",
+     "normal 1024x1024",
+     "rough 1024x1024"
+    ],
+    "mapasDeSuperficie": 2
+   },
+   "C6": {
+    "piorIoU": 0.7732518669382213,
+    "contra": "padata"
+   }
+  },
+  {
+   "id": "padata",
+   "nome": "Padata",
+   "time": "C",
+   "tribo": "palhacos",
+   "fonte": "glb",
+   "marcos": {
+    "alturaTotal": 1.72,
+    "cabeca": 0.38299709849503194,
+    "ombroLargura": 0.33451054070725306,
+    "cinturaLargura": 0.3790957273394443,
+    "torsoLargura": 0.36688851558600766,
+    "torsoProfundidade": 0.289471771512803,
+    "braco": 0.4779002573453458,
+    "perna": 0.6506141639322433,
+    "larguraMax": 1.682822777873405
+   },
+   "marcosUsados": {
+    "cabeca": "Head",
+    "pescoco": "neck",
+    "quadril": "Hips",
+    "ombroE": "LeftArm",
+    "ombroD": "RightArm",
+    "maoE": "LeftHand",
+    "coxaE": "LeftUpLeg",
+    "peE": "LeftFoot"
+   },
+   "C7": {
+    "familia": "30n/28j",
+    "juntas": 28,
+    "nos": 30,
+    "clipesNoGLB": 0,
+    "impressaoEsqueleto": 531.45,
+    "curlDuplicado": 4,
+    "convencaoSkinPai": 2,
+    "convencaoSkinFilho": 13,
+    "ossosInvertidos": [
+     "LeftHand",
+     "RightHand"
+    ],
+    "raioSkinP50": 0.078,
+    "raioSkinP95": 0.273,
+    "desalinhamentoRMS": 0.1504,
+    "piorJunta": "neck",
+    "piorDesalinhamento": 0.243,
+    "antebraco": 0.234,
+    "dPalmaOsso": 0.059,
+    "alavancaPalma": 0.25,
+    "abducaoBraco": 86.5
+   },
+   "C1": {
+    "razoes": {
+     "cabecaSobreAltura": 0.2226727316831581,
+     "ombroSobreAltura": 0.1944828725042169,
+     "cinturaSobreOmbro": 1.133284848178252,
+     "larguraTorsoSobreAltura": 0.21330727650349282,
+     "bracoSobreAltura": 0.2778489868286894,
+     "pernaSobreAltura": 0.37826404879781583
+    },
+    "pctElenco": {
+     "cabecaSobreAltura": 3.236207619187066e-8,
+     "ombroSobreAltura": -5.932771521445675e-9,
+     "cinturaSobreOmbro": 0.04798357272628148,
+     "larguraTorsoSobreAltura": -0.017336104625245593,
+     "bracoSobreAltura": -6.4993004103691406e-9,
+     "pernaSobreAltura": -5.389847008320404e-9
+    },
+    "piorPct": 0.04798357272628148,
+    "piorPctRazao": "cinturaSobreOmbro",
+    "zElenco": {
+     "cabecaSobreAltura": 4.1330832996622077e-7,
+     "ombroSobreAltura": -1.8480565643061674e-7,
+     "cinturaSobreOmbro": 0.43535795424901036,
+     "larguraTorsoSobreAltura": -0.10596362338218983,
+     "bracoSobreAltura": -8.563105757079003e-7,
+     "pernaSobreAltura": -3.087435239379536e-7
+    },
+    "desvioRef": {
+     "cabecaSobreAltura": 0.7128671667935238,
+     "ombroSobreAltura": -0.24910087836209696,
+     "cinturaSobreOmbro": 0.531466011051692,
+     "larguraTorsoSobreAltura": 0.22590388795110825,
+     "bracoSobreAltura": -0.3685250299347968,
+     "pernaSobreAltura": -0.2862942475512909
+    },
+    "elencoDegenerado": false,
+    "piorZ": 0.43535795424901036,
+    "piorZRazao": "cinturaSobreOmbro",
+    "piorDesvioRef": 0.7128671667935238,
+    "piorDesvioRefRazao": "cabecaSobreAltura",
+    "indiceBalao": 1.2259038879511082
+   },
+   "C2": {
+    "alturaM": 1.72,
+    "alturaBBox": 1.72,
+    "adereçoAcima": null
+   },
+   "C3": {
+    "porPose": {
+     "bind": 0,
+     "idle": 0.02429217149320221,
+     "walk": 0.05285171829909475,
+     "run": 0.03189050039899278,
+     "shoot": 0.032236598256511484,
+     "crouch": 0.03499807866800973
+    },
+    "afunda": 0,
+    "flutua": 0.05285171829909475,
+    "piorDesvio": 0.05285171829909475
+   },
+   "C5": {
+    "materiais": 1,
+    "triangulos": 4868,
+    "map": 1,
+    "normalMap": 1,
+    "roughnessMap": 1,
+    "aoMap": 0,
+    "texturas": [
+     "base 1024x1024",
+     "normal 1024x1024",
+     "rough 1024x1024"
+    ],
+    "mapasDeSuperficie": 2
+   },
+   "C6": {
+    "piorIoU": 0.7805216426193119,
+    "contra": "oakley"
+   }
+  },
+  {
+   "id": "cadequinha",
+   "nome": "Cadequinha",
+   "time": "C",
+   "tribo": "palhacos",
+   "fonte": "glb",
+   "marcos": {
+    "alturaTotal": 1.7199999999999998,
+    "cabeca": 0.38299711093876976,
+    "ombroLargura": 0.33451053733463687,
+    "cinturaLargura": 0.39382158348093615,
+    "torsoLargura": 0.3668885338832577,
+    "torsoProfundidade": 0.361531379164025,
+    "braco": 0.4779002525270398,
+    "perna": 0.6506141573725939,
+    "larguraMax": 1.64913191131709
+   },
+   "marcosUsados": {
+    "cabeca": "Head",
+    "pescoco": "neck",
+    "quadril": "Hips",
+    "ombroE": "LeftArm",
+    "ombroD": "RightArm",
+    "maoE": "LeftHand",
+    "coxaE": "LeftUpLeg",
+    "peE": "LeftFoot"
+   },
+   "C7": {
+    "familia": "30n/28j",
+    "juntas": 28,
+    "nos": 30,
+    "clipesNoGLB": 0,
+    "impressaoEsqueleto": 531.45,
+    "curlDuplicado": 4,
+    "convencaoSkinPai": 2,
+    "convencaoSkinFilho": 10,
+    "ossosInvertidos": [
+     "LeftHand",
+     "RightHand"
+    ],
+    "raioSkinP50": 0.072,
+    "raioSkinP95": 0.268,
+    "desalinhamentoRMS": 0.1696,
+    "piorJunta": "Spine",
+    "piorDesalinhamento": 0.279,
+    "antebraco": 0.234,
+    "dPalmaOsso": 0.074,
+    "alavancaPalma": 0.32,
+    "abducaoBraco": 86.5
+   },
+   "C1": {
+    "razoes": {
+     "cabecaSobreAltura": 0.22267273891788944,
+     "ombroSobreAltura": 0.19448287054339355,
+     "cinturaSobreOmbro": 1.177306959053926,
+     "larguraTorsoSobreAltura": 0.21330728714142894,
+     "bracoSobreAltura": 0.27784898402734876,
+     "pernaSobreAltura": 0.37826404498406624
+    },
+    "pctElenco": {
+     "cabecaSobreAltura": 6.48525006871914e-8,
+     "ombroSobreAltura": -1.60150132127139e-8,
+     "cinturaSobreOmbro": 0.08869218107713178,
+     "larguraTorsoSobreAltura": -0.01733605561840479,
+     "bracoSobreAltura": -1.6581542110110374e-8,
+     "pernaSobreAltura": -1.5472088726694933e-8
+    },
+    "piorPct": 0.08869218107713178,
+    "piorPctRazao": "cinturaSobreOmbro",
+    "zElenco": {
+     "cabecaSobreAltura": 8.282558447189318e-7,
+     "ombroSobreAltura": -4.988671852307222e-7,
+     "cinturaSobreOmbro": 0.8047097020450484,
+     "larguraTorsoSobreAltura": -0.1059633238372497,
+     "bracoSobreAltura": -0.0000021846889624889565,
+     "pernaSobreAltura": -8.862788106575717e-7
+    },
+    "desvioRef": {
+     "cabecaSobreAltura": 0.7128672224453033,
+     "ombroSobreAltura": -0.24910088593284344,
+     "cinturaSobreOmbro": 0.590955350072873,
+     "larguraTorsoSobreAltura": 0.22590394908867212,
+     "bracoSobreAltura": -0.3685250363014801,
+     "pernaSobreAltura": -0.28629425474704484
+    },
+    "elencoDegenerado": false,
+    "piorZ": 0.8047097020450484,
+    "piorZRazao": "cinturaSobreOmbro",
+    "piorDesvioRef": 0.7128672224453033,
+    "piorDesvioRefRazao": "cabecaSobreAltura",
+    "indiceBalao": 1.225903949088672
+   },
+   "C2": {
+    "alturaM": 1.7199999999999998,
+    "alturaBBox": 1.7199999999999998,
+    "adereçoAcima": null
+   },
+   "C3": {
+    "porPose": {
+     "bind": 0,
+     "idle": 0.022291607098254333,
+     "walk": 0.048987773806726,
+     "run": 0.03162678874529852,
+     "shoot": 0.030316254794928357,
+     "crouch": 0.04632749947124602
+    },
+    "afunda": 0,
+    "flutua": 0.048987773806726,
+    "piorDesvio": 0.048987773806726
+   },
+   "C5": {
+    "materiais": 1,
+    "triangulos": 4838,
+    "map": 1,
+    "normalMap": 1,
+    "roughnessMap": 1,
+    "aoMap": 0,
+    "texturas": [
+     "base 1024x1024",
+     "normal 1024x1024",
+     "rough 1024x1024"
+    ],
+    "mapasDeSuperficie": 2
+   },
+   "C6": {
+    "piorIoU": 0.7717348673029154,
+    "contra": "palhacomal"
+   }
+  },
+  {
+   "id": "emo",
+   "nome": "Emo",
+   "time": "U",
+   "tribo": "urbanas",
+   "fonte": "glb",
+   "marcos": {
+    "alturaTotal": 1.72,
+    "cabeca": 0.35018167810830536,
+    "ombroLargura": 0.2888015084137176,
+    "cinturaLargura": 0.25917799005275943,
+    "torsoLargura": 0.2760077360108911,
+    "torsoProfundidade": 0.19859099042720188,
+    "braco": 0.4850569751975259,
+    "perna": 0.7485772409238569,
+    "larguraMax": 1.571897623643414
+   },
+   "marcosUsados": {
+    "cabeca": "Head",
+    "pescoco": "neck",
+    "quadril": "Hips",
+    "ombroE": "LeftArm",
+    "ombroD": "RightArm",
+    "maoE": "LeftHand",
+    "coxaE": "LeftUpLeg",
+    "peE": "LeftFoot"
+   },
+   "C7": {
+    "familia": "26n/24j",
+    "juntas": 24,
+    "nos": 26,
+    "clipesNoGLB": 0,
+    "impressaoEsqueleto": 523.68,
+    "curlDuplicado": 0,
+    "convencaoSkinPai": 0,
+    "convencaoSkinFilho": 17,
+    "ossosInvertidos": [],
+    "raioSkinP50": 0.069,
+    "raioSkinP95": 0.133,
+    "desalinhamentoRMS": 0.112,
+    "piorJunta": "RightUpLeg",
+    "piorDesalinhamento": 0.191,
+    "antebraco": 0.23,
+    "dPalmaOsso": 0.098,
+    "alavancaPalma": 0.43,
+    "abducaoBraco": 86.7
+   },
+   "C1": {
+    "razoes": {
+     "cabecaSobreAltura": 0.20359399890017754,
+     "ombroSobreAltura": 0.16790785372890557,
+     "cinturaSobreOmbro": 0.8974260261877804,
+     "larguraTorsoSobreAltura": 0.16046961395982043,
+     "bracoSobreAltura": 0.2820098693008872,
+     "pernaSobreAltura": 0.4352193261185215
+    },
+    "pctElenco": {
+     "cabecaSobreAltura": -0.08568056829429499,
+     "ombroSobreAltura": -0.13664452519279835,
+     "cinturaSobreOmbro": -0.1701223794762213,
+     "larguraTorsoSobreAltura": -0.2607486320774522,
+     "bracoSobreAltura": 0.014975331336717565,
+     "pernaSobreAltura": 0.1505701510782035
+    },
+    "piorPct": -0.2607486320774522,
+    "piorPctRazao": "larguraTorsoSobreAltura",
+    "zElenco": {
+     "cabecaSobreAltura": -1.094258983333319,
+     "ombroSobreAltura": -4.256472895445596,
+     "cinturaSobreOmbro": -1.5435309813888713,
+     "larguraTorsoSobreAltura": -1.5937761362284641,
+     "bracoSobreAltura": 1.973063835901815,
+     "pernaSobreAltura": 8.625023859117139
+    },
+    "desvioRef": {
+     "cabecaSobreAltura": 0.5661076838475195,
+     "ombroSobreAltura": -0.35170712845982405,
+     "cinturaSobreOmbro": 0.21273787322673035,
+     "larguraTorsoSobreAltura": -0.07776083931137678,
+     "bracoSobreAltura": -0.3590684788616201,
+     "pernaSobreAltura": -0.17883146015373308
+    },
+    "elencoDegenerado": false,
+    "piorZ": 8.625023859117139,
+    "piorZRazao": "pernaSobreAltura",
+    "piorDesvioRef": 0.5661076838475195,
+    "piorDesvioRefRazao": "cabecaSobreAltura",
+    "indiceBalao": 0.9222391606886232
+   },
+   "C2": {
+    "alturaM": 1.72,
+    "alturaBBox": 1.72,
+    "adereçoAcima": null
+   },
+   "C3": {
+    "porPose": {
+     "bind": 0,
+     "idle": -0.0015050959129386588,
+     "walk": -0.02164988647151098,
+     "run": -0.013268153049543697,
+     "shoot": -0.0013259701850926039,
+     "crouch": -0.03498883018319843
+    },
+    "afunda": -0.03498883018319843,
+    "flutua": 0,
+    "piorDesvio": -0.03498883018319843
+   },
+   "C5": {
+    "materiais": 1,
+    "triangulos": 4946,
+    "map": 1,
+    "normalMap": 0,
+    "roughnessMap": 0,
+    "aoMap": 0,
+    "texturas": [
+     "base 1024x1024"
+    ],
+    "mapasDeSuperficie": 0
+   },
+   "C6": {
+    "piorIoU": 0.6996190821694177,
+    "contra": "blackmetal"
+   }
+  },
+  {
+   "id": "blackmetal",
+   "nome": "Black Metal",
+   "time": "U",
+   "tribo": "urbanas",
+   "fonte": "glb",
+   "marcos": {
+    "alturaTotal": 1.7199999999999998,
+    "cabeca": 0.2997106967136902,
+    "ombroLargura": 0.3380147261807762,
+    "cinturaLargura": 0.3562018917755963,
+    "torsoLargura": 0.34942797464246583,
+    "torsoProfundidade": 0.31211042177510717,
+    "braco": 0.4405507321458759,
+    "perna": 0.7607244186398822,
+    "larguraMax": 1.7335696687036155
+   },
+   "marcosUsados": {
+    "cabeca": "Head",
+    "pescoco": "neck",
+    "quadril": "Hips",
+    "ombroE": "LeftArm",
+    "ombroD": "RightArm",
+    "maoE": "LeftHand",
+    "coxaE": "LeftUpLeg",
+    "peE": "LeftFoot"
+   },
+   "C7": {
+    "familia": "26n/24j",
+    "juntas": 24,
+    "nos": 26,
+    "clipesNoGLB": 0,
+    "impressaoEsqueleto": 534.05,
+    "curlDuplicado": 0,
+    "convencaoSkinPai": 0,
+    "convencaoSkinFilho": 16,
+    "ossosInvertidos": [],
+    "raioSkinP50": 0.093,
+    "raioSkinP95": 0.223,
+    "desalinhamentoRMS": 0.1186,
+    "piorJunta": "RightUpLeg",
+    "piorDesalinhamento": 0.217,
+    "antebraco": 0.185,
+    "dPalmaOsso": 0.157,
+    "alavancaPalma": 0.85,
+    "abducaoBraco": 84.6
+   },
+   "C1": {
+    "razoes": {
+     "cabecaSobreAltura": 0.17425040506609898,
+     "ombroSobreAltura": 0.1965201896399862,
+     "cinturaSobreOmbro": 1.0538058379891215,
+     "larguraTorsoSobreAltura": 0.20315579921073598,
+     "bracoSobreAltura": 0.2561341465964395,
+     "pernaSobreAltura": 0.4422816387441176
+    },
+    "pctElenco": {
+     "cabecaSobreAltura": -0.217459590188414,
+     "ombroSobreAltura": 0.010475554703747687,
+     "cinturaSobreOmbro": -0.02551312776225499,
+     "larguraTorsoSobreAltura": -0.06410192707549593,
+     "bracoSobreAltura": -0.0781533960040357,
+     "pernaSobreAltura": 0.16924047570983708
+    },
+    "piorPct": -0.217459590188414,
+    "piorPctRazao": "cabecaSobreAltura",
+    "zElenco": {
+     "cabecaSobreAltura": -2.777258774221953,
+     "ombroSobreAltura": 0.32631321744026703,
+     "cinturaSobreOmbro": -0.231482202720292,
+     "larguraTorsoSobreAltura": -0.39181076750130783,
+     "bracoSobreAltura": -10.297043573947102,
+     "pernaSobreAltura": 9.694505388173084
+    },
+    "desvioRef": {
+     "cabecaSobreAltura": 0.34038773127768446,
+     "ombroSobreAltura": -0.2412347890348024,
+     "cinturaSobreOmbro": 0.4240619432285426,
+     "larguraTorsoSobreAltura": 0.1675620644295172,
+     "bracoSobreAltura": -0.41787693955354654,
+     "pernaSobreAltura": -0.16550634199223102
+    },
+    "elencoDegenerado": false,
+    "piorZ": -10.297043573947102,
+    "piorZRazao": "bracoSobreAltura",
+    "piorDesvioRef": 0.4240619432285426,
+    "piorDesvioRefRazao": "cinturaSobreOmbro",
+    "indiceBalao": 1.1675620644295173
+   },
+   "C2": {
+    "alturaM": 1.7199999999999998,
+    "alturaBBox": 1.7199999999999998,
+    "adereçoAcima": null
+   },
+   "C3": {
+    "porPose": {
+     "bind": 0,
+     "idle": 0.0004071543255572681,
+     "walk": -0.04299121951547723,
+     "run": -0.04927917717508582,
+     "shoot": 0.002885496266395374,
+     "crouch": -0.03722058528334727
+    },
+    "afunda": -0.04927917717508582,
+    "flutua": 0.002885496266395374,
+    "piorDesvio": -0.04927917717508582
+   },
+   "C5": {
+    "materiais": 1,
+    "triangulos": 4641,
+    "map": 1,
+    "normalMap": 0,
+    "roughnessMap": 0,
+    "aoMap": 0,
+    "texturas": [
+     "base 1024x1024"
+    ],
+    "mapasDeSuperficie": 0
+   },
+   "C6": {
+    "piorIoU": 0.7988609112709832,
+    "contra": "clubber"
+   }
+  },
+  {
+   "id": "metaleiro",
+   "nome": "Metaleiro",
+   "time": "U",
+   "tribo": "urbanas",
+   "fonte": "glb",
+   "marcos": {
+    "alturaTotal": 1.72,
+    "cabeca": 0.32941949580331586,
+    "ombroLargura": 0.3605261755215245,
+    "cinturaLargura": 0.3601563183545597,
+    "torsoLargura": 0.4005477372569692,
+    "torsoProfundidade": 0.3042641781659312,
+    "braco": 0.48709728268749947,
+    "perna": 0.7142276535377031,
+    "larguraMax": 1.6863398732567512
+   },
+   "marcosUsados": {
+    "cabeca": "Head",
+    "pescoco": "neck",
+    "quadril": "Hips",
+    "ombroE": "LeftArm",
+    "ombroD": "RightArm",
+    "maoE": "LeftHand",
+    "coxaE": "LeftUpLeg",
+    "peE": "LeftFoot"
+   },
+   "C7": {
+    "familia": "26n/24j",
+    "juntas": 24,
+    "nos": 26,
+    "clipesNoGLB": 0,
+    "impressaoEsqueleto": 540.84,
+    "curlDuplicado": 0,
+    "convencaoSkinPai": 0,
+    "convencaoSkinFilho": 16,
+    "ossosInvertidos": [],
+    "raioSkinP50": 0.08,
+    "raioSkinP95": 0.159,
+    "desalinhamentoRMS": 0.1299,
+    "piorJunta": "RightLeg",
+    "piorDesalinhamento": 0.222,
+    "antebraco": 0.242,
+    "dPalmaOsso": 0.107,
+    "alavancaPalma": 0.44,
+    "abducaoBraco": 86.4
+   },
+   "C1": {
+    "razoes": {
+     "cabecaSobreAltura": 0.19152296267634644,
+     "ombroSobreAltura": 0.2096082415822817,
+     "cinturaSobreOmbro": 0.9989741184078249,
+     "larguraTorsoSobreAltura": 0.23287659142847045,
+     "bracoSobreAltura": 0.2831960945857555,
+     "pernaSobreAltura": 0.41524863577773435
+    },
+    "pctElenco": {
+     "cabecaSobreAltura": -0.13989033400395906,
+     "ombroSobreAltura": 0.0777722358773729,
+     "cinturaSobreOmbro": -0.07621771582579773,
+     "larguraTorsoSobreAltura": 0.07281580931416917,
+     "bracoSobreAltura": 0.019244647884163104,
+     "pernaSobreAltura": 0.09777451719066318
+    },
+    "piorPct": -0.13989033400395906,
+    "piorPctRazao": "cabecaSobreAltura",
+    "zElenco": {
+     "cabecaSobreAltura": -1.7865924294473101,
+     "ombroSobreAltura": 2.422602834348215,
+     "cinturaSobreOmbro": -0.691528099183772,
+     "larguraTorsoSobreAltura": 0.44507270584880115,
+     "bracoSobreAltura": 2.535564517481283,
+     "pernaSobreAltura": 5.600761754865542
+    },
+    "desvioRef": {
+     "cabecaSobreAltura": 0.4732535590488187,
+     "ombroSobreAltura": -0.19070176995258034,
+     "cinturaSobreOmbro": 0.34996502487543907,
+     "larguraTorsoSobreAltura": 0.3383712151061521,
+     "bracoSobreAltura": -0.35637251230510114,
+     "pernaSobreAltura": -0.216512007966539
+    },
+    "elencoDegenerado": false,
+    "piorZ": 5.600761754865542,
+    "piorZRazao": "pernaSobreAltura",
+    "piorDesvioRef": 0.4732535590488187,
+    "piorDesvioRefRazao": "cabecaSobreAltura",
+    "indiceBalao": 1.338371215106152
+   },
+   "C2": {
+    "alturaM": 1.72,
+    "alturaBBox": 1.72,
+    "adereçoAcima": null
+   },
+   "C3": {
+    "porPose": {
+     "bind": 0,
+     "idle": 0.0028927510186964643,
+     "walk": -0.03576999186812699,
+     "run": 0.024803035264476407,
+     "shoot": 0.0034850675442071066,
+     "crouch": -0.03415837894859855
+    },
+    "afunda": -0.03576999186812699,
+    "flutua": 0.024803035264476407,
+    "piorDesvio": -0.03576999186812699
+   },
+   "C5": {
+    "materiais": 1,
+    "triangulos": 4729,
+    "map": 1,
+    "normalMap": 0,
+    "roughnessMap": 0,
+    "aoMap": 0,
+    "texturas": [
+     "base 1024x1024"
+    ],
+    "mapasDeSuperficie": 0
+   },
+   "C6": {
+    "piorIoU": 0.8189360663738409,
+    "contra": "mistico"
+   }
+  },
+  {
+   "id": "punk",
+   "nome": "Punk",
+   "time": "U",
+   "tribo": "urbanas",
+   "fonte": "glb",
+   "marcos": {
+    "alturaTotal": 1.72,
+    "cabeca": 0.4301397387947081,
+    "ombroLargura": 0.3113116110647247,
+    "cinturaLargura": 0.3271997840330928,
+    "torsoLargura": 0.31976527371458086,
+    "torsoProfundidade": 0.26591001139341136,
+    "braco": 0.4609554572670034,
+    "perna": 0.655474650160705,
+    "larguraMax": 1.5315076280679198
+   },
+   "marcosUsados": {
+    "cabeca": "Head",
+    "pescoco": "neck",
+    "quadril": "Hips",
+    "ombroE": "LeftArm",
+    "ombroD": "RightArm",
+    "maoE": "LeftHand",
+    "coxaE": "LeftUpLeg",
+    "peE": "LeftFoot"
+   },
+   "C7": {
+    "familia": "26n/24j",
+    "juntas": 24,
+    "nos": 26,
+    "clipesNoGLB": 0,
+    "impressaoEsqueleto": 505.17,
+    "curlDuplicado": 0,
+    "convencaoSkinPai": 0,
+    "convencaoSkinFilho": 17,
+    "ossosInvertidos": [],
+    "raioSkinP50": 0.075,
+    "raioSkinP95": 0.131,
+    "desalinhamentoRMS": 0.1003,
+    "piorJunta": "LeftLeg",
+    "piorDesalinhamento": 0.183,
+    "antebraco": 0.229,
+    "dPalmaOsso": 0.087,
+    "alavancaPalma": 0.38,
+    "abducaoBraco": 88.2
+   },
+   "C1": {
+    "razoes": {
+     "cabecaSobreAltura": 0.2500812434852954,
+     "ombroSobreAltura": 0.18099512271204926,
+     "cinturaSobreOmbro": 1.0510362363743149,
+     "larguraTorsoSobreAltura": 0.18591004285731447,
+     "bracoSobreAltura": 0.26799735887616477,
+     "pernaSobreAltura": 0.38108991288413085
+    },
+    "pctElenco": {
+     "cabecaSobreAltura": 0.12308880251348096,
+     "ombroSobreAltura": -0.06935186987058663,
+     "cinturaSobreOmbro": -0.0280742640908482,
+     "larguraTorsoSobreAltura": -0.14354967210663935,
+     "bracoSobreAltura": -0.03545677746305445,
+     "pernaSobreAltura": 0.007470606951096042
+    },
+    "piorPct": -0.14354967210663935,
+    "piorPctRazao": "larguraTorsoSobreAltura",
+    "zElenco": {
+     "cabecaSobreAltura": 1.572013708353119,
+     "ombroSobreAltura": -2.1603086836894354,
+     "cinturaSobreOmbro": -0.25471955269691116,
+     "larguraTorsoSobreAltura": -0.8774199118291999,
+     "bracoSobreAltura": -4.671581801895905,
+     "pernaSobreAltura": 0.42793450583591247
+    },
+    "desvioRef": {
+     "cabecaSobreAltura": 0.9237018729638109,
+     "ombroSobreAltura": -0.3011771323859102,
+     "cinturaSobreOmbro": 0.42031923834366874,
+     "larguraTorsoSobreAltura": 0.06844852216847402,
+     "bracoSobreAltura": -0.39091509346326186,
+     "pernaSobreAltura": -0.28096242852050785
+    },
+    "elencoDegenerado": false,
+    "piorZ": -4.671581801895905,
+    "piorZRazao": "bracoSobreAltura",
+    "piorDesvioRef": 0.9237018729638109,
+    "piorDesvioRefRazao": "cabecaSobreAltura",
+    "indiceBalao": 1.068448522168474
+   },
+   "C2": {
+    "alturaM": 1.72,
+    "alturaBBox": 1.72,
+    "adereçoAcima": null
+   },
+   "C3": {
+    "porPose": {
+     "bind": 0,
+     "idle": -0.0025443461763526858,
+     "walk": -0.03851705277079074,
+     "run": -0.022043495530161526,
+     "shoot": -0.0020108881782763726,
+     "crouch": -0.03453303975308615
+    },
+    "afunda": -0.03851705277079074,
+    "flutua": 0,
+    "piorDesvio": -0.03851705277079074
+   },
+   "C5": {
+    "materiais": 1,
+    "triangulos": 5000,
+    "map": 1,
+    "normalMap": 0,
+    "roughnessMap": 0,
+    "aoMap": 0,
+    "texturas": [
+     "base 1024x1024"
+    ],
+    "mapasDeSuperficie": 0
+   },
+   "C6": {
+    "piorIoU": 0.6881091617933723,
+    "contra": "sertanejo"
+   }
+  },
+  {
+   "id": "skatista",
+   "nome": "Skatista",
+   "time": "U",
+   "tribo": "urbanas",
+   "fonte": "glb",
+   "marcos": {
+    "alturaTotal": 1.72,
+    "cabeca": 0.3075305933757897,
+    "ombroLargura": 0.3804369727940232,
+    "cinturaLargura": 0.4106457965256274,
+    "torsoLargura": 0.4274755991368151,
+    "torsoProfundidade": 0.2894716860559816,
+    "braco": 0.4808839136539726,
+    "perna": 0.7211908549943371,
+    "larguraMax": 1.686340989779072
+   },
+   "marcosUsados": {
+    "cabeca": "Head",
+    "pescoco": "neck",
+    "quadril": "Hips",
+    "ombroE": "LeftArm",
+    "ombroD": "RightArm",
+    "maoE": "LeftHand",
+    "coxaE": "LeftUpLeg",
+    "peE": "LeftFoot"
+   },
+   "C7": {
+    "familia": "26n/24j",
+    "juntas": 24,
+    "nos": 26,
+    "clipesNoGLB": 0,
+    "impressaoEsqueleto": 550.07,
+    "curlDuplicado": 0,
+    "convencaoSkinPai": 0,
+    "convencaoSkinFilho": 17,
+    "ossosInvertidos": [],
+    "raioSkinP50": 0.094,
+    "raioSkinP95": 0.171,
+    "desalinhamentoRMS": 0.1205,
+    "piorJunta": "RightUpLeg",
+    "piorDesalinhamento": 0.192,
+    "antebraco": 0.232,
+    "dPalmaOsso": 0.109,
+    "alavancaPalma": 0.47,
+    "abducaoBraco": 86.7
+   },
+   "C1": {
+    "razoes": {
+     "cabecaSobreAltura": 0.1787968566138312,
+     "ombroSobreAltura": 0.22118428650815303,
+     "cinturaSobreOmbro": 1.0794055938089904,
+     "larguraTorsoSobreAltura": 0.24853232507954368,
+     "bracoSobreAltura": 0.2795836707290538,
+     "pernaSobreAltura": 0.41929700871763786
+    },
+    "pctElenco": {
+     "cabecaSobreAltura": -0.19704195009167327,
+     "ombroSobreAltura": 0.13729441748718177,
+     "cinturaSobreOmbro": -0.0018402412781970776,
+     "larguraTorsoSobreAltura": 0.1449386382522684,
+     "bracoSobreAltura": 0.006243255025204316,
+     "pernaSobreAltura": 0.10847702230831786
+    },
+    "piorPct": -0.19704195009167327,
+    "piorPctRazao": "cabecaSobreAltura",
+    "zElenco": {
+     "cabecaSobreAltura": -2.516497360763719,
+     "ombroSobreAltura": 4.276717021085457,
+     "cinturaSobreOmbro": -0.016696624129483622,
+     "larguraTorsoSobreAltura": 0.8859097017057399,
+     "bracoSobreAltura": 0.8225755031102344,
+     "pernaSobreAltura": 6.213827235182095
+    },
+    "desvioRef": {
+     "cabecaSobreAltura": 0.3753604354910093,
+     "ombroSobreAltura": -0.146006615798637,
+     "cinturaSobreOmbro": 0.458656207849987,
+     "larguraTorsoSobreAltura": 0.4283466958594465,
+     "bracoSobreAltura": -0.3645825665248777,
+     "pernaSobreAltura": -0.20887356845728708
+    },
+    "elencoDegenerado": false,
+    "piorZ": 6.213827235182095,
+    "piorZRazao": "pernaSobreAltura",
+    "piorDesvioRef": 0.458656207849987,
+    "piorDesvioRefRazao": "cinturaSobreOmbro",
+    "indiceBalao": 1.4283466958594464
+   },
+   "C2": {
+    "alturaM": 1.72,
+    "alturaBBox": 1.72,
+    "adereçoAcima": null
+   },
+   "C3": {
+    "porPose": {
+     "bind": 0,
+     "idle": 0.007394163316770221,
+     "walk": -0.025325632622837373,
+     "run": 0.016511125297575764,
+     "shoot": 0.009255651784878518,
+     "crouch": -0.024065567453823888
+    },
+    "afunda": -0.025325632622837373,
+    "flutua": 0.016511125297575764,
+    "piorDesvio": -0.025325632622837373
+   },
+   "C5": {
+    "materiais": 1,
+    "triangulos": 4767,
+    "map": 1,
+    "normalMap": 0,
+    "roughnessMap": 0,
+    "aoMap": 0,
+    "texturas": [
+     "base 1024x1024"
+    ],
+    "mapasDeSuperficie": 0
+   },
+   "C6": {
+    "piorIoU": 0.8334108887854816,
+    "contra": "funkraiz"
+   }
+  },
+  {
+   "id": "clubber",
+   "nome": "Clubber",
+   "time": "U",
+   "tribo": "urbanas",
+   "fonte": "glb",
+   "marcos": {
+    "alturaTotal": 1.72,
+    "cabeca": 0.2870068921318043,
+    "ombroLargura": 0.30897522568952407,
+    "cinturaLargura": 0.3007398490928373,
+    "torsoLargura": 0.3231311235729153,
+    "torsoProfundidade": 0.2423484081530478,
+    "braco": 0.476316800367258,
+    "perna": 0.7090904753215446,
+    "larguraMax": 1.6055582190807605
+   },
+   "marcosUsados": {
+    "cabeca": "Head",
+    "pescoco": "neck",
+    "quadril": "Hips",
+    "ombroE": "LeftArm",
+    "ombroD": "RightArm",
+    "maoE": "LeftHand",
+    "coxaE": "LeftUpLeg",
+    "peE": "LeftFoot"
+   },
+   "C7": {
+    "familia": "26n/24j",
+    "juntas": 24,
+    "nos": 26,
+    "clipesNoGLB": 0,
+    "impressaoEsqueleto": 536.83,
+    "curlDuplicado": 0,
+    "convencaoSkinPai": 0,
+    "convencaoSkinFilho": 17,
+    "ossosInvertidos": [],
+    "raioSkinP50": 0.069,
+    "raioSkinP95": 0.14,
+    "desalinhamentoRMS": 0.1264,
+    "piorJunta": "LeftLeg",
+    "piorDesalinhamento": 0.218,
+    "antebraco": 0.236,
+    "dPalmaOsso": 0.097,
+    "alavancaPalma": 0.41,
+    "abducaoBraco": 85.4
+   },
+   "C1": {
+    "razoes": {
+     "cabecaSobreAltura": 0.16686447216965367,
+     "ombroSobreAltura": 0.17963675912181631,
+     "cinturaSobreOmbro": 0.9733461588115736,
+     "larguraTorsoSobreAltura": 0.18786693230983448,
+     "bracoSobreAltura": 0.2769283723065453,
+     "pernaSobreAltura": 0.41226190425671194
+    },
+    "pctElenco": {
+     "cabecaSobreAltura": -0.2506290451083766,
+     "ombroSobreAltura": -0.07633635937695503,
+     "cinturaSobreOmbro": -0.0999166832147448,
+     "larguraTorsoSobreAltura": -0.13453467438245437,
+     "bracoSobreAltura": -0.0033133693683482495,
+     "pernaSobreAltura": 0.08987862670247987
+    },
+    "piorPct": -0.2506290451083766,
+    "piorPctRazao": "cabecaSobreAltura",
+    "zElenco": {
+     "cabecaSobreAltura": -3.200878443664031,
+     "ombroSobreAltura": -2.377875324068439,
+     "cinturaSobreOmbro": -0.9065503114546584,
+     "larguraTorsoSobreAltura": -0.8223174626754413,
+     "bracoSobreAltura": -0.43655055962893446,
+     "pernaSobreAltura": 5.148465975377441
+    },
+    "desvioRef": {
+     "cabecaSobreAltura": 0.2835728628434897,
+     "ombroSobreAltura": -0.3064217794524467,
+     "cinturaSobreOmbro": 0.31533264704266706,
+     "larguraTorsoSobreAltura": 0.07969501327491087,
+     "bracoSobreAltura": -0.37061733566694244,
+     "pernaSobreAltura": -0.2221473504590341
+    },
+    "elencoDegenerado": false,
+    "piorZ": 5.148465975377441,
+    "piorZRazao": "pernaSobreAltura",
+    "piorDesvioRef": -0.37061733566694244,
+    "piorDesvioRefRazao": "bracoSobreAltura",
+    "indiceBalao": 1.0796950132749108
+   },
+   "C2": {
+    "alturaM": 1.72,
+    "alturaBBox": 1.72,
+    "adereçoAcima": null
+   },
+   "C3": {
+    "porPose": {
+     "bind": 0,
+     "idle": 0.002120285656919644,
+     "walk": -0.03159154164817798,
+     "run": -0.01733231723557979,
+     "shoot": 0.005049472048219999,
+     "crouch": -0.03832016720409476
+    },
+    "afunda": -0.03832016720409476,
+    "flutua": 0.005049472048219999,
+    "piorDesvio": -0.03832016720409476
+   },
+   "C5": {
+    "materiais": 1,
+    "triangulos": 4919,
+    "map": 1,
+    "normalMap": 0,
+    "roughnessMap": 0,
+    "aoMap": 0,
+    "texturas": [
+     "base 1024x1024"
+    ],
+    "mapasDeSuperficie": 0
+   },
+   "C6": {
+    "piorIoU": 0.7988609112709832,
+    "contra": "blackmetal"
+   }
+  },
+  {
+   "id": "rapper",
+   "nome": "Rapper",
+   "time": "U",
+   "tribo": "urbanas",
+   "fonte": "glb",
+   "marcos": {
+    "alturaTotal": 1.72,
+    "cabeca": 0.2946231870958942,
+    "ombroLargura": 0.40739043753831583,
+    "cinturaLargura": 0.45059527722772036,
+    "torsoLargura": 0.48133060134083683,
+    "torsoProfundidade": 0.33066681817495597,
+    "braco": 0.4619475230963513,
+    "perna": 0.5872132455297577,
+    "larguraMax": 1.6728761973100554
+   },
+   "marcosUsados": {
+    "cabeca": "Head",
+    "pescoco": "neck",
+    "quadril": "Hips",
+    "ombroE": "LeftArm",
+    "ombroD": "RightArm",
+    "maoE": "LeftHand",
+    "coxaE": "LeftUpLeg",
+    "peE": "LeftFoot"
+   },
+   "C7": {
+    "familia": "26n/24j",
+    "juntas": 24,
+    "nos": 26,
+    "clipesNoGLB": 0,
+    "impressaoEsqueleto": 537.42,
+    "curlDuplicado": 0,
+    "convencaoSkinPai": 0,
+    "convencaoSkinFilho": 17,
+    "ossosInvertidos": [],
+    "raioSkinP50": 0.085,
+    "raioSkinP95": 0.163,
+    "desalinhamentoRMS": 0.1225,
+    "piorJunta": "LeftLeg",
+    "piorDesalinhamento": 0.185,
+    "antebraco": 0.211,
+    "dPalmaOsso": 0.109,
+    "alavancaPalma": 0.52,
+    "abducaoBraco": 89.6
+   },
+   "C1": {
+    "razoes": {
+     "cabecaSobreAltura": 0.1712925506371478,
+     "ombroSobreAltura": 0.23685490554553246,
+     "cinturaSobreOmbro": 1.1060526603188643,
+     "larguraTorsoSobreAltura": 0.27984337287257954,
+     "bracoSobreAltura": 0.26857414133508795,
+     "pernaSobreAltura": 0.34140304972660335
+    },
+    "pctElenco": {
+     "cabecaSobreAltura": -0.2307430061788472,
+     "ombroSobreAltura": 0.21787024785532613,
+     "cinturaSobreOmbro": 0.022801125813741788,
+     "larguraTorsoSobreAltura": 0.28918236353402604,
+     "bracoSobreAltura": -0.03338089278282665,
+     "pernaSobreAltura": -0.0974478040629896
+    },
+    "piorPct": 0.28918236353402604,
+    "piorPctRazao": "larguraTorsoSobreAltura",
+    "zElenco": {
+     "cabecaSobreAltura": -2.9469063100197848,
+     "ombroSobreAltura": 6.786651740432005,
+     "cinturaSobreOmbro": 0.20687603954525707,
+     "larguraTorsoSobreAltura": 1.7675718808057748,
+     "bracoSobreAltura": -4.3980751329638075,
+     "pernaSobreAltura": -5.582046833607291
+    },
+    "desvioRef": {
+     "cabecaSobreAltura": 0.31763500490113683,
+     "ombroSobreAltura": -0.0855022951909944,
+     "cinturaSobreOmbro": 0.4946657571876545,
+     "larguraTorsoSobreAltura": 0.6082952463941355,
+     "bracoSobreAltura": -0.3896042242384365,
+     "pernaSobreAltura": -0.35584330240263523
+    },
+    "elencoDegenerado": false,
+    "piorZ": 6.786651740432005,
+    "piorZRazao": "ombroSobreAltura",
+    "piorDesvioRef": 0.6082952463941355,
+    "piorDesvioRefRazao": "larguraTorsoSobreAltura",
+    "indiceBalao": 1.6082952463941353
+   },
+   "C2": {
+    "alturaM": 1.72,
+    "alturaBBox": 1.72,
+    "adereçoAcima": null
+   },
+   "C3": {
+    "porPose": {
+     "bind": 0,
+     "idle": 0.01780771166132111,
+     "walk": -0.04106856564069778,
+     "run": -0.030687805728909882,
+     "shoot": 0.022918403321159162,
+     "crouch": 0.0024196175909429836
+    },
+    "afunda": -0.04106856564069778,
+    "flutua": 0.022918403321159162,
+    "piorDesvio": -0.04106856564069778
+   },
+   "C5": {
+    "materiais": 1,
+    "triangulos": 4704,
+    "map": 1,
+    "normalMap": 0,
+    "roughnessMap": 0,
+    "aoMap": 0,
+    "texturas": [
+     "base 1024x1024"
+    ],
+    "mapasDeSuperficie": 0
+   },
+   "C6": {
+    "piorIoU": 0.7529344729344729,
+    "contra": "esbirro"
+   }
+  },
+  {
+   "id": "reggae",
+   "nome": "Rasta",
+   "time": "U",
+   "tribo": "urbanas",
+   "fonte": "glb",
+   "marcos": {
+    "alturaTotal": 1.7199999999999998,
+    "cabeca": 0.3463364246993683,
+    "ombroLargura": 0.34209146151856024,
+    "cinturaLargura": 0.350058766214867,
+    "torsoLargura": 0.3668884874388581,
+    "torsoProfundidade": 0.37426836039596756,
+    "braco": 0.4533839752611201,
+    "perna": 0.6316511626263805,
+    "larguraMax": 1.6055580406037944
+   },
+   "marcosUsados": {
+    "cabeca": "Head",
+    "pescoco": "neck",
+    "quadril": "Hips",
+    "ombroE": "LeftArm",
+    "ombroD": "RightArm",
+    "maoE": "LeftHand",
+    "coxaE": "LeftUpLeg",
+    "peE": "LeftFoot"
+   },
+   "C7": {
+    "familia": "26n/24j",
+    "juntas": 24,
+    "nos": 26,
+    "clipesNoGLB": 0,
+    "impressaoEsqueleto": 528.34,
+    "curlDuplicado": 0,
+    "convencaoSkinPai": 1,
+    "convencaoSkinFilho": 15,
+    "ossosInvertidos": [
+     "Spine01"
+    ],
+    "raioSkinP50": 0.079,
+    "raioSkinP95": 0.174,
+    "desalinhamentoRMS": 0.1264,
+    "piorJunta": "RightUpLeg",
+    "piorDesalinhamento": 0.232,
+    "antebraco": 0.226,
+    "dPalmaOsso": 0.105,
+    "alavancaPalma": 0.47,
+    "abducaoBraco": 85.7
+   },
+   "C1": {
+    "razoes": {
+     "cabecaSobreAltura": 0.20135838645312115,
+     "ombroSobreAltura": 0.1988903846038141,
+     "cinturaSobreOmbro": 1.0232899840906273,
+     "larguraTorsoSobreAltura": 0.21330726013887102,
+     "bracoSobreAltura": 0.26359533445413963,
+     "pernaSobreAltura": 0.3672390480385934
+    },
+    "pctElenco": {
+     "cabecaSobreAltura": -0.09572047081179998,
+     "ombroSobreAltura": 0.02266272018133857,
+     "cinturaSobreOmbro": -0.05373208228612867,
+     "larguraTorsoSobreAltura": -0.01733618001378022,
+     "bracoSobreAltura": -0.05130000382734267,
+     "pernaSobreAltura": -0.029146313993158843
+    },
+    "piorPct": -0.09572047081179998,
+    "piorPctRazao": "cabecaSobreAltura",
+    "zElenco": {
+     "cabecaSobreAltura": -1.2224823803098086,
+     "ombroSobreAltura": 0.7059430595761584,
+     "cinturaSobreOmbro": -0.4875145407589848,
+     "larguraTorsoSobreAltura": -0.10596408418018703,
+     "bracoSobreAltura": -6.758994512874698,
+     "pernaSobreAltura": -1.6695716368495133
+    },
+    "desvioRef": {
+     "cabecaSobreAltura": 0.5489106650240088,
+     "ombroSobreAltura": -0.23208345712813086,
+     "cinturaSobreOmbro": 0.3828243028251721,
+     "larguraTorsoSobreAltura": 0.2259037939015577,
+     "bracoSobreAltura": -0.40091969442240993,
+     "pernaSobreAltura": -0.30709613577623884
+    },
+    "elencoDegenerado": false,
+    "piorZ": -6.758994512874698,
+    "piorZRazao": "bracoSobreAltura",
+    "piorDesvioRef": 0.5489106650240088,
+    "piorDesvioRefRazao": "cabecaSobreAltura",
+    "indiceBalao": 1.2259037939015578
+   },
+   "C2": {
+    "alturaM": 1.7199999999999998,
+    "alturaBBox": 1.7199999999999998,
+    "adereçoAcima": null
+   },
+   "C3": {
+    "porPose": {
+     "bind": 0,
+     "idle": 0.007729885247305299,
+     "walk": -0.04110328816686575,
+     "run": -0.053995793108075014,
+     "shoot": 0.012432855345403589,
+     "crouch": -0.028156411591289447
+    },
+    "afunda": -0.053995793108075014,
+    "flutua": 0.012432855345403589,
+    "piorDesvio": -0.053995793108075014
+   },
+   "C5": {
+    "materiais": 1,
+    "triangulos": 4895,
+    "map": 1,
+    "normalMap": 0,
+    "roughnessMap": 0,
+    "aoMap": 0,
+    "texturas": [
+     "base 1024x1024"
+    ],
+    "mapasDeSuperficie": 0
+   },
+   "C6": {
+    "piorIoU": 0.7690573770491803,
+    "contra": "titica"
+   }
+  },
+  {
+   "id": "pagodeiro",
+   "nome": "Pagodeiro",
+   "time": "U",
+   "tribo": "urbanas",
+   "fonte": "glb",
+   "marcos": {
+    "alturaTotal": 1.7199999999999998,
+    "cabeca": 0.38299708592049697,
+    "ombroLargura": 0.33451054648866674,
+    "cinturaLargura": 0.4101804356590659,
+    "torsoLargura": 0.41018047701799576,
+    "torsoProfundidade": 0.34124259907360743,
+    "braco": 0.47790026560499316,
+    "perna": 0.6506141751769401,
+    "larguraMax": 1.7445153543646623
+   },
+   "marcosUsados": {
+    "cabeca": "Head",
+    "pescoco": "neck",
+    "quadril": "Hips",
+    "ombroE": "LeftArm",
+    "ombroD": "RightArm",
+    "maoE": "LeftHand",
+    "coxaE": "LeftUpLeg",
+    "peE": "LeftFoot"
+   },
+   "C7": {
+    "familia": "30n/28j",
+    "juntas": 28,
+    "nos": 30,
+    "clipesNoGLB": 0,
+    "impressaoEsqueleto": 531.45,
+    "curlDuplicado": 4,
+    "convencaoSkinPai": 2,
+    "convencaoSkinFilho": 12,
+    "ossosInvertidos": [
+     "LeftHand",
+     "RightHand"
+    ],
+    "raioSkinP50": 0.045,
+    "raioSkinP95": 0.185,
+    "desalinhamentoRMS": 0.1355,
+    "piorJunta": "LeftLeg",
+    "piorDesalinhamento": 0.228,
+    "antebraco": 0.234,
+    "dPalmaOsso": 0.098,
+    "alavancaPalma": 0.42,
+    "abducaoBraco": 86.5
+   },
+   "C1": {
+    "razoes": {
+     "cabecaSobreAltura": 0.222672724372382,
+     "ombroSobreAltura": 0.19448287586550395,
+     "cinturaSobreOmbro": 1.226210772618982,
+     "larguraTorsoSobreAltura": 0.2384770215220906,
+     "bracoSobreAltura": 0.27784899163081,
+     "pernaSobreAltura": 0.37826405533543034
+    },
+    "pctElenco": {
+     "cabecaSobreAltura": -4.698573679566756e-10,
+     "ombroSobreAltura": 1.1350431832279643e-8,
+     "cinturaSobreOmbro": 0.1339150509868742,
+     "larguraTorsoSobreAltura": 0.09861586893604836,
+     "bracoSobreAltura": 1.0783903007659801e-8,
+     "pernaSobreAltura": 1.1893356327681272e-8
+    },
+    "piorPct": 0.1339150509868742,
+    "piorPctRazao": "cinturaSobreOmbro",
+    "zElenco": {
+     "cabecaSobreAltura": -6.0007263724717286e-9,
+     "ombroSobreAltura": 3.535656139719782e-7,
+     "cinturaSobreOmbro": 1.2150196270996918,
+     "larguraTorsoSobreAltura": 0.6027706351188906,
+     "bracoSobreAltura": 0.0000014208252596132631,
+     "pernaSobreAltura": 6.812803291799465e-7
+    },
+    "desvioRef": {
+     "cabecaSobreAltura": 0.7128671105567845,
+     "ombroSobreAltura": -0.24910086538415468,
+     "cinturaSobreOmbro": 0.6570415846202459,
+     "larguraTorsoSobreAltura": 0.3705575949545438,
+     "bracoSobreAltura": -0.36852501902088636,
+     "pernaSobreAltura": -0.2862942352161692
+    },
+    "elencoDegenerado": false,
+    "piorZ": 1.2150196270996918,
+    "piorZRazao": "cinturaSobreOmbro",
+    "piorDesvioRef": 0.7128671105567845,
+    "piorDesvioRefRazao": "cabecaSobreAltura",
+    "indiceBalao": 1.3705575949545439
+   },
+   "C2": {
+    "alturaM": 1.7199999999999998,
+    "alturaBBox": 1.7199999999999998,
+    "adereçoAcima": null
+   },
+   "C3": {
+    "porPose": {
+     "bind": 0,
+     "idle": 0.02651693353326739,
+     "walk": 0.05129224022259535,
+     "run": 0.037538365212957774,
+     "shoot": 0.03229826361349368,
+     "crouch": 0.047462074081168724
+    },
+    "afunda": 0,
+    "flutua": 0.05129224022259535,
+    "piorDesvio": 0.05129224022259535
+   },
+   "C5": {
+    "materiais": 1,
+    "triangulos": 4776,
+    "map": 1,
+    "normalMap": 1,
+    "roughnessMap": 1,
+    "aoMap": 0,
+    "texturas": [
+     "base 1024x1024",
+     "normal 1024x1024",
+     "rough 1024x1024"
+    ],
+    "mapasDeSuperficie": 2
+   },
+   "C6": {
+    "piorIoU": 0.8437255821222066,
+    "contra": "farialimer"
+   }
+  },
+  {
+   "id": "mandrake",
+   "nome": "Mandrake",
+   "time": "F",
+   "tribo": "funkeiros",
+   "fonte": "glb",
+   "marcos": {
+    "alturaTotal": 1.7200000000000002,
+    "cabeca": 0.3613913315515571,
+    "ombroLargura": 0.3338179469236504,
+    "cinturaLargura": 0.34332675329704476,
+    "torsoLargura": 0.3534246309554513,
+    "torsoProfundidade": 0.30312905896154846,
+    "braco": 0.4817772250286146,
+    "perna": 0.647556523590576,
+    "larguraMax": 1.7199995038077476
+   },
+   "marcosUsados": {
+    "cabeca": "Head",
+    "pescoco": "neck",
+    "quadril": "Hips",
+    "ombroE": "LeftArm",
+    "ombroD": "RightArm",
+    "maoE": "LeftHand",
+    "coxaE": "LeftUpLeg",
+    "peE": "LeftFoot"
+   },
+   "C7": {
+    "familia": "26n/24j",
+    "juntas": 24,
+    "nos": 26,
+    "clipesNoGLB": 0,
+    "impressaoEsqueleto": 537.91,
+    "curlDuplicado": 0,
+    "convencaoSkinPai": 0,
+    "convencaoSkinFilho": 17,
+    "ossosInvertidos": [],
+    "raioSkinP50": 0.087,
+    "raioSkinP95": 0.167,
+    "desalinhamentoRMS": 0.1393,
+    "piorJunta": "RightLeg",
+    "piorDesalinhamento": 0.266,
+    "antebraco": 0.25,
+    "dPalmaOsso": 0.104,
+    "alavancaPalma": 0.42,
+    "abducaoBraco": 86.2
+   },
+   "C1": {
+    "razoes": {
+     "cabecaSobreAltura": 0.2101112392741611,
+     "ombroSobreAltura": 0.19408020169979673,
+     "cinturaSobreOmbro": 1.028485006456436,
+     "larguraTorsoSobreAltura": 0.20547943660200654,
+     "bracoSobreAltura": 0.28010303780733403,
+     "pernaSobreAltura": 0.37648635092475347
+    },
+    "pctElenco": {
+     "cabecaSobreAltura": -0.05641232096274304,
+     "ombroSobreAltura": -0.002070475156340185,
+     "cinturaSobreOmbro": -0.04892808432562941,
+     "larguraTorsoSobreAltura": -0.053397395060588444,
+     "bracoSobreAltura": 0.008112497309772756,
+     "pernaSobreAltura": -0.004699626908547128
+    },
+    "piorPct": -0.05641232096274304,
+    "piorPctRazao": "cabecaSobreAltura",
+    "zElenco": {
+     "cabecaSobreAltura": -0.720463113318009,
+     "ombroSobreAltura": -0.06449523953646079,
+     "cinturaSobreOmbro": -0.4439275670204944,
+     "larguraTorsoSobreAltura": -0.3263813631783525,
+     "bracoSobreAltura": 1.06885615422195,
+     "pernaSobreAltura": -0.26920604067213194
+    },
+    "desvioRef": {
+     "cabecaSobreAltura": 0.6162403021089314,
+     "ombroSobreAltura": -0.2506555918926767,
+     "cinturaSobreOmbro": 0.38984460331950804,
+     "larguraTorsoSobreAltura": 0.18091630231038253,
+     "bracoSobreAltura": -0.3634021868015136,
+     "pernaSobreAltura": -0.2896483944815973
+    },
+    "elencoDegenerado": false,
+    "piorZ": 1.06885615422195,
+    "piorZRazao": "bracoSobreAltura",
+    "piorDesvioRef": 0.6162403021089314,
+    "piorDesvioRefRazao": "cabecaSobreAltura",
+    "indiceBalao": 1.1809163023103826
+   },
+   "C2": {
+    "alturaM": 1.7200000000000002,
+    "alturaBBox": 1.7200000000000002,
+    "adereçoAcima": null
+   },
+   "C3": {
+    "porPose": {
+     "bind": 0,
+     "idle": 0.016894590717594454,
+     "walk": 0.04263363155310488,
+     "run": 0.07378753990041868,
+     "shoot": 0.01527911566084883,
+     "crouch": -0.003878016559973537
+    },
+    "afunda": -0.003878016559973537,
+    "flutua": 0.07378753990041868,
+    "piorDesvio": 0.07378753990041868
+   },
+   "C5": {
+    "materiais": 1,
+    "triangulos": 4756,
+    "map": 1,
+    "normalMap": 0,
+    "roughnessMap": 0,
+    "aoMap": 0,
+    "texturas": [
+     "base 1024x1024"
+    ],
+    "mapasDeSuperficie": 0
+   },
+   "C6": {
+    "piorIoU": 0.7996591261233343,
+    "contra": "pagodeiro"
+   }
+  },
+  {
+   "id": "raul",
+   "nome": "Raul da Franja",
+   "time": "F",
+   "tribo": "funkeiros",
+   "fonte": "glb",
+   "marcos": {
+    "alturaTotal": 1.7200000000000002,
+    "cabeca": 0.3829969998848126,
+    "ombroLargura": 0.3345105638042629,
+    "cinturaLargura": 0.3403949903176202,
+    "torsoLargura": 0.3615718158772181,
+    "torsoProfundidade": 0.2804716335695353,
+    "braco": 0.4779002903430113,
+    "perna": 0.6506142088553172,
+    "larguraMax": 1.709804510911306
+   },
+   "marcosUsados": {
+    "cabeca": "Head",
+    "pescoco": "neck",
+    "quadril": "Hips",
+    "ombroE": "LeftArm",
+    "ombroD": "RightArm",
+    "maoE": "LeftHand",
+    "coxaE": "LeftUpLeg",
+    "peE": "LeftFoot"
+   },
+   "C7": {
+    "familia": "30n/28j",
+    "juntas": 28,
+    "nos": 30,
+    "clipesNoGLB": 0,
+    "impressaoEsqueleto": 531.45,
+    "curlDuplicado": 4,
+    "convencaoSkinPai": 13,
+    "convencaoSkinFilho": 0,
+    "ossosInvertidos": [
+     "LeftLeg",
+     "LeftFoot",
+     "RightLeg",
+     "RightFoot",
+     "Spine",
+     "LeftShoulder"
+    ],
+    "raioSkinP50": 0.171,
+    "raioSkinP95": 0.278,
+    "desalinhamentoRMS": 0.1158,
+    "piorJunta": "LeftHand",
+    "piorDesalinhamento": 0.174,
+    "antebraco": 0.234,
+    "dPalmaOsso": 0.079,
+    "alavancaPalma": 0.34,
+    "abducaoBraco": 86.5
+   },
+   "C1": {
+    "razoes": {
+     "cabecaSobreAltura": 0.2226726743516352,
+     "ombroSobreAltura": 0.19448288593271099,
+     "cinturaSobreOmbro": 1.0175911530160242,
+     "larguraTorsoSobreAltura": 0.2102161720216384,
+     "bracoSobreAltura": 0.27784900601337864,
+     "pernaSobreAltura": 0.37826407491588204
+    },
+    "pctElenco": {
+     "cabecaSobreAltura": -2.2510781835798954e-7,
+     "ombroSobreAltura": 6.311440904459726e-8,
+     "cinturaSobreOmbro": -0.059001967751840606,
+     "larguraTorsoSobreAltura": -0.031576203795513215,
+     "bracoSobreAltura": 6.254787993176215e-8,
+     "pernaSobreAltura": 6.365733353134321e-8
+    },
+    "piorPct": -0.059001967751840606,
+    "piorPctRazao": "cinturaSobreOmbro",
+    "zElenco": {
+     "cabecaSobreAltura": -0.0000028749371924181853,
+     "ombroSobreAltura": 0.0000019660119644848612,
+     "cinturaSobreOmbro": -0.5353285409495608,
+     "larguraTorsoSobreAltura": -0.19300350564073937,
+     "bracoSobreAltura": 0.000008240950208767747,
+     "pernaSobreAltura": 0.0000036464466335724655
+    },
+    "desvioRef": {
+     "cabecaSobreAltura": 0.7128667257818092,
+     "ombroSobreAltura": -0.24910082651462942,
+     "cinturaSobreOmbro": 0.3751231797513841,
+     "larguraTorsoSobreAltura": 0.20813891966458856,
+     "bracoSobreAltura": -0.3685249863332304,
+     "pernaSobreAltura": -0.2862941982719207
+    },
+    "elencoDegenerado": false,
+    "piorZ": -0.5353285409495608,
+    "piorZRazao": "cinturaSobreOmbro",
+    "piorDesvioRef": 0.7128667257818092,
+    "piorDesvioRefRazao": "cabecaSobreAltura",
+    "indiceBalao": 1.2081389196645886
+   },
+   "C2": {
+    "alturaM": 1.7200000000000002,
+    "alturaBBox": 1.7200000000000002,
+    "adereçoAcima": null
+   },
+   "C3": {
+    "porPose": {
+     "bind": 0,
+     "idle": 0.024777563714138615,
+     "walk": 0.045271398463703434,
+     "run": 0.03835573728653394,
+     "shoot": 0.03047162452160812,
+     "crouch": 0.04436544710162272
+    },
+    "afunda": 0,
+    "flutua": 0.045271398463703434,
+    "piorDesvio": 0.045271398463703434
+   },
+   "C5": {
+    "materiais": 1,
+    "triangulos": 4869,
+    "map": 1,
+    "normalMap": 1,
+    "roughnessMap": 1,
+    "aoMap": 0,
+    "texturas": [
+     "base 1024x1024",
+     "normal 1024x1024",
+     "rough 1024x1024"
+    ],
+    "mapasDeSuperficie": 2
+   },
+   "C6": {
+    "piorIoU": 0.7618218018914883,
+    "contra": "mandrake"
+   }
+  },
+  {
+   "id": "oakley",
+   "nome": "Oakley",
+   "time": "F",
+   "tribo": "funkeiros",
+   "fonte": "glb",
+   "marcos": {
+    "alturaTotal": 1.7199999999999998,
+    "cabeca": 0.38299709349905653,
+    "ombroLargura": 0.3345105424486243,
+    "cinturaLargura": 0.36742633235736255,
+    "torsoLargura": 0.36688854906265983,
+    "torsoProfundidade": 0.3803523314604279,
+    "braco": 0.4779002598331651,
+    "perna": 0.6506141673191643,
+    "larguraMax": 1.6761212034804287
+   },
+   "marcosUsados": {
+    "cabeca": "Head",
+    "pescoco": "neck",
+    "quadril": "Hips",
+    "ombroE": "LeftArm",
+    "ombroD": "RightArm",
+    "maoE": "LeftHand",
+    "coxaE": "LeftUpLeg",
+    "peE": "LeftFoot"
+   },
+   "C7": {
+    "familia": "30n/28j",
+    "juntas": 28,
+    "nos": 30,
+    "clipesNoGLB": 0,
+    "impressaoEsqueleto": 531.45,
+    "curlDuplicado": 4,
+    "convencaoSkinPai": 2,
+    "convencaoSkinFilho": 11,
+    "ossosInvertidos": [
+     "LeftHand",
+     "RightHand"
+    ],
+    "raioSkinP50": 0.098,
+    "raioSkinP95": 0.246,
+    "desalinhamentoRMS": 0.1555,
+    "piorJunta": "RightHand",
+    "piorDesalinhamento": 0.232,
+    "antebraco": 0.234,
+    "dPalmaOsso": 0.061,
+    "alavancaPalma": 0.26,
+    "abducaoBraco": 86.5
+   },
+   "C1": {
+    "razoes": {
+     "cabecaSobreAltura": 0.22267272877852126,
+     "ombroSobreAltura": 0.1944828735166421,
+     "cinturaSobreOmbro": 1.0983998580965308,
+     "larguraTorsoSobreAltura": 0.21330729596666273,
+     "bracoSobreAltura": 0.277848988275096,
+     "pernaSobreAltura": 0.3782640507669561
+    },
+    "pctElenco": {
+     "cabecaSobreAltura": 1.9317654862624382e-8,
+     "ombroSobreAltura": -7.270421932593311e-10,
+     "cinturaSobreOmbro": 0.015724342754989396,
+     "larguraTorsoSobreAltura": -0.01733601496232048,
+     "bracoSobreAltura": -1.2935711661961251e-9,
+     "pernaSobreAltura": -1.8411774221729878e-10
+    },
+    "piorPct": -0.01733601496232048,
+    "piorPctRazao": "larguraTorsoSobreAltura",
+    "zElenco": {
+     "cabecaSobreAltura": 2.4671308548926607e-7,
+     "ombroSobreAltura": -2.2647342695122923e-8,
+     "cinturaSobreOmbro": 0.14266794456455525,
+     "larguraTorsoSobreAltura": -0.10596307533471126,
+     "bracoSobreAltura": -1.7043352362621902e-7,
+     "pernaSobreAltura": -1.0546711337801548e-8
+    },
+    "desvioRef": {
+     "cabecaSobreAltura": 0.7128671444501635,
+     "ombroSobreAltura": -0.24910087445311938,
+     "cinturaSobreOmbro": 0.48432413256287954,
+     "larguraTorsoSobreAltura": 0.22590399980840659,
+     "bracoSobreAltura": -0.368525026647509,
+     "pernaSobreAltura": -0.286294243835932
+    },
+    "elencoDegenerado": false,
+    "piorZ": 0.14266794456455525,
+    "piorZRazao": "cinturaSobreOmbro",
+    "piorDesvioRef": 0.7128671444501635,
+    "piorDesvioRefRazao": "cabecaSobreAltura",
+    "indiceBalao": 1.2259039998084065
+   },
+   "C2": {
+    "alturaM": 1.7199999999999998,
+    "alturaBBox": 1.7199999999999998,
+    "adereçoAcima": null
+   },
+   "C3": {
+    "porPose": {
+     "bind": 0,
+     "idle": 0.022780859413635866,
+     "walk": -0.04527673499236428,
+     "run": 0.037273579493127186,
+     "shoot": 0.0294396328927712,
+     "crouch": 0.0353924940412065
+    },
+    "afunda": -0.04527673499236428,
+    "flutua": 0.037273579493127186,
+    "piorDesvio": -0.04527673499236428
+   },
+   "C5": {
+    "materiais": 1,
+    "triangulos": 4666,
+    "map": 1,
+    "normalMap": 1,
+    "roughnessMap": 1,
+    "aoMap": 0,
+    "texturas": [
+     "base 1024x1024",
+     "normal 1024x1024",
+     "rough 1024x1024"
+    ],
+    "mapasDeSuperficie": 2
+   },
+   "C6": {
+    "piorIoU": 0.7835294117647059,
+    "contra": "mistico"
+   }
+  },
+  {
+   "id": "criarj",
+   "nome": "Cria RJ",
+   "time": "F",
+   "tribo": "funkeiros",
+   "fonte": "glb",
+   "marcos": {
+    "alturaTotal": 1.72,
+    "cabeca": 0.3829970922898869,
+    "ombroLargura": 0.3345105422502032,
+    "cinturaLargura": 0.3332290207555133,
+    "torsoLargura": 0.309667389597738,
+    "torsoProfundidade": 0.23681910942564688,
+    "braco": 0.4779002595496896,
+    "perna": 0.6506141669332406,
+    "larguraMax": 1.6289412388059938
+   },
+   "marcosUsados": {
+    "cabeca": "Head",
+    "pescoco": "neck",
+    "quadril": "Hips",
+    "ombroE": "LeftArm",
+    "ombroD": "RightArm",
+    "maoE": "LeftHand",
+    "coxaE": "LeftUpLeg",
+    "peE": "LeftFoot"
+   },
+   "C7": {
+    "familia": "30n/28j",
+    "juntas": 28,
+    "nos": 30,
+    "clipesNoGLB": 0,
+    "impressaoEsqueleto": 531.45,
+    "curlDuplicado": 4,
+    "convencaoSkinPai": 2,
+    "convencaoSkinFilho": 10,
+    "ossosInvertidos": [
+     "LeftHand",
+     "RightHand"
+    ],
+    "raioSkinP50": 0.052,
+    "raioSkinP95": 0.207,
+    "desalinhamentoRMS": 0.1604,
+    "piorJunta": "RightHand",
+    "piorDesalinhamento": 0.249,
+    "antebraco": 0.234,
+    "dPalmaOsso": 0.09,
+    "alavancaPalma": 0.39,
+    "abducaoBraco": 86.5
+   },
+   "C1": {
+    "razoes": {
+     "cabecaSobreAltura": 0.22267272807551564,
+     "ombroSobreAltura": 0.19448287340128095,
+     "cinturaSobreOmbro": 0.9961689653005573,
+     "larguraTorsoSobreAltura": 0.18003917999868488,
+     "bracoSobreAltura": 0.2778489881102847,
+     "pernaSobreAltura": 0.3782640505425817
+    },
+    "pctElenco": {
+     "cabecaSobreAltura": 1.6160529859613322e-8,
+     "ombroSobreAltura": -1.3202108108329173e-9,
+     "cinturaSobreOmbro": -0.07881172771973961,
+     "larguraTorsoSobreAltura": -0.17059556130666131,
+     "bracoSobreAltura": -1.8867398945009864e-9,
+     "pernaSobreAltura": -7.772863289090831e-10
+    },
+    "piorPct": -0.17059556130666131,
+    "piorPctRazao": "larguraTorsoSobreAltura",
+    "zElenco": {
+     "cabecaSobreAltura": 2.0639224653095218e-7,
+     "ombroSobreAltura": -4.112452748952675e-8,
+     "cinturaSobreOmbro": -0.7150637312194748,
+     "larguraTorsoSobreAltura": -1.0427327360869714,
+     "bracoSobreAltura": -2.48586035920663e-7,
+     "pernaSobreAltura": -4.452484827968602e-8
+    },
+    "desvioRef": {
+     "cabecaSobreAltura": 0.7128671390424279,
+     "ombroSobreAltura": -0.24910087489852917,
+     "cinturaSobreOmbro": 0.3461742774331856,
+     "larguraTorsoSobreAltura": 0.03470793102692466,
+     "bracoSobreAltura": -0.36852502702208023,
+     "pernaSobreAltura": -0.2862942442592798
+    },
+    "elencoDegenerado": false,
+    "piorZ": -1.0427327360869714,
+    "piorZRazao": "larguraTorsoSobreAltura",
+    "piorDesvioRef": 0.7128671390424279,
+    "piorDesvioRefRazao": "cabecaSobreAltura",
+    "indiceBalao": 1.0347079310269247
+   },
+   "C2": {
+    "alturaM": 1.72,
+    "alturaBBox": 1.72,
+    "adereçoAcima": null
+   },
+   "C3": {
+    "porPose": {
+     "bind": 0,
+     "idle": 0.023094543111978345,
+     "walk": 0.048693263436509024,
+     "run": 0.035064282807123766,
+     "shoot": 0.03002157751630271,
+     "crouch": 0.044011513531747815
+    },
+    "afunda": 0,
+    "flutua": 0.048693263436509024,
+    "piorDesvio": 0.048693263436509024
+   },
+   "C5": {
+    "materiais": 1,
+    "triangulos": 4848,
+    "map": 1,
+    "normalMap": 1,
+    "roughnessMap": 1,
+    "aoMap": 0,
+    "texturas": [
+     "base 1024x1024",
+     "normal 1024x1024",
+     "rough 1024x1024"
+    ],
+    "mapasDeSuperficie": 2
+   },
+   "C6": {
+    "piorIoU": 0.8213028169014085,
+    "contra": "chave"
+   }
+  },
+  {
+   "id": "chave",
+   "nome": "Chave SP",
+   "time": "F",
+   "tribo": "funkeiros",
+   "fonte": "glb",
+   "marcos": {
+    "alturaTotal": 1.7200000000000002,
+    "cabeca": 0.38299709464719567,
+    "ombroLargura": 0.33451054182099244,
+    "cinturaLargura": 0.33996092069004147,
+    "torsoLargura": 0.3130333380380127,
+    "torsoProfundidade": 0.25917821775231226,
+    "braco": 0.4779002589364954,
+    "perna": 0.6506141660984369,
+    "larguraMax": 1.6492048562767403
+   },
+   "marcosUsados": {
+    "cabeca": "Head",
+    "pescoco": "neck",
+    "quadril": "Hips",
+    "ombroE": "LeftArm",
+    "ombroD": "RightArm",
+    "maoE": "LeftHand",
+    "coxaE": "LeftUpLeg",
+    "peE": "LeftFoot"
+   },
+   "C7": {
+    "familia": "30n/28j",
+    "juntas": 28,
+    "nos": 30,
+    "clipesNoGLB": 0,
+    "impressaoEsqueleto": 531.45,
+    "curlDuplicado": 4,
+    "convencaoSkinPai": 2,
+    "convencaoSkinFilho": 9,
+    "ossosInvertidos": [
+     "LeftHand",
+     "RightHand"
+    ],
+    "raioSkinP50": 0.05,
+    "raioSkinP95": 0.193,
+    "desalinhamentoRMS": 0.1745,
+    "piorJunta": "RightHand",
+    "piorDesalinhamento": 0.259,
+    "antebraco": 0.234,
+    "dPalmaOsso": 0.117,
+    "alavancaPalma": 0.5,
+    "abducaoBraco": 86.5
+   },
+   "C1": {
+    "razoes": {
+     "cabecaSobreAltura": 0.22267272944604397,
+     "ombroSobreAltura": 0.19448287315173976,
+     "cinturaSobreOmbro": 1.0162935937366235,
+     "larguraTorsoSobreAltura": 0.18199612676628643,
+     "bracoSobreAltura": 0.27784898775377637,
+     "pernaSobreAltura": 0.37826405005723074
+    },
+    "pctElenco": {
+     "cabecaSobreAltura": 2.2315429760051613e-8,
+     "ombroSobreAltura": -2.6033119321345333e-9,
+     "cinturaSobreOmbro": -0.0602018609751872,
+     "larguraTorsoSobreAltura": -0.16158029954337644,
+     "bracoSobreAltura": -3.1698409222030966e-9,
+     "pernaSobreAltura": -2.060387328207642e-9
+    },
+    "piorPct": -0.16158029954337644,
+    "piorPctRazao": "larguraTorsoSobreAltura",
+    "zElenco": {
+     "cabecaSobreAltura": 2.8499880390623046e-7,
+     "ombroSobreAltura": -8.109308925393193e-8,
+     "cinturaSobreOmbro": -0.5462152471565646,
+     "larguraTorsoSobreAltura": -0.9876286730447214,
+     "bracoSobreAltura": -4.1764007410145663e-7,
+     "pernaSobreAltura": -1.1802398906795038e-7
+    },
+    "desvioRef": {
+     "cabecaSobreAltura": 0.7128671495849536,
+     "ombroSobreAltura": -0.24910087586200866,
+     "cinturaSobreOmbro": 0.3733697212657075,
+     "larguraTorsoSobreAltura": 0.04595475153038186,
+     "bracoSobreAltura": -0.36852502783232644,
+     "pernaSobreAltura": -0.2862942451750364
+    },
+    "elencoDegenerado": false,
+    "piorZ": -0.9876286730447214,
+    "piorZRazao": "larguraTorsoSobreAltura",
+    "piorDesvioRef": 0.7128671495849536,
+    "piorDesvioRefRazao": "cabecaSobreAltura",
+    "indiceBalao": 1.0459547515303818
+   },
+   "C2": {
+    "alturaM": 1.7200000000000002,
+    "alturaBBox": 1.7200000000000002,
+    "adereçoAcima": null
+   },
+   "C3": {
+    "porPose": {
+     "bind": 0,
+     "idle": 0.023462620254292268,
+     "walk": 0.04886694746632723,
+     "run": 0.036315195283750504,
+     "shoot": 0.03029174375686898,
+     "crouch": 0.04344673512600272
+    },
+    "afunda": 0,
+    "flutua": 0.04886694746632723,
+    "piorDesvio": 0.04886694746632723
+   },
+   "C5": {
+    "materiais": 1,
+    "triangulos": 4739,
+    "map": 1,
+    "normalMap": 1,
+    "roughnessMap": 1,
+    "aoMap": 0,
+    "texturas": [
+     "base 1024x1024",
+     "normal 1024x1024",
+     "rough 1024x1024"
+    ],
+    "mapasDeSuperficie": 2
+   },
+   "C6": {
+    "piorIoU": 0.8330491132332879,
+    "contra": "farialimer"
+   }
+  },
+  {
+   "id": "funkraiz",
+   "nome": "Funk Raiz",
+   "time": "F",
+   "tribo": "funkeiros",
+   "fonte": "glb",
+   "marcos": {
+    "alturaTotal": 1.7199999999999998,
+    "cabeca": 0.3829971215343637,
+    "ombroLargura": 0.3345105346764561,
+    "cinturaLargura": 0.4176007492155024,
+    "torsoLargura": 0.40054803047959897,
+    "torsoProfundidade": 0.3231171929350647,
+    "braco": 0.4779002487294157,
+    "perna": 0.6506141522025024,
+    "larguraMax": 1.6559359779664007
+   },
+   "marcosUsados": {
+    "cabeca": "Head",
+    "pescoco": "neck",
+    "quadril": "Hips",
+    "ombroE": "LeftArm",
+    "ombroD": "RightArm",
+    "maoE": "LeftHand",
+    "coxaE": "LeftUpLeg",
+    "peE": "LeftFoot"
+   },
+   "C7": {
+    "familia": "30n/28j",
+    "juntas": 28,
+    "nos": 30,
+    "clipesNoGLB": 0,
+    "impressaoEsqueleto": 531.45,
+    "curlDuplicado": 4,
+    "convencaoSkinPai": 2,
+    "convencaoSkinFilho": 10,
+    "ossosInvertidos": [
+     "LeftHand",
+     "RightHand"
+    ],
+    "raioSkinP50": 0.043,
+    "raioSkinP95": 0.213,
+    "desalinhamentoRMS": 0.1658,
+    "piorJunta": "LeftUpLeg",
+    "piorDesalinhamento": 0.242,
+    "antebraco": 0.234,
+    "dPalmaOsso": 0.116,
+    "alavancaPalma": 0.5,
+    "abducaoBraco": 86.5
+   },
+   "C1": {
+    "razoes": {
+     "cabecaSobreAltura": 0.22267274507811846,
+     "ombroSobreAltura": 0.19448286899793962,
+     "cinturaSobreOmbro": 1.2483934164268173,
+     "larguraTorsoSobreAltura": 0.2328767619067436,
+     "bracoSobreAltura": 0.2778489818194278,
+     "pernaSobreAltura": 0.37826404197819913
+    },
+    "pctElenco": {
+     "cabecaSobreAltura": 9.251744723959615e-8,
+     "ombroSobreAltura": -2.3961491493431675e-8,
+     "cinturaSobreOmbro": 0.15442802823846224,
+     "larguraTorsoSobreAltura": 0.07281659467342523,
+     "bracoSobreAltura": -2.452802040404447e-8,
+     "pernaSobreAltura": -2.341856713013932e-8
+    },
+    "piorPct": 0.15442802823846224,
+    "piorPctRazao": "cinturaSobreOmbro",
+    "zElenco": {
+     "cabecaSobreAltura": 0.0000011815753533433945,
+     "ombroSobreAltura": -7.463997473176295e-7,
+     "cinturaSobreOmbro": 1.401135151734573,
+     "larguraTorsoSobreAltura": 0.4450775062070262,
+     "bracoSobreAltura": -0.0000032316714026101624,
+     "pernaSobreAltura": -0.000001341472388766351
+    },
+    "desvioRef": {
+     "cabecaSobreAltura": 0.7128672698316804,
+     "ombroSobreAltura": -0.24910089189984705,
+     "cinturaSobreOmbro": 0.6870181303065099,
+     "larguraTorsoSobreAltura": 0.3383721948663427,
+     "bracoSobreAltura": -0.36852504131948227,
+     "pernaSobreAltura": -0.28629426041849226
+    },
+    "elencoDegenerado": false,
+    "piorZ": 1.401135151734573,
+    "piorZRazao": "cinturaSobreOmbro",
+    "piorDesvioRef": 0.7128672698316804,
+    "piorDesvioRefRazao": "cabecaSobreAltura",
+    "indiceBalao": 1.3383721948663427
+   },
+   "C2": {
+    "alturaM": 1.7199999999999998,
+    "alturaBBox": 1.7199999999999998,
+    "adereçoAcima": null
+   },
+   "C3": {
+    "porPose": {
+     "bind": 0,
+     "idle": 0.022934136025061003,
+     "walk": 0.0506132233380294,
+     "run": 0.037725621346951003,
+     "shoot": 0.030292575664991078,
+     "crouch": 0.0457468572788307
+    },
+    "afunda": 0,
+    "flutua": 0.0506132233380294,
+    "piorDesvio": 0.0506132233380294
+   },
+   "C5": {
+    "materiais": 1,
+    "triangulos": 4959,
+    "map": 1,
+    "normalMap": 1,
+    "roughnessMap": 1,
+    "aoMap": 0,
+    "texturas": [
+     "base 1024x1024",
+     "normal 1024x1024",
+     "rough 1024x1024"
+    ],
+    "mapasDeSuperficie": 2
+   },
+   "C6": {
+    "piorIoU": 0.8334108887854816,
+    "contra": "skatista"
+   }
+  },
+  {
+   "id": "trapfunk",
+   "nome": "Trap Funk",
+   "time": "F",
+   "tribo": "funkeiros",
+   "fonte": "glb",
+   "marcos": {
+    "alturaTotal": 1.72,
+    "cabeca": 0.3829971058838877,
+    "ombroLargura": 0.33451053886948723,
+    "cinturaLargura": 0.37075256624440306,
+    "torsoLargura": 0.3876561005891168,
+    "torsoProfundidade": 0.3828283158885921,
+    "braco": 0.4779002547198119,
+    "perna": 0.6506141603578373,
+    "larguraMax": 1.2877184665105488
+   },
+   "marcosUsados": {
+    "cabeca": "Head",
+    "pescoco": "neck",
+    "quadril": "Hips",
+    "ombroE": "LeftArm",
+    "ombroD": "RightArm",
+    "maoE": "LeftHand",
+    "coxaE": "LeftUpLeg",
+    "peE": "LeftFoot"
+   },
+   "C7": {
+    "familia": "30n/28j",
+    "juntas": 28,
+    "nos": 30,
+    "clipesNoGLB": 0,
+    "impressaoEsqueleto": 531.45,
+    "curlDuplicado": 4,
+    "convencaoSkinPai": 2,
+    "convencaoSkinFilho": 10,
+    "ossosInvertidos": [
+     "LeftHand",
+     "RightHand"
+    ],
+    "raioSkinP50": 0.099,
+    "raioSkinP95": 0.28,
+    "desalinhamentoRMS": 0.1765,
+    "piorJunta": "LeftShoulder",
+    "piorDesalinhamento": 0.267,
+    "antebraco": 0.234,
+    "dPalmaOsso": 0.263,
+    "alavancaPalma": 1.12,
+    "abducaoBraco": 86.5
+   },
+   "C1": {
+    "razoes": {
+     "cabecaSobreAltura": 0.22267273597900447,
+     "ombroSobreAltura": 0.19448287143574838,
+     "cinturaSobreOmbro": 1.1083434545811306,
+     "larguraTorsoSobreAltura": 0.22538145383088187,
+     "bracoSobreAltura": 0.27784898530221624,
+     "pernaSobreAltura": 0.37826404671967284
+    },
+    "pctElenco": {
+     "cabecaSobreAltura": 5.165427456578434e-8,
+     "ombroSobreAltura": -1.1426666629108712e-8,
+     "cinturaSobreOmbro": 0.024919494165008323,
+     "larguraTorsoSobreAltura": 0.03828721174944632,
+     "bracoSobreAltura": -1.199319541279466e-8,
+     "pernaSobreAltura": -1.0883742043886642e-8
+    },
+    "piorPct": 0.03828721174944632,
+    "piorPctRazao": "larguraTorsoSobreAltura",
+    "zElenco": {
+     "cabecaSobreAltura": 6.59696300998261e-7,
+     "ombroSobreAltura": -3.5594032562570087e-7,
+     "cinturaSobreOmbro": 0.22609612799123713,
+     "larguraTorsoSobreAltura": 0.23402325804289548,
+     "bracoSobreAltura": -0.0000015801546966689982,
+     "pernaSobreAltura": -6.234471715196916e-7
+    },
+    "desvioRef": {
+     "cabecaSobreAltura": 0.7128671998384959,
+     "ombroSobreAltura": -0.24910088248745801,
+     "cinturaSobreOmbro": 0.49776142510963595,
+     "larguraTorsoSobreAltura": 0.295295711671735,
+     "bracoSobreAltura": -0.368525033404054,
+     "pernaSobreAltura": -0.2862942514723154
+    },
+    "elencoDegenerado": false,
+    "piorZ": 0.23402325804289548,
+    "piorZRazao": "larguraTorsoSobreAltura",
+    "piorDesvioRef": 0.7128671998384959,
+    "piorDesvioRefRazao": "cabecaSobreAltura",
+    "indiceBalao": 1.295295711671735
+   },
+   "C2": {
+    "alturaM": 1.72,
+    "alturaBBox": 1.72,
+    "adereçoAcima": null
+   },
+   "C3": {
+    "porPose": {
+     "bind": 0,
+     "idle": 0.02320334794864775,
+     "walk": 0.05032725079439033,
+     "run": 0.03249805214890078,
+     "shoot": 0.030465717479874834,
+     "crouch": 0.04157464538422967
+    },
+    "afunda": 0,
+    "flutua": 0.05032725079439033,
+    "piorDesvio": 0.05032725079439033
+   },
+   "C5": {
+    "materiais": 1,
+    "triangulos": 4636,
+    "map": 1,
+    "normalMap": 1,
+    "roughnessMap": 1,
+    "aoMap": 0,
+    "texturas": [
+     "base 1024x1024",
+     "normal 1024x1024",
+     "rough 1024x1024"
+    ],
+    "mapasDeSuperficie": 2
+   },
+   "C6": {
+    "piorIoU": 0.6775343861436577,
+    "contra": "titica"
+   }
+  },
+  {
+   "id": "fluxo",
+   "nome": "Fluxo",
+   "time": "F",
+   "tribo": "funkeiros",
+   "fonte": "glb",
+   "marcos": {
+    "alturaTotal": 1.72,
+    "cabeca": 0.3829970862804051,
+    "ombroLargura": 0.3345105437575566,
+    "cinturaLargura": 0.3564570930353166,
+    "torsoLargura": 0.36201604537546667,
+    "torsoProfundidade": 0.32807017076498246,
+    "braco": 0.4779002617031782,
+    "perna": 0.6506141698650032,
+    "larguraMax": 1.6222794940014338
+   },
+   "marcosUsados": {
+    "cabeca": "Head",
+    "pescoco": "neck",
+    "quadril": "Hips",
+    "ombroE": "LeftArm",
+    "ombroD": "RightArm",
+    "maoE": "LeftHand",
+    "coxaE": "LeftUpLeg",
+    "peE": "LeftFoot"
+   },
+   "C7": {
+    "familia": "30n/28j",
+    "juntas": 28,
+    "nos": 30,
+    "clipesNoGLB": 0,
+    "impressaoEsqueleto": 531.45,
+    "curlDuplicado": 4,
+    "convencaoSkinPai": 2,
+    "convencaoSkinFilho": 9,
+    "ossosInvertidos": [
+     "LeftHand",
+     "RightHand"
+    ],
+    "raioSkinP50": 0.065,
+    "raioSkinP95": 0.24,
+    "desalinhamentoRMS": 0.1954,
+    "piorJunta": "RightHand",
+    "piorDesalinhamento": 0.258,
+    "antebraco": 0.234,
+    "dPalmaOsso": 0.11,
+    "alavancaPalma": 0.47,
+    "abducaoBraco": 86.5
+   },
+   "C1": {
+    "razoes": {
+     "cabecaSobreAltura": 0.22267272458163087,
+     "ombroSobreAltura": 0.1944828742776492,
+     "cinturaSobreOmbro": 1.0656079447638165,
+     "larguraTorsoSobreAltura": 0.21047444498573645,
+     "bracoSobreAltura": 0.2778489893623129,
+     "pernaSobreAltura": 0.3782640522470949
+    },
+    "pctElenco": {
+     "cabecaSobreAltura": 4.698574926040732e-10,
+     "ombroSobreAltura": 3.1859353564802322e-9,
+     "cinturaSobreOmbro": -0.014599354368633771,
+     "larguraTorsoSobreAltura": -0.03038639198444533,
+     "bracoSobreAltura": 2.619406445958196e-9,
+     "pernaSobreAltura": 3.728860087817234e-9
+    },
+    "piorPct": -0.03038639198444533,
+    "piorPctRazao": "larguraTorsoSobreAltura",
+    "zElenco": {
+     "cabecaSobreAltura": 6.0007279643908445e-9,
+     "ombroSobreAltura": 9.924179159293984e-8,
+     "cinturaSobreOmbro": -0.13246085462501386,
+     "larguraTorsoSobreAltura": -0.18573100853893484,
+     "bracoSobreAltura": 3.4511798195585343e-7,
+     "pernaSobreAltura": 2.135981600232914e-7
+    },
+    "desvioRef": {
+     "cabecaSobreAltura": 0.7128671121663912,
+     "ombroSobreAltura": -0.24910087151486793,
+     "cinturaSobreOmbro": 0.4400107361673196,
+     "larguraTorsoSobreAltura": 0.20962324704446242,
+     "bracoSobreAltura": -0.36852502417656163,
+     "pernaSobreAltura": -0.28629424104321716
+    },
+    "elencoDegenerado": false,
+    "piorZ": -0.18573100853893484,
+    "piorZRazao": "larguraTorsoSobreAltura",
+    "piorDesvioRef": 0.7128671121663912,
+    "piorDesvioRefRazao": "cabecaSobreAltura",
+    "indiceBalao": 1.2096232470444623
+   },
+   "C2": {
+    "alturaM": 1.72,
+    "alturaBBox": 1.72,
+    "adereçoAcima": null
+   },
+   "C3": {
+    "porPose": {
+     "bind": 0,
+     "idle": 0.02260983433419578,
+     "walk": 0.04917097165950078,
+     "run": 0.0315057450602885,
+     "shoot": 0.030420483515767194,
+     "crouch": 0.0520128542931177
+    },
+    "afunda": 0,
+    "flutua": 0.0520128542931177,
+    "piorDesvio": 0.0520128542931177
+   },
+   "C5": {
+    "materiais": 1,
+    "triangulos": 4966,
+    "map": 1,
+    "normalMap": 1,
+    "roughnessMap": 1,
+    "aoMap": 0,
+    "texturas": [
+     "base 1024x1024",
+     "normal 1024x1024",
+     "rough 1024x1024"
+    ],
+    "mapasDeSuperficie": 2
+   },
+   "C6": {
+    "piorIoU": 0.6858945470932852,
+    "contra": "metaleiro"
+   }
+  },
+  {
+   "id": "ostentacao",
+   "nome": "Ostentação",
+   "time": "F",
+   "tribo": "funkeiros",
+   "fonte": "glb",
+   "marcos": {
+    "alturaTotal": 1.72,
+    "cabeca": 0.38299709052315123,
+    "ombroLargura": 0.33451054281185233,
+    "cinturaLargura": 0.3624039223694766,
+    "torsoLargura": 0.3736204436065337,
+    "torsoProfundidade": 0.30966745862187706,
+    "braco": 0.47790026035209277,
+    "perna": 0.6506141680256332,
+    "larguraMax": 1.6964219042284434
+   },
+   "marcosUsados": {
+    "cabeca": "Head",
+    "pescoco": "neck",
+    "quadril": "Hips",
+    "ombroE": "LeftArm",
+    "ombroD": "RightArm",
+    "maoE": "LeftHand",
+    "coxaE": "LeftUpLeg",
+    "peE": "LeftFoot"
+   },
+   "C7": {
+    "familia": "30n/28j",
+    "juntas": 28,
+    "nos": 30,
+    "clipesNoGLB": 0,
+    "impressaoEsqueleto": 531.45,
+    "curlDuplicado": 4,
+    "convencaoSkinPai": 2,
+    "convencaoSkinFilho": 11,
+    "ossosInvertidos": [
+     "LeftHand",
+     "RightHand"
+    ],
+    "raioSkinP50": 0.058,
+    "raioSkinP95": 0.278,
+    "desalinhamentoRMS": 0.173,
+    "piorJunta": "LeftShoulder",
+    "piorDesalinhamento": 0.266,
+    "antebraco": 0.234,
+    "dPalmaOsso": 0.125,
+    "alavancaPalma": 0.53,
+    "abducaoBraco": 86.5
+   },
+   "C1": {
+    "razoes": {
+     "cabecaSobreAltura": 0.22267272704834373,
+     "ombroSobreAltura": 0.19448287372782114,
+     "cinturaSobreOmbro": 1.083385651534795,
+     "larguraTorsoSobreAltura": 0.21722118814333355,
+     "bracoSobreAltura": 0.27784898857679813,
+     "pernaSobreAltura": 0.37826405117769374
+    },
+    "pctElenco": {
+     "cabecaSobreAltura": 1.154760788858081e-8,
+     "ombroSobreAltura": 3.5880687149365e-10,
+     "cinturaSobreOmbro": 0.0018402412781968723,
+     "larguraTorsoSobreAltura": 0.0006945023057631823,
+     "bracoSobreAltura": -2.0772194563974806e-10,
+     "pernaSobreAltura": 9.017313232508324e-10
+    },
+    "piorPct": 0.0018402412781968723,
+    "piorPctRazao": "cinturaSobreOmbro",
+    "zElenco": {
+     "cabecaSobreAltura": 1.4747887321064395e-7,
+     "ombroSobreAltura": 1.1176823374792948e-8,
+     "cinturaSobreOmbro": 0.01669662412948176,
+     "larguraTorsoSobreAltura": 0.004245012495989696,
+     "bracoSobreAltura": -2.736825313908441e-8,
+     "pernaSobreAltura": 5.165335972540948e-8
+    },
+    "desvioRef": {
+     "cabecaSobreAltura": 0.7128671311411056,
+     "ombroSobreAltura": -0.24910087363775624,
+     "cinturaSobreOmbro": 0.46403466423620954,
+     "larguraTorsoSobreAltura": 0.24839763300766415,
+     "bracoSobreAltura": -0.36852502596182246,
+     "pernaSobreAltura": -0.28629424306095524
+    },
+    "elencoDegenerado": false,
+    "piorZ": 0.01669662412948176,
+    "piorZRazao": "cinturaSobreOmbro",
+    "piorDesvioRef": 0.7128671311411056,
+    "piorDesvioRefRazao": "cabecaSobreAltura",
+    "indiceBalao": 1.2483976330076643
+   },
+   "C2": {
+    "alturaM": 1.72,
+    "alturaBBox": 1.72,
+    "adereçoAcima": null
+   },
+   "C3": {
+    "porPose": {
+     "bind": 0,
+     "idle": 0.023525186439230024,
+     "walk": 0.04963764268201384,
+     "run": 0.03281863257997693,
+     "shoot": 0.03053482891357474,
+     "crouch": 0.04808261160491857
+    },
+    "afunda": 0,
+    "flutua": 0.04963764268201384,
+    "piorDesvio": 0.04963764268201384
+   },
+   "C5": {
+    "materiais": 1,
+    "triangulos": 4828,
+    "map": 1,
+    "normalMap": 1,
+    "roughnessMap": 1,
+    "aoMap": 0,
+    "texturas": [
+     "base 1024x1024",
+     "normal 1024x1024",
+     "rough 1024x1024"
+    ],
+    "mapasDeSuperficie": 2
+   },
+   "C6": {
+    "piorIoU": 0.8247532675380101,
+    "contra": "chave"
+   }
+  }
+ ],
+ "C6silhuetasDistintas": 44,
+ "C6grupos": [],
+ "C6topo": [
+  {
+   "a": "farialimer",
+   "b": "pagodeiro",
+   "frente": 0.8437255821222066,
+   "lado": 0.8634760705289672,
+   "pior": 0.8437255821222066
+  },
+  {
+   "a": "skatista",
+   "b": "funkraiz",
+   "frente": 0.8705882352941177,
+   "lado": 0.8334108887854816,
+   "pior": 0.8334108887854816
+  },
+  {
+   "a": "farialimer",
+   "b": "chave",
+   "frente": 0.8330491132332879,
+   "lado": 0.8674033149171271,
+   "pior": 0.8330491132332879
+  },
+  {
+   "a": "chave",
+   "b": "ostentacao",
+   "frente": 0.8337224816544363,
+   "lado": 0.8247532675380101,
+   "pior": 0.8247532675380101
+  },
+  {
+   "a": "criarj",
+   "b": "chave",
+   "frente": 0.8796610169491526,
+   "lado": 0.8213028169014085,
+   "pior": 0.8213028169014085
+  },
+  {
+   "a": "mistico",
+   "b": "metaleiro",
+   "frente": 0.8319193212742116,
+   "lado": 0.8189360663738409,
+   "pior": 0.8189360663738409
+  },
+  {
+   "a": "titica",
+   "b": "pagodeiro",
+   "frente": 0.8168974286521616,
+   "lado": 0.8461712220465326,
+   "pior": 0.8168974286521616
+  },
+  {
+   "a": "funkraiz",
+   "b": "ostentacao",
+   "frente": 0.806565582216988,
+   "lado": 0.8090975078635374,
+   "pior": 0.806565582216988
+  },
+  {
+   "a": "pagodeiro",
+   "b": "mandrake",
+   "frente": 0.7996591261233343,
+   "lado": 0.8307096149188665,
+   "pior": 0.7996591261233343
+  },
+  {
+   "a": "blackmetal",
+   "b": "clubber",
+   "frente": 0.8335150854234824,
+   "lado": 0.7988609112709832,
+   "pior": 0.7988609112709832
+  },
+  {
+   "a": "farialimer",
+   "b": "ostentacao",
+   "frente": 0.792846034214619,
+   "lado": 0.8301108533127095,
+   "pior": 0.792846034214619
+  },
+  {
+   "a": "farialimer",
+   "b": "mandrake",
+   "frente": 0.7884305510796004,
+   "lado": 0.8426591375770021,
+   "pior": 0.7884305510796004
+  },
+  {
+   "a": "caminhoneiro",
+   "b": "adjim",
+   "frente": 0.7881727881727881,
+   "lado": 0.8034125975676166,
+   "pior": 0.7881727881727881
+  },
+  {
+   "a": "adjim",
+   "b": "esbirro",
+   "frente": 0.8837689969604863,
+   "lado": 0.7880089652596189,
+   "pior": 0.7880089652596189
+  },
+  {
+   "a": "metaleiro",
+   "b": "ostentacao",
+   "frente": 0.7843438219493477,
+   "lado": 0.8290468986384266,
+   "pior": 0.7843438219493477
+  },
+  {
+   "a": "blackmetal",
+   "b": "metaleiro",
+   "frente": 0.8049099836333878,
+   "lado": 0.7842215256008359,
+   "pior": 0.7842215256008359
+  },
+  {
+   "a": "mistico",
+   "b": "oakley",
+   "frente": 0.7835294117647059,
+   "lado": 0.7852760736196319,
+   "pior": 0.7835294117647059
+  },
+  {
+   "a": "padata",
+   "b": "oakley",
+   "frente": 0.7805216426193119,
+   "lado": 0.7951858108108109,
+   "pior": 0.7805216426193119
+  },
+  {
+   "a": "titica",
+   "b": "padata",
+   "frente": 0.7850823465360011,
+   "lado": 0.7803126320236586,
+   "pior": 0.7803126320236586
+  },
+  {
+   "a": "farialimer",
+   "b": "metaleiro",
+   "frente": 0.8632716554773211,
+   "lado": 0.7763744427934621,
+   "pior": 0.7763744427934621
+  },
+  {
+   "a": "titica",
+   "b": "mandrake",
+   "frente": 0.7735161149190608,
+   "lado": 0.7930568079350766,
+   "pior": 0.7735161149190608
+  },
+  {
+   "a": "padati",
+   "b": "padata",
+   "frente": 0.7732518669382213,
+   "lado": 0.7807757166947723,
+   "pior": 0.7732518669382213
+  },
+  {
+   "a": "caminhoneiro",
+   "b": "esbirro",
+   "frente": 0.772660571170561,
+   "lado": 0.7736529104343125,
+   "pior": 0.772660571170561
+  },
+  {
+   "a": "palhacomal",
+   "b": "cadequinha",
+   "frente": 0.7717348673029154,
+   "lado": 0.7722793038372825,
+   "pior": 0.7717348673029154
+  },
+  {
+   "a": "skatista",
+   "b": "pagodeiro",
+   "frente": 0.7704081632653061,
+   "lado": 0.7716340750730502,
+   "pior": 0.7704081632653061
+  }
+ ],
+ "C6interTimePior": [
+  {
+   "a": "farialimer",
+   "b": "pagodeiro",
+   "frente": 0.8437255821222066,
+   "lado": 0.8634760705289672,
+   "pior": 0.8437255821222066
+  },
+  {
+   "a": "skatista",
+   "b": "funkraiz",
+   "frente": 0.8705882352941177,
+   "lado": 0.8334108887854816,
+   "pior": 0.8334108887854816
+  },
+  {
+   "a": "farialimer",
+   "b": "chave",
+   "frente": 0.8330491132332879,
+   "lado": 0.8674033149171271,
+   "pior": 0.8330491132332879
+  },
+  {
+   "a": "mistico",
+   "b": "metaleiro",
+   "frente": 0.8319193212742116,
+   "lado": 0.8189360663738409,
+   "pior": 0.8189360663738409
+  },
+  {
+   "a": "titica",
+   "b": "pagodeiro",
+   "frente": 0.8168974286521616,
+   "lado": 0.8461712220465326,
+   "pior": 0.8168974286521616
+  },
+  {
+   "a": "pagodeiro",
+   "b": "mandrake",
+   "frente": 0.7996591261233343,
+   "lado": 0.8307096149188665,
+   "pior": 0.7996591261233343
+  },
+  {
+   "a": "farialimer",
+   "b": "ostentacao",
+   "frente": 0.792846034214619,
+   "lado": 0.8301108533127095,
+   "pior": 0.792846034214619
+  },
+  {
+   "a": "farialimer",
+   "b": "mandrake",
+   "frente": 0.7884305510796004,
+   "lado": 0.8426591375770021,
+   "pior": 0.7884305510796004
+  },
+  {
+   "a": "caminhoneiro",
+   "b": "adjim",
+   "frente": 0.7881727881727881,
+   "lado": 0.8034125975676166,
+   "pior": 0.7881727881727881
+  },
+  {
+   "a": "metaleiro",
+   "b": "ostentacao",
+   "frente": 0.7843438219493477,
+   "lado": 0.8290468986384266,
+   "pior": 0.7843438219493477
+  },
+  {
+   "a": "mistico",
+   "b": "oakley",
+   "frente": 0.7835294117647059,
+   "lado": 0.7852760736196319,
+   "pior": 0.7835294117647059
+  },
+  {
+   "a": "padata",
+   "b": "oakley",
+   "frente": 0.7805216426193119,
+   "lado": 0.7951858108108109,
+   "pior": 0.7805216426193119
+  },
+  {
+   "a": "farialimer",
+   "b": "metaleiro",
+   "frente": 0.8632716554773211,
+   "lado": 0.7763744427934621,
+   "pior": 0.7763744427934621
+  },
+  {
+   "a": "titica",
+   "b": "mandrake",
+   "frente": 0.7735161149190608,
+   "lado": 0.7930568079350766,
+   "pior": 0.7735161149190608
+  },
+  {
+   "a": "caminhoneiro",
+   "b": "esbirro",
+   "frente": 0.772660571170561,
+   "lado": 0.7736529104343125,
+   "pior": 0.772660571170561
+  }
+ ]
+}
