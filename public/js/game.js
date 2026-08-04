@@ -5079,7 +5079,15 @@ export class Game {
     const T = this._duelTok || (this._duelTok = new Map());
     const now = this.time;
     for (const [k, until] of T) {
-      if (until > now && k.alive && k.target && k.target.isPlayer) continue;
+      /* BUG-03 (2ª metade): token é PERMISSÃO DE ATIRAR — quem não CONSEGUE atirar não pode
+         ficar segurando. O holder que zerou o pente (reloadUntil, até 2,4 s) ou que perdeu a
+         visão ficava mudo com o turno na mão até o hold de 1,6 s vencer, e quem tinha tiro
+         esperava por ele. Devolve o slot na hora, e SEM cobrar BOT_TOKEN_REST: o rest existe
+         pra quem GASTOU o turno rodiziar, não pra punir quem foi recarregar. */
+      if (until > now && k.alive && k.target && k.target.isPlayer) {
+        if (now > (k.reloadUntil || 0) && !k._losLost) continue;
+        T.delete(k); continue;
+      }
       T.delete(k); k._tokRest = now + BOT_TOKEN_REST;
     }
     if (T.has(b)) return true;
@@ -5404,7 +5412,22 @@ export class Game {
       // fire (bloqueado enquanto o alvo está stale/sem LOS — ver aquisição: sem wallhack)
       // TURNO DE DUELO: contra o JOGADOR só atira quem tem o token (ver _duelToken). Fora do
       // turno o bot continua manobrando/avançando — ele não congela, só não soma fogo.
-      const hasTurn = !(BOT_FAIR && e.isPlayer) || this._duelToken(b);
+      /* BUG-03 (1ª metade): `_duelToken` NÃO consulta, ele RESERVA por BOT_TOKEN_HOLD (1,6 s).
+         Como esta linha roda TODO FRAME para TODO bot que mira o jogador, um bot que não tinha
+         tiro nenhum roubava um dos 2 tokens e o segurava — e os que tinham ficavam mudos.
+         MEDIDO (botdiag SIM_SHOOTGATE, 9 sementes × 4 mapas × 180 s, árvore congelada):
+           mover a chamada pra DENTRO do if (depois de todos os gates)  3,8 epi | 6,73 s  PIOR
+           só negar o token a quem não pode usar (abaixo)               2,4 epi | 5,08 s
+           + devolver o token de quem não pode mais usar (_duelToken)   2,0 epi | 4,73 s  <-
+           código anterior                                              2,6 epi | 5,23 s
+         Por que a correção "óbvia" PIORA: chamada todo frame também é FILA — o bot que serve
+         reação/cadência já chega com a permissão na mão e atira no instante em que o gate abre.
+         Atrás do if isso vira DISPUTA no instante do gatilho, e quem perde come 1,6 s inteiros
+         de silêncio (hasTurn saltou de 19% para 49% dos quadros mudos). O que separa os dois
+         casos não é ONDE a chamada mora, é QUEM pode pegar: impedimento DURÁVEL (recarregando,
+         cego, fora de alcance) desqualifica; impedimento IMINENTE (reação, foco, cadência) não. */
+      const canUse = !b._losLost && inRange && this.time > (b.reloadUntil || 0);
+      const hasTurn = !(BOT_FAIR && e.isPlayer) || (canUse && this._duelToken(b));
       if (this.time > b.reactAt && this.time > (b.focusUntil || 0) && this.time > b.nextShotAt && this.time > (b.reloadUntil || 0)
           && Math.abs(dy) < 0.3 && !b._losLost && inRange && hasTurn) {
         /* ===== TIRO DO BOT =====
