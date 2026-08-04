@@ -87,6 +87,12 @@ entra no jogo em T-pose.
 `public/js/maps.js` (`MAPS`). Colisores são AABBs declarados junto de cada mesh.
 Espelhe em `src/data/jogo.ts` (`MAPAS`) pro mapa aparecer em `/mapas`.
 
+> **Este espelho já foi esquecido, e nos dois sentidos.** A `fy_quebrada` entrou
+> no registro do jogo e não apareceu em `/mapas`, no `llms.txt` nem no JSON-LD; a
+> `praca_old` saiu do registro e continuou listada nos três. Um a mais e um a
+> menos: o **total** continuou 5, então nenhuma contagem acusou. Mapa entrou ou
+> saiu → `src/data/jogo.ts` no mesmo PR, e rode `npm run check:seo`.
+
 ### Mexer no site
 
 - Nome, host e descrições saem de `src/lib/site.ts`. **Não escreva o nome do
@@ -105,7 +111,13 @@ Espelhe em `src/data/jogo.ts` (`MAPAS`) pro mapa aparecer em `/mapas`.
 npm run check        # portão completo
 npm run arch         # se você mexeu em public/js, o ARCH.md precisa ser regerado
 npm run build        # o site tem que buildar
+npm run check:seo    # se você mexeu em src/ ou em public/llms.txt
 ```
+
+`check:seo` roda `npm run build` e depois mede o **HTML publicado**, não o
+`.astro`. É de propósito: foi assim que um `sitemap.xml` estático sombreando a
+rota dinâmica apareceu, e é assim que a cláusula AEO1 pega página prometendo
+ranking global com `RANKING_ON = false`. **Não afrouxe teto para fechar placar.**
 
 E teste à mão: o jogo abre, o console fica limpo, uma partida completa roda
 (round termina, placar abre com Tab).
@@ -145,6 +157,13 @@ E teste à mão: o jogo abre, o console fica limpo, uma partida completa roda
    `main` seguia parada em 18/07. Nome que não diz o que a branch é vira depósito.
 3. Ao contribuir, você concorda em licenciar sua contribuição sob a **MIT**
    (veja [`LICENSE`](LICENSE)).
+
+   > **Aviso de mudança planejada.** Existe decisão registrada de migrar o projeto
+   > para **AGPL-3.0**. Ela **ainda não foi aplicada** — enquanto o `LICENSE` disser
+   > MIT, é MIT que vale, aqui e em qualquer outro arquivo. A troca é retroativa e
+   > depende de levantar consentimento de quem já contribuiu, então ela virá num
+   > commit único e anunciado. Se isso for decisivo pra você, pergunte antes de
+   > abrir o PR.
 
 ## Reportando bugs
 

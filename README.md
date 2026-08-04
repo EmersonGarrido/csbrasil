@@ -1,48 +1,129 @@
-# CS BRASIL: Treta Suprema
+# CORO SOLTO: Treta Suprema
 
-[![built with Kimi K3](https://img.shields.io/badge/built%20with-Kimi%20K3-6b5bff?logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxNiAxNiI+PGNpcmNsZSBjeD0iOCIgY3k9IjgiIHI9IjciIGZpbGw9IiNmZmYiLz48L3N2Zz4=)](https://www.kimi.com/)
 [![license: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![astro](https://img.shields.io/badge/site-astro-ff5d01?logo=astro)](https://astro.build)
+[![three.js](https://img.shields.io/badge/jogo-three.js%20r160-000000?logo=three.js)](https://threejs.org)
 
-![CS BRASIL: Treta Suprema — arena de sniper estilo CS 1.6 numa Brasília fictícia](public/og-image.png)
+![CORO SOLTO: Treta Suprema — arena de sniper estilo CS 1.6 numa Brasília fictícia](public/og-image.png)
 
-FPS de navegador em Three.js: arena de sniper estilo CS 1.6 (`awp_map`) em uma Brasília
-fictícia e satírica. Personagens 100% fictícios, sem gore — só arquétipos exagerados.
+**FPS gratuito de navegador em Three.js**: arena de sniper estilo CS 1.6
+(`awp_map`) numa Brasília fictícia e satírica. 5 facções, 44 personagens
+originais, 5 mapas, 26 armas, bots, rounds e Capture the Flag. Sem download,
+sem instalação, sem cadastro.
 
-> 📝 Este jogo foi gerado do zero por IA (Kimi K3) a partir de um único prompt —
-> [leia o prompt original em PROMPT.md](PROMPT.md).
+> **Hoje o jogo é só contra bots.** Não existe multiplayer entre humanos: um
+> `grep RTCPeerConnection` no repositório devolve zero, e não há netcode em
+> `public/js/` nem em `src/`. Multiplayer por WebRTC é a maior frente aberta do
+> projeto — quando existir, esta linha muda junto com o código, não antes.
+
+▶ **Jogue:** <https://www.csbrasil.online>
+
+> **O jogo já se chamou CS BRASIL.** É o mesmo jogo — o domínio continua o
+> mesmo, e o nome antigo segue registrado como nome alternativo pra quem
+> procura por ele.
+
+> Este jogo nasceu gerado por IA a partir de um único prompt —
+> [o prompt original está em `docs/historico/PROMPT.md`](docs/historico/PROMPT.md).
+
+---
+
+## Comece por aqui
+
+| Você é… | Leia |
+|---|---|
+| curioso | esta página, e depois <https://www.csbrasil.online> |
+| dev novo (ou agente) | [`STATUS.md`](STATUS.md) → [`docs/README.md`](docs/README.md) → [`CONTRIBUTING.md`](CONTRIBUTING.md) |
+| quer contribuir hoje | [`docs/issues/`](docs/issues/) — 15 tarefas com arquivos e critério de aceite |
+| quer saber o que está quebrado | [`KNOWN-BUGS.md`](KNOWN-BUGS.md) — defeitos com `arquivo:linha` e passo de reprodução |
+
+**Site de documentação** (Docusaurus, com instrumentação de IA, quality gates e
+arquitetura): `cd docs && npm install && npm start` → <http://localhost:3000/docs/>.
 
 ## Arquitetura
 
-Monorepo com duas zonas:
+Um repositório, **duas zonas com regras diferentes**:
 
-- **Jogo** (`public/` — rota `/` do site) — vanilla JS + Three.js vendored, **zero build**:
-  roda sozinho com qualquer servidor estático. Nunca vira framework.
-- **Site** (raiz, [Astro](https://astro.build)) — landing `/`, `/personagens`,
-  `/como-jogar` (SEO/AEO real) + **API routes SSR** (`/api/*`) pro ranking
-  global: a `service_role` key do Supabase fica no servidor, nunca no browser.
+- **O JOGO — `public/`** · JavaScript vanilla com ES modules, Three.js r160
+  vendorizado em `public/vendor/`, **zero build**. Nunca vira framework.
+  **Não existe `public/index.html`:** o HTML do jogo é `src/pages/index.astro`,
+  servido na rota `/`. (Este README já afirmou o contrário por meses e mandava
+  todo dev novo para o arquivo errado.)
+- **O SITE — `src/`** · [Astro](https://astro.build) com SSR na Vercel. Landing,
+  ranking global, perfis públicos, páginas de conteúdo e as rotas `/api/*`. Aqui
+  framework é bem-vindo — mas o jogo continua intocado.
+
+O ranking global vive no **Supabase** (`supabase/`). A `service_role` key fica
+só no servidor; a `anon` key é pública por design, e a segurança vem das
+policies e dos grants por coluna.
+
+```
+STATUS.md              estado de hoje (leia primeiro)
+astro.config.mjs       Astro + adapter Vercel · `site` COM www (canonical)
+vercel.json            build, headers de segurança (CSP…) e cache
+src/
+  layouts/Layout.astro shell do site: nav, footer, CSS global, JSON-LD base
+  lib/site.ts          nome, host, descrições e @id de JSON-LD (fonte única)
+  lib/supabase.ts      client admin (service_role, só no servidor)
+  lib/safe-url.ts      allowlist de avatar + fetch com trava de SSRF
+  lib/ratelimit.ts     rate limit durável (contado no Postgres)
+  data/jogo.ts         armas/mapas/personagens em forma de dado, pro site
+  pages/index.astro    O JOGO, na rota `/`
+  pages/ranking.astro  leaderboard (SSR, com cache de CDN)
+  pages/u/[...path]    perfil público por jogador + badge PNG
+  pages/sitemap.xml.ts sitemap dinâmico, cobre os perfis
+  pages/api/*          register, submit-match, leaderboard, badge, avatar…
+public/                O JOGO (vanilla, zero build)
+  js/ vendor/ models/ style.css robots.txt llms.txt og-image.png
+  audio/                 ⚠ NÃO versionado — ver "Áudio" abaixo
+supabase/              schema, 12 migrations e a ofuscação opcional
+tools/                 scripts one-off de asset e pipeline
+tools/eval/            o arnês de medição e os portões de qualidade
+docs/                  documentação para devs (Docusaurus) + as 15 issues de entrada
+```
+
+**Duas pastas NÃO vêm no clone**, por decisão registrada: `public/audio/` (direitos
+incertos) e `references/` (telas-alvo da UI e frames de referência, que ficam só na
+máquina do dono). O que sobrevive das `references/` são os **números medidos**:
+`tools/eval/ref_ui.json` e `tools/eval/ref_viewmodel.json`, esses versionados. Régua que
+precisa rodar em CI lê o JSON, nunca o PNG.
 
 ## Rodar localmente
 
-Só o jogo (zero dependências):
-
-```bash
-cd public
-python3 -m http.server 8123
-# abra http://localhost:8123
-```
-
-Site completo (landing + jogo em `/game/` + API):
+**O site completo** (é o modo que você quer — inclui o jogo):
 
 ```bash
 git clone https://github.com/rubenmarcus/csbrasil.git
 cd csbrasil
 npm install
-npm run fetch-audio   # pacote de áudio (opcional — sem ele roda com sons sintetizados)
-npm run dev           # dev server Astro
-npm run build         # gera dist/ (client + server)
-npm run preview       # serve dist/client estaticamente
+cp .env.example .env      # opcional: sem envs, o ranking responde 503 e o resto roda
+npm run fetch-audio       # opcional: sem o pacote, o jogo usa sons sintetizados
+npm run dev               # http://localhost:4321 — o jogo está em /
 ```
+
+Build e preview:
+
+```bash
+npm run build             # gera dist/ (client + server)
+npm run preview           # serve dist/client estaticamente
+```
+
+`python3 -m http.server -d public` serve **só os assets** do jogo — o HTML não
+está lá. Use `npm run dev`.
+
+## Portão de qualidade
+
+```bash
+npm run check        # sintaxe de public/js + invariantes + viewmodel + coice + bots
+npm run check:fast   # só sintaxe + ARCH.md atualizado (segundos)
+npm run arch         # regenera tools/eval/ARCH.md
+```
+
+Nada commita com invariante vermelha. O catálogo do arnês está em
+[`tools/eval/README.md`](tools/eval/README.md).
+
+> `npm run check` lê GLBs de `public/models/`. Numa árvore sem os assets
+> baixados, `eval:invariants` e `eval:vm` falham com `ENOENT` — é ambiente, não
+> regressão.
 
 ## Controles
 
@@ -51,119 +132,92 @@ npm run preview       # serve dist/client estaticamente
 | W A S D | Mover |
 | Mouse | Mirar |
 | Shift | Correr |
-| **Ctrl ou C** | **Agachar — mira mais estável** |
+| **Ctrl ou C** | **Agachar — mira bem mais estável** |
 | Espaço | Pular |
 | Clique esq. | Atirar |
-| Clique dir. | Luneta da AWP |
+| Clique dir. | Luneta / ADS |
 | R | Recarregar |
-| 1 / 2 / 3 | AWP / Pistola / Faca |
+| 1 / 2 / 3 | Primária / pistola / faca |
 | **Z / X / V** | **Rádio estilo CS (comandos de voz)** |
 | **M** | **Trocar de time (a qualquer momento)** |
 | Tab | Placar |
 | Esc | Pausar |
 
-**Regras:** 4×4 com respawn (2,5s). Round de 1:39; o time com mais kills leva o round;
-vence quem levar 3 rounds. AWP mata com 1 tiro; headshot tem som próprio. Multikills
-disparam anúncios estilo Unreal Tournament. Defina seu **nick** no menu principal
-(fica salvo, com stats locais na tela RANKING).
+**Regras:** 4×4 contra bots **por padrão** — o menu aceita de 1 a 8 por lado
+(`settings.bots`) — com respawn de **2,2 s** (`public/js/game.js:76`,
+`RESPAWN_DELAY`). Round de 1:39; o time com mais abates leva o round; 3 rounds
+vencem a partida e a 5ª rodada é o teto. AWP mata com um tiro em qualquer lugar
+do corpo. Multikills disparam anúncios estilo Unreal Tournament. Capture the
+Flag tem 4 bandeiras e é o padrão em 3 dos 5 mapas.
 
-## Áudios (pasta `public/audio/`)
+**Regeneração de vida está DESLIGADA** (decisão do dono, 05/08/2026): vida só
+volta com respawn. `?regen=1` religa a regra antiga.
 
-O jogo carrega `audio/manifest.json`:
+## Ranking global — DESLIGADO
 
-```
-audio/
-  manifest.json        # mapa de faixas (edite ao adicionar arquivos)
-  petista/ingame/      # falas do time P (rádio + celebração de kill)
-  petista/round/       # toca quando o time P vence o round
-  bolsonaro/ingame/    # falas do time B
-  bolsonaro/round/     # toca quando o time B vence o round
-  game/                # anúncios UT + sons de arma (awp, usp, faca, clipes)
-  cs/                  # OPCIONAL: drop-in de sons próprios (ver LEIA-ME.txt)
-  manifest.example.json  # manifest de referência (versionado no git)
-```
+`RANKING_ON = false` em [`src/lib/site.ts`](src/lib/site.ts). Decisão do dono em
+04/08/2026: *"vamos desabilitar o ranking por enquanto, depois a gente ajeita"*.
+O motivo é o de sempre nesta base — o modelo é **client-authoritative**, o placar
+é forjável, e publicar classificação forjável é publicar número errado.
 
-- **Kill/death:** ao matar, toca fala aleatória do time do matador (throttle de 3,5s).
-- **Rádio (Z/X/V + 1-3):** toca fala aleatória do seu time e mostra a linha no HUD.
-- **Fim de round:** toca a faixa `round/` do time vencedor.
-- **Multikill do jogador:** `doublekill` (2), `triplekill` (3), `multikill` (4),
-  `megakill` (5), `godlike` (6+); 5 kills sem morrer = `killingspree`;
-  headshot = `headshot`.
-- **Adicionar faixas:** copie o arquivo para a pasta e registre o caminho em
-  `audio/manifest.json` (mesmas chaves). Sem manifest, o jogo usa sons sintetizados.
+**É flag, não remoção.** Com `false`:
 
-### Pacote de áudio (open source)
+- `/ranking` e `/u/*` respondem **200 com aviso + `noindex`** — não 404. As URLs
+  estão indexadas e vão voltar no mesmo endereço;
+- o link some do nav e do rodapé do site;
+- `/api/leaderboard` responde `{disabled:true}`; o cliente não conhece a flag,
+  ele reage à resposta da API. Uma fonte de verdade, no servidor.
 
-A pasta `audio/` **não é versionada** (`.gitignore`) porque as vozes/memes têm
-direitos incertos — o repositório público leva só o código (MIT). Para obter
-o pacote:
+**O que NÃO parou: a coleta.** `submit_match` continua gravando (valida token,
+rate limit por nick/IP/dia, tetos absolutos e consistência física) e a telemetria
+nova continua medindo. Quando o ranking voltar, o histórico está lá.
+
+- Schema e **12 migrations**: [`supabase/`](supabase/)
+- O que foi endurecido no pré-release: [`docs/seguranca.md`](docs/seguranca.md)
+
+A correção definitiva é o servidor de jogo escrever com `service_role` e o RLS
+bloquear o cliente; está na fila junto do multiplayer.
+
+## Áudio (`public/audio/`)
+
+A pasta **não é versionada**: as vozes e memes têm direitos incertos, e o
+repositório público leva só o código. Sem o pacote, o jogo usa sons
+sintetizados e funciona normalmente.
 
 ```bash
-# com a env AUDIO_PACK_URL apontando pro zip (default: Release audio-pack-v1 deste repo)
-bash scripts/fetch-audio.sh
+npm run fetch-audio     # ou: AUDIO_PACK_URL=<zip> bash scripts/fetch-audio.sh
 ```
 
-- **Contribuidores**: rodam o script (ou montam a própria pasta seguindo
-  `manifest.example.json`). Sem os arquivos, o jogo usa sons sintetizados.
-- **Criar/atualizar o pacote**: `cd public/audio && zip -r ../../../../audio-pack.zip . -x '*.DS_Store'`
-
-### Sobre sons "reais" do CS 1.6
-
-Um som de AWP estilo CS 1.6 já está configurado (`audio/game/awp-cs-1-6.mp3`).
-Os samples originais do CS 1.6 são **propriedade da Valve** e não são distribuídos com
-este jogo. Se você possui o jogo legalmente, pode usar seus próprios arquivos: copie de
-`cstrike/sound/` para `audio/cs/` e registre no manifest, chave `"cs"`.
-
-## Ranking global (Supabase)
-
-- **Fase 1 (atual):** nick + link social e stats no `localStorage` (tela RANKING no jogo).
-- **Fase 2:** schema pronto em `supabase/schema.sql` (players com token UUID, RPC
-  `register_player`/`submit_match`, RLS, rate limit, view `leaderboard`).
-  Os endpoints SSR `GET /api/leaderboard` e `POST /api/submit-match` já estão no
-  site — sobem quando as envs `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY`
-  (só no servidor!) forem configuradas no projeto da Vercel.
-- **Fase 3 (futuro):** Supabase Auth (magic link / OAuth) substitui o token local.
+O jogo carrega `audio/manifest.json` (veja `audio/manifest.example.json`, esse
+sim versionado). Samples originais do CS 1.6 são propriedade da Valve e **não**
+são distribuídos aqui.
 
 ## SEO / AEO
 
-Landing Astro com meta/OG/canonical + JSON-LD `VideoGame`, FAQ visível,
-`robots.txt`, `sitemap.xml` e `llms.txt` em `public/`. O jogo (`/game/`) tem
-seu próprio head otimizado + JSON-LD `FAQPage`.
-
-## Estrutura
-
-```
-astro.config.mjs    Astro 7 + adapter Vercel (SSR endpoints)
-vercel.json         build (fetch-audio + astro build) + cache headers
-src/
-  layouts/Layout.astro   shell (nav, footer, CSS global)
-  pages/sobre.astro      landing/FAQ (JSON-LD VideoGame)
-  pages/personagens.astro
-  pages/como-jogar.astro
-  pages/api/leaderboard.ts    GET ranking (service key no servidor)
-  pages/api/submit-match.ts   POST partida (rate limit por IP + RPC)
-  lib/supabase.ts        client admin (envs SUPABASE_URL/SERVICE_ROLE_KEY)
-public/               O JOGO na rota / (vanilla, zero build)
-  index.html style.css js/ vendor/ audio/
-  og-image.png robots.txt sitemap.xml llms.txt
-scripts/fetch-audio.sh   baixa o pacote de áudio pra public/audio/
-supabase/schema.sql      schema do ranking (Fase 2)
-```
-
-## Trocar placeholders por assets reais
-
-- **Modelos:** personagens são montados em `public/js/characters.js`
-  (`buildCharacter`). Para GLTF, carregue o modelo em `mkBot`
-  (`public/js/game.js`) e adapte `poseCharacter`.
-- **Texturas:** tudo sai de `initTextures()` em `public/js/textures.js`.
-- **Sons:** veja a seção Áudios acima.
-- **Mapa:** colisores são AABBs declarados junto de cada mesh em `public/js/map.js`.
+- `site` com `www` no `astro.config.mjs` — todo canonical sai daí
+- `/sitemap.xml` **dinâmico**, cobrindo uma URL por jogador
+- `public/robots.txt` e `public/llms.txt`
+- JSON-LD: um único nó `VideoGame` com `@id` estável, mais `ItemList`,
+  `ProfilePage`/`Person`, `HowTo`, `FAQPage` e `BreadcrumbList` por página
+- `Cache-Control` de CDN em `/ranking`, `/u/*` e `/mapa`
 
 ## Licenças / créditos
 
-- Three.js r160 — licença MIT (© Three.js authors), arquivo em `public/vendor/`.
-- Código, texturas, personagens e logo: originais, gerados proceduralmente.
-- Áudios em `audio/`: conteúdo fornecido pelo usuário (memes); verifique direitos
-  antes de publicar comercialmente. Sons de CS 1.6 **não inclusos** (Valve).
+O código está sob **MIT** ([`LICENSE`](LICENSE)) — é o que vale hoje.
+
+> **Migração para AGPL-3.0 está DECIDIDA e NÃO aplicada.** Ela precisa ir num
+> commit só (`LICENSE`, o badge do topo deste arquivo, esta seção,
+> `CONTRIBUTING.md`, `public/llms.txt`, `/sobre` e o rodapé do site), e **antes**
+> exige levantar se há PR de terceiro já mesclado: licença só troca
+> retroativamente com consentimento de quem contribuiu. Isso é levantamento, não
+> linha de comando. Até lá, **a resposta correta sobre a licença é MIT** — e
+> nenhum arquivo deste repositório deve dizer AGPL antes de o `LICENSE` dizer.
+
+- Three.js r160 — MIT (© Three.js authors), em `public/vendor/`.
+- Código, texturas, personagens e logo: originais.
+- Áudios: fornecidos pelo usuário; verifique direitos antes de uso comercial.
+  Sons do CS 1.6 **não inclusos** (Valve).
+- Paródia independente, sem afiliação com a Valve. Counter-Strike é marca da
+  Valve Corporation.
 
 *Sátira política fictícia. Feito para rir, não para brigar.*
