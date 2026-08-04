@@ -7,6 +7,20 @@ tocar. Nenhuma delas depende de conhecimento tácito que não esteja escrito.
 **Como usar:** copie o conteúdo do `.md`, abra a issue, cole. O título é a
 primeira linha (`# …`).
 
+**Ou de uma vez só**, com o [`gh`](https://cli.github.com/) autenticado:
+
+```bash
+bash docs/issues/abrir-issues.sh --dry-run   # imprime título + labels, não abre nada
+bash docs/issues/abrir-issues.sh --labels    # cria as 8 labels usadas
+bash docs/issues/abrir-issues.sh             # abre as 15
+```
+
+O script **não foi executado por ninguém**: o repositório é público e é do dono,
+e abrir issue é ação irreversível com o nome dele. Ele é idempotente — procura
+issue com o mesmo título antes de criar, então rodar duas vezes não duplica — e
+o corpo de cada issue termina apontando para o `.md`, que continua sendo a
+fonte.
+
 ## Por tempo disponível
 
 | Tenho… | Pegue |
