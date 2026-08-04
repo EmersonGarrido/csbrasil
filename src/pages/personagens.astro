@@ -6,12 +6,35 @@
 // facções (Tribos Urbanas, Palhaços e Funkeiros não apareciam), e o comentário
 // no próprio arquivo já avisava que faltava a seção dos Palhaços. Número errado
 // na página é o tipo de coisa que um assistente de IA repete como fato.
+//
+// VISUAL (05/08/2026). Eram 44 caixas de texto idênticas, empilhadas, sem uma
+// única imagem — num site cujo assunto é um elenco em 3D. As placas de facção
+// (`public/img/team-*.webp`) foram renderizadas dos GLB reais em 04/08 e nunca
+// tinham sido usadas em lugar nenhum.
+//
+// O DESENHO É O DA TELA 02 (references/telas/02_escolha_faccao.png): cada
+// facção abre com uma faixa da arte do time, com a etiqueta "FACÇÃO 01", o
+// nome na COR do time e o lema entre aspas por cima da imagem; o elenco vem
+// logo abaixo, em cartões finos com filete na mesma cor.
 import Layout from '../layouts/Layout.astro';
 import { FACCOES, PERSONAGENS } from '../data/jogo';
 import { BRAND_FULL, GAME_ID, abs } from '../lib/site';
 
 const grupos = FACCOES.map(f => ({ ...f, elenco: PERSONAGENS.filter(p => p.faccao === f.id) }));
 const total = PERSONAGENS.length;
+
+/* O `id` da facção (`P`, `B`, `urbanas`…) não é o nome do arquivo da placa, e
+   não dá pra derivar um do outro: `P` → `petistas`, `B` → `bolsonaristas`.
+   O mapa fica explícito aqui para que uma facção nova sem arte apareça como
+   ausente — e não como a arte errada de outro time. */
+const PLACA: Record<string, string> = {
+  P: 'petistas', B: 'bolsonaristas', urbanas: 'tribos',
+  palhacos: 'palhacos', funkeiros: 'funkeiros',
+};
+const placa = (id: string) => (PLACA[id] ? `/img/team-${PLACA[id]}.webp` : null);
+const slug = (nome: string) =>
+  nome.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
 const jsonld = [
   {
@@ -39,35 +62,57 @@ const jsonld = [
 <Layout
   title={`Personagens — os ${total} do elenco | ${BRAND_FULL}`}
   description={`Os ${total} personagens jogáveis do ${BRAND_FULL} em ${FACCOES.length} facções: Petistas, Bolsonaristas, Tribos Urbanas, Palhaços e Funkeiros. Arquétipos 100% fictícios, sem pessoas reais.`}
-  jsonld={jsonld}>
-
-  <h1>Personagens</h1>
-  <p class="sub">
+  jsonld={jsonld}
+  h1="Personagens"
+  kicker={`${total} personagens · ${FACCOES.length} facções`}
+  heroImg={placa('palhacos')}
+  heroPos="64%">
+  <Fragment slot="sub">
     {total} arquétipos jogáveis em {FACCOES.length} facções, todos 100% fictícios e originais —
     nenhuma pessoa real foi consultada (ou poupada). Cada um tem silhueta, acessórios e estilo
     próprios, modelados em 3D. <strong>A escolha é de estilo, não de vantagem:</strong> todos jogam
     exatamente igual.
-  </p>
+  </Fragment>
 
-  <div class="tstat" style="margin-bottom:8px">
+  {/* Índice em números, que também é a navegação: cada bloco leva à facção. */}
+  <nav class="tstat" aria-label="Facções">
     {grupos.map(g => (
-      <div><b style={`color:${g.cor}`}>{g.elenco.length}</b><span>{g.nome}</span></div>
+      <a href={`#${slug(g.nome)}`} style={`--fc:${g.cor}`}>
+        <b style={`color:${g.cor}`}>{g.elenco.length}</b><span>{g.nome}</span>
+      </a>
     ))}
-  </div>
+  </nav>
 
-  {grupos.map(g => (
-    <>
-      <h2 style={`color:${g.cor}`}>{g.nome} — “{g.lema}”</h2>
-      <p style="margin-bottom:10px">{g.nota}</p>
-      <div class="grid c2">
-        {g.elenco.map(p => (
-          <div class="panel" style={`border-left-color:${g.cor};margin:0`}>
-            <strong style="color:#f2ead8;letter-spacing:1px">{p.nome}</strong>
-            <p style="margin-top:4px;font-size:13px">{p.blurb}</p>
+  {grupos.map((g, i) => (
+    <section class="faccao" style={`--fc:${g.cor}`}>
+      {/* PLACA EM RETRATO, e não faixa larga. As placas são 640×1601 (0,4:1):
+          num bloco largo e baixo o `cover` amplia 1,6× e sobra um close de olho
+          e boca. Em 210×230 o recorte mostra o time inteiro da cintura pra
+          cima — que é o enquadramento da tela 02 do jogo. */}
+      <header class="fhead">
+        {placa(g.id) && (
+          <div class="fplate">
+            <img src={placa(g.id)} width="640" height="1601" loading="lazy" decoding="async"
+                 alt={`Personagens da facção ${g.nome} no ${BRAND_FULL}`}>
           </div>
+        )}
+        <div class="fmeta">
+          <p class="meta"><b>Facção {String(i + 1).padStart(2, '0')}</b><i>·</i>
+            {g.elenco.length} personagens</p>
+          <h2 id={slug(g.nome)} style={`color:${g.cor}`}>{g.nome}</h2>
+          <p class="fmotto">“{g.lema}”</p>
+          <p class="fnota">{g.nota}</p>
+        </div>
+      </header>
+      <div class="grid roster">
+        {g.elenco.map(p => (
+          <article class="pcard">
+            <strong>{p.nome}</strong>
+            <p>{p.blurb}</p>
+          </article>
         ))}
       </div>
-    </>
+    </section>
   ))}
 
   <h2>Sobre o elenco</h2>
@@ -79,5 +124,51 @@ const jsonld = [
     distribuída igualmente.
   </p>
 
-  <p style="margin-top:26px"><a class="btn-play" style="margin-left:0;display:inline-block" href="/">▶ Escolher o seu</a></p>
+  <div class="cta-row">
+    <a class="btn-cta" href="/">▶ Escolher o seu</a>
+    <a class="btn-cta btn-2" href="/mapas">Ver as arenas</a>
+  </div>
 </Layout>
+
+<style>
+  /* ---- facção: retrato do time + identificação (tela 02) ---- */
+  .faccao{margin:44px 0 0}
+  .fhead{display:flex;overflow:hidden;background:var(--panel-2);
+    border:1px solid var(--line);border-left:3px solid var(--fc)}
+  .fplate{flex:0 0 220px;position:relative;overflow:hidden;background:#0d0c07;
+    min-height:206px;border-right:1px solid var(--line)}
+  .fplate img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+    object-position:50% 72%;filter:saturate(.95) contrast(1.04) brightness(.88)}
+  /* dissolve a placa na borda direita, pra ela não virar um adesivo colado */
+  .fplate:after{content:"";position:absolute;inset:0;background:
+    linear-gradient(90deg,transparent 58%,rgba(24,21,13,.85) 100%),
+    linear-gradient(0deg,rgba(10,10,8,.5) 0%,transparent 34%)}
+  .fmeta{flex:1;padding:20px 24px;display:flex;flex-direction:column;justify-content:center;gap:5px}
+  .fmeta h2{border:0;padding:0;margin:2px 0;font-size:22px;letter-spacing:3px;
+    scroll-margin-top:calc(var(--topo) + 14px)}
+  .fmotto{margin:0;color:var(--bone);font-size:13px;font-style:italic}
+  .fnota{margin:8px 0 0;font-size:13px;max-width:62ch}
+
+  /* ---- elenco ---- */
+  .grid.roster{grid-template-columns:repeat(auto-fill,minmax(238px,1fr));margin-top:12px}
+  .pcard{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--fc);
+    padding:12px 14px;transition:border-color .14s,background .14s}
+  .pcard:hover{background:var(--panel-2);border-color:var(--line-hi);border-left-color:var(--fc)}
+  .pcard strong{color:var(--ink);letter-spacing:1px;font-size:13px;display:block}
+  .pcard p{margin-top:5px;font-size:12.5px;line-height:1.55}
+
+  /* o índice de números vira link, sem virar sublinhado */
+  .tstat a{text-decoration:none;display:block;border:1px solid var(--line);
+    background:var(--panel);padding:10px 12px;transition:border-color .14s,background .14s}
+  .tstat a:hover{border-color:var(--fc);background:var(--panel-2)}
+
+  @media (max-width:860px){
+    .faccao{margin-top:32px}
+    /* a placa continua em RETRATO, só estreita: virar faixa aqui traria de volta
+       o close de olho e boca que motivou este desenho. */
+    .fplate{flex:0 0 108px;min-height:0}
+    .fmeta{padding:14px 16px}
+    .fmeta h2{font-size:17px;letter-spacing:2px}
+    .grid.roster{grid-template-columns:1fr}
+  }
+</style>
