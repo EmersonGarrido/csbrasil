@@ -4348,6 +4348,21 @@ export class Game {
   }
 
   /* ================= player physics ================= */
+  /* COLISOR COM ROTAÇÃO (`ry`) — BUG-21, segunda e definitiva rodada.
+     O defeito do dono: "o box do ônibus não deixa você andar perto e é como se fosse um
+     quadrado, mas o ônibus está em diagonal". O motor só tinha AABB, então TODO prop girado
+     bloqueava pelo retângulo circunscrito. A rodada anterior picou o ônibus em 18 AABBs e
+     baixou a parede fantasma de 2,33 m para 0,68 m — meio passo, e ele continuou sentindo.
+     Agora o teste roda no ESPAÇO LOCAL do prop e o erro é ZERO por construção.
+
+     CUSTO: `_collide` roda para jogador e bots todo frame. Por isso o caminho girado é um
+     RAMO, não o caso geral: colisor sem `ry` (a esmagadora maioria) continua fazendo
+     exatamente as 6 comparações de antes. O `minX..maxZ` de um colisor girado continua
+     preenchido com a AABB CONSERVADORA do mundo — ela é a rejeição barata aqui e mantém
+     válido todo consumidor que só sabe ler AABB (`_freeSpot`, `blocked()` dos mapas que
+     ainda não olham `ry`, `map-check`, `pickup-check`). Só quem passa pela rejeição paga
+     o seno/cosseno, e os senos vêm precomputados do mapa. Medido no botsim (determinístico,
+     60 s × 6 mapas): ver o commit desta correção. */
   _collide(pos, r) {
     for (const c of this.world.colliders) {
       const nx = Math.max(c.minX, Math.min(pos.x, c.maxX));
@@ -4355,6 +4370,7 @@ export class Game {
       const dx = pos.x - nx, dz = pos.z - nz;
       const d2 = dx * dx + dz * dz;
       if (d2 < r * r && pos.y + 1.5 > c.minY && pos.y + 0.3 < c.maxY) {
+        if (c.ry) { this._collideRot(pos, r, c); continue; }
         if (d2 < 1e-8) { pos.x += r; continue; }
         const d = Math.sqrt(d2), push = (r - d) / d;
         pos.x += dx * push; pos.z += dz * push;
@@ -4363,6 +4379,32 @@ export class Game {
     const B = this.world.bounds;
     pos.x = Math.max(B.minX + r, Math.min(B.maxX - r, pos.x));
     pos.z = Math.max(B.minZ + r, Math.min(B.maxZ - r, pos.z));
+  }
+  /* Empurra `pos` para fora de um colisor GIRADO. Mesma matemática do caso AABB, só que em
+     (lx, lz) — o eixo do prop. A convenção de mundo↔local é a do three (`rotation.y`):
+       mundo = (lx·cos + lz·sin ,  −lx·sin + lz·cos)
+       local = (wx·cos − wz·sin ,   wx·sin + wz·cos)
+     e é a mesma que o occluder do prop usa, o que é justamente o ponto: colisão e bala
+     passam a concordar sobre onde a lataria está. */
+  _collideRot(pos, r, c) {
+    const cs = c.cos, sn = c.sin;
+    const wx = pos.x - c.cx, wz = pos.z - c.cz;
+    const lx = wx * cs - wz * sn, lz = wx * sn + wz * cs;
+    const qx = Math.max(-c.hx, Math.min(lx, c.hx)), qz = Math.max(-c.hz, Math.min(lz, c.hz));
+    let ex = lx - qx, ez = lz - qz;
+    const e2 = ex * ex + ez * ez;
+    if (e2 >= r * r) return;                       // dentro da AABB, FORA da caixa real: livre
+    if (e2 < 1e-8) {                               // dentro do prop: sai pela face local mais perto
+      const dl = lx + c.hx, dr = c.hx - lx, db = lz + c.hz, df = c.hz - lz;
+      const m = Math.min(dl, dr, db, df);
+      if (m === dl) { ex = -(dl + r); ez = 0; } else if (m === dr) { ex = dr + r; ez = 0; }
+      else if (m === db) { ex = 0; ez = -(db + r); } else { ex = 0; ez = df + r; }
+    } else {
+      const e = Math.sqrt(e2), push = (r - e) / e;
+      ex *= push; ez *= push;
+    }
+    pos.x += ex * cs + ez * sn;
+    pos.z += -ex * sn + ez * cs;
   }
   /* PONTO ANDÁVEL MAIS PRÓXIMO (usado pelo armário do spawn).
      Empurra (x,z) pra fora de qualquer colisor/limite usando a MESMA física do jogador —

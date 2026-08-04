@@ -8,13 +8,10 @@ import { placeProp } from './mapprops.js';
 import { VAO_BANDS, aoBoxGeo, aoMatFactory, ContactSkirt, BASE_FLOATING, onGround } from './vao.js';
 import { makeAerialFog } from './bloom.js';   // névoa exponencial + cor por direção do olhar
 import { detailFor, registerDetail } from './textures.js';   // normal+rough por Sobel (ver lam)
-import { decalIds, paredeAtras, caixaDeBox3 } from './map_decals.js';   // pool por NOME + raycast de parede
+import { decalIds, paredeAtras } from './map_decals.js';   // pool por NOME + raycast na MALHA
 
 export function buildBrasilia(scene, T) {
   const colliders = [];   // {minX,minY,minZ,maxX,maxY,maxZ}
-  /* Sólidos que valem como parede PRA DECALQUE mas não são collider. Sai no `buildWorld`
-     como declaração pra régua (tools/eval/decal-probe.mjs mede com a MESMA função do jogo). */
-  const decalSolids = [];
   const occluders = [];   // meshes for LOS / bullet raycasts
   const root = new THREE.Group();
   scene.add(root);
@@ -61,8 +58,10 @@ export function buildBrasilia(scene, T) {
     root.add(m);
     if (opts.collide !== false) {
       const pad = opts.pad || 0;
-      const ex = opts.ry ? Math.max(w, d) / 2 : w / 2, ez = opts.ry ? Math.max(w, d) / 2 : d / 2;
-      colliders.push({ minX: x - ex - pad, maxX: x + ex + pad, minY: y, maxY: y + h, minZ: z - ez - pad, maxZ: z + ez + pad });
+      // Caixa girada: era `max(w,d)/2` nos DOIS eixos, ou seja, o QUADRADO circunscrito —
+      // uma caixa de 1,6 × 0,4 girada 20° bloqueava 1,6 × 1,6. Agora o colisor é a caixa.
+      if (opts.ry) colRot(x, z, w / 2 + pad, d / 2 + pad, y, y + h, opts.ry);
+      else colliders.push({ minX: x - w / 2 - pad, maxX: x + w / 2 + pad, minY: y, maxY: y + h, minZ: z - d / 2 - pad, maxZ: z + d / 2 + pad });
       occluders.push(m);
     }
     return m;
@@ -73,6 +72,32 @@ export function buildBrasilia(scene, T) {
     m.receiveShadow = true; root.add(m); return m;
   }
   const col = (minX, maxX, minY, maxY, minZ, maxZ) => colliders.push({ minX, maxX, minY, maxY, minZ, maxZ });
+  /* COLISOR GIRADO — BUG-21 ("o box do ônibus é como se fosse um quadrado, mas o ônibus está
+     em diagonal"). O motor agora testa no eixo do prop (game.js `_collideRot`); aqui só se
+     produz o objeto: a AABB CONSERVADORA do mundo (rejeição barata no motor, e o que todo
+     consumidor antigo continua lendo) MAIS a caixa exata em espaço local.
+     ry múltiplo de 90° NÃO vira colisor girado: ali a AABB já é exata (só troca w↔d) e
+     pagar seno/cosseno no caminho quente seria custo sem ganho. */
+  const alinhado = (ry) => Math.abs(Math.sin(2 * ry)) < 1e-6;
+  const colRot = (cx, cz, hx, hz, minY, maxY, ry) => {
+    if (alinhado(ry)) {
+      const troca = Math.abs(Math.cos(ry)) < 0.5;                 // 90° ou 270°: w vira d
+      const ax = troca ? hz : hx, az = troca ? hx : hz;
+      return col(cx - ax, cx + ax, minY, maxY, cz - az, cz + az);
+    }
+    const cs = Math.cos(ry), sn = Math.sin(ry);
+    const ax = Math.abs(hx * cs) + Math.abs(hz * sn), az = Math.abs(hx * sn) + Math.abs(hz * cs);
+    colliders.push({
+      minX: cx - ax, maxX: cx + ax, minY, maxY, minZ: cz - az, maxZ: cz + az,
+      ry, cx, cz, hx, hz, cos: cs, sin: sn,
+    });
+  };
+  /* Mesmo teste, do lado do A*: sem isto o bot planeja pela AABB e continua contornando ar. */
+  const foraDaCaixaGirada = (c, x, z, inf) => {
+    const wx = x - c.cx, wz = z - c.cz;
+    const lx = wx * c.cos - wz * c.sin, lz = wx * c.sin + wz * c.cos;
+    return Math.abs(lx) > c.hx + inf || Math.abs(lz) > c.hz + inf;
+  };
   // Os landmarks têm pegada DERIVADA do GLB (muda com targetH), então nenhum prop pode ter
   // posição fixa "na fé": tudo que é decoração passa por aqui e some se cair dentro de um
   // volume já ocupado. Sem isso um poste nasce dentro do STF quando o modelo muda.
@@ -554,7 +579,21 @@ export function buildBrasilia(scene, T) {
     root.add(o); occluders.push(o);
     o.updateMatrixWorld(true);
     const bb = new THREE.Box3().setFromObject(o);
-    if (solid) col(bb.min.x, bb.max.x, y, Math.max(1, bb.max.y), bb.min.z, bb.max.z);
+    /* PEGADA NO EIXO DO PRÓPRIO PRÉDIO (BUG-21). `setFromObject` devolve a AABB do GLB JÁ
+       GIRADO — para o ônibus (31,5°) isso é o retângulo circunscrito, e era daí que vinha a
+       parede invisível. Medimos com `rotation.y = 0` e devolvemos a rotação: a caixa passa a
+       ser a do modelo, e `colRot` cuida do resto. Múltiplo de 90° cai no caminho barato. */
+    if (solid) {
+      if (ry && !alinhado(ry)) {
+        o.rotation.y = 0; o.updateMatrixWorld(true);
+        const b0 = new THREE.Box3().setFromObject(o);
+        o.rotation.y = ry; o.updateMatrixWorld(true);
+        const hx = (b0.max.x - b0.min.x) / 2, hz = (b0.max.z - b0.min.z) / 2;
+        const lx = (b0.min.x + b0.max.x) / 2 - x, lz = (b0.min.z + b0.max.z) / 2 - z;
+        const cs = Math.cos(ry), sn = Math.sin(ry);
+        colRot(x + lx * cs + lz * sn, z - lx * sn + lz * cs, hx, hz, y, Math.max(1, bb.max.y), ry);
+      } else col(bb.min.x, bb.max.x, y, Math.max(1, bb.max.y), bb.min.z, bb.max.z);
+    }
     // AO de contato também para os LANDMARKS GLB. A geometria deles é template compartilhado
     // entre clones (placeProp faz clone(true)), então gravar `color` na malha contaminaria
     // todas as instâncias — mas a SAIA é geometria nova em espaço de mundo e não tem esse
@@ -1166,10 +1205,15 @@ export function buildBrasilia(scene, T) {
       const asp = T.decalAspects[i] || 1;
       let hh = alt, ww = alt * asp;
       if (ww > larg) { ww = larg; hh = larg / asp; }
-      /* PAREDE ATRÁS ANTES DE DESENHAR (map_decals.js). A 1ª versão desta empena colava na
-         face LONGA, que é feita de 6 fitas de vidro fumê, e só a captura pegou. O raycast
-         fecha a classe: sem sólido atrás em 0,80 m, a peça não nasce. */
-      if (!paredeAtras(colliders.concat(decalSolids), x, y0 + hh / 2, z, ry, ww, hh)) return null;
+      /* PAREDE ATRÁS ANTES DE DESENHAR (map_decals.js), agora contra a MALHA e não contra
+         caixa declarada. A versão anterior media contra `caixaDeBox3(Box3.setFromObject(b))`
+         — a caixa do ministério INTEIRO — e o ministério é um bloco sobre PILOTIS: o térreo
+         é VAZADO. As 16 peças passavam a régua e nasciam NO AR, entre as colunas, com o
+         gramado visível através delas (capturado). Medido no navegador: 16/16 com os 25
+         raios no vazio, até 0,90 m de distância da malha mais próxima, e a única malha por
+         perto é `Pilotis_Glass_Ministry_1`, que é VIDRO. Passando `root` o teste vira
+         raycast na geometria desenhada e o defeito não tem como voltar. */
+      if (!paredeAtras([root], x, y0 + hh / 2, z, ry, ww, hh)) return null;
       _usados.push({ i, x, z });
       let m = _dmat.get(i);
       if (!m) {
@@ -1192,7 +1236,6 @@ export function buildBrasilia(scene, T) {
     for (const b of ministries) {
       if (!b) continue;
       const bb = new THREE.Box3().setFromObject(b);
-      decalSolids.push(caixaDeBox3(bb));       // a empena é sólido de decalque mesmo sem collider
       const cx = (bb.min.x + bb.max.x) / 2, w = bb.max.x - bb.min.x;
       /* DUAS peças lado a lado por empena (norte com ry = π, sul com ry = 0). A empena tem
          ~11 m: uma peça só com `larg = 0,8 · w` toma a parede inteira e vira fachada pintada,
@@ -1271,28 +1314,19 @@ export function buildBrasilia(scene, T) {
        CPU (AABB é um teste de 6 comparações). Aumentar a grade continua melhorando
        (8×4 dá 0,51 m), mas 0,69 m já é menor que o raio do jogador (0,38) + passo.
 
-       O JEITO CERTO, se um dia isto voltar a incomodar, é collider com rotação no motor —
-       aí todo prop girado ganha de graça. É mudança em `_collide` (caminho quente, usado
-       por jogador E bots) e não cabia junto com esta correção.
+       E VOLTOU A INCOMODAR — palavras dele na segunda passada: "o box do ônibus não deixa
+       você andar perto e é como se fosse um quadrado, mas o ônibus está em diagonal, devia
+       ser possível andar". 0,69 m é meio passo de parede fantasma, e meio passo se sente.
 
-       Reproduzir os números:
-         node -e "…" com inBus(x,z) no espaço local e a união das AABBs — ver o histórico
-         desta correção no CHANGELOG (2.0.0-alpha.4). */
-    {
-      const BX = 2.5, BZ = -4, BTH = 0.55, BL = 9.26, BW = 4.48, NX = 6, NZ = 3;
-      const cs = Math.cos(BTH), sn = Math.sin(BTH), sx = BL / NX, sz = BW / NZ;
-      for (let i = 0; i < NX; i++) for (let j = 0; j < NZ; j++) {
-        const lx = -BL / 2 + sx * (i + 0.5), lz = -BW / 2 + sz * (j + 0.5);
-        let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
-        for (const dx of [-sx / 2, sx / 2]) for (const dz of [-sz / 2, sz / 2]) {
-          const px = lx + dx, pz = lz + dz;
-          const wx = BX + px * cs + pz * sn, wz = BZ - px * sn + pz * cs;
-          x0 = Math.min(x0, wx); x1 = Math.max(x1, wx);
-          z0 = Math.min(z0, wz); z1 = Math.max(z1, wz);
-        }
-        col(x0, x1, 0, 3.1, z0, z1);
-      }
-    }
+       CORREÇÃO DEFINITIVA (esta): COLLIDER COM ROTAÇÃO NO MOTOR. `game.js/_collideRot`
+       testa no espaço local do prop, então a caixa aqui é UMA e é a lataria:
+         parede invisível ........... 0,69 m -> **0,00 m** (o erro é zero por construção)
+         bloqueio indevido .......... 9,4 m² -> 0,0 m²
+         ônibus sem colisão ......... 0 m² (mantido)
+         colisores do ônibus ........ 18 -> 1
+       Régua: `node tools/eval/obb-check.mjs` — anda com o `_collide` DO JOGO numa grade de
+       5 cm em volta do prop e mede a maior distância entre a lataria e o ponto bloqueado. */
+    colRot(2.5, -4, 9.26 / 2, 4.48 / 2, 0, 3.1, 0.55);
   }
 
   /* ---------------- urna eletrônica (Sketchfab — monumento no MEIO do mapa) ---------------- */
@@ -1591,7 +1625,12 @@ export function buildBrasilia(scene, T) {
   const blocked = (x, z, inflate) => {
     for (const c of colliders) {
       if (x > c.minX - inflate && x < c.maxX + inflate && z > c.minZ - inflate && z < c.maxZ + inflate &&
-          c.minY < 1.6 && c.maxY > 0.15) return true;
+          c.minY < 1.6 && c.maxY > 0.15) {
+        // colisor girado: a AABB acima é só a rejeição barata — quem decide é o eixo do prop,
+        // senão o A* continua contornando o ar das quinas que o `_collide` já deixa passar.
+        if (c.ry && foraDaCaixaGirada(c, x, z, inflate)) continue;
+        return true;
+      }
     }
     return false;
   };
@@ -1676,9 +1715,10 @@ export function buildBrasilia(scene, T) {
 
   return {
     root, colliders, occluders, groundHeightAt, spawns, sun, hemi,
-    /* DECLARAÇÃO PRA RÉGUA (tools/eval/decal-probe.mjs): a lista COMPLETA contra a qual o
-       `paredeAtras` validou cada decalque = colliders + as empenas dos ministérios (GLB). */
-    decalSolids: colliders.concat(decalSolids),
+    /* DECLARAÇÃO PRA RÉGUA (tools/eval/decal-probe.mjs): é a MESMA coisa contra a qual o
+       `paredeAtras` validou cada decalque — a malha desenhada. Era `colliders + empenas`,
+       e essa lista era justamente a mentira que deixou 16 peças nascerem no vão do piloti. */
+    decalSolids: [root],
     waypoints: { nodes, adj }, nearestWaypoint, findPath,
     // bounds abertos até a face externa dos ministérios: sem isso o jogador é empurrado
     // pra fora da rota de flanco sob os pilotis que acabamos de abrir.
