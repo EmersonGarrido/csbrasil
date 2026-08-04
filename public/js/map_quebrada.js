@@ -115,6 +115,37 @@ export function buildQuebrada(scene, T) {
   // chão base: terra/laje batida sob tudo (a rua, a praça e o campinho pintam por cima)
   addFloor(HALF_X * 2, HALF_Z * 2, 0, 0, MAT.dirt, -0.01);
 
+  /* ===================== A RUA =====================
+     14 m de asfalto (x ∈ [-7,7]) e calçadas de 5,5 m (x ∈ [∓12,5, ∓7]) de z = -20 (boca da
+     praça) a z = 24 (travessa do campinho). A calçada é LARGA de propósito: é onde cabem a
+     mesa do bar, o ponto de ônibus, a barraca e a barricada sem estrangular o corredor —
+     e cada uma dessas peças é uma unidade de cover que a MAP5 conta.
+     A calçada sobe 0,02 m e o meio-fio tem 0,14 m: os dois ficam ABAIXO do degrau de 0,30 m
+     que o corpo sobe (game.js `_collide` só bloqueia colisor com maxY > 0,30), então nem o
+     jogador nem o flood-fill das réguas tropeçam neles. Por isso o meio-fio vai com
+     `collide:false`: dar-lhe colisor não mudaria o andar e só engordaria a lista quente. */
+  const RUA_Z0 = -20, RUA_Z1 = 24, RUA_D = RUA_Z1 - RUA_Z0, RUA_ZC = (RUA_Z0 + RUA_Z1) / 2;
+  addFloor(14, RUA_D, 0, RUA_ZC, MAT.asphalt);
+  for (const sx of [-1, 1]) {
+    addFloor(5.5, RUA_D, sx * 9.75, RUA_ZC, MAT.concrete, 0.02);
+    addBox(0.22, 0.14, RUA_D, MAT.concreteDark, sx * 7.11, 0, RUA_ZC, { collide: false, cast: false });
+  }
+  // faixa de pedestre nas duas bocas da rua (praça e travessa) — leitura de "rua de verdade"
+  const faixaMat = new THREE.MeshStandardMaterial({ color: 0xd8d4c8, roughness: 0.9, polygonOffset: true, polygonOffsetFactor: -2 });
+  for (const fz of [-18.5, 22.5]) for (let i = -3; i <= 3; i++) addFloor(0.8, 3.2, i * 1.9, fz, faixaMat, 0.012);
+
+  /* POSTES DE LUZ com braço e fiação aparente — o poste é o prop mais barato que existe
+     (2 caixas) e é cover DE PÉ: 0,22 m de largura não esconde ninguém, mas quebra a linha
+     de tiro do corredor reto, que é o defeito nº 1 de rua comprida. */
+  const posteMat = lam({ color: 0x8f8b84, roughness: 0.7 });
+  const POSTES = [];
+  for (let pz = -16; pz <= 22; pz += 9.5) POSTES.push([-12.1, pz], [12.1, pz + 4.75]);
+  for (const [px, pz] of POSTES) {
+    addBox(0.24, 6.4, 0.24, posteMat, px, 0, pz);
+    addBox(1.5, 0.14, 0.16, posteMat, px + (px < 0 ? 0.75 : -0.75), 6.2, pz, { collide: false, cast: false });
+    addBox(0.5, 0.16, 0.3, lam({ color: 0xcfc9b4, emissive: 0x2a2418 }), px + (px < 0 ? 1.4 : -1.4), 6.05, pz, { collide: false, cast: false });
+  }
+
   // ===== ground height: o mapa é PLANO (nenhum degrau, nenhum mezanino) =====
   const groundHeightAt = () => 0;
 
