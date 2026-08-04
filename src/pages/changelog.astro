@@ -102,14 +102,16 @@ const jsonld = [
 <Layout
   title={`Changelog — o que mudou (v${atualVer}) | ${BRAND_FULL}`}
   description={`Histórico de versões do ${BRAND_FULL}: novas facções, mapas, armas, ajustes de viewmodel, bots e correções, versão por versão.`}
-  jsonld={jsonld}>
-
-  <h1>Changelog</h1>
-  <p class="sub">
+  jsonld={jsonld}
+  h1="Changelog"
+  kicker={`versão em produção · v${atualVer}`}
+  heroImg="/img/map-previews/fy_pool_day.jpg"
+  heroPos="46%">
+  <Fragment slot="sub">
     Tudo que mudou, versão por versão. A versão em produção é a <strong>v{atualVer}</strong>.
     O arquivo completo vive em <code>CHANGELOG.md</code> no repositório — esta página é ele,
     renderizado.
-  </p>
+  </Fragment>
 
   {recentes.map((v, i) => (
     <details open={i < 2}>

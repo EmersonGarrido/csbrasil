@@ -98,20 +98,22 @@ const jsonld = [
 <Layout
   title={`Como jogar — controles e regras | ${BRAND_FULL}`}
   description={`Guia do ${BRAND_FULL}: 6 passos do primeiro clique ao primeiro round, tabela de controles, regras de round e de Capture the Flag, e as dúvidas mais comuns.`}
-  jsonld={jsonld}>
-
-  <h1>Como jogar</h1>
+  jsonld={jsonld}
+  h1="Como jogar"
+  kicker="6 passos · grátis · sem instalar"
+  heroImg="/img/map-previews/fy_quebrada.jpg"
+  heroPos="70%">
   {/* RESPOSTA CURTA E FACTUAL NO TOPO. É o parágrafo que um assistente de IA
       cita inteiro quando alguém pergunta "como jogar CORO SOLTO" — por isso ele
       vem antes de qualquer navegação, responde a pergunta sozinho e usa os
       mesmos números do JSON-LD logo abaixo. */}
-  <p class="sub">
+  <Fragment slot="sub">
     <strong>Resposta curta:</strong> abra <strong>www.csbrasil.online</strong> num navegador de
     desktop, clique para travar o mouse e jogue — não tem download, instalação nem cadastro.{' '}
     <strong>WASD</strong> move, o <strong>mouse</strong> mira, o <strong>clique esquerdo</strong>{' '}
     atira e o <strong>direito</strong> abre a luneta. Cada round dura <strong>1:39</strong>, o
     padrão é <strong>4 contra 4</strong> contra bots e <strong>3 rounds vencem</strong> a partida.
-  </p>
+  </Fragment>
 
   <h2>Em 6 passos</h2>
   <ol style="list-style:none;padding-left:0">
@@ -169,5 +171,8 @@ const jsonld = [
     </details>
   ))}
 
-  <p style="margin-top:26px"><a class="btn-play" style="margin-left:0;display:inline-block" href="/">▶ Jogar agora — grátis</a></p>
+  <div class="cta-row">
+    <a class="btn-cta" href="/">▶ Jogar agora — grátis</a>
+    <a class="btn-cta btn-2" href="/mapas">Ver as arenas</a>
+  </div>
 </Layout>

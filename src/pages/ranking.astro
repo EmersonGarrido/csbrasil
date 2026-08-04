@@ -101,9 +101,18 @@ const jsonld = (RANKING_ON && rows.length) ? [
   title={pageTitle}
   description={pageDesc}
   noindex={!RANKING_ON || curPage > 1}
-  jsonld={jsonld}>
-
-  <h1>Ranking global</h1>
+  jsonld={jsonld}
+  h1="Ranking global"
+  kicker={RANKING_ON ? 'classificado por kills' : 'desligado durante o alpha'}
+  heroImg="/img/map-previews/fy_havan.jpg"
+  heroPos="50%">
+  {RANKING_ON && <Fragment slot="sub">
+    Classificado por kills. Atualiza ao fim de cada partida — jogue uma e o seu nome entra aqui.
+  </Fragment>}
+  {!RANKING_ON && <Fragment slot="sub">
+    O placar entre jogadores está fora do ar enquanto o jogo é alpha. Os seus números de partida
+    continuam salvos no navegador e aparecem no menu RANKING do jogo.
+  </Fragment>}
 
   {!RANKING_ON && (
     <div class="panel">
@@ -115,10 +124,6 @@ const jsonld = (RANKING_ON && rows.length) ? [
       <a href="/changelog">o que mudou</a> · <a href="/">▶ JOGAR</a></p>
     </div>
   )}
-
-  {RANKING_ON && <p class="sub">
-    Classificado por kills. Atualiza ao fim de cada partida — jogue uma e o seu nome entra aqui.
-  </p>}
 
   {RANKING_ON && !configured && <div class="panel"><p>Ranking ainda não configurado (envs do Supabase pendentes).</p></div>}
 

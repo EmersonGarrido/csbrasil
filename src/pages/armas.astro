@@ -41,15 +41,17 @@ const jsonld = [
 <Layout
   title={`Armas — as ${ARMAS.length} do arsenal | ${BRAND_FULL}`}
   description={`Todas as ${ARMAS.length} armas do ${BRAND_FULL}: AWP, AK-47, M4A1, MD97, Mosin, escopeta, SMGs e faca — com dano, pente, reserva e cadência de cada uma.`}
-  jsonld={jsonld}>
-
-  <h1>Arsenal</h1>
-  <p class="sub">
+  jsonld={jsonld}
+  h1="Arsenal"
+  kicker={`${ARMAS.length} armas · ${classes.length} classes`}
+  heroImg="/img/map-previews/fy_havan.jpg"
+  heroPos="66%">
+  <Fragment slot="sub">
     {ARMAS.length} armas jogáveis, divididas em {classes.length} classes. Os números abaixo são os
     mesmos que o jogo usa em partida — dano por projétil, tamanho do pente, munição de reserva e o
     intervalo entre tiros em segundos. Troque de arma com <code>1</code> (primária),
     <code>2</code> (pistola) e <code>3</code> (faca).
-  </p>
+  </Fragment>
 
   <div class="panel">
     <strong style="color:var(--amber)">Como ler a tabela.</strong>
@@ -106,5 +108,8 @@ const jsonld = [
     <li><strong>Só pra humilhar:</strong> faca. Você anda mais rápido com ela na mão.</li>
   </ul>
 
-  <p style="margin-top:26px"><a class="btn-play" style="margin-left:0;display:inline-block" href="/">▶ Testar no jogo</a></p>
+  <div class="cta-row">
+    <a class="btn-cta" href="/">▶ Testar no jogo</a>
+    <a class="btn-cta btn-2" href="/como-jogar">Como jogar</a>
+  </div>
 </Layout>
