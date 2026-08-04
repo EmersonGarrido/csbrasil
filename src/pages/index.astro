@@ -609,10 +609,23 @@
     <div>Respawn em <span id="respawn-count">3</span>s…</div>
     <div class="rip-sub">A treta continua sem você. Por enquanto.</div>
   </div>
+  <!-- PLACAR (tela 08 da referência). Estrutura: duas colunas de time LADO A LADO, não uma
+       tabela única. O `game.js` continua escrevendo uma lista só em #sb-body, com `tr.tp` /
+       `tr.tb` — quem separa nas duas colunas é o CSS (`tbody` vira grade de 2 colunas com
+       `grid-auto-flow:row dense` e cada `tr` fixa a sua coluna pela classe de time). Assim a
+       tela nova NÃO exige tocar em `game.js`.
+       O thead real fica só pra leitor de tela (game.js liga/desliga o #sb-cap-h por id, e
+       essa é a única fonte de verdade do CTF); os rótulos VISÍVEIS são as duas .sb-head
+       abaixo, que espelham o estado do CAP. por `:has()` no CSS. -->
   <div id="scoreboard" class="hidden">
     <h3>CORO SOLTO — PLACAR</h3>
+    <div class="sb-heads" aria-hidden="true">
+      <div class="sb-head sb-head-p"><span>JOGADOR</span><span>PERSONAGEM</span><span>K</span><span>M</span><span class="sb-cap">CAP.</span></div>
+      <div class="sb-head sb-head-b"><span>JOGADOR</span><span>PERSONAGEM</span><span>K</span><span>M</span><span class="sb-cap">CAP.</span></div>
+    </div>
     <table><thead><tr><th>JOGADOR</th><th>PERSONAGEM</th><th>KILLS</th><th>MORTES</th><th id="sb-cap-h" class="hidden">CAP.</th></tr></thead>
     <tbody id="sb-body"></tbody></table>
+    <div class="sb-foot"><kbd>TAB</kbd> SEGURE PARA VER O PLACAR</div>
   </div>
 </div>
 

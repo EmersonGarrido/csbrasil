@@ -743,26 +743,114 @@ html[data-ui="legacy"] #hud-mid{padding:0;background:none;clip-path:none}
 #respawn-overlay{position:absolute;inset:0;background:rgba(24,4,4,.78);display:flex;flex-direction:column;gap:12px;align-items:center;justify-content:center;font-size:20px;font-weight:600;letter-spacing:2px}
 .rip{font-size:44px;font-weight:700;letter-spacing:8px;text-transform:uppercase}
 .rip-sub{font-size:14px;font-weight:500;color:#e0b0b0}
-#scoreboard{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:var(--panel);
-  border:1px solid var(--line);padding:var(--s-5) var(--s-6);min-width:560px;clip-path:var(--cut);box-shadow:var(--sh-2)}
-#scoreboard h3{display:flex;flex-direction:column;align-items:center;gap:var(--s-1);margin-bottom:var(--s-4);text-transform:uppercase}
-#scoreboard h3 .sb-label{letter-spacing:var(--tr-3);font-weight:700;color:var(--ink-300);font-size:var(--fs-100)}
-#scoreboard h3 .sb-score{display:flex;align-items:center;gap:var(--s-3);font-family:var(--font);font-weight:700;
-  font-size:var(--fs-600);font-variant-numeric:tabular-nums}
-#scoreboard h3 .sb-score i{font-style:normal;color:var(--ink-400);font-size:var(--fs-400)}
-#scoreboard h3 .sb-score b.tp{color:#ff9a9a}
-#scoreboard h3 .sb-score b.tb{color:#a9f0b6}
-#scoreboard table{width:100%;border-collapse:collapse;font-size:var(--fs-300);font-weight:600}
-#scoreboard th{font-size:var(--fs-50);letter-spacing:var(--tr-2);color:var(--ink-300);text-align:left;padding:var(--s-1) var(--s-3);border-bottom:1px solid var(--line)}
-#scoreboard td{padding:5px var(--s-3);color:var(--ink-100)}
-#scoreboard th:nth-child(3),#scoreboard th:nth-child(4),#scoreboard td:nth-child(3),#scoreboard td:nth-child(4){text-align:right;font-family:var(--font);font-weight:600;font-size:16px}
-#scoreboard tbody tr:nth-child(even) td{background:rgba(232,244,246,.035)}   /* zebra sutil */
-#scoreboard tbody tr:hover td{background:rgba(57,214,224,.09)}
-#scoreboard tr.tp td:first-child{border-left:3px solid var(--red)}
-#scoreboard tr.tb td:first-child{border-left:3px solid var(--green)}
-#scoreboard tr.me td{background:rgba(255,210,63,.10);color:#fff}            /* linha do jogador */
-#scoreboard tr.me td:first-child{border-left-color:var(--yellow);font-weight:700}
-#dollynho-dance{display:block;margin:12px auto 0;width:240px;height:190px}
+/* ---------- PLACAR — REDESENHO contra references/telas/08_placar.png ----------------
+   NÃO foi afinação de número: a tela era OUTRA. O que estava aqui era um painel flutuante
+   de 560px no meio da tela com UMA tabela só (jogador · personagem · kills · mortes), os
+   dois times misturados e ordenados por abate. A referência é uma tela CHEIA com scrim,
+   DUAS COLUNAS DE TIME lado a lado, cabeçalho de placar gigante no topo e faixas de linha
+   tingidas com a cor do time. Medido em `references/telas/08_placar.png` (512×341, o mesmo
+   quadro 3:2 do dono a 1/3 de escala), com `python3 -c` sobre os pixels:
+
+     · painel                  x 0,039-0,977 · y 0,023-0,88   → quase tela cheia, não card
+     · coluna esquerda         x  20-254 px  (0,039-0,496)
+     · coluna direita          x 268-500 px  (0,523-0,977)    → 14px de calha (0,027)
+     · faixa de linha          altura 18px / passo 20px = 5,3% / 5,9% da altura
+     · linha ímpar (time P)    rgb(80,24,24)  · linha par rgb(50,17,16)   → zebra TINGIDA
+     · linha ímpar (time B)    rgb(46,29,57)  · linha par rgb(28,20,34)
+     · placar do round         rgb(179,45,35) e rgb(134,94,178) — número GIGANTE colorido
+     · rodapé                  chip de tecla + rótulo, centrado
+
+   Zebra tingida (e não `rgba(232,244,246,.035)` cinza) é o que faz a coluna LER como time
+   à distância — é o mesmo papel que a referência dá pra cor. O tom escurece de cima pra
+   baixo (ímpar 80→49 no vermelho ao longo das 7 linhas): reproduzido com um degradê no
+   próprio `tbody`, e não linha a linha, pra não depender da contagem de combatentes.  */
+#scoreboard{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;align-items:center;
+  background:rgba(var(--bg-900-rgb),.95);box-shadow:inset 0 0 0 1px var(--line);
+  padding:4.4% clamp(var(--s-6),4vw,72px) 6%}
+/* Cabeçalho: RESULTADO (âmbar, some fora do fim de round) · RODADA · PLACAR gigante.
+   O innerHTML vem do game.js:_showScoreboard — `.sb-result`, `.sb-result-sub`, `.sb-label`
+   e `.sb-score` com <b class="tp">TAG N</b><i>×</i><b class="tb">N TAG</b>. A referência
+   parte tag e número em pesos diferentes; aqui os dois moram no MESMO <b>, então o par
+   inteiro cresce e ganha a cor do time — a hierarquia vem do TAMANHO (fs-800 contra
+   fs-100 do rótulo = razão 4,7, dentro da faixa 3,3-5,0 medida na referência). */
+#scoreboard h3,#scoreboard .sb-heads,#scoreboard table{width:min(1280px,100%)}
+#scoreboard h3{display:flex;flex-direction:column;align-items:center;gap:var(--s-2);
+  margin-bottom:var(--s-5);text-transform:uppercase;flex:0 0 auto}
+#scoreboard h3 .sb-label{letter-spacing:var(--tr-4);font-weight:700;color:var(--ink-300);font-size:var(--fs-200)}
+#scoreboard h3 .sb-score{display:flex;align-items:center;gap:clamp(var(--s-5),4vw,84px);
+  font-family:var(--font);font-weight:700;line-height:var(--lh-tight);
+  font-size:clamp(38px,6vw,78px);font-variant-numeric:tabular-nums;letter-spacing:var(--tr-2)}
+#scoreboard h3 .sb-score i{font-style:normal;color:var(--ink-200);font-size:clamp(20px,3.6vh,40px);
+  letter-spacing:var(--tr-3);align-self:center;font-weight:700}
+#scoreboard h3 .sb-score b.tp{color:#ff8a8a}
+#scoreboard h3 .sb-score b.tb{color:#b79bff}   /* violeta do time B na referência (134,94,178) */
+
+/* Grade compartilhada pelos rótulos e pelas linhas. Os dois cabeçalhos visíveis e cada
+   <tr> são grades INDEPENDENTES, então nenhuma coluna pode ser `auto` (largura de conteúdo
+   divergiria entre esquerda e direita e os rótulos sairiam do lugar): todas são fracionárias
+   ou em `em`. O CTF acrescenta CAP. — o estado real mora no #sb-cap-h, que o game.js liga
+   e desliga por id; o `:has()` abaixo espelha isso nos rótulos duplicados sem tocar em JS. */
+/* A coluna PERSONAGEM sai da GRADE (fica só no <thead> pro leitor de tela): pra bot,
+   `c.name` e `c.def.name` são a MESMA string, então ela era duplicata em 7 de 8 linhas —
+   era ela que fazia a linha parecer poluída ao lado da referência, que mostra retrato +
+   nome e mais nada de texto. */
+#scoreboard{--sbc:minmax(0,1fr) 2.8em 2.8em;--sb-gap:clamp(var(--s-5),3.4vw,64px);
+  --sb-rh:clamp(32px,5.2vh,54px);--sb-rg:5px}
+#scoreboard:has(#sb-cap-h:not(.hidden)){--sbc:minmax(0,1fr) 2.8em 2.8em 3.6em}
+#scoreboard:has(#sb-cap-h.hidden) .sb-cap{display:none}
+#scoreboard .sb-head span:nth-child(2),#scoreboard td:nth-child(2){display:none}
+#scoreboard .sb-heads{display:grid;grid-template-columns:1fr 1fr;column-gap:var(--sb-gap);flex:0 0 auto}
+#scoreboard .sb-head{display:grid;grid-template-columns:var(--sbc);align-items:end;gap:0 var(--s-4);
+  font-size:var(--fs-200);letter-spacing:var(--tr-2);color:var(--ink-300);font-weight:700;
+  text-transform:uppercase;padding:0 var(--s-4) var(--s-2)}
+#scoreboard .sb-head span:nth-child(n+3){text-align:right}
+/* SEM `width:100%` aqui: a largura vem da regra de teto (min(1000px,100%)) que a .sb-heads
+   também usa. Um `width:100%` neste bloco vinha DEPOIS e a sobrescrevia — os rótulos ficavam
+   numa grade de 1000px e as faixas numa de 1414px, e as colunas saíam do lugar. */
+#scoreboard table{display:block;font-size:var(--fs-500);font-weight:700;
+  flex:0 1 auto;min-height:0;overflow:auto;margin-top:var(--s-2)}
+#scoreboard thead{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}  /* só p/ leitor de tela */
+/* DUAS COLUNAS SEM MEXER NO game.js: ele emite uma lista única de <tr class="tp|tb">.
+   `dense` é obrigatório — sem ele uma sequência tp,tp,tb,tb deixa buraco e desalinha as
+   colunas (o cursor de auto-placement não volta pra trás). */
+#scoreboard tbody{display:grid;grid-template-columns:1fr 1fr;grid-auto-flow:row dense;
+  grid-auto-rows:var(--sb-rh);column-gap:var(--sb-gap);row-gap:var(--sb-rg);align-content:start;
+  /* zebra + escurecimento vertical pintados NO FUNDO, e as faixas de time entram por cima
+     com alfa — é assim que a mesma cor de time dá dois tons por linha, como na referência,
+     sem precisar contar linhas POR TIME (o CSS não sabe fazer "nth de uma classe"). */
+  background:
+    linear-gradient(180deg,rgba(255,255,255,.02) 0%,rgba(0,0,0,.30) 100%),
+    repeating-linear-gradient(180deg,
+      rgba(255,255,255,.07) 0 var(--sb-rh),
+      rgba(0,0,0,0) var(--sb-rh) calc((var(--sb-rh) + var(--sb-rg)) * 2))}
+#scoreboard tbody tr.tp{grid-column:1}
+#scoreboard tbody tr.tb{grid-column:2}
+#scoreboard tbody tr{display:grid;grid-template-columns:var(--sbc);align-items:center;gap:0 var(--s-4);
+  padding:0 var(--s-4);border-left:3px solid transparent}
+#scoreboard td{display:block;color:var(--ink-100);letter-spacing:var(--tr-1);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#scoreboard td:first-child{font-weight:700;text-transform:uppercase}
+#scoreboard td:nth-child(n+3){text-align:right;font-family:var(--font);font-weight:700;
+  font-size:clamp(18px,2.5vh,26px);font-variant-numeric:tabular-nums}
+/* Faixa TINGIDA pelo time, com alfa pra deixar a zebra do fundo aparecer. */
+#scoreboard tbody tr.tp{background:rgba(224,50,50,.22);border-left-color:rgba(224,50,50,.6)}
+#scoreboard tbody tr.tb{background:rgba(123,47,247,.24);border-left-color:rgba(123,47,247,.65)}
+#scoreboard tbody tr:hover{filter:brightness(1.25)}
+#scoreboard tr.me{box-shadow:inset 0 0 0 1px rgba(255,201,63,.45)}
+#scoreboard tr.me td:first-child{color:var(--br-faixa)}
+/* Fio quente no topo do 1º colocado da partida — a referência marca a liderança com um
+   fio que desbota pra direita (rgb(117,34,22) na quina esquerda → 67 na direita). */
+#scoreboard tbody tr:first-of-type{position:relative}
+#scoreboard tbody tr:first-of-type::before{content:"";position:absolute;left:0;right:0;top:0;height:2px;
+  background:linear-gradient(90deg,var(--br-sinal),rgba(226,64,44,0) 70%)}
+#scoreboard .sb-foot{position:absolute;left:0;right:0;bottom:3.4%;display:flex;align-items:center;justify-content:center;
+  gap:var(--s-2);font-family:var(--mono);font-size:var(--fs-50);
+  letter-spacing:var(--tr-3);color:var(--ink-300);text-transform:uppercase}
+#scoreboard .sb-foot kbd{font:inherit;border:1px solid var(--line-2);color:var(--ink-200);
+  padding:2px 7px}
+/* flex:0 0 auto porque o #scoreboard virou coluna flex: sem isso o canvas do mascote
+   (kill-switch ?dolly=1) seria espremido pelo `flex-shrink` padrão. */
+#dollynho-dance{display:block;flex:0 0 auto;margin:12px auto 0;width:240px;height:190px}
 
 /* ---------- match end ----------
    Três blocos com hierarquia declarada, em vez de um painel único com tudo do mesmo
