@@ -349,10 +349,11 @@ body{font-family:var(--font);font-weight:600;color:var(--ink1)}
    jogo `.team-chars` desenhava TRÊS caixas 72px vazias por cima da arte (era esse o
    "conteúdo cortado" da captura — miniatura que nunca chegou, moldura que ficou). */
 .team-chars,.team-desc{display:none}
-/* LUGAR RESERVADO PRA ARTE POR TIME (o dono vai gerar uma imagem por facção).
-   Basta soltar o arquivo em /img/teams/<facção>.jpg. Se ele NÃO existir, a camada
-   simplesmente não pinta e o degradê da facção continua sendo o fundo — nada de
-   ícone de imagem quebrada, nada de buraco preto. É o fallback por construção. */
+/* A arte por time JÁ EXISTE: `/img/team-<facção>.webp`, uma por facção, declarada em
+   `--art` mais abaixo. O caminho `/img/teams/<facção>.jpg` que este comentário reservava
+   nunca foi usado por ninguém. O fallback continua valendo por construção: se o arquivo
+   sumir do deploy, a camada não pinta e o degradê da facção segura a placa — nada de
+   ícone de imagem quebrada, nada de buraco preto. */
 /* O "apagado" do estado ocioso mora AQUI, na camada de arte — nunca num filter no card
    inteiro. O filter antigo (saturate .86) caía também sobre as miniaturas 3D do elenco e
    descolorir personagem é justamente a queixa nº 4 do dono. */
