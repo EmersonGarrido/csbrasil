@@ -17,7 +17,7 @@
 //
 // Contrato buildWorld idêntico ao map_ferrovelho.js / map_havan.js.
 import * as THREE from 'three';
-import { placeProp } from './mapprops.js';
+import { placeProp, hasProp, PropBatch } from './mapprops.js';
 import { VAO_BANDS, aoBoxGeo, aoMatFactory, ContactSkirt, BASE_FLOATING, onGround } from './vao.js';
 import { makeAerialFog } from './bloom.js';
 import { detailFor } from './textures.js';
@@ -30,7 +30,19 @@ export const HALF_X = 28, HALF_Z = 47;
 // senão o mapa quebraria em node — onde nenhum GLB carrega — e nas réguas).
 export const QUEBRADA_PROPS = ['pilha_pneus', 'tires', 'jersey_barrier', 'stall', 'tent', 'caixa_som',
   'arquibancada', 'churrasqueira', 'mesa_guardasol', 'guarda_sol', 'moto_cg', 'kombi', 'uno_mille',
-  'fusca', 'saveiro', 'dumpster', 'arara_roupas', 'drinkstand'];
+  'fusca', 'saveiro', 'dumpster', 'arara_roupas', 'drinkstand',
+  /* ACABAMENTO (ver bloco "ACABAMENTO GLB" lá embaixo). Dois lotes com procedências
+     diferentes, e a diferença importa:
+     — `fav_*`, `tiara_gt83`, `botijao_gas`, `vw_9150` vêm de `references/favela/` (o dono:
+       "quero o padrão visual desses GLBs"). São eles que DITAM o estilo do mapa: textura
+       fotográfica de tijolo/reboco, paleta lavada, 780-16 k triângulos.
+     — `onibus_sptrans`, `fachada_comercio` e `caixa_som_baile` foram gerados no Tripo
+       (tools/gen-asset.mjs) só onde a referência não tinha peça: não há ônibus na pasta
+       (o `delivery_volkswagen_9.150` é CAMINHÃO BAÚ, conferido na imagem — virou o caminhão
+       de entrega da adega, não o ônibus) nem fachada de comércio nem paredão texturizado
+       (`speaker_..._paredao` é geometria boa mas SEM textura, sairia cinza chapado). */
+  'fav_house', 'fav_brasileira', 'fav_modular', 'tiara_gt83', 'botijao_gas', 'vw_9150',
+  'fachada_comercio', 'onibus_sptrans', 'caixa_som_baile'];
 
 export function buildQuebrada(scene, T) {
   const colliders = [], occluders = [], pickups = [];
@@ -79,6 +91,49 @@ export function buildQuebrada(scene, T) {
   const col = (x0, x1, y0, y1, z0, z1) => colliders.push({ minX: Math.min(x0, x1), maxX: Math.max(x0, x1), minY: y0, maxY: y1, minZ: Math.min(z0, z1), maxZ: Math.max(z0, z1) });
   const addFloor = (w, d, x, z, mat, y = 0) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d), mat); m.rotation.x = -Math.PI / 2; m.position.set(x, y, z); m.receiveShadow = true; root.add(m); return m; };
   const gprop = (id, x, z, h, ry = 0) => { const o = placeProp(id, { x, z, targetH: h, ry }); if (o) root.add(o); return !!o; };
+
+  /* ===================== ACABAMENTO GLB =====================
+     O dono reprovou a 1ª versão deste mapa com estas palavras: "está tudo lowpoly, a
+     qualidade está muito baixa — os prédios, comércios, ônibus, carros". Ele está certo e o
+     defeito é literal: barraco, ônibus, carro tunado e fachada de comércio eram CAIXA E PLANO
+     com textura de canvas. Os quatro grupos que ele nomeou viraram GLB gerado no Tripo
+     (tools/gen-asset.mjs).
+
+     A REGRA DESTA TROCA, e é o que a torna reversível e segura: **o GLB entra só na IMAGEM**.
+     A caixa procedural continua sendo criada e continua registrada em `colliders`,
+     `occluders` e `solids` — ela só deixa de ser DESENHADA (`visible = false`). O Raycaster
+     do three NÃO testa `visible` (public/vendor/three.module.js:51042 — `intersectObject` só
+     consulta `layers` antes de chamar `raycast`), então bala, marca de tiro e linha de visão
+     dos bots continuam batendo exatamente onde batiam antes. Consequência: map-check.mjs e
+     pickup-check.mjs não PODEM mudar de número, porque nenhuma geometria de JOGO mudou —
+     e é por isso que esta troca pode ser grande sem virar aposta.
+
+     POR QUE NÃO EMPURRAR O GLB PARA `occluders`: o raycast dos occluders é força bruta e roda
+     na checagem de visão de cada bot. Trocar caixa de 12 triângulos por malha de 4 mil
+     multiplicaria por ~300 o custo de CPU do `_canSee`. A caixa invisível é o proxy de
+     colisão clássico, e aqui ela sai de graça porque já existia.
+
+     `?glb=0` desliga tudo e devolve o mapa procedural — é o A/B que o capturador usa para
+     provar que a troca é só de pixel. Em node (réguas) nenhum GLB carrega, `hasProp` é
+     falso, e o mapa medido é o procedural de sempre. */
+  const GLB_ON = QP.get('glb') !== '0';
+  const useGlb = (id) => GLB_ON && hasProp(id);
+  const hide = (m) => { if (m) m.visible = false; return m; };
+  // lote de instâncias dos props repetidos (barraco e fachada). bucket de 24 m mantém o
+  // frustum culling vivo — um InstancedMesh único cobrindo o mapa inteiro nunca sai da tela.
+  const PB = new PropBatch({ bucket: 24 });
+  /* Proporção em planta do GLB, medida UMA vez a partir do próprio template: o
+     `placeProp` normaliza só a ALTURA, então largura e profundidade dependem do modelo.
+     Sem isto o encaixe no lote seria número mágico que quebra se o asset for regerado. */
+  const _asp = new Map();
+  function glbAspect(id) {
+    if (_asp.has(id)) return _asp.get(id);
+    let a = null;
+    const o = placeProp(id, { targetH: 1 });
+    if (o) { const b = new THREE.Box3().setFromObject(o); a = { w: b.max.x - b.min.x, d: b.max.z - b.min.z }; }
+    _asp.set(id, a);
+    return a;
+  }
 
   /* COLISOR DE PROP GIRADO — BUG-21 (KNOWN-BUGS.md), medido no ônibus da Brasília.
      O motor NÃO tem collider rotacionado em lugar nenhum (nem `_collide`, nem o A* dos bots):
@@ -212,21 +267,142 @@ export function buildQuebrada(scene, T) {
   // hash de avalanche (mesma razão do ferro velho: `i % n` com passo divisível cai sempre no
   // mesmo balde e o quarteirão inteiro sai da MESMA cor/altura — o "chapado" do BAR §4.4)
   const mix32 = (n) => { let v = (n * 2654435761) >>> 0; v ^= v >>> 15; v = Math.imul(v, 2246822519) >>> 0; v ^= v >>> 13; v = Math.imul(v, 3266489917) >>> 0; return (v ^ (v >>> 16)) >>> 0; };
+
+  /* ===================== DECALQUE DE RUA (public/img/decals) =====================
+     Pedido literal do dono (04/08): "aplicar na textura de todos mapas onde faz sentido:
+     laterais de prédios, portas, portões, carros, pilastras, paredes ... e num tamanho MAIOR
+     que os posters atuais para serem bem visíveis". Os cartazes do Piscinão têm 2,2 m de
+     altura; o mural daqui vai a 3,4 m e a tag do muro a 2,4 m.
+
+     CINCO DECISÕES QUE NÃO SÃO ESTILO — cada uma tem um defeito real atrás:
+     1. `T.decals[i]` é GETTER MEMOIZADO (textures.js:696-709): ler por ÍNDICE baixa UM PNG.
+        Spread ou `.map()` no array acordaria os 179 de uma vez (7 MB) por nada. Por isso os
+        pools abaixo são listas de ÍNDICE e a textura só nasce quando a parede é construída.
+     2. `transparent: true` é obrigatório: o PNG tem alpha e sem isso o fundo vira retângulo
+        preto colado na parede (textures.js:511).
+     3. É PLANO SEM COLLIDER. Decalque que empurra colisor vira parede invisível — foi o
+        BUG-21 do ônibus da Brasília, 2,33 m de parede fantasma.
+     4. 6-7 cm de afastamento da face: coplanar com o reboco é z-fighting garantido.
+     5. ESCOLHA DETERMINÍSTICA por posição (mix32 de x,z quantizados). `Math.random()` no
+        build faria o mapa mudar a cada carregamento — e o `botsim` é determinístico.
+
+     POR QUE O POOL 'alfabeto' (47 dos 179 arquivos) FICOU DE FORA: são folhas de estudo de
+     letra recortadas em UMA letra — traço fino, quase todas em tinta clara. Uma letra solta
+     de 3 m na parede não lê como pixo, lê como sujeira, e a 10 m some (BAR-CONSISTENCIA
+     §2.1: "nenhum detalhe de textura pode ser invisível a 10 m"). Ruído de parede foi o que
+     REPROVOU o Piscinão de Ramos ("muito poluído, não dá pra entender nada"), então o que
+     entra aqui é só o que tem contorno preto fechado e silhueta reconhecível de longe. */
+  const D_MURAL = [157, 158, 159, 160, 161, 162, 163, 164, 156, 97, 166, 47];  // personagens/peças
+  /* CARAS: só as folhas que têm OLHOS + BOCA na mesma peça. O pacote tem ~50 recortes de
+     olho ou boca SOLTOS ('olhos-bocas-*', e 'caras-cartoon-14'/'caras-vintage-04' são um
+     olho só): ampliados a 3 m viram uma mancha preta abstrata na parede — foi o que
+     apareceu na 1ª captura. Cara inteira lê como mural; fragmento lê como borrão. */
+  const D_CARA = [50, 53, 56, 59, 65, 68, 71, 74, 80, 84, 87, 89];
+  const D_FACHADA = D_MURAL.concat(D_CARA);
+  const D_TAG = [167, 168, 169, 170, 171, 172, 174, 175, 176, 177];            // tags (aspecto largo)
+  const D_LAMBE = [90, 91, 92, 94, 96, 99, 165];                               // cartaz/lambe-lambe
+  /* PORTA DE AÇO: pool de tinta CLARA (a chapa é 0x2b2926) e SÓ peça em pé (aspecto < 1).
+     Porta tem ~1,3-2,3 m de vão: arte deitada encolhe pra caber na largura e sobra uma
+     tarja de 1,1 m no meio de uma porta de 2,1 m — pequena e sem intenção. */
+  const D_PORTA = [157, 159, 161, 163, 97, 178];
+  const _dmat = new Map(), _usados = [];
+  const decalMat = (i) => {
+    let m = _dmat.get(i);
+    if (!m) {
+      m = new THREE.MeshStandardMaterial({
+        map: T.decals[i], transparent: true, alphaTest: 0.22, roughness: 0.98, metalness: 0,
+        polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4,
+      });
+      _dmat.set(i, m);
+    }
+    return m;
+  };
+  /* `alt` é a altura pedida e `larg` o TETO de largura: a peça encolhe inteira (nunca estica)
+     pra caber no módulo de parede, com o aspecto original de `T.decalAspects`. Arte esticada
+     é a primeira coisa que denuncia decalque colado no automático. */
+  function decal(pool, x, y, z, ry, alt, larg = 99) {
+    if (!T.decals || !T.decalAspects || !T.decalAspects.length) return null;
+    /* HASH EM DUAS PASSADAS. A 1ª versão era `round(x*10)*73856093 ^ round(z*10)*19349663`:
+       os dois produtos estouram 2^32, o `^` do JS trunca pra int32 e o resultado colide —
+       a MESMA arte saía 3× na mesma parede da viela. Passar x pelo mix32 antes de somar z
+       tira a correlação (x é CONSTANTE ao longo de uma parede, então tudo depende de z). */
+    const k = mix32(mix32(Math.round(x * 10) + 9973) + Math.round(z * 10) * 131 + 7);
+    /* ANTI-REPETIÇÃO LOCAL. O hash espalha bem, mas com pool de 6-12 peças e 6 vagas por
+       parede o paradoxo do aniversário cobra: na 1ª medição a MESMA arte saiu 3× na mesma
+       viela, a ~10 m uma da outra. Arte repetida PERTO lê como falha de asset, não como
+       cidade. Se a peça sorteada já está a menos de 14 m, anda uma casa no pool — continua
+       100% determinístico (mesma ordem de construção → mesmo resultado). */
+    let i = pool[k % pool.length];
+    for (let t = 0; t < pool.length; t++) {
+      const j = pool[(k + t) % pool.length];
+      if (!_usados.some((u) => u.i === j && Math.hypot(u.x - x, u.z - z) < 14)) { i = j; break; }
+    }
+    _usados.push({ i, x, z });
+    const a = T.decalAspects[i] || 1;
+    let h = alt, w = alt * a;
+    if (w > larg) { w = larg; h = larg / a; }
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), decalMat(i));
+    m.position.set(x, y + h / 2, z); m.rotation.y = ry; m.renderOrder = 2;
+    // nome = quem é o arquivo: em node a textura nunca carrega, então esta é a ÚNICA forma
+    // de uma régua conferir POSIÇÃO e TAMANHO do que foi colado (tools/eval/decal-probe).
+    m.name = 'decal:' + (T.decalFiles ? T.decalFiles[i] : i);
+    /* recebe sombra, não projeta: tinta na parede escurece junto com a parede. Sem
+       `receiveShadow` o mural fica ACESO dentro da sombra do prédio e denuncia o adesivo;
+       com `castShadow` ele projetaria um retângulo no chão, que é pior ainda. */
+    m.receiveShadow = true;
+    root.add(m);   // NÃO entra em `occluders` nem em `colliders`: é tinta, não é peça
+    return m;
+  }
+  /* Mural na FACHADA DE UM LOTE: a altura sai do barraco que está ATRÁS do ponto, não de uma
+     constante. Sem isso o mural de 3,4 m sobra pra fora do telhado das casas de 2,70 m —
+     arte flutuando no céu, que nenhuma régua numérica pega. */
+  const LOTES = [];   // {x0,x1,z0,z1,h} de cada módulo de barraco já construído
+  const loteEm = (x, z) => { for (const L of LOTES) if (x >= L.x0 && x <= L.x1 && z >= L.z0 && z <= L.z1) return L; return null; };
+  /* y0 = 0,30 m e não 0,55, e a folga de topo é 0,12 m e não 0,30: com os valores antigos o
+     mural na casa mais BAIXA do elenco (2,70 m) saía com 1,85 m de altura — MENOR que os
+     2,2 m dos cartazes do Piscinão, que é exatamente o contrário do que foi pedido. Com
+     0,30/0,12 o pior caso vira 2,28 m e o melhor 3,40 m. A folga de topo pode ser pequena
+     porque a laje/telha ainda avança 0,22 m à frente da parede e esconde a emenda. */
+  function decalFachada(pool, x, z, ry, larg, y0 = 0.3, altMax = 3.4) {
+    const L = loteEm(x - Math.sin(ry) * 0.4, z - Math.cos(ry) * 0.4);
+    if (!L) return null;
+    const alt = Math.min(altMax, L.h - y0 - 0.12);
+    if (alt < 0.8) return null;
+    /* A PEÇA NÃO PODE CRUZAR A DIVISA DO MÓDULO. Cada barraco de um quarteirão tem altura
+       própria (2,70 a 4,38 m): um mural centrado em cima da divisa fica metade colado na
+       casa alta e metade PENDURADO ACIMA DO TELHADO da casa baixa ao lado. Largura e centro
+       são grampeados no lote — é o que mantém a arte colada numa parede só. */
+    const emZ = Math.abs(Math.sin(ry)) > 0.5;                        // a parede corre em z?
+    const a0 = emZ ? L.z0 : L.x0, a1 = emZ ? L.z1 : L.x1;
+    const w = Math.min(larg, a1 - a0 - 0.5);
+    if (w < 0.8) return null;
+    const c = Math.min(Math.max(emZ ? z : x, a0 + w / 2 + 0.25), a1 - w / 2 - 0.25);
+    return decal(pool, emZ ? x : c, y0, emZ ? c : z, ry, alt, w);
+  }
+
   let _bi = 0;
   function barraco(x0, x1, z0, z1, o = {}) {
     const w = x1 - x0, d = z1 - z0, cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
     const k = mix32(++_bi + (o.seed || 0));
     const h = o.h || (2.7 + (k % 5) * 0.42);
     solids.push({ x0, x1, z0, z1 });
-    addBox(w, h, d, o.mat || MAT_BARRACO[k % MAT_BARRACO.length], cx, 0, cz);
+    LOTES.push({ x0, x1, z0, z1, h });
+    /* GLB: quando os barracos do Tripo carregam, TODA a malha procedural deste módulo some
+       da tela (`vis`) e o volume passa a ser desenhado pelos GLB do `barracoGlb` abaixo.
+       Colisor, occluder e `solids` ficam onde estavam — ver "ACABAMENTO GLB". */
+    const glb = o.glb !== false && BARRACOS_GLB.length > 0;
+    const vis = (m) => (glb ? hide(m) : m);
+    vis(addBox(w, h, d, o.mat || MAT_BARRACO[k % MAT_BARRACO.length], cx, 0, cz));
     const temUp = o.up !== false && (k >> 3) % 3 !== 0;
     /* LAJE ou FIBROCIMENTO, e a escolha não é sorteio decorativo: quem vai levantar outro
        andar deixa LAJE (e é ela que segura a caixa d'água); quem parou de construir fecha
        com TELHA ONDULADA. Amarrar o material ao `temUp` faz a silhueta contar essa história
        sozinha — laje sempre embaixo de um 2º pavimento, telha sempre em casa térrea. */
-    addBox(w + 0.44, temUp ? 0.18 : 0.14, d + 0.44, temUp ? MAT_LAJE : MAT_TELHA, cx, h, cz);
-    // PIXO na face virada pra fora do quarteirão (a que o jogador vê da rua ou da viela)
-    if ((k >> 15) % 3 === 0) {
+    vis(addBox(w + 0.44, temUp ? 0.18 : 0.14, d + 0.44, temUp ? MAT_LAJE : MAT_TELHA, cx, h, cz));
+    // PIXO na face virada pra fora do quarteirão (a que o jogador vê da rua ou da viela).
+    // Em modo GLB o pixo procedural não é nem criado: ele é uma casca a 0,03 m da caixa que
+    // acabou de sumir, e ficaria flutuando na frente do barraco novo.
+    if (!glb && (k >> 15) % 3 === 0) {
       const p = MAT_PIXO[(k >> 17) % MAT_PIXO.length], alt = Math.min(1.5, h * 0.5), y0 = h * 0.28;
       if (d >= w) for (const s of [-1, 1]) addBox(0.04, alt, Math.min(d * 0.8, 4), p, cx + s * (w / 2 + 0.03), y0, cz, { collide: false, cast: false, vao: false });
       else for (const s of [-1, 1]) addBox(Math.min(w * 0.8, 4), alt, 0.04, p, cx, y0, cz + s * (d / 2 + 0.03), { collide: false, cast: false, vao: false });
@@ -234,11 +410,52 @@ export function buildQuebrada(scene, T) {
     if (temUp) {                                                                  // 2º pavimento parcial
       const uh = 2.3 + ((k >> 5) % 4) * 0.3, uw = w * 0.68, ud = d * 0.74;
       const ox = ((k >> 7) % 3 - 1) * (w - uw) * 0.4, oz = ((k >> 9) % 3 - 1) * (d - ud) * 0.4;
-      addBox(uw, uh, ud, MAT_BARRACO[(k >> 11) % MAT_BARRACO.length], cx + ox, h + 0.18, cz + oz);
-      addBox(uw + 0.36, 0.16, ud + 0.36, MAT_LAJE, cx + ox, h + 0.18 + uh, cz + oz);
-      if ((k >> 13) % 2) addBox(1.0, 1.0, 1.0, MAT_CXDAGUA, cx + ox + uw * 0.28, h + 0.34 + uh, cz + oz, { collide: false });
-    } else if ((k >> 4) % 2) addBox(1.0, 1.0, 1.0, MAT_CXDAGUA, cx + w * 0.25, h + 0.18, cz, { collide: false });
+      vis(addBox(uw, uh, ud, MAT_BARRACO[(k >> 11) % MAT_BARRACO.length], cx + ox, h + 0.18, cz + oz));
+      vis(addBox(uw + 0.36, 0.16, ud + 0.36, MAT_LAJE, cx + ox, h + 0.18 + uh, cz + oz));
+      if ((k >> 13) % 2) vis(addBox(1.0, 1.0, 1.0, MAT_CXDAGUA, cx + ox + uw * 0.28, h + 0.34 + uh, cz + oz, { collide: false }));
+    } else if ((k >> 4) % 2) vis(addBox(1.0, 1.0, 1.0, MAT_CXDAGUA, cx + w * 0.25, h + 0.18, cz, { collide: false }));
+    if (glb) barracoGlb(x0, x1, z0, z1, k);
     return { cx, cz, h, w, d };
+  }
+  /* LADRILHAMENTO DO LOTE COM O BARRACO GLB.
+     O `placeProp` escala UNIFORME (só a altura é livre), então um modelo de proporção fixa
+     nunca preenche um retângulo qualquer. A saída é ladrilhar: a escala é escolhida para o
+     lote FECHAR EXATO no eixo X (nenhuma sobra invadindo a calçada, que é o defeito que
+     produziria malha visível sem colisor embaixo) e o eixo Z é coberto por N cópias com
+     sobreposição para dentro — favela real tem casa encostada em casa, então a junta some.
+     A ALTURA SAI DA LARGURA DO LOTE (5,3 m de frente → ~5,5 m de altura): é o que dá
+     variação de gabarito de quarteirão sem sortear número, e é a mesma história que o
+     `temUp` já contava. As duas variantes alternam por hash — um único modelo repetido 50
+     vezes é o "chapado" que a base já documentou no BAR §4.4. */
+  /* AS DUAS CASAS SÃO DA PASTA DE REFERÊNCIA, e a escolha é do dono: "quero o padrão visual
+     desses GLBs". Elas também são MUITO mais baratas que o que um gerador entrega —
+     `fav_house` tem 1.070 triângulos e `fav_brasileira` 780, contra ~4.000 de um barraco
+     gerado no Tripo com a mesma silhueta. Com ~100 instâncias no mapa isso é a diferença
+     entre +100 mil e +400 mil triângulos no passe de sombra, que é o passe que desenha o
+     mapa INTEIRO todo quadro (o frustum não corta sombra). Máquina fraca é requisito.
+     `fav_house` é a casa de dois pavimentos com escada externa e laje; `fav_brasileira` é o
+     bloco de tijolo cru, que é o que preenche fundo de quarteirão sem chamar atenção. */
+  const BARRACOS_GLB = ['fav_house', 'fav_brasileira'].filter(useGlb);
+  function barracoGlb(x0, x1, z0, z1, k) {
+    const w = x1 - x0, d = z1 - z0;
+    const nx = Math.max(1, Math.round(w / 4.6));               // ~4,6 m de frente por casa
+    for (let i = 0; i < nx; i++) {
+      const id = BARRACOS_GLB[(k >> (2 + i)) % BARRACOS_GLB.length];
+      const a = glbAspect(id);
+      if (!a) continue;
+      /* `a.w` é largura/altura do modelo, então a altura sai do encaixe: o barraco de dois
+         pavimentos (estreito e alto) chega a ~6 m com 4,6 m de frente e o barraco térreo
+         (largo e baixo) chega a ~3,3 m com a MESMA frente. É o modelo que decide o gabarito,
+         não um número sorteado — e é o que faz o quarteirão ter recorte de altura de verdade. */
+      const s = w / nx / a.w;                                  // altura = escala (aspecto medido a targetH=1)
+      const nz = Math.max(1, Math.ceil(d / (s * a.d)));
+      for (let j = 0; j < nz; j++)
+        PB.add(id, {
+          x: x0 + w * (i + 0.5) / nx, z: z0 + d * (j + 0.5) / nz,
+          targetH: s * (1 + (((k >> (5 + j)) & 3) - 1.5) * 0.03),   // ±4,5% de gabarito
+          ry: ((k >> (7 + i + j)) & 1) ? Math.PI : 0,
+        });
+    }
   }
   /* QUARTEIRÃO: fatia um lote comprido em módulos de ~5,6 m. É o que impede o "mesmo módulo
      repetido" e o que mantém cada pegada abaixo do teto de 60 m² da MAP5. */
@@ -344,18 +561,29 @@ export function buildQuebrada(scene, T) {
   const MAT_PNEU = lam({ color: 0x1c1e22, roughness: 0.9 });
   const MAT_VIDRO = lam({ color: 0x1b2430, roughness: 0.22, metalness: 0.4 });
   function carroTunado(cx, cz, ry, cor) {
+    /* GLB `tiara_gt83` (references/favela — cupê rebaixado). Ele já vem em ESCALA DE MUNDO
+       (4,17 × 1,22 × 1,74 m) e com o comprimento no X local, que é a mesma convenção da
+       caixa procedural (4,4 × 0,62 × 1,82) — então não há rotação de correção, e a 1,25 m de
+       altura ele dá 4,28 × 1,79 m, praticamente o volume que o `colRot` já cobria.
+       A caixa continua existindo, invisível, como occluder: é ela que a bala testa
+       (ver "ACABAMENTO GLB"). */
+    const glbCar = useGlb('tiara_gt83');
+    const vis = (m) => (glbCar ? hide(m) : m);
+    if (glbCar) gprop('tiara_gt83', cx, cz, 1.25, ry);
     const pint = lam({ color: cor, roughness: 0.28, metalness: 0.55, envMapIntensity: 1.6 });
-    occ(addBox(4.4, 0.62, 1.82, pint, cx, 0.28, cz, { ry, collide: false }));        // lataria rebaixada
-    occ(addBox(2.3, 0.58, 1.66, MAT_VIDRO, cx, 0.90, cz, { ry, collide: false }));   // cabine/vidros
-    occ(addBox(2.1, 0.10, 1.70, pint, cx, 1.48, cz, { ry, collide: false }));        // teto
+    occ(vis(addBox(4.4, 0.62, 1.82, pint, cx, 0.28, cz, { ry, collide: false })));        // lataria rebaixada
+    occ(vis(addBox(2.3, 0.58, 1.66, MAT_VIDRO, cx, 0.90, cz, { ry, collide: false })));   // cabine/vidros
+    occ(vis(addBox(2.1, 0.10, 1.70, pint, cx, 1.48, cz, { ry, collide: false })));        // teto
     /* AEROFÓLIO — a peça tem que sair pela TRASEIRA, que é o -x LOCAL do carro. A 1ª versão
        usava `cx - sin(ry)*1.9`, que é o deslocamento em +z local: o aerofólio nascia 1,9 m ao
        LADO do carro, fora da malha coberta pelo `colRot`, e a MAP1 acusou dois pontos de chão
        com o corpo DENTRO de sólido a 1,24 m de penetração — geometria visível sem colisor
        nenhum embaixo, exatamente o defeito "submerso embaixo da estátua". A conversão certa é
        a mesma do `colRot`: world = (cx + lx·cos + lz·sen, cz − lx·sen + lz·cos). */
-    occ(addBox(1.1, 0.34, 1.30, pint, cx - 1.55 * Math.cos(ry), 0.90, cz + 1.55 * Math.sin(ry), { ry, collide: false })); // aerofólio/mala
-    for (const [lx, lz] of [[1.5, 0.85], [1.5, -0.85], [-1.5, 0.85], [-1.5, -0.85]]) {
+    occ(vis(addBox(1.1, 0.34, 1.30, pint, cx - 1.55 * Math.cos(ry), 0.90, cz + 1.55 * Math.sin(ry), { ry, collide: false }))); // aerofólio/mala
+    // rodas procedurais: o GLB já traz as dele. Sem este `if` sobravam quatro cilindros
+    // pretos boiando em volta do carro novo — foi o que a captura `after1` mostrou.
+    if (!glbCar) for (const [lx, lz] of [[1.5, 0.85], [1.5, -0.85], [-1.5, 0.85], [-1.5, -0.85]]) {
       const wx = cx + lx * Math.cos(ry) + lz * Math.sin(ry), wz = cz - lx * Math.sin(ry) + lz * Math.cos(ry);
       const r = new THREE.Mesh(new THREE.CylinderGeometry(0.30, 0.30, 0.24, 12), MAT_PNEU);
       r.rotation.set(Math.PI / 2, 0, ry); r.position.set(wx, 0.30, wz); r.castShadow = true; root.add(r);
@@ -366,15 +594,28 @@ export function buildQuebrada(scene, T) {
      cone quando não (e em node NUNCA carrega, então o fallback é o que as réguas medem). */
   const MAT_CAIXA = lam({ color: 0x17171a, roughness: 0.72 });
   const MAT_CONE = lam({ color: 0x6b6257, roughness: 0.85 });
+  /* PROPORÇÃO DO PAREDÃO, medida no `caixa_som_baile` com tools/_tmp/propshot.mjs:
+     largura/altura = 0,44 e profundidade/altura = 0,99. Ela vira CONSTANTE aqui — e não uma
+     leitura do GLB em tempo de execução — porque o colisor tem que ser idêntico no browser e
+     em node, senão as réguas medem um mapa que ninguém joga. O fallback procedural é montado
+     dentro da MESMA pegada, então os dois modos colidem igual.
+     A 1ª versão colidia 1,0 × 0,72 m com o GLB ocupando 1,25 × 2,82: 2,1 m de torre de som
+     sem nada embaixo — a mesma família de defeito do BUG-21, só que ao contrário (malha
+     visível que o corpo atravessa em vez de parede invisível). */
+  const PAR = { w: 0.44, d: 0.99 };
   function paredao(cx, cz, ry, n = 3) {
-    for (let i = 0; i < n; i++) {
-      const y = i * 1.05;
-      if (!gprop('caixa_som', cx, cz, 1.05, ry)) {
-        addBox(1.0, 1.0, 0.72, MAT_CAIXA, cx, y, cz, { ry, collide: false });
-        occ(addBox(0.62, 0.62, 0.06, MAT_CONE, cx + Math.sin(ry) * 0.38, y + 0.19, cz + Math.cos(ry) * 0.38, { ry, collide: false, cast: false }));
-      }
+    const H = n * 0.95, W = PAR.w * H, D = PAR.d * H;
+    /* `caixa_som_baile` (Tripo) é a TORRE inteira, não uma caixa avulsa: entra UMA vez, com a
+       altura do empilhamento (1,9 m com n=2, 2,85 m com n=3 — o paredão de rua de verdade).
+       ISTO TAMBÉM CONSERTA UM DEFEITO REAL do caminho antigo: `gprop` não recebe `y`, então
+       as N cópias de `caixa_som` eram todas plantadas em y = 0, uma DENTRO da outra — o que
+       aparecia na captura como uma caixinha solta no chão em vez de um paredão. */
+    if (!gprop('caixa_som_baile', cx, cz, H, ry)) for (let i = 0; i < n; i++) {
+      const y = i * (H / n);
+      addBox(W, H / n, D, MAT_CAIXA, cx, y, cz, { ry, collide: false });
+      occ(addBox(W * 0.62, W * 0.62, 0.06, MAT_CONE, cx + Math.sin(ry) * (D / 2 + 0.03), y + H / (n * 2) - W * 0.31, cz + Math.cos(ry) * (D / 2 + 0.03), { ry, collide: false, cast: false }));
     }
-    colRot(cx, cz, 1.0, 0.72, 0, n * 1.05, ry, 2, 2);
+    colRot(cx, cz, W, D, 0, H, ry, 2, 3);
   }
   carroTunado(-4.5, -33.5, 0.82, 0xd8232a);     // rebaixado vermelho, atravessado na ilha
   carroTunado(-1.2, -27.6, -0.55, 0x1f66c4);    // azul-elétrico
@@ -487,10 +728,34 @@ export function buildQuebrada(scene, T) {
   function comercio(side, z0, z1, txt, bgHex, bgCss, fgCss) {
     const fx = side * 12.5, d = z1 - z0, cz = (z0 + z1) / 2, out = side * 0.06;
     const placa = new THREE.MeshStandardMaterial({ map: placaTex(txt, bgCss, fgCss), roughness: 0.85 });
+    /* A PLACA FICA — mesmo em modo GLB. O letreiro pintado à mão é o que diz que ali é uma
+       ADEGA e não "uma loja qualquer", e nenhum modelo generativo escreve português legível.
+       O que sai é o corpo da loja: toldo (uma laje chapada de 0,1 m), porta e vitrine viram
+       o GLB `fachada_comercio`, que traz toldo de lona, porta de enrolar e geladeira.
+       A PORTA DE AÇO CONTINUA SENDO CRIADA em qualquer modo: o decalque de pixo (`decal`)
+       é ancorado nela, e escondê-la deixaria a pichação flutuando na calçada. */
+    const glbFach = useGlb('fachada_comercio');
+    const visC = (m) => (glbFach ? hide(m) : m);
     addBox(0.12, 0.95, d * 0.94, placa, fx + out, 2.62, cz, { collide: false, cast: false });
-    addBox(1.5, 0.1, d * 0.9, lam({ color: bgHex, roughness: 0.8 }), fx - side * 0.75, 2.5, cz, { collide: false });
+    visC(addBox(1.5, 0.1, d * 0.9, lam({ color: bgHex, roughness: 0.8 }), fx - side * 0.75, 2.5, cz, { collide: false }));
     addBox(0.1, 2.1, d * 0.42, lam({ color: 0x2b2926, roughness: 0.6, metalness: 0.3 }), fx + out, 0, cz, { collide: false, cast: false });   // porta de aço
-    addBox(0.1, 1.3, d * 0.34, MAT_VIDRO, fx + out, 0.85, cz + d * 0.3, { collide: false, cast: false });                                     // vitrine
+    visC(addBox(0.1, 1.3, d * 0.34, MAT_VIDRO, fx + out, 0.85, cz + d * 0.3, { collide: false, cast: false }));                               // vitrine
+    if (glbFach) {
+      /* Encaixe: o modelo tem a parede correndo em Z (profundidade 1,07 por unidade de altura
+         contra largura 0,81), que é a orientação certa para uma loja em x = ∓12,5. A frente
+         fica RENTE ao plano do quarteirão (`fx`) e o corpo entra pra dentro do lote — assim
+         não sobra malha visível sobre a calçada, que seria geometria sem colisor embaixo. */
+      const a = glbAspect('fachada_comercio');
+      if (a) {
+        const s = 2.55, n = Math.max(1, Math.round(d / (s * a.d)));
+        for (let i = 0; i < n; i++)
+          PB.add('fachada_comercio', { x: fx + side * (s * a.w) / 2, z: z0 + d * (i + 0.5) / n, targetH: s, ry: side > 0 ? 0 : Math.PI });
+      }
+    }
+    /* PIXO NA PORTA DE AÇO — comércio de rua no Brasil tem a porta pichada assim que fecha, e
+       é a superfície mais visível da calçada (2,1 m de altura na altura do olho). Vai com o
+       pool CLARO porque a porta é 0x2b2926: tinta escura sobre chapa escura não existiria. */
+    decal(D_PORTA, fx - side * 0.05, 0.22, cz - d * 0.05, -side * Math.PI / 2, 1.62, d * 0.36);
   }
   comercio(-1, -25, -19.5, 'ADEGA DO ZÉ', 0xb8322c, '#b8322c', '#f4ecd6');
   comercio(-1, -7.5, -3, 'AÇAÍ DA JU', 0x5b2a8a, '#5b2a8a', '#e8d94a');
@@ -541,7 +806,23 @@ export function buildQuebrada(scene, T) {
      estacionado de banda pra guia não existe no mundo real e custaria 18 colisores aqui.
      Por isso as faixas vão com `collide:false` + occluder à mão, e a colisão é um `col` só. */
   {
-    const BX = -5.6, BZ = -6, BW = 2.55, BL = 12.4;
+    /* MEDIDAS DO ÔNIBUS SAEM DO MODELO, E SÃO CONSTANTES.
+       O GLB `onibus_sptrans` (Tripo) tem proporção 2,825 : 1 : 0,737 (comprimento : altura :
+       largura). A 3,1 m de altura ele dá 8,76 × 2,28 m em planta — mais curto que os 12,4 m
+       da 1ª versão. As duas saídas eram esticar o modelo em 42% (roda vira elipse: defeito
+       visível) ou encolher o volume. Encolher ganhou.
+       O QUE NÃO SE PODE FAZER É DERIVAR ISTO DO GLB EM TEMPO DE EXECUÇÃO: em node nenhum GLB
+       carrega, e um colisor que muda de tamanho conforme o asset carregou faria as réguas
+       medirem um mapa que o jogador não joga. Por isso BL/BW são número fixo, iguais nos dois
+       modos, e o GLB é que é encaixado neles. */
+    const BX = -5.6, BZ = -6, BW = 2.28, BL = 8.76, BH = 3.1;
+    const glbBus = useGlb('onibus_sptrans');
+    const visB = (m) => (glbBus ? hide(m) : m);
+    if (glbBus) {
+      // ry = +π/2: o comprimento do modelo está no X local e a rua corre em Z.
+      const o = placeProp('onibus_sptrans', { x: BX, z: BZ, targetH: BH, ry: Math.PI / 2 });
+      if (o) root.add(o);
+    }
     const branco = lam({ color: 0xf2f0ec, roughness: 0.45, metalness: 0.15 });
     const vermelho = lam({ color: 0xc4161c, roughness: 0.42, metalness: 0.15 });
     const vidro = lam({ color: 0x20303c, roughness: 0.18, metalness: 0.5 });
@@ -555,14 +836,14 @@ export function buildQuebrada(scene, T) {
       [BW, 0.78, BL - 0.3, vidro, 2.03],       // janelas
       [BW, 0.28, BL - 0.2, branco, 2.81],      // friso do teto
     ];
-    for (const [w, h, d, m, y] of faixas) occ(addBox(w, h, d, m, BX, y, BZ, { collide: false }));
-    occ(addBox(BW - 0.1, 0.16, BW - 0.1, branco, BX, 3.09, BZ - BL / 2 + 1.4, { collide: false, cast: false }));
-    for (const wz of [BL / 2 - 2.0, -BL / 2 + 2.6, -BL / 2 + 4.0]) for (const sx of [-1, 1]) {
+    for (const [w, h, d, m, y] of faixas) occ(visB(addBox(w, h, d, m, BX, y, BZ, { collide: false })));
+    occ(visB(addBox(BW - 0.1, 0.16, BW - 0.1, branco, BX, 3.09, BZ - BL / 2 + 1.4, { collide: false, cast: false })));
+    if (!glbBus) for (const wz of [BL / 2 - 1.6, -BL / 2 + 1.8, -BL / 2 + 3.0]) for (const sx of [-1, 1]) {
       const r = new THREE.Mesh(new THREE.CylinderGeometry(0.46, 0.46, 0.3, 14), MAT_PNEU);
       r.rotation.set(Math.PI / 2, 0, Math.PI / 2); r.position.set(BX + sx * (BW / 2 - 0.12), 0.46, BZ + wz);
       r.castShadow = true; root.add(r);
     }
-    col(BX - BW / 2, BX + BW / 2, 0, 3.1, BZ - BL / 2, BZ + BL / 2);   // AABB EXATA (alinhado)
+    col(BX - BW / 2, BX + BW / 2, 0, BH, BZ - BL / 2, BZ + BL / 2);   // AABB EXATA (alinhado)
   }
   /* PONTO DE ÔNIBUS — abrigo de calçada. O teto fica a 2,4 m (acima do 1,5 m que o `_collide`
      testa: não estorva ninguém) e o banco a 0,45 m entra como cover baixo. A bandeira do
@@ -632,6 +913,133 @@ export function buildQuebrada(scene, T) {
     if (!gprop('tent', sx2, sz2, 2.4, ry2)) { occ(addBox(3.0, 2.4, 2.4, MAT_BARRACO[2], sx2, 0, sz2, { ry: ry2, collide: false })); colRot(sx2, sz2, 3.0, 2.4, 0, 2.4, ry2, 3, 2); }
   if (!gprop('kombi', -7.5, -21.5, 2.0, 0.1)) addBox(2.0, 2.0, 4.6, MAT_BARRACO[6], -7.5, 0, -21.5);
 
+  /* ===================== MERCADORIA (o dono: "as barracas não tem nada") =====================
+     Barraca de camelô com o tabuleiro vazio é uma mesa com toldo — o olho lê "cenário
+     inacabado", não "comércio". O que enche barraca de rua no Brasil é engradado, caixa de
+     feira, fruta e BOTIJÃO (o GLB `botijao_gas` veio de references/favela).
+     Tudo aqui é BAIXO (≤ 0,9 m) e fica ENCOSTADO na peça que já existe: mercadoria no meio da
+     calçada viraria obstáculo novo no corredor, e este mapa já pagou o preço de pôr volume no
+     lugar errado (ver a nota do entulho das vielas, que partiu o grafo em 8 componentes).
+     O empilhamento é determinístico — índice do laço, nunca Math.random(): `botsim` roda 9
+     sementes fixas e mapa que muda a cada carregamento é defeito, não variedade. */
+  const MAT_CAIXOTE = lam({ color: 0xb08b52, roughness: 0.92 });
+  const MAT_FRUTA = [lam({ color: 0xd9762b, roughness: 0.6 }), lam({ color: 0x7fa93c, roughness: 0.6 }), lam({ color: 0xc23b2e, roughness: 0.6 })];
+  const GEO_FRUTA = new THREE.SphereGeometry(0.09, 7, 5);
+  /* Tabuleiro de barraca: duas fileiras de caixotes e a fruta POR CIMA deles. `collide` só na
+     fileira de baixo — a de cima está acima de 0,30 m mas empilhar colisor aqui só engordaria
+     a lista quente que o `_collide` varre a cada passo de cada bot. */
+  function mercadoria(mx, mz, ry, n = 3) {
+    const cs = Math.cos(ry), sn = Math.sin(ry);
+    for (let i = 0; i < n; i++) {
+      const lx = (i - (n - 1) / 2) * 0.62;
+      const wx = mx + lx * cs, wz = mz - lx * sn;
+      const alt = 1 + (i % 2);                                    // 1 ou 2 caixotes de altura
+      /* TODO caixote empilhado é COLISOR, inclusive o de cima. Não é preciosismo: a MAP1
+         mede chão andável com geometria acima de 0,30 m e SEM colisor embaixo — o "submerso
+         embaixo da estátua". Caixote que só o de baixo colide deixa o de cima pairando sobre
+         chão livre, e foi assim que esta rodada tirou a MAP1 de 0 para 4 antes de consertar. */
+      for (let j = 0; j < alt; j++) addBox(0.58, 0.36, 0.44, MAT_CAIXOTE, wx, j * 0.36, wz, { ry });
+      for (let f = 0; f < 3; f++) {
+        const m = new THREE.Mesh(GEO_FRUTA, MAT_FRUTA[(i + f) % 3]);
+        m.position.set(wx + (f - 1) * 0.16 * cs, alt * 0.36 + 0.09, wz - (f - 1) * 0.16 * sn);
+        m.castShadow = true; root.add(m);
+      }
+    }
+  }
+  // as 4 barracas da praça e as 2 do campinho ganham tabuleiro cheio + botijão do lado
+  for (const [sx2, sz2, ry2, k] of [[-9.4, -24.5, 0.3, 0], [9.6, -25.5, -0.4, 1], [-9.8, -39, 0.5, 2], [9.4, -38.5, -0.5, 3]]) {
+    mercadoria(sx2 + Math.sin(ry2) * 1.15, sz2 + Math.cos(ry2) * 1.15, ry2, 3 + (k % 2));
+    if (!gprop('botijao_gas', sx2 - Math.sin(ry2) * 1.2, sz2 - Math.cos(ry2) * 1.2, 0.62, ry2 + k))
+      addBox(0.36, 0.62, 0.36, MAT_TAMBOR, sx2 - Math.sin(ry2) * 1.2, 0, sz2 - Math.cos(ry2) * 1.2);
+  }
+  for (const [sx2, sz2] of [[19, 39.5], [-19.4, 43.5]]) mercadoria(sx2, sz2 + 1.2, 0, 3);
+  // ADEGA e LANCHONETE: engradado empilhado e botijão na porta é o que identifica os dois
+  for (const [ax, az, ary] of [[-11.7, -22.0, Math.PI / 2], [11.7, 0.4, -Math.PI / 2]]) {
+    /* TODOS colidem, não só o de baixo. O engradado tem 0,30 m e o `_collide` só bloqueia
+       colisor com maxY > 0,30 — o de baixo é DEGRAU, não parede. Com só ele colidindo, o chão
+       continua andável e os quatro de cima ficam pairando: MAP1 acusou exatamente isto em
+       (11,5 · 0,5), 1,2 m de penetração. (A pilha antiga do bar, em 12,0 · 4,0, tem o mesmo
+       `collide: i === 0` e só escapa porque nenhuma amostra de 1 m cai em cima dela.) */
+    for (let i = 0; i < 5; i++) addBox(0.5, 0.3, 0.36, MAT_ENGRADADO, ax, i * 0.3, az);
+    if (!gprop('botijao_gas', ax, az + 1.0, 0.62, ary)) addBox(0.36, 0.62, 0.36, MAT_TAMBOR, ax, 0, az + 1.0);
+  }
+  // SORVETERIA / AÇAÍ: freezer de porta de vidro na calçada (cover baixo de 1,0 m)
+  for (const [fx2, fz2] of [[-11.6, -5.2], [-11.6, 7.4]]) {
+    addBox(0.7, 1.0, 1.5, lam({ color: 0xe8e6e0, roughness: 0.5, metalness: 0.15 }), fx2, 0, fz2);
+    addBox(0.72, 0.34, 1.3, MAT_VIDRO, fx2, 0.62, fz2, { collide: false, cast: false });
+  }
+  // MÓVEIS E ELETRO: mercadoria na calçada é o cartão de visita da loja
+  if (!gprop('arara_roupas', -11.5, 12.2, 1.7)) addBox(1.1, 1.7, 1.6, MAT_CAIXOTE, -11.5, 0, 12.2);
+  addBox(0.9, 1.9, 0.6, lam({ color: 0x8a6a44, roughness: 0.9 }), -11.7, 0, 13.6);   // guarda-roupa em pé
+
+  /* ===================== OS BECOS, UM POR UM =====================
+     O dono: "os becos não podem ser iguais, tem que ser diferentes". Ele está certo e o
+     motivo é de JOGO, não de decoração: num mapa cujo eixo é uma rua reta, o beco é o que dá
+     ORIENTAÇÃO — se os seis são a mesma receita, o jogador que sai de um não sabe em qual
+     está, e a segunda rota (que é o ponto do desenho deste mapa) não é usada porque não é
+     memorável. Cada beco recebe uma RECEITA diferente, escolhida pelo índice.
+     ONDE A PEÇA PODE FICAR: encostada na parede, nunca no eixo. A fileira de waypoints do
+     beco corre em z = bz com inflação de 0,35 m; tudo aqui começa em |dz| ≥ 0,95 m do eixo,
+     ou seja ≥ 0,6 m de folga além da inflação, e deixa ≥ 1,9 m de passagem livre para um
+     corpo de 0,38 m de raio. Foi exatamente isso que a 1ª versão do mapa errou ao pôr caçamba
+     de 1,9 m no CENTRO da viela: 8 componentes conexas e a CTF2 caiu para 1 rota. */
+  const MAT_LONA = new THREE.MeshStandardMaterial({ color: 0x3f6f8f, roughness: 0.9, side: THREE.DoubleSide });
+  function beco(x0, x1, bz, k) {
+    const xm = (x0 + x1) / 2, L = x1 - x0;
+    if (k === 0) {
+      // ESCADA EXTERNA de laje — o degrau é o cartão-postal do beco de favela
+      // cada degrau colide: degrau em balanço sobre chão livre é MAP1 (ver `mercadoria`)
+      for (let i = 0; i < 6; i++) addBox(1.0, 0.19, 0.26, MAT.concreteDark, x0 + 1.2, i * 0.19, bz + 1.28 - i * 0.26);
+      if (!gprop('botijao_gas', x1 - 1.4, bz + 1.15, 0.62)) addBox(0.36, 0.62, 0.36, MAT_TAMBOR, x1 - 1.4, 0, bz + 1.15);
+    } else if (k === 1) {
+      // ENGRADADO EMPILHADO ATÉ O ALTO contra a parede sul + varal baixo cruzando
+      for (let i = 0; i < 6; i++) addBox(0.5, 0.3, 0.36, MAT_ENGRADADO, xm - 1.6 + (i % 2) * 0.52, ((i / 2) | 0) * 0.3, bz - 1.25);
+      for (let i = 0; i < 5; i++) addBox(0.46, 0.58, 0.03, MAT_ROUPA, x0 + 1.6 + i * 0.56, 2.1, bz, { collide: false, cast: false });
+    } else if (k === 2) {
+      // OBRA PARADA: pilha de tijolo, betoneira improvisada e caixa d'água no chão
+      for (let i = 0; i < 3; i++) addBox(0.9, 0.42, 0.62, MAT_BARRACO[5], x0 + 1.0 + i * 0.5, i * 0.42, bz + 1.2);
+      const cd = new THREE.Mesh(new THREE.CylinderGeometry(0.52, 0.46, 0.9, 12), MAT_CXDAGUA);
+      cd.position.set(x1 - 1.5, 0.45, bz - 1.15); cd.castShadow = true; root.add(cd);
+      col(x1 - 2.0, x1 - 1.0, 0, 0.9, bz - 1.65, bz - 0.65);
+    } else if (k === 3) {
+      // LONA AZUL esticada por cima (só silhueta, a 2,7 m) + tambor de lixo queimado
+      addBox(L * 0.8, 0.04, 2.6, MAT_LONA, xm, 2.7, bz, { collide: false, cast: false });
+      addBox(0.62, 0.92, 0.62, MAT_TAMBOR, x0 + 1.1, 0, bz - 1.2);
+      addBox(0.62, 0.92, 0.62, MAT_TAMBOR, x1 - 1.2, 0, bz + 1.2);
+    } else if (k === 4) {
+      // PASSARELA/LAJE ligando os dois lados por cima — a 2,9 m não estorva ninguém e é a
+      // silhueta mais reconhecível que um beco pode ter visto da rua
+      addBox(L, 0.22, 1.5, MAT_LAJE, xm, 2.9, bz, { collide: false });
+      for (const sd of [-1, 1]) addBox(0.18, 2.9, 0.18, MAT.concreteDark, xm + sd * (L / 2 - 0.4), 0, bz + sd * 1.35);
+    } else {
+      // MOTO E FERRAMENTA: oficina de fundo de quintal encostada na parede norte
+      if (!gprop('moto_cg', x0 + 1.6, bz + 1.15, 1.05, 1.4)) addBox(0.6, 1.05, 1.7, MAT_PNEU, x0 + 1.6, 0, bz + 1.15);
+      if (!gprop('tires', x1 - 1.3, bz - 1.2, 0.72)) addBox(1.0, 0.72, 1.0, MAT_PNEU, x1 - 1.3, 0, bz - 1.2);
+      addBox(0.8, 0.75, 0.5, MAT_CAIXOTE, xm + 0.9, 0, bz - 1.2);
+    }
+  }
+  // oeste: becos em z = -10,5 · 2,5 · 16,5 | leste: z = -3,5 · 10,5 · 20,5 (os mesmos eixos
+  // das fileiras de waypoint declaradas lá embaixo — a receita muda, o corredor não)
+  beco(-20.6, -12.8, -10.5, 0); beco(-20.6, -12.8, 2.5, 2); beco(-20.6, -12.8, 16.5, 4);
+  beco(12.8, 20.6, -3.5, 1); beco(12.8, 20.6, 10.5, 3); beco(12.8, 20.6, 20.5, 5);
+
+  /* CAMINHÃO BAÚ DE ENTREGA na porta da adega (`vw_9150`, references/favela — é caminhão, não
+     ônibus, conferido na imagem). Ele não é enfeite: o ônibus encolheu de 12,4 m para 8,76 m
+     ao virar GLB (ver "MEDIDAS DO ÔNIBUS"), e essa diferença abriu 8,4 m de linha de tiro na
+     bandeira do PONTO (map-check CTF1: linha 51,5 m → 59,9 m). O caminhão devolve o volume,
+     na mesma faixa da rua, e ainda conta a história da carga da adega.
+     ALINHADO AOS EIXOS de propósito: o comprimento do modelo já está em Z, que é a direção da
+     rua, então UMA AABB é exata e não há `colRot` nem parede invisível (BUG-21). */
+  {
+    const TX = -5.6, TZ = 3.2, TH = 3.0, TW = 1.96, TL = 6.19;   // 3,0 m de altura × aspecto medido
+    const glbT = gprop('vw_9150', TX, TZ, TH);
+    // a caixa continua existindo como OCCLUDER mesmo com o GLB na tela: é ela que a bala
+    // testa, e um baú de 6 m que a bala atravessa seria pior que um baú de caixa (§ACABAMENTO)
+    const bau = addBox(TW, TH, TL, lam({ color: 0xdcdad4, roughness: 0.55, metalness: 0.2 }), TX, 0, TZ, { collide: false });
+    occ(bau); if (glbT) hide(bau);
+    col(TX - TW / 2, TX + TW / 2, 0, TH, TZ - TL / 2, TZ + TL / 2);
+  }
+
   /* ===================== GAMBIARRA, LUZ DE BAILE E MATO =====================
      Três acabamentos baratos que fazem mais pela leitura do lugar do que qualquer polígono a
      mais nas casas. Todos SEM colisor e SEM luz nova: fiação e varal ficam a 4,8 m (o
@@ -683,6 +1091,47 @@ export function buildQuebrada(scene, T) {
       for (const rot of [0, Math.PI / 2]) { const m = new THREE.Mesh(geo, matoMat); m.position.set(x + (rr() - 0.5) * 0.5, y, z); m.rotation.y = rot + rr(); root.add(m); }
     }
   }
+
+  /* ===================== ONDE OS DECALQUES VÃO =====================
+     A lista é EXPLÍCITA, não sorteada por barraco, e a razão é de leitura: mural em toda casa
+     transforma o quarteirão inteiro em ruído e apaga a diferença entre uma parede e outra —
+     o oposto do que o decalque serve pra fazer (§2.1 e C23 da BAR-CONSISTENCIA: marco de
+     orientação é o que NÃO se repete). A distribuição segue três faixas de densidade:
+
+     · RUA (corredor principal, leitura a 15-25 m): mural grande e ESPAÇADO, ~7 m entre peças,
+       nunca dois no mesmo lado seguidos. É onde o tamanho importa — 3,4 m de altura contra os
+       2,2 m dos cartazes do Piscinão.
+     · VIELA (corredor de 4 m, leitura a 2-4 m): DENSO de propósito. Beco pichado de ponta a
+       ponta é o que faz a viela parecer viela, e é o marco que diferencia as duas rotas
+       alternativas do corredor central — quem entra na viela sabe que entrou.
+     · MURO / PORTÃO / ÔNIBUS: tag larga, que é o formato certo pra superfície baixa e comprida.
+
+     NENHUM decalque entra no anel de captura das 4 bandeiras nem na boca de beco: são os
+     pontos onde o jogador precisa ler INIMIGO, e parede carregada atrás de silhueta é
+     exatamente o defeito de contraste que a BAR-CONSISTENCIA §2.4 mede. */
+  // --- fachadas da rua (x = ∓12,5): oeste e leste alternando, fora das vagas de comércio ---
+  /* Um z só no lote [18,24] do oeste: ele é fatiado em X (o lado comprido é o x), então os
+     dois módulos compartilham o MESMO intervalo de z e dois murais pedidos em 20 e 23 caíam
+     grampeados a 0,5 m um do outro — arte sobreposta. Módulo curto, mural único. */
+  for (const z of [-35, -30, -26, -16, -1, 21]) decalFachada(D_FACHADA, -12.43, z, Math.PI / 2, 5.0);
+  for (const z of [-34, -22, -17, -11, 15, 25]) decalFachada(D_FACHADA, 12.43, z, -Math.PI / 2, 5.0);
+  // --- vielas (x = ∓23): as duas paredes de cada corredor, longe das caçambas e das pilhas ---
+  for (const z of [-35, -25, -14, -7, 12, 21]) decalFachada(D_MURAL, -21.07, z, -Math.PI / 2, 3.4, 0.5, 2.8);
+  for (const z of [-38, -27, -15, -2, 15, 25]) decalFachada(D_TAG, -24.93, z, Math.PI / 2, 3.4, 0.8, 2.4);
+  for (const z of [-34, -24, -14, 5, 16, 25]) decalFachada(D_MURAL, 21.07, z, Math.PI / 2, 3.4, 0.5, 2.8);
+  for (const z of [-40, -30, -20, -8, 8, 14]) decalFachada(D_TAG, 24.93, z, -Math.PI / 2, 3.4, 0.8, 2.4);
+  // --- muro do campinho (2,2 m de alto): tag larga dos dois lados, e o muro da vila do baile ---
+  for (const x of [-18.5, 0, 18.5]) decal(D_TAG, x, 0.35, 27.76, Math.PI, 1.5, x === 0 ? 8.0 : 5.6);
+  for (const x of [-17, 5]) decal(D_TAG, x, 0.35, 28.24, 0, 1.5, 5.6);
+  decal(D_MURAL, -18, 0.4, -39.75, 0, 1.7, 4.4);
+  // --- lambe-lambe no vidro do ponto de ônibus (cartaz colado é o que se cola em abrigo) ---
+  for (const z of [-8.6, -3.4]) decal(D_LAMBE, -11.7, 0.62, z, Math.PI / 2, 1.3, 2.4);
+  /* O ÔNIBUS FICOU DE FORA DE PROPÓSITO. Ele é o único volume do mapa cuja malha visível
+     passou a vir de um GLB (`onibus_sptrans`) encaixado por ALTURA — a largura e o
+     comprimento são os do modelo, não os BW/BL do colisor. Decalque colado em ∓BW/2 ficaria
+     flutuando ao lado da lataria assim que o GLB carregasse, e o defeito só apareceria no
+     navegador (em node nenhum GLB carrega). Pixo em ônibus volta quando a flange do modelo
+     for medida, não antes. */
 
   // ===== ground height: o mapa é PLANO (nenhum degrau, nenhum mezanino) =====
   const groundHeightAt = () => 0;
@@ -785,6 +1234,7 @@ export function buildQuebrada(scene, T) {
   place('ak', 10.5, 34);         place('m4', -10.5, 40);
   place('mp5', -20, 26);         place('deagle', 20, 26);
 
+  PB.build(root);       // instancia barraco e fachada: 1 draw call por (material, bloco de 24 m)
   SKIRT.build(root);
   return {
     root, colliders, occluders, groundHeightAt, spawns, sun, hemi, pickups, ctfPoints,
