@@ -471,6 +471,12 @@
       <button class="set-tab" data-tab="mouse" role="tab" aria-selected="false">MOUSE</button>
       <button class="set-tab" data-tab="interface" role="tab" aria-selected="false">INTERFACE</button>
     </div>
+    <!-- DUAS COLUNAS (referência telas/07): lista de ajustes à esquerda, painel de
+         pré-visualização à direita. Os .set-pane continuam sendo filhos diretos de um
+         container que o main.js varre por `.set-pane` + data-pane — só mudou onde esse
+         container mora, então o wiring de abas continua intacto. -->
+    <div class="set-cols">
+    <div class="set-list">
     <div class="set-pane" data-pane="video" role="tabpanel">
       <label class="set-row">Qualidade gráfica
         <select id="set-quality">
@@ -510,7 +516,14 @@
         </select>
       </label>
     </div>
-    <button id="settings-back" class="btn btn-big settings-save">SALVAR &amp; VOLTAR</button>
+    </div>
+    <!-- painel de amostra: é uma captura real de mapa do jogo (a mesma família de
+         imagem que a referência usa), decorativa e fora da ordem de foco -->
+    <aside class="set-preview" aria-hidden="true"></aside>
+    </div>
+    <div class="set-actions">
+      <button id="settings-back" class="btn btn-big settings-save">SALVAR &amp; VOLTAR</button>
+    </div>
   </div>
 </div>
 

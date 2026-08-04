@@ -501,18 +501,51 @@ body{font-family:var(--font);font-weight:600;color:var(--ink1)}
   letter-spacing:var(--tr-2);color:var(--ink-300)}
 
 /* ---------- settings / howto ---------- */
-.set-row{display:flex;align-items:center;gap:var(--s-4);width:100%;justify-content:space-between;
-  font-size:var(--fs-300);font-weight:600;letter-spacing:var(--tr-1);color:var(--ink-200);
-  padding:var(--s-1) 0;border-bottom:1px solid rgba(255,255,255,.05)}
-.set-row:hover{color:var(--ink-100)}
-.set-row input[type=range]{flex:1;accent-color:var(--br-faixa)}
-.set-row select{font-family:inherit;background:var(--bg-700);color:var(--ink-100);border:1px solid var(--line);
-  padding:6px var(--s-3);cursor:pointer;transition:border-color var(--t) var(--ease)}
-.set-row select:hover{border-color:var(--line-2)}
+/* LINHA DE AJUSTE (referência 07_configuracoes.png): rótulo à ESQUERDA em letra miúda
+   espaçada, controle à DIREITA, cada linha numa faixa própria com respiro generoso — não
+   uma lista apertada com um <select> de sistema pendurado no fim. O valor escolhido vem
+   em ÂMBAR, que é o que faz a linha ser lida de relance ("ULTRA", "1920x1080", "LIGADO"). */
+.set-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(150px,auto);align-items:center;
+  gap:var(--s-4);width:100%;
+  font-family:var(--font);font-size:var(--fs-200);font-weight:700;letter-spacing:var(--tr-2);
+  text-transform:uppercase;color:var(--ink-200);
+  padding:var(--s-3) var(--s-3);background:rgba(var(--bg-800-rgb),.55);
+  border-bottom:1px solid rgba(255,255,255,.05)}
+.set-row:hover{color:var(--ink-100);background:rgba(var(--bg-700-rgb),.7)}
+/* linha de deslizador: trilho, botão e o NÚMERO na ponta direita, como na referência */
+.set-row:has(input[type=range]){grid-template-columns:minmax(0,1fr) minmax(120px,180px) 46px}
+.set-row input[type=range]{width:100%;accent-color:var(--br-faixa)}
+.set-row>span{font-family:var(--mono);font-size:var(--fs-100);color:var(--am);text-align:right;letter-spacing:var(--tr-1)}
+/* o <select> perde a cara de controle de sistema e vira valor âmbar + seta, como lá.
+   A seta é um data-URI inline: nada de arquivo novo e nada de requisição extra. */
+.set-row select{appearance:none;-webkit-appearance:none;font-family:var(--mono);
+  font-size:var(--fs-100);letter-spacing:var(--tr-1);text-transform:uppercase;
+  background:rgba(var(--bg-900-rgb),.55) no-repeat right var(--s-3) center/9px 6px;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 9 6'%3E%3Cpath fill='%23ffc93f' d='M0 0h9L4.5 6z'/%3E%3C/svg%3E");
+  color:var(--am);border:1px solid var(--line);width:100%;
+  padding:8px var(--s-6) 8px var(--s-3);cursor:pointer;transition:border-color var(--t) var(--ease)}
+.set-row select:hover,.set-row select:focus-visible{border-color:var(--br-faixa)}
+.set-row select option{background:var(--bg-800);color:var(--ink-100)}
 #set-xhair{font-weight:700}
 /* settings com abas (padrão CS2/Valorant): trilha de tabs em cima, um pane por categoria.
    Aba ativa = amarelo da faixa, o MESMO acento do CTA — aba e botão contam a mesma história. */
-.settings-wrap{display:flex;flex-direction:column;gap:var(--s-5);width:min(560px,92vw);align-items:stretch;text-align:left}
+/* A TELA INTEIRA, não um cartão de 560px boiando no preto (referência 07): lá as abas
+   atravessam a largura, os ajustes ocupam a coluna esquerda e uma amostra do jogo mora
+   na direita. O painel antigo tinha 560px com UMA linha dentro e ~600px de vazio
+   embaixo — a captura mostrava um cartãozinho perdido no meio de uma tela preta. */
+.settings-wrap{display:flex;flex-direction:column;gap:var(--s-5);width:min(1120px,94vw);align-items:stretch;text-align:left}
+.set-cols{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:var(--s-6);align-items:start}
+.set-list{min-width:0}
+/* amostra: captura real de mapa do jogo, do mesmo naipe da imagem da referência */
+/* 240px e não 320: a aba VÍDEO do jogo tem UMA linha de ajuste (a referência desenha
+   sete), então uma amostra alta demais abre um vazio do tamanho dela na coluna da
+   esquerda. Aqui a altura da amostra é o que define o fôlego das duas colunas. */
+.set-preview{min-height:min(34vh,240px);border:1px solid var(--line);clip-path:var(--cut);
+  background:var(--bg-800) url('/img/map-previews/fy_quebrada.jpg') center/cover no-repeat}
+/* barra de ação com fio em cima e o CTA à direita, como o rodapé da referência */
+.set-actions{display:flex;justify-content:flex-end;gap:var(--s-3);
+  padding-top:var(--s-4);border-top:1px solid var(--line)}
+@media(max-width:900px){.set-cols{grid-template-columns:minmax(0,1fr)}.set-preview{display:none}}
 .set-tabs{display:flex;gap:2px;border-bottom:1px solid var(--line)}
 .set-tab{flex:1;font-family:var(--font);font-weight:700;font-size:var(--fs-200);letter-spacing:var(--tr-2);
   color:var(--ink-300);background:transparent;border:0;border-bottom:2px solid transparent;cursor:pointer;
@@ -520,8 +553,14 @@ body{font-family:var(--font);font-weight:600;color:var(--ink1)}
   transition:color var(--t) var(--ease),border-color var(--t) var(--ease)}
 .set-tab:hover,.set-tab:focus-visible{color:var(--ink-100)}
 .set-tab.active{color:var(--br-faixa);border-bottom-color:var(--br-faixa)}
-.set-pane{display:flex;flex-direction:column;gap:var(--s-4);min-height:110px}
-.settings-save{align-self:center}
+/* gap 2px e não s-4: na referência as faixas de ajuste são vizinhas, quase encostadas —
+   o respiro mora DENTRO da faixa (padding), não entre elas. */
+.set-pane{display:flex;flex-direction:column;gap:2px;min-height:110px}
+.settings-save{align-self:auto}
+/* abas à esquerda e não esticadas: com `flex:1` quatro abas ocupavam 1120px e viravam
+   quatro botões gigantes; a referência tem seis abas juntinhas alinhadas à esquerda */
+.set-tabs{gap:var(--s-2)}
+.set-tab{flex:0 0 auto;padding:var(--s-2) var(--s-4)}
 
 /* ---------- pause ---------- */
 /* Fundo translúcido em vez do gradiente opaco de .screen: a partida pausada continua
