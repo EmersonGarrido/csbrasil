@@ -522,6 +522,28 @@ export function buildQuebrada(scene, T) {
   for (let gx = -HALF_X + 2; gx <= HALF_X - 2; gx += STEP)
     for (let gz = -HALF_Z + 2; gz <= HALF_Z - 2; gz += STEP)
       if (!blocked(gx, gz, 0.5)) nodes.push({ x: gx, z: gz });
+  /* ADENSAMENTO — sem ele o mapa NÃO FUNCIONA, e o motivo é aritmético: a grade nasce em
+     x = -HALF_X + 2 com passo 3,4 m, então as colunas caem em x = -26, -22,6, -19,2, -15,8,
+     -12,4 … NENHUMA delas cai dentro da viela oeste (x ∈ [-25,-21], centro -23) com folga de
+     0,5 m para as duas paredes. Uma viela sem nó é uma viela que o A* não conhece: os bots
+     nunca a usam, a CTF2 volta a achar 1 rota só e as duas alternativas ao corredor central
+     — o ponto inteiro do desenho deste mapa — desaparecem do jogo sem aparecer em nada.
+     Por isso cada corredor estreito ganha uma FILEIRA declarada, com inflação menor (0,35 m:
+     ainda maior que o raio do corpo, 0,38 m é o corpo, então nó em fileira é nó em chão que
+     cabe gente). Mesma técnica do map_havan.js (rampa e depósito). */
+  const linha = (x0, z0, x1, z1, passo = 2.4, inf = 0.35) => {
+    const L = Math.hypot(x1 - x0, z1 - z0), n = Math.max(1, Math.round(L / passo));
+    for (let i = 0; i <= n; i++) { const x = x0 + (x1 - x0) * i / n, z = z0 + (z1 - z0) * i / n; if (!blocked(x, z, inf)) nodes.push({ x, z }); }
+  };
+  linha(-23, -36.5, -23, 27);                   // viela oeste inteira
+  linha(23, -38.5, 23, 27);                     // viela leste inteira
+  for (const bz of [-10.5, 2.5, 16.5]) linha(-20.6, bz, -12.8, bz);   // becos oeste
+  for (const bz of [-3.5, 10.5, 20.5]) linha(12.8, bz, 20.6, bz);     // becos leste
+  linha(13, -38, 24, -38);                      // passagem praça -> viela leste
+  linha(-24.5, 26, 24.5, 26, 2.6);              // travessa do campinho
+  for (const gx of [-12, 12]) linha(gx, 26.5, gx, 31, 2.0);           // os dois portões do muro
+  for (let vz = -44.4; vz <= -38.6; vz += 2.4) linha(-24, vz, -13.4, vz);   // pátio da vila (spawn P)
+
   const segClear = (a, b) => { for (let i = 1; i < 6; i++) { const t = i / 6, x = a.x + (b.x - a.x) * t, z = a.z + (b.z - a.z) * t; if (blocked(x, z, 0.25)) return false; } return true; };
   for (let i = 0; i < nodes.length; i++) { adj.push([]); for (let j = 0; j < nodes.length; j++) { if (i === j) continue; const dx = nodes[i].x - nodes[j].x, dz = nodes[i].z - nodes[j].z; if (dx * dx + dz * dz < STEP * STEP * 2.4 && segClear(nodes[i], nodes[j])) adj[i].push(j); } }
   function nearestWaypoint(x, z) { let b = 0, bd = 1e9; for (let i = 0; i < nodes.length; i++) { const dx = nodes[i].x - x, dz = nodes[i].z - z, d = dx * dx + dz * dz; if (d < bd) { bd = d; b = i; } } return b; }
