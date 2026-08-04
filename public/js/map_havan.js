@@ -9,6 +9,7 @@ import * as THREE from 'three';
 import { placeProp, PropBatch, StaticBatch, PROP_BATCH } from './mapprops.js';
 import { VAO_BANDS, aoBoxGeo, aoMatFactory, ContactSkirt, BASE_FLOATING, onGround } from './vao.js';
 import { makeAerialFog } from './bloom.js';   // névoa exponencial + cor por direção do olhar
+import { detailFor, registerDetail } from './textures.js';   // normal+rough por Sobel (ver lam)
 
 const HALF_X = 38, HALF_Z = 58;
 // Carros do estacionamento (ids otimizados em public/models/props). Forte cara BR.
@@ -129,7 +130,11 @@ function noiseTex(base, blotches, rx, rz, opts = {}) {
   }
   x.globalAlpha = 1;
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
-  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rx, rz); return t;
+  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rx, rz);
+  // registra normal+roughness derivados DESTE canvas (textures.js `registerDetail`): sem
+  // isto o `detailFor` do `lam()` nao acha nada, porque as texturas deste mapa sao canvas
+  // locais e nunca passaram pelo textures.js. strength/lo/hi seguem a familia do map.js.
+  return registerDetail(t, c, 2.2, 0.58, 0.98);
 }
 // painel ACM azul da fachada Havan: chapas com emendas verticais + variação + sujeira embaixo
 function acmTex(rx, rz) {
@@ -143,7 +148,8 @@ function acmTex(rx, rz) {
   const gr = x.createLinearGradient(0, S * 0.8, 0, S); gr.addColorStop(0, 'rgba(10,14,30,0)'); gr.addColorStop(1, 'rgba(10,14,30,0.45)');
   x.fillStyle = gr; x.fillRect(0, S * 0.8, S, S * 0.2);
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
-  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rx, rz); return t;
+  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rx, rz);
+  return registerDetail(t, c, 1.8, 0.35, 0.80);   // ACM e chapa pintada: relevo baixo, lustro alto
 }
 
 // ===== v4 (crítica de fidelidade): kill-switch + gate de qualidade =====
@@ -190,7 +196,8 @@ function asfaltoTex(rx, rz) {
     x.stroke();
   }
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
-  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rx, rz); return t;
+  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rx, rz);
+  return registerDetail(t, c, 2.6, 0.66, 0.99);   // asfalto: brita da mais relevo e menos lustro
 }
 // REBOCO da fachada: o "branco" liso lia como cinza chapado. Mottle sutil + escorrimento
 // vertical de chuva (é o que dá idade a fachada pintada no Brasil).
@@ -208,7 +215,8 @@ function reboco(rx, rz) {
   }
   x.globalAlpha = 1;
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
-  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rx, rz); return t;
+  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rx, rz);
+  return registerDetail(t, c, 2.0, 0.70, 0.99);   // reboco: mottle vira micro-relevo
 }
 // CANELURAS da coluna: 20 estrias verticais. O CylinderGeometry mapeia u 0..1 na volta,
 // então uma faixa por estria já dá a leitura clássica sem custo de geometria.
@@ -292,7 +300,10 @@ function muroTex(seed0) {
     x.fillStyle = g; x.fillRect(px, py, 1 + rnd() * 4, 26 + rnd() * 120);
   }
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
-  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 4; return t;
+  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 4;
+  // o muro ja usa este MESMO canvas como bumpMap (ver MAT.muro); o normal derivado troca o
+  // bump por um mapa de normal de verdade, que responde a luz lateral em vez de so a frontal
+  return registerDetail(t, c, 2.4, 0.72, 0.99);
 }
 // TINTA DE DEMARCAÇÃO gasta: faixa branca com falhas (o alpha come pedaços da linha).
 // Usada como plano fino no asfalto em vez de caixinhas cinza chapadas.
@@ -332,7 +343,28 @@ function letreiroTex(txt, w, h) {
 export function buildHavan(scene, T) {
   const colliders = [], occluders = [], pickups = [], doors = [];
   const root = new THREE.Group(); scene.add(root);
-  const lam = (o) => new THREE.MeshStandardMaterial({ roughness: 0.9, metalness: 0, ...o });
+  /* PBR DE SUPERFÍCIE — o MESMO caminho do map.js:17-28, que era o único mapa a ter.
+     MEDIDO antes desta rodada, varrendo a cena dos 5 mapas reais em runtime: 877 materiais,
+     70 normalMap e 70 roughnessMap, TODOS no praca_old (o único que chamava `detailFor`).
+     Este mapa tinha ZERO. Depois: 113/113 no total. O `detailFor`
+     pendura normal+roughness derivados do PRÓPRIO albedo por Sobel (textures.js), então a
+     superfície deixa de ser cor chapada e passa a reagir ao sol e ao env map — sem asset
+     externo e sem textura nova: os dois mapas derivados são gerados UMA vez por canvas de
+     albedo e cacheados num WeakMap, e materiais que compartilham o mesmo albedo compartilham
+     os mesmos derivados.
+     CUSTO NA MÁQUINA FRACA (a preocupação do dono): zero. O `withDetail` do textures.js já
+     sai fora em quality 'low' e com ?detail=0, e nesses casos `detailFor` devolve null e o
+     material fica exatamente como era. normalScale 0,65 é o mesmo do map.js — relevo por
+     Sobel exagera fácil e vira plástico. */
+  const lam = (o) => {
+    const m = new THREE.MeshStandardMaterial({ roughness: 0.9, metalness: 0, ...o });
+    const det = m.map && detailFor(m.map);
+    if (det) {
+      if (det.normalMap && !m.normalMap) { m.normalMap = det.normalMap; m.normalScale.set(0.65, 0.65); }
+      if (det.roughnessMap && !m.roughnessMap) m.roughnessMap = det.roughnessMap;
+    }
+    return m;
+  };
   /* ===== TEXTURAS CANVAS COMPARTILHADAS (custo de carga — item 7 da revisão) =====
      A r1 saiu de 12 para 26 texturas canvas e o mapa estourou o teto de 300 s do harness
      (268 s → 343 s). Rasterizar canvas debaixo de SwiftShader é caro, e boa parte delas
@@ -344,6 +376,25 @@ export function buildHavan(scene, T) {
   const MURO_TEX = muroTex(3);
   const REBOCO_TEX = reboco(3, 3);
   const reTile = (t, rx, rz) => { const c = t.clone(); c.repeat.set(rx, rz); return c; };
+  /* TEX1 — SUJEIRA MULTIPLICATIVA PARA AS SUPERFÍCIES DE COR CHAPADA.
+     O dono: "placas e bandeiras brancas sem textura, retângulos brancos grandes e lisos".
+     Medido (tools/eval/mat-check.mjs): 11 superfícies VISÍVEIS deste mapa com albedo claro
+     (luminância ≥ 0,55), sem `map`, com triângulo único de 6 a 920 m² — o pátio da Casa
+     Branca sozinho é um plano de 920 m² de cor lisa. O maior é o pior, mas o defeito é o
+     mesmo em todos: cor constante não tem microcontraste, então a superfície não tem escala
+     e o olho lê "papel".
+     POR QUE UMA TEXTURA SÓ, BRANCA: o mapa tem 5 cores diferentes nesse estado (bege do
+     meio-fio, cinza do mezanino, amarelo Havan, branco e creme da Casa Branca). Uma textura
+     por cor seriam 5 canvas. Como o three MULTIPLICA `map` × `color`, uma única textura de
+     base BRANCA com manchas neutras serve às cinco: cada material mantém a `color` dele e
+     ganha a variação. É a regra que este arquivo já tinha escrita logo acima ("UM canvas por
+     imagem; variação vem de clone()"), aplicada a uma imagem a mais — 1 canvas 256², e os
+     `reTile` compartilham `source`, logo continua UMA textura na GPU. */
+  const GESSO_TEX = noiseTex('#ffffff', [
+    ['#e6e6e4', 44, 10, 28, 0.50],   // manchas grandes: variação de macro-escala
+    ['#f7f7f5', 26, 8, 20, 0.40],    // clareado (sol/lavagem)
+    ['#d2d2cf', 16, 5, 14, 0.45],    // encardido
+  ], 1, 1, { seed: 21 });
   // repeat calculado pra dar 2,0 × 1,0 m por tile nas duas paredes (= 256 px/m)
   const muroMap = reTile(MURO_TEX, (2 * HALF_X + 2) / 2, 3);      // fundo: 78 m → 39 tiles
   const muroSMap = reTile(MURO_TEX, (HALF_Z - -6) / 2, 3);        // laterais: 64 m → 32 tiles
@@ -353,7 +404,7 @@ export function buildHavan(scene, T) {
     // fluorescente, que é metade da leitura "estou dentro de uma loja" (contra o sol fosco)
     floor: lam({ map: noiseTex('#c9cfd6', [['#b2b9c0', 40, 8, 22, 0.45], ['#dde2e7', 30, 6, 18, 0.35], ['#8a929a', 14, 4, 12, 0.4]], 16, 16, { cracks: '#9aa2aa', pebbles: '#eef1f4', seed: 9 }), roughness: 0.22, metalness: 0.10, envMapIntensity: 1.6 }),
     wall: lam({ map: acmTex(8, 2) }),                                    // painel ACM azul c/ emendas
-    trim: lam({ color: 0xf4c020 }),
+    trim: lam({ color: 0xf4c020, map: reTile(GESSO_TEX, 3, 3) }),   // TEX1: amarelo Havan com desgaste
     shelf: lam({ color: 0xb9bec4 }), goods: lam({ color: 0xe07a3a }), rack: lam({ color: 0x3a3f45 }),
     caixa: lam({ color: 0xdfe4e8 }),
     /* VIDRO DE VITRINE — R9. `lam` tem roughness 0.9 por padrão, então as seis vitrines da
@@ -364,7 +415,12 @@ export function buildHavan(scene, T) {
     glass: lam({ color: 0x9fd0e8, roughness: 0.20, metalness: 0.45, envMapIntensity: 2.4, transparent: true, opacity: 0.4 }),
     // aço da estrutura/prateleira: era metalness 0 (o default do `lam`) — literalmente plástico cinza
     steel: lam({ color: 0x8a9096, roughness: 0.32, metalness: 0.85, envMapIntensity: 1.8 }),
-    mez: lam({ color: 0xc7ccd2 }), curb: lam({ color: 0xd8d2c0 }),
+    // TEX1: mezanino (145 m² de laje lisa) e meio-fio/pátio (920 m² no maior plano) ganham o
+    // GESSO_TEX multiplicativo. `patio` é o mesmo material com repeat de PLANO GRANDE — sem
+    // ele o pátio da Casa Branca teria tiles de 8 m e a variação sumiria na distância.
+    mez: lam({ color: 0xc7ccd2, map: reTile(GESSO_TEX, 8, 8) }),
+    curb: lam({ color: 0xd8d2c0, map: reTile(GESSO_TEX, 4, 4) }),
+    patio: lam({ color: 0xd8d2c0, map: reTile(GESSO_TEX, 23, 20) }),   // 46 × 40 m -> tile de 2 m
     // muro do estacionamento: bloco de concreto pintado na escala real (40 × 20 cm).
     // O MESMO canvas entra como bumpMap: a junta rebaixada vira relevo no shader sem
     // custo de textura nova, que é o que dá micro-detalhe a < 2 m da câmera (B5).
@@ -540,9 +596,27 @@ export function buildHavan(scene, T) {
 
   // ===== LOJA (prédio fechado no fundo, z ∈ [-42,-6]) =====
   const SF = -6, SB = -42, SW = 28;   // frente / fundo / meia-largura
-  // paredes (frente com VÃO da porta em x∈[-4,4])
-  addBox(SW - 4, 5, 1, MAT.wall, -(SW / 2 + 2), 0, SF);   // frente esquerda
-  addBox(SW - 4, 5, 1, MAT.wall, (SW / 2 + 2), 0, SF);    // frente direita
+  /* ===== FRENTE DA LOJA: TRÊS VÃOS DE PORTA, NÃO UM =====
+     Pedido literal do dono: "vamos adicionar mais 2 PORTAS, uma em cada CANTO, você percebe
+     que a loja fica VAZIA DOS CANTOS?". Ele diagnosticou a causa junto com o sintoma: com um
+     vão só, no centro (x ∈ [−4,4]), TODO mundo que entra ou sai da loja passa pelo mesmo
+     ponto — e os 20 m de loja de cada lado do eixo viram fundo de cenário.
+     Agora a fachada é uma lista de VÃOS e a parede é o que sobra entre eles. Os dois novos
+     ficam a 3,6 m de largura, encostados nas pontas (x ∈ ±[20,2 , 23,8]), alinhados com os
+     corredores laterais novos das gôndolas — cada canto ganha uma entrada própria que
+     desemboca num corredor norte-sul de 4,2 m que corre até o fundo da loja.
+     O EIXO CENTRAL NÃO MUDOU (regra do dono: "o meio continua sendo o caminho principal"):
+     o vão de 8 m em x ∈ [−4,4] segue lá, é o mais largo dos três e o único no eixo do
+     estacionamento. As portas novas são ROTA LATERAL, não substituição. */
+  const PORTAS_FRENTE = [[-23.8, -20.2], [-4, 4], [20.2, 23.8]];
+  {
+    let x = -SW;
+    for (const [g0, g1] of PORTAS_FRENTE) {
+      if (g0 > x) addBox(g0 - x, 5, 1, MAT.wall, (x + g0) / 2, 0, SF);
+      x = g1;
+    }
+    if (SW > x) addBox(SW - x, 5, 1, MAT.wall, (x + SW) / 2, 0, SF);
+  }
   addBox(2 * SW, 5, 1, MAT.wall, 0, 0, SB);               // fundo
   addBox(1, 5, SF - SB, MAT.wall, -SW, 0, (SF + SB) / 2); // lateral esq
   addBox(1, 5, SF - SB, MAT.wall, SW, 0, (SF + SB) / 2);  // lateral dir
@@ -558,7 +632,20 @@ export function buildHavan(scene, T) {
     const FZ = SF + 0.5;   // face frontal da parede da fachada (z=-5.5)
     // reboco branco por cima do ACM azul (frente da loja + fechos laterais de corredor)
     // — fica ATRÁS das vitrines (z=-5.45), que continuam visíveis entre as colunas
-    for (const [cx, w] of [[-16, SW - 4], [16, SW - 4], [-33, HALF_X - SW + 1], [33, HALF_X - SW + 1]])
+    /* O reboco segue a MESMA lista de vãos da parede (PORTAS_FRENTE). Antes eram dois panos
+       de 24 m colados em [-28,-4] e [4,28]; com as portas de canto eles taparam os vãos
+       novos por fora — porta que existe pra física e não existe pros olhos é o defeito que a
+       invariante MAP4 mede do outro lado (malha sem colisor é tão mentiroso quanto colisor
+       sem malha). */
+    {
+      let x = -SW;
+      for (const [g0, g1] of PORTAS_FRENTE) {
+        if (g0 > x) addBox(g0 - x, 5, 0.03, plaster, (x + g0) / 2, 0, FZ + 0.015, { collide: false });
+        x = g1;
+      }
+      if (SW > x) addBox(SW - x, 5, 0.03, plaster, (x + SW) / 2, 0, FZ + 0.015, { collide: false });
+    }
+    for (const [cx, w] of [[-33, HALF_X - SW + 1], [33, HALF_X - SW + 1]])
       addBox(w, 5, 0.03, plaster, cx, 0, FZ + 0.015, { collide: false });
     // pilastras rasas nas seções laterais (ritmo de templo, como nas fotos)
     for (const sx of [-1, 1]) for (const px of [28.5, 33, 37.5])
@@ -598,7 +685,9 @@ export function buildHavan(scene, T) {
        imagem na tela, 1/8 do custo. */
     const bannerMat = new THREE.MeshStandardMaterial({ map: bannerAtlas, roughness: 0.8, side: THREE.DoubleSide });
     const subUV = (geo, ox, sx2) => { const uv = geo.attributes.uv; for (let k = 0; k < uv.count; k++) uv.setX(k, ox + uv.getX(k) * sx2); uv.needsUpdate = true; return geo; };
-    for (const sx of [-1, 1]) [7.5, 12.5, 17.5, 22.5].forEach((bx, i) => {
+    // 22,5 -> 26,5: o 4º banner de cada lado ficava EM FRENTE ao vão da porta de canto nova
+    // (x ∈ ±[20,2 , 23,8]); passou pra ala, entre a porta e a quina do prédio.
+    for (const sx of [-1, 1]) [7.5, 12.5, 17.5, 26.5].forEach((bx, i) => {
       const b = new THREE.Mesh(subUV(new THREE.PlaneGeometry(1.9, 2.9), i * 0.25, 0.25), bannerMat);
       b.position.set(sx * bx, 3.35, SF + 1.9); b.castShadow = true; deco(b);
     });
@@ -645,7 +734,10 @@ export function buildHavan(scene, T) {
   // branca dos 2 lados da porta, como na Havan real — sem collider (a parede está atrás)
   {
     const frame = lam({ color: 0xe8ecef });
-    for (const sx of [-1, 1]) for (let i = 0; i < 3; i++) {
+    // 3 -> 2 vitrines por lado. A terceira ficava centrada em x = ±20,5, com 6,2 m de
+    // moldura: exatamente por cima do vão da porta de canto nova. Vitrine sobre porta é o
+    // mesmo defeito do reboco — o jogador vê parede de vidro onde a física tem passagem.
+    for (const sx of [-1, 1]) for (let i = 0; i < 2; i++) {
       const x = sx * (7.5 + i * 6.5);
       addBox(0.15, 3.4, 0.15, frame, x - 3.1, 0.6, SF + 0.55, { collide: false });
       addBox(6.2, 0.15, 0.15, frame, x, 4.0, SF + 0.55, { collide: false });
@@ -674,6 +766,19 @@ export function buildHavan(scene, T) {
     const pl = addBox(4, 4, 0.2, MAT.glass, -2, 0, SF, { cast: false, collide: false, batch: false });
     const pr = addBox(4, 4, 0.2, MAT.glass, 2, 0, SF, { cast: false, collide: false, batch: false });
     doors.push({ panelL: pl, panelR: pr, x: 0, z: SF, closedL: -2, closedR: 2, openL: -6, openR: 6, open: 0 });
+    /* AS DUAS PORTAS DE CANTO (pedido do dono). Mesmo mecanismo da central — duas folhas de
+       vidro que o game.js desliza pelo sensor de proximidade — só que 1,8 m por folha, no vão
+       de 3,6 m. Elas abrem PRA FORA do vão (openL/openR levam a folha pra trás da parede),
+       senão a folha aberta ficaria atravessada no meio da passagem. */
+    for (const [g0, g1] of PORTAS_FRENTE) {
+      const cxp = (g0 + g1) / 2, meia = (g1 - g0) / 2;
+      if (Math.abs(cxp) < 1) continue;                     // a central já está montada acima
+      const a2 = addBox(meia, 4, 0.2, MAT.glass, cxp - meia / 2, 0, SF, { cast: false, collide: false, batch: false });
+      const b2 = addBox(meia, 4, 0.2, MAT.glass, cxp + meia / 2, 0, SF, { cast: false, collide: false, batch: false });
+      doors.push({ panelL: a2, panelR: b2, x: cxp, z: SF,
+        closedL: cxp - meia / 2, closedR: cxp + meia / 2,
+        openL: cxp - meia * 1.5, openR: cxp + meia * 1.5, open: 0 });
+    }
   }
 
   // CAIXAS DE COBRANÇA (esteira+visor Mint, fileira logo dentro da porta, z=-10)
@@ -704,6 +809,40 @@ export function buildHavan(scene, T) {
   for (const sx of [-1, 1]) {
     if (!gprop('gondola_mercado', sx * 12, -28.5, 1.8, Math.PI / 2)) addBox(2.1, 1.8, 1.0, MAT.shelf, sx * 12, 0, -28.5);
     colliders.push({ minX: sx * 12 - 1.05, maxX: sx * 12 + 1.05, minY: 0, maxY: 1.8, minZ: -29.05, maxZ: -27.95 });
+  }
+  /* ===== FILEIRAS LATERAIS (pedido do dono: "bora adicionar mais gôndolas dos lados") =====
+     O miolo da loja tinha 4 fileiras de gôndola em x ∈ [−8,45 , 8,45] e as araras encostadas
+     em x = ±24. Entre uma coisa e outra sobravam DOIS vazios de 13 m de largura por 27 m de
+     fundo — a metade da área da loja onde não havia nada pra usar, pra se esconder atrás nem
+     pra ir buscar. Medido por quadrante (invariante MAP5, tools/eval/map-check.mjs): antes,
+     os quadrantes das pontas da loja tinham 0,67× a densidade de prop do quadrante mediano.
+     Cada lado ganha 3 gôndolas por fileira, nas MESMAS 4 fileiras do miolo, ocupando
+     x ∈ ±[12,85 , 19,23]. O que sobra são DOIS corredores norte-sul novos por lado:
+       interno  |x| ∈ [8,45 , 12,85] — 4,40 m, ligando as pontas das fileiras;
+       externo  |x| ∈ [19,23 , 22,80] — 3,57 m, que é onde a PORTA DE CANTO desemboca.
+     O eixo central (x ∈ [−2,2], o vão das fileiras) continua sendo o caminho mais curto de
+     porta a porta — a regra do dono ("o meio continua sendo o caminho principal") é
+     respeitada por construção: nenhuma peça nova entra em |x| < 12,85. */
+  for (let r = 0; r < 4; r++) {
+    const z = -15 - r * 6;
+    const id = r === 1 ? 'gondola_eletro' : 'gondola_mercado';
+    for (const sx of [-1, 1]) for (const gx of [sx * 13.3, sx * 15.44, sx * 17.58]) {
+      if (!gprop(id, gx, z, 1.8, Math.PI / 2)) addBox(2.1, 1.8, 1.0, MAT.shelf, gx, 0, z);
+      colliders.push({ minX: gx - 1.05, maxX: gx + 1.05, minY: 0, maxY: 1.8, minZ: z - 0.55, maxZ: z + 0.55 });
+    }
+  }
+  /* ILHAS DE PROMOÇÃO no corredor externo (o da porta de canto). Baixas (1,0 m): dão
+     cobertura de agachar e quebram a reta de 27 m do corredor sem fechá-lo — um corredor
+     lateral que é um tubo reto seria trocar o funil do meio por dois funis nas pontas.
+     ONDE, exatamente: encostadas no lado das gôndolas (x = ±20,0) e com 1,2 m de pegada, não
+     no eixo do corredor com 1,6 m. A primeira versão ficava em ±20,7 com 1,6 m e MATAVA o
+     corredor no grafo: a única coluna de waypoints que cabe entre as gôndolas (x ≤ 19,23) e
+     as araras (x ≥ 22,80) é a de x = 21,8, e o colisor da ilha mais a inflação de 0,5 m do
+     `blocked` a apagava em 3 dos 4 z — o corredor externo virava uma sequência de pedaços
+     desconexos e o A* não podia usá-lo. Medido: 1 rota separada até a bandeira LOJA L. */
+  for (const sx of [-1, 1]) for (const z of [-12, -18, -30]) {
+    if (!gprop('caixa_cobranca', sx * 20.0, z, 1.0)) addBox(1.2, 1.0, 1.2, MAT.caixa, sx * 20.0, 0, z);
+    colliders.push({ minX: sx * 20.0 - 0.6, maxX: sx * 20.0 + 0.6, minY: 0, maxY: 1.0, minZ: z - 0.6, maxZ: z + 0.6 });
   }
   // ARARAS de roupa Mint nas laterais
   for (const sx of [-1, 1]) for (const z of [-18, -24, -30]) {
@@ -744,9 +883,59 @@ export function buildHavan(scene, T) {
   // parede na linha da fachada (z=-6) dos dois lados — vira fundo de loja inacessível.
   for (const sx of [-1, 1]) addBox(HALF_X - SW + 1, 5, 1, MAT.wall, sx * (SW + (HALF_X - SW) / 2), 0, SF);
 
-  // ESCADA + MEZANINO (2º andar = lobby sniper) no fundo. Altura via groundHeightAt.
-  const MZ = { x0: -14, x1: 14, z0: SB + 0.6, z1: SB + 7, h: 3.4 };          // footprint do mezanino
-  const RAMP = { x0: 8, x1: 14, z0: MZ.z1, z1: MZ.z1 + 6 };                    // rampa/escada (canto dir)
+  /* ===================== MEZANINO = O ANDAR DE CIMA DA LOJA =====================
+     Pedido literal do dono: "o RESPAWN DE DENTRO DA LOJA tinha q ser NO ANDAR DE CIMA e a
+     ESCADA tinha q ser MELHOR FEITA". Antes o time B nascia no térreo (z=-31), entre
+     gôndolas, com 36,9 m de linha de visão a partir do estacionamento — o "respawn visível
+     de fora" que ele reclamou em rodada anterior (medido em tools/eval/map-check.mjs).
+     O mezanino cresceu de 6,4 m para 10,4 m de profundidade pra caber as DUAS coisas que um
+     andar de cima precisa ter: um DEPÓSITO fechado (onde o time nasce, sem linha de visão de
+     fora) e uma SACADA à frente dele (o perch de sniper que já existia). */
+  /* Pé-direito mínimo para um vão contar como andável (chão multinível — ver
+     groundHeightAt). 1,95 m = jogador em pé (~1,7 m de olho + folga). Abaixo disso o vão
+     existe visualmente mas não é espaço: entrar ali é andar com a cabeça na geometria. */
+  const ALTURA_LIVRE = 1.95;
+  const MZ = { x0: -14, x1: 14, z0: SB + 0.6, z1: SB + 11, h: 3.4 };          // footprint do mezanino
+  /* ESCADA DE VERDADE. O que existia era uma RAMPA com lábios de 10 cm: 10 m de corrida pra
+     3,4 m de subida = 19,3°, espelho 20,3 cm, piso 57,8 cm, 2h+p = 98,3 cm (números MEDIDOS
+     por raycast na geometria construída, não declarados). Nenhum é de escada — e o
+     comentário da rodada anterior dizia "escada real fica entre 30 e 40%" confundindo
+     PORCENTO com GRAU: 34% é 18,8°, inclinação de rampa de garagem.
+     Agora ela é dimensionada pela NBR 9077 + fórmula de Blondel (2·espelho + piso = 63 cm):
+       espelho 17 cm · piso 29 cm · 20 degraus · 2,60 m de largura de vão (2,35 m livres
+       entre os corrimãos, que é a medida que a norma cobra e a que a régua mede).
+       Inclinação de projeto atan(3,40/5,80) = 30,4°; a régua mede 31,6° porque a corrida
+       dela vai do PRIMEIRO ao ÚLTIMO piso e perde meio degrau em cada ponta — os dois
+       números descrevem a mesma escada e os dois estão na faixa [25°, 40°].
+     E deixou de ser "uma caixa por degrau derivada do groundHeightAt": tem PISO e ESPELHO
+     separados, viga lateral (limão), corrimão dos dois lados com montantes e faixa
+     antiderrapante no nariz — que é o que faz ler como escada e não como rampa escalonada. */
+  const ESC = { larg: 2.60, espelho: 0.17, piso: 0.29, n: 20 };               // n·espelho = 3,40 = MZ.h
+  const RAMP = { x0: 8.2, x1: 8.2 + ESC.larg, z0: MZ.z1, z1: MZ.z1 + ESC.n * ESC.piso };
+  /* SEGUNDA ESCADA (map_havan.js:827). O mezanino tinha UMA descida — e o depósito tinha
+     DUAS portas que desembocavam nela. Ou seja: as duas saídas do respawn eram a mesma
+     saída 6 m adiante, e todo caminho do time B pra qualquer bandeira passava pelo mesmo
+     degrau. Medido no grafo de navegação (invariante CTF2): 1 rota separada entre o spawn B
+     e cada uma das 4 bandeiras, contra as 2 do time P.
+     A nova é o ESPELHO da existente (mesmo espelho/piso/largura/inclinação, então a MAP3
+     mede as duas contra a mesma NBR 9077), deslocada 0,6 m pra fora do espelho perfeito pra
+     não encostar na gôndola de x = −7,4 da fileira z = −27. Cada porta do depósito passa a
+     ter a SUA descida, que é o que "duas saídas" queria dizer desde o começo. */
+  const RAMP2 = { x0: -11.4, x1: -11.4 + ESC.larg, z0: MZ.z1, z1: MZ.z1 + ESC.n * ESC.piso };
+  const RAMPAS = [RAMP, RAMP2];
+  /* PROFUNDIDADE DO DEPÓSITO — 4,80 m -> 6,00 m (map_havan.js:828).
+     A rodada anterior deixou o respawn do time B numa FRESTA: parede de portas em
+     z = MZ.z0+4,8 e uma chicana-parede de 19 m a 1,80 m atrás dela, com os 4 spawns em
+     z = −39 — ou seja, 2,6 m de profundidade útil, e as duas fileiras do armário (25 armas,
+     z −40,6 e −37,4) em LADOS OPOSTOS da chicana. A régua de exposição (MAP2) ficava 0,0%
+     por emparedamento, que é a maneira mais fácil e mais burra de zerá-la.
+     Medido na fresta (tools/eval/map-check.mjs, invariante MAP2B): folga até a parede mais
+     próxima 0,50 m (o corpo tem 0,38 m de RAIO: nascia-se encostado) e 17,4 m² de chão
+     contíguo num raio de 5 m. Agora: 6,60 m de fundura × 28 m de largura, com as duas
+     fileiras do armário do MESMO lado e as duas portas nas pontas. A sacada (o perch de
+     sniper à frente) cai de 5,60 m para 4,40 m — continua com 1,12 m de circulação atrás
+     das gôndolas de cover e 2,05 m na frente delas, contra o guarda-corpo. */
+  const DEP_Z = MZ.z0 + 6.0;                                                  // parede de portas do depósito
   addFloor(MZ.x1 - MZ.x0, MZ.z1 - MZ.z0, (MZ.x0 + MZ.x1) / 2, (MZ.z0 + MZ.z1) / 2, MAT.mez, MZ.h + 0.02);  // piso do mezanino
   // BUG FIX (crítico: "gôndola e rifle flutuando na parede do fundo"): o piso do mezanino é
   // um plano single-sided — some visto de baixo (do spawn B) e os props do mezanino flutuam.
@@ -754,24 +943,180 @@ export function buildHavan(scene, T) {
   {
     const mezUnder = new THREE.MeshBasicMaterial({ color: 0xb0b6be });   // unlit: a face de baixo do contrapiso lia como faixa PRETA
     addBox(MZ.x1 - MZ.x0, 0.45, 0.25, mezUnder, (MZ.x0 + MZ.x1) / 2, MZ.h - 0.45, MZ.z1, { collide: false });   // viga de borda
-    addBox(MZ.x1 - MZ.x0, 0.12, MZ.z1 - MZ.z0, mezUnder, (MZ.x0 + MZ.x1) / 2, MZ.h - 0.12, (MZ.z0 + MZ.z1) / 2, { collide: false });   // contrapiso
+    /* CONTRAPISO SÓLIDO (era collide:false). O piso do mezanino é um `addFloor`, que não
+       entra em `occluders` — ou seja, LOS e bala ATRAVESSAVAM a laje: medido, 0,4% dos
+       pontos a ≥ 25 m viam a cabeça de quem nascia no depósito atirando de baixo, pelo vão
+       lateral (x > 14) e através do piso. O colisor da laje (y 3,28-3,40) não atrapalha
+       ninguém — `_collide` só empurra um corpo cujo intervalo [y+0,3 , y+1,5] cruze o do
+       colisor, e nem quem anda embaixo (y=0) nem quem anda em cima (y=3,4) cruza. */
+    addBox(MZ.x1 - MZ.x0, 0.12, MZ.z1 - MZ.z0, mezUnder, (MZ.x0 + MZ.x1) / 2, MZ.h - 0.12, (MZ.z0 + MZ.z1) / 2);   // contrapiso
     for (const cx of [-9, 9]) {   // colunas até o chão da loja (collider fino)
       addBox(0.28, MZ.h - 0.12, 0.28, MAT.steel, cx, 0, MZ.z1 - 0.2, { collide: false });
       colliders.push({ minX: cx - 0.16, maxX: cx + 0.16, minY: 0, maxY: MZ.h, minZ: MZ.z1 - 0.36, maxZ: MZ.z1 - 0.04 });
     }
   }
-  // guarda-corpo do mezanino (frente + laterais) — cover baixo lá em cima
-  addBox(MZ.x1 - MZ.x0, 1.0, 0.2, MAT.steel, (MZ.x0 + MZ.x1) / 2, MZ.h, MZ.z1, { collide: false });
-  // degraus visuais da escada
-  for (let i = 0; i < 6; i++) addBox(RAMP.x1 - RAMP.x0, 0.1, 1.0, MAT.mez, (RAMP.x0 + RAMP.x1) / 2, (i / 6) * MZ.h, RAMP.z1 - 0.5 - i * 1.0, { collide: false });
-  // MEZANINO MOBILIADO (eletro/móveis = cover no perch de sniper)
-  for (const gx of [-8, -2]) {
-    if (!gprop('gondola_eletro', gx, MZ.z0 + 2.5, 1.8, Math.PI / 2, MZ.h)) addBox(2.1, 1.8, 1.0, MAT.shelf, gx, MZ.h, MZ.z0 + 2.5);
-    colliders.push({ minX: gx - 1.05, maxX: gx + 1.05, minY: MZ.h, maxY: MZ.h + 1.8, minZ: MZ.z0 + 1.95, maxZ: MZ.z0 + 3.05 });
+  /* GUARDA-CORPO que COLIDE (era collide:false). Um parapeito atravessável é o mesmo defeito
+     do pedestal da estátua visto de lado: o corpo do jogador fica DENTRO da geometria (a
+     régua MAP1 mede exatamente isso). Ele fecha a borda da frente e as duas laterais, com
+     DOIS vãos de propósito: o da ESCADA (por onde se sobe) e um VÃO DE CARGA no meio
+     (x ∈ [-3,3]) — sem ele o mezanino teria uma saída só e viraria ratoeira. */
+  {
+    const GC = (w, cx2, cz, d = 0.2) => addBox(w, 1.0, d, MAT.steel, cx2, MZ.h, cz);
+    const gap = [[RAMP2.x0, RAMP2.x1], [-3, 3], [RAMP.x0, RAMP.x1]];   // escada O + vão de carga + escada L
+    let x = MZ.x0;
+    for (const [g0, g1] of gap) { if (g0 > x) GC(g0 - x, (x + g0) / 2, MZ.z1); x = g1; }
+    if (MZ.x1 > x) GC(MZ.x1 - x, (x + MZ.x1) / 2, MZ.z1);
+    for (const sx of [MZ.x0, MZ.x1]) GC(0.2, sx, (MZ.z0 + MZ.z1) / 2, MZ.z1 - MZ.z0);   // laterais
   }
-  gprop('painel_tvs', 8, MZ.z0 + 1.2, 1.8, 0, MZ.h + 0.2);   // painel de TVs encostado no fundo
-  gprop('manequim', 12, MZ.z0 + 2.5, 1.8, 2.4, MZ.h);
+  /* DEPÓSITO (o respawn do andar de cima). Parede inteira até a laje com DOIS vãos de porta
+     de 2,8 m — quem nasce aqui não tem linha de visão pra loja nem pro estacionamento, e
+     tem duas saídas. É este muro que transforma "spawn no andar de cima" em "spawn que não
+     é visível de fora": medido, a exposição do time B caiu de 1,5% dos pontos a ≥ 25 m
+     (maior visada 36,9 m) para 0,0% (0 m). */
+  {
+    const PORTA = 2.8;
+    const vaos = [[-12.4, -12.4 + PORTA], [12.4 - PORTA, 12.4]];
+    let x = MZ.x0;
+    for (const [g0, g1] of vaos) {
+      if (g0 > x) addBox(g0 - x, 2.8, 0.25, MAT.wall, (x + g0) / 2, MZ.h, DEP_Z);
+      x = g1;
+    }
+    if (MZ.x1 > x) addBox(MZ.x1 - x, 2.8, 0.25, MAT.wall, (x + MZ.x1) / 2, MZ.h, DEP_Z);
+    // faixa amarela do estoque: 54 m -> 28 m. Ela era mais LARGA que o mezanino (2·SW−2 = 54
+    // contra 28) e sobravam 13 m de fita boiando no ar de cada lado, fora da laje.
+    addBox(MZ.x1 - MZ.x0, 0.4, 0.1, MAT.trim, 0, MZ.h + 2.2, DEP_Z + 0.2, { collide: false });
 
+    /* ANTEPARO DAS PORTAS = PORTA-PALETES, NÃO CHICANA (substitui map_havan.js:895).
+       O que existia: `addBox(19.0, 2.8, 0.3, MAT.wall, 0, MZ.h, DEP_Z − 1.8)` — uma parede
+       cega de 19 m atravessada 1,80 m atrás das portas. Ela zerava a exposição, sim, e
+       criava três defeitos de uma vez: (1) o respawn virou uma fresta de 2,6 m; (2) a
+       fileira da frente do armário (12 das 25 armas) ficou do LADO DE FORA dela; (3) quem
+       entrava por uma porta andava num cano de 1,8 m até dobrar na ponta.
+       O que entra no lugar: DOIS porta-paletes (a estante de estoque de verdade — montante,
+       longarina, palete e caixa) encostados na parede de portas, um em cada BORDA INTERNA de
+       porta (x = ∓9,6), avançando 3,20 m para dentro. Eles fazem a mesma coisa por geometria
+       de verdade, e a conta é fechada, não é gosto:
+         toda reta que entra por uma porta (x_d ∈ [−12,4 , −9,6], z = DEP_Z) e termina num dos
+         4 slots (x_s ∈ [−8 , 5], z = −39) cruza o plano x = −9,6 em
+           z = DEP_Z − 3,6·(−9,6 − x_d)/(x_s − x_d),
+         cujo pior caso (x_d = −12,4, x_s = −6) é z = −36,98 — dentro do trecho coberto pelo
+         porta-palete, que vai até −37,60 (0,62 m de folga). Espelhado no lado +x. O caminho
+         continua existindo: entra-se pela porta, anda-se 2,2 m colado na estante e dobra-se
+         para dentro — um L, que é o que um depósito de loja tem, e não um cano.
+         O comprimento é 2,20 m e não 3,20 m por causa do GRAFO, não da visada: com 3,20 m a
+         estante alcançava a fileira de waypoints de z = −38,5 e o depósito ficava sem
+         ligação nenhuma com a própria porta no A* — os bots do time B saíam todos pela porta
+         oeste (medido: 1 rota separada até cada bandeira, CTF2). Encurtar 1 m devolve a volta
+         por trás da estante e mantém 0,62 m de margem na conta da visada.
+       Efeito lateral desejado: cada porta ganha um canto cego próprio, então as duas saídas
+       deixam de ser intercambiáveis e o defensor tem de escolher qual cobre. */
+    for (const sx of [-1, 1]) {
+      const cx = sx * 9.6, z0 = DEP_Z - 2.2, z1 = DEP_Z;
+      const zc = (z0 + z1) / 2, comp = z1 - z0;
+      // montantes (4 colunas de aço) + longarinas (3 níveis) + a carga que ocupa o vão
+      for (const oz of [-comp / 2 + 0.2, -comp / 2 + comp / 3, comp / 2 - comp / 3, comp / 2 - 0.2])
+        addBox(0.62, 2.8, 0.12, MAT.steel, cx, MZ.h, zc + oz, { collide: false });
+      for (const ny of [0.02, 0.95, 1.88]) {
+        addBox(0.66, 0.12, comp, MAT.steel, cx, MZ.h + ny, zc, { collide: false });
+        // palete + caixaria em cada nível: é a carga que TAPA a visada (a estante vazia não tapa nada)
+        addBox(0.60, 0.10, comp - 0.3, MAT.rack, cx, MZ.h + ny + 0.12, zc, { collide: false });
+        addBox(0.56, 0.68, comp - 0.4, MAT.goods, cx, MZ.h + ny + 0.22, zc, { collide: false });
+      }
+      // MASSA SÓLIDA da estante: é ela que a bala e o corpo encontram (addBox com colisão
+      // registra colisor E occluder e vai pro root — a peça decorativa acima é `collide:false`
+      // e entra no merge estático, que NÃO pode virar occluder: malha mesclada não tem
+      // matrixWorld próprio e o raycast leria a posição errada).
+      addBox(0.66, 2.8, comp, MAT.rack, cx, MZ.h, zc);
+    }
+
+    /* ESTOQUE DE FUNDO — as duas pontas do depósito eram chão liso. Prateleira de 2,20 m
+       (acima da linha do olho: 1,62 m) encostada na parede do fundo, nos dois cantos, fora
+       do disco de 5 m dos spawns e fora das duas fileiras do armário (z −40,6 e −37,4). */
+    for (const sx of [-1, 1]) for (const [cxp, zc] of [[sx * 11.9, MZ.z0 + 0.6]]) {
+      addBox(3.4, 2.2, 1.0, MAT.shelf, cxp, MZ.h, zc);
+      for (const ny of [0.7, 1.45]) addBox(3.2, 0.55, 0.9, MAT.goods, cxp, MZ.h + ny, zc, { collide: false });
+    }
+    /* PALETES DE CHÃO (0,90 m) encostados na parede de portas: cobertura de AGACHAR no meio
+       do depósito. z = DEP_Z − 0,45 é o único lugar que não briga com nada — a fileira da
+       frente do armário fica em z = −37,4 (game.js `_resetPositions`, 1,6 m à frente do
+       spawn) e um colisor em cima dela empurraria as armas, que foi como a rodada do
+       "critério de alcance a pé" esticou uma fileira de 12,65 m para 17,88 m. */
+    for (const [cxp, zc] of [[-3.6, DEP_Z - 0.45], [3.6, DEP_Z - 0.45]]) {
+      addBox(1.4, 0.14, 1.2, MAT.rack, cxp, MZ.h, zc, { collide: false });
+      addBox(1.3, 0.76, 1.1, MAT.goods, cxp, MZ.h + 0.14, zc, { collide: false });
+      colliders.push({ minX: cxp - 0.7, maxX: cxp + 0.7, minY: MZ.h, maxY: MZ.h + 0.9, minZ: zc - 0.6, maxZ: zc + 0.6 });
+    }
+  }
+  /* DEGRAUS: PISO + ESPELHO separados, com o topo de cada piso em MÚLTIPLO EXATO do espelho.
+     O chão andável (groundHeightAt) continua sendo uma rampa CONTÍNUA — 20 saltos de 17 cm
+     na câmera seria pior que o defeito — mas alinhada com o MEIO de cada piso: o desvio
+     entre o pé e o degrau em que se pisa é ≤ 8,5 cm em qualquer ponto da escada (era 11,1 cm
+     medido, e 23 cm na versão anterior à anterior). É por isso que o groundHeightAt da rampa
+     leva o `+ espelho/2`. */
+  for (const R of RAMPAS) {
+    const cx = (R.x0 + R.x1) / 2, Z1 = R.z1;
+    /* ZEBRA DESFEITA (pedido literal do dono: "as faixas antiderrapantes amarelas e azuis da
+       escada nova ficaram zebradas — faixa SÓ NO NARIZ do degrau, discreta").
+       A zebra não vinha da faixa: vinha do ESPELHO. Cada espelho era `MAT.wall`, o ACM AZUL
+       da fachada, entre um piso cinza e uma faixa amarela — 20 listras azuis e 20 amarelas
+       em 5,80 m de corrida. Agora o espelho usa o MESMO cinza do piso (MAT.mez), a escada
+       vira uma peça só e sobra UMA marcação: o nariz.
+       E a faixa fica discreta: 6 cm -> 4 cm de largura de nariz, e o amarelo saturado
+       (0xe8c22a) cede lugar ao amarelo-segurança sujo do piso industrial (0xc9a63e), que é
+       o que uma fita antiderrapante gasta de loja realmente é. */
+    const antid = lam({ color: 0xc9a63e, roughness: 0.85 });         // fita antiderrapante do nariz
+    const limao = lam({ color: 0x8d939b, roughness: 0.7, metalness: 0.3 });   // viga lateral
+    for (let k = 1; k <= ESC.n; k++) {
+      const yTop = ESC.espelho * k;                                  // topo do piso k (k = n -> piso do mezanino)
+      const zc = Z1 - (k - 0.5) * ESC.piso;                          // centro do piso
+      const zNariz = Z1 - (k - 1) * ESC.piso;                        // nariz do degrau (face do espelho)
+      if (k < ESC.n) addBox(ESC.larg, 0.06, ESC.piso, MAT.mez, cx, yTop - 0.06, zc, { collide: false });
+      addBox(ESC.larg, ESC.espelho, 0.04, MAT.mez, cx, yTop - ESC.espelho, zNariz, { collide: false });
+      // faixa antiderrapante EMBUTIDA (topo 2 mm acima do piso, não 12 mm): saliente demais
+      // ela vira um segundo patamar e a régua MAP3 lê 35 degraus de 10 cm em vez de 20 de 17.
+      addBox(ESC.larg, 0.012, 0.04, antid, cx, yTop - 0.010, zNariz - 0.03, { collide: false, cast: false });
+    }
+    // viga lateral (limão) + corrimão: caixas INCLINADAS, então vão como malha própria
+    const ang = Math.atan2(MZ.h, R.z1 - R.z0);                       // 30,4°
+    const comp = Math.hypot(MZ.h, R.z1 - R.z0);
+    for (const sx of [R.x0 + 0.05, R.x1 - 0.05]) {
+      const lm = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.42, comp), limao);
+      lm.position.set(sx, ESC.espelho / 2 + MZ.h / 2 - 0.16, (R.z0 + R.z1) / 2); lm.rotation.x = ang;
+      lm.castShadow = true; deco(lm);
+      const cr = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, comp + 0.24), MAT.steel);
+      cr.position.set(sx, ESC.espelho / 2 + MZ.h / 2 + 0.95, (R.z0 + R.z1) / 2); cr.rotation.x = ang;
+      cr.castShadow = true; deco(cr);
+      for (let k = 1; k < ESC.n; k += 4) {                           // montantes do corrimão
+        const y = ESC.espelho * k;
+        addBox(0.05, 0.95, 0.05, MAT.steel, sx, y, R.z1 - (k - 0.5) * ESC.piso, { collide: false });
+      }
+    }
+    /* COLISOR da escada: o corrimão é INCLINADO e um colisor AABB inclinado não existe —
+       então cada lado vira UM colisor vertical fino que fecha a caixa da escada de ponta a
+       ponta. Efeito: a escada é um canal de 1,74 m de largura livre (corpo = 0,76 m), não dá
+       pra entrar nela de lado atravessando o corrimão, e não dá pra cair dela. */
+    for (const sx of [R.x0 - 0.05, R.x1 + 0.05])
+      colliders.push({ minX: sx - 0.05, maxX: sx + 0.05, minY: 0, maxY: MZ.h + 1.0, minZ: R.z0, maxZ: R.z1 });
+  }
+  // MEZANINO MOBILIADO: a SACADA (entre o depósito e o guarda-corpo) é o perch de sniper —
+  // é lá que ficam as gôndolas de cover. O painel de TVs e o manequim (estoque) ficam DENTRO
+  // do depósito e agora TÊM COLISOR: prop sem colisor sobre chão andável = corpo dentro de
+  // sólido, o mesmo defeito do pedestal (invariante MAP1).
+  for (const gx of [-8, -2]) {
+    const gz = MZ.z1 - 2.6;
+    if (!gprop('gondola_eletro', gx, gz, 1.8, Math.PI / 2, MZ.h)) addBox(2.1, 1.8, 1.0, MAT.shelf, gx, MZ.h, gz);
+    colliders.push({ minX: gx - 1.05, maxX: gx + 1.05, minY: MZ.h, maxY: MZ.h + 1.8, minZ: gz - 0.55, maxZ: gz + 0.55 });
+  }
+  /* PAINEL DE TVs: saiu do canto de trás do depósito (era x 6,6-9,4 / z −40,8..−40,2) e foi
+     pra face da SACADA da parede de portas. Motivo medido: encostado no fundo ele fechava,
+     junto com o anteparo da porta, a única volta que o grafo tinha entre o miolo do depósito
+     e a porta leste — a fileira de waypoints de z = −40,2 morria nele e a de −38,5 morria na
+     estante. Onde ele está agora ele também faz mais sentido de loja: é a parede de TVs que
+     quem está embaixo, na loja, vê acesa lá em cima. */
+  gprop('painel_tvs', 0, DEP_Z + 0.45, 1.8, Math.PI, MZ.h + 0.2);
+  colliders.push({ minX: -1.4, maxX: 1.4, minY: MZ.h, maxY: MZ.h + 2.0, minZ: DEP_Z + 0.2, maxZ: DEP_Z + 0.7 });
+  gprop('manequim', 12, MZ.z0 + 2.5, 1.8, 2.4, MZ.h);
+  colliders.push({ minX: 11.7, maxX: 12.3, minY: MZ.h, maxY: MZ.h + 1.8, minZ: MZ.z0 + 2.2, maxZ: MZ.z0 + 2.8 });
   // PAREDE DO FUNDO DA LOJA (crítico: "azul monolítico"): faixa amarela Havan + letreiros
   // de seção + pôsteres de oferta — a fantasia da loja, sem redesenhar o mapa
   {
@@ -918,10 +1263,18 @@ export function buildHavan(scene, T) {
   const STAT_H = 15;
   gprop('statue_liberty', 0, 20, STAT_H, -Math.PI / 2) || addBox(3, STAT_H, 3, MAT.trim, 0, 0, 20);
   colliders.push({ minX: -1.5, maxX: 1.5, minY: 0, maxY: STAT_H, minZ: 18.5, maxZ: 21.5 });
-  // pedestal baixo (0.6m): a bandeira MID fica em cima dele, então NÃO pode crescer —
-  // o volume vem dos degraus concêntricos, não da altura.
-  addBox(7, 0.35, 7, MAT.curb, 0, 0, 20, { collide: false });
-  addBox(5.4, 0.6, 5.4, MAT.curb, 0, 0, 20, { collide: false });
+  /* PEDESTAL QUE COLIDE (era collide:false nos dois degraus). ESTE é o "os jogadores estão
+     SUBMERSOS EMBAIXO DA ESTÁTUA": dois blocos de 0,35 m e 0,60 m de altura sem colisor
+     nenhum sobre chão andável, e o groundHeightAt em volta da estátua devolvendo 0 — quem
+     andasse até o monumento entrava DENTRO do pedestal até o joelho, e os bots pareciam
+     brotar de cima dele. Medido pela sonda vertical da régua MAP1: 48 pontos andáveis com o
+     corpo dentro de sólido, penetração de até 0,60 m; todos aqui.
+     A correção é o pedestal virar o que ele parece: um bloco sólido. De quebra vira cover de
+     0,60 m no miolo do estacionamento, que é o que um monumento com base faz num mapa.
+     A bandeira MID saiu de cima dele (ver ctfPoints) — era ela que impedia o pedestal de
+     "crescer" e que fazia o anel de captura atravessar a geometria. */
+  addBox(7, 0.35, 7, MAT.curb, 0, 0, 20);
+  addBox(5.4, 0.6, 5.4, MAT.curb, 0, 0, 20);
 
   // ===== DEMARCAÇÃO DO ASFALTO (tinta gasta, não caixinha cinza chapada) =====
   // planos finos com alpha furado pelo desgaste. Zero collider, cast:false.
@@ -1004,6 +1357,14 @@ export function buildHavan(scene, T) {
   let _spot = 0;
   for (const zc of [10, 18, 28, 36, 44, 52]) for (const xc of [-32, -25, -18, -11, 11, 18, 25, 32]) {
     if (Math.hypot(xc, zc - 20) < 9) continue;   // deixa espaço ao redor da estátua
+    /* FLANCOS DO RESPAWN P LIVRES. A fileira de waypoints mais ao norte é z = 52,8 (a grade
+       de 3,4 m termina em HALF_Z−2 = 56 e o último múltiplo é 52,8), e os spawns estão em
+       z = 55: ou seja, TUDO que sai do respawn P passa por essa fileira. Com carro em
+       (±11, 52) a coluna x = ∓12,2 caía dentro do colisor inflado e sobrava UMA coluna útil
+       (x = ∓8,8) — todo caminho do time P nascia pela mesma porta. Medido: 1 rota separada
+       até a bandeira LOJA L (CTF2). Duas vagas VAZIAS aqui (com a tinta de demarcação à
+       mostra, que é conteúdo que já existe) valem mais que dois carros. */
+    if (zc === 52 && Math.abs(xc) === 11) continue;
     // GATE DE QUALIDADE (item 5 da auditoria de custo): em 'low' o pátio fica com METADE
     // dos carros, em xadrez — continua lendo como estacionamento cheio, com metade da
     // geometria. As vagas vazias mostram a tinta de demarcação, que é conteúdo que já existe.
@@ -1015,6 +1376,40 @@ export function buildHavan(scene, T) {
     const ry = (z > 28 ? 0 : Math.PI) + (RY_FIX[id] || 0) + (Math.random() - 0.5) * 0.12;   // fileiras retas, quase alinhadas
     placeCar(id, x, z, ry);
     colliders.push({ minX: x - 1.2, maxX: x + 1.2, minY: 0, maxY: 1.4, minZ: z - 2.2, maxZ: z + 2.2 });  // collider do carro
+  }
+  /* MAIS CARROS NO PÁTIO (pedido do dono: "enchemos o estacionamento de mais carros ...
+     assim o mapa fica mais preenchido e utilizável"). +14 carros, net +12 (duas vagas do
+     flanco do respawn P ficaram vazias de propósito — ver o laço da grade acima).
+     ONDE, e por quê exatamente aqui: a grade de vagas já está no LIMITE de empacotamento —
+     fileiras a cada 8 m com carro de 4,4 m de comprimento dão 3,6 m de corredor. A primeira
+     versão desta rodada enfiou fileiras intercaladas a 4 m das vizinhas: os colisores se
+     sobrepunham 0,40 m e a planta mostrava uma PAREDE contínua de carro de z 8 a z 54 em
+     |x| = 25 e 32. Carro dentro de carro não é "mais preenchido", é bug.
+     Os dois lugares que estavam realmente vazios são:
+       • a faixa da FRENTE, z ∈ [−6, 8], entre a fachada da loja e a 1ª fileira (z = 3, com
+         2,6 m de corredor para a fileira de z = 10);
+       • as duas faixas LATERAIS, |x| ∈ [33, 38], entre a última coluna de vagas e o muro
+         (x = ±35,5, três carros por lado, espaçados 16 m — não fecham a faixa). */
+  for (const [xc, zc] of [[-32, 3], [-25, 3], [-18, 3], [-11, 3], [11, 3], [18, 3], [25, 3], [32, 3]]) {
+    if (LOWQ && ((xc + zc) % 7 < 3)) continue;   // mesmo gate de qualidade da grade principal
+    const id = carPool[ci++ % carPool.length];
+    const ry = Math.PI + (RY_FIX[id] || 0) + (Math.random() - 0.5) * 0.12;
+    placeCar(id, xc, zc, ry);
+    colliders.push({ minX: xc - 1.2, maxX: xc + 1.2, minY: 0, maxY: 1.4, minZ: zc - 2.2, maxZ: zc + 2.2 });
+  }
+  /* Os 6 das faixas laterais entram ENCOSTADOS no muro (nariz pra parede) e com colisor
+     QUADRADO de 4,4 × 4,4 m. Não é preguiça: o `ry` de cada carro leva o `RY_FIX` DO MODELO
+     (uns GLB nascem girados 90°) e a faixa lateral só tem 4,8 m de largura — com o colisor
+     retangular de sempre (2,4 × 4,4, comprimento no eixo z) um modelo girado ficava com 2 m
+     de carroceria PARA FORA do colisor, sobre chão que continuava andável. Medido pela
+     invariante MAP1: 2 pontos com o corpo dentro do carro em (−33,5 , 13,5) e (−33,5 , 14,5),
+     penetração 0,825 m. O colisor quadrado cobre a maior dimensão do carro em QUALQUER
+     rotação — 4,4/2 = 2,2 m contra 2,1 m de meia-carroceria. */
+  for (const [xc, zc] of [[-35.5, 14], [-35.5, 30], [-35.5, 46], [35.5, 14], [35.5, 30], [35.5, 46]]) {
+    if (LOWQ && ((xc + zc) % 7 < 3)) continue;
+    const id = carPool[ci++ % carPool.length];
+    placeCar(id, xc, zc, (xc < 0 ? -Math.PI / 2 : Math.PI / 2) + (RY_FIX[id] || 0));
+    colliders.push({ minX: xc - 2.2, maxX: xc + 2.2, minY: 0, maxY: 1.4, minZ: zc - 2.2, maxZ: zc + 2.2 });
   }
   // CARROS NA FAIXA CENTRAL (G2-R14B, pedido do dono): pares escalonados no corredor
   // x∈[-7,7] entre o spawn do estacionamento e a loja — quebram a lane aberta de tiro.
@@ -1056,9 +1451,11 @@ export function buildHavan(scene, T) {
   // no A*, não bloqueia bala, não muda o campo de jogo. Só existe como marco no horizonte.
   if (DECO_HI) {
     const CW = { x: -72, z: 18 };   // bem fora do muro (x=-38.5): o pátio dela não pode invadir o asfalto
-    const wh = lam({ color: 0xf2efe6, roughness: 0.8 });
-    const whRoof = lam({ color: 0xd8d4c6, roughness: 0.85 });
-    addFloor(46, 40, CW.x, CW.z, MAT.curb, 0.02);                              // terreno/pátio
+    // TEX1: os dois brancos da Casa Branca eram cor chapada em painéis de 132 e 150 m² —
+    // eram eles os "retângulos brancos grandes e lisos" mais visíveis do horizonte do mapa.
+    const wh = lam({ color: 0xf2efe6, roughness: 0.8, map: reTile(GESSO_TEX, 6, 6) });
+    const whRoof = lam({ color: 0xd8d4c6, roughness: 0.85, map: reTile(GESSO_TEX, 6, 6) });
+    addFloor(46, 40, CW.x, CW.z, MAT.patio, 0.02);                             // terreno/pátio
     addBox(24, 7.5, 11, wh, CW.x, 0, CW.z, { collide: false });                // corpo central
     for (const sx of [-1, 1]) addBox(9, 5.5, 8, wh, CW.x + sx * 16, 0, CW.z, { collide: false });   // alas
     addBox(25, 0.6, 12, whRoof, CW.x, 7.5, CW.z, { collide: false });          // platibanda
@@ -1110,10 +1507,52 @@ export function buildHavan(scene, T) {
   scene.add(sun);
 
   // ===== ground height (mezanino elevado + rampa) =====
-  function groundHeightAt(x, z) {
-    if (x > MZ.x0 && x < MZ.x1 && z > MZ.z0 && z < MZ.z1) return MZ.h;
-    if (x > RAMP.x0 && x < RAMP.x1 && z > RAMP.z0 && z < RAMP.z1) return MZ.h * Math.max(0, Math.min(1, (RAMP.z1 - z) / (RAMP.z1 - RAMP.z0)));
-    return 0;
+  function groundHeightAt(x, z, yRef) {
+    /* LIMITES INCLUSIVOS nas bordas que se ENCOSTAM (MZ.z1 == RAMP.z0). Com `<` e `>`
+       estritos sobrava um FURO de medida zero exatamente em z = MZ.z1, onde a função
+       devolvia 0 entre dois patamares de 3,4 m. No jogo é um ponto que quase nunca é
+       pisado; em toda régua discreta ele é fatal — o flood-fill de andabilidade (grade de
+       0,25 m, que caía justamente em z = -35,00) não subia UMA célula no mezanino por causa
+       dele, e o andar de cima aparecia como inalcançável a pé.
+       O `+ ESC.espelho/2` na rampa põe o chão andável no MEIO de cada piso da escada: é o
+       que limita o desvio pé↔degrau a meio espelho (8,5 cm) em vez de um espelho inteiro. */
+    /* ── CHÃO MULTINÍVEL (04/08) ────────────────────────────────────────────────
+       Defeito do dono: "não dá pra andar debaixo das escadas do respawn da loja".
+
+       Por que era impossível ANTES: esta função devolvia UM Y por (x, z). Dentro da
+       pegada da escada o chão ERA a escada, na altura dela — não existia "embaixo" para
+       o motor. E como `tryAxis` (game.js) trata subida acima de STEP_H como parede, andar
+       do piso em direção ao vão dava numa parede invisível na boca da escada.
+
+       O QUE MUDA: a função passa a aceitar `yRef` — o Y de quem está perguntando — e
+       responde "qual superfície é o SEU chão", escolhendo entre as camadas daquele ponto.
+       Sem `yRef` ela devolve a camada mais alta, que é exatamente o comportamento antigo:
+       toda régua e todo chamador que ainda não passa o Y continuam funcionando igual.
+
+       PÉ-DIREITO É PARTE DA REGRA, não detalhe: só vale descer para a camada de baixo se
+       couber gente em pé ali (ALTURA_LIVRE). Sem isso o jogador entraria embaixo do
+       primeiro degrau — 17 cm de vão — e andaria com a cabeça dentro da escada. É por isso
+       que só o fundo da escada abre: perto do piso ela é baixa demais, e lá o motor
+       continua mandando subir. */
+    const camadas = [];   // do mais baixo para o mais alto
+    let topo = 0;
+    if (x > MZ.x0 && x < MZ.x1 && z >= MZ.z0 && z <= MZ.z1) topo = MZ.h;
+    for (const R of RAMPAS)
+      if (x >= R.x0 && x <= R.x1 && z >= R.z0 && z <= R.z1) {
+        const h = Math.min(MZ.h, ESC.espelho / 2 + MZ.h * Math.max(0, Math.min(1, (R.z1 - z) / (R.z1 - R.z0))));
+        topo = Math.max(topo, h);
+        if (h >= ALTURA_LIVRE) camadas.push(0);   // há vão utilizável DEBAIXO desta escada
+      }
+    if (yRef == null || !camadas.length) return topo;
+
+    /* Escolha da camada: a mais alta que o corpo alcança de um passo (STEP_TOL, o mesmo
+       0,55 m do step-up do game.js). Quem está no piso fica no piso e passa por baixo;
+       quem já está na escada continua na escada. Empate nunca acontece porque as camadas
+       aqui diferem por pelo menos ALTURA_LIVRE. */
+    const STEP_TOL = 0.55;
+    let melhor = camadas[0];
+    for (const c of [...camadas, topo]) if (c <= yRef + STEP_TOL && c > melhor) melhor = c;
+    return melhor;
   }
 
   // ===== waypoints + A* =====
@@ -1122,7 +1561,55 @@ export function buildHavan(scene, T) {
   for (let gx = -HALF_X + 2; gx <= HALF_X - 2; gx += STEP)
     for (let gz = -HALF_Z + 2; gz <= HALF_Z - 2; gz += STEP)
       if (!blocked(gx, gz, 0.5)) nodes.push({ x: gx, z: gz });
-  const segClear = (a, b) => { for (let i = 1; i < 6; i++) { const t = i / 6, x = a.x + (b.x - a.x) * t, z = a.z + (b.z - a.z) * t; if (blocked(x, z, 0.25)) return false; if (Math.abs(groundHeightAt(x, z) - groundHeightAt(a.x, a.z)) > 0.7) return false; } return true; };
+  // ADENSAMENTO NA RAMPA: com STEP 3,4 m só 2 nós caíam sobre uma rampa de 6 m — dois pontos
+  // não fazem caminho. Rampa precisa de passo proporcional à inclinação (mesma conclusão do
+  // protótipo em tools/mapdesign/favela.py: escada a 1,1 m contra rua a 3,4 m).
+  /* 1,7 m -> 0,8 m: a escada nova tem 2,60 m de largura (era 6,00) e 5,80 m de corrida (era
+     10,00), e o corrimão virou colisor. Com passo 1,7 sobrava UMA coluna de nós dentro do
+     canal livre de 1,74 m — uma fila de pontos não é grafo. Com 0,8 são 3 colunas × 7
+     fileiras dentro da escada. */
+  /* O laço vai até `R.z1 + 2.4`, ou seja, 2,4 m ALÉM do último degrau, já no piso da loja.
+     Motivo medido: a grade grossa de 3,4 m não tem coluna nenhuma alinhada com a boca da
+     escada nova (os x da grade são −12,2 e −8,8; o canal da escada é [−11,4 , −8,8]), e a
+     aresta que ligaria o pé da escada ao nó de fora ATRAVESSA o colisor do corrimão — o
+     `segClear` a rejeita, com razão. Resultado antes: a escada O tinha 21 waypoints e ZERO
+     ligação para baixo; o A* do time B descia toda partida pela escada L, do outro lado do
+     mezanino, e a régua CTF2 media 1 rota separada. Com o desembarque em frente à escada, o
+     grafo sai dela pela FRENTE, que é por onde se sai de uma escada. */
+  const RSTEP = 0.8;
+  for (const R of RAMPAS)
+    for (let gx = R.x0 + RSTEP / 2; gx < R.x1; gx += RSTEP)
+      for (let gz = R.z0 + RSTEP / 2; gz < R.z1 + 2.4; gz += RSTEP)
+        if (!blocked(gx, gz, 0.35)) nodes.push({ x: gx, z: gz });
+  // ADENSAMENTO NO MEZANINO: o andar de cima tem 28 × 10,4 m e é onde o time B nasce. Com o
+  // STEP de 3,4 m do térreo, o depósito (4,8 m de fundura) ganhava 1 fileira de nós e as
+  // portas de 2,8 m caíam entre dois nós — o A* saía do spawn andando em linha reta.
+  for (let gx = MZ.x0 + 1.2; gx < MZ.x1; gx += 1.7)
+    for (let gz = MZ.z0 + 1.2; gz < MZ.z1; gz += 1.7)
+      if (!blocked(gx, gz, 0.35)) nodes.push({ x: gx, z: gz });
+  // TETO POR DEGRAU, não por subida TOTAL. A forma antiga comparava cada amostra com o ponto
+  // inicial `a` — isto é, limitava o desnível ACUMULADO da aresta inteira a 0,7 m, o que
+  // travava a inclinação em 0,7/3,4 = 20,6% por mais suave que a rampa fosse. Comparando
+  // amostra com amostra (0,57 m entre elas), 0,30 m de degrau libera rampa contínua de até
+  // ~53% e continua barrando parede: parede aparece como salto de METROS entre vizinhas.
+  const segClear = (a, b) => {
+    /* AMOSTRAGEM DE PASSO FIXO (era sempre 6 amostras, qualquer que fosse o comprimento).
+       Com 6 amostras numa aresta de 3,4 m o espaçamento é 0,57 m — e numa escada de 30,4°
+       isso dá 0,33 m de desnível ENTRE AMOSTRAS, acima do teto de 0,30 m: a escada nova
+       seria rejeitada inteira pelo próprio teto que existe pra barrar parede. Fixando o
+       espaçamento em 0,28 m o teste passa a medir a INCLINAÇÃO (0,16 m por amostra na
+       escada) e não o comprimento da aresta, e ainda apalpa `blocked` mais vezes. */
+    const passos = Math.max(6, Math.ceil(Math.hypot(b.x - a.x, b.z - a.z) / 0.28));
+    let hp = groundHeightAt(a.x, a.z);
+    for (let i = 1; i <= passos; i++) {
+      const t = i / passos, x = a.x + (b.x - a.x) * t, z = a.z + (b.z - a.z) * t;
+      if (blocked(x, z, 0.25)) return false;
+      const h = groundHeightAt(x, z);
+      if (Math.abs(h - hp) > 0.30) return false;
+      hp = h;
+    }
+    return true;
+  };
   for (let i = 0; i < nodes.length; i++) { adj.push([]); for (let j = 0; j < nodes.length; j++) { if (i === j) continue; const dx = nodes[i].x - nodes[j].x, dz = nodes[i].z - nodes[j].z; if (dx * dx + dz * dz < STEP * STEP * 2.4 && segClear(nodes[i], nodes[j])) adj[i].push(j); } }
   function nearestWaypoint(x, z) { let b = 0, bd = 1e9; for (let i = 0; i < nodes.length; i++) { const dx = nodes[i].x - x, dz = nodes[i].z - z, d = dx * dx + dz * dz; if (d < bd) { bd = d; b = i; } } return b; }
   const _D = (a, b) => { const dx = nodes[a].x - nodes[b].x, dz = nodes[a].z - nodes[b].z; return Math.sqrt(dx * dx + dz * dz); };
@@ -1139,33 +1626,111 @@ export function buildHavan(scene, T) {
   // spawns: Bolsonaristas (B) DENTRO da loja ATRÁS da última gôndola (cover da fileira);
   // o outro time (P) no estacionamento, flanqueado por carros (cover dos veículos).
   const spawns = {
-    B: [-10, -5, 0, 5].map(x => ({ x, z: -31, yaw: 0 })),        // entre gôndolas 3 e 4 (fileira z=-27 cobre da porta)
+    /* B NASCE NO ANDAR DE CIMA, DENTRO DO DEPÓSITO (pedido literal do dono). Era z=-31 no
+       térreo, entre gôndolas. O slot 0 vai em x=0 de propósito: o armário do spawn é
+       ancorado nele (game.js `_resetPositions`, `cx = spawns[0].x`) e uma fileira de 13
+       armas com passo 1,15 m tem 13,8 m — centrada em x=0 ela cabe inteira nos 28 m do
+       mezanino; ancorada em x=-10 metade dela cairia pela borda, no térreo. */
+    /* os 4 slots ficam ATRÁS do trecho CHEIO da parede do depósito (x ∈ [-9,6 , 9,6]), nunca
+       na frente de uma porta: medido, o slot em x=-12 (dentro do vão de 2,8 m) era visto de
+       14,0% dos pontos a ≥ 25 m e tinha 103 m de linha de tiro limpa — a bala entrava pela
+       porta do depósito, atravessava a loja e saía no estacionamento. Os outros três, atrás
+       da parede cheia, estavam em 0,9-1,5%. */
+    /* [0, −5, 5, −8] -> [0, −6, 6, 3]. O slot em x = −8 era o que MANDAVA no comprimento do
+       anteparo das portas: quanto mais perto de −9,6 (a borda interna da porta oeste) fica o
+       spawn mais fundo a estante precisa entrar pra tapar a reta, e com −8 ela precisava de
+       3,2 m, o que estrangulava o grafo (ver o bloco DEPÓSITO). Com |x| ≤ 6 a conta fecha em
+       2,2 m. Continua simétrico e continua com o slot 0 em x = 0, que é onde o armário das 25
+       armas se ancora (game.js `_resetPositions`, `cx = spawns[0].x`). */
+    B: [0, -6, 6, 3].map(x => ({ x, z: MZ.z0 + 2.4, yaw: 0 })),        // depósito do mezanino
     P: [-8, -3, 3, 8].map(x => ({ x, z: HALF_Z - 3, yaw: Math.PI })), // fundo do estacionamento
   };
   // carros de proteção do spawn P (flanqueiam a bandeira ESTACIONAMENTO, fora do anel).
   // G2-R6B: linha alargada (±13) + carro de frente (0, 44.5) — o respawn do estacionamento
   // nasce atrás de uma BARREIRA de veículos (cover físico imediato; A* contorna, h=1.4
   // não interfere no LOS spawn↔spawn que já é 0).
-  for (const [cx, cz, cry] of [[-6, 50.5, 0.1], [6, 50.5, -0.1], [-13, 50.5, 0.06], [13, 50.5, -0.06], [0, 44.5, 0.04]]) {
+  /* ±13 -> ±14,5 nos carros de fora (map_havan.js:1531). A barreira continua a mesma coisa
+     (5 carros, mesmos vãos de 4,6 m entre eles), mas a COLUNA de waypoints de x = ∓12,2 —
+     a única que existe entre o carro de fora e o de dentro na grade de 3,4 m — deixa de cair
+     dentro do colisor inflado do carro. Sem ela o respawn do estacionamento tinha UMA saída
+     útil no grafo (x = ∓8,8) e todo caminho do time P começava por ela: medido, 1 rota
+     separada até a bandeira LOJA L (invariante CTF2). */
+  for (const [cx, cz, cry] of [[-6, 50.5, 0.1], [6, 50.5, -0.1], [-14.5, 50.5, 0.06], [14.5, 50.5, -0.06], [0, 44.5, 0.04]]) {
     const id = carPool[ci++ % carPool.length];
     placeCar(id, cx, cz, Math.PI + cry);
     colliders.push({ minX: cx - 1.2, maxX: cx + 1.2, minY: 0, maxY: 1.4, minZ: cz - 2.2, maxZ: cz + 2.2 });
   }
   // 3 bandeiras: estacionamento, estátua, gôndolas (corredor central da loja)
+  /* 3 bandeiras — DISTRIBUÍDAS, não enfileiradas. As três estavam em x=0: a mesma reta que
+     liga o spawn do estacionamento ao spawn da loja. Duas consequências MEDIDAS:
+       • altura do triângulo das bandeiras = 0,00 m. Com as três colineares, o caminho mais
+         curto entre as duas pontas ATRAVESSA o anel do meio (raio 4,5 m) — é literalmente o
+         "os bots da loja ficam todos na bandeira do meio" que o dono reclamou: o A* que vai
+         de uma base à outra passa dentro da zona de captura central.
+       • a do estacionamento ficava a 5,83 m do spawn P e a das gôndolas a 7,00 m do spawn B
+         (menos que o raio de captura + o corpo): dava pra capturar de dentro do respawn.
+       • a do meio estava CRAVADA na estátua (0,20): 0,0 m de linha de tiro limpa medida —
+         ninguém conseguia atirar nela — e o anel de captura atravessava o pedestal, que é o
+         "anel rosa cortando a geometria" dos prints.
+     Agora: uma em cada quadrante, nenhuma na linha central, todas fora do pedestal e a
+     ≥ 12 m do spawn mais próximo (medido: 21,5 / 28,3 / 17,2 m; altura do triângulo 14,5 m). */
+  /* 3 -> 4 BANDEIRAS, DUAS DE CADA LADO (pedido literal do dono, palavra por palavra):
+       "ao invés de ter UMA BANDEIRA NO MEIO DA LOJA colocamos UMA BANDEIRA DE CADA LADO. a
+        mesma coisa no estacionamento: ao invés de ter uma bandeira NA ESTÁTUA, ... bandeiras,
+        UMA DE CADA LADO, assim o mapa fica mais preenchido e utilizável, e O MEIO CONTINUA
+        SENDO O CAMINHO PRINCIPAL mas aí os bots e jogadores têm mais opções de jogar."
+     A leitura de projeto é direta: bandeira no EIXO é bandeira que todo mundo disputa no
+     mesmo metro quadrado. Com uma de cada lado, o eixo central deixa de ser o único destino
+     e passa a ser o que o dono quer que ele seja — o TRÂNSITO entre os dois lados.
+     Onde ficam:
+       LOJA O / LOJA L  (±20,5 , −24): dentro dos corredores laterais novos, o que dá função
+         às portas de canto e aos 13 m de loja que eram vazio de cenário.
+       PÁTIO O / PÁTIO L (±21,5 , 32): nas faixas livres entre as colunas de vaga (x livre
+         [19,2 , 23,8], z livre [30,2 , 33,8]), fora do eixo do estacionamento.
+     A da ESTÁTUA sai (era a "do meio"), e a antiga ESTACIONAMENTO (−19, 41) vira a PÁTIO O.
+     Altura mínima do triângulo entre as 4: 32,8 m de projeto (raio de captura 4,5). */
   const ctfPoints = [
-    { id: 'P', label: 'ESTACIONAMENTO', x: 0, z: HALF_Z - 8 },
-    { id: 'MID', label: 'ESTÁTUA', x: 0, z: 20 },
-    { id: 'B', label: 'GÔNDOLAS', x: 0, z: -24 },
+    { id: 'PO', label: 'PÁTIO O', x: -21.5, z: 32 },
+    { id: 'PL', label: 'PÁTIO L', x: 21.5, z: 32 },
+    { id: 'BO', label: 'LOJA O', x: -20.5, z: -24 },
+    { id: 'BL', label: 'LOJA L', x: 20.5, z: -24 },
   ];
 
   // arsenal: rifles nas gôndolas/loja, snipers no mezanino, pistolas nos spawns
   const gmat = lam({ color: 0x20242a });
   const place = (kind, x, z) => { const m = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.12, 1.0), gmat); m.position.set(x, groundHeightAt(x, z) + 0.1, z); m.castShadow = true; root.add(m); pickups.push({ x, z, kind, weapon: kind, readyAt: 0, mesh: m }); };
   ['ak', 'm4', 'mp5', 'shotgun'].forEach((k, i) => place(k, -9 + i * 6, -13));
-  // snipers NO CHÃO (dono: não dá pra subir no mezanino/mesa pra pegar). z fora do footprint
-  // do mezanino -> groundHeightAt=0 -> chão, alcançável, estilo CS (arma no chão).
-  place('awp', 5, MZ.z0 - 3.5); place('m400', -6, MZ.z0 - 3.5);
-  ['deagle', 'ak', 'm4', 'shotgun', 'mp5', 'awp'].forEach((k, i) => place(k, -25 + i * 10, 44));   // estacionamento
+  /* snipers NO CHÃO (dono: não dá pra subir no mezanino/mesa pra pegar). "z fora do footprint
+     do mezanino -> groundHeightAt=0 -> chão, alcançável" era VERDADE pela metade: fora do
+     footprint tem chão, sim, mas `MZ.z0 - 3.5` = z −44,9 cai ATRÁS do muro do fundo da loja
+     (o colisor {x −28..28, z −42,5..−41,5} de map_havan.js:881) — um BOLSÃO FECHADO. Medido
+     por flood-fill de andabilidade a partir dos spawns dos dois times (tools/eval/pickup-check.mjs):
+     26.412 células andáveis lá dentro, 0 alcançadas; a célula alcançável mais próxima da awp
+     ficava a 9,81 m. Nenhum jogador e nenhum bot jamais pegou estas duas armas.
+     Passaram despercebidas porque as duas réguas antigas davam VERDE: o grafo TEM waypoints
+     no bolsão (a 0,92 m da awp), só que numa componente desconexa; e a reta do spawn até lá
+     não cruza o muro, cruza o vão ao lado dele.
+     CORREÇÃO, o menor deslocamento que resolve: a mesma ideia ("no chão, rente ao mezanino,
+     fora do footprint"), só que pela borda da FRENTE (MZ.z1, lado da loja) em vez da de trás
+     (MZ.z0, lado do muro). z: −44,9 -> −34,5 (10,40 m); x intocado (5 e −6). Medido depois:
+     distância ao chão alcançado = 0,00 m nas duas. */
+  place('awp', 5, MZ.z1 + 0.5); place('m400', -6, MZ.z1 + 0.5);
+  /* DUAS ARMAS NOS CANTOS NOVOS DA LOJA. Duas razões, nesta ordem:
+     (1) o dono vetou reduzir o número de armas no chão, e apagar a praça clássica levou as 2
+         que ela tinha — estas duas devolvem o total de 246 sem mexer em mapa nenhum vivo;
+     (2) corredor lateral sem motivo continua vazio por mais gôndola que se ponha nele. Loot
+         é o motivo: quem entra pela porta de canto agora pega uma arma no caminho.
+     x = ±20,7 é o meio do corredor externo (livre entre 19,23 e 22,80) e z = −22 cai entre as
+     ilhas de promoção (z −18 e −30), longe de qualquer colisor. */
+  place('mp5', -20.7, -22); place('deagle', 20.7, -22);
+  /* estacionamento. Era `-25 + i*10` = x −25/−15/−5/5/15/25 — e três desses x caem DENTRO de
+     um carro: as vagas de map_havan.js:1024 ficam em x ±11/±18/±25/±32 (colisor ±1,2 m) e o
+     par da faixa central de map_havan.js:1042 põe mais um carro em (5, 43). Medido: deagle
+     (x −25), shotgun (x 5) e awp (x 25) ficavam a 1,75 m do chão andável mais próximo — fora
+     até do raio de 1,7 m com que o bot coleta andando por cima (game.js `_updatePickups`).
+     Agora os 6 x são CENTROS DE FAIXA entre as vagas (±7,5 / ±14,5 / ±21,5): deslocamento
+     máximo 3,5 m, simetria preservada, e distância ao chão alcançado = 0,00 m nos seis. */
+  ['deagle', 'ak', 'm4', 'shotgun', 'mp5', 'awp'].forEach((k, i) => place(k, [-21.5, -14.5, -7.5, 7.5, 14.5, 21.5][i], 44));
 
   // saia de contato: todas as bases registradas viram UMA malha mesclada = 1 draw call
   SKIRT.build(root);
@@ -1180,6 +1745,15 @@ export function buildHavan(scene, T) {
   return {
     root, colliders, occluders, groundHeightAt, spawns, sun, hemi, pickups, doors, ctfPoints,
     waypoints: { nodes, adj }, nearestWaypoint, findPath,
+    /* DECLARAÇÃO PRA RÉGUA (tools/eval/map-check.mjs) — não é usada pelo jogo.
+       `stairs` diz ONDE fica a escada; o perfil (espelho, piso, largura, inclinação) é
+       MEDIDO por raycast na geometria construída, então declarar errado não maquia nada:
+       a medida some e a invariante MAP3 fica vermelha. `levels` diz qual patamar precisa
+       ser ALCANÇADO a pé e pelo A* — é o que transforma "tem um mezanino" em "dá pra subir
+       no mezanino", que foi o defeito real (o mezanino era uma ILHA no grafo). */
+    stairs: [{ nome: 'escada L do mezanino', x0: RAMP.x0, x1: RAMP.x1, z0: RAMP.z0, z1: RAMP.z1, topo: MZ.h },
+      { nome: 'escada O do mezanino', x0: RAMP2.x0, x1: RAMP2.x1, z0: RAMP2.z0, z1: RAMP2.z1, topo: MZ.h }],
+    levels: [{ nome: 'mezanino', x0: MZ.x0, x1: MZ.x1, z0: MZ.z0, z1: MZ.z1, dePartida: 'P' }],
     bounds: { minX: -HALF_X + 0.5, maxX: HALF_X - 0.5, minZ: -HALF_Z + 0.5, maxZ: HALF_Z - 0.5 },
   };
 }

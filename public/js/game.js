@@ -7,6 +7,8 @@ import { weaponModel, weaponCFG, ONE_HANDED, WEAPON_IDS, PISTOLS, gripPoints } f
 import { buildFPArms, poseToWeapon, FP_OFF, getStaticVm, getStaticVmTex, loadStaticVm } from './fparms.js';
 import { VM_GUNSPACE, gunBasis, buildVmAttachment, VM_FRAME } from './vmattach.js';
 import { GPUParticles } from './gpuparticles.js';
+// radiância do céu MEDIDA por mapa (r3_fog.py) — teto de brilho da fumaça, ver _corDaFumaca
+import { skyRadiance } from './bloom.js';
 import { RecoilAxis } from './springs.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
@@ -60,15 +62,62 @@ export const WEAPONS = {
    ?killcam=0 -> sem painel/câmera de morte
    Motivo: as três mudam COMPORTAMENTO sentido pelo jogador; o dono precisa do A/B. */
 const QS = new URLSearchParams(location.search);
+/* KILL-SWITCH DA RODADA DE MATERIAL: ?vmmat=legacy devolve, de uma vez, o clamp
+   `min(metalness, 0.55)` do viewmodel E o orçamento fixo de 7,60 unidades de luz da vmScene.
+   Está aqui em cima, num lugar só, porque as duas coisas são UMA correção (ver o bloco do
+   `fixVmMaterials`): a arma ficou branca porque o material perdeu metalicidade E porque a
+   luz era 2,7× a do mapa. Desfazer uma sem a outra troca um defeito por outro. A conta que
+   justifica a troca é analítica (tools/eval/mat_shade.py) e não passou por GPU nenhuma —
+   esta querystring é a saída honesta caso a GPU do dono discorde da conta. */
+const VM_MAT_LEGACY = QS.get('vmmat') === 'legacy';
 // RESPAWN 2.5→2.2 e SPAWN_PROT 3→2: o custo medido de morrer em Brasília era ~16s (16% do
 // round) olhando pra esplanada vazia. Menos espera + spawn escolhido por segurança
 // (_pickSpawn) encurta o caminho de volta pra briga sem virar respawn de arena.
 const ROUND_TIME = 99, ROUNDS_TO_WIN = 3, RESPAWN_DELAY = 2.2, PICKUP_RESPAWN = 8, SPAWN_PROT = 2;
+/* TETO DE RODADAS — "melhor de 5", que é o que o índice já promete ao jogador
+   (src/pages/index.astro:503, "Vence quem ganhar 3 rounds"). Sem este teto o formato NÃO
+   ERA melhor de 5: round EMPATADO não dá ponto pra ninguém (game.js:_endRound), então uma
+   partida com muitos empates nunca chegava aos 3. Medido em tools/eval/ui-check.mjs (UI4):
+   fy_pool_day/DM rodou 5 rounds e 600 s simulados sem `matchEnd` (placar de rounds 1 × 2).
+   Com o teto, a partida acaba na 5ª rodada valendo quem tem mais rounds (desempate: abates
+   da partida inteira). Pior caso: 5 × (3 s de countdown + 99 s + 4 s de fim) = 530 s. */
+const ROUNDS_MAX = ROUNDS_TO_WIN * 2 - 1;
+/* ==== CAPTURA (CTF): O MODO NÃO TEM RELÓGIO DE ROUND — game.js:84-104 ====
+   O dono, jogando o ferro velho do Zé: "o captura estava com cronometragem — isso não
+   acontece em CTF". Ele está certo, e a cronometragem era REGRESSÃO MINHA: na rodada
+   passada o CAPTURA não fechava partida nenhuma (UI4 mediu 0 de 5 mapas em 600 s), e eu
+   consertei do jeito errado — dei ao modo o MESMO relógio de 99 s dos rounds de abate.
+   Isso fechou a partida e quebrou o modo: em CTF o round acaba por OBJETIVO, não por
+   tempo. As duas verdades têm que valer juntas, e a UI4 agora cobra as duas:
+     · a RODADA fecha por ALVO DE CAPTURAS (CTF_CAPS_TO_WIN) ou por dominação das
+       bandeiras (_ctfWin) — nunca por tempo;
+     · a PARTIDA fecha por vitórias de rodada (CTF_ROUNDS_TO_WIN), por teto de rodadas
+       (CTF_ROUNDS_MAX) ou, como REDE DE SEGURANÇA, por um teto de tempo DE PARTIDA
+       (CTF_MATCH_TIME) que só aparece no HUD nos últimos CTF_CLOCK_SHOW segundos.
+   PROCEDÊNCIA DOS NÚMEROS (medidos, não escolhidos — tools/eval/ui-check.mjs e a sonda
+   de ritmo de captura sobre o harness, 5 mapas × 600 s simulados, semente 4242):
+     capturas por 99 s (os dois times somados): awp_map 3,1 · praca_old 3,1 ·
+     fy_pool_day 3,3 · fy_havan 1,5 · fy_ferrovelho 1,2.
+   Com CTF_CAPS_TO_WIN = 2, o mapa MAIS LENTO medido (ferrovelho, 1,2/99 s repartidos
+   entre 2 times) leva ~2 × 99/0,6 ≈ 330 s pra uma rodada, e é por isso que existe o teto
+   de tempo de PARTIDA — sem ele o modo voltaria a não fechar. Melhor de 3 (e não de 5)
+   porque a rodada de captura é 2-3× mais longa que a de abate: 5 rodadas de captura não
+   cabem em partida nenhuma. */
+const CTF_CAPS_TO_WIN = 3;
+const CTF_ROUNDS_TO_WIN = 2, CTF_ROUNDS_MAX = CTF_ROUNDS_TO_WIN * 2 - 1;
+const CTF_MATCH_TIME = 480;
+const CTF_CLOCK_SHOW = 60;
 // O round SEMPRE queimava os 99s e ganhava quem tivesse mais kills — sem virada, sem clímax.
 // Agora existe ALVO (3 abates × jogadores por lado, mín. 6): quem chega primeiro fecha o
 // round na hora, e a 2 abates do fim entra o banner MATCH POINT (pico no fim, não platô).
 const KILLS_PER_PLAYER = 3, KILLS_MIN = 6;
-const PACE = QS.get('pace') !== '0';
+/* ALVO DE ABATES: DESLIGADO POR PADRÃO desde 04/08 (decisão do dono: "os rounds não podem
+   ter limite de kills no single player"). Era `!== '0'` — ligado sempre, e o round fechava
+   no alvo (4v4 -> 12 abates) cortando a rodada justamente quando ela estava boa, sem o
+   jogador ter escolhido isso em lugar nenhum do menu. Agora o round de rodadas termina por
+   RELÓGIO ou eliminação, que é a regra do CS. `?pace=1` devolve o alvo pra comparar.
+   O CTF não passa por aqui: lá o alvo é de bandeiras (`capsToWin`), é a mecânica do modo. */
+const PACE = QS.get('pace') === '1';
 const BOT_SPEED = 4.1, BOT_EYE = 1.5;   // 3.3 = 30% mais lento que o jogador: o bot nunca chegava no lugar
 const BOT_VIEW = 45;              // alcance de aquisição de alvo (m) — ver comentário no think
 const BOT_VIEW_SNIPER = 82;       // com luneta o bot enxerga longe (o jogador de AWP era impune a 100m)
@@ -104,6 +153,23 @@ const BOT_FAIR = QS.get('botfair') !== '0';
    porque é a mudança de comportamento mais sentida da rodada — o dono precisa do A/B, e o
    harness tools/eval/botsim.mjs mede antes→depois só trocando esta querystring. */
 const BOT_MOVE2 = QS.get('botmove') !== '0';
+/* ?botcrowd=0 devolve o comportamento de AGLOMERADO antigo (bug do dono, 01/08: "um monte
+   do time de palhaços amontoado perto do spawn, essa inteligência dos bots não tá legal").
+   Três mecanismos entram junto sob esta chave, todos medidos no harness de fast-forward:
+     1. ALVO DE ROAM SÓ EM NÓ ALCANÇÁVEL (componente conexo do grafo de waypoints).
+        Medido na Loja H: 45% das rotas de roam do lado P miravam nó INALCANÇÁVEL (a faixa
+        externa em volta da loja e o mezanino são ilhas do grafo) — cada uma dessas queimava
+        um ciclo de rerrota e o bot ficava moendo no lugar em vez de avançar.
+     2. ALVO DISTINTO POR BOT (reserva): nó já escolhido por um colega vivo custa caro, então
+        o time se abre em vez de andar em fila pro mesmo waypoint.
+     3. DESPENETRAÇÃO entre bots (inclusive de times diferentes): dois bonecos não podem
+        ocupar o mesmo ponto. Antes NADA no jogo impedia — o _collide só olha o cenário.
+     4. QUEM ESTÁ NO BOLO NÃO PLANTA: o "segurar ângulo parado" é cancelado com 2+ colegas
+        a menos de 3 m — bot parado dentro da pilha é a leitura de "não estão jogando".
+   Medido (3×150 s, Loja H, 8v8): amostras com >=3 bots colados 30,1% -> ver relatório. */
+const BOT_CROWD = QS.get('botcrowd') !== '0';
+const BOT_BODY_R = 0.62;    // raio de CORPO do bot: abaixo de 2× isto os dois se afastam de verdade
+const BOT_CROWD_HOLD = 2;   // colegas a <3 m que cancelam o "plantar e mirar" (bot parado no bolo)
 // Teto de giro do bot em rad/s (264°/s). Sem teto o A* trocando de nó virava pião de 720°/s.
 const YAW_CAP = 4.6;
 const BOT_DMG_BY_DIFF = { easy: 0.48, normal: 0.63, hard: 0.80, insane: 0.98 };
@@ -152,6 +218,15 @@ const MOVE_MUL = {
 };
 const WALK_MUL = 0.52;            // Shift: 52% da velocidade, sem som de passo
 const MOVE2 = QS.get('move') !== '0';
+/* KILL-SWITCH DO ARMÁRIO DO SPAWN (P3, 01/08). `?rack=old` traz de volta o layout cego
+   (2 fileiras fixas a 2,0/3,25 m atrás do spawn, x absoluto) E a seleção antiga (só a arma
+   mais próxima em 1,9 m) — os dois juntos são o bug que o dono reportou às 20:38, e ficam
+   atrás da mesma chave pra dar A/B honesto. Ver _resetPositions e _updatePickups. */
+const RACK_OLD = QS.get('rack') === 'old';
+/* `?rackreta=1` liga o filtro de "reta andável do spawn" na colocação do armário — ramo A/B
+   REVERTIDO e DESLIGADO por padrão (ver o comentário longo em _resetPositions, game.js:~1832,
+   e a nota de reversão sobre `_retaAndavel` em game.js:~3760). */
+const RACK_RETA = QS.get('rackreta') === '1';
 // REGENERAÇÃO: não existia cura, kit, colete nem regen em lugar nenhum — cada vida depois do
 // primeiro contato já estava perdida (um tiro de bot deixa em ~40 e o próximo mata, faça o
 // que fizer). Como aqui o respawn é contínuo e não há economia, o modelo é o do CoD: X s sem
@@ -204,7 +279,7 @@ RECOIL_CLASS.lmg = 'lmg';
 // Kick VERTICAL do 1º tiro em GRAUS (o crítico pediu 1.6° na AK, 1.35 na M4, 2.3 no Deagle,
 // 4.9 na AWP — era 0.458° na AK e nem isso chegava na tela).
 const REC_DEG = {
-  awp: 4.9, mosin: 4.7, rem700: 4.8, shotgun: 3.4, md97: 3.0,
+  awp: 4.9, mosin: 4.7, rem700: 4.8, shotgun: 3.4, md97: 1.65,   // md97 = 5,56 automático: coice de fuzil, não de espingarda (era 3.0)
   m400: 1.5, svd: 1.9, g3sg1: 1.7, sks: 1.5, carbine: 1.9,
   ak: 1.6, akm: 1.72, m92: 1.5, g3: 1.75, scar: 1.45, m4: 1.35, tavor: 1.3, famas: 1.25, lmg: 1.5,
   mp5: 0.95, uzi: 0.9, p90: 0.85,
@@ -226,7 +301,12 @@ const HS_MUL = { rifle: 4, smg: 4, pistol: 4, lmg: 3.6, shotgun: 1.7, sniper: 2.
 // mora em 'awp'). Usada só por falloff/headshot.
 const BALL_CLASS = {};
 for (const w of ['awp', 'mosin', 'rem700', 'm400', 'svd', 'g3sg1', 'sks']) BALL_CLASS[w] = 'sniper';
-for (const w of ['shotgun', 'md97']) BALL_CLASS[w] = 'shotgun';
+BALL_CLASS.shotgun = 'shotgun';
+// MD97 saiu de 'shotgun' (fica no default 'rifle'). Ela é o IMBEL MD97, fuzil 5,56 do
+// Exército — estava na classe balística de espingarda só por herdar a malha do viewmodel.
+// O estrago era grande e invisível: DMG_FALLOFF.shotgun [8, 26, 0.30] derrubava o dano
+// dela pra 30% depois de 26 m (um FUZIL inútil a média distância) e HS_MUL.shotgun 1.7
+// tirava o headshot (rifle = 4). Som corrigido junto em audio.js (GUN_CLASS 'ar').
 for (const w of ['mp5', 'uzi', 'p90']) BALL_CLASS[w] = 'smg';
 for (const w of ['pistol', 'deagle', 'revolver38']) BALL_CLASS[w] = 'pistol';
 BALL_CLASS.lmg = 'lmg';
@@ -235,7 +315,24 @@ BALL_CLASS.lmg = 'lmg';
 const STATIC_CLASS = {};
 for (const w of ['ak', 'akm', 'm4', 'm92', 'g3', 'carbine', 'mp5', 'uzi', 'p90', 'scar', 'tavor', 'famas', 'lmg']) STATIC_CLASS[w] = 'rifle';
 for (const w of ['pistol', 'deagle', 'revolver38']) STATIC_CLASS[w] = 'pistol';
-for (const w of ['shotgun', 'md97']) STATIC_CLASS[w] = 'shotgun';
+/* MD97 SAIU DE 'shotgun' (game.js:269 até esta rodada) — mesmo erro de classificação que já
+   foi corrigido no BALÍSTICO (BALL_CLASS, logo acima) e no ÁUDIO (audio.js, GUN_CLASS 'ar':
+   o manifest mapeava md97 para o sample da XM1014). Ela é o IMBEL MD97, fuzil 5,56 do
+   Exército Brasileiro, e a classe de espingarda vazava para QUATRO lugares:
+     • _deploySfx  — som de SAQUE de espingarda (1000/1650 Hz) em vez de fuzil (1350/2050)
+     • _reloadLayers — `heavy = cls === 'awp' || cls === 'shotgun'` punha o ferrolho grave
+       de AWP/espingarda na recarga de um fuzil de assalto
+     • _adsPose[cls] — hoje shotgun e rifle têm valores IDÊNTICOS, então não muda pixel
+       nenhum; era uma armadilha esperando alguém tunar a pose da espingarda
+     • caminho Tripo (?tripovm=1) — arms_shotgun.glb + SHOTGUN_VM.md97, ou seja a MALHA e
+       os attachments de espingarda (`shells` = cartuchos de calibre 12 num fuzil 5,56)
+   MEDIDO NESTA RODADA, e é o que impede exagerar o estrago: no caminho PADRÃO (MINT_VM,
+   `?tripovm=1` não passado) o viewmodel da md97 já vem de public/models/weapons/md97.glb —
+   um GLB por arma —, e os arms_*.glb da Tripo NÃO EXISTEM MAIS no repo (public/models/ só
+   tem fparms/ e weapons/). Ou seja: a malha desenhada na tela é a certa; o que a classe
+   errada estragava de fato era som de saque, som de recarga e o caminho legado. */
+STATIC_CLASS.shotgun = 'shotgun';
+STATIC_CLASS.md97 = 'rifle';
 for (const w of ['awp', 'mosin', 'rem700', 'm400', 'svd', 'g3sg1', 'sks']) STATIC_CLASS[w] = 'awp';
 STATIC_CLASS['knife'] = 'knife';
 // Variação visual por sniper sobre o MESMO arms_awp.glb: TEXTURA por variante (gerada
@@ -267,6 +364,12 @@ const RIFLE_VM = {
   famas: { tex: 'rifle_famas', orm: 'rifle_orm_famas', att: ['famashump'] },                           // carry handle arqueado alto
   p90:   { tex: 'rifle_p90', orm: 'rifle_orm_p90', att: ['p90mag', 'p90body', 'p90cover'], dScale: 0.85, dPos: [0.01, 0.01, 0] },  // mag horizontal + corpo + SEM mag embaixo; MENOR (SMG — G2-R10: SEM avançar z, o dPos z+ comia a redução aparente)
   m92:   { tex: 'rifle_m92', orm: 'rifle_orm_m92', att: ['m92barrel', 'lever'], muzzleExt: 0.28 },   // carabina de alavanca: nogal + aço azulado (G2-R8 — era rifle_ak, lia como AK)
+  // md97 VEIO DO SHOTGUN_VM nesta rodada (ver o bloco de STATIC_CLASS). Mantém a identidade
+  // que fazia sentido — handguard tático ventilado + coronha pistol-grip, que é o que
+  // distingue o MD97 de um FAL — e PERDE o `shells`, que desenhava cartuchos de calibre 12
+  // no flanco de um fuzil 5,56. Sem `tex`: a textura 'shotgun_md97' foi pintada sobre a UV
+  // do corpo de espingarda e não tem sentido sobre a malha de fuzil.
+  md97:  { att: ['tacguard', 'pgrip'] },
   carbine: { tex: 'rifle_carbine', orm: 'rifle_orm_carbine', att: ['longbarrel'], muzzleExt: 0.26 },     // M1: madeira clara + parkerizado (G2-R8 — era rifle_lift, lia como uzi/M4)
   uzi:   { tex: 'rifle_mp5', orm: 'rifle_orm_mp5', att: ['uzibody', 'uzimag', 'uzimagcover'] },   // boxy + mag no grip (G2-R13: framing próprio em VM_FWD.uzi — dScale/dPos absorvidos lá)
   tavor: { tex: 'rifle_tavor', orm: 'rifle_orm_tavor', att: ['tavorbody', 'tavormag', 'tavorshroud'] },// polímero preto + bullpup: cheek rest + mag atrás do grip (G2-R9: tex própria — era rifle_famas)
@@ -276,9 +379,12 @@ const PISTOL_VM = {
   deagle:     { tex: 'pistol_deagle', orm: 'pistol_orm_wear', metal: 0.55, rough: 0.55, env: 2.2 },   // cromada (slide longo já lê na textura; extensão 3D lia como "cartão" no ângulo FP)
   revolver38: { tex: 'pistol_revolver38', att: ['drum2', 'drumside'] },                                     // aço azulado + tambor à frente + cilindro lateral
 };
-const SHOTGUN_VM = {
-  md97: { tex: 'shotgun_md97', att: ['shells', 'tacguard', 'pgrip'] },         // tática: shells + handguard ventilado + pistol grip
-};
+/* SHOTGUN_VM FICA VAZIO — a md97 saiu daqui junto com STATIC_CLASS (ver o bloco lá em
+   cima). Ela é fuzil 5,56, e o que ficava neste mapa era literalmente o kit de espingarda:
+   `shells` desenha CARTUCHOS DE CALIBRE 12 no flanco da arma. Ficar vazio é correto: hoje a
+   única arma de classe 'shotgun' é a `shotgun`, que usa a base da classe sem variante.
+   Este mapa só é lido no caminho Tripo (`?tripovm=1`), que não tem asset no repo. */
+const SHOTGUN_VM = {};
 // FOV da vmCamera com HORIZONTAL constante (GAUNTLET 2.0 — bug 3:2): referência 16:9
 // (fov vertical 70). Em telas mais altas (MacBook 3024×1964 ≈ 1.54:1) o FOV horizontal
 // encolhia e o VM invadia a tela; aqui o vertical abre p/ compensar — em 16:9 retorna
@@ -294,18 +400,112 @@ const SHOTGUN_VM = {
 // 0,600 (baseline, à esquerda da régua CS2) para 0,634 (dentro de 0,62–0,65).
 // CORREÇÃO R2: a doc dizia 0.64, o código sempre teve 0.62. ?vmwide=1 reverte o PAR
 // inteiro (70 + 0.72) — nunca mexa em um sem o outro, senão a arma cresce/encolhe.
+/* ===== ENQUADRAMENTO DO VIEWMODEL — look Quake 4 / UT / Halo =====
+   Diagnóstico (refs do dono: Quake 4, Halo Infinite, UT): nas refs a câmera olha POR TRÁS
+   e AO LONGO da arma — traseira grande, boca pequena, cano convergindo pro centro, peça
+   deformada por perspectiva. O nosso frame mostrava a arma de FLANCO (espessura uniforme
+   da coronha à boca, dava pra ler o nome na madeira da SVD) = retrato de catálogo.
+   A causa NÃO era ângulo (o cano já está paralelo à mira, rotation.set(0,0,roll) — regra
+   dura) e sim DISTÂNCIA + LENTE: arma longe do olho com lente fechada = projeção quase
+   ortográfica. O remédio é o oposto da receita CS2/Valorant: lente ABERTA, arma PERTO,
+   coronha CORTADA pela borda direita.
+   (O bloco ?vmlook=quake|halo|cs que morava aqui foi REMOVIDO: editava o pipeline Tripo,
+   morto desde que o padrão é MINT_VM — os presets renderizavam idênticos no caminho ativo
+   e só enganavam. O tuning real acontece nos 5 knobs abaixo + VM_FRAME do vmattach.js.)
+
+   5 KNOBS por querystring (defaults = o valor de produção):
+     ?vmfov=N   lente do VM em graus (V0 em 16:9). O item nº1 do look: lente aberta =
+                perspectiva forte = traseira grande e boca pequena (razão de escorço ≥1,8).
+     ?vmzmul=N  multiplica o recuo de tamanho aparente do Zg (<1 aproxima a arma do olho).
+     ?vmnearx=N trava de borda (fração da meia-largura). >1 deixa a coronha SAIR pelo
+                canto — em Quake 4/UT a traseira é cortada pela borda, é assinatura do look.
+     ?vmtanh=N  sobrescreve o tanH de TODAS as classes (compensa a lente aberta puxando a
+                arma pro centro; sem isso ela cai em cima da mira).
+     ?vmtanb=N  sobrescreve o tanBarrel (ângulo do cano abaixo do eixo, na tela).
+   Mexa nos cinco JUNTOS: isolado, cada um piora (só abrir FOV joga a arma pro meio; só
+   aproximar estoura a coronha; só subir tanH com lente fechada manda a arma pra fora). */
+/* Lente base do VM em 16:9. Histórico: 70 → 62 → 64 (CS2/Valorant) → 92 (Quake 4, rejeitado
+   pelo dono no A/B) → 80 (look CS 1.6 "escolhido no olho") → 42 (RODADA DA REFERÊNCIA MEDIDA).
+   POR QUE 80 ERA A CAUSA RAIZ DO "a arma está 2 a 4× menor": V0=80 em 16:9 dá meia-tangente
+   HORIZONTAL 1,4917, ou seja 112° de FOV horizontal no viewmodel. O tamanho angular da arma é
+   S·L/(Zg·2H) e o teto GEOMÉTRICO dele é L/(back·2H) — o `back` (coronha atrás do grip) não
+   deixa o grip se aproximar mais que isso sem a coronha atravessar a lente (VM8). Com H=1,49
+   esse teto era ~8,5% de área para a AK, contra os 8,11-13,09% MEDIDOS na referência
+   (tools/eval/ref-measure.py sobre references/viewmodel/): a faixa da VM5 era inalcançável
+   para 26/26 armas por LENTE, não por tuning. Nenhum valor de vmScale/recuoZ/minz/zMul
+   resolve — a busca está em tools/eval/vm-solve.mjs (Hde(), busca em 2 estágios).
+   V0=42 dá H=0,6824 (68° horizontal). Medido depois da troca, no vm_mint_audit.json:
+   AK 11,7% de área (ref 8,11 piso / M4 9,78 / Vandal 13,09), boca em 0,572 (ref 0,513-0,598),
+   borda esquerda 0,591 (ref 0,520-0,565), eixo 30,6° (ref CS 27,3° e 34,8°).
+   Par do tanH 0,20 e do tanBarrel 0,22 do VM_FRAME — os três SÓ funcionam juntos (ver o
+   bloco de ?vmfov/?vmtanh/?vmtanb acima). */
+const VM_FOV_DEFAULT = 42;
+const VM_KNOB = (() => {
+  const q = new URLSearchParams(location.search);
+  const num = (k) => { const v = q.get(k); return (v !== null && v !== '' && !isNaN(+v)) ? +v : null; };
+  // ?vmpitch= / ?vmyaw= (RODADA DO GRIP + PITCH): inclinação própria da arma em GRAUS,
+  // sobrescrevendo TODAS as classes de uma vez — mesmo espírito do ?vmtanh=. Em graus e não
+  // em rad porque este knob é para olhar na tela e comparar com a foto, não para a matemática.
+  return { zmul: num('vmzmul'), nearx: num('vmnearx'), tanh: num('vmtanh'), tanb: num('vmtanb'),
+    pitch: num('vmpitch'), yaw: num('vmyaw') };
+})();
+/* PITCH/YAW DO VIEWMODEL SOB ADS (RODADA DO GRIP + PITCH) — ver VM_FRAME.cls em vmattach.js.
+   A arma ganhou inclinação própria para o look CS 1.6 (a boca sobe sem o grip subir), e
+   inclinação própria DESALINHA a alça de mira. Esta função é a rampa que devolve a arma ao
+   eixo enquanto o ADS entra: adsF=0 -> ângulo cheio, adsF=1 -> zero.
+   POR QUE É UMA FUNÇÃO NOMEADA E NÃO `ang * (1 - a)` inline: a VM17 (invariants.mjs) avalia
+   ESTA declaração e também exige que o `rotation.set` do viewmodel a CHAME — é a mesma
+   trava que a AUD1 pôs no vmOffY depois que uma mutação apagou a chamada e o portão ficou
+   verde. Declarar sem chamar tem que ser vermelho. */
+const vmAdsRot = (ang, adsF) => ang * (1 - adsF);
+
 function vmFovForAspect(aspect) {
   const _q = new URLSearchParams(location.search);
-  // FOV base do viewmodel: MAIOR = arma menor na tela (o único jeito real de encolher — baixar
-  // vmScale auto-compensa a distância). Default subido 62->78 (dono: "arma gigante, quero no
-  // canto igual ev.io"). Tunável ao vivo com ?vmfov=N.
-  const REF = 16 / 9, V0 = (_q.get('vmfov') ? +_q.get('vmfov') : (_q.get('vmwide') === '1' ? 70 : 64)) * Math.PI / 180;
+  // FOV base do viewmodel (V0 vale em 16:9; a função mantém a meia-tangente HORIZONTAL
+  // constante em qualquer aspecto). Tunável ao vivo com ?vmfov=N.
+  const REF = 16 / 9, V0 = (_q.get('vmfov') ? +_q.get('vmfov') : (_q.get('vmwide') === '1' ? 70 : VM_FOV_DEFAULT)) * Math.PI / 180;
   const halfH = Math.atan(Math.tan(V0 / 2) * REF);
   return 2 * Math.atan(Math.tan(halfH) / aspect) * 180 / Math.PI;
 }
 // Offset base do viewmodel em VIEW SPACE (x=direita, y=cima, z=frente) — empurra a arma pro
-// CANTO inferior-direito (ev.io). Default desce/direita um pouco; tunável ao vivo com ?vmoff=x,y,z.
-const VM_OFF = (() => { const s = (new URLSearchParams(location.search).get('vmoff') || '').split(',').map(Number); return s.length === 3 && s.every((n) => !isNaN(n)) ? s : [0.03, -0.20, 0]; })();
+// CANTO inferior-direito. Tunável ao vivo com ?vmoff=x,y,z.
+/* y −0,0818 (RODADA DA REFERÊNCIA MEDIDA; era −0,23).
+   O −0,23 vinha do "a boca fica a ~0,66H", número que veio de um vídeo assistido e nunca de
+   um pixel. A medição (tools/eval/ref-measure.py sobre references/viewmodel/) diz que no CS
+   a boca fica em y 0,513-0,598, LOGO abaixo da mira — não em 0,667-0,816, que é onde o
+   −0,23 punha a nossa. Ou seja: o offset estava afundando a arma meia tela.
+   O VALOR NÃO FOI ESCOLHIDO, FOI RESOLVIDO: a VM9 fixa o offset assim que Zg e a lente
+   estão fixos — gripY = 0,5 + 0,5·c/Zg + k·tanH·tanBarrel com c = −offY·(16/9)/H.
+   y −0,0818 -> −0,1000 (RODADA DO GRIP + PITCH). Não é tuning: a VM9 foi MEDIDA nesta
+   rodada e a banda dela mudou de 0,84-0,92 (asserida) para 0,90-1,08 (grip 0,915 na M4A1
+   do CS 1.6; FORA do quadro na AK e na Vandal — tools/eval/ref-measure.py, bloco GRIP).
+   Com V0=42 (H=0,6824) e os minz por classe, −0,0818 punha o grip em 0,853-0,914 (15/26
+   armas abaixo do piso novo) e −0,1000 põe em 0,959-1,063, dentro da banda com folga nas
+   duas pontas. A janela inteira que a VM9 admite é offY ∈ [−0,139 ; −0,091] para o rifle.
+   Ver tools/eval/vm-solve.mjs (janelaVM9) e --prova-vazio. */
+const VM_OFF = (() => { const s = (new URLSearchParams(location.search).get('vmoff') || '').split(',').map(Number); return s.length === 3 && s.every((n) => !isNaN(n)) ? s : [0.03, -0.1000, 0]; })();
+/* OFFSET VERTICAL EM FRAÇÃO DE ALTURA DE TELA, NÃO EM METROS FIXOS (rodada do vm-solve).
+   VM_OFF[1] passou a ser o valor NA REFERÊNCIA 16:9, e o offset REAL acompanha a
+   meia-tangente VERTICAL do aspecto corrente: offY(a) = VM_OFF[1] · V(a)/V(16:9).
+   Como vmFovForAspect trava a meia-tangente HORIZONTAL (V(a) = H/a), isso é (16/9)/a.
+   PORQUÊ (a conta está em tools/eval/vm-solve.mjs, bloco 3, e é uma IMPOSSIBILIDADE, não
+   um tuning): com o offset constante em metros, um ponto fixo do view space projeta a
+   (gripY − 0,5) proporcional ao aspecto, e a razão 16:9 / 3:2 é (16/9)/(3/2) = 1,1852
+   SEMPRE — independe de V0, de tanH, de Zg, de tudo. Logo, se a VM9 exige o grip a
+   ≥ 0,84 da altura nos DOIS aspectos, o Δ da VM10 é no MÍNIMO 0,1852·0,34 = 0,0630,
+   contra um teto de 0,03. VM9 e VM10 eram matematicamente incompatíveis; nenhum valor de
+   recuoZ/tanH/minz/zMul/vmScale/V0 fecharia as duas.
+   Escalando o offset por V, a contribuição dele na tela vira 0,5·c/z — a MESMA fração de
+   altura nos dois aspectos —, e o Δ que sobra é só o do cano: 0,0931·tanH·tanBarrel ≈ 0,017.
+   O deslocamento continua no ROOT (e não no gy do grupo da arma) DE PROPÓSITO: gy é o que a
+   VM3 mede como ângulo do cano, e jogar 40° de deslocamento vertical lá dentro seria mover
+   a medida para fora do alcance da invariante — a fraude que a VM12 existe para impedir. */
+/* SEM KILL-SWITCH AQUI DE PROPÓSITO. Tentei um ?vmpar=0 pra permitir A/B no navegador e a
+   AUD1 FICOU VERMELHA na hora: o auditor avalia o corpo desta arrow com só VM_OFF e aspect
+   em escopo (vm-mint-audit.mjs, loadOffYFn), então qualquer variável nova aqui faz o auditor
+   deixar de medir a tela. Preferi manter a régua mordendo a ter a conveniência. Para
+   comparar lado a lado, use o commit anterior — não afrouxe o loadOffYFn. */
+const vmOffY = (aspect) => VM_OFF[1] * ((16 / 9) / (aspect || 16 / 9));
 // chave do staticVm por arma (variante por id quando existe; senão a classe)
 function staticVmKey(w) {
   return (SNIPER_VM[w] || RIFLE_VM[w] || PISTOL_VM[w] || SHOTGUN_VM[w]) ? w : (STATIC_CLASS[w] || null);
@@ -432,7 +632,7 @@ export class Game {
         if (this._pickupAllowed(pk.weapon)) {
           const rw = weaponModel(pk.weapon);            // swap the map's box gun for the real GLB
           if (rw && pk.mesh) {
-            rw.position.copy(pk.mesh.position); rw.position.y = Math.max(0.16, rw.position.y);
+            // ROTAÇÃO ANTES da altura: o assentamento mede a bbox JÁ girada (ver _assentarNoChao).
             rw.rotation.set(0, pk.mesh.rotation.y || Math.random() * 6.28, 0.12);
             rw.traverse(o => { if (o.isMesh) o.castShadow = true; });
             this.scene.remove(pk.mesh); this.scene.add(rw); pk.mesh = rw;
@@ -441,6 +641,22 @@ export class Game {
         } else if (pk.mesh) this.scene.remove(pk.mesh);
       }
       this.world.pickups = keep;
+      /* AQUI ficava `_puxarPickupsProGrafo()` (commit 5f8b5a5), REVERTIDO E REMOVIDO em
+         08/2026. POR QUE: a crítica adversarial mediu o resultado do arrasto e ele falhou no
+         próprio objetivo — 7 dos 8 pickups arrastados continuaram a 2,10-2,50 m da aresta
+         mais próxima do grafo, ou seja, seguiram fora do alcance do A*. O `botsim.mjs` de
+         fy_pool_day saiu byte a byte IDÊNTICO com e sem o arrasto: mover não mudou nada no
+         comportamento do bot, que era a justificativa inteira. E o custo foi real: quebrou a
+         simetria espelhada de fy_pool_day (moveu as 5 armas da parede leste e NENHUMA das 5
+         espelhadas do oeste, por mera fase da grade de waypoints) e encostou a deagle a
+         0,10 m do spawn P slot 0 (era 1,00 m). Se um pickup do mapa ficar mesmo fora do
+         alcance, o conserto é NO MAPA (como o de map_havan.js:1207 desta rodada), não um
+         arrasto global em runtime. */
+      /* DEFEITO CONSERTADO (game.js:498 antigo): `rw.position.y = Math.max(0.16, ...)` era um
+         PISO ABSOLUTO de mundo aplicado depois de o mapa devolver a posição — jogava fora
+         qualquer altura que o mapa tivesse calculado e deixava a arma boiando a 0,16 m em
+         mapa plano e enterrada em mapa com relevo. Mesmo helper do armário, uma conta só. */
+      for (const pk of this.world.pickups) if (pk.mesh) this._assentarNoChao(pk.mesh, pk.x, pk.z);
     }
 
     // teams & rosters. playerTeam = LADO físico (P/B) — dirige tudo (spawns/placar/killfeed/CTF/
@@ -486,6 +702,19 @@ export class Game {
     // sorteio por bot (variedade) × settings.difficulty do menu (média sob controle do jogador).
     const teamSize = Math.max(1, Math.min(8, this.settings.bots || 4));
     // Alvo de abates do round, escalado pelo tamanho do time (4v4 -> 12). MATCH POINT a 2 do fim.
+    /* SEM TETO DE ABATES NO SINGLE PLAYER (decisão do dono, 04/08: "os rounds não podem ter
+       limite de kills no single player").
+
+       O round fechava por DOIS caminhos: o relógio e um alvo de abates (4v4 -> 12). O alvo
+       existia pra dar ritmo, mas ele encurta a rodada justamente quando ela está boa, e o
+       jogador não escolheu isso em lugar nenhum do menu. Agora o round de SINGLE PLAYER
+       (rodadas) termina só pelo relógio ou por eliminação — que é a regra do CS.
+
+       O CTF não muda: lá o alvo é de BANDEIRAS (`capsToWin`), é a mecânica do modo, e o
+       jogador escolheu ao selecionar CAPTURA.
+
+       `?pace=1` devolve o alvo de abates pra quem quiser comparar (era `?pace=0` que
+       desligava; o padrão inverteu junto com a decisão). */
     this.killsToWin = PACE ? Math.max(KILLS_MIN, teamSize * KILLS_PER_PLAYER) : Infinity;
     this._diffMul = diffMul(this.settings);
     // dano do bot contra o JOGADOR agora depende da dificuldade escolhida no menu (antes era
@@ -497,9 +726,33 @@ export class Game {
       const r = pool.length ? (Math.random() * pool.length) | 0 : 0;
       return Array.from({ length: Math.max(0, n) }, (_, i) => pool[(i + r) % pool.length]).filter(Boolean);
     };
-    // aliados vêm da FACÇÃO do jogador (P/B/U); inimigos do lado político oposto (enemyTeam).
-    const allyDefs = cycle(CHARACTERS.filter(c => c.team === this.playerFaction && c.id !== playerCharId), teamSize - 1);
-    const enemyDefs = cycle(CHARACTERS.filter(c => c.team === this.enemyFaction), teamSize);
+    /* ===== EQUILÍBRIO DE TIMES (garantia numérica, não boa-fé) =====
+       PORQUÊ: `cycle` devolve [] quando o pool é VAZIO — `pool[i % 0]` é NaN → undefined e o
+       `.filter(Boolean)` limpa tudo. Ou seja, uma facção sem personagens suficientes produzia
+       um time MENOR **sem nenhum aviso** (jogador sozinho contra 8). Hoje as 4 facções têm
+       8-9 personagens e a conta fecha — medido, enumerando as 16 combinações facção×inimigo
+       × teamSize 1..8: todas dão N vs N. O bug é LATENTE: basta a 5ª facção entrar com 1
+       personagem (ou o único personagem dela ser o escolhido pelo jogador) pra ele voltar,
+       de novo em silêncio. `roster` fecha isso: SEMPRE devolve `want` combatentes (repetir
+       personagem é aceitável — o `cycle` já repetia; time menor não é) e AVISA no console
+       quando teve que repetir ou recorrer ao elenco geral. */
+    const roster = (pool, want, quem, fallback) => {
+      let src = pool;
+      if (!src.length) {
+        src = fallback.filter(Boolean);
+        console.warn(`[times] ${quem}: facção sem personagens disponíveis — completando com o elenco geral (o time NÃO pode ficar menor)`);
+      }
+      if (!src.length) return [];
+      if (src.length < want) console.warn(`[times] ${quem}: ${src.length} personagem(ns) para ${want} vaga(s) — vai REPETIR personagem para os dois lados ficarem iguais`);
+      const out = cycle(src, want);
+      while (out.length < want) out.push(src[out.length % src.length]);   // rede de segurança
+      return out.slice(0, want);
+    };
+    // aliados vêm da FACÇÃO do jogador (P/B/U/C); inimigos da facção inimiga escolhida.
+    const allyDefs = roster(CHARACTERS.filter(c => c.team === this.playerFaction && c.id !== playerCharId),
+      teamSize - 1, `aliados (${this.playerFaction})`, CHARACTERS.filter(c => c.id !== playerCharId));
+    const enemyDefs = roster(CHARACTERS.filter(c => c.team === this.enemyFaction),
+      teamSize, `inimigos (${this.enemyFaction})`, CHARACTERS);
     const mkBot = (def, team, i) => {
       const wpn = this._botWeapon();
       const c = buildCharacterModel(def, { weaponId: wpn }) || buildCharacter(def);
@@ -523,6 +776,17 @@ export class Game {
     };
     allyDefs.forEach((d, i) => mkBot(d, playerTeam, i));
     enemyDefs.forEach((d, i) => mkBot(d, this.enemyTeam, i));
+    /* CONFERÊNCIA DO PLACAR DE GENTE (o dono conta os bonecos na tela — o código também tem
+       que contar). jogador + aliados de um lado, inimigos do outro; qualquer diferença é bug
+       e vai pro console como ERRO, não como silêncio. */
+    {
+      const nMine = this.bots.filter(b => b.team === playerTeam).length + 1;   // +1 = o jogador
+      const nFoe = this.bots.filter(b => b.team === this.enemyTeam).length;
+      const msg = `[times] ${this._teamTag(playerTeam)} ${nMine} × ${nFoe} ${this._teamTag(this.enemyTeam)} (teamSize ${teamSize})`;
+      if (nMine !== nFoe) console.error(msg + ' — TIMES DESIGUAIS (bug de composição)');
+      else console.info(msg);
+      this.teamCount = { [playerTeam]: nMine, [this.enemyTeam]: nFoe };   // exposto p/ debug/harness
+    }
 
     // ---- view model ----
     this.vm = this._buildViewModels();
@@ -533,21 +797,179 @@ export class Game {
     // true, ver bloom.js/stylize.js); sem pós (quality low/?bloom=0) há fallback no tick.
     // vm.root continua recebendo os mesmos transforms em view space (kick/bob/sway/ADS).
     this.vmCamera = new THREE.PerspectiveCamera(vmFovForAspect(this.camera.aspect), this.camera.aspect, 0.01, 5);
+    /* RE-ENQUADRA com a lente de verdade: o 1º _vmFrame(true) rodou DENTRO do
+       _buildViewModels (linha 622), ANTES desta vmCamera existir — a trava de borda usou o
+       fallback de 62° e o cache de aspecto (_vmFrameAspect) impedia o recálculo pra
+       sempre. Descoberto na rodada do look Quake 4: ?vmfov= mudava a lente mas NÃO a trava,
+       e a arma encolhia. Aqui o aspecto não mudou, então força. */
+    if (this._vmFrame) this._vmFrame(true);
     this.vmScene = new THREE.Scene();
     this.vmScene.environment = this.scene.environment;   // mesmo IBL do mapa (metais leem)
     this.vmScene.add(this.vm.root);
     {
+      /* ORÇAMENTO DE LUZ DO VIEWMODEL — MAT2. O rig abaixo (key/fill/sky/rim/bounce+hemi)
+         somava 7,60 unidades FIXAS, contra 2,60 (fy_ferrovelho) a 3,60 (awp_map) dos mapas:
+         a mesma arma recebia 2,1× a 2,9× mais luz na mão do que no chão, e é metade da queixa
+         "na mão fica branca, no chão fica escura" (a outra metade era o clamp de metalness,
+         ver `fixVmMaterials`). Um número fixo aqui também é frágil por construção: qualquer
+         mapa novo com outro sol reabre a divergência sem ninguém perceber.
+         Então o nível PASSA A SEGUIR O MAPA: soma o que o mapa REALMENTE acendeu (direcional
+         + hemisférica + ambiente; pontual fica fora — é local, com decaimento, e não banha a
+         cena) e escala o rig inteiro pra 1,15× disso. A FORMA do rig (5 direções, cores,
+         proporção entre elas) é preservada — ela foi calibrada e não é o defeito.
+         POR QUE 1,15 E NÃO 1,00: a arma na mão está sempre no primeiro plano e precisa ficar
+         legível também quando o jogador está na sombra; 15% acima é o menor empurrão que
+         mantém isso. Medido em tools/eval/mat_shade.py: com 1,15× a MESMA arma sai +3,8 L*
+         (awp_map) e +1,9 L* (fy_ferrovelho) em relação ao drop no chão, contra +14,7 / +13,2
+         de antes. Kill-switch: ?vmlux=<k> força o multiplicador do rig, sem piso nem teto
+         (?vmlux=1 reproduz as 7,60 unidades antigas em qualquer mapa — conferido); e
+         ?vmmat=legacy volta o rig E o material de uma vez só. */
+      const LUX_RIG = 7.60;            // soma nominal das intensidades escritas abaixo
+      /* game.js:818 — FATOR DE NÍVEL, agora MEDIDO em vez de argumentado. A rodada passada
+         escolheu 1,15 ("a arma na mão precisa ficar legível na sombra") sem medir nada, e o
+         preço apareceu na cromaticidade: com 1,15 a arma na mão fica +5,5 L* acima do drop
+         no awp_map, e no AgX (bloom.js, sat 1,12) mais luminância no MESMO albedo marrom sai
+         como mais CROMA — é metade do "dourado" que o dono viu. Com 1,00 a arma na mão é a
+         MESMA arma do chão, que é literalmente o que o MAT1 cobra. O MAT2 continua verde:
+         a faixa dele é [0,80-1,40] e 1,00 está no meio. Kill-switch de sempre: ?vmlux=<k>. */
+      const VM_LUX_FATOR = 1.00;
+      const luxMapa = (() => {
+        let s = 0;
+        this.scene.traverse((o) => {
+          if (!o.isLight || !(o.intensity > 0)) return;
+          if (o.isDirectionalLight || o.isHemisphereLight || o.isAmbientLight) s += o.intensity;
+        });
+        return s;
+      })();
+      const luxOv = parseFloat(QS.get('vmlux'));
+      // piso 0,30: um mapa noturno não pode apagar a arma da mão do jogador (é HUD, não cenário)
+      const vmK = VM_MAT_LEGACY ? 1
+        : isFinite(luxOv) ? luxOv
+          : Math.min(1, Math.max(0.30, (VM_LUX_FATOR * luxMapa) / LUX_RIG));
+      this._vmLux = { luxMapa: +luxMapa.toFixed(3), vmK: +vmK.toFixed(4), soma: +(LUX_RIG * vmK).toFixed(3) };
+      /* ===== TINTA DO RIG — game.js:824-900 =====================================
+         O QUE O DONO VIU: "a mesma arma no chão sai cinza-escura correta, na mão sai
+         DOURADA/BRONZE". A rodada passada casou o NÍVEL de luz (bloco acima, MAT2) e
+         declarou o caso resolvido porque o ΔL* mão−chão caiu de 15,5 pra 5,3. Errado
+         pela metade: L* é só claridade. Medido agora com a* e b* (tools/eval/mat_shade.py
+         ganhou `srgb_to_lab`, e o MAT1 ganhou o Δa*b*), com o rig FIXO de cores abaixo:
+             awp_map        AK  na mão C* 7,05 h 36,9°  |  no chão C* 3,47 h 27,3°  (2,03×)
+             awp_map        AKM na mão C*10,58          |  no chão C* 5,63          (1,88×)
+             fy_ferrovelho  AKM na mão C* 8,62          |  no chão C*13,15          (0,66×)
+         Ou seja: no awp_map a arma na mão fica DUAS VEZES mais saturada (e no matiz do
+         ouro, 30-55°); no ferro velho ela fica DESSATURADA. É o MESMO defeito nos dois
+         sinais, e a causa não é o env map (o MAT2 já confere que a vmScene usa o MESMO
+         `scene.environment` do mapa) — é ESTE rig: as 6 cores abaixo são CONSTANTES
+         enquanto o sol de cada mapa vai de #fff4e2 (awp_map, quase branco) a #ffc07a
+         (fy_ferrovelho, laranja de fim de tarde). O nível seguia o mapa; a COR não seguia.
+         CORREÇÃO: um ganho cromático por canal que faz a cor SOMADA do rig bater com a cor
+         SOMADA das luzes do mapa, preservando (a) a forma do rig — as 5 direções e o
+         contraste quente/frio entre elas, que foram calibrados e não são o defeito — e
+         (b) a luminância, porque o nível já é assunto do vmK. A conta é feita em espaço
+         LINEAR (é onde o shader multiplica) e o ganho é normalizado pela luminância, então
+         ele muda MATIZ e CROMA e não mexe em L*.
+         Kill-switch: ?vmmat=legacy volta tudo (material + nível + tinta); ?vmtint=0 volta
+         só a tinta, pra separar as duas coisas num A/B se a GPU do dono discordar. */
+      const s2l = (c) => (c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
+      const l2s = (c) => (c <= 0.0031308 ? c * 12.92 : 1.055 * Math.pow(c, 1 / 2.4) - 0.055);
+      const linDe = (hex) => [s2l(((hex >> 16) & 255) / 255), s2l(((hex >> 8) & 255) / 255), s2l((hex & 255) / 255)];
+      const lum = (v) => 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2];
+      /* DUAS FORMAS FORAM MEDIDAS, E A ESCOLHA É POR NÚMERO (registro de experimento):
+         (A) POR PAPEL — key/rim herdam a cor da direcional mais forte do mapa, fill/sky a
+             cor de céu da hemisférica, bounce/hemi a cor de chão. Fisicamente mais bonito
+             de explicar. MEDIDO: Δa*b* mediano por mapa 1,33 / 1,29 / 0,40 / 0,16 / 0,60.
+         (B) GANHO POR CANAL — um ganho cromático único que faz a cor SOMADA do rig bater
+             com a cor SOMADA das luzes do mapa. MEDIDO: 1,08 / 0,86 / 0,81 / 0,12 / 0,43.
+         (B) ganha em 4 dos 5 mapas e na média (0,66 contra 0,76), então (B) fica. Anoto (A)
+         porque a intuição diz o contrário e a próxima pessoa vai querer tentar de novo. */
+      const corDoMapa = (() => {
+        const a = [0, 0, 0];
+        this.scene.traverse((o) => {
+          if (!o.isLight || !(o.intensity > 0)) return;
+          let c = null;
+          if (o.isDirectionalLight || o.isAmbientLight) c = linDe(o.color.getHex());
+          else if (o.isHemisphereLight) {
+            const s = linDe(o.color.getHex()), g = linDe(o.groundColor.getHex());
+            c = [(s[0] + g[0]) / 2, (s[1] + g[1]) / 2, (s[2] + g[2]) / 2];
+          } else return;
+          for (let k = 0; k < 3; k++) a[k] += c[k] * o.intensity;
+        });
+        return a;
+      })();
+      // o rig, com as intensidades NOMINAIS (o vmK é escalar e sai na divisão)
+      const RIG = [
+        [0xffe8c4, 3.2, -0.45, 0.75, 0.55],    // key: quente, cima-frente-esquerda
+        [0x9ec4ff, 0.8, 0.6, -0.15, 0.5],      // fill: frio, baixo-frente-direita
+        [0xa8c8ff, 0.25, 0.55, 0.35, 0.75],    // sky fill: fria, do lado oposto à key
+        // NOTA (R6.8): a fill camera-locked foi medida inútil (mediana 7.9→8.0) — quem
+        // carrega a AK é o piso emissivo por-classe (emisI 5, mediana 7.9→36.7). Removida
+        // porque gessificava os metais claros (shotgun).
+        [0xffd7a8, 1.6, 0.2, 0.35, -0.9],      // rim: quente, por trás — recorta a silhueta
+        [0xffb87a, 0.85, -0.2, -0.86, 0.47],   // bounce: chão quente vindo de baixo
+      ];
+      const HEMI_RIG = [0x8fb6ff, 0x36302a, 0.9];
+      /* CASAMENTO POR PAPEL — TENTADO E MEDIDO PIOR, FICA COMO REGISTRO.
+         A ideia (boa no papel): cada luz do rig imita uma fonte real, então que tire a cor
+         dela — key/rim do sol do mapa, fill/sky do céu da hemisférica, bounce/hemi do chão.
+         Δa*b* mediano por mapa (awp / praca / pool / havan / ferro):
+             só por papel            1,33 · 1,29 · 0,40 · 0,16 · 0,60   (média 0,756)
+             papel + ganho por canal 1,30 · 0,65 · 0,29 · 0,08 · 0,20   (média 0,505)
+             SÓ ganho por canal      0,84 · 0,40 · 0,64 · 0,09 · 0,19   (média 0,432)  <- fica
+         O ganho por canal sozinho ganha porque ele corrige a irradiância SOMADA, que é o
+         que o sombreamento integra; o casamento por papel acerta a cor de cada fonte mas
+         erra a mistura (5 direções do rig contra 1 sol do mapa). Anotado porque a intuição
+         diz o contrário e a próxima pessoa vai querer refazer. */
+      /* PASSO 2 — GANHO POR CANAL sobre o rig JÁ casado por papel: corrige o resto da
+         diferença entre a cor somada do rig e a cor somada das luzes do mapa. */
+      const corDoRig = (() => {
+        const a = [0, 0, 0];
+        for (const [hex, i] of RIG) { const c = linDe(hex); for (let k = 0; k < 3; k++) a[k] += c[k] * i; }
+        const s = linDe(HEMI_RIG[0]), g = linDe(HEMI_RIG[1]);
+        for (let k = 0; k < 3; k++) a[k] += ((s[k] + g[k]) / 2) * HEMI_RIG[2];
+        return a;
+      })();
+      const semTinta = VM_MAT_LEGACY || QS.get('vmtint') === '0';
+      const ganho = (() => {
+        if (semTinta) return [1, 1, 1];
+        // canal do rig ou do mapa em ~0 => ganho 1 nesse canal (não inventa cor onde não há)
+        const g = [0, 1, 2].map((k) => (corDoRig[k] > 1e-6 && corDoMapa[k] > 1e-6 ? corDoMapa[k] / corDoRig[k] : 1));
+        const L = lum(g);
+        return L > 1e-6 ? g.map((v) => v / L) : [1, 1, 1];   // normaliza: muda COR, não NÍVEL
+      })();
+      /* Aplica o ganho a UMA cor e devolve {hex, mult}: se algum canal estoura 1,0 o
+         excesso vai pra INTENSIDADE em vez de ser cortado — cortar mudaria justamente a
+         cor que a gente está tentando acertar. */
+      const tinge = (hex) => {
+        const c = linDe(hex).map((v, k) => v * ganho[k]);
+        const m = Math.max(c[0], c[1], c[2], 1e-9);
+        const esc = m > 1 ? m : 1;
+        const s = c.map((v) => Math.round(Math.min(1, Math.max(0, l2s(v / esc))) * 255));
+        return { hex: (s[0] << 16) | (s[1] << 8) | s[2], mult: esc };
+      };
       // direções fixas em VIEW SPACE (a vmCamera nunca se move — posiciona uma vez só)
-      const dir = (hex, i, x, y, z) => { const l = new THREE.DirectionalLight(hex, i); l.position.set(x, y, z); l.castShadow = false; this.vmScene.add(l, l.target); return l; };
-      dir(0xffe8c4, 3.2, -0.45, 0.75, 0.55);    // key: quente, cima-frente-esquerda
-      dir(0x9ec4ff, 0.8, 0.6, -0.15, 0.5);      // fill: frio, baixo-frente-direita
-      dir(0xa8c8ff, 0.25, 0.55, 0.35, 0.75);    // sky fill: fria, do lado oposto à key
-      // NOTA (R6.8): a fill camera-locked foi medida inútil (mediana 7.9→8.0) — quem
-      // carrega a AK é o piso emissivo por-classe (emisI 5, mediana 7.9→36.7). Removida
-      // porque gessificava os metais claros (shotgun).
-      dir(0xffd7a8, 1.6, 0.2, 0.35, -0.9);      // rim: quente, por trás — recorta a silhueta
-      dir(0xffb87a, 0.85, -0.2, -0.86, 0.47);   // bounce: chão quente vindo de baixo
-      this.vmScene.add(new THREE.HemisphereLight(0x8fb6ff, 0x36302a, 0.9));
+      const aplicadas = [];
+      for (const [hex, i, x, y, z] of RIG) {
+        const t = tinge(hex);
+        const l = new THREE.DirectionalLight(t.hex, i * vmK * t.mult);
+        l.position.set(x, y, z); l.castShadow = false; this.vmScene.add(l, l.target);
+        aplicadas.push({ orig: hex, novo: t.hex, i: +(i * vmK * t.mult).toFixed(4) });
+      }
+      {
+        const ts = tinge(HEMI_RIG[0]), tg = tinge(HEMI_RIG[1]);
+        // a hemisférica tem duas cores e UMA intensidade: usa o maior estouro pras duas,
+        // senão o céu e o chão sairiam com pesos relativos diferentes do original
+        const mult = Math.max(ts.mult, tg.mult);
+        const rec = (t) => {
+          if (mult === t.mult) return t.hex;
+          const c = linDe(t.hex).map((v) => v * (t.mult / mult));
+          const s = c.map((v) => Math.round(Math.min(1, Math.max(0, l2s(v))) * 255));
+          return (s[0] << 16) | (s[1] << 8) | s[2];
+        };
+        this.vmScene.add(new THREE.HemisphereLight(rec(ts), rec(tg), HEMI_RIG[2] * vmK * mult));
+        aplicadas.push({ orig: HEMI_RIG[0], novo: rec(ts), i: +(HEMI_RIG[2] * vmK * mult).toFixed(4) });
+      }
+      this._vmTinta = { semTinta, ganho: ganho.map((v) => +v.toFixed(4)),
+        corMapa: corDoMapa.map((v) => +v.toFixed(4)), corRig: corDoRig.map((v) => +v.toFixed(4)), luzes: aplicadas };
       // muzzle flash CoD: point light quente NA CENA DO VM pulsando ~45ms a cada tiro —
       // ilumina o viewmodel por dentro (a vmScene é renderizada à parte, então a luz do
       // mundo não pega na arma). Sempre presente com intensidade 0 (sem recompilar shader).
@@ -677,7 +1099,16 @@ export class Game {
     this.roundNum = 0;
     this.roundsWon = { P: 0, B: 0 };
     this.roundKills = { P: 0, B: 0 };
+    this.roundCaps = { P: 0, B: 0 };    // capturas DESTA rodada (o ctfCaps é da partida toda)
+    this.matchKills = { P: 0, B: 0 };   // abates das rodadas JÁ FECHADAS (desempate do _endMatch)
     this.timeLeft = ROUND_TIME;
+    /* game.js:944 — RELÓGIO DE PARTIDA DO CAPTURA (não é relógio de round). Só o modo
+       CTF usa; no modo de abate fica Infinity e nada o lê. Ele NÃO reinicia a cada
+       rodada (é o que o diferencia do `timeLeft`) e só aparece no HUD nos últimos
+       CTF_CLOCK_SHOW segundos — ver `_updateHud`. */
+    this.ctfMatchLeft = this.ctf ? CTF_MATCH_TIME : Infinity;
+    // alvo de capturas que fecha a RODADA no CTF (o equivalente do killsToWin do abate)
+    this.capsToWin = this.ctf ? CTF_CAPS_TO_WIN : Infinity;
     this.stateUntil = 0;
 
     this._dom();
@@ -924,13 +1355,43 @@ export class Game {
         else hL.position.set(gp.fore.x, gp.fore.y, GRIP_Z - gp.fore.z);
       }
     };
-    // Material fix OBRIGATÓRIO nos GLBs reais do viewmodel (mesmo clamp dos staticVms
-    // Tripo): os GLBs de arma vêm com metalness~1/roughness baixa e SEM env ficam
-    // "silhueta preta" (a lâmina da faca era o pior caso). Clona o material — o clone()
-    // do weaponModel COMPARTILHA material com drops de chão/3ª pessoa, que não queremos
-    // tocar. VM-only.
+    /* MATERIAL DO VIEWMODEL — a rodada que FECHOU o defeito "arma branca na mão, escura no
+       chão". A rodada anterior deixou o diagnóstico aritmético certo escrito aqui e não
+       mexeu, por medo justificado de trocar branco por PRETO sem poder renderizar. O que
+       mudou: agora existe medição. Ver tools/eval/mat-check.mjs + tools/eval/mat_shade.py.
+
+       O DIAGNÓSTICO, CONFIRMADO TEXEL A TEXEL (mat_shade.py lê os 26 GLB):
+        1) os 26 GLB declaram metallicFactor/roughnessFactor AUSENTES, que pela spec glTF
+           §material valem 1,0 — e trazem mapa metallicRoughness. O fator MULTIPLICA a
+           textura. `metalness = min(metalness, 0.55)` nunca foi um teto: multiplicava a
+           metalicidade de TODO texel por 0,55.
+        2) e o mapa ORM da Mint é BEM AUTORADO: metalicidade bimodal (madeira/polímero perto
+           de 0, aço perto de 1) — mediana da fração metálica 0,47, p90 típico 0,95. Ou seja,
+           o fator 1,0 estava CERTO e o clamp é que estragava: 45% de cada texel de aço virava
+           albedo difuso, que num metal claro é o branco leitoso do print.
+        3) `roughness = max(roughness, 0.45)` era NO-OP (max(1,0 ; 0,45) = 1,0).
+        4) a vmScene somava 7,60 unidades de luz contra 2,60-3,60 dos 5 mapas (2,1× a 2,9×).
+
+       A MEDIDA (analítica, sem GPU: avalia o MeshStandardMaterial do three + AgX do bloom.js
+       sobre os texels reais dos GLB, com as luzes medidas em runtime pelo harness):
+         ANTES  (metal 0,55 · 7,60 lux): a MESMA arma sai +14,7 L* na mão vs no chão (awp_map),
+                +13,2 L* no fy_ferrovelho. 26/26 armas acima de +8. É o "cromado".
+         DEPOIS (metal 1,0  · 1,15× o orçamento do mapa): +3,8 L* (awp_map) / +1,9 (ferrovelho).
+       E O MEDO DO PRETO, MEDIDO: com metalness de volta a 1,0 e o IBL presente, a fração de
+       amostra abaixo de L* 12 na 1ª pessoa fica em 2,5% (awp_map) — CONTRA 9% da MESMA arma
+       no chão, que é o caminho que o dono elogiou. Não escurece: converge para o chão.
+
+       O CLAMP NÃO FOI DELETADO, FOI CONDICIONADO. Ele existia para um modo de falha real: SEM
+       ambiente (?env=0, ou PMREM falhando) metalness 1,0 lê como silhueta preta mesmo. Então
+       ele agora dispara EXATAMENTE nesse caso e só nele — a condição é medida (`temEnv`), não
+       assumida. Com env, o material do VM é O MESMO OBJETO do drop e do 3ª pessoa (nem clone),
+       que é a tradução literal da invariante MAT1.
+       KILL-SWITCH: ?vmmat=legacy volta ao clamp 0,55 + 7,60 lux desta linha para baixo, para
+       o dono desfazer numa querystring se a GPU dele discordar da conta. */
+    const temEnv = !!this.scene.environment;   // _buildEnv() rodou lá em cima (mesmo frame)
     const fixVmMaterials = (obj) => obj.traverse((o) => {
       if (!o.isMesh || !o.material) return;
+      if (!VM_MAT_LEGACY && temEnv) return;   // MAT1: mesmo GLB, mesmo material, nos 3 caminhos
       o.material = o.material.clone();
       if ('metalness' in o.material) o.material.metalness = Math.min(o.material.metalness, 0.55);
       if ('roughness' in o.material) o.material.roughness = Math.max(o.material.roughness, 0.45);
@@ -991,7 +1452,7 @@ export class Game {
        O eixo horizontal é o único aspecto-dependente do FOV do VM, e vmFovForAspect já o
        mantém constante; o vertical é convertido AQUI a partir do aspecto atual — por isso
        o recálculo em troca de resolução (chamado do _updatePlayer, custo zero quando igual). */
-    const gripPt = {}, adsPt = {};
+    const gripPt = {}, adsPt = {}, vmRot = {};
     this._vmFrame = (force) => {
       if (!MINT_VM) return;
       const asp = (this.vmCamera && this.vmCamera.aspect) || this.camera.aspect || 16 / 9;
@@ -1009,7 +1470,7 @@ export class Game {
         const back = S * (met ? Math.max(0, -met.box.min.z) : cfg.len * (1 - cfg.gripZ));
         const fwd = S * (met ? Math.max(0.001, met.box.max.z) : cfg.len * cfg.gripZ);
         let Zg = Math.max(back + t.clear, t.minz, fwd / t.fwdTan) * (VM_FRAME.zMul[id] || 1);
-        /* TRAVA DE BORDA (P0.1) — a coronha não pode projetar FORA da tela.
+        /* TRAVA DE BORDA (P0.1) — a coronha pode projetar até NEAR_X da meia-largura.
            Sintoma medido em /root/shots/p0/_probe.json (ak, 3:2): a caixa do viewmodel ia
            de NDC x 0,227 a 2,114 e o centro caía em 1,17, ou seja, a maior parte da arma
            estava fora do quadro à direita; o que sobrava na tela era o antebraço enorme e a
@@ -1020,32 +1481,48 @@ export class Game {
            10,4 cm do olho — a 62° de lente isso explode.
            Em vez de chutar `clear` até parar de doer, resolve-se a desigualdade:
              (Zg·tanH) / (Zg − back) ≤ NEAR_X · halfTanH
-           que dá o Zg mínimo que mantém a coronha dentro de NEAR_X da largura. Empurrar a
-           arma pro fundo também REDUZ o tamanho aparente — que é o que o dono pediu desde o
-           começo ("as armas tomam a tela"). Vale para as 26 armas sem tabela nova. */
+           que dá o Zg mínimo que mantém a coronha dentro de NEAR_X da largura.
+           LOOK QUAKE 4/UT (rodada do enquadramento): NEAR_X > 1 deixa a coronha SAIR pela
+           borda direita de propósito — traseira cortada pelo canto é assinatura do look
+           (e é o que faz a traseira projetar ENORME: perspectiva com z pequeno). */
         /* RECUO DE TAMANHO APARENTE (P0.2). A fórmula de enquadramento é INVARIANTE À
            ESCALA: back, fwd e gx crescem todos com vmScale, então mexer em vmScale move a
            arma junto e o tamanho na tela não muda — foi por isso que baixar vmScale nunca
            resolveu o "as armas tomam a tela". O que muda o tamanho aparente é a razão
            (comprimento da arma / distância do grip): empurrar Zg pra trás sem mexer no
            comprimento encolhe a arma e mantém o grip no MESMO ponto em NDC (porque
-           gx = Zg·tanH também escala). 1,35 é o fator que põe o AK ocupando ~1/3 da
-           largura em vez de ~metade, medido em tools/eval/ (vmcheck). */
-        Zg *= 1.35;
+           gx = Zg·tanH também escala). O fator mora em VM_FRAME.recuoZ (?vmzmul= ao vivo):
+           <1 APROXIMA a arma do olho — é o que deixa a peça grande E escorçada ao mesmo
+           tempo (razão traseira/boca ≥ 1,8, a métrica que separa FPS de foto de catálogo). */
+        Zg *= (VM_KNOB.zmul ?? VM_FRAME.recuoZ);
+        const tanH = VM_KNOB.tanh ?? t.tanH;        // ?vmtanh= sobrescreve TODAS as classes
+        const tanB = VM_KNOB.tanb ?? VM_FRAME.tanBarrel;
         {
-          const NEAR_X = 0.80;                                    // fração da meia-largura da tela
+          const NEAR_X = VM_KNOB.nearx ?? VM_FRAME.nearX;   // fração da meia-largura da tela
           const halfTanH = Math.tan(THREE.MathUtils.degToRad(((this.vmCamera && this.vmCamera.fov) || 62) / 2)) * asp;
           const lim = NEAR_X * halfTanH;
-          if (lim > t.tanH + 1e-3 && back > 0) Zg = Math.max(Zg, (back * lim) / (lim - t.tanH));
+          if (lim > tanH + 1e-3 && back > 0) Zg = Math.max(Zg, (back * lim) / (lim - tanH));
         }
-        const gx = Zg * t.tanH, gy = -gx * VM_FRAME.tanBarrel;
+        const gx = Zg * tanH, gy = -gx * tanB;
         g.position.set(gx, gy, -Zg);
-        // Cano PARALELO ao eixo de mira (pitch=yaw=0): é literalmente o "miro no meio do mapa
-        // e a arma aponta pra baixo" resolvido. O único giro permitido é o roll (em torno do
-        // eixo da câmera), que não mexe na direção do cano — mostra o topo do receiver. A
-        // faca não tem cano e usa a pose CS própria (knifeRot).
+        /* INCLINAÇÃO PRÓPRIA DA ARMA (RODADA DO GRIP + PITCH). Antes daqui só existia o
+           `roll`; pitch e yaw eram literais zero, e era isso que amarrava rigidamente a boca
+           ao grip e tornava VM8 ∩ VM9 ∩ VM12 uma interseção VAZIA para qualquer parâmetro
+           (a conta está em vmattach.js, no bloco de VM_FRAME.cls, e roda em
+           `node tools/eval/vm-solve.mjs --prova-vazio`).
+           A BALA NÃO SEGUE A ARMA — e nunca seguiu: `_tryShoot` tira a direção de
+           `camera.quaternion` e o clarão de `camera.getWorldDirection()`. O viewmodel é
+           decorativo (é o que o CS 1.6 faz). O que segue a arma é só a ORIGEM do clarão e do
+           tracer, `_vmMuzzleExt[id]`, que sai de `rw.localToWorld` DENTRO deste grupo e
+           portanto já nasce girada: o fogo continua saindo da boca desenhada.
+           A faca não tem cano e mantém a pose CS própria (knifeRot). */
+        const pit = VM_KNOB.pitch != null ? VM_KNOB.pitch * Math.PI / 180 : (t.pitch || 0);
+        const yaw = VM_KNOB.yaw != null ? VM_KNOB.yaw * Math.PI / 180 : (t.yaw || 0);
         if (id === 'knife') g.rotation.set(VM_FRAME.knifeRot[0], VM_FRAME.knifeRot[1], VM_FRAME.knifeRot[2]);
-        else g.rotation.set(0, 0, t.roll || 0);
+        else g.rotation.set(pit, yaw, t.roll || 0);
+        // guardado por arma para o ADS conseguir zerar pitch/yaw por frame (vmAdsRot).
+        // `ads:false` na faca: a pose dela é identidade, não inclinação de cano.
+        vmRot[id] = { pitch: g.rotation.x, yaw: g.rotation.y, roll: g.rotation.z, ads: id !== 'knife' };
         g.updateWorldMatrix(false, false);
         gripPt[id] = new THREE.Vector3(gx, gy, -Zg);
         if (met) {
@@ -1318,7 +1795,14 @@ export class Game {
     // espaço do vm.root — contrato combinado com o agente de animação, que prende a mão nele
     // em todos os frames (saque/recarga/tiro) em vez de chutar um offset por classe.
     // `ads[id]` é o delta que centraliza a alça de mira. Ambos repovoados pelo _vmFrame.
-    const vmObj = { root, models, awp, pistol, knife, arms, grip: gripPt, ads: adsPt, kick: 0, kickSide: 0, bobPhase: 0, reloadDip: 0, recoil: new RecoilAxis(11, 0.5, 0.28, 0.3), staticVms };
+    const vmObj = { root, models, awp, pistol, knife, arms, grip: gripPt, ads: adsPt, rot: vmRot, kick: 0, kickSide: 0, bobPhase: 0, reloadDip: 0, recoil: new RecoilAxis(11, 0.5, 0.12, 0.15), staticVms };
+    // R1.b — ACÚMULO EM RAJADA. O 3º/4º argumento do RecoilAxis é o residual (tau, share):
+    // a fatia do coice que NÃO volta pela mola e decai por `approach` com constante de tempo
+    // tau. Com (0.28, 0.30) o resíduo de um tiro ainda valia ~70% quando o próximo saía
+    // (600 RPM = 0,1 s entre tiros): o k empilhava de 0,77 (1 tiro) para 1,36 sustentado e a
+    // arma ficava PRESA no alto durante a rajada inteira. Com (0.12, 0.15) o resíduo cai a
+    // ~43% em 0,1 s e o k sustentado fica <= 1,0 — a curva volta a ~zero entre tiros, que é
+    // o que dá a leitura de "cada tiro é um evento" em vez de "arma tremendo".
     this._vmFrame(true);   // 1º enquadramento (aspecto atual da câmera principal)
     // ?tvm=1 (prova): viewmodel Tripo mão+arma por personagem em models/fpvm/<char>_<arma>.glb.
     // Vira filho do vm.root → herda sway/kick/reload de graça. Framing afinável por querystring
@@ -1530,9 +2014,17 @@ export class Game {
   }
   _startRound() {
     this.roundNum++;
+    // o placar do round zera aqui; o acumulado da partida sobrevive pro desempate
+    this.matchKills.P += this.roundKills.P; this.matchKills.B += this.roundKills.B;
     this.roundKills = { P: 0, B: 0 };
+    this.roundCaps = { P: 0, B: 0 };
     this.timeLeft = ROUND_TIME;
     this._matchPoint = false;    // banner de MATCH POINT dispara uma vez por round
+    this._resultado = null;      // o título do placar é da RODADA que acabou, não da que começa
+    // game.js:1868 — pedido de fim de rodada do CAPTURA é POR RODADA: se a rodada acabou
+    // por dominação no mesmo frame em que o alvo de bandeiras foi batido, o pedido fica
+    // pendurado e mataria a rodada seguinte no primeiro quadro.
+    this._roundOverPedido = false;
     this.mk.life = 0; this.mk.count = 0;
     this._resetPositions();
     if (this.ctf) this._initCTF();
@@ -1541,14 +2033,31 @@ export class Game {
     this._showScoreboard(false);
     // O alvo do round entra no banner: sem isso o jogador não tem como saber que existe
     // condição de vitória por abates (o HUD só mostra o placar corrido).
-    this._banner(`ROUND ${this.roundNum}`, (PACE && !this.ctf)
-      ? `Primeiro time a ${this.killsToWin} abates leva`
-      : (this.roundNum === 1 ? 'Que comece a treta!' : 'De volta pra treta!'));
+    /* game.js:1878 — o banner tem que DECLARAR a condição de vitória do modo, senão o
+       jogador não sabe pelo que está jogando. No CAPTURA a condição é bandeira, não
+       relógio: dizer "primeiro a 2 bandeiras" é o que substitui o cronômetro que saiu. */
+    this._banner(`ROUND ${this.roundNum}`, this.ctf
+      ? `Primeiro time a ${this.capsToWin} bandeiras leva a rodada`
+      : (PACE ? `Primeiro time a ${this.killsToWin} abates leva`
+        : (this.roundNum === 1 ? 'Que comece a treta!' : 'De volta pra treta!')));
     if (!this.sfx.csSound('roundstart')) this.sfx.vuvuzela(1.4);
   }
   _resetPositions() {
+    /* COLOCAÇÃO NO SPAWN — deixada COMO ESTAVA, de propósito (registro de experimento).
+       São 4 pontos por time e até 8 combatentes: com `slot % list.length` o 5º ao 8º nascem
+       EM CIMA do 1º ao 4º (jitter de ±0,5 m). Parece o culpado óbvio do bolo do print, e as
+       DUAS correções tentadas — leque fixo (+2,5 m em x) e afastamento aleatório (1,0-1,8 m)
+       — foram MEDIDAS como PIORES no harness de fast-forward (40 corridas × 150 s, Loja H):
+         leque fixo:  time da loja na metade inimiga 18,3% -> 7,7% ; rota falhando 18% -> 46%
+         aleatório:   idem, 7,9% ; e a pilha de 3+ bots subiu de 35,3% pra 40,0%
+       A razão está no mapa: o spawn de dentro da Loja H é um BOLSÃO DE GÔNDOLAS de propósito
+       (4 a 6 colliders de 1,8 m a menos de 3 m de cada ponto — medido). Empurrar o boneco 1-2 m
+       joga ele atrás da prateleira e ele gasta segundos contornando. Quem desfaz o empilhamento
+       aqui é a DESPENETRAÇÃO do _botSeparation, que separa os dois no primeiro frame sem tirar
+       ninguém do bolsão seguro. */
     const place = (ent, team, slot) => {
-      const s = this.world.spawns[team][slot % 4];
+      const list = this.world.spawns[team];
+      const s = list[slot % list.length];
       ent.pos.set(s.x + (Math.random() - .5), 0, s.z + (Math.random() - .5));
       ent.hp = 100; ent.alive = true; ent.respawnAt = 0; ent.protUntil = 0;
       return s;
@@ -1582,6 +2091,9 @@ export class Game {
     this.player.scoped = false; this.player.reloadUntil = 0;
     for (const d of this.drops) this.scene.remove(d.mesh);
     this.drops = [];
+    // o destaque do pickup aponta pra uma mesh que acabou de sair da cena — sem zerar aqui,
+    // o próximo _updatePickups devolveria a altura original de uma arma que não existe mais
+    this._pkGlow = null;
     // mesas do armário do round anterior (senão empilha uma por round)
     if (!this._rackFurniture) this._rackFurniture = [];
     for (const f of this._rackFurniture) this.scene.remove(f);
@@ -1594,31 +2106,131 @@ export class Game {
       ['tavor', 'famas', 'p90', 'mp5', 'uzi', 'shotgun', 'lmg'],   // bullpups / SMG / shotgun / LMG
       ['deagle', 'revolver38', 'pistol'],                        // sidearms
     ].map(row => row.filter(w => this._pickupAllowed(w)));
-    /* ARMÁRIO ATRÁS DO SPAWN, EM CIMA DE MESA (P1, 31/07).
-       O dono, depois de jogar: as armas largadas apareciam em quase todo screenshot e
-       liam como lixo no chão — em fy_pool_day dá pra contar 10 espalhadas na areia, na
-       linha de tiro. Eram 26 armas × 2 times = ~52 props deitados no chão, e o armário
-       ficava `inward`, ou seja, ENTRE o spawn e o centro do mapa: exatamente a faixa de
-       0-2 m das linhas de tiro que o critério C4 da régua manda deixar limpa.
-       Três mudanças, todas de posição (nenhuma arma foi removida do arsenal):
-       (a) `inward` → `back`: o armário passa pra TRÁS do spawn, fora de qualquer duelo;
-       (b) footprint de ±8 m → ±5,5 m e 4 fileiras → 2 (13 armas por fileira);
-       (c) as armas sobem para 0,95 m em cima de uma MESA de verdade, em vez de deitadas
-           no chão — é o que faz ler como armário e não como sucata. */
+    /* ARMÁRIO DO SPAWN — POSIÇÃO MEDIDA CONTRA A GEOMETRIA DO MAPA (P3, 01/08).
+       BUG DO DONO (print 20:38, fy_ferrovelho): "as armas não dá pra pegar, a segunda
+       fileira de armas nos mapas". A versão anterior (b7495ae) botou o rack no CHÃO, mas
+       manteve DUAS decisões cegas que são a causa raiz, as duas MEDIDAS com a geometria
+       real de cada mapa (colliders + bounds + _collide, o mesmo código que move o jogador):
+
+       (1) A fileira 1 nascia a `sz + back*3,25` — 3,25 m ATRÁS do spawn — sem ninguém
+           perguntar se existe 3,25 m de chão ali. Não existe:
+             fy_ferrovelho, time P: spawn z=33, limite andável z=35,12 (bounds 35,5 menos
+               o raio 0,38 do jogador). Fileira 0 em z=35,00 → 0,12 m dentro do alcance.
+               Fileira 1 em z=36,25 → 1,13 m FORA do mundo, atrás da cerca.
+             fy_havan, time P: spawn z=55, limite 57,12. Fileira 0 em 57,00, fileira 1 em
+               58,25 — as 12 armas DENTRO da parede do fundo do estacionamento.
+           Como o prompt só considerava a arma MAIS PRÓXIMA, do ponto mais colado possível
+           (z=35,12) a fileira 0 estava a 0,12 m e a 1 a 1,13 m: a fileira 0 ganhava SEMPRE.
+           Varredura em grade de 5 cm em toda a área andável: 0 de 12 armas da fileira 1
+           conseguiam virar prompt nesses dois casos. Impegáveis, não "difíceis".
+
+       (2) O x do rack era ABSOLUTO (centrado em x=0 do mundo), não no spawn do time. Em
+           fy_ferrovelho o time B nasce em x=-14..1 e em awp_map em x=-9: o rack nascia
+           deslocado 6 a 9 m de lado, o que enfiava 9 de 25 armas (ferrovelho B) e 8 de 25
+           (havan B) DENTRO de colisores, e jogava a arma mais distante a 15,6 m do spawn.
+
+       Correção, toda ela medida em runtime (nada de constante chutada):
+       (a) âncora x = x DO PONTO DE SPAWN DO JOGADOR (slot 0), não x=0 do mundo;
+       (b) `_walkDepth` anda pra trás a partir do spawn com a física do jogador e responde
+           quantos metros de chão andável existem; as fileiras só vão pra trás se COUBEREM
+           (corredor de 2,0 m entre elas). Não cabendo, uma fileira vai pra frente do spawn
+           — 1,6 m, ainda dentro da zona de respawn, longe das linhas de tiro do mapa;
+       (c) `_freeSpot` empurra CADA arma pro ponto andável mais próximo (mesma física do
+           _collide), então nenhuma arma fica dentro de parede/carro/gôndola;
+       (d) passo de 1,15 m entre armas (era 0,92) + anti-empilhamento depois do empurrão.
+       Kill-switch: ?rack=old volta ao layout antigo (e à seleção antiga em _updatePickups). */
     for (const team of ['P', 'B']) {
       const spawns = this.world.spawns[team] || [];
       const sz = spawns.length ? spawns[0].z : 0;
       const back = sz > 0 ? 1 : -1;                            // pra FORA do mapa, atrás de quem nasce
       const flat = rackRows.flat();
       const perRow = Math.ceil(flat.length / 2);
-      const HW = 5.5, TOP = 0.12;   // armas NO CHÃO (dono: estilo CS — a mesa a 0,95 m era inalcançável)
+      // Armas NO CHÃO (dono: estilo CS — a mesa a 0,95 m era inalcançável). O antigo
+      // `TOP = 0.12` era y ABSOLUTO de mundo e enterrava/levitava a arma em todo mapa com
+      // relevo (ver _assentarNoChao); agora quem manda é a bbox medida, e o único número
+      // aqui é a folga de ar contra z-fighting.
+      const TOP = 0.01;
+      if (RACK_OLD) {
+        const HW = 5.5;
+        for (let r = 0; r < 2; r++) {
+          const row = flat.slice(r * perRow, (r + 1) * perRow);
+          if (!row.length) continue;
+          const rz = sz + back * (2.0 + r * 1.25);
+          row.forEach((w, c) => this._dropWeapon(row.length > 1 ? -HW + (c * 2 * HW) / (row.length - 1) : 0, rz, w, true, TOP));
+        }
+        continue;
+      }
+      // (a) o rack segue o SPAWN: x do slot 0, que é onde o jogador nasce sempre
+      // (`place(this.player, this.playerTeam, 0)` logo acima). Ancorar aqui, e não no x=0 do
+      // mundo nem no centro do time, é o que põe o jogador NO MEIO do armário: com o antigo
+      // x=0 a arma mais distante ficava a 15,6 m do spawn em fy_ferrovelho B; agora ~7 m.
+      const cx = spawns.length ? spawns[0].x : 0;
+      // (b) quanto chão andável existe atrás do spawn? (0 = spawn colado na parede)
+      const depth = this._walkDepth(cx, sz, back, 5.4);
+      const D0 = 1.6, GAP = 2.0;   // 1ª fileira a 1,6 m; 2,0 m de corredor entre fileiras
+      const offs = depth >= D0 + GAP + 0.4 ? [D0, D0 + GAP]    // cabem as duas atrás
+        : depth >= D0 + 0.4 ? [D0, -D0]                        // só cabe uma: a outra vai pra frente
+        : [-D0, -D0 - GAP];                                    // spawn colado na parede: as duas na frente
+      const STEP = 1.15;           // (d) 1,15 m entre armas: separa o alvo do vizinho
+      const placed = [];
       for (let r = 0; r < 2; r++) {
         const row = flat.slice(r * perRow, (r + 1) * perRow);
         if (!row.length) continue;
-        const rz = sz + back * (2.0 + r * 1.25);
+        const rz = sz + back * offs[r];
+        const halfW = ((row.length - 1) * STEP) / 2;
         row.forEach((w, c) => {
-          const gx = row.length > 1 ? -HW + (c * 2 * HW) / (row.length - 1) : 0;
-          this._dropWeapon(gx, rz, w, true, TOP);
+          const bx = cx - halfW + c * STEP;
+          /* (c) + anti-empilhamento: tenta o lugar ideal e, se o empurrão jogou a arma em
+             cima de outra já colocada, desliza meio slot pros lados até achar espaço livre.
+
+             REVERTIDO em 08/2026 (era o "critério (e) de alcance a pé", commit 5f8b5a5).
+             POR QUE: a crítica adversarial mediu flood-fill de andabilidade a partir dos
+             spawns dos dois times e provou que as 202 armas do armário JÁ ERAM 202/202
+             alcançáveis no baseline 93af611 — não havia defeito a consertar. O filtro por
+             `_retaAndavel` (reta limpa spawn→arma) não é alcance, é VISADA: reprovava toda
+             arma que exige contornar o próprio colisor do armário. Estrago medido do filtro:
+               • moveu 52 das 202 armas (não as 17 que o commit alegava);
+               • fy_havan, time B, fileira 1 (12 armas): abriu um vão de 7,53 m entre
+                 vizinhas (era 1,15 m, o STEP) e esticou a fileira de 12,65 m para 17,88 m —
+                 deixou de ser fileira;
+               • awp_map, time P: o centroide do armário afastou-se do spawn slot 0 de
+                 2,89 m para 4,46 m, quebrando o objetivo declarado logo acima ("o jogador
+                 nasce NO MEIO do armário");
+               • só 4 armas eram problema real (fy_ferrovelho B: lmg 4,18/22,25 m,
+                 deagle 3,73/21,00 m, revolver38 3,60/19,75 m, pistol 3,84/18,75 m — em
+                 reta / a pé pelo flood-fill), e mesmo essas 4 seguem ALCANÇÁVEIS (chão
+                 alcançado a 0,10-0,16 m delas): caminhar não é andar em linha reta.
+             O `_retaAndavel` continua no arquivo (game.js:~3760) atrás de `?rackreta=1`,
+             DESLIGADO por padrão, só pra reproduzir o A/B — não reintroduza como padrão sem
+             antes derrubar a medição de flood-fill de tools/eval/pickup-check.mjs. */
+          let spot = null;
+          if (RACK_RETA) {                                     // ramo A/B, off por padrão
+            const dirIn = bx > cx ? -1 : 1;                    // "pra dentro" = de volta pro spawn
+            const offsX = [0];
+            for (let k = 0.58; k <= halfW + 2.4; k += 0.58) offsX.push(dirIn * k, -dirIn * k);
+            const alcanca = (q) => spawns.some(s => this._retaAndavel(s.x, s.z, q.x, q.z));
+            let ultimo = null, achou = false;
+            for (const pull of [0, 0.55, 1.1]) {               // recuo da fileira rumo ao spawn
+              const rzc = rz - back * pull;
+              for (const off of offsX) {
+                const cand = this._freeSpot(bx + off, rzc, 0.5);
+                if (!ultimo) ultimo = cand;                    // primeira tentativa = último recurso
+                if (placed.some(q => (q.x - cand.x) ** 2 + (q.z - cand.z) ** 2 < 0.6 * 0.6)) continue;
+                if (!spot) spot = cand;                        // livre, mas ainda não sei se alcança
+                if (alcanca(cand)) { spot = cand; achou = true; break; }
+              }
+              if (achou) break;
+            }
+            spot = spot || ultimo;
+          } else {
+            for (const off of [0, 0.58, -0.58, 1.15, -1.15, 1.73, -1.73, 2.3, -2.3]) {
+              const cand = this._freeSpot(bx + off, rz, 0.5);
+              if (!spot) spot = cand;                          // primeira tentativa = último recurso
+              if (!placed.some(q => (q.x - cand.x) ** 2 + (q.z - cand.z) ** 2 < 0.6 * 0.6)) { spot = cand; break; }
+            }
+          }
+          this._dropWeapon(spot.x, spot.z, w, true, TOP);
+          placed.push(spot);
         });
         // SEM mesa: as armas ficam NO CHÃO em fileira (dono pediu estilo CS — a mesa a 0,95 m
         // era bonita mas inalcançável; no chão o jogador anda por cima e pega andando).
@@ -1646,7 +2258,24 @@ export class Game {
      zerar timeLeft deixa o fluxo de fim de round existente fazer o resto, sem duplicar
      caminho). Também emite o MATCH POINT a 2 abates do fim: é o pico que o round não tinha. */
   _checkPace() {
-    if (!PACE || this.ctf || this.state !== 'live') return;
+    if (!PACE || this.state !== 'live') return;
+    /* game.js:2106 — RITMO DO CAPTURA. Caminho separado de propósito: o modo de abate
+       fecha o round zerando `timeLeft` (existe relógio pra zerar); o CAPTURA não tem
+       relógio de round pra zerar, então ele PEDE o fim da rodada por flag e o `update()`
+       atende no mesmo frame. Sem essa flag a única saída seria chamar `_endRound()` de
+       dentro do `_updatePlayer`, no meio da varredura de combatentes. */
+    if (this.ctf) {
+      const cp = this.roundCaps.P, cb = this.roundCaps.B, alvo = this.capsToWin;
+      const lider = Math.max(cp, cb);
+      if (!this._matchPoint && alvo > 1 && lider >= alvo - 1) {
+        this._matchPoint = true;
+        const lado = cp > cb ? 'P' : 'B';
+        this._banner('BANDEIRA DECISIVA', `${this._teamName(lado)} a ${alvo - lider} de levar a rodada`);
+        try { this.sfx.vuvuzela(0.9); } catch {}
+      }
+      if (lider >= alvo) this._roundOverPedido = true;
+      return;
+    }
     const p = this.roundKills.P, b = this.roundKills.B, tgt = this.killsToWin;
     const lead = Math.max(p, b);
     if (!this._matchPoint && lead >= tgt - 2) {
@@ -1660,7 +2289,15 @@ export class Game {
   _endRound() {
     const p = this.roundKills.P, b = this.roundKills.B;
     let winner = null;
-    if (p > b) winner = 'P'; else if (b > p) winner = 'B';
+    /* NO CAPTURA quem leva o round é quem CAPTUROU MAIS naquele round — abate só desempata.
+       Antes o modo não tinha `_endRound` nenhum (o relógio nem corria): o único jeito de um
+       round acabar era dominar as 3 bandeiras ao mesmo tempo, e é por isso que o placar de
+       abates do topo ia a 65 × 53 (defeito 3 do dono) — ele NUNCA era zerado. */
+    if (this.ctf) {
+      const cp = this.roundCaps.P, cb = this.roundCaps.B;
+      if (cp > cb) winner = 'P'; else if (cb > cp) winner = 'B';
+      else if (p > b) winner = 'P'; else if (b > p) winner = 'B';
+    } else if (p > b) winner = 'P'; else if (b > p) winner = 'B';
     if (winner) this.roundsWon[winner]++;
     this.state = 'roundEnd';
     this.stateUntil = this.time + 4;
@@ -1668,23 +2305,47 @@ export class Game {
     this.radioOpen = null; this._radioUi();
     this._showScoreboard(true);   // CS-style: scoreboard pops at round end
     this._ensureDolly();          // dollynho comemora dançando no placar
+    const placar = this.ctf ? `${this.roundCaps.P} × ${this.roundCaps.B} bandeiras` : `${p} × ${b}`;
     if (!winner) {
-      this._banner('EMPATE NA TRETA', `${p} × ${b} — ninguém convenceu ninguém`);
+      this._resultadoDaRodada('EMPATE NA TRETA', `${placar} — ninguém convenceu ninguém`);
       this.sfx.roundLose();
     } else {
       const mine = winner === this.playerTeam;
       // fechou no ALVO de abates (antes do tempo) vs ganhou no relógio — informação diferente
-      const byTarget = PACE && Math.max(p, b) >= this.killsToWin;
-      this._banner(`${this._teamName(winner)} LEVARAM O ROUND`, `${p} × ${b} ` + (byTarget ? '— fecharam no alvo' : mine ? '— o povo (você) agradece' : '— a oposição (você) pede revanche'));
+      const byTarget = PACE && !this.ctf && Math.max(p, b) >= this.killsToWin;
+      this._resultadoDaRodada(`${this._teamName(winner)} LEVARAM O ROUND`, `${placar} ` + (byTarget ? '— fecharam no alvo' : mine ? '— o povo (você) agradece' : '— a oposição (você) pede revanche'));
       if (!this.sfx.roundSound(this._voiceKey(winner))) mine ? this.sfx.roundWin() : this.sfx.roundLose();
     }
-    if (this.roundsWon.P >= ROUNDS_TO_WIN || this.roundsWon.B >= ROUNDS_TO_WIN)
+    if (this._fimDaPartida())
       this.stateUntil = this.time + 4.5; // then match end
   }
+  /* FIM DA PARTIDA — uma condição só, usada pelo _endRound (pra esticar a pausa) e pelo
+     update() (pra chamar o _endMatch). Vale IGUAL nos dois modos: antes o `_endMatch` era
+     gateado por `!this.ctf` (game.js:update), o que fazia o modo CAPTURA rodar pra sempre —
+     rounds infinitos, nenhuma tela de fim, e o placar do topo subindo sem teto. */
+  _fimDaPartida() {
+    /* game.js:2160 — DOIS FORMATOS, UMA CONDIÇÃO. O CAPTURA é melhor de 3 (rodada de
+       bandeira é 2-3× mais longa que rodada de abate — medido: 1,2 a 3,3 capturas por
+       99 s), e tem AINDA um teto de tempo de PARTIDA como rede de segurança. É esse teto
+       que garante a invariante UI4 "a partida FECHA" sem devolver cronômetro de round
+       pra cara do jogador. */
+    if (this.ctf)
+      return this.roundsWon.P >= CTF_ROUNDS_TO_WIN || this.roundsWon.B >= CTF_ROUNDS_TO_WIN
+        || this.roundNum >= CTF_ROUNDS_MAX || this.ctfMatchLeft <= 0;
+    return this.roundsWon.P >= ROUNDS_TO_WIN || this.roundsWon.B >= ROUNDS_TO_WIN || this.roundNum >= ROUNDS_MAX;
+  }
+  // teto de rodadas do modo em jogo — o HUD conta "RODADA n/N" com este número
+  get roundsMax() { return this.ctf ? CTF_ROUNDS_MAX : ROUNDS_MAX; }
 
   _endMatch() {
     this.state = 'matchEnd';
-    const winner = this.roundsWon.P > this.roundsWon.B ? 'P' : 'B';
+    /* DESEMPATE: com o teto de 5 rodadas a partida pode fechar 2 × 2 (dois empates pelo
+       caminho). `roundsWon.P > roundsWon.B ? 'P' : 'B'` dava a vitória ao lado B por
+       omissão — um vencedor sorteado pela ordem do ternário. Agora empate de rodadas vai
+       pros abates da partida INTEIRA (matchKills, somado a cada _startRound). */
+    const winner = this.roundsWon.P !== this.roundsWon.B
+      ? (this.roundsWon.P > this.roundsWon.B ? 'P' : 'B')
+      : ((this.matchKills.P + this.roundKills.P) >= (this.matchKills.B + this.roundKills.B) ? 'P' : 'B');
     const mine = winner === this.playerTeam;
     // Tela de fim estilo CoD/Valorant: VITÓRIA/DERROTA gigante, time vencedor no sub.
     this.el.matchEnd.classList.toggle('win', mine);
@@ -1715,6 +2376,20 @@ export class Game {
   // Canvas próprio dentro do placar de fim de round; toca o clipe de dança embutido
   // (models/dollynho_dance.glb, Mixamo) num renderer separado e transparente.
   _ensureDolly() {
+    /* game.js:2360 — DEFEITO DO PRINT: "o placar mostra o Dollynho com braços quebrados
+       no meio do painel". Duas coisas, e só uma é consertável nesta árvore:
+       (1) O LUGAR. As 9 telas de referência foram medidas (tools/eval/ref-ui.py): a tela
+           08 (PLACAR) é uma tabela de dois times e NENHUM mascote; quem tem personagem
+           grande é a 09 (RESULTADO DA PARTIDA), e lá ele é ARTE DE FUNDO, não um bloco
+           no miolo do painel. Além de destoar da referência, o canvas de 240×190 é o que
+           empurra o painel pra ~570 px de altura e faz o banner de round cruzar com ele
+           (ver `_showScoreboard`). Então ele sai do placar por padrão.
+       (2) OS BRAÇOS. É defeito de rig/retarget do clipe, e `public/models/dollynho_dance.glb`
+           NÃO EXISTE nesta árvore (só `characters/dollynho.glb`) — o loader falha calado
+           aqui e o defeito só aparece na máquina do dono. Sem o arquivo não dá pra medir
+           nem consertar, e mexer em rig de personagem é de outro agente nesta rodada.
+       Kill-switch: ?dolly=1 devolve o mascote ao placar sem recompilar nada. */
+    if (QS.get('dolly') !== '1') return null;
     if (this._dolly) return this._dolly;
     const canvas = document.createElement('canvas');
     canvas.id = 'dollynho-dance';
@@ -2122,7 +2797,13 @@ export class Game {
     // Classe pistola ×0.5 (R7.6): o kick cheio jogava a deagle pra borda superior da tela —
     // coice de pistola gira no punho, não levanta o cano até o teto.
     const kickMul = STATIC_CLASS[p.weapon] === 'pistol' ? 0.5 : 1;
-    const vmAmp = GUNFEEL ? Math.min(1.7, 0.42 + (REC_DEG[p.weapon] ?? 1.4) * 0.30) * (p.scoped ? 0.7 : 1)
+    // R1.c — AMPLITUDE DO KICK POR ARMA, curva SUBLINEAR. A forma antiga
+    // `min(1.7, 0.42 + REC_DEG*0.30)` SATURAVA no teto: awp (4,9°), mosin (4,7°) e rem700
+    // (4,8°) davam 1.89/1.83/1.86 e todas eram cortadas para exatamente 1.70 — as três armas
+    // de maior coice do jogo ficavam INDISTINGUÍVEIS entre si e a 1,9× do fuzil. Com a raiz,
+    // o teto some (nada satura) e a ordem por classe fica preservada e legível:
+    //   awp 1.04 > mosin 1.03 > shotgun 0.94 > deagle 0.85 > ak 0.77 > mp5 0.69 > p90 0.68.
+    const vmAmp = GUNFEEL ? (0.42 + Math.sqrt(REC_DEG[p.weapon] ?? 1.4) * 0.28) * (p.scoped ? 0.7 : 1)
                           : Math.min(1.5, 0.55 + (w.recoil || 0.01) * 13);
     this.vm.recoil.kick(vmAmp * (1 - 0.25 * p.crouchF) * kickMul);
     this.vm.kickSide = Math.random() * 2 - 1;
@@ -2507,8 +3188,10 @@ export class Game {
     row.className = 'kf-row' + (meAtk ? ' me-atk' : '') + (meVic ? ' me-vic' : '');
     // chip escuro com tint do time (~18% alpha) e texto na cor do time (estilo CoD/Valorant)
     const cn = e => {
+      // chip = tint da cor CHEIA do time; texto = tinta PÁLIDA do time (ver _teamInk):
+      // texto na cor cheia sobre o próprio tint dava 3,2-3,9:1 (ui-check.mjs, UI1)
       const c = this._teamColor(e.team);
-      return `<span class="kf-n" style="background:${c}2e;color:${c}">${e.isPlayer ? 'VOCÊ' : e.name}</span>`;
+      return `<span class="kf-n" style="background:${c}2e;color:${this._teamInk(e.team)}">${e.isPlayer ? 'VOCÊ' : e.name}</span>`;
     };
     row.innerHTML = attacker && attacker !== victim
       ? `${cn(attacker)}${head ? this._skullIcon() : ''}${this._wpnIcon(weap)}${cn(victim)}`
@@ -2953,13 +3636,46 @@ export class Game {
     }
   }
 
+  /* COR DA FUMAÇA = O CÉU MEDIDO DO MAPA × ALBEDO (invariante FOG1).
+     O dono relatou "a tela lava pra branco, o mapa inteiro vira branco e dá pra ver só o
+     contorno da geometria". Foram medidos os três suspeitos (tools/eval/mat-check.mjs):
+       · EXPOSIÇÃO: cinza médio 0,18 linear sai em L* 61-69 nos 5 mapas. Não é estouro.
+       · NÉVOA: no pior caso (contraluz, fogFactor saturado) sai em L* 82,7-84,4 — mas ela só
+         satura depois de ~200 m (f = 0,35 a 100 m no awp_map). Não cobre a tela de perto.
+       · FUMAÇA: sai em L* 80,8-86,5 E cobre a tela inteira (alfa acumulado 0,999 medido com
+         a câmera dentro da nuvem, 14 dos 18 sprites cruzando o centro). Era ela.
+     A cor 0xcfd2d6 tinha radiância linear 0,642 contra 0,310 do CÉU MEDIDO do awp_map
+     (bloom.js:145-153, cores que o r3_fog.py extraiu de frames reais). Fumaça 2,07× mais
+     clara que o céu que a ilumina é IMPOSSÍVEL: albedo ≤ 1. Daí a regra, que não depende de
+     gosto nem de exposição (o AgX é monotônico, então limitar a RADIÂNCIA limita o L*):
+        radiância da fumaça = radiância do céu do mapa × SMOKE_ALBEDO.
+     E o sprite deixa de ser uma cor fixa para acompanhar o mapa — é o mesmo motivo pelo qual
+     a luz do viewmodel passou a seguir o orçamento do mapa: consistência gráfica é o mapa e
+     o efeito lerem a MESMA fonte, não dois números escritos à mão em lugares diferentes.
+     Kill-switch: ?smokealb=<0..1> (?smokealb=2.07 reproduz o branco antigo no awp_map). */
+  _corDaFumaca() {
+    if (this._smokeCol) return this._smokeCol;
+    // `skyRadiance` devolve a radiância do céu DESTE mapa já em espaço linear de trabalho
+    // (bloom.js), então multiplicar por escalar é escalar radiância. NÃO se usa `scene.fog`
+    // aqui de propósito: o fy_pool_day é salão fechado e não tem névoa, mas o céu dele foi
+    // medido igual — a régua tem que valer nos 5, inclusive no que não tem névoa.
+    const ceu = skyRadiance(this._mapId);
+    const ov = parseFloat(QS.get('smokealb'));
+    // 0,75: albedo de plumas de fumaça branca em espalhamento múltiplo. Abaixo de 1 por
+    // construção — é o que garante FOG1 sem depender da exposição de cada mapa.
+    const alb = isFinite(ov) ? ov : 0.75;
+    this._smokeCol = ceu.multiplyScalar(alb);
+    return this._smokeCol;
+  }
+
   _popSmoke(pos) {
     const R = 2.6;
     const group = new THREE.Group();
     group.position.set(pos.x, Math.max(0.5, pos.y), pos.z);
     const sprites = [];
+    const cor = this._corDaFumaca();
     for (let i = 0; i < 18; i++) {
-      const mat = new THREE.SpriteMaterial({ map: this._smokeTex, color: 0xcfd2d6, transparent: true, opacity: 0, depthWrite: false });
+      const mat = new THREE.SpriteMaterial({ map: this._smokeTex, color: cor, transparent: true, opacity: 0, depthWrite: false });
       const sp = new THREE.Sprite(mat);
       const a = Math.random() * 6.28, r = Math.random() * R, h = (Math.random() - 0.2) * R;
       sp.position.set(Math.cos(a) * r, h, Math.sin(a) * r);
@@ -3005,30 +3721,69 @@ export class Game {
     if (f === 'P') return dark ? '#e03232' : '#ff5555';            // Petista vermelho
     if (f === 'B') return dark ? '#1faa4d' : '#55dd66';            // Bolsonarista verde
     if (f === 'C') return dark ? '#c23a86' : '#ff6ec7';            // Palhaços rosa-circo
+    if (f === 'F') return dark ? '#c79a12' : '#ffc233';            // Funkeiros ouro
     return dark ? '#aaaaaa' : '#999999';
+  }
+  /* TINTA CLARA DO TIME — só pra TEXTO sobre chip tingido (killfeed). Por que existe:
+     o chip do killfeed é `background:${cor}2e` (a própria cor do time a 18%) com o texto
+     na cor CHEIA do time. Medido em tools/eval/ui-check.mjs (UI1): #ff5555 sobre esse chip
+     dá 3,85:1 na linha "VOCÊ morreu" — abaixo dos 4,5:1 da WCAG 1.4.3, e é justamente a
+     linha que o jogador mais precisa ler. A saída não é abandonar a cor do time: é a mesma
+     que o topo do HUD já usa há tempos (.ts-p{color:#ff9a9a} / .ts-b{color:#a9f0b6},
+     style.css:521-522) — a versão PÁLIDA da cor. Aqui ela ganha nome e vale pras 6 facções.
+     Mantém a leitura "vermelho = petista / verde = bolsonarista" e passa a 5,9-9,1:1. */
+  _teamInk(side) {
+    if (this._mirror(side)) return '#cbaaff';
+    const f = this._factionOf(side);
+    return ({ U: '#a8cdff', P: '#ff9a9a', B: '#a9f0b6', C: '#ffb3e0', F: '#ffd98a' })[f] || '#d6d6d6';
   }
   // Pack de vozes/round por FACÇÃO: o lado do jogador usa 'U' (Tribos) quando a facção é Tribos
   // Urbanas; senão o lado (P/B). O inimigo é sempre político. Corrige "Tribos usa voz de Petista".
   // Facção que ocupa um LADO físico (P/B): lado do jogador = playerFaction, o outro = enemyFaction.
   _factionOf(side) { return side === this.playerTeam ? this.playerFaction : this.enemyFaction; }
   _voiceKey(side) { return this._factionOf(side); }   // pack de vozes/round por facção (P/B/U)
-  _teamName(side) { const f = this._factionOf(side); return f === 'U' ? 'TRIBOS URBANAS' : f === 'C' ? 'PALHAÇOS' : (TEAM_LABEL[f] || f); }
-  _teamTag(side) { const f = this._factionOf(side); return f === 'U' ? 'TRB' : f === 'C' ? 'PLH' : f === 'P' ? 'PET' : 'BOL'; }
+  _teamName(side) { const f = this._factionOf(side); return f === 'U' ? 'TRIBOS URBANAS' : f === 'C' ? 'PALHAÇOS' : f === 'F' ? 'FUNKEIROS' : (TEAM_LABEL[f] || f); }
+  _teamTag(side) { const f = this._factionOf(side); return f === 'U' ? 'TRB' : f === 'C' ? 'PLH' : f === 'F' ? 'FNK' : f === 'P' ? 'PET' : 'BOL'; }
   _mirror(side) { return side === this.enemyTeam && this.enemyFaction === this.playerFaction; }   // inimigo = mesma facção
   // Separação (boids): empurra o bot pra longe de colegas do mesmo time num raio curto, pra eles
   // NÃO andarem colados em fila indiana sobre o mesmo path. Peso ~inverso à distância.
   _botSeparation(b, dt) {
-    let px = 0, pz = 0;
+    let px = 0, pz = 0, crowd = 0;
+    /* ANTI-AMONTOADO (01/08, bug do print da Loja H). Três coisas acontecem nesta varredura,
+       e é importante que sejam TRÊS e não uma:
+       (a) a separação de boids ORIGINAL (raio 1,15 m, só colegas de time) — mexer no raio
+           dela foi MEDIDO como ruim: o componente lateral vira desvio de rumo, e com raio
+           grande o bot sai do próprio caminho toda hora, erra o nó, o destravamento bane o
+           nó e a rota apodrece (A* falhando ~40% por nó banido). Fica como estava;
+       (b) DESPENETRAÇÃO RÍGIDA (nova): nada no jogo impedia dois bonecos de ocuparem o mesmo
+           ponto — `_collide` só resolve contra o CENÁRIO. É isso que produz o borrão de 8
+           personagens do print. Aqui os dois são afastados de verdade, metade pra cada um,
+           valendo inclusive contra o time inimigo (a pilha da porta é mista). Como é uma
+           correção de POSIÇÃO simétrica e não uma força de direção, ela não briga com a rota;
+       (c) `crowd` = colegas a menos de 3 m, medido SEMPRE (independente do raio de boids —
+           na primeira versão ele vivia zerado porque estava dentro do `if` do raio de 1,15 m).
+           Serve pra cancelar o "plantar e mirar" no meio do bolo (ver _updateBot). */
+    const R = BOT_MOVE2 ? 1.15 : 1.6, R2 = R * R;
+    const BODY2 = BOT_BODY_R * 2;
     for (const o of this.bots) {
-      if (o === b || !o.alive || o.team !== b.team) continue;
+      if (o === b || !o.alive) continue;
+      const foe = o.team !== b.team;
       const dx = b.pos.x - o.pos.x, dz = b.pos.z - o.pos.z, d2 = dx * dx + dz * dz;
-      // raio 1.6→1.15 m e peso QUADRÁTICO: com raio grande + peso linear o empurrão ligava e
-      // desligava o tempo todo em roam de grupo, e como ele é lateral ao corpo virava o
-      // zigzag que o dono vê. Quadrático = quase nada em 1,1 m e forte só no encosto.
-      const R2 = BOT_MOVE2 ? 1.3225 : 2.56, R = BOT_MOVE2 ? 1.15 : 1.6;
-      if (d2 < R2 && d2 > 1e-4) { const d = Math.sqrt(d2), u = (R - d) / R, w = BOT_MOVE2 ? u * u : u; px += (dx / d) * w; pz += (dz / d) * w; }
+      if (d2 <= 1e-4) continue;
+      if (!foe && d2 < 9) crowd++;                       // (c)
+      if (!foe && d2 < R2) {                             // (a) — inalterado
+        const d = Math.sqrt(d2), u = (R - d) / R, w = BOT_MOVE2 ? u * u : u;
+        px += (dx / d) * w; pz += (dz / d) * w;
+      }
+      if (BOT_CROWD && d2 < BODY2 * BODY2) {             // (b)
+        const d = Math.sqrt(d2), push = (BODY2 - d) * 0.5;
+        b.pos.x += (dx / d) * push; b.pos.z += (dz / d) * push;
+        o.pos.x -= (dx / d) * push; o.pos.z -= (dz / d) * push;
+        this._collide(o.pos, 0.38);
+      }
     }
-    if (!px && !pz) return;
+    b._crowd = crowd;
+    if (!px && !pz) { this._collide(b.pos, 0.38); return; }
     const k = BOT_MOVE2 ? 0.45 : 0.7;
     /* CAUSA-RAIZ do "andando de lado" que sobrou (medido: 17 latFlips/min, quase todos em
        ROAM, não em combate): a separação era uma TRANSLAÇÃO EM X/Z DO MUNDO. Quando ela
@@ -3053,20 +3808,27 @@ export class Game {
     for (const p of this.ctfPts) for (const m of [p.ring, p.zone, p.pole, p.flag]) if (m) this.scene.remove(m);
     const sP = this.world.spawns.P[0], sB = this.world.spawns.B[0];
     const mk = (id, label, x, z) => {
+      /* ALTURA DA ZONA: era y ABSOLUTO (0,06 / 0,12) e não o chão LOCAL. Em mapa plano dá na
+         mesma; em mapa com relevo o anel ATRAVESSA a geometria — foi o "anel rosa cortando o
+         pedestal da estátua" nos prints do dono no fy_havan (pedestal de 0,60 m, anel a 0,12).
+         Mesmo defeito de forma do `_dropWeapon` com TOP absoluto (ver pickup-check.mjs).
+         Mastro e pano seguem o mesmo chão: bandeira fincada no ar é o mesmo bug uma altura
+         acima. */
+      const gy = this.world.groundHeightAt ? this.world.groundHeightAt(x, z) : 0;
       // disco de terra compactada (visual novo — anel fino de time por cima)
       const zone = new THREE.Mesh(this._ctfZoneGeo, new THREE.MeshStandardMaterial({
         map: this._ctfZoneTex, transparent: true, roughness: 0.95, metalness: 0,
         depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2,
       }));
-      zone.position.set(x, 0.06, z); zone.rotation.x = -Math.PI / 2; zone.scale.setScalar(4.5);
+      zone.position.set(x, gy + 0.06, z); zone.rotation.x = -Math.PI / 2; zone.scale.setScalar(4.5);
       zone.receiveShadow = true;
       const ring = new THREE.Mesh(this._ctfRingGeo, new THREE.MeshBasicMaterial({ color: 0xb8b4a8, transparent: true, opacity: 0.6, depthWrite: false }));
-      ring.position.set(x, 0.12, z); ring.rotation.x = Math.PI / 2; ring.scale.setScalar(4.5);
+      ring.position.set(x, gy + 0.12, z); ring.rotation.x = Math.PI / 2; ring.scale.setScalar(4.5);
       // mastro + bandeira que colore com o dono (vermelha P / verde B), como pedido.
       // Pano TEXTURIZADO (crítico R6: "retângulo verde-chapado gigante"): ondulação,
       // gradiente e borda gasta — a cor do time multiplica o pano dessaturado.
       const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 4.2, 8), new THREE.MeshStandardMaterial({ color: 0xbfc3c9, metalness: 0.6, roughness: 0.5 }));
-      pole.position.set(x, 2.1, z);
+      pole.position.set(x, gy + 2.1, z);
       const flag = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 1.05, 6, 3), new THREE.MeshBasicMaterial({ map: this._flagTexFor(null), color: 0xaaaaaa, side: THREE.DoubleSide }));
       // ondulação estática do pano (vértices em seno — sem custo de animação)
       {
@@ -3077,7 +3839,7 @@ export class Game {
         }
         pos.needsUpdate = true; flag.geometry.computeVertexNormals();
       }
-      flag.position.set(x + 0.9, 3.55, z);
+      flag.position.set(x + 0.9, gy + 3.55, z);
       this.scene.add(zone); this.scene.add(ring); this.scene.add(pole); this.scene.add(flag);
       return { id, label, x, z, r: 4.5, owner: null, prog: 0, ring, zone, pole, flag };
     };
@@ -3086,10 +3848,16 @@ export class Game {
     if (this.world.ctfPoints && this.world.ctfPoints.length) {
       this.ctfPts = this.world.ctfPoints.map(p => mk(p.id, p.label, p.x, p.z));
     } else {
+      /* 0,82 -> 0,42 do vetor spawn->centro. Com 0,82 a bandeira nascia a 18% do caminho, ou
+         seja COLADA no respawn: medido em tools/eval/map-check.mjs, 11,3 m no awp_map, 7,7 m
+         na praça e 3,9 m no piscinão — MENOS que o raio de captura (4,5 m) no piscinão, isto
+         é, dava pra capturar de dentro do próprio spawn e o inimigo que chegasse pra retomar
+         caía no meio dos que estavam renascendo. 0,42 põe as três a ≥ 12 m do spawn mais
+         próximo nos três mapas (medido: 36,4 / 24,9 / 12,6 m) sem mexer na forma do layout. */
       this.ctfPts = [
-        mk('P', 'CONGRESSO', sP.x * 0.82, sP.z * 0.82),
+        mk('P', 'CONGRESSO', sP.x * 0.42, sP.z * 0.42),
         mk('MID', 'ÔNIBUS', 2.5, 2.5),
-        mk('B', 'CATEDRAL', sB.x * 0.82, sB.z * 0.82),
+        mk('B', 'CATEDRAL', sB.x * 0.42, sB.z * 0.42),
       ];
     }
     this._updateCtfHud();
@@ -3119,6 +3887,7 @@ export class Game {
           this.sfx.captureSound && this.sfx.captureSound(this._factionOf(solo));   // captura: pool de som por facção (palhaços = pasta própria)
           // credita a captura: +1 pro time e +1 pra cada combatente do time DENTRO do anel
           this.ctfCaps[solo] = (this.ctfCaps[solo] || 0) + 1;
+          this.roundCaps[solo] = (this.roundCaps[solo] || 0) + 1;   // placar DA RODADA (quem leva o round)
           for (const c of this.combatants) {
             if (!c.alive || c.team !== solo) continue;
             const dx = c.pos.x - pt.x, dz = c.pos.z - pt.z;
@@ -3155,10 +3924,13 @@ export class Game {
     this.state = 'roundEnd'; this.stateUntil = this.time + 4;
     this.player.scoped = false; this.el.scope.classList.remove('on');
     this.radioOpen = null; this._radioUi();
-    this._showScoreboard(true); this._ensureDolly();
+    this._ensureDolly();
     const mine = team === this.playerTeam;
-    this._banner(`${this._teamName(team)} DOMINARAM OS 3 PODERES`, mine ? '— capturou tudo! 🏆' : '— corre pra retomar!');
+    this._resultadoDaRodada(`${this._teamName(team)} DOMINARAM AS BANDEIRAS`, mine ? 'capturou tudo! 🏆' : 'corre pra retomar!');
     if (!this.sfx.roundSound(this._voiceKey(team))) mine ? this.sfx.roundWin() : this.sfx.roundLose();
+    // dominação é vitória INSTANTÂNEA da rodada, mas continua sendo uma RODADA: se ela foi
+    // a 3ª vitória (ou a 5ª rodada), a pausa estica pra tela de fim, igual ao _endRound.
+    if (this._fimDaPartida()) this.stateUntil = this.time + 4.5;
   }
 
   // Simula a caminhada reta do bot (física _collide real) até um waypoint: responde se
@@ -3225,6 +3997,29 @@ export class Game {
     const steps = Math.min(24, Math.ceil(d / 0.3));
     for (let i = 0; i < steps; i++) { sim.x += (dx / d) * 0.3; sim.z += (dz / d) * 0.3; this._collide(sim, 0.38); }
     return Math.hypot(n.x - sim.x, n.z - sim.z) < tol;
+  }
+  /* COMPONENTES CONEXOS DO GRAFO DE WAYPOINTS (uma varredura por mapa, em cache no world).
+     PORQUÊ: o grafo de vários mapas é DESCONEXO — na Loja H, medindo, são 3 ilhas: a arena
+     jogável (394 nós), a faixa externa em volta do prédio da loja (143 nós, sem porta) e o
+     mezanino (14 nós, a rampa não passa no segClear por causa do degrau de altura). O roam
+     sorteava o destino só por coluna/profundidade, então 45% das rotas do lado que ATACA a
+     loja miravam uma dessas ilhas: o A* devolvia [from], o bot marcava "inalcançável",
+     re-sorteava, e o ciclo consumia a rerrota inteira. Na tela isso é o bot que fica moendo
+     perto do spawn "sem jogar". Com o componente em mãos o destino já nasce alcançável.
+     Custo: O(nós+arestas) UMA vez (551 nós na Loja H) — nada por frame. */
+  _wpComp() {
+    const W = this.world;
+    if (W._wpComp) return W._wpComp;
+    const N = (W.waypoints && W.waypoints.nodes) || [], A = (W.waypoints && W.waypoints.adj) || [];
+    const comp = new Int32Array(N.length).fill(-1);
+    let nc = 0;
+    for (let i = 0; i < N.length; i++) {
+      if (comp[i] >= 0) continue;
+      const st = [i]; comp[i] = nc;
+      while (st.length) { const c = st.pop(); for (const m of (A[c] || [])) if (comp[m] < 0) { comp[m] = nc; st.push(m); } }
+      nc++;
+    }
+    return (W._wpComp = comp);
   }
   // A* local idêntico ao do mapa, mas pulando nós banidos (b._banNodes — hops que o bot
   // não conseguiu transitar fisicamente). Mantido aqui (game.js) pra não tocar nos mapas.
@@ -3380,20 +4175,66 @@ export class Game {
     } else { b._stuckT = 0; b._stuckSide = 0; }
   }
 
+  /* Esconder É limpar. Só pôr `hidden` deixava o innerHTML da partida anterior pendurado,
+     e ele reaparecia inteiro no primeiro frame da próxima partida de CTF — antes de
+     _updateCtfHud rodar — mostrando bandeiras de OUTRO mapa por um instante. */
+  _hideCtfHud() {
+    if (!this.el.ctfHud) return;
+    this.el.ctfHud.classList.add('hidden');
+    this.el.ctfHud.innerHTML = '';
+  }
+
   _updateCtfHud() {
     if (!this.el.ctfHud) return;
+    /* GUARDA DE MODO — defeito reportado pelo dono: "alguns mapas em round mostram as
+       bandeiras no UI mesmo sem ter captura".
+
+       O `#ctf-hud` nasce com `hidden` no index.astro e este método sempre fez
+       `remove('hidden')` sem perguntar o modo. Como NÃO existia um único `add('hidden')`
+       para este elemento em todo o repo (nem no dispose(), que esconde outros 12), a faixa
+       ficava na tela para sempre depois da primeira partida de CTF: voltar ao menu e abrir
+       uma partida de rounds SEM recarregar a página mostrava as bandeiras da partida
+       anterior, com o HTML congelado. De quebra o seletor `#ctf-hud:not(.hidden) ~ #killfeed`
+       (style.css) empurrava o killfeed 38 px pra baixo no modo errado.
+
+       O `if (this.ctf)` do game.js:2011 protegia só a CRIAÇÃO das bandeiras (_initCTF), não
+       a visibilidade do HUD — por isso o modo tem que ser checado aqui também. */
+    if (!this.ctf || !this.ctfPts.length) { this._hideCtfHud(); return; }
     this.el.ctfHud.classList.remove('hidden');
+    /* CONTRASTE DA FAIXA DE CAPTURA — DEFEITO 2 DO DONO ("a informação mais importante do
+       modo com o contraste mais baixo do HUD"). Números medidos em tools/eval/ui-check.mjs
+       (UI1), texto/objeto contra o fundo DO PRÓPRIO ELEMENTO composto sobre o pior fundo de
+       cena desta base (areia do Piscinão RGB 214,196,164, style.css:420):
+         trilho da barra × painel .................. 1,40:1   (WCAG 1.4.11 exige 3:1)
+         preenchimento vermelho × trilho ........... 1,49:1
+         preenchimento verde × trilho .............. 2,66:1
+         separador "·" com opacity:.4 .............. 3,94:1   (WCAG 1.4.3 exige 4,5:1)
+       A causa é a mesma nos três: TRANSPARÊNCIA. `opacity` de grupo apaga o texto E o
+       contorno preto do --sh-hud junto (o contorno é o que segura a legibilidade do resto
+       do HUD), e a barra é BACKGROUND — background não ganha contorno nenhum, então ela
+       ficava com um trilho de branco a 14% sobre um painel a 55%: dois cinzas quase iguais.
+
+       Correção:
+       - separadores: cor explícita (--ink-300, 5,5:1 sobre o painel) em vez de opacity;
+       - barra: poço ESCURO (preto .55) com fio claro de 1 px em volta. O fio resolve o
+         limite do componente (4,97:1 contra o painel) e o poço escuro deixa a cor do time
+         saltar (verde 11,2:1, vermelho 6,3:1) — com um trilho cinza-médio seria impossível
+         atender aos DOIS limites ao mesmo tempo (fio claro × painel e preenchimento ×
+         trilho puxam para lados opostos);
+       - barra de 4 px de altura por 52 de largura -> 8 × 64: a WCAG não mede espessura, mas
+         um traço de 4 px com 1,4:1 não existe pra ninguém. */
+    const sep = (t) => `<span style="color:var(--ink-300)"> ${t} </span>`;
     this.el.ctfHud.innerHTML = this.ctfPts.map(p => {
-      const col = p.owner ? this._teamColor(p.owner) : '#bbb';
+      const col = p.owner ? this._teamColor(p.owner) : 'var(--ink-100)';
       const prog = Math.max(0, Math.min(1, p.prog || 0));
       // barra de captura na COR DO TIME que captura (Tribos=azul, P=vermelho, B=verde); sem
       // ninguém capturando mas já dominado, usa a cor do dono; senão transparente.
       const barCol = p.capTeam ? this._teamColor(p.capTeam) : (prog > 0 && p.owner ? this._teamColor(p.owner) : 'transparent');
-      const bar = `<span style="display:inline-block;width:52px;height:4px;margin-left:5px;background:rgba(255,255,255,.14);border-radius:2px;vertical-align:middle;overflow:hidden"><span style="display:block;height:100%;width:${(prog * 100) | 0}%;background:${barCol};transition:width .1s"></span></span>`;
+      const bar = `<span style="display:inline-block;width:64px;height:8px;margin-left:6px;background:rgba(0,0,0,.55);border:1px solid rgba(233,241,243,.55);border-radius:2px;vertical-align:middle;overflow:hidden"><span style="display:block;height:100%;width:${(prog * 100) | 0}%;background:${barCol};transition:width .1s"></span></span>`;
       return `<span style="color:${col}">● ${p.label}</span>${bar}`;
-    }).join('<span style="opacity:.4"> · </span>')
-      + `<span style="opacity:.5"> — </span><span style="color:${this._teamColor('P')}">🚩 ${this.ctfCaps.P || 0}</span>`
-      + `<span style="opacity:.4"> · </span><span style="color:${this._teamColor('B')}">🚩 ${this.ctfCaps.B || 0}</span>`;
+    }).join(sep('·'))
+      + sep('—') + `<span style="color:${this._teamColor('P')}">🚩 ${this.ctfCaps.P || 0}</span>`
+      + sep('·') + `<span style="color:${this._teamColor('B')}">🚩 ${this.ctfCaps.B || 0}</span>`;
   }
 
   /* ================= player physics ================= */
@@ -3412,6 +4253,71 @@ export class Game {
     const B = this.world.bounds;
     pos.x = Math.max(B.minX + r, Math.min(B.maxX - r, pos.x));
     pos.z = Math.max(B.minZ + r, Math.min(B.maxZ - r, pos.z));
+  }
+  /* PONTO ANDÁVEL MAIS PRÓXIMO (usado pelo armário do spawn).
+     Empurra (x,z) pra fora de qualquer colisor/limite usando a MESMA física do jogador —
+     se o _collide não mexe no ponto, o jogador consegue ficar em pé nele; é essa a
+     definição de "andável" aqui, e é a única que importa pra pegar arma.
+     Roda só no _resetPositions (25 armas × 2 times = 50 chamadas por round), então iterar
+     é barato. `r` um pouco maior que o raio do jogador (0,38) deixa folga pra ele encostar. */
+  _freeSpot(x, z, r = 0.5) {
+    // ponto DENTRO de um colisor: o _collide sozinho só sabe empurrar +x (dx=dz=0 → push
+    // degenerado), o que daria um resultado imprevisível. Saímos antes pela face mais perto.
+    for (const c of this.world.colliders) {
+      if (x > c.minX && x < c.maxX && z > c.minZ && z < c.maxZ && 1.5 > c.minY && 0.3 < c.maxY) {
+        const dl = x - c.minX, dr = c.maxX - x, db = z - c.minZ, df = c.maxZ - z;
+        const m = Math.min(dl, dr, db, df);
+        if (m === dl) x = c.minX - r; else if (m === dr) x = c.maxX + r;
+        else if (m === db) z = c.minZ - r; else z = c.maxZ + r;
+      }
+    }
+    const p = new THREE.Vector3(x, 0, z);
+    for (let i = 0; i < 6; i++) {                 // colisores encostados exigem várias passadas
+      const px = p.x, pz = p.z;
+      this._collide(p, r);
+      if (Math.abs(p.x - px) < 1e-4 && Math.abs(p.z - pz) < 1e-4) break;
+    }
+    return { x: p.x, z: p.z };
+  }
+  /* EXISTE CAMINHO RETO ANDÁVEL de (sx,sz) até (tx,tz)? Mesma física do jogador: _collide
+     (colisores + bounds) e groundHeightAt pro degrau.
+     ATENÇÃO — NÃO É CRITÉRIO DE ALCANCE, e por isso está DESLIGADO por padrão desde 08/2026
+     (só roda com `?rackreta=1`, ver RACK_RETA em game.js:~176 e o uso em game.js:~1861).
+     A crítica adversarial provou por flood-fill que reta limpa ⊄ alcançável: uma arma que
+     exige contornar meio metro de colisor reprova aqui e é perfeitamente alcançável a pé.
+     Usado como critério de colocação ele moveu 52 das 202 armas do armário e destruiu a
+     fileira (vão de 7,53 m em fy_havan B, centro do armário 3,72 m longe do spawn em
+     awp_map P). A pergunta certa — "existe célula andável alcançada a partir do spawn a
+     ≤ 1 m da arma?" — é respondida por flood-fill em tools/eval/pickup-check.mjs, fora do
+     jogo. Mantido só pra reproduzir o A/B; não promova a padrão. */
+  _retaAndavel(sx, sz, tx, tz, r = 0.42, degrau = 0.30) {
+    const gh = (x, z) => (this.world.groundHeightAt ? this.world.groundHeightAt(x, z) : 0);
+    const dx = tx - sx, dz = tz - sz, dist = Math.hypot(dx, dz);
+    const n = Math.max(2, Math.ceil(dist / 0.25));   // amostra a cada 25 cm: menor que o raio do corpo
+    let gPrev = gh(sx, sz);
+    const p = new THREE.Vector3();
+    for (let i = 1; i <= n; i++) {
+      const t = i / n, px = sx + dx * t, pz = sz + dz * t;
+      const g = gh(px, pz);
+      if (Math.abs(g - gPrev) > degrau) return false;          // degrau alto: não se sobe andando
+      gPrev = g;
+      p.set(px, g, pz);
+      this._collide(p, r);
+      if (Math.abs(p.x - px) > 1e-3 || Math.abs(p.z - pz) > 1e-3) return false;   // bateu em algo
+    }
+    return true;
+  }
+  /* Quantos metros de chão ANDÁVEL existem a partir do spawn na direção `back`?
+     É o que decide se o armário cabe todo atrás do spawn ou se uma fileira tem que ir pra
+     frente. Antes esse número era assumido (3,25 m) — e em fy_ferrovelho/fy_havan ele é 2,1. */
+  _walkDepth(cx, sz, back, max = 5.4) {
+    let d = 0;
+    for (let t = 0.4; t <= max + 1e-6; t += 0.4) {
+      const s = this._freeSpot(cx, sz + back * t, 0.45);
+      if (Math.abs(s.x - cx) > 0.05 || Math.abs(s.z - (sz + back * t)) > 0.05) break;
+      d = t;
+    }
+    return d;
   }
   /* ================= FEEDBACK DE MORTE =================
      "Você morre olhando pro chão sem saber quem, de onde, com o quê" era o item mais grave da
@@ -3558,7 +4464,11 @@ export class Game {
     }
     p.vel.y -= 20.6 * dt;   // gravidade exagerada do CoD — arco de pulo "snappy", não flutuante
     // integrate with step-limit so platform fronts block
-    const oldG = this.world.groundHeightAt(p.pos.x, p.pos.z);
+    /* CHÃO MULTINÍVEL: o 3º argumento é o Y de quem pergunta. Onde há mais de uma
+       superfície no mesmo (x,z) — hoje o vão embaixo das escadas da Havan — o mapa devolve
+       a camada que ESTE corpo alcança de um passo, em vez do topo sempre. Mapa que não
+       implementa camadas ignora o argumento e nada muda. Ver map_havan.js/groundHeightAt. */
+    const oldG = this.world.groundHeightAt(p.pos.x, p.pos.z, p.pos.y);
     // STEP-UP CONFIÁVEL: degrau até STEP_H sobe no MESMO frame, sem perder velocidade (antes
     // o corpo só era realinhado no snap de gravidade do frame seguinte — subir meio-fio/degrau
     // "engasgava"). Acima disso é parede: além de bloquear, ZERA a velocidade daquele eixo,
@@ -3566,7 +4476,7 @@ export class Game {
     const STEP_H = 0.55;
     const tryAxis = (dx, dz, ax) => {
       const nx = p.pos.x + dx, nz = p.pos.z + dz;
-      const g = this.world.groundHeightAt(nx, nz);
+      const g = this.world.groundHeightAt(nx, nz, p.pos.y);
       const rise = g - oldG;
       if (rise > STEP_H && p.pos.y < g - 0.2) { if (MOVE2) { if (ax) p.vel.z = 0; else p.vel.x = 0; } return; } // wall-like step
       p.pos.x = nx; p.pos.z = nz;
@@ -3575,7 +4485,7 @@ export class Game {
     tryAxis(p.vel.x * dt, 0, 0); tryAxis(0, p.vel.z * dt, 1);
     this._collide(p.pos, 0.38);
     p.pos.y += p.vel.y * dt;
-    const g2 = this.world.groundHeightAt(p.pos.x, p.pos.z);
+    const g2 = this.world.groundHeightAt(p.pos.x, p.pos.z, p.pos.y);
     if (p.pos.y <= g2) {
       if (!p.grounded && p.vel.y < -4) { this.sfx.land(); p.landDip = Math.min(1, -p.vel.y / 14); } // landing dip, sized by impact
       p.pos.y = g2; p.vel.y = 0; p.grounded = true;
@@ -3719,7 +4629,21 @@ export class Game {
     const drawF = Math.max(0, (p.drawUntil - this.time) / 0.28);
     // Kick mais PUNCHY (dono: "animação de tiro ruim"): recuo pra trás + salto pra cima + subida
     // do cano + um jolt lateral (roll/yaw) aleatório por tiro, escalado por arma (ver _tryShoot).
-    const k = this.vm.kick, ks = this.vm.kickSide || 0;
+    // R1.d — KILL-SWITCH ?vmkick=<mult>. Multiplica em bloco os ganhos do kick do viewmodel
+    // (posZ/posY/rotX/rotY/rotZ logo abaixo) para permitir A/B AO VIVO sem deploy:
+    //   ?vmkick=0    desliga o coice cosmético (prova de que ele não move a mira)
+    //   ?vmkick=1    padrão (ganhos calibrados de R1.a)
+    //   ?vmkick=3.14 reproduz aproximadamente o coice antigo (0.22/0.07 = 3.14 em rotX)
+    // Escala o `k` UMA vez em vez de repetir o fator em 5 termos: assim os ganhos continuam
+    // literais no código (é deles que tools/eval/vm-kick-sim.mjs lê por regex) e o A/B não
+    // pode dessincronizar um eixo do outro. Mesmo espírito do VM_KNOB (game.js:352), só que
+    // resolvido na 1ª chamada e cacheado — o parse não pode entrar no loop de frame.
+    // NÃO afeta a crosshair dinâmica nem o recuo de câmera: os dois leem outras fontes.
+    if (this._vmKickQ === undefined) {
+      const v = parseFloat(new URLSearchParams(location.search).get('vmkick'));
+      this._vmKickQ = (isFinite(v) && v >= 0) ? Math.min(4, v) : 1;
+    }
+    const k = this.vm.kick * this._vmKickQ, ks = this.vm.kickSide || 0;
     // SWING da faca estilo CS (dono: "faca muito tímida"): varredura lateral + roll da lâmina + estocada.
     let swPz = 0, swRx = 0, swRy = 0, swRz = 0;
     if (this.vm.swingAt != null) {
@@ -3727,11 +4651,34 @@ export class Game {
       if (st < 1) { const e = Math.sin(st * Math.PI); swRy = -e * 0.6; swRz = e * 0.5; swRx = e * 0.28; swPz = e * 0.12; }
       else this.vm.swingAt = null;
     }
-    this.vm.root.position.set(VM_OFF[0] + pose.x * a + sl * 0.3 + this._swayX * 0.02 + bobX, VM_OFF[1] + bobY - this.vm.reloadDip * 0.18 - p.crouchF * 0.02 + pose.y * a - sl * 0.38 + this._swayY * 0.015 - drawF * 0.22 + k * 0.045, VM_OFF[2] + k * 0.15 + pose.z * a - swPz);
-    this.vm.root.rotation.x = k * 0.22 + this.vm.reloadDip * 0.6 - drawF * 0.55 + pose.rx * a + swRx;   // subida do cano + ADS + golpe da faca
-    this.vm.root.rotation.y = ks * k * 0.05 + pose.ry * a + swRy;                                       // yaw do coice/ADS + varredura da faca
-    this.vm.root.rotation.z = this._swayY * 0.03 + ks * k * 0.06 + swRz;                                // roll do coice + giro da lâmina
+    // GANHOS DO KICK (R1.a — medidos com tools/eval/vm-kick-sim.mjs, não chutados).
+    // Antes: posZ 0.15 / posY 0.045 / rotX 0.22 / rotY 0.05 / rotZ 0.06. Com k de rajada
+    // chegando a ~1.4, rotX=0.22 dava 18,4° de pitch do viewmodel — 4× o que a própria
+    // REC_DEG da arma declara (a AWP declara 4,9°) e ~5× o que CS2/Valorant fazem (2-4°).
+    // E posZ=0.15 empurrava a coronha 0,20 m EM DIREÇÃO À LENTE, cruzando o near plane
+    // (0.01 m) em 16 das 26 armas — a arma literalmente se abria ao meio na rajada.
+    // Os ganhos abaixo mantêm a MESMA forma de curva (mesma mola, mesma assinatura por
+    // arma), só reduzem a amplitude cosmética. Esta camada NÃO mexe na mira: o recuo de
+    // câmera é _shotRecoil/_installRecoil e continua intocado.
+    this.vm.root.position.set(VM_OFF[0] + pose.x * a + sl * 0.3 + this._swayX * 0.02 + bobX, vmOffY((this.vmCamera && this.vmCamera.aspect) || this.camera.aspect) + bobY - this.vm.reloadDip * 0.18 - p.crouchF * 0.02 + pose.y * a - sl * 0.38 + this._swayY * 0.015 - drawF * 0.22 + k * 0.015, VM_OFF[2] + k * 0.050 + pose.z * a - swPz);
+    this.vm.root.rotation.x = k * 0.070 + this.vm.reloadDip * 0.6 - drawF * 0.55 + pose.rx * a + swRx;   // subida do cano + ADS + golpe da faca
+    this.vm.root.rotation.y = ks * k * 0.018 + pose.ry * a + swRy;                                       // yaw do coice/ADS + varredura da faca
+    this.vm.root.rotation.z = this._swayY * 0.03 + ks * k * 0.022 + swRz;                                // roll do coice + giro da lâmina
     this.vm.root.scale.setScalar(1 - (1 - pose.s) * a);                                          // scale-down do VM em ADS
+    /* ADS ZERA O PITCH/YAW PRÓPRIOS DA ARMA (RODADA DO GRIP + PITCH).
+       O `_adsPose` acima gira o vm.root INTEIRO (rx/ry por classe) e não enxerga a
+       inclinação que o `_vmFrame` deu ao GRUPO da arma. Com pitch de ~12° e o ADS entrando,
+       a arma ficaria apontando pra cima na hora exata em que o jogador precisa da alça no
+       eixo — o "miro e a arma aponta pra outro lugar" que o dono já reclamou uma vez. A
+       rampa é `vmAdsRot` (declarada no topo do arquivo e coberta pela VM17), aplicada AQUI e
+       não no _vmFrame porque o _vmFrame só roda quando o ASPECTO muda, e o ADS é por frame.
+       O ROLL NÃO É ZERADO de propósito: girar em torno do eixo da câmera não desalinha a
+       alça, e era assim antes desta rodada. */
+    {
+      const wg = this.vm.models && this.vm.models[p.weapon];
+      const vr = this.vm.rot && this.vm.rot[p.weapon];
+      if (wg && vr && vr.ads) wg.rotation.set(vmAdsRot(vr.pitch, a), vmAdsRot(vr.yaw, a), vr.roll);
+    }
     // Braços reais: IK trava as mãos na arma visível DEPOIS de todos os transforms do
     // vm.root (kick/dip/ADS/sway/bob/draw) — as mãos acompanham a arma em qualquer estado.
     if (this.vm.arms && this.vm.root.visible) {
@@ -3754,20 +4701,120 @@ export class Game {
   // pickups (e.g. awp_map). Called once per frame from update().
   _updatePickups() {
     const list = this.world.pickups || [];
-    // jogador: captura manual com E (bots pegam andando mesmo)
-    let near = null, nearDrop = -1, nearDist = 1.9 * 1.9;
+    const p = this.player;
+    /* QUAL ARMA O [E] PEGA — a segunda metade do bug do dono (print 20:38).
+       O código antigo escolhia SÓ A MAIS PRÓXIMA num raio de 1,9 m. Com 25 armas em duas
+       fileiras a 1,25 m uma da outra, a fileira da frente vencia a de trás em TODO ponto
+       andável do mapa (medido: 0 de 12 armas da fileira 1 conseguiam prompt em
+       fy_ferrovelho P e fy_havan P). E mesmo onde dava, o prompt pulava entre vizinhas a
+       cada passo — "adivinhar posição", exatamente o que o dono descreveu.
+       Agora quem manda é a MIRA: projetamos a crosshair no plano das armas (um raycast de
+       plano, 3 multiplicações) e ganha a arma mais perto do ponto onde você está olhando,
+       desde que esteja ao alcance do braço. A mais próxima continua valendo como fallback
+       (quem passa por cima sem olhar continua pegando como antes). ?rack=old = só a antiga.
+       NÃO virou pega-andando-por-cima como os bots (era uma das direções sugeridas): o rack
+       tem 25 armas a 1,15 m uma da outra, e atravessar ele trocaria a arma do jogador 5 ou 6
+       vezes em dois segundos — a escolha do loadout viraria sorteio. O E continua sendo a
+       confirmação; o que mudou é que agora dá pra ESCOLHER qual arma o E pega. */
+    const AIM_R = 0.75;      // raio no chão em volta da crosshair que "conta" como mirar na arma
+    const REACH = 2.6;       // alcance do braço quando você MIRA na arma (a pé, era 1,9 sempre)
+    const NEAR = 1.9;        // fallback: a mais próxima, igual antes
+    const cands = [];
     const consider = (pk, isDrop, idx) => {
       if (this.time < pk.readyAt) return;
-      const dx = pk.x - this.player.pos.x, dz = pk.z - this.player.pos.z;
-      const d2 = dx * dx + dz * dz;
-      if (d2 < nearDist) { nearDist = d2; near = pk; nearDrop = isDrop ? idx : -1; }
+      if (!this._pickupAllowed(pk.weapon)) return;
+      cands.push({ pk, idx: isDrop ? idx : -1 });
     };
     list.forEach((pk, i) => consider(pk, false, i));
     this.drops.forEach((pk, i) => consider(pk, true, i));
-    this.nearPickup = near && this.player.alive && this._pickupAllowed(near.weapon) ? { pk: near, dropIdx: nearDrop } : null;
+    // quantas armas estão ao alcance AGORA (dita o texto do HUD, independente de estar mirando)
+    let inReach = 0;
+    for (const c of cands) {
+      const ax = c.pk.x - p.pos.x, az = c.pk.z - p.pos.z;
+      if (ax * ax + az * az <= REACH * REACH) inReach++;
+    }
+    let sel = null;
+    if (p.alive && !RACK_OLD) {
+      const dir = this.camera.getWorldDirection(this._pkDir || (this._pkDir = new THREE.Vector3()));
+      const eye = this.camera.position;
+      // olhando pra baixo o bastante pra cruzar o plano das armas (~0,08 m ACIMA DO CHÃO ONDE
+      // O JOGADOR ESTÁ). Era 0,12 ABSOLUTO — mesmo defeito de game.js:4208/498: dentro da
+      // piscina (chão −1,5 m) o plano ficava 1,6 m acima das armas e a mira projetava metros
+      // fora, tornando a escolha por mira inútil justo onde o mapa tem relevo.
+      const plano = (this.world.groundHeightAt ? this.world.groundHeightAt(p.pos.x, p.pos.z) : 0) + 0.08;
+      if (dir.y < -0.08) {
+        const t = (plano - eye.y) / dir.y;
+        if (t > 0 && t < 6) {
+          const hx = eye.x + dir.x * t, hz = eye.z + dir.z * t;
+          let bd = AIM_R * AIM_R;
+          for (const c of cands) {
+            const ax = c.pk.x - p.pos.x, az = c.pk.z - p.pos.z;
+            if (ax * ax + az * az > REACH * REACH) continue;   // vê de longe ≠ alcança
+            const dx = c.pk.x - hx, dz = c.pk.z - hz, d2 = dx * dx + dz * dz;
+            if (d2 < bd) { bd = d2; sel = c; }
+          }
+        }
+      }
+    }
+    if (!sel) {                                   // fallback: a mais próxima (comportamento antigo)
+      let bd = NEAR * NEAR;
+      for (const c of cands) {
+        const dx = c.pk.x - p.pos.x, dz = c.pk.z - p.pos.z, d2 = dx * dx + dz * dz;
+        if (d2 < bd) { bd = d2; sel = c; }
+      }
+    }
+    this.nearPickup = sel && p.alive ? { pk: sel.pk, dropIdx: sel.idx } : null;
+    /* DESTAQUE FÍSICO da arma selecionada: ela sobe 10 cm do chão. Com 25 armas juntas, ler
+       o nome no HUD não basta — o jogador precisa VER qual delas o E vai pegar. Guardamos a
+       altura original pra devolver quando a seleção muda (e o _resetPositions zera o campo,
+       porque as meshes do round anterior saem da cena). */
+    const selMesh = this.nearPickup ? this.nearPickup.pk.mesh : null;
+    if (this._pkGlow && this._pkGlow !== selMesh) { this._pkGlow.position.y = this._pkGlowY; this._pkGlow = null; }
+    if (selMesh && this._pkGlow !== selMesh) { this._pkGlow = selMesh; this._pkGlowY = selMesh.position.y; selMesh.position.y = this._pkGlowY + 0.10; }
+    /* PROMPT DO [E] — DEFEITO 1 DO DONO (11 de 16 screenshots com a tarja no centro-baixo,
+       por cima da arma). MEDIDO em tools/eval/ui-check.mjs (UI2, 5 mapas × 2 modos × 2
+       cenários × 90 s): 96,7% do tempo aceso no pior caso (fy_pool_day, jogador no spawn).
+       Não era "aparece demais": ele NUNCA APAGA enquanto houver uma arma no raio de 1,9 m —
+       e o armário do spawn põe 25 armas exatamente onde o jogador nasce e renasce.
+
+       Três condições novas, cada uma com um motivo:
+       (a) ARMA IGUAL COM MUNIÇÃO CHEIA não vira prompt. Pegar a mesma arma com pente e
+           reserva cheios não faz NADA (game.js:_grabPickup só toca sfx.uiClick) — anunciar
+           uma ação sem efeito é o pior tipo de ruído. Se falta munição, o prompt volta,
+           porque aí o [E] resolve alguma coisa.
+       (b) TEMPO DE VIDA de 4 s por seleção. O prompt é uma INSTRUÇÃO, não um medidor: ele
+           some depois de lido. 4 s = a string mais longa que o jogo escreve
+           ("[E] PEGAR REVÓLVER .38 · mire pra escolher", 41 caracteres ≈ 7 palavras) lida a
+           ~3,5 palavras/s — metade da leitura contínua de 250 ppm, porque num FPS o olho
+           volta pra mira entre sacadas — dá 2 s, e o dobro disso é a folga.
+       (c) PERÍODO REFRATÁRIO de 14 s entre uma exibição e a próxima. É ele que dá a
+           GARANTIA, não a sorte da simulação: acesa no máximo HINT_ON a cada
+           HINT_ON+HINT_OFF, o prompt não passa de 4/18 = 22,2% do tempo em NENHUM cenário
+           possível — abaixo do teto de 25% da UI2 por construção. Sem isso o número ainda
+           dependia do mapa: com o rack de 25 armas e o respawn de pickup de 8 s
+           (PICKUP_RESPAWN), a arma selecionada troca sozinha e cada troca reacendia a
+           tarja; medido com só (a)+(b), fy_pool_day/CTF parado no spawn ainda dava 37,6% e
+           fy_ferrovelho andando dava 31,3%.
+           Os relógios correm MESMO FORA DE ALCANCE, então voltar pra arma 14 s depois
+           mostra o prompt de novo — o que se perde é a repetição em rajada, não o aviso. */
+    const HINT_ON = 4, HINT_OFF = 14;
     if (this.el.pickupHint) {
-      if (this.nearPickup && this.state === 'live') {
-        this.el.pickupHint.textContent = `[E] PEGAR ${WEAPONS[this.nearPickup.pk.weapon].short}`;
+      const sel2 = this.nearPickup;
+      const w = sel2 ? sel2.pk.weapon : null;
+      let util = !!sel2 && this.state === 'live';
+      if (util && w === p.weapon) {
+        const a = p.ammo[w], W = WEAPONS[w];
+        util = !(a && W && a.mag >= W.mag && a.res >= W.reserve);   // (a) mesma arma + munição cheia = nada a ganhar
+      }
+      if (!util) this._pkHintW = null;   // saiu do alcance: voltar conta como informação nova
+      else if (this._pkHintW !== w && this.time >= (this._pkHintLivre || 0)) {          // (c)
+        this._pkHintW = w;
+        this._pkHintAte = this.time + HINT_ON;                                          // (b)
+        this._pkHintLivre = this.time + HINT_ON + HINT_OFF;
+      }
+      if (util && this._pkHintW === w && this.time < (this._pkHintAte || 0)) {
+        // com várias armas ao alcance, o HUD ensina o gesto em vez de deixar o jogador adivinhar
+        this.el.pickupHint.textContent = `[E] PEGAR ${WEAPONS[w].short}` + (inReach > 1 ? ' · mire pra escolher' : '');
         this.el.pickupHint.classList.remove('hidden');
       } else this.el.pickupHint.classList.add('hidden');
     }
@@ -3794,10 +4841,11 @@ export class Game {
       }
     }
   }
-  // Modo de armas EFETIVO. A Praça Clássica (praca_old) é sempre AWP-only (decisão do v2 alpha),
-  // independente do que o menu escolheu — força 'awp' aqui sem mexer nas settings salvas.
+  /* Modo de armas EFETIVO. O caso especial `if (this._mapId === 'praca_old') return 'awp'`
+     saiu junto com o mapa (pedido do dono: "vamos apagar a praça clássica"): era a única
+     regra de arma amarrada a um id de mapa e o mapa não existe mais. Nenhum mapa vivo força
+     AWP-only — quem escolhe é o menu. */
   _wpnMode() {
-    if (this._mapId === 'praca_old') return 'awp';
     return this.settings.wpnMode || 'all';
   }
   _botWeapon() {
@@ -3840,15 +4888,36 @@ export class Game {
     if (!pk.rack) pk.readyAt = this.time + PICKUP_RESPAWN;
     return true;
   }
+  /* ASSENTA a arma no chão LOCAL — o único jeito que funciona pros 26 GLBs.
+     DEFEITO QUE ISTO CONSERTA (game.js:4208 antigo): `mesh.position.set(x, y, z)` usava y
+     ABSOLUTO de mundo. Em mapa plano coincide com o chão; em fy_pool_day o fundo da piscina
+     vale −1,5 m (map_pool_day.js:267) e as duas contas divergem 1,6 m — e na praca_old, cujo
+     chão vale 1,4 m, a arma nascia 1,3 m ENTERRADA (medido: vão −1,312).
+     E "chão local + constante" também não serve: a arma é deitada de lado (roll π/2) e a
+     meia-espessura muda de GLB pra GLB — 0,088 m no fallback procedural, outro valor em cada
+     arma real. Então não se chuta altura: MEDE-SE a bbox do mesh já posicionado E rotacionado
+     e desloca-se y até a BASE encostar no chão. `folga` é o milímetro de ar que evita
+     z-fighting com o piso. Chamado por _dropWeapon e pelo swap de pickup do mapa
+     (game.js:498), pra não existirem duas contas de altura no projeto. */
+  _assentarNoChao(mesh, x, z, folga = 0.01) {
+    const chao = this.world && this.world.groundHeightAt ? this.world.groundHeightAt(x, z) : 0;
+    mesh.position.set(x, chao + folga, z);
+    mesh.updateWorldMatrix(true, true);
+    const b = new THREE.Box3().setFromObject(mesh);
+    // bbox degenerada (grupo sem geometria) → fica na altura nominal em vez de virar NaN
+    if (isFinite(b.min.y)) mesh.position.y += (chao + folga) - b.min.y;
+    mesh.updateWorldMatrix(true, true);
+    return mesh.position.y;
+  }
   // CS: morto larga a arma no chão
-  _dropWeapon(x, z, weapon, rack = false, y = 0.09) {
+  _dropWeapon(x, z, weapon, rack = false, folga = 0.01) {
     const mesh = weaponModel(weapon) || buildRifle();  // real GLB on the ground
     // lay it FLAT on its side (roll 90° about the barrel) so it rests on the ground
     // instead of standing on its belly. Rack drops (spawn weapon rows) get an aligned
     // yaw so they read as a tidy line; death drops/scatter get a random yaw.
-    // `y` existe pro armário: em cima da mesa (0,95 m) em vez de no chão.
-    mesh.position.set(x, y, z);
+    // ROTAÇÃO ANTES do assentamento: quem decide a altura é a bbox girada, não a de repouso.
     mesh.rotation.set(0, rack ? (Math.random() - 0.5) * 0.18 : Math.random() * Math.PI * 2, Math.PI / 2);
+    this._assentarNoChao(mesh, x, z, folga);
     mesh.traverse(o => { if (o.isMesh) o.castShadow = true; });
     this.scene.add(mesh);
     this.drops.push({ x, z, weapon, readyAt: 0, mesh, rack });
@@ -4033,6 +5102,13 @@ export class Game {
       if (this.time >= b.respawnAt && (this.state === 'live')) {
         const s = this._pickSpawn(b.team);   // mesmo critério de segurança do jogador
         b.pos.set(s.x, 0, s.z); b.hp = 100; b.alive = true;
+        /* RENASCER NO MESMO PIXEL: o _pickSpawn devolve o ponto MAIS SEGURO, e ele é o mesmo
+           pra todo mundo que morreu junto — 3 bots renascem exatamente sobrepostos. Tentei
+           afastar com um jitter de 0,6-1,4 m e o harness reprovou pelo mesmo motivo do
+           _resetPositions: o spawn da Loja H é um bolsão de gôndolas, e empurrar o bot pra
+           fora do ponto custa segundos de contorno (time da loja na metade inimiga 19,9% ->
+           13,8%, rota falhando 18,5% -> 30,0%, 40 corridas × 150 s). Quem desempilha aqui é a
+           DESPENETRAÇÃO do _botSeparation — ela age no 1º frame e não tira ninguém do bolsão. */
         b.protUntil = this.time + SPAWN_PROT;
         b.mag = (WEAPONS[b.weapon] && WEAPONS[b.weapon].mag) || 30;
         b.aimErr = 0.2; b.burst = 0; b.alertUntil = 0; b._hurtAt = 0; b.reloadUntil = 0;
@@ -4167,7 +5243,11 @@ export class Game {
       // bot parado mirando", como pedido, e não vira só um walk-strafe infinito.
       if (this.time > (b._holdDecide || 0)) {
         b._holdDecide = this.time + 1.2 + Math.random() * 1.5;
-        b.holdUntil = (dist > 16 && Math.random() < (b.crouchBias ? 0.6 : 0.4)) ? this.time + 1.0 + Math.random() * 1.8 : 0;
+        // NÃO PLANTA DENTRO DO BOLO: com 2+ colegas a menos de 3 m (b._crowd, contado no
+        // _botSeparation), segurar ângulo é o que transforma o funil da porta num monte de
+        // bonecos parados. Quem está no aperto se mexe — abre espaço e a pilha se desfaz.
+        const crowded = BOT_CROWD && (b._crowd || 0) >= BOT_CROWD_HOLD;
+        b.holdUntil = (!crowded && dist > 16 && Math.random() < (b.crouchBias ? 0.6 : 0.4)) ? this.time + 1.0 + Math.random() * 1.8 : 0;
       }
       /* PIVÔ PARADO = a "pirueta" que o dono vê. Segurar ângulo é bom; segurar ângulo
          enquanto o alvo dá a volta em você não é — o bot fica plantado girando 360° no
@@ -4507,10 +5587,29 @@ export class Game {
           const deepZ = sign * (22 + ((b.roamSeed + b._roamN) % 3) * 16);
           if (b._unreach && b._unreach.size > 12) b._unreach.clear();   // não esgota o mapa
           let best = -1, bd = 1e9, bestAny = -1, bdAny = 1e9;
+          let bestFar = -1, bdFar = 1e9, bestFree = -1, bdFree = 1e9;   // fora da ilha do bot (fallback)
           const nodes = W.waypoints.nodes;
+          /* (1) SÓ NÓ ALCANÇÁVEL: o componente conexo do grafo (ver _wpComp) é o filtro que
+                 faltava. Sem ele, 45% dos destinos do lado que ataca a Loja H caíam nas ilhas
+                 do grafo (faixa externa do prédio / mezanino) e a rerrota inteira era perdida.
+             (2) ALVO JÁ RESERVADO POR UM COLEGA custa caro: sem isso o custo (coluna+
+                 profundidade+virada) é quase o mesmo pra todo mundo do time e eles escolhem
+                 O MESMO nó — daí a fila indiana e a pilha no funil da porta. Não é proibição
+                 (mapa apertado ainda deixa dois no mesmo canto), é um pedágio. */
+          const comp = BOT_CROWD ? this._wpComp() : null;
+          const myComp = comp && comp.length ? comp[from] : -1;
+          let taken = null;
+          if (BOT_CROWD) {
+            for (const o of this.bots) {
+              if (o === b || !o.alive || o.team !== b.team) continue;
+              const t = o.roamIdx !== undefined && nodes[o.roamIdx];
+              if (t) (taken || (taken = [])).push(t);
+            }
+          }
           for (let i = 0; i < nodes.length; i++) {
             const n = nodes[i];
             if (n.z * sign <= 4 * sign) continue;            // só metade inimiga
+            const offIsland = comp && myComp >= 0 && comp[i] !== myComp;   // ilha do grafo: o bot NUNCA chegaria lá
             if (b._unreach && b._unreach.has(i)) continue;   // inalcançável conhecido (grafo desconexo)
             /* CUSTO DE VIRADA no escolha do destino (mesma ideia do _freeYaw). Antes o
                destino era escolhido só por coluna/profundidade, então metade das vezes ele
@@ -4525,13 +5624,31 @@ export class Game {
               const ang = Math.atan2(n.x - b.pos.x, n.z - b.pos.z) - b.yaw;
               d += Math.abs(Math.atan2(Math.sin(ang), Math.cos(ang))) * 2.6;
             }
-            if (d < bdAny) { bdAny = d; bestAny = i; }
+            /* pedágio de destino JÁ RESERVADO por um colega vivo (raio 5 m, custo 12 — o
+               equivalente a ~5 m de coluna). Foi MEDIDO: com pedágio 30/raio 8 m ele domina
+               os outros termos, o bot aceita dar meia-volta pra achar nó livre e ANDA PRA
+               TRÁS (o "não estão jogando" volta por outra porta). Com 12/5 m o time se abre
+               sem deixar de atacar: aglomerado na porta 33,1% -> 27,0% das ocorrências. */
+            if (taken) for (const t of taken) {
+              const tx = n.x - t.x, tz = n.z - t.z;
+              if (tx * tx + tz * tz < 25) { d += 12; break; }
+            }
+            /* O filtro de ilha entra como SEGUNDA LISTA, não como `continue` seco: um bot que
+               ficou preso numa ilha (comp sem nenhum nó na metade inimiga) não pode ficar sem
+               destino nenhum — aí ele mira o próprio nó e trava de vez, que é pior que o bug
+               original. Fora da ilha ele escolhe entre os alcançáveis; sem alcançável, cai na
+               lista livre (comportamento antigo) e a rota + a fuga de bolso resolvem. */
+            if (!offIsland) { if (d < bdAny) { bdAny = d; bestAny = i; } }
+            else if (d < bdFree) { bdFree = d; bestFree = i; }
             // não re-alveja nó colado ao bot (≤7m): senão ele "chega" na hora e o jitter
             // flipa o alvo entre vizinhos — o milling A→B→A medido no piscinão.
             if (Math.hypot(n.x - b.pos.x, n.z - b.pos.z) < 7) continue;
-            if (d < bd) { bd = d; best = i; }
+            if (!offIsland) { if (d < bd) { bd = d; best = i; } }
+            else if (d < bdFar) { bdFar = d; bestFar = i; }
           }
-          b.roamIdx = best >= 0 ? best : bestAny >= 0 ? bestAny : from; b.roamUntil = this.time + 12;
+          b.roamIdx = best >= 0 ? best : bestAny >= 0 ? bestAny
+            : bestFar >= 0 ? bestFar : bestFree >= 0 ? bestFree : from;
+          b.roamUntil = this.time + 12;
         }
         if (!pocket) {
           b.path = this._findPathLocal(W, from, b.roamIdx, b._banNodes); b.pathIdx = 1;
@@ -4684,7 +5801,11 @@ export class Game {
     }
     this._botSeparation(b, dt);   // empurra pra longe de colegas próximos -> não andam em fila colados
     this._updateTeamMark(b);      // halo/chevron acompanham o corpo (custa 2 objetos por bot)
-    b.pos.y = this.world.groundHeightAt(b.pos.x, b.pos.z);
+    /* Bot recebe o próprio Y pelo mesmo motivo do jogador. ATENÇÃO, LIMITE CONHECIDO: o
+       A* ainda é um grafo de (x,z) sem camada, então o bot NÃO planeja rota por baixo da
+       escada — ele só não é teleportado pro topo se já estiver lá embaixo. Grafo com
+       camada é a segunda metade desta frente. */
+    b.pos.y = this.world.groundHeightAt(b.pos.x, b.pos.z, b.pos.y);
     g.position.copy(b.pos);
     g.rotation.set(0, b.yaw, 0);
     if (b.mesh.isGLB) {
@@ -4858,10 +5979,30 @@ export class Game {
     clearTimeout(this._bannerT2);
     this._bannerT2 = setTimeout(() => b.classList.add('hidden'), 3000);   // espera o fade-out
   }
+  /* game.js:5941 — O RESULTADO DA RODADA É O TÍTULO DO PLACAR, NÃO UM BANNER SOLTO.
+     Defeito do print do dono: "BOLSONARISTAS LEVARAM O ROUND" atravessando o painel do
+     placar. Causa exata: `_endRound` acendia o #round-banner (top:30%, título de 52 px,
+     linha mais LARGA que o painel) e o #scoreboard (centrado) NO MESMO QUADRO — as duas
+     caixas se cruzam por construção, e o texto sai pelos dois lados do painel.
+     Tentei primeiro só reposicionar o banner (CSS `#hud.sb-on #round-banner{top:8%}`) e o
+     mock em PIL mostrou o defeito seguinte: a 8% ele cai EM CIMA do bloco de round do topo
+     (que ocupa 14-104 px). Não existe faixa livre: com 8-10 combatentes o painel do placar
+     mede ~350-405 px e, centrado em 655, come de 125 a 530.
+     Então o resultado passa a morar DENTRO do painel, como TÍTULO dele — que é exatamente
+     o empilhamento das telas 08 e 09 da referência (título em cima, tabela embaixo, nada
+     se cruzando). O #round-banner continua existindo pros avisos que NÃO coexistem com o
+     placar (ROUND N, VALENDO!, MATCH POINT), e o CSS ainda garante `#hud.sb-on
+     #round-banner{display:none}` pra que nenhuma futura chamada volte a cruzar o painel. */
+  _resultadoDaRodada(titulo, sub) {
+    this._resultado = { titulo, sub };
+    this._showScoreboard(true);
+  }
   _showScoreboard(v) {
     if (v) {
       // cabeçalho com placar do round em destaque (chips por time)
+      const r = this._resultado;
       document.querySelector('#scoreboard h3').innerHTML =
+        (r ? `<span class="sb-result">${r.titulo}</span><span class="sb-result-sub">${r.sub}</span>` : '') +
         `<span class="sb-label">PLACAR · ROUND ${this.roundNum}</span>` +
         `<span class="sb-score"><b class="tp">${this._teamTag('P')} ${this.roundsWon.P}</b>` +
         `<i>×</i><b class="tb">${this.roundsWon.B} ${this._teamTag('B')}</b></span>`;
@@ -4876,6 +6017,17 @@ export class Game {
       this.el.sbBody.innerHTML = rows;
     }
     this.el.scoreboard.classList.toggle('hidden', !v);
+    /* game.js:5933 — DEFEITO DO PRINT: "BOLSONARISTAS LEVARAM O ROUND" atravessando POR
+       TRÁS do painel do placar. Os dois nascem no MESMO instante (`_endRound` chama
+       `_banner()` e `_showScoreboard(true)`) e as duas caixas se cruzam por construção:
+       o #round-banner mora em top:30% (em 655 px de altura = 196 px, bloco de ~100 px) e
+       o #scoreboard é centrado em 50% com altura de painel de 8-10 linhas. O texto do
+       banner é mais largo que o painel, então ele SAI pelos dois lados e lê como se
+       atravessasse o painel. Aqui o HUD declara o estado; quem resolve a geometria é o
+       CSS (`#hud.sb-on #round-banner`, style.css), que sobe o banner pra faixa livre
+       acima do painel e reduz o corpo — o mesmo empilhamento das telas 08 e 09 da
+       referência (título em cima, painel embaixo, nada se cruzando). */
+    this.el.hud.classList.toggle('sb-on', !!v);
   }
   _updateHud() {
     const p = this.player;
@@ -4897,17 +6049,32 @@ export class Game {
     // faixa de 12px. Agora o timer encolhe pra rótulo de modo e a linha de baixo passa a
     // trazer o placar que vale (capturas).
     if (this.ctf) {
-      this.el.roundTime.textContent = 'CAPTURA';
-      this.el.roundTime.classList.add('ctf');
-      const cp = (this.ctfCaps && this.ctfCaps.P) || 0, cb = (this.ctfCaps && this.ctfCaps.B) || 0;
-      this.el.roundsRow.textContent = `${this._teamTag('P')} ${cp} × ${cb} ${this._teamTag('B')} · CAPTURAS`;
+      /* game.js:5800 — NO CAPTURA O MAIOR TIPO DO HUD MOSTRA BANDEIRA, NÃO SEGUNDO.
+         O que o dono viu e reprovou foi "CAPTURA 1:32" contando pra trás a cada rodada.
+         Aqui o elemento de topo passa a ser o PLACAR DE BANDEIRAS da rodada (que é a
+         condição de vitória) e o relógio de PARTIDA só materializa nos últimos
+         CTF_CLOCK_SHOW segundos — e quando materializa vem rotulado 'FIM DA PARTIDA',
+         justamente pra ninguém confundir com contagem de round. Fora desses 60 s o
+         jogador não vê cronômetro nenhum, que é o comportamento de CTF que ele descreve. */
+      const cp = (this.roundCaps && this.roundCaps.P) || 0, cb = (this.roundCaps && this.roundCaps.B) || 0;
+      const alvo = Number.isFinite(this.capsToWin) ? this.capsToWin : CTF_CAPS_TO_WIN;
+      this.el.roundTime.textContent = `${cp} × ${cb}`;
+      this.el.roundTime.classList.remove('ctf');
+      const restante = Math.max(0, Math.ceil(this.ctfMatchLeft));
+      const fimProximo = restante <= CTF_CLOCK_SHOW;
+      this.el.roundTime.classList.toggle('urgente', fimProximo);
+      this.el.roundsRow.textContent =
+        `RODADA ${this.roundNum}/${CTF_ROUNDS_MAX} · BANDEIRAS (ALVO ${alvo}) · ${this._teamTag('P')} ${this.roundsWon.P} × ${this.roundsWon.B} ${this._teamTag('B')}`
+        + (fimProximo ? ` · FIM DA PARTIDA EM ${Math.floor(restante / 60)}:${String(restante % 60).padStart(2, '0')}` : '');
     } else {
       this.el.roundTime.classList.remove('ctf');
       const total = Math.max(0, Math.ceil(this.timeLeft));
       this.el.roundTime.textContent = `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
       // linha secundária única sob o timer: rodada + placar de rounds por time
+      // "RODADA 2/5" em vez de "RODADA 2": o formato (melhor de 5) agora é garantido pelo
+      // ROUNDS_MAX, e um formato garantido que o HUD não conta é um formato que não existe.
       this.el.roundsRow.textContent =
-        `RODADA ${this.roundNum} · ${this._teamTag('P')} ${this.roundsWon.P} × ${this.roundsWon.B} ${this._teamTag('B')}`;
+        `RODADA ${this.roundNum}/${ROUNDS_MAX} · ${this._teamTag('P')} ${this.roundsWon.P} × ${this.roundsWon.B} ${this._teamTag('B')}`;
     }
     this.el.scoreP.innerHTML = `${this._teamTag('P')} <b>${this.roundKills.P}</b>`;
     this.el.scoreB.innerHTML = `${this._teamTag('B')} <b>${this.roundKills.B}</b>`;
@@ -4927,11 +6094,33 @@ export class Game {
       this.state = 'live';
       this._banner('VALENDO!', 'A treta está liberada');
     } else if (this.state === 'live') {
-      if (this.ctf) this._updateCTF(dt);
-      else { this.timeLeft -= dt; if (this.timeLeft <= 0) this._endRound(); }
+      /* game.js:5843 — DOIS RITMOS, UM ESTADO 'live'.
+         ABATE  : o round é uma janela de tempo (99 s) que o alvo de abates pode encurtar.
+         CAPTURA: o round NÃO tem janela de tempo. Ele fecha por ALVO DE BANDEIRAS
+                  (_checkPace levanta `_roundOverPedido`) ou por dominação (_ctfWin). O
+                  que corre aqui é o relógio da PARTIDA — e ele não zera entre rodadas.
+         Antes desta rodada eram os dois com o MESMO `timeLeft` de 99 s, e foi isso que o
+         dono viu e reclamou ("captura estava com cronometragem — isso não acontece em
+         CTF"). Antes DISSO, o CAPTURA não fechava partida nenhuma. As duas coisas estão
+         cobradas agora pela UI4, cada uma com a sua mutação. */
+      if (this.ctf) {
+        this._updateCTF(dt);
+        this.ctfMatchLeft -= dt;
+        /* `this.state === 'live'` de novo AQUI, e não é redundância: `_updateCTF` pode ter
+           chamado `_ctfWin` (dominação das bandeiras) no meio deste mesmo frame, e o
+           `_ctfWin` já credita a rodada e muda o estado. Sem a guarda, `_endRound` credita
+           uma SEGUNDA vitória na mesma rodada — medido: a partida de CTF do praca_old
+           fechava em 56 s com `rounds=1` porque um round valia 2 pontos. */
+        if (this.state === 'live' && (this._roundOverPedido || this.ctfMatchLeft <= 0)) {
+          this._roundOverPedido = false;
+          this._endRound();
+        }
+      } else {
+        this.timeLeft -= dt; if (this.timeLeft <= 0) this._endRound();
+      }
     } else if (this.state === 'roundEnd' && this.time >= this.stateUntil) {
-      if (!this.ctf && (this.roundsWon.P >= ROUNDS_TO_WIN || this.roundsWon.B >= ROUNDS_TO_WIN)) this._endMatch();
-      else this._startRound();   // CTF: sempre recomeça (endless)
+      if (this._fimDaPartida()) this._endMatch();
+      else this._startRound();
     }
     this._updatePlayer(dt);
     for (const b of this.bots) this._updateBot(b, dt);
@@ -4973,6 +6162,7 @@ export class Game {
     this.el.hud.classList.add('hidden');
     this.el.pause.classList.add('hidden');
     this.el.matchEnd.classList.add('hidden');
+    this._hideCtfHud();   // sem isto a faixa de bandeiras sobrevive para a próxima partida
     this.el.killfeed.innerHTML = '';
     this.el.radioLog.innerHTML = '';
     this.el.radioMenu.classList.add('hidden');
