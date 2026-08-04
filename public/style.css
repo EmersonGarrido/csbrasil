@@ -54,8 +54,9 @@
      todo scrim consome `rgba(var(--bg-900-rgb),α)`: existe UM lugar onde a cor mora, e
      divergir de novo exige apagar o var(). */
   --bg-900-rgb:9,7,4;      --bg-800-rgb:20,16,8;    --bg-700-rgb:28,24,18;
+  --bg-600-rgb:38,34,27;   --bg-500-rgb:52,47,39;
   --bg-900:rgb(var(--bg-900-rgb)); --bg-800:rgb(var(--bg-800-rgb)); --bg-700:rgb(var(--bg-700-rgb));
-  --bg-600:#26221b; --bg-500:#342f27;
+  --bg-600:rgb(var(--bg-600-rgb)); --bg-500:rgb(var(--bg-500-rgb));
   --line:#34302b; --line-2:#504c44;
 
   /* ---- tinta: contraste medido sobre --bg-800 (AA = 4.5:1) ----------------------
@@ -456,11 +457,19 @@ body{font-family:var(--font);font-weight:600;color:var(--ink1)}
   font-size:14px;line-height:1;padding:6px 0;clip-path:var(--cut-sm);
   transition:color var(--t) var(--ease),border-color var(--t) var(--ease)}
 .strip-arrow:hover,.strip-arrow:focus-visible{color:var(--br-faixa);border-color:var(--br-faixa)}
-.char-sheet{display:flex;flex-direction:column;gap:var(--s-3);min-height:0;overflow-y:auto;
+/* A FICHA ABRAÇA O CONTEÚDO (align-self:start) em vez de esticar até o rodapé do palco.
+   Esticada, os quatro blocos terminavam na metade e sobravam ~430px de VAZIO DENTRO do
+   painel antes do botão — buraco emoldurado, que é a pior versão de espaço em branco.
+   Na referência a coluna do meio termina onde o conteúdo termina. O gap sobe pra s-4
+   porque agora ele é o que dá o ritmo entre os blocos. */
+.char-sheet{align-self:start;max-height:100%;
+  display:flex;flex-direction:column;gap:var(--s-4);min-height:0;overflow-y:auto;
   background:rgba(var(--bg-800-rgb),.9);border:1px solid var(--line);padding:var(--s-5);clip-path:var(--cut);
   position:relative;text-align:left;scrollbar-width:thin}
 .char-sheet::before{content:"";position:absolute;left:0;top:0;width:4px;height:64px;background:var(--hazard)}
-.char-info-head{display:flex;align-items:center;gap:var(--s-3);flex-wrap:wrap}
+/* nome e raridade EMPILHADOS: na referência o "ÉPICO" cai numa linha própria embaixo do
+   "PALHAÇO DO MAL" — lado a lado a pastilha disputava a linha do título e apertava o nome */
+.char-info-head{display:flex;flex-direction:column;align-items:flex-start;gap:var(--s-2)}
 #char-info-name{font-size:var(--fs-600);font-weight:700;letter-spacing:var(--tr-2);color:var(--ink-100);
   text-transform:uppercase;line-height:var(--lh-tight)}
 #char-info-blurb{font-size:var(--fs-200);font-weight:500;color:var(--ink-200);line-height:var(--lh-base)}
@@ -469,17 +478,24 @@ body{font-family:var(--font);font-weight:600;color:var(--ink1)}
 .char-spec b{display:block;font-size:var(--fs-300);font-weight:700;letter-spacing:var(--tr-2);
   color:var(--br-faixa);text-transform:uppercase}
 .char-spec p{font-size:var(--fs-100);font-weight:500;color:var(--ink-200);line-height:var(--lh-base);margin-top:2px}
-#char-confirm{margin-top:auto;align-self:stretch}
+/* "USAR PERSONAGEM" quebrava em DUAS LINHAS: a coluna do meio tem 360px de teto e sobra
+   ~280px de conteúdo, e o texto vinha em --fs-600 com tracking de título. Na referência
+   é uma linha só. O `nowrap` é o contrato — se o corpo crescer de novo, estoura visível
+   em vez de dobrar em silêncio. Preenchimento e cor vêm do `.btn-big`. */
+#char-confirm{margin-top:auto;align-self:stretch;white-space:nowrap;
+  font-size:var(--fs-400);letter-spacing:var(--tr-2);padding:var(--s-3) var(--s-4)}
+/* SEM MOLDURA (referência 03): lá o personagem ocupa o terço direito inteiro, sangrando
+   pro fundo da página. No jogo eram DUAS bordas concêntricas — a caixa e o canvas — e o
+   boneco ficava pequeno dentro delas, parecendo item de inventário em vez de o retrato
+   da tela. Tirando as duas o canvas ganha os 58→72vh e o personagem vira o assunto. */
 .char-preview-box{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:var(--s-2);
-  min-width:0;min-height:0;position:relative;
-  background:rgba(var(--bg-800-rgb),.9);border:1px solid var(--line);padding:var(--s-4);clip-path:var(--cut)}
-.char-preview-box::before{content:"";position:absolute;left:0;top:0;width:4px;height:64px;background:var(--hazard)}
+  min-width:0;min-height:0;position:relative;background:none;border:0;padding:0}
 /* Canvas fluido: cresce com a janela (a altura aperta primeiro em 3:2). Backing 640². */
 #char-preview{flex:0 1 auto;cursor:grab;touch-action:none;
   background:
     radial-gradient(ellipse at 50% 30%,rgba(57,214,224,.10),rgba(0,0,0,0) 62%),
-    radial-gradient(ellipse at 50% 100%,var(--bg-600),var(--bg-900));
-  border:1px solid var(--line);width:min(100%,58vh);height:auto;aspect-ratio:1}
+    radial-gradient(ellipse at 50% 100%,rgba(var(--bg-600-rgb),.55),rgba(var(--bg-900-rgb),0) 72%);
+  border:0;width:min(100%,72vh);height:auto;aspect-ratio:1}
 #char-preview:active{cursor:grabbing}
 .pv-hints{display:flex;gap:var(--s-5);font-family:var(--mono);font-size:var(--fs-50);
   letter-spacing:var(--tr-2);color:var(--ink-300)}
@@ -1345,13 +1361,28 @@ html[data-ui="legacy"] .cs-vignette{
 @media(max-width:900px){.ms-strip{display:none}}   /* faixa de thumbs não cabe em tela estreita; as setas bastam */
 
 /* ============ CHAR ATTRS (ficha do personagem — mockup tela 03) ============ */
-.rarity{font-family:var(--mono);font-size:var(--fs-50);letter-spacing:var(--tr-2);
-  border:1px solid currentColor;padding:2px 8px;clip-path:var(--cut-sm)}
-#char-attrs{display:flex;flex-direction:column;gap:6px;margin-top:var(--s-2)}
-.attr{display:grid;grid-template-columns:92px 1fr;align-items:center;gap:10px;
+/* RARIDADE = PASTILHA PREENCHIDA, e numa linha só dela (referência 03: o "ÉPICO" é um
+   bloco roxo cheio ABAIXO do nome, não uma etiqueta de contorno grudada no fim do
+   título). O `background` sai de `currentColor` porque quem escolhe a cor é o main.js,
+   inline (`rEl.style.color = RARITIES[tier][1]`) — então o tom da raridade continua
+   mandando e o CSS só o dilui pra virar fundo. Navegador sem color-mix cai no visual
+   antigo de contorno, que continua legível. */
+.rarity{align-self:flex-start;font-family:var(--mono);font-size:var(--fs-50);letter-spacing:var(--tr-2);
+  border:1px solid currentColor;padding:3px 10px;clip-path:var(--cut-sm);
+  background:color-mix(in srgb,currentColor 22%,transparent)}
+#char-attrs{display:flex;flex-direction:column;gap:var(--s-2);margin-top:var(--s-2)}
+.attr{display:grid;grid-template-columns:92px 1fr;align-items:center;gap:12px;
   font-family:var(--mono);font-size:var(--fs-50);letter-spacing:var(--tr-1);color:var(--ink-300);text-transform:uppercase}
-.attr-bar{height:5px;background:var(--bg-700)}
+/* BARRA SEGMENTADA (referência 03): os atributos da referência são blocos separados por
+   sulcos, não um traço contínuo — é o que faz "3 de 5" ser CONTÁVEL de relance em vez de
+   ter que estimar comprimento. Os sulcos são cortados por cima com um degradê repetido,
+   então valem pro trilho e pro preenchimento ao mesmo tempo e o `width:%` que o main.js
+   escreve no <i> continua sendo a única fonte do valor. */
+.attr-bar{position:relative;height:10px;background:var(--bg-700)}
 .attr-bar i{display:block;height:100%;background:var(--br-faixa)}
+.attr-bar::after{content:"";position:absolute;inset:0;pointer-events:none;
+  background:repeating-linear-gradient(90deg,
+    transparent 0 calc(10% - 3px),var(--bg-900) calc(10% - 3px) 10%)}
 
 /* ============ PLAYER PLATE (card do jogador no menu — mockup tela 01) ============ */
 .player-plate{display:flex;align-items:center;gap:12px;background:rgba(var(--bg-900-rgb),.85);
