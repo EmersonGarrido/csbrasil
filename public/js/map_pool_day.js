@@ -26,6 +26,7 @@
 // shower stalls, a glass skylight roof — and rows of weapons on the deck.
 // Same buildWorld contract as map.js.
 import * as THREE from 'three';
+import { decalIds, paredeAtras } from './map_decals.js';   // pool por NOME + raycast de parede
 
 const HALF_X = 17, HALF_Z = 25;   // interior half-extents (walls sit just outside)
 const WALL_H = 7, CEIL = 7;
@@ -244,46 +245,87 @@ export function buildPoolDay(scene, T) {
     }
   }
 
+  /* Segunda leva de decalque (pilastra/armário/guarita). Preenchida pelo bloco abaixo e
+     DISPARADA depois que esses volumes existem — ver o comentário dentro do bloco. */
+  let pintaCobertura = null;
   /* ---------------- DECALQUE RECORTADO (public/img/decals) ----------------
-     Pedido do dono (04/08): aplicar os 179 recortes de `public/img/decals` "na textura de
+     Pedido do dono (04/08): aplicar os recortes de `public/img/decals` "na textura de
      todos mapas onde faz sentido: laterais de prédios, portas, portões, carros, pilastras,
      paredes, armários etc" e "num tamanho MAIOR que os posters atuais".
 
-     ESTE É O MAPA ONDE MENOS COISA ENTRA, e a razão está no cabeçalho deste arquivo: a
-     versão temática deste salão ("Piscinão de Ramos", hoje em map_pool_ramos.js) foi
-     REPROVADA pelo dono depois de jogar, com estas palavras — "é o pior mapa de todos.
-     Muito poluído, não dá pra entender nada". O que salvou este arquivo foi um material por
-     superfície e espaço de jogo limpo. Encher a parede de azulejo de mural colorido é
-     literalmente refazer o erro que custou um mapa inteiro.
+     ── A INVERSÃO DE 04/08, e por que ela vale mais que o comentário que estava aqui ──
+     A rodada anterior CONTEVE este mapa de propósito (14 peças) porque a versão temática
+     deste salão ("Piscinão de Ramos", map_pool_ramos.js) tinha sido reprovada pelo dono com
+     "é o pior mapa de todos. Muito poluído, não dá pra entender nada". O dono olhou o
+     resultado contido e pediu o OPOSTO, explicitamente: "tem que encher de mais grafite,
+     especialmente na piscina, em todas as pilastras, armários e paredes". Ele decide. As
+     14 viraram ~66.
 
-     Por isso: 8 peças de PIXAÇÃO (traço preto, alto contraste sobre azulejo branco, que é o
-     que aparece em piscina pública de verdade) e 6 adesivos nos ARMÁRIOS — que estão na
-     lista literal do dono. Nenhum mural colorido, nenhuma peça no piso, nada dentro do vão
-     da piscina.
+     O QUE A CONTENÇÃO ANTERIOR ACERTOU E CONTINUA VALENDO — poluição não é quantidade, é
+     COMPETIÇÃO DE LEITURA. O que reprovou o pool_ramos foi mural COLORIDO grande no plano
+     de fundo do duelo. Então o que entra aqui é PIXAÇÃO: traço preto sobre azulejo branco,
+     que é o que existe em piscina pública de verdade, e que some atrás de uma silhueta em
+     vez de brigar com ela (BAR-CONSISTENCIA §2.4). Nada de mural colorido, nada no piso,
+     nada dentro do vão da piscina, nada no vidro da clarabóia.
 
-     ONDE: exatamente NO MEIO DO VÃO entre dois cartazes. As 12 vagas de cartaz estão logo
-     acima nesta mesma função, e a lista abaixo é o complemento delas — nenhuma peça a menos
-     de 4 m de um cartaz, e nada em x ∈ [-4, 4] das paredes norte/sul, que é onde moram as
-     placas de vestiário dos dois times.
+     ONDE — as três superfícies que o dono nomeou, e uma banda nova:
+       · PAREDES: a banda baixa (0,40-3,40 m) é a antiga e continua desviando dos 12
+         cartazes; a banda ALTA (3,90-6,50 m) é nova e não podia colidir com nada, porque
+         acima de 3,7 m só existe azulejo — é onde writer real empilha peça, e resolve o
+         "encher a parede" sem mexer em uma vaga de cartaz sequer.
+       · PILASTRAS: as 8 de concreto (x = ∓13,6). Elas levam LETRA, não tag: a face tem
+         1,10 m e uma tag deitada (aspecto 1,3-1,5) sairia com 0,75 m de altura — some. Uma
+         letra de alfabeto (aspecto ~0,7) sai com 1,36 m em pé, que é exatamente como uma
+         coluna pichada se lê na vida real. É também o único uso bom que este pacote tem
+         para as folhas de alfabeto, que em parede grande foram descartadas por sumirem.
+       · ARMÁRIOS: os 6 bancos laterais levam 3 adesivos cada (um por porta) e os 8 bancos
+         de respawn levam 1. Adesivo, não lambe-lambe: 1,0-1,25 m.
+       · GUARITA do salva-vidas: as duas laterais (a frente tem vidro, e cartaz em vidro é
+         justamente a reclamação nº 1 do dono).
 
-     TAMANHO: 3,0 m de altura contra os 2,2 m dos cartazes — que é a régua que o dono deu.
-     REGRAS: `T.decals[i]` lido por ÍNDICE (é getter memoizado, textures.js:696; spread
-     acordaria os 179 PNG, 7 MB, de uma vez); `transparent: true`, senão o alpha vira
-     retângulo preto no azulejo; `addPlane`, que NÃO empurra collider (decalque com colisor
-     vira parede invisível — BUG-21, o ônibus da Brasília); 8 cm de afastamento; e escolha
+     REGRAS (cada uma com defeito real atrás): pool por NOME via `decalIds` (índice desliza
+     quando o gerador renumera — ver map_decals.js); `T.decals[i]` lido por ÍNDICE, que é
+     getter memoizado (textures.js) e spread acordaria os 174 PNG de uma vez;
+     `transparent: true`, senão o alpha vira retângulo preto no azulejo; `addPlane`, que NÃO
+     empurra collider (decalque com colisor vira parede invisível — BUG-21, o ônibus da
+     Brasília); `paredeAtras` antes de desenhar; 6-8 cm de afastamento; e escolha
      determinística por posição, porque o `botsim` é determinístico. */
   {
-    const D_TAG = [167, 168, 169, 170, 171, 172, 174, 175, 176, 177];
+    const D_TAG = decalIds(T, ['tag-fina.png', 'tag-flop.png', 'tag-larga.png', 'tag-money.png',
+      'tag-pingo.png', 'tag-selvagem.png', 'tags-treino-02.png', 'tags-treino-05.png', 'peca-bolha.png']);
+    /* LETRA DE PILASTRA — e a RESOLUÇÃO é o critério, não o estilo. A 1ª captura desta
+       rodada colocou `alfabeto-reto`/`alfabeto-gotico` na pilastra e a peça saiu como um
+       borrão embaçado com franja clara: MEDIDO, esses recortes têm 22 a 47 px de lado (as
+       folhas de origem são miniaturas de ~340 px, e uma letra é um pedacinho delas). Esticar
+       25 px para 1,0 m é 25 px/m — o jogador passa a 1 m da pilastra no corredor e vê a
+       interpolação, não a letra.
+       Só três recortes de alfabeto têm resolução para isso: as duas folhas de letra-bolha
+       (306×512 e 284×512) e o `alfabeto-grosso-01` (92×86). As duas primeiras são tinta CLARA
+       (`claro: 1`), o que aqui é a favor e não contra: elas não vão no azulejo branco, vão no
+       concreto cinza da pilastra, e bomba branca em coluna de concreto é o que existe. */
+    const D_LETRA = decalIds(T, ['alfabeto-bolha.png', 'alfabeto-bolha2.png', 'alfabeto-grosso-01.png']);
+    // adesivo de armário: peça pequena e fechada, que aguenta 1 m sem virar borrão
+    const D_ADESIVO = decalIds(T, ['tags-treino-02.png', 'tags-treino-03.png', 'tags-treino-05.png',
+      'tags-treino-06.png', 'tag-money.png', 'tag-selvagem.png', 'alfabeto-reto-05.png',
+      'alfabeto-reto-07.png', 'alfabeto-grosso-01.png']);
     const _dmix = (n) => { let v = (n * 2654435761) >>> 0; v ^= v >>> 15; v = Math.imul(v, 2246822519) >>> 0; v ^= v >>> 13; v = Math.imul(v, 3266489917) >>> 0; return (v ^ (v >>> 16)) >>> 0; };
     const _dmat = new Map(), _usados = [];
-    const decal = (x, y0, z, ry, alt, larg) => {
-      if (!T.decals || !T.decalAspects || !T.decalAspects.length) return null;
+    /* raio da anti-repetição: 6 m, era 12 m. Com 66 peças num salão de 34 × 50 m, 12 m
+       esgotava o pool em toda chamada e a busca caía sempre no mesmo primeiro índice —
+       ou seja, o teto grande produzia MAIS repetição, não menos. */
+    const decal = (pool, x, y0, z, ry, alt, larg) => {
+      if (!T.decals || !T.decalAspects || !pool.length) return null;
       const k = _dmix(_dmix(Math.round(x * 10) + 9973) + Math.round(z * 10) * 131 + 7);
-      let i = D_TAG[k % D_TAG.length];             // anti-repetição a menos de 12 m: num salão
-      for (let t = 0; t < D_TAG.length; t++) {     // fechado de 34 × 50 m dá pra ver duas
-        const j = D_TAG[(k + t) % D_TAG.length];   // paredes de uma vez, e arte repetida na
-        if (!_usados.some((u) => u.i === j && Math.hypot(u.x - x, u.z - z) < 12)) { i = j; break; }
+      let i = pool[k % pool.length];
+      for (let t = 0; t < pool.length; t++) {
+        const j = pool[(k + t) % pool.length];
+        if (!_usados.some((u) => u.i === j && Math.hypot(u.x - x, u.z - z) < 6)) { i = j; break; }
       }
+      const a = T.decalAspects[i] || 1;
+      let h = alt, w = alt * a;
+      if (w > larg) { w = larg; h = larg / a; }    // encolhe inteiro; NUNCA estica
+      // parede atrás ANTES de desenhar (map_decals.js) — sem sólido, não vira tinta
+      if (!paredeAtras(colliders, x, y0 + h / 2, z, ry, w, h)) return null;
       _usados.push({ i, x, z });
       let m = _dmat.get(i);
       if (!m) {
@@ -293,24 +335,58 @@ export function buildPoolDay(scene, T) {
         });
         _dmat.set(i, m);
       }
-      const a = T.decalAspects[i] || 1;
-      let h = alt, w = alt * a;
-      if (w > larg) { w = larg; h = larg / a; }    // encolhe inteiro; NUNCA estica
       const q = addPlane(w, h, m, x, y0 + h / 2, z, ry);
       q.renderOrder = 2;
       q.name = 'decal:' + (T.decalFiles ? T.decalFiles[i] : i);
       return q;
     };
     const OFFD = 0.08;
-    for (const x of [6, 15]) decal(x, 0.4, HALF_Z - OFFD, Math.PI, 3.0, 5.2);        // parede norte
-    for (const x of [-16, 6]) decal(x, 0.4, -HALF_Z + OFFD, 0, 3.0, 5.2);            // parede sul
-    for (const z of [-20, 9]) decal(-HALF_X + OFFD, 0.4, z, Math.PI / 2, 3.0, 5.2);  // parede oeste
-    for (const z of [-9, 20]) decal(HALF_X - OFFD, 0.4, z, -Math.PI / 2, 3.0, 5.2);  // parede leste
-    /* ARMÁRIOS — os 6 blocos laterais (x = ∓16,3, z = -11/0/11). A porta tem 0,7 m de largura
-       e 2,1 m de altura, então o adesivo vai com 1,25 m: MENOR que o cartaz, e é o certo — o
-       que se cola em porta de armário de vestiário é adesivo, não lambe-lambe de 3 m. */
-    for (const sx of [-1, 1]) for (const bz of [-11, 0, 11])
-      decal(sx * 15.89, 0.5, bz, sx > 0 ? -Math.PI / 2 : Math.PI / 2, 1.25, 1.05);
+    // --- BANDA BAIXA das 4 paredes (0,40-3,40): as 8 vagas medidas contra os 12 cartazes
+    for (const x of [6, 15]) decal(D_TAG, x, 0.4, HALF_Z - OFFD, Math.PI, 3.0, 5.2);        // norte
+    for (const x of [-16, 6]) decal(D_TAG, x, 0.4, -HALF_Z + OFFD, 0, 3.0, 5.2);            // sul
+    for (const z of [-20, 9]) decal(D_TAG, -HALF_X + OFFD, 0.4, z, Math.PI / 2, 3.0, 5.2);  // oeste
+    for (const z of [-9, 20]) decal(D_TAG, HALF_X - OFFD, 0.4, z, -Math.PI / 2, 3.0, 5.2);  // leste
+    /* --- BANDA ALTA (3,90-6,50) — a que "enche a parede". Acima de 3,70 m não há cartaz,
+       nem faixa azul, nem placa: o relógio (y 3,7-5,5 em x=-8) e o letreiro PISCINÃO
+       (y 3,3-5,5 em x ∈ [3,9]) são os DOIS únicos objetos altos, os dois na parede norte,
+       e por isso o norte leva 2 vagas e as outras três levam 5, 6 e 6. */
+    for (const x of [-15, 15]) decal(D_TAG, x, 3.9, HALF_Z - OFFD, Math.PI, 2.6, 5.0);
+    for (const x of [-14, -7, 0, 7, 14]) decal(D_TAG, x, 3.9, -HALF_Z + OFFD, 0, 2.6, 5.0);
+    for (const z of [-21, -13, -5, 4, 13, 21]) decal(D_TAG, -HALF_X + OFFD, 3.9, z, Math.PI / 2, 2.6, 5.0);
+    for (const z of [-21, -13, -4, 5, 13, 21]) decal(D_TAG, HALF_X - OFFD, 3.9, z, -Math.PI / 2, 2.6, 5.0);
+    /* PILASTRA, ARMÁRIO E GUARITA SÓ NASCEM ~150 LINHAS ABAIXO (bloco "COBERTURA"), e o
+       `paredeAtras` mede a geometria que EXISTE no instante da chamada. Colar aqui devolvia
+       null nas 42 peças, em silêncio — não é teoria: foi o que aconteceu na primeira
+       versão desta rodada, e a régua acusou 26 em vez das ~66. Então a segunda leva vira
+       função e é chamada no fim do bloco de cobertura. */
+    pintaCobertura = () => {
+      /* --- PILASTRAS: as 8 de concreto (1,10 m de face, 6,50 m de altura). Uma letra na
+         face VIRADA PRA PISCINA (é a que o jogador vê ao correr pelo corredor) e uma em
+         cada face de z, em alturas diferentes — coluna pichada não tem marca alinhada. */
+      for (const sx of [-1, 1]) for (const [n, pz] of [-17, -6.5, 6.5, 17].entries()) {
+        const px = sx * 13.6;
+        // face virada pra piscina: TAG (fonte de 186-256 px, a única que aguenta 1 m nítida)
+        decal(D_TAG, px - sx * 0.61, 1.35, pz, sx > 0 ? -Math.PI / 2 : Math.PI / 2, 1.1, 1.02);
+        // uma face de z alternada por pilastra: bomba de letra, em altura diferente da tag
+        const s2 = n % 2 ? 1 : -1;
+        decal(D_LETRA, px, s2 > 0 ? 0.75 : 1.5, pz + s2 * 0.61, s2 > 0 ? 0 : Math.PI, 1.9, 1.02);
+      }
+      /* --- ARMÁRIOS. Bancos laterais (x = ∓16,3, z = -11/0/11): 3 portas de 1,30 m ao
+         longo de z, um adesivo em cada. A porta tem 2,10 m de altura, então o adesivo vai
+         com 1,25 m — MENOR que o cartaz, e é o certo: o que se cola em porta de armário de
+         vestiário é adesivo, não lambe-lambe de 3 m. */
+      for (const sx of [-1, 1]) for (const bz of [-11, 0, 11]) for (const dz of [-1.3, 0, 1.3])
+        decal(D_ADESIVO, sx * 15.89, 0.5, bz + dz, sx > 0 ? -Math.PI / 2 : Math.PI / 2, 1.25, 1.05);
+      /* Bancos de respawn (anteparos das faixas de nascimento): 1 adesivo por banco, na
+         face virada pro CENTRO do salão — a outra fica de costas pro time que nasce ali. */
+      for (const sz of [-1, 1]) {
+        for (const bx of [-9, 9]) decal(D_ADESIVO, bx, 0.5, sz * (13.5 - 0.41), sz > 0 ? Math.PI : 0, 1.2, 1.05);
+        for (const bx of [-3, 3]) decal(D_ADESIVO, bx, 0.5, sz * (16.1 - 0.41), sz > 0 ? Math.PI : 0, 1.2, 1.05);
+        // GUARITA do salva-vidas (2,80 × 3,00 × 2,40): as duas laterais. A FRENTE tem o
+        // vidro em z = ∓17,28 e decalque em vidro é a reclamação nº 1 do dono — não vai.
+        for (const sx of [-1, 1]) decal(D_TAG, sx * 1.46, 0.45, sz * 18.5, sx > 0 ? Math.PI / 2 : -Math.PI / 2, 1.9, 2.0);
+      }
+    };
   }
 
   /* ---------------- glass skylight roof (keeps it enclosed) ---------------- */
@@ -463,6 +539,8 @@ export function buildPoolDay(scene, T) {
       for (const d of [-0.7, 0.7]) addBox(0.4, 0.4, 0.18, MAT.steel, sx * (14.6 + d), 2.15, sz * (23.3 - 0.14), { collide: false });
     }
   }
+  // AGORA pilastra, armário e guarita existem — só aqui o `paredeAtras` deles acha sólido.
+  if (pintaCobertura) pintaCobertura();
   // blocos de partida: espelho exato dos pés da prancha (|z| = 13,7), para o deck do PET ter
   // a mesma peça que o do BOL nesse ponto. Sem isso o quadrante q1,0/q2,0 ficava com 1 peça
   // a menos que o q1,3/q2,3, o que a MAP5 lê como assimetria de cobertura.
@@ -570,7 +648,7 @@ export function buildPoolDay(scene, T) {
   // pessoa ache que ficou faltando.
   const slowAt = () => false;
   return {
-    root, colliders, occluders, groundHeightAt, slowAt, spawns, sun, hemi, pickups,
+    root, colliders, occluders, decalSolids: colliders, groundHeightAt, slowAt, spawns, sun, hemi, pickups,
     waypoints: { nodes, adj }, nearestWaypoint, findPath,
     bounds: { minX: -HALF_X + 0.5, maxX: HALF_X - 0.5, minZ: -HALF_Z + 0.5, maxZ: HALF_Z - 0.5 },
   };
