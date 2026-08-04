@@ -201,8 +201,19 @@ body{font-family:var(--font);font-weight:600;color:var(--ink1)}
    aqui", mas não repete a MESMA leitura do mouse — quem navega no teclado ficava vendo
    uma UI diferente da que vê quem usa mouse. */
 .btn:hover,.btn:focus-visible{background:var(--bg-600);border-color:var(--sys);color:#fff}
-.btn-big{font-size:var(--fs-600);padding:var(--s-4) var(--s-8);border-color:var(--br-faixa);color:var(--br-faixa)}
-.btn-big:hover,.btn-big:focus-visible{background:var(--br-faixa);color:var(--bg-900)}
+/* CTA PREENCHIDO — o desvio que valia pra TODAS as nove telas de referência, e não só
+   pra 09. Medido em `references/telas/`: o botão principal é SÓLIDO em âmbar com texto
+   ESCURO (preenchimento rgb(208,157,27) / texto rgb(46,36,11) em 09_resultado_partida.png),
+   e o mesmo bloco cheio reaparece em JOGAR (01), USAR PERSONAGEM (03), CONTINUAR (04),
+   CONTINUAR (06) e SALVAR (07). Só o SECUNDÁRIO é de contorno.
+   Na rodada passada só a 09 recebeu (via `.btn-cta`); aqui `.btn-big` entra na MESMA regra
+   em vez de ganhar uma cópia — existe UM lugar onde "CTA preenchido" mora, então menu e
+   pausa não podem mais divergir do resultado. As razões de contraste são as que a UI1 já
+   mediu pro `.btn-cta`, porque são literalmente as mesmas duas cores. */
+.btn-big{font-size:var(--fs-600);padding:var(--s-4) var(--s-8)}
+.btn-big,.btn-cta{background:var(--br-faixa);border-color:var(--br-faixa);color:var(--bg-900)}
+.btn-big:hover,.btn-big:focus-visible,
+.btn-cta:hover,.btn-cta:focus-visible{background:var(--am);border-color:var(--am);color:var(--bg-900)}
 .btn-back{position:absolute;top:26px;left:26px;font-size:13px;padding:9px 20px;z-index:5}
 .menu-buttons{display:flex;flex-direction:column;gap:16px;align-items:center;z-index:1;width:min(760px,95vw)}
 .profile-card{width:100%;background:var(--panel);border:1px solid var(--line);clip-path:var(--cut);
@@ -263,13 +274,12 @@ body{font-family:var(--font);font-weight:600;color:var(--ink1)}
 #avatar-note{font-size:12px;color:var(--cs);min-height:13px}
 .menu-secondary{display:flex;gap:10px;width:100%}
 .menu-secondary .btn{flex:1;padding:10px 8px;font-size:14px;letter-spacing:1.5px}
+/* preenchimento/hover vêm do `.btn-big`: aqui fica só a métrica de coluna e o sticky */
 #btn-jogar{font-size:var(--fs-600);padding:15px;letter-spacing:5px;width:100%;position:sticky;bottom:6px;z-index:5;
-  border-color:var(--br-faixa);color:var(--br-faixa);background:var(--cta-bg);
   transition:background var(--t) var(--ease),color var(--t) var(--ease),opacity var(--t) var(--ease)}
-#btn-jogar:hover,#btn-jogar:focus-visible{background:var(--br-faixa);color:var(--bg-900);border-color:var(--br-faixa)}
 /* Sem nick, JOGAR é ESTADO desabilitado — não um shake depois do clique. */
 #btn-jogar[aria-disabled="true"]{opacity:var(--op-disabled);filter:saturate(.25);cursor:not-allowed}
-#btn-jogar[aria-disabled="true"]:hover{background:var(--cta-bg);color:var(--br-faixa)}
+#btn-jogar[aria-disabled="true"]:hover{background:var(--br-faixa);color:var(--bg-900)}
 #hud-actions{position:absolute;top:36px;right:48px;display:flex;gap:var(--s-2);z-index:25}
 #hud-actions button{width:32px;height:32px;border:1px solid var(--line);cursor:pointer;
   display:flex;align-items:center;justify-content:center;
@@ -957,12 +967,10 @@ html[data-ui="legacy"] #hud-mid{padding:0;background:none;clip-path:none}
 .me-grid .hi b{color:var(--br-faixa)}
 .me-grid span{font-size:var(--fs-50);font-weight:600;letter-spacing:var(--tr-2);color:var(--ink-300);
   text-transform:uppercase;text-align:center}
-/* CTA PREENCHIDO (o desvio que valia pra TODAS as telas da referência): o principal é
-   sólido em âmbar com texto escuro, e só o secundário é de contorno. Medido: preenchimento
-   rgb(208,157,27) / texto rgb(46,36,11) em 09_resultado_partida.png. */
+/* O preenchimento do CTA mora na regra compartilhada `.btn-big,.btn-cta` lá em cima
+   (junto do `.btn`), não aqui: duplicar a cor foi o que deixou menu e pausa de contorno
+   enquanto só o resultado era sólido. */
 .me-actions{display:flex;gap:var(--s-3);align-items:center;justify-content:flex-start;flex-wrap:wrap}
-.btn-cta{background:var(--br-faixa);border-color:var(--br-faixa);color:var(--bg-900)}
-.btn-cta:hover,.btn-cta:focus-visible{background:var(--am);border-color:var(--am);color:var(--bg-900)}
 #btn-again{letter-spacing:var(--tr-3)}
 #btn-menu{background:transparent;border-color:var(--line-2);color:var(--ink-200)}
 #btn-menu:hover,#btn-menu:focus-visible{background:var(--bg-700);border-color:var(--ink-200);color:#fff}
@@ -996,7 +1004,14 @@ html[data-ui="legacy"] #hud-mid{padding:0;background:none;clip-path:none}
 
 /* ============ MENU (Coro Solto) — wallpaper + lista de texto à esquerda ============ */
 #main-menu.cs-screen{display:block;padding:0;gap:0;overflow:hidden}
-.cs-wallpaper{position:absolute;inset:0;z-index:0;background:var(--bg-900) center/cover no-repeat}
+/* ÂNCORA À ESQUERDA, não ao centro: os wall-* são 1672×941 (16:9) e o quadro do dono é
+   3:2, então `cover` escala pela ALTURA e sobra 284px de largura. Com `center` o corte
+   comia 142px de cada lado — e o logo do jogo está pintado colado na borda ESQUERDA do
+   wallpaper, então "CORO SOLTO" entrava em cena como "ORO OLTO" (conferido na captura
+   1536×1024). A referência 01_menu_principal.png mostra o logo INTEIRO dentro da coluna.
+   Ancorando à esquerda o corte inteiro (15,6%) vai pro lado direito, onde só há céu e
+   bandeira — o personagem da referência mora em ~65-90% da largura e continua no quadro. */
+.cs-wallpaper{position:absolute;inset:0;z-index:0;background:var(--bg-900) left center/cover no-repeat}
 /* Scrim que NASCE na borda da tela e morre em nada (CS2/Valorant). O texto passa a
    depender do scrim, não de um card — por isso o painel de nav pode perder a caixa.
 
@@ -1062,10 +1077,26 @@ html[data-ui="legacy"] .cs-vignette{
   transform:translateX(10px);letter-spacing:var(--tr-4);
   background:linear-gradient(90deg,rgba(57,214,224,.14),rgba(57,214,224,0));outline:none}
 .cs-item:hover .cs-tick,.cs-item:focus-visible .cs-tick{width:22px;opacity:1;transform:translateX(0);margin-right:6px}
-/* SELECIONADO/ATUAL: sem isso, nada dizia que o painel aberto veio de SINGLE PLAYER. */
-.cs-item[aria-current="true"]{color:#fff;border-left-color:var(--am);
-  background:linear-gradient(90deg,rgba(255,180,77,.16),rgba(255,180,77,0))}
-.cs-item[aria-current="true"] .cs-tick{width:22px;opacity:1;transform:none;margin-right:6px}
+/* SELECIONADO/ATUAL = A BARRA CHEIA (referência 01_menu_principal.png).
+   A lista da referência não tem sete pesos iguais: tem UMA barra SÓLIDA em âmbar com
+   texto ESCURO (o "JOGAR") e o resto é texto solto. Aqui as sete entradas tinham
+   exatamente o mesmo peso e um degradê de 16% marcando a atual — nada dizia qual era a
+   ação padrão de quem acabou de abrir o jogo.
+   Quem tiver aria-current leva a barra; sem ninguém marcado ela mora na PRIMEIRA entrada
+   (SINGLE PLAYER = o JOGAR da referência). O `:not(:has(...))` é o que garante UMA barra
+   só — sem ele, abrir CONFIGURAÇÕES deixava duas barras cheias na tela ao mesmo tempo. */
+.cs-item[aria-current="true"],
+.cs-menu:not(:has(.cs-item[aria-current="true"])) .cs-item:first-of-type{
+  color:var(--bg-900);background:var(--br-faixa);border-left-color:var(--br-faixa);
+  text-shadow:none}
+.cs-item[aria-current="true"] .cs-tick,
+.cs-menu:not(:has(.cs-item[aria-current="true"])) .cs-item:first-of-type .cs-tick{
+  width:22px;opacity:1;transform:none;margin-right:6px;color:var(--bg-900)}
+/* hover da barra cheia: sem isto o `.cs-item:hover` pintava texto BRANCO sobre amarelo */
+.cs-item[aria-current="true"]:hover,.cs-item[aria-current="true"]:focus-visible,
+.cs-menu:not(:has(.cs-item[aria-current="true"])) .cs-item:first-of-type:hover,
+.cs-menu:not(:has(.cs-item[aria-current="true"])) .cs-item:first-of-type:focus-visible{
+  color:var(--bg-900);background:var(--am);border-left-color:var(--am)}
 .cs-left .footnote{position:static;color:var(--ink-300);font-size:var(--fs-100);max-width:420px;margin-top:0;
   padding-left:var(--s-4);border-left:3px solid transparent;line-height:var(--lh-base);letter-spacing:var(--tr-tight);
   text-shadow:var(--sh-text)}
