@@ -338,6 +338,55 @@ export function buildQuebrada(scene, T) {
     addBox(1.2, 0.5, 0.22, lam({ color: 0xcfc9b4 }), px2 + (px2 < 0 ? 0.6 : -0.6), 6.8, pz2, { collide: false, cast: false });
   }
 
+  /* ===================== COMÉRCIO =====================
+     A lista é literal do dono: açaí, sorveteria, móveis/eletrônicos, ADEGA ("principalmente")
+     e lanchonete. O que identifica comércio de quebrada não é a loja: é a PLACA PINTADA À MÃO
+     e o TOLDO. Letreiramento vernacular brasileiro tem baseline irregular, letra que aperta no
+     fim da linha e espacejamento desigual — fonte digital limpa e centralizada lê como praça
+     de alimentação de shopping. Por isso cada letra é desenhada com jitter próprio. */
+  function placaTex(txt, bg, fg) {
+    const W = 512, H = 128, c = document.createElement('canvas'); c.width = W; c.height = H; const x = c.getContext('2d');
+    let seed = 1337 + txt.length * 97; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    x.fillStyle = bg; x.fillRect(0, 0, W, H);
+    for (let i = 0; i < 40; i++) { x.globalAlpha = 0.05 + rnd() * 0.1; x.fillStyle = rnd() > 0.5 ? '#ffffff' : '#000000'; x.fillRect(rnd() * W, rnd() * H, 30 + rnd() * 160, 3 + rnd() * 8); }
+    x.globalAlpha = 1;
+    const size = 74; x.font = `900 ${size}px "Arial Black",Impact,sans-serif`;
+    const wch = [...txt].map((ch) => x.measureText(ch).width * 0.8);
+    const total = wch.reduce((a, b) => a + b, 0), sx = Math.min(1, (W - 40) / total);
+    let px = 20 + (W - 40 - total * sx) / 2;
+    for (let i = 0; i < txt.length; i++) {
+      const ch = txt[i];
+      if (ch !== ' ') {
+        x.save(); x.translate(px, H * 0.74 + (rnd() - 0.5) * size * 0.13); x.rotate((rnd() - 0.5) * 0.08);
+        x.transform(sx * 0.8, 0, -0.13, 0.92 + rnd() * 0.18, 0, 0);
+        x.lineWidth = size * 0.1; x.strokeStyle = '#120c08'; x.strokeText(ch, 0, 0);
+        x.fillStyle = fg; x.fillText(ch, 0, 0); x.restore();
+      }
+      px += wch[i] * sx;
+    }
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; return t;
+  }
+  /* FACHADA DE COMÉRCIO: banda de placa + toldo + porta/vitrine. Tudo `collide:false` — o
+     barraco atrás já tem o colisor, e duplicar aqui só engordaria a lista quente. O toldo
+     fica a 2,5 m: acima do 1,5 m que o `_collide` testa, então nem se fosse colisor
+     estorvaria alguém. */
+  const TOLDO = [0xb8322c, 0x1f7a4c, 0xd7a021, 0x2c5aa8, 0xa2481f];
+  function comercio(side, z0, z1, txt, bgHex, bgCss, fgCss) {
+    const fx = side * 12.5, d = z1 - z0, cz = (z0 + z1) / 2, out = side * 0.06;
+    const placa = new THREE.MeshStandardMaterial({ map: placaTex(txt, bgCss, fgCss), roughness: 0.85 });
+    addBox(0.12, 0.95, d * 0.94, placa, fx + out, 2.62, cz, { collide: false, cast: false });
+    addBox(1.5, 0.1, d * 0.9, lam({ color: bgHex, roughness: 0.8 }), fx - side * 0.75, 2.5, cz, { collide: false });
+    addBox(0.1, 2.1, d * 0.42, lam({ color: 0x2b2926, roughness: 0.6, metalness: 0.3 }), fx + out, 0, cz, { collide: false, cast: false });   // porta de aço
+    addBox(0.1, 1.3, d * 0.34, MAT_VIDRO, fx + out, 0.85, cz + d * 0.3, { collide: false, cast: false });                                     // vitrine
+  }
+  comercio(-1, -25, -19.5, 'ADEGA DO ZÉ', 0xb8322c, '#b8322c', '#f4ecd6');
+  comercio(-1, -7.5, -3, 'AÇAÍ DA JU', 0x5b2a8a, '#5b2a8a', '#e8d94a');
+  comercio(-1, 5.5, 10, 'SORVETERIA', 0x1f7a4c, '#1f7a4c', '#f6f2e2');
+  comercio(-1, 10.8, 14.5, 'MÓVEIS E ELETRO', 0xd7a021, '#d7a021', '#241a10');
+  comercio(1, -30, -25, 'ELETRÔNICOS ZL', 0x2c5aa8, '#2c5aa8', '#f2f0e6');
+  comercio(1, -1.5, 2.5, 'LANCHONETE', 0xa2481f, '#a2481f', '#f4ecd6');
+  comercio(1, 3.5, 8.5, 'BAR DO CANTO', 0x1f7a4c, '#1f7a4c', '#f6f2e2');
+
   // ===== ground height: o mapa é PLANO (nenhum degrau, nenhum mezanino) =====
   const groundHeightAt = () => 0;
 
