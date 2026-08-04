@@ -342,10 +342,9 @@ body{font-family:var(--font);font-weight:600;color:var(--ink1)}
   display:flex;flex-direction:column;align-items:stretch;text-align:left;padding:0;
   position:relative;overflow:hidden;border:1px solid var(--line);clip-path:var(--cut);background:var(--tc-bg);
   transition:transform var(--t-slow) var(--ease),box-shadow var(--t) var(--ease),border-color var(--t) var(--ease)}
-/* fundo = degradê da facção e não --bg-800: `public/img/team-funkeiros.png` NÃO EXISTE no
-   repo (as outras quatro existem), e com fundo neutro a placa dos FUNKEIROS virava um
-   buraco preto no meio da fileira. Assim a arte que falta degrada pra um cartaz na cor
-   da facção em vez de um vazio. O arquivo continua faltando — isto é o amortecedor. */
+/* fundo = degradê da facção e não --bg-800. A arte das cinco facções JÁ EXISTE (ver
+   `--art` abaixo), mas o degradê fica: ele é o que pinta a placa enquanto o webp não
+   chegou pela rede, e é o fallback se um arquivo sumir do deploy. Custa zero byte. */
 /* O elenco e a lista de nomes ficam fora: a referência não tem nem um nem outro, e no
    jogo `.team-chars` desenhava TRÊS caixas 72px vazias por cima da arte (era esse o
    "conteúdo cortado" da captura — miniatura que nunca chegou, moldura que ficou). */
@@ -369,15 +368,27 @@ body{font-family:var(--font);font-weight:600;color:var(--ink1)}
 .team-card[aria-pressed="true"] .team-art{transform:scale(1.2)}
 /* O `-rgb` de cada facção existe pelo mesmo motivo do --bg-900-rgb documentado no topo:
    o scrim tingido precisa de ALFA, e alfa não sai de um hex guardado em var(). */
-.team-p{--tc:#ff6b6b;--tc-rgb:255,107,107;--art:url('/img/team-time-e.png');
+/* ARTE POR FACÇÃO — RETRATO 640×1601 (2:5), gerada por `node tools/gen-image.mjs`.
+   A placa é uma caixa de ~245×620 (razão 0,39-0,45) e `.team-art` acima usa `cover`. A
+   arte anterior era 1536×1024 PAISAGEM com o logotipo do time pintado no meio: no
+   `cover` só ~26% da largura cabia, então cada placa mostrava UM personagem e meio
+   logotipo em vez do elenco de quatro da referência 02. Por isso o arquivo agora nasce
+   na proporção da CAIXA, não na do gerador.
+   Duas coisas que a arte nova respeita de propósito, e que precisam continuar valendo
+   se alguém regerar: (1) o elenco mora nos 55% de BAIXO — os 45% de cima são só névoa,
+   porque é ali que o `.team-card::before` e a `.team-plate` desenham nome e slogan;
+   (2) NADA de texto dentro da imagem — o nome da facção é HTML, e texto embutido
+   duplicaria o nome na tela. Peso das cinco somadas: 419 KB (eram 12,1 MB em PNG,
+   e a dos funkeiros nem existia). */
+.team-p{--tc:#ff6b6b;--tc-rgb:255,107,107;--art:url('/img/team-petistas.webp');
   --tc-bg:linear-gradient(165deg,#b52e2e 0%,#7a1a1a 52%,#3d0d0d 100%)}
-.team-b{--tc:#7de08f;--tc-rgb:125,224,143;--art:url('/img/team-time-b.png');
+.team-b{--tc:#7de08f;--tc-rgb:125,224,143;--art:url('/img/team-bolsonaristas.webp');
   --tc-bg:linear-gradient(165deg,#1d8f45 0%,#2f7a2a 46%,#7a6412 100%)}
-.team-u{--tc:#c79bff;--tc-rgb:199,155,255;--art:url('/img/team-tribos.png');
+.team-u{--tc:#c79bff;--tc-rgb:199,155,255;--art:url('/img/team-tribos.webp');
   --tc-bg:linear-gradient(165deg,#5f22c2 0%,#8a1f9c 55%,#3d0f52 100%)}
-.team-c{--tc:#ff8ad1;--tc-rgb:255,138,209;--art:url('/img/team-palhacos.png');
+.team-c{--tc:#ff8ad1;--tc-rgb:255,138,209;--art:url('/img/team-palhacos.webp');
   --tc-bg:linear-gradient(165deg,#d81e8c 0%,#7a1fa0 52%,#e0761a 100%)}
-.team-f{--tc:#ffd23f;--tc-rgb:255,210,63;--art:url('/img/team-funkeiros.png');
+.team-f{--tc:#ffd23f;--tc-rgb:255,210,63;--art:url('/img/team-funkeiros.webp');
   --tc-bg:linear-gradient(165deg,#c78a12 0%,#8a5a0d 52%,#3d2a05 100%)}
 /* CABEÇALHO TINGIDO NA COR DA FACÇÃO (referência 02): o topo de cada placa lava de
    vermelho/amarelo/roxo e morre no meio, e é isso que faz "quem é quem" ser legível
