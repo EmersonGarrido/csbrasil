@@ -13,6 +13,16 @@
 //     /como-jogar já tinha sido corrigida em 04/08. Esta ficou pra trás.
 // Junto: "4×4" não é fixo, é o PADRÃO (`settings.bots`, public/js/main.js:18,
 // aceita de 1 a 8 por lado).
+//
+// VISUAL (05/08/2026). A página era cinco caixas de texto e nada mais, num site
+// sobre um jogo em 3D. As capturas JÁ EXISTIAM em `public/img/map-previews/`,
+// uma por `id` de mapa, e ninguém as usava. Agora cada arena entra com a arte
+// dela; a primeira ocupa a largura toda com imagem à esquerda e texto à direita,
+// que é o desenho de `references/telas/04_escolha_mapa.png`.
+//
+// A LINHA `.meta` também vem de lá: naquela tela ela é `8v8 · ROUNDS · 15 MIN ·
+// DIA`. Aqui os campos são derivados do dado (`m.ctf`, `m.id`), nunca digitados
+// — foi digitar à mão que quebrou os números desta página duas vezes.
 import Layout from '../layouts/Layout.astro';
 import { MAPAS } from '../data/jogo';
 import { BRAND_FULL, GAME_ID, abs } from '../lib/site';
@@ -20,6 +30,12 @@ import { BRAND_FULL, GAME_ID, abs } from '../lib/site';
 const nCtf = MAPAS.filter(m => m.ctf).length;
 const nRounds = MAPAS.length - nCtf;
 const plural = (n: number, um: string, muitos: string) => (n === 1 ? um : muitos);
+
+/* A captura de cada arena tem o nome do PRÓPRIO id do mapa. Casar por id (e não
+   por uma lista escrita à mão) é o que faz um mapa novo já entrar com arte, ou
+   entrar sem arte de forma visível, em vez de silenciosamente errada. */
+const preview = (id: string) => `/img/map-previews/${id}.jpg`;
+const [destaque, ...resto] = MAPAS;
 
 const jsonld = [
   {
@@ -44,23 +60,51 @@ const jsonld = [
 <Layout
   title={`Mapas — as ${MAPAS.length} arenas | ${BRAND_FULL}`}
   description={`As ${MAPAS.length} arenas do ${BRAND_FULL}: ${MAPAS.map(m => m.nome).join(', ')} — layout, modo e como jogar cada uma.`}
-  jsonld={jsonld}>
-
-  <h1>Mapas</h1>
-  <p class="sub">
-    {MAPAS.length} arenas jogáveis. {nRounds} {plural(nRounds, 'abre', 'abrem')} em rounds e
-    {' '}{nCtf} {plural(nCtf, 'abre', 'abrem')} em Capture the Flag — mas nenhuma trava o modo:
+  jsonld={jsonld}
+  h1="Mapas"
+  kicker={`${MAPAS.length} arenas · rounds e CTF`}
+  heroImg={preview('fy_ferrovelho')}
+  heroPos="62%">
+  {/* `{' '}` explícito entre expressões: dentro de um <Fragment slot>, o espaço
+      literal entre `}` e `{` é engolido e sai "2abrem". */}
+  <Fragment slot="sub">
+    {MAPAS.length} arenas jogáveis.{' '}{nRounds}{' '}{plural(nRounds, 'abre', 'abrem')} em rounds e
+    {' '}{nCtf}{' '}{plural(nCtf, 'abre', 'abrem')} em Capture the Flag — mas nenhuma trava o modo:
     dá pra jogar qualquer mapa em qualquer modo pelo menu antes da partida.
-  </p>
+  </Fragment>
 
-  <div class="grid c2">
-    {MAPAS.map(m => (
-      <article class="panel">
-        <h3 style="margin-top:0">{m.nome}</h3>
-        <span class="chip">{m.modo}</span>
-        <span class="chip" style="margin-left:6px"><code style="background:none;padding:0">{m.id}</code></span>
-        <p style="margin-top:10px;color:var(--bone)">{m.resumo}</p>
-        <p style="margin-top:8px;font-size:13px">{m.detalhe}</p>
+  {/* ARENA DE ABERTURA: imagem à esquerda, texto à direita — o enquadramento da
+      tela de escolha de mapa do jogo. As outras quatro entram na grade. */}
+  <article class="card wide">
+    <div class="fig">
+      <img src={preview(destaque.id)} width="640" height="640" alt={`Vista aérea da arena ${destaque.nome}`} loading="eager" decoding="async">
+      <span class="fig-tag">{destaque.nome}</span>
+    </div>
+    <div class="card-body">
+      <p class="meta">
+        <b>4v4</b><i>·</i>{destaque.ctf ? 'CTF' : 'Rounds'}<i>·</i>
+        {destaque.ctf ? '4 bandeiras' : '1:39 por round'}<i>·</i><code>{destaque.id}</code>
+      </p>
+      <p class="lead">{destaque.resumo}</p>
+      <p>{destaque.detalhe}</p>
+    </div>
+  </article>
+
+  <div class="grid cards">
+    {resto.map(m => (
+      <article class="card">
+        <div class="fig">
+          <img src={preview(m.id)} width="640" height="640" alt={`Vista aérea da arena ${m.nome}`} loading="lazy" decoding="async">
+          <span class="fig-tag">{m.nome}</span>
+        </div>
+        <div class="card-body">
+          <p class="meta">
+            <b>4v4</b><i>·</i>{m.ctf ? 'CTF' : 'Rounds'}<i>·</i>
+            {m.ctf ? '4 bandeiras' : '1:39 por round'}<i>·</i><code>{m.id}</code>
+          </p>
+          <p class="lead">{m.resumo}</p>
+          <p>{m.detalhe}</p>
+        </div>
       </article>
     ))}
   </div>

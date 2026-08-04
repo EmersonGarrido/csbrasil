@@ -40,24 +40,40 @@ const jsonld = [
 <Layout
   title={`Sobre — FPS grátis de navegador estilo CS 1.6 | ${BRAND_FULL}`}
   description={`O que é o ${BRAND_FULL}: FPS gratuito de navegador estilo CS 1.6, satírico e brasileiro, com ${PERSONAGENS.length} personagens, ${MAPAS.length} mapas e ${ARMAS.length} armas. Sem instalação.`}
-  jsonld={jsonld}>
+  jsonld={jsonld}
+  h1="Arena sniper estilo CS 1.6, versão Brasil"
+  kicker="Sobre o jogo"
+  heroImg="/img/map-previews/awp_map.jpg"
+  heroPos="52%">
+  <Fragment slot="sub">
+    Petistas × Bolsonaristas numa Brasília fictícia e satírica: urna gigante quebrada no meio da
+    arena, boteco, pastel, acampamento e o Congresso no horizonte. {PERSONAGENS.length} personagens
+    originais em {FACCOES.length} facções, {MAPAS.length} mapas, {ARMAS.length} armas, bots,
+    rounds, CTF, headshots e multikills estilo Unreal Tournament.
+  </Fragment>
 
-  <section style="text-align:center;margin-bottom:10px">
-    <img src="/og-image.png" width="1200" height="630"
-         alt={`${BRAND_FULL} — arena de sniper estilo CS 1.6 numa Brasília fictícia`}
-         style="width:100%;max-width:800px;border:1px solid var(--line)">
-    <h1 style="margin-top:24px">Arena sniper estilo CS 1.6, versão Brasil</h1>
-    <p style="max-width:66ch;margin:10px auto 0">
-      Petistas × Bolsonaristas numa Brasília fictícia e satírica: urna gigante quebrada no meio da
-      arena, boteco, pastel, acampamento e o Congresso no horizonte. {PERSONAGENS.length} personagens
-      originais em {FACCOES.length} facções, {MAPAS.length} mapas, {ARMAS.length} armas, bots,
-      rounds, CTF, headshots e multikills estilo Unreal Tournament.
-    </p>
-    <p style="margin:26px 0">
-      <a class="btn-play" style="margin-left:0;font-size:19px;padding:15px 46px;display:inline-block" href="/">▶ Jogar agora — grátis</a>
-    </p>
-    <p style="font-size:12px;color:var(--bone-dim)">Roda no navegador de desktop. Sem instalação, sem cadastro.</p>
-  </section>
+  {/* A ARTE DE ANÚNCIO SAIU DAQUI. O que estava no topo era a `og-image.png` —
+      343 KB de cartão de compartilhamento, feito para aparecer no WhatsApp e no
+      X, não dentro da página. No lugar entram as CINCO arenas de verdade: mesma
+      função (mostrar o jogo), informação real, e cada miniatura leva à página
+      que a descreve. */}
+  <div class="galeria">
+    {MAPAS.map(m => (
+      <a class="fig" href="/mapas" aria-label={`Arena ${m.nome}`}>
+        <img src={`/img/map-previews/${m.id}.jpg`} width="640" height="640" loading="lazy"
+             decoding="async" alt={`Vista aérea da arena ${m.nome}`}>
+        {/* miniatura de 178 px não comporta "Loja H (Estacionamento)": o
+            parêntese é o que sobra, então ele sai aqui em vez de virar "…". */}
+        <span class="fig-tag">{m.nome.replace(/\s*\(.*\)\s*$/, '')}</span>
+      </a>
+    ))}
+  </div>
+
+  <div class="cta-row">
+    <a class="btn-cta" href="/">▶ Jogar agora — grátis</a>
+    <a class="btn-cta btn-2" href="/como-jogar">Como jogar</a>
+  </div>
+  <p style="font-size:12px;color:var(--bone-dim);margin-top:10px">Roda no navegador de desktop. Sem instalação, sem cadastro.</p>
 
   <div class="tstat" style="margin-top:26px">
     <div><b>{PERSONAGENS.length}</b><span>personagens</span></div>
