@@ -8,8 +8,15 @@ description: Setup, como rodar o portão, o que um PR precisa, como adicionar ar
 
 # Como colaborar
 
-O projeto tem 5 contribuidores na v1 e quer muito mais na v2. A barreira é baixa **de
-propósito** (`ROADMAP.md:16`) — mas a régua não é.
+O projeto tem **3 pessoas**. É esse o tamanho hoje, e o número não é retórica: sai de
+`git shortlog -sn --no-merges`, descontando os autores que são agentes de IA (que assinam
+como `Claude` / `Claude (gauntlet …)`). Não existe time, não existe comunidade, não existe
+fila de revisores — existem três pessoas e um portão automatizado.
+
+Isso é relevante pra você de duas formas opostas. A ruim: se o seu PR travar, pode
+demorar. A boa: **quase toda a régua é máquina.** `npm run check` te dá o mesmo veredito
+que o mantenedor daria, antes de você abrir o PR, sem esperar ninguém. A barreira é baixa
+**de propósito** (`ROADMAP.md:16`) — mas a régua não é.
 
 Resumo em uma frase: **traga o número.** Um PR que muda comportamento visível e não traz
 nem uma invariante nova nem a razão de não precisar de uma vai voltar com uma pergunta.
@@ -40,10 +47,23 @@ Use `npm run dev`. Detalhes e prova em
 ## Rodar o portão
 
 ```bash
+npm run eval:vm                          # OBRIGATÓRIO ANTES — ver o aviso abaixo
 node tools/eval/invariants.mjs           # o portão inteiro
 node tools/eval/invariants.mjs --json    # saída pra máquina
-npm run check                            # syntax + portão + vm + coice + bots
+npm run check                            # syntax + vm + portão + coice + bots
 ```
+
+:::danger `eval:vm` roda ANTES de `invariants.mjs`. Sempre.
+As invariantes de viewmodel (VM1–VM19) **leem** `tools/eval/vm_mint_audit.json`, que é o
+`eval:vm` quem **escreve**. Rodar as invariantes com esse JSON velho mede o viewmodel de
+ontem e **inventa vermelha**: em 04/08/2026 o JSON estava em `V0=80°` contra o `game.js`
+em `V0=42°`, e a VM5 acusava **26/26 armas fora**; depois de `npm run eval:vm`, **3/26**.
+A VM1 caiu de 26/26 para 2/26 e a VM9 ficou verde.
+
+A ordem do `npm run check` já foi corrigida (`package.json`) — o cuidado é para quando
+você chamar `node tools/eval/invariants.mjs` na mão. Detalhe: BUG-02 do
+[`KNOWN-BUGS.md`](https://github.com/rubenmarcus/csbrasil/blob/main/KNOWN-BUGS.md).
+:::
 
 Custo real: numa máquina de 2 CPUs, **cerca de 10 minutos**. Ele sobe o jogo real cinco
 vezes (uma por mapa), roda 60 s de simulação de bot por mapa e audita os 26 GLBs de arma.
@@ -99,8 +119,9 @@ em silêncio uma decisão estética que nenhuma invariante codificava. Caso comp
 Cole a saída de `node tools/eval/invariants.mjs` antes e depois. Se alguma crítica ficou
 vermelha, o PR não entra. Se você **consertou** uma vermelha, diga qual e mostre.
 
-O portão está vermelho hoje em 11 críticas ([veja quais](./estado.md)). Isso não é licença
-para piorar: o compromisso é *"a sua mudança não acrescenta vermelho"*.
+O portão está vermelho hoje ([veja quais](./estado.md), e a lista viva com causa raiz está
+no `KNOWN-BUGS.md`). Isso não é licença para piorar: o compromisso é *"a sua mudança não
+acrescenta vermelho"*.
 
 ### 3. Números, com `arquivo:linha`
 
@@ -185,17 +206,39 @@ O pipeline é data-driven a partir do GLB. Os 26 GLBs vivem em `public/models/we
 
 ## Como adicionar um mapa
 
-Hoje mapas são **código**, não dado: `public/js/map_havan.js` tem 1.458 linhas de
+Hoje mapas são **código**, não dado: `public/js/map_havan.js` tem 1.866 linhas de
 geometria declarada à mão. Migrar isso para JSON é a Fase 2 do `ROADMAP.md` e é a
 contribuição de maior alavancagem do projeto.
+
+Os **5 mapas do registro** (`public/js/maps.js:8-36`), como estão hoje:
+
+| id | Nome no menu | Arquivo | Linhas | Abre em |
+|---|---|---|---:|---|
+| `awp_map` | Praça dos Três Poderes | `map_brasilia.js` | 1.730 | rodadas |
+| `fy_pool_day` | Piscina da Treta | `map_pool_day.js` | 701 | rodadas |
+| `fy_havan` | Loja H (Estacionamento) | `map_havan.js` | 1.866 | **CTF** |
+| `fy_ferrovelho` | Ferro Velho do Zé | `map_ferrovelho.js` | 1.837 | **CTF** |
+| `fy_quebrada` | Quebrada (Rua do Baile) | `map_quebrada.js` | 1.319 | **CTF** |
+
+Reproduz com `node -e` sobre o `MAPS` de `public/js/maps.js` e `wc -l`. Dois avisos que
+custam tempo se você não souber:
+
+- **`praca_old` ("Praça (clássico)") NÃO existe mais.** Saiu do registro e o
+  `public/js/map.js` foi apagado junto (pedido literal do dono: *"vamos apagar praça
+  clássica"*). Se você encontrar `praca_old` numa saída de régua, essa saída é anterior à
+  remoção — é o caso da tabela colada em [Roadmap e estado](./estado.md).
+- **`map_pool_ramos.js` existe no disco e NÃO está no registro** (é a versão "Piscinão",
+  fora do menu). Arquivo de mapa em `public/js/` não implica mapa jogável; quem decide é
+  o objeto `MAPS`.
 
 Para adicionar um mapa no formato de hoje:
 
 1. **Crie `public/js/map_<nome>.js`** exportando uma função `build<Nome>()`. Use
-   `map_pool_day.js` (363 linhas) como referência — é o menor dos cinco registrados.
-2. **Registre em `public/js/maps.js:8-19`** — nome exibido, `build`, e `ctfMode: true` se
-   a geometria foi desenhada em volta de bandeiras. **Não** existe mais `ctfOnly`: `MOD1`
-   reprova qualquer mapa que force o modo. O jogador escolhe.
+   `map_pool_day.js` (701 linhas) como referência — é o menor dos cinco registrados.
+2. **Registre em `public/js/maps.js:8-36`** — nome exibido, `build`, e `ctfMode: true` se
+   a geometria foi desenhada em volta de bandeiras. `ctfMode` **abre** o mapa em captura;
+   não prende. **Não** existe mais `ctfOnly`: `MOD1` reprova qualquer mapa que force o
+   modo. O jogador escolhe.
 3. **Rode `node tools/eval/map-check.mjs <mapId>`.** O que ele mede, tudo por raycast
    contra o mundo real:
    - `MAP1` — nenhum spawn e nenhum chão andável com o corpo dentro de geometria sólida.
@@ -229,13 +272,28 @@ tocar. O `README.md` de lá indexa por tempo disponível (30 min / 1 h / 2-3 h) 
 é o código onde os agentes de gameplay trabalham em paralelo e onde a tabela de conflito
 do `tools/eval/ARCH.md` manda.
 
+:::caution Elas ainda NÃO estão abertas no GitHub
+As 15 existem como arquivo, não como issue. Existe um script pronto —
+`docs/issues/abrir-issues.sh`, com [`gh`](https://cli.github.com/) autenticado:
+
+```bash
+bash docs/issues/abrir-issues.sh --dry-run   # imprime título + labels, não abre nada
+bash docs/issues/abrir-issues.sh --labels    # cria as 8 labels usadas
+bash docs/issues/abrir-issues.sh             # abre as 15
+```
+
+Ele é idempotente (procura issue com o mesmo título antes de criar) e **nunca foi
+executado**: o repositório é do dono e abrir issue é ação irreversível com o nome dele.
+Ou seja, se você procurar as tarefas na aba Issues, não vai achar — leia os `.md`.
+:::
+
 :::note Esta lista já teve cinco itens, e quatro foram feitos
 Ela mandava corrigir o `README.md` (feito), adicionar `arch`/`arch:check` ao
-`package.json` (existem hoje), regenerar o `ARCH.md` (`npm run arch:check` sai
-**verde**: `game.js` 6.428 linhas, 228 símbolos) e fazer o `tp-mount-probe` pular quando
-faltasse `public/models/anims/` — pasta que **hoje está versionada**, 438 arquivos em
-`git ls-files`. Doc que manda fazer o que já foi feito queima a primeira contribuição de
-alguém; por isso a lista virou ponteiro para `docs/issues/`, que é mantida.
+`package.json` (existem hoje), regenerar o `ARCH.md` e fazer o `tp-mount-probe` pular
+quando faltasse `public/models/anims/` — pasta que **hoje está versionada** (438 arquivos
+em `git ls-files public/models/anims`). Doc que manda fazer o que já foi feito queima a
+primeira contribuição de alguém; por isso a lista virou ponteiro para `docs/issues/`,
+que é mantida.
 
 O único item da lista antiga que **continua valendo**: a mensagem das invariantes
 PX1–PX4 manda usar `tools/eval/motion.mjs`, que não existe (`ls` confirma). Apontar para
@@ -249,17 +307,27 @@ o arnês certo, ou marcar como "arnês a escrever", é um PR de 15 minutos.
    com faixa medida e `vm-solve.mjs` disponível para provar viabilidade. *Frente:
    ARMAS/VIEWMODEL.*
 
-2. **BOT8 — bot com linha de visão e sem atirar.** 2,7 episódios medidos, silêncio máximo
-   de 3,03 s. Defeito visível em jogo, com invariante já escrita esperando ficar verde.
-   *Frente: BOTS/JOGABILIDADE.*
+2. **BOT8 — bot com linha de visão e sem atirar.** É a dívida mais barata da lista, e a
+   causa raiz já está achada: `game.js:5361` avalia `const hasTurn = … this._duelToken(b)`
+   **todo frame**, antes de qualquer gate de "pode atirar" — e `_duelToken` não consulta,
+   ele **reserva** o token. Bot recarregando ou sem linha de tiro rouba um dos 2 tokens e
+   segura; os outros atravessam o campo de visão sem disparar. A correção é mover a chamada
+   para dentro do `if`. Medido na última execução registrada: **4 episódios, silêncio
+   máximo 4,23 s** — e note que **piorou** desde os 2,7 / 3,03 s do baseline, o que faz
+   dela também um bom A/B. *Frente: BOTS/JOGABILIDADE. Detalhe: BUG-03.*
 
-3. **Mapas de superfície nos personagens (CHR5B).** 27 dos 44 personagens têm zero mapa
-   (normal + roughness + AO). Cada personagem que ganhar mapas melhora a invariante de
-   forma medível. Dá para fatiar em vários PRs pequenos. *Frente: PERSONAGENS.*
+3. **Personagens: proporção (CHR1) e mapas de superfície.** Cuidado com doc velha aqui: a
+   **CHR5B ficou VERDE** em 04/08 (os 27 de 44 personagens sem mapa de superfície foram a
+   **0 de 44**), então esse item específico **já foi feito** — não o refaça. O que segue
+   vermelho é CHR1/CHR3/CHR4, e a causa de fundo é rig, não runtime (BUG-10). Leia o
+   KNOWN-BUGS antes de pegar. *Frente: PERSONAGENS.*
 
-4. **`setTimeout` não limpos no `dispose()`** — `game.js:554,666,673,684,1104`, apontados
-   em `RELATORIO-ANALISE.md:134`. Vazamento entre partidas. Bom PR de higiene com efeito
-   medível no heap. *Frente: zona vermelha `constructor`/`update` — coordene antes.*
+4. **`setTimeout` não limpos no `dispose()`** — vazamento entre partidas, apontado em
+   `RELATORIO-ANALISE.md:134`. **Os números de linha daquele relatório estão velhos** (o
+   `game.js` andou ~1.000 linhas desde então); ache os atuais com
+   `grep -n setTimeout public/js/game.js` e confira quais sobrevivem ao `dispose()`. Bom
+   PR de higiene com efeito medível no heap. *Frente: zona vermelha `constructor`/`update`
+   — coordene antes.*
 
 ### Alto valor, precisa de conversa antes
 
@@ -277,10 +345,24 @@ o arnês certo, ou marcar como "arnês a escrever", é um PR de 15 minutos.
 ## Processo
 
 1. Feature grande? **Abra uma issue antes** (veja `IDEAS.md`).
-2. Fork + branch (`feat/minha-ideia`).
+2. Fork + branch **`v2/<assunto>`** — `v2/multiplayer`, `v2/audio`, `v2/ui-hud`. O prefixo
+   é o ciclo de release (topo do `CHANGELOG.md`), e a convenção nasceu de um problema
+   concreto: em 04/08 a branch de trabalho ainda se chamava `feat/evio-feel` — nome de uma
+   feature de julho — com **143 commits** de assuntos diferentes empilhados. Nome que não
+   diz o que a branch é vira depósito. (Fonte: `CONTRIBUTING.md`.)
 3. Rode `npm run check`. Cole a saída no PR.
 4. PR pequeno, uma frente, descrição com números e `arquivo:linha`.
 5. Ao contribuir você licencia sob **MIT** (`LICENSE`).
+
+   :::note Aviso de mudança planejada
+   Existe decisão registrada de migrar o projeto para **AGPL-3.0**. Ela **ainda não foi
+   aplicada** — enquanto o `LICENSE` disser MIT, é MIT que vale, aqui e em qualquer outro
+   arquivo. A troca é retroativa e depende de levantar consentimento de quem já
+   contribuiu, então ela virá num commit único e anunciado. Se isso for decisivo pra você,
+   pergunte antes de abrir o PR. (Mesmo texto do
+   [`CONTRIBUTING.md`](https://github.com/rubenmarcus/csbrasil/blob/main/CONTRIBUTING.md),
+   que é a fonte.)
+   :::
 
 Reportando bug: o que aconteceu, o que esperava, passos pra reproduzir, navegador/SO e
 print do console (F12). E se o bug for de comportamento, ele vai virar invariante — é
