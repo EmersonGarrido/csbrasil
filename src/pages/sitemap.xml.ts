@@ -1,5 +1,21 @@
 // GET /sitemap.xml — sitemap DINÂMICO.
 //
+// ESTA ROTA NUNCA TINHA SIDO SERVIDA. Havia um `public/sitemap.xml` estático,
+// de 17/07, com 4 URLs e host SEM `www`. Como o `.vercel/output/config.json`
+// começa com `{"handle":"filesystem"}`, o arquivo estático ganha da rota antes
+// de o `^/sitemap\.xml$` → `_render` ser sequer avaliado. Medido em produção
+// em 04/08/2026:
+//
+//   $ curl -sI https://www.csbrasil.online/sitemap.xml
+//   content-disposition: inline; filename="sitemap.xml"   ← arquivo, não função
+//   etag: "90ac1bba8ccd641fa3de0d8325bab852"
+//   $ curl -s  https://www.csbrasil.online/sitemap.xml | grep -c www
+//   0                                        ← 4 URLs, todas no host errado
+//
+// Efeito colateral medido: `aeo.js check https://www.csbrasil.online` rastreou
+// **4 páginas** — porque o sitemap só entregava 4. O arquivo estático foi
+// removido; a partir daqui o sitemap é este.
+//
 // POR QUE NÃO `@astrojs/sitemap`
 // (a) a integration não está instalada e esta máquina não tem rede pra
 //     `npm install`; (b) mais importante: ela só enxerga rotas conhecidas em
@@ -12,15 +28,23 @@
 // entra). Sem envs do Supabase, degrada pras páginas fixas e não quebra.
 import type { APIRoute } from 'astro';
 import { supabaseAdmin } from '../lib/supabase';
-import { SITE } from '../lib/site';
+import { SITE, RANKING_ON } from '../lib/site';
 
 export const prerender = false;
 
 // prioridade/frequência: sinal fraco pro Google, mas o Bing e os crawlers de
 // IA ainda leem. Custa nada e ajuda a ordenar o rastreio.
+//
+// `/ranking` e os perfis `/u/*` SÓ ENTRAM COM `RANKING_ON`. Com a flag em
+// false essas páginas respondem `<meta name="robots" content="noindex">`
+// (ranking.astro, u/[...path].astro), e listar em sitemap uma URL que a própria
+// página manda não indexar é mandar dois sinais opostos pro mesmo crawler. A
+// documentação do Google é explícita: "don't include noindex URLs in your
+// sitemap" — https://developers.google.com/search/docs/crawling-indexing/sitemaps/build-sitemap
+// Quando `RANKING_ON` voltar a true, as duas voltam sozinhas.
 const STATIC: [string, string, string][] = [
   ['/',            '1.0', 'daily'],
-  ['/ranking',     '0.9', 'hourly'],
+  ...(RANKING_ON ? [['/ranking', '0.9', 'hourly'] as [string, string, string]] : []),
   ['/como-jogar',  '0.8', 'weekly'],
   ['/personagens', '0.8', 'weekly'],
   ['/mapas',       '0.8', 'weekly'],
@@ -40,7 +64,7 @@ export const GET: APIRoute = async () => {
     `  <url><loc>${SITE}${path}</loc><lastmod>${today}</lastmod>` +
     `<changefreq>${freq}</changefreq><priority>${prio}</priority></url>`);
 
-  if (supabaseAdmin) {
+  if (RANKING_ON && supabaseAdmin) {
     // Vai em `stats` e não na view `leaderboard` por dois motivos: a view tem
     // `limit 500` cravado (o sitemap tem que cobrir TODO mundo, não o top 500)
     // e não expõe `updated_at`, que é o `lastmod` honesto de um perfil.
