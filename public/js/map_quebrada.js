@@ -232,6 +232,62 @@ export function buildQuebrada(scene, T) {
      praça pros slots e ainda deixa contornar pelos dois lados. */
   addBox(6, 2.4, 0.35, lam({ map: T.concrete, color: 0x9c9488 }), -16, 0, -40);
 
+  /* ===================== A ROTUNDA DO BAILE =====================
+     "uma rotunda no final onde teria 2 carros tunados e caixas de som". A praça é o largo
+     x ∈ [-12,5, 12,5] × z ∈ [-43,-20] com a ilha da rotunda no meio. O meio-fio da ilha tem
+     0,16 m — abaixo do degrau de 0,30 m do `_collide` — então a ilha é PISÁVEL e o baile
+     acontece em cima dela; quem dá cobertura ali são os carros e o paredão, que são
+     colisores de verdade. */
+  addFloor(25, 23, 0, -31.5, MAT.asphalt);
+  {
+    const ilha = new THREE.Mesh(new THREE.CylinderGeometry(3.8, 3.9, 0.16, 24), MAT.concreteDark);
+    ilha.position.set(0, 0.08, -31.5); ilha.receiveShadow = true; root.add(ilha);
+  }
+
+  /* CARRO TUNADO e CAIXA DE SOM são PROCEDURAIS (caixa e plano, como o resto do mapa).
+     ANOTADO NO RELATÓRIO: os dois são candidatos naturais a GLB depois — nenhum dos 99 props
+     de public/models/props é um carro rebaixado de som nem uma torre de caixas.
+     COLISÃO — BUG-21: o carro fica em ÂNGULO com o eixo (é o que faz a roda ler como "parou
+     de qualquer jeito no meio da rotunda"), e o motor não tem collider rotacionado. Cada
+     peça girada vai com `collide:false` + `colRot`, e a malha é empurrada À MÃO pra
+     `occluders` — senão a bala atravessa o carro (occluder é o que a bala testa, não o
+     colisor). */
+  const occ = (m) => { occluders.push(m); return m; };
+  const MAT_PNEU = lam({ color: 0x1c1e22, roughness: 0.9 });
+  const MAT_VIDRO = lam({ color: 0x1b2430, roughness: 0.22, metalness: 0.4 });
+  function carroTunado(cx, cz, ry, cor) {
+    const pint = lam({ color: cor, roughness: 0.28, metalness: 0.55, envMapIntensity: 1.6 });
+    occ(addBox(4.4, 0.62, 1.82, pint, cx, 0.28, cz, { ry, collide: false }));        // lataria rebaixada
+    occ(addBox(2.3, 0.58, 1.66, MAT_VIDRO, cx, 0.90, cz, { ry, collide: false }));   // cabine/vidros
+    occ(addBox(2.1, 0.10, 1.70, pint, cx, 1.48, cz, { ry, collide: false }));        // teto
+    occ(addBox(1.1, 0.34, 1.30, pint, cx - Math.sin(ry) * 1.9, 0.90, cz - Math.cos(ry) * 1.9, { ry, collide: false })); // aerofólio/mala
+    for (const [lx, lz] of [[1.5, 0.85], [1.5, -0.85], [-1.5, 0.85], [-1.5, -0.85]]) {
+      const wx = cx + lx * Math.cos(ry) + lz * Math.sin(ry), wz = cz - lx * Math.sin(ry) + lz * Math.cos(ry);
+      const r = new THREE.Mesh(new THREE.CylinderGeometry(0.30, 0.30, 0.24, 12), MAT_PNEU);
+      r.rotation.set(Math.PI / 2, 0, ry); r.position.set(wx, 0.30, wz); r.castShadow = true; root.add(r);
+    }
+    colRot(cx, cz, 4.4, 1.82, 0, 1.55, ry, 6, 3);   // grade 6×3 no espaço local (BUG-21)
+  }
+  /* PAREDÃO: torre de caixas empilhadas. GLB `caixa_som` quando carrega, caixa preta com
+     cone quando não (e em node NUNCA carrega, então o fallback é o que as réguas medem). */
+  const MAT_CAIXA = lam({ color: 0x17171a, roughness: 0.72 });
+  const MAT_CONE = lam({ color: 0x6b6257, roughness: 0.85 });
+  function paredao(cx, cz, ry, n = 3) {
+    for (let i = 0; i < n; i++) {
+      const y = i * 1.05;
+      if (!gprop('caixa_som', cx, cz, 1.05, ry)) {
+        addBox(1.0, 1.0, 0.72, MAT_CAIXA, cx, y, cz, { ry, collide: false });
+        occ(addBox(0.62, 0.62, 0.06, MAT_CONE, cx + Math.sin(ry) * 0.38, y + 0.19, cz + Math.cos(ry) * 0.38, { ry, collide: false, cast: false }));
+      }
+    }
+    colRot(cx, cz, 1.0, 0.72, 0, n * 1.05, ry, 2, 2);
+  }
+  carroTunado(-4.5, -33.5, 0.82, 0xd8232a);     // rebaixado vermelho, atravessado na ilha
+  carroTunado(-1.2, -27.6, -0.55, 0x1f66c4);    // azul-elétrico
+  paredao(2.4, -35.2, 0.35, 3);
+  paredao(-6.8, -28.6, -0.9, 2);
+  paredao(4.6, -35.9, 0.35, 2);
+
   // ===== ground height: o mapa é PLANO (nenhum degrau, nenhum mezanino) =====
   const groundHeightAt = () => 0;
 
