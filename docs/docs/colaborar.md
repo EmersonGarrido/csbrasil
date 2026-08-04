@@ -14,7 +14,7 @@ O número abaixo não é retórica, e não é escrito à mão: sai de `git short
 
 {/* BEGIN:GERADO:pessoas — não edite à mão, rode `npm run docs` */}
 
-**3 pessoas** assinam commit neste repositório (`ruben-cytonic`, `Ruben`, `daltonfontes`), mais 10 commits assinados por agentes de IA, de 321 no total.
+**3 pessoas** assinam commit neste repositório (`ruben-cytonic`, `Ruben`, `daltonfontes`), mais 10 commits assinados por agentes de IA, de 322 no total.
 
 > Bloco gerado por `node tools/gen-docs.mjs`. Fonte: `git shortlog -sn --no-merges (descontando autores que são agentes)`
 
@@ -76,16 +76,16 @@ você chamar `node tools/eval/invariants.mjs` na mão. Detalhe: BUG-02 do
 :::
 
 Custo real: numa máquina de 2 CPUs, **cerca de 10 minutos**. Ele sobe o jogo real cinco
-vezes (uma por mapa), roda 60 s de simulação de bot por mapa e audita os 26 GLBs de arma.
+vezes (uma por mapa), roda 60 s de simulação de bot por mapa e audita todos os GLBs de arma.
 Rode antes de abrir o PR, não depois de receber a review.
 
 Arnêses individuais, quando você quiser iterar rápido numa frente só:
 
 ```bash
-node tools/eval/vm-mint-audit.mjs      # enquadramento de viewmodel (26 armas)
+node tools/eval/vm-mint-audit.mjs      # enquadramento de viewmodel (todo o arsenal)
 node tools/eval/vm-solve.mjs           # existe ponto viável pras invariantes de VM?
 node tools/eval/vm-solve.mjs --atual    # só as margens da config atual (instantâneo)
-node tools/eval/botsim.mjs 60 all      # navegação de bots, 5 mapas, sementes fixas
+node tools/eval/botsim.mjs 60 all      # navegação de bots, todos os mapas, sementes fixas
 node tools/eval/char-probe.mjs         # personagens (C1..C6)
 node tools/eval/map-check.mjs all      # geometria de mapa (MAP1-MAP3, CTF1)
 node tools/eval/mat-check.mjs          # material/luz/fog/textura
@@ -169,11 +169,12 @@ de takedown e de virar outra coisa.
 
 ## Como adicionar uma arma
 
-O pipeline é data-driven a partir do GLB. Os 26 GLBs vivem em `public/models/weapons/`.
+O pipeline é data-driven a partir do GLB. Os GLBs de arma vivem em `public/models/weapons/`
+(a contagem está no bloco gerado de [Começando](./comecando.md)).
 
 1. **Coloque o GLB** em `public/models/weapons/<id>.glb`. Só geometria — o material vem
    do pipeline (`MAT1` exige `metallicFactor 1 / roughnessFactor 1` com mapa
-   metallicRoughness, que é o padrão das 26 atuais).
+   metallicRoughness, que é o padrão de todas as atuais).
 2. **Declare a arma** em `public/js/weapons.js`. Os campos que o portão lê:
    - `len` — comprimento em metros. **`ARM4` reprova acima de 1,25 m** fora de sniper de
      ferrolho. É o campo que normaliza a escala; não é decoração.
@@ -209,29 +210,37 @@ O pipeline é data-driven a partir do GLB. Os 26 GLBs vivem em `public/models/we
      **sem adereço**: chapéu/cabelo/mastro inflam a bbox e fazem o caminho GLB (a evidência da própria CHR2 aponta `glbchars.js:319-322`)
      encolher o corpo.
    - `CHR4` — nenhuma palma nasce enterrada no corpo.
-   - `CHR5`/`CHR5B` — acabamento. Hoje 27 dos 44 personagens têm **zero** mapa de
-     superfície contra 70 normalMaps no melhor mapa. Se o seu personagem novo vier com
-     normal + roughness, você **melhora** a CHR5B — é contribuição de alto valor.
+   - `CHR5`/`CHR5B` — acabamento (normal + roughness + AO). A CHR5B **ficou verde em
+     04/08**: era o "três níveis de acabamento na mesma tela" que o dono descreveu, com
+     boa parte do elenco sem nenhum mapa de superfície, e hoje é zero personagem sem.
+     Personagem novo **sem** normal + roughness reabre a vermelha — traga os mapas.
    - `CHR6` — nenhum par com a mesma silhueta (IoU ≤ 0,98).
 
 ## Como adicionar um mapa
 
-Hoje mapas são **código**, não dado: `public/js/map_havan.js` tem 1.866 linhas de
-geometria declarada à mão. Migrar isso para JSON é a Fase 2 do `ROADMAP.md` e é a
-contribuição de maior alavancagem do projeto.
+Hoje mapas são **código**, não dado: cada `map_*.js` é geometria declarada à mão, e os
+maiores rivalizam em tamanho com os módulos de sistema. Migrar isso para JSON é a Fase 2
+do `ROADMAP.md` e é a contribuição de maior alavancagem do projeto.
 
-Os **5 mapas do registro** (`public/js/maps.js:8-36`), como estão hoje:
+O registro, gerado do `MAPS` de `public/js/maps.js`:
 
-| id | Nome no menu | Arquivo | Linhas | Abre em |
-|---|---|---|---:|---|
-| `awp_map` | Praça dos Três Poderes | `map_brasilia.js` | 1.730 | rodadas |
-| `fy_pool_day` | Piscina da Treta | `map_pool_day.js` | 701 | rodadas |
-| `fy_havan` | Loja H (Estacionamento) | `map_havan.js` | 1.866 | **CTF** |
-| `fy_ferrovelho` | Ferro Velho do Zé | `map_ferrovelho.js` | 1.837 | **CTF** |
-| `fy_quebrada` | Quebrada (Rua do Baile) | `map_quebrada.js` | 1.319 | **CTF** |
+{/* BEGIN:GERADO:mapas — não edite à mão, rode `npm run docs` */}
 
-Reproduz com `node -e` sobre o `MAPS` de `public/js/maps.js` e `wc -l`. Dois avisos que
-custam tempo se você não souber:
+| Id | Nome no menu | Abre em | Arquivo |
+|---|---|---|---|
+| `awp_map` | Praça dos Três Poderes | rodadas | `public/js/map_brasilia.js` (1.730 linhas) |
+| `fy_pool_day` | Piscina da Treta | rodadas | `public/js/map_pool_day.js` (701 linhas) |
+| `fy_havan` | Loja H (Estacionamento) | **captura** | `public/js/map_havan.js` (1.866 linhas) |
+| `fy_ferrovelho` | Ferro Velho do Zé | **captura** | `public/js/map_ferrovelho.js` (1.837 linhas) |
+| `fy_quebrada` | Quebrada (Rua do Baile) | **captura** | `public/js/map_quebrada.js` (1.319 linhas) |
+
+**5 mapas registrados** — 2 abrem em rodadas e 3 em captura. `ctfMode` **abre** o mapa em captura, não prende: o jogador troca no menu (é a `MOD1`). Há 6 arquivos `map_*.js` em `public/js/` — arquivo no disco **não** implica mapa jogável.
+
+> Bloco gerado por `node tools/gen-docs.mjs`. Fonte: `objeto MAPS de public/js/maps.js`
+
+{/* END:GERADO:mapas */}
+
+Dois avisos que custam tempo se você não souber:
 
 - **`praca_old` ("Praça (clássico)") NÃO existe mais.** Saiu do registro e o
   `public/js/map.js` foi apagado junto (pedido literal do dono: *"vamos apagar praça
@@ -244,7 +253,8 @@ custam tempo se você não souber:
 Para adicionar um mapa no formato de hoje:
 
 1. **Crie `public/js/map_<nome>.js`** exportando uma função `build<Nome>()`. Use
-   `map_pool_day.js` (701 linhas) como referência — é o menor dos cinco registrados.
+   `map_pool_day.js` como referência — é o menor dos registrados (a tabela acima traz o
+   tamanho de cada um).
 2. **Registre em `public/js/maps.js:8-36`** — nome exibido, `build`, e `ctfMode: true` se
    a geometria foi desenhada em volta de bandeiras. `ctfMode` **abre** o mapa em captura;
    não prende. **Não** existe mais `ctfOnly`: `MOD1` reprova qualquer mapa que force o
@@ -275,7 +285,7 @@ exige entender o jogo inteiro.
 
 ### Muito boas para o primeiro PR
 
-As 15 tarefas de entrada moram em **[`docs/issues/`](https://github.com/rubenmarcus/csbrasil/tree/main/docs/issues)**,
+As tarefas de entrada moram em **[`docs/issues/`](https://github.com/rubenmarcus/csbrasil/tree/main/docs/issues)**,
 uma por arquivo, cada uma com contexto, o que fazer, critério de aceite e quais arquivos
 tocar. O `README.md` de lá indexa por tempo disponível (30 min / 1 h / 2-3 h) e por área
 (SEO, UI, backend, CI). **Nenhuma delas exige tocar em `public/js/*.js`**, de propósito:
@@ -283,7 +293,7 @@ tocar. O `README.md` de lá indexa por tempo disponível (30 min / 1 h / 2-3 h) 
 do `tools/eval/ARCH.md` manda.
 
 :::caution Elas ainda NÃO estão abertas no GitHub
-As 15 existem como arquivo, não como issue. Existe um script pronto —
+Elas existem como arquivo, não como issue. Existe um script pronto —
 `docs/issues/abrir-issues.sh`, com [`gh`](https://cli.github.com/) autenticado:
 
 ```bash

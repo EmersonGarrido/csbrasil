@@ -51,6 +51,7 @@ commit — ver [Como manter a doc honesta](./arquitetura.md#o-que-é-gerado-e-o-
 | Scripts do arnês | 140 | `ls tools/eval/*.mjs tools/eval/*.py \| wc -l` |
 | Scripts de pipeline | 42 | `ls tools/*.mjs \| wc -l` |
 | Migrations do Supabase | 12 | `ls supabase/migrations/*.sql \| wc -l` |
+| Tarefas de entrada escritas | 15 | `ls docs/issues/[0-9]*.md \| wc -l` |
 | Versão | `2.0.0-alpha.13` | `public/js/version.js` e `package.json` (batem) |
 
 > Bloco gerado por `node tools/gen-docs.mjs`. Fonte: `o comando da coluna direita de cada linha`
@@ -281,7 +282,7 @@ manifesto de animação) e roda em cerca de um minuto.
   Se você nunca colaborou com agentes num repo, comece por aí.
 - **[Quality gates](./quality-gates.md)** — o que é uma invariante, como se escreve
   uma, e as duas leis da casa. É a página mais útil do site.
-- **[Como colaborar](./colaborar.md)** — o que um PR precisa pra entrar, e as **15 tarefas
+- **[Como colaborar](./colaborar.md)** — o que um PR precisa pra entrar, e as **tarefas
   de primeira contribuição** que já estão escritas em
   [`docs/issues/`](https://github.com/rubenmarcus/csbrasil/tree/main/docs/issues) (com um
   `abrir-issues.sh` pronto — elas ainda não foram abertas no GitHub).

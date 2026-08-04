@@ -14,25 +14,26 @@ ordem.
 |---|---|---|
 | 1 | [`../STATUS.md`](../STATUS.md) | **Comece aqui.** O estado de hoje, em ≤100 linhas: o que existe, o que está aberto, qual é a régua. |
 | 2 | [`../README.md`](../README.md) | O que é o projeto, como rodar, onde fica cada coisa. |
-| 3 | [`../CONTRIBUTING.md`](../CONTRIBUTING.md) | Como abrir um PR que passa. |
-| 4 | [`issues/`](issues/) | 15 tarefas boas pra primeira contribuição, cada uma com arquivos e critério de aceite. |
+| 3 | [`docs/stack.md`](docs/stack.md) | **Com o que isso é feito.** Three.js/WebGL sem build, Astro/Vercel, Supabase, geração de asset (mint.gg, Tripo3D, Meshy, OpenRouter), Playwright, gltf-transform, as skills e o gauntlet loop. |
+| 4 | [`../CONTRIBUTING.md`](../CONTRIBUTING.md) | Como abrir um PR que passa. |
+| 5 | [`issues/`](issues/) | tarefas boas pra primeira contribuição, cada uma com arquivos e critério de aceite. |
 
 ### 2. Vai mexer no JOGO (`public/js/`)
 
 | # | Arquivo | Por quê |
 |---|---|---|
-| 5 | [`../tools/eval/ARCH.md`](../tools/eval/ARCH.md) | **Índice por linha e tabela de conflito.** É GERADO (`npm run arch`) — nunca edite o bloco entre os marcadores. Leia antes de tocar em `game.js`. |
-| 6 | [`../tools/eval/BAR-CONSISTENCIA.md`](../tools/eval/BAR-CONSISTENCIA.md) | A régua vigente: 25 critérios de consistência e flow. **Tem precedência** sobre a `BAR.md`. |
-| 7 | [`../tools/eval/BAR.md`](../tools/eval/BAR.md) | A régua de fidelidade visual. Consulta, não leitura obrigatória. |
-| 8 | [`../tools/eval/README.md`](../tools/eval/README.md) | Catálogo do arnês: o que cada script mede, e quais estão obsoletos. |
+| 6 | [`../tools/eval/ARCH.md`](../tools/eval/ARCH.md) | **Índice por linha e tabela de conflito.** É GERADO (`npm run arch`) — nunca edite o bloco entre os marcadores. Leia antes de tocar em `game.js`. |
+| 7 | [`../tools/eval/BAR-CONSISTENCIA.md`](../tools/eval/BAR-CONSISTENCIA.md) | A régua vigente: 25 critérios de consistência e flow. **Tem precedência** sobre a `BAR.md`. |
+| 8 | [`../tools/eval/BAR.md`](../tools/eval/BAR.md) | A régua de fidelidade visual. Consulta, não leitura obrigatória. |
+| 9 | [`../tools/eval/README.md`](../tools/eval/README.md) | Catálogo do arnês: o que cada script mede, e quais estão obsoletos. |
 
 ### 3. Vai mexer no SITE ou no BANCO
 
 | # | Arquivo | Por quê |
 |---|---|---|
-| 9 | [`seguranca.md`](seguranca.md) | O que foi fechado no pré-release, onde estava e como testar. Leia antes de mexer em `/api/*` ou em `supabase/`. |
-| 10 | [`../supabase/README.md`](../supabase/README.md) | Como aplicar as migrations. |
-| 11 | [`../supabase/opcional/OFUSCACAO-README.md`](../supabase/opcional/OFUSCACAO-README.md) | A ofuscação de schema entregue pronta e **não aplicada**. |
+| 10 | [`seguranca.md`](seguranca.md) | O que foi fechado no pré-release, onde estava e como testar. Leia antes de mexer em `/api/*` ou em `supabase/`. |
+| 11 | [`../supabase/README.md`](../supabase/README.md) | Como aplicar as migrations. |
+| 12 | [`../supabase/opcional/OFUSCACAO-README.md`](../supabase/opcional/OFUSCACAO-README.md) | A ofuscação de schema entregue pronta e **não aplicada**. |
 
 ### 4. Contexto e direção
 
@@ -68,6 +69,11 @@ atual, guardados porque explicam *por que* as coisas são como são.
 - **Português.** Código, comentário, commit e doc.
 - **Um lugar por informação.** Se um número aparece em dois arquivos, um dos
   dois está errado — e vai continuar errado. Prefira apontar para a fonte.
+- **Número derivável do código não se escreve à mão.** Ele vira bloco gerado
+  por `node tools/gen-docs.mjs`, entre marcadores, e `npm run docs:check`
+  (dentro do `check:fast`) reprova quando envelhece. Número que aparece em dois
+  arquivos e é gerado nos dois **não** pode divergir — é a única forma de a
+  convenção acima sobreviver a um commit.
 - **Doc que envelhece vai pro `historico/`,** não fica na raiz esperando alguém
   perceber que está mentindo.
 - **`arquivo:linha`** em qualquer afirmação sobre código.

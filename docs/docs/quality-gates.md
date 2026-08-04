@@ -92,7 +92,7 @@ que é medido, não uma reimplementação — `tools/eval/botsim.mjs:8-9`: *"se 
 melhorar aqui, melhorou no jogo"*. Daqui saem BOT1–BOT8, MAP1–MAP3, CTF1, MAT1/MAT2,
 FOG1, TEX1, VM14, MOD1/MOD2.
 
-**3. Medida na geometria dos assets.** `vm-mint-audit.mjs` abre os 26 GLBs de arma com um
+**3. Medida na geometria dos assets.** `vm-mint-audit.mjs` abre todos os GLBs de arma com um
 parser de GLB próprio e projeta o viewmodel na tela. Daqui saem VM1–VM19.
 
 O que **não** cabe aqui: invariante que exige pixel de browser. Essas estão marcadas

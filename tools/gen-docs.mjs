@@ -302,6 +302,7 @@ const BLOCOS = {
     `| Scripts do arnês | ${f.portao.scriptsEval} | \`ls tools/eval/*.mjs tools/eval/*.py \\| wc -l\` |`,
     `| Scripts de pipeline | ${f.portao.scriptsTools} | \`ls tools/*.mjs \\| wc -l\` |`,
     `| Migrations do Supabase | ${f.supabase.migrations} | \`ls supabase/migrations/*.sql \\| wc -l\` |`,
+    `| Tarefas de entrada escritas | ${f.issues.escritas} | \`ls docs/issues/[0-9]*.md \\| wc -l\` |`,
     `| Versão | \`${f.versao.jogo}\` | \`public/js/version.js\`${f.versao.concordam ? ' e `package.json` (batem)' : ' — **DIVERGE do `package.json`: `' + f.versao.pacote + '`**'} |`,
     rodape('o comando da coluna direita de cada linha'),
   ].join('\n'),
@@ -497,12 +498,12 @@ const BLOCOS = {
 /* COLOCAÇÃO DECLARADA: bloco -> arquivos em que ele TEM que aparecer.
    Sem isto, apagar o marcador de UMA página some com o bloco em silêncio e o `--check`
    continua verde, porque o bloco ainda existe em outra página. Foi medido: a mutação
-   "apaga o marcador de `mapas` em comecango.md" passava VERDE antes desta tabela.
+   "apaga o marcador de `mapas` em comecando.md" passava VERDE antes desta tabela.
    O contrato agora é dos dois lados — o conteúdo é gerado E o lugar é declarado. */
 const COLOCACAO = {
   numeros: ['README.md', 'docs/docs/comecando.md'],
   regras: ['README.md', 'docs/docs/comecando.md'],
-  mapas: ['README.md', 'docs/docs/comecando.md'],
+  mapas: ['README.md', 'docs/docs/comecando.md', 'docs/docs/colaborar.md'],
   scripts: ['README.md', 'docs/docs/comecando.md'],
   stack: ['README.md', 'docs/docs/stack.md'],
   assets: ['docs/docs/stack.md'],

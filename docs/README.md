@@ -22,12 +22,15 @@ docs/
     .nojekyll
   docs/
     comecando.md          o que é, 3 comandos, estrutura real do repo
+    stack.md              Three.js/WebGL sem build, Astro/Vercel, Supabase, geração de
+                          asset (mint.gg, Tripo3D, Meshy, OpenRouter), Playwright,
+                          gltf-transform, as skills e o gauntlet loop
     instrumentacao-ai.md  o loop: régua -> builders -> crítico -> caçador de regressões
     quality-gates.md      invariantes, as 2 leis da casa, teste de mutação da régua
     colaborar.md          setup, portão, o que um PR precisa, boas primeiras tarefas
-    arquitetura.md        ARCH gerado + faixas de linha disjuntas
+    arquitetura.md        ARCH gerado + faixas de linha disjuntas + o que é gerado aqui
     estado.md             saída REAL do portão + dívidas declaradas
-  issues/                 as 15 good-first-issues, uma por arquivo (README.md indexa)
+  issues/                 as good-first-issues, uma por arquivo (README.md indexa)
   historico/              prompts e handoffs antigos — arquivo morto, não é doc viva
   INDICE.md               índice dos .md soltos desta pasta
   seguranca.md ROADMAP.md QUALITY.md IDEAS.md TRIBOS-URBANAS.md ASSETS-PROMPTS.md
@@ -192,9 +195,28 @@ convertida para WebP na resolução de uso, nunca no tamanho original.
 
 A regra é a mesma do resto do repositório: **nada de número inventado**.
 
+**Número derivável do código NÃO se escreve à mão aqui.** Ele vira bloco gerado por
+`node tools/gen-docs.mjs`, entre marcadores `BEGIN:GERADO:<nome>` / `END:GERADO:<nome>`, e
+`npm run docs:check` (dentro do `check:fast`) reprova quando um bloco diverge do código.
+
+```bash
+npm run docs          # regenera todos os blocos
+npm run docs:check    # sai 1 se algum estiver velho — é o que roda no portão
+node tools/gen-docs.mjs --json   # todos os fatos medidos, para outra ferramenta
+```
+
+Nas páginas de `docs/docs/` o marcador é comentário **MDX** (`{/* … */}`): o Docusaurus 3
+compila `.md` como MDX, e comentário HTML ali é erro de parse que **derruba o build**. No
+`README.md` da raiz é comentário HTML normal.
+
+O que **não** é derivável — placar do portão, decisões, o porquê de cada número — continua
+escrito à mão, e aí a regra é não carregar número que envelhece: cite o comando que o
+produz, ou escreva a frase sem ele.
+
 - Toda afirmação técnica tem `arquivo:linha`. Se o arquivo andar, o ponteiro fica errado —
   confira antes de editar (é o mesmo problema que o `tools/gen-arch.mjs` resolve para o
-  `ARCH.md`).
+  `ARCH.md`). O bloco `ponteiros` de [Arquitetura](docs/arquitetura.md) acusa os que
+  apontam para além do fim do arquivo.
 - A página `estado.md` tem saída de terminal **colada de uma execução real**. Ao
   atualizar, rode `node tools/eval/invariants.mjs` de verdade e cole a saída inteira,
   incluindo o que falha. Anote commit e data.

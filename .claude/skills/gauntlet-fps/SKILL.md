@@ -21,10 +21,13 @@ O que faz a diferença aqui **não é o número de agentes** — é que cada afi
 
 Leia, nesta ordem:
 
-1. `HANDOFF-KIMI.md` na raiz — a atualização do topo é o estado atual. As anteriores são histórico.
-2. `tools/eval/BAR.md` — **a régua**. Look técnico do CS2/Valorant, o que é alcançável em Three.js r160, como os 4 lugares brasileiros realmente são, e o checklist de 25 critérios A1–D4 mensuráveis num frame.
-3. `tools/eval/ARCH.md` — índice do `game.js` por linha, os levers de cada frente, e a **tabela de conflito** (quem pode editar qual arquivo/range).
-4. `git status` — o dono revisa antes de commitar. **Não commite sem autorização explícita.**
+1. `STATUS.md` na raiz — o estado atual, em ≤100 linhas. (Substituiu o topo do `HANDOFF-KIMI.md`, que virou `docs/historico/HANDOFF-KIMI.md` e agora é só histórico — leia de lá quando precisar da causa raiz de uma decisão antiga.)
+2. `tools/eval/BAR-CONSISTENCIA.md` — **a régua vigente**, com precedência sobre a `BAR.md`: 25 critérios de consistência e flow. Melhoria visual que quebra o jogo é regressão.
+2b. `tools/eval/BAR.md` — a régua de fidelidade. Look técnico do CS2/Valorant, o que é alcançável em Three.js r160, como os lugares brasileiros retratados realmente são, e o checklist de 25 critérios A1–D4 mensuráveis num frame.
+3. `tools/eval/ARCH.md` — índice do `game.js` por linha, os levers de cada frente, e a **tabela de conflito** (quem pode editar qual arquivo/range). É **gerado**: rode `npm run arch` antes de ler, ou você lê o índice de ontem.
+4. `KNOWN-BUGS.md` — os defeitos abertos, com `arquivo:linha`, causa raiz e passo de reprodução. É onde mora o placar real do portão, colado de execução de verdade.
+5. `docs/docs/stack.md` — com o que o jogo é feito (Three.js/WebGL sem build, Astro/Vercel, Supabase) e como o asset é gerado (mint.gg, Tripo3D, Meshy, OpenRouter). Os números dessa página são **gerados** por `npm run docs`.
+6. `git status` — o dono revisa antes de commitar. **Não commite sem autorização explícita.**
 
 ## Ambiente
 
@@ -53,7 +56,7 @@ CHROME_BIN=/opt/pw-browsers/chromium-*/chrome-linux/chrome \
   node tools/eval/gl-shots.mjs /root/shots/base all
 ```
 
-Captura os 4 mapas × 2 aspectos (16:9 **e** 3:2 — o dono joga em 3:2) × 4 ângulos, mais as telas de menu. Sem baseline não existe A/B, e sem A/B o loop vira opinião.
+Captura todos os mapas registrados × 2 aspectos (16:9 **e** 3:2 — o dono joga em 3:2) × 4 ângulos, mais as telas de menu. Sem baseline não existe A/B, e sem A/B o loop vira opinião.
 
 ### 2. Críticos adversariais, um por frente
 
@@ -69,7 +72,9 @@ Deixe os críticos escreverem scripts Python (PIL está instalado) para medir L\
 
 ### 3. Builders em paralelo, particionados por arquivo
 
-Use a tabela de conflito do `ARCH.md`. O `game.js` tem 3.234 linhas e **todas** as frentes precisam dele — por isso a regra:
+Use a tabela de conflito do `ARCH.md` — que é **GERADA** (`npm run arch`), justamente porque um índice por linha escrito à mão desatualiza no primeiro commit. Este parágrafo é a prova viva: ele afirmava "o `game.js` tem 3.234 linhas" e continuou afirmando isso enquanto o arquivo **dobrava de tamanho**, porque nenhuma régua olhava para ele. Por isso **nenhum número de tamanho de arquivo é escrito aqui** — rode `npm run arch` antes de particionar e leia o número de lá. O mesmo vale para a documentação: `npm run docs` gera, `npm run docs:check` reprova (está no `check:fast`).
+
+O `game.js` é grande e **todas** as frentes precisam dele — por isso a regra:
 
 > Em `game.js`, use **somente a ferramenta Edit**. Nunca Write. Outros agentes estão editando outras regiões do mesmo arquivo ao mesmo tempo.
 
