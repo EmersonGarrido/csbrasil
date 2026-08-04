@@ -131,8 +131,45 @@ export function buildQuebrada(scene, T) {
      A laje e o 2º pavimento ficam com colisor (minY ≥ 2,7 m, acima do 1,5 m que o `_collide`
      testa: não bloqueiam o andar) porque colisor é o que a BALA usa — laje sem colisor é
      telhado que o tiro atravessa. */
-  const CORES_BARRACO = [0xb9ab96, 0x9d7f63, 0xa8b4ad, 0xc4b58c, 0x8e8378, 0xb08a76, 0x9aa7b0, 0xc9c0ae];
-  const MAT_BARRACO = CORES_BARRACO.map((c) => lam({ map: T.concrete, color: c, roughness: 0.97 }));
+  /* TEXTURA DE BARRACO — a diferença entre "caixa colorida" e "barraco" é a PROPORÇÃO DE
+     ACABAMENTO. Um quarteirão inteiro rebocado e pintado lê como conjunto habitacional; um
+     quarteirão inteiro de bloco cru lê como obra abandonada. O que existe de verdade é a
+     mistura: uma parte pintada, uma parte com o reboco caindo e o bloco cerâmico aparecendo
+     por baixo, escorrido de chuva descendo das lajes e limo na base onde bate água.
+     `crua` = fração de bloco aparente; `pint` = a cor da tinta quando há tinta. */
+  function paredeTex(pint, crua, seed) {
+    const S = 256, c = document.createElement('canvas'); c.width = c.height = S; const x = c.getContext('2d');
+    const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    x.fillStyle = pint; x.fillRect(0, 0, S, S);
+    // manchas de reboco caído com bloco cerâmico por baixo (fiadas + os 6 furos)
+    for (let i = 0; i < 5; i++) {
+      if (rnd() > crua) continue;
+      const px = rnd() * S, py = rnd() * S, w = 40 + rnd() * 90, h = 30 + rnd() * 80;
+      x.save(); x.beginPath();
+      for (let k = 0; k < 9; k++) { const a = k / 9 * 6.283, r = 0.5 + rnd() * 0.6; const fx = px + Math.cos(a) * w * r, fy = py + Math.sin(a) * h * r; k ? x.lineTo(fx, fy) : x.moveTo(fx, fy); }
+      x.closePath(); x.clip();
+      x.fillStyle = '#8d8377'; x.fillRect(px - w, py - h, w * 2, h * 2);
+      for (let r2 = -3; r2 < 4; r2++) for (let k = -2; k < 3; k++) {
+        const bx = px + k * 60 + (r2 % 2 ? 30 : 0), by = py + r2 * 30, v = rnd();
+        x.fillStyle = `rgb(${146 + v * 44 | 0},${84 + v * 32 | 0},${56 + v * 24 | 0})`; x.fillRect(bx, by, 54, 24);
+        x.fillStyle = 'rgba(40,26,20,0.5)';
+        for (let h2 = 0; h2 < 3; h2++) x.fillRect(bx + 6 + h2 * 15, by + 6, 9, 12);
+      }
+      x.restore();
+    }
+    for (let i = 0; i < 14; i++) {   // escorrido de chuva a partir da laje
+      const px = rnd() * S; const g = x.createLinearGradient(0, 0, 0, 60 + rnd() * 150);
+      g.addColorStop(0, 'rgba(48,44,38,0.42)'); g.addColorStop(1, 'rgba(48,44,38,0)');
+      x.fillStyle = g; x.fillRect(px, 0, 3 + rnd() * 8, 60 + rnd() * 150);
+    }
+    const g2 = x.createLinearGradient(0, S * 0.72, 0, S);   // limo/umidade na base
+    g2.addColorStop(0, 'rgba(62,70,50,0)'); g2.addColorStop(1, 'rgba(62,70,50,0.5)');
+    x.fillStyle = g2; x.fillRect(0, 0, S, S);
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+    t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(2, 1.2); return t;
+  }
+  const CORES_BARRACO = ['#c8bda6', '#a8814f', '#a9bcb6', '#d0c08d', '#8f857a', '#bd8f77', '#9fb0bd', '#d4cbb6'];
+  const MAT_BARRACO = CORES_BARRACO.map((c, i) => lam({ map: paredeTex(c, i % 3 === 1 ? 0.85 : 0.32, 41 + i * 733), roughness: 0.97 }));
   const MAT_LAJE = lam({ map: T.concreteDark, color: 0xa39c90, roughness: 0.95 });
   const MAT_CXDAGUA = lam({ color: 0x2f5fa0, roughness: 0.5 });
   // hash de avalanche (mesma razão do ferro velho: `i % n` com passo divisível cai sempre no
