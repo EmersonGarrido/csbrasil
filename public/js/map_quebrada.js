@@ -288,6 +288,56 @@ export function buildQuebrada(scene, T) {
   paredao(-6.8, -28.6, -0.9, 2);
   paredao(4.6, -35.9, 0.35, 2);
 
+  /* ===================== O CAMPINHO DE TERRA (respawn do time B) =====================
+     "do outro lado no final da rua seria um campinho de terra de futebol onde seria o
+     respawn do outro time". Terra batida x ∈ [-22,22] × z ∈ [28,46], travessa de 4 m ligando
+     rua + as duas vielas ao campo.
+     O MURO DE 2,2 m NA BOCA DO CAMPO (z = 28) É O QUE SALVA O RESPAWN. Sem ele o campinho é
+     um descampado de 18 m no fim de uma rua reta de 44 m: qualquer ponto da rua tem visada
+     limpa até quem nasce, que é exatamente o "respawn visível de fora" que a MAP2 mede. O
+     muro é maciço em x ∈ [-9,9] — bem em cima do eixo da rua — e abre em DOIS portões
+     (x ∈ [-15,-9] e [9,15]). Dois portões, não um: além de cortar a visada do eixo, eles
+     dão as duas entradas separadas por 24 m que a CTF2 cobra na bandeira do campinho. */
+  addFloor(44, 18, 0, 37, MAT.dirt);
+  addFloor(50, 4, 0, 26, MAT.concreteDark, 0.015);              // travessa (asfalto gasto)
+  {   // linhas de cal (só pintura — nada de colisor)
+    const cal = new THREE.MeshStandardMaterial({ color: 0xd9d3c4, roughness: 0.95, transparent: true, opacity: 0.55, polygonOffset: true, polygonOffsetFactor: -2 });
+    for (const lz of [29.5, 44.5]) addFloor(30, 0.22, 0, lz, cal, 0.02);
+    for (const lx of [-15, 15]) addFloor(0.22, 15, lx, 37, cal, 0.02);
+    const circ = new THREE.Mesh(new THREE.RingGeometry(4.3, 4.55, 32), cal);
+    circ.rotation.x = -Math.PI / 2; circ.position.set(0, 0.02, 37); root.add(circ);
+  }
+  const MAT_MURO = lam({ map: T.concrete, color: 0x9a9184, roughness: 0.97 });
+  for (const [mx0, mx1] of [[-22, -15], [-9, 9], [15, 22]])
+    addBox(mx1 - mx0, 2.2, 0.34, MAT_MURO, (mx0 + mx1) / 2, 0, 28);
+  // TRAVES — dois postes e um travessão por gol. O poste é fino (0,14 m) e não esconde
+  // ninguém, mas é peça de cobertura pra MAP5 e referência de leitura do campo.
+  const MAT_TRAVE = lam({ color: 0xe6e2d6, roughness: 0.8 });
+  for (const gz of [29.9, 44.1]) {
+    for (const gx of [-2.6, 2.6]) addBox(0.16, 2.2, 0.16, MAT_TRAVE, gx, 0, gz);
+    addBox(5.36, 0.16, 0.16, MAT_TRAVE, 0, 2.2, gz, { collide: false });
+  }
+  /* ALAMBRADO PARCIAL nas laterais: mourões a cada 4 m com painel de tela. A tela é
+     `collide:false` de propósito — o campo tem que continuar ligado às margens (é de lá que
+     sai a 2ª rota pra bandeira do campinho); quem conta como cover são os mourões. */
+  const MAT_TELA = new THREE.MeshStandardMaterial({ color: 0x6e7a6a, roughness: 0.9, transparent: true, opacity: 0.32, side: THREE.DoubleSide });
+  for (const sx of [-16.4, 16.4]) for (let mz = 30; mz <= 46; mz += 4) {
+    addBox(0.16, 2.6, 0.16, posteMat, sx, 0, mz);
+    if (mz < 46) { const t = addBox(0.05, 2.4, 4, MAT_TELA, sx, 0, mz + 2, { collide: false, cast: false }); t.receiveShadow = false; }
+  }
+  // arquibancada da margem oeste (GLB do Mint quando carrega; degraus de concreto quando não)
+  if (!gprop('arquibancada', -19.4, 36, 2.4, Math.PI / 2))
+    for (let i = 0; i < 3; i++) addBox(3.2 - i * 0.9, 0.5 + i * 0.5, 9, MAT.concreteDark, -20.6 + i * 1.05, 0, 36);
+  // pilhas de pneu marcando o encostado do campo + um par de barracas na margem leste
+  for (const [tx, tz] of [[-13, 32.5], [13, 41], [-8, 45], [18.6, 33]])
+    if (!gprop('pilha_pneus', tx, tz, 1.1)) addBox(1.4, 1.1, 1.4, MAT_PNEU, tx, 0, tz);
+  for (const [sx2, sz2] of [[19, 39.5], [-19.4, 43.5]])
+    if (!gprop('stall', sx2, sz2, 2.3)) addBox(2.4, 2.3, 2.0, MAT_BARRACO[3], sx2, 0, sz2);
+  for (const [px2, pz2] of [[-16.9, 31], [16.9, 43]]) {   // refletor de campo de várzea
+    addBox(0.26, 7.2, 0.26, posteMat, px2, 0, pz2);
+    addBox(1.2, 0.5, 0.22, lam({ color: 0xcfc9b4 }), px2 + (px2 < 0 ? 0.6 : -0.6), 6.8, pz2, { collide: false, cast: false });
+  }
+
   // ===== ground height: o mapa é PLANO (nenhum degrau, nenhum mezanino) =====
   const groundHeightAt = () => 0;
 
