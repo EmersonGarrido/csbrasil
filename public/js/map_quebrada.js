@@ -170,7 +170,44 @@ export function buildQuebrada(scene, T) {
   }
   const CORES_BARRACO = ['#c8bda6', '#a8814f', '#a9bcb6', '#d0c08d', '#8f857a', '#bd8f77', '#9fb0bd', '#d4cbb6'];
   const MAT_BARRACO = CORES_BARRACO.map((c, i) => lam({ map: paredeTex(c, i % 3 === 1 ? 0.85 : 0.32, 41 + i * 733), roughness: 0.97 }));
+  /* TELHA ONDULADA DE FIBROCIMENTO — o par obrigatório da laje inacabada. Metade das casas
+     tem laje de concreto (esperando o próximo andar, que é o que a caixa d'água em cima
+     conta) e a outra metade fecha com fibrocimento: onda larga e macia, cinza-esverdeado,
+     limo escuro nas juntas. A onda é o que pega o sol rasante — telhado chapado some. */
+  function telhaTex(seed = 907) {
+    const S = 128, c = document.createElement('canvas'); c.width = c.height = S; const x = c.getContext('2d');
+    const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    for (let i = 0; i * 20 < S; i++) {
+      const g = x.createLinearGradient(i * 20, 0, (i + 1) * 20, 0);
+      g.addColorStop(0, '#6d716b'); g.addColorStop(0.5, '#a5a89e'); g.addColorStop(1, '#62655e');
+      x.fillStyle = g; x.fillRect(i * 20, 0, 20, S);
+    }
+    for (let i = 0; i < 26; i++) { x.globalAlpha = 0.12 + rnd() * 0.3; x.fillStyle = rnd() > 0.5 ? '#4b5840' : '#3d413b'; const r = 5 + rnd() * 20; x.beginPath(); x.ellipse(rnd() * S, rnd() * S, r, r * 0.5, 0, 0, 6.3); x.fill(); }
+    x.globalAlpha = 1;
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+    t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(3, 2); return t;
+  }
   const MAT_LAJE = lam({ map: T.concreteDark, color: 0xa39c90, roughness: 0.95 });
+  const MAT_TELHA = lam({ map: telhaTex(), roughness: 0.72, metalness: 0.1 });
+  /* PIXAÇÃO — letra reta, alta e angular de rolinho, preta ou prata, uma passada só. Nada a
+     ver com grafite colorido: pixo é traço, não desenho, e é o que mais rápido diz "isto é
+     periferia brasileira, não subúrbio genérico". Vai como decal transparente na fachada. */
+  function pixoTex(seed = 555) {
+    const W = 256, H = 128, c = document.createElement('canvas'); c.width = W; c.height = H; const x = c.getContext('2d');
+    const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    x.clearRect(0, 0, W, H);
+    x.strokeStyle = rnd() > 0.5 ? '#15151a' : '#98a0a6'; x.lineCap = 'square';
+    for (let g = 0; g < 7; g++) {
+      const bx = 16 + g * 33 + (rnd() - 0.5) * 8, top = 20 + rnd() * 12, bot = H - 20 - rnd() * 10;
+      x.lineWidth = 5 + rnd() * 4;
+      x.beginPath(); x.moveTo(bx, top); x.lineTo(bx + (rnd() - 0.5) * 6, bot); x.stroke();
+      x.beginPath(); x.moveTo(bx, top + rnd() * 10); x.lineTo(bx + 11 + rnd() * 10, top + rnd() * 22); x.stroke();
+      if (rnd() > 0.4) { x.beginPath(); x.moveTo(bx, bot); x.lineTo(bx + 9 + rnd() * 12, bot - 8 - rnd() * 14); x.stroke(); }
+    }
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+    t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping; return t;
+  }
+  const MAT_PIXO = [0, 1, 2].map((i) => new THREE.MeshStandardMaterial({ map: pixoTex(311 + i * 977), transparent: true, roughness: 0.95, polygonOffset: true, polygonOffsetFactor: -3 }));
   const MAT_CXDAGUA = lam({ color: 0x2f5fa0, roughness: 0.5 });
   // hash de avalanche (mesma razão do ferro velho: `i % n` com passo divisível cai sempre no
   // mesmo balde e o quarteirão inteiro sai da MESMA cor/altura — o "chapado" do BAR §4.4)
@@ -182,8 +219,19 @@ export function buildQuebrada(scene, T) {
     const h = o.h || (2.7 + (k % 5) * 0.42);
     solids.push({ x0, x1, z0, z1 });
     addBox(w, h, d, o.mat || MAT_BARRACO[k % MAT_BARRACO.length], cx, 0, cz);
-    addBox(w + 0.44, 0.18, d + 0.44, MAT_LAJE, cx, h, cz);                       // laje com beiral
-    if (o.up !== false && (k >> 3) % 3 !== 0) {                                   // 2º pavimento parcial
+    const temUp = o.up !== false && (k >> 3) % 3 !== 0;
+    /* LAJE ou FIBROCIMENTO, e a escolha não é sorteio decorativo: quem vai levantar outro
+       andar deixa LAJE (e é ela que segura a caixa d'água); quem parou de construir fecha
+       com TELHA ONDULADA. Amarrar o material ao `temUp` faz a silhueta contar essa história
+       sozinha — laje sempre embaixo de um 2º pavimento, telha sempre em casa térrea. */
+    addBox(w + 0.44, temUp ? 0.18 : 0.14, d + 0.44, temUp ? MAT_LAJE : MAT_TELHA, cx, h, cz);
+    // PIXO na face virada pra fora do quarteirão (a que o jogador vê da rua ou da viela)
+    if ((k >> 15) % 3 === 0) {
+      const p = MAT_PIXO[(k >> 17) % MAT_PIXO.length], alt = Math.min(1.5, h * 0.5), y0 = h * 0.28;
+      if (d >= w) for (const s of [-1, 1]) addBox(0.04, alt, Math.min(d * 0.8, 4), p, cx + s * (w / 2 + 0.03), y0, cz, { collide: false, cast: false, vao: false });
+      else for (const s of [-1, 1]) addBox(Math.min(w * 0.8, 4), alt, 0.04, p, cx, y0, cz + s * (d / 2 + 0.03), { collide: false, cast: false, vao: false });
+    }
+    if (temUp) {                                                                  // 2º pavimento parcial
       const uh = 2.3 + ((k >> 5) % 4) * 0.3, uw = w * 0.68, ud = d * 0.74;
       const ox = ((k >> 7) % 3 - 1) * (w - uw) * 0.4, oz = ((k >> 9) % 3 - 1) * (d - ud) * 0.4;
       addBox(uw, uh, ud, MAT_BARRACO[(k >> 11) % MAT_BARRACO.length], cx + ox, h + 0.18, cz + oz);
