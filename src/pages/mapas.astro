@@ -1,0 +1,60 @@
+---
+// /mapas — página de conteúdo indexável das arenas.
+// Mesmo racional de /armas: nome de mapa é busca própria ("ferro velho",
+// "piscina da treta") e o texto só existia dentro do JS do jogo.
+import Layout from '../layouts/Layout.astro';
+import { MAPAS } from '../data/jogo';
+import { BRAND_FULL, GAME_ID, abs } from '../lib/site';
+
+const jsonld = [
+  {
+    '@type': 'ItemList',
+    '@id': abs('/mapas') + '#lista',
+    name: `Mapas do ${BRAND_FULL}`,
+    numberOfItems: MAPAS.length,
+    itemListElement: MAPAS.map((m, i) => ({
+      '@type': 'ListItem', position: i + 1, name: m.nome, description: m.resumo,
+    })),
+  },
+  {
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Início', item: abs('/') },
+      { '@type': 'ListItem', position: 2, name: 'Mapas', item: abs('/mapas') },
+    ],
+  },
+  { '@id': GAME_ID },
+];
+---
+<Layout
+  title={`Mapas — as ${MAPAS.length} arenas | ${BRAND_FULL}`}
+  description={`As ${MAPAS.length} arenas do ${BRAND_FULL}: Praça dos Três Poderes, Praça clássica, Piscina da Treta, Loja H e Ferro Velho do Zé — layout, modo e como jogar cada uma.`}
+  jsonld={jsonld}>
+
+  <h1>Mapas</h1>
+  <p class="sub">
+    {MAPAS.length} arenas jogáveis. Três abrem em rounds e duas abrem em Capture the Flag — mas
+    nenhuma trava o modo: dá pra jogar qualquer mapa em qualquer modo pelo menu antes da partida.
+  </p>
+
+  <div class="grid c2">
+    {MAPAS.map(m => (
+      <article class="panel">
+        <h3 style="margin-top:0">{m.nome}</h3>
+        <span class="chip">{m.modo}</span>
+        <span class="chip" style="margin-left:6px"><code style="background:none;padding:0">{m.id}</code></span>
+        <p style="margin-top:10px;color:var(--bone)">{m.resumo}</p>
+        <p style="margin-top:8px;font-size:13px">{m.detalhe}</p>
+      </article>
+    ))}
+  </div>
+
+  <h2>Rounds ou CTF</h2>
+  <ul>
+    <li><strong>Rounds:</strong> 4×4 com respawn de 2,5 s. Round de 1:39; leva o round o time com mais kills; 3 rounds vencem a partida.</li>
+    <li><strong>Capture the Flag:</strong> bandeiras espalhadas pela arena; a geometria da Loja H e do Ferro Velho foi desenhada em volta delas, por isso os dois abrem em CTF.</li>
+    <li>O mapa é sorteado ou escolhido na tela de seleção, antes de começar.</li>
+  </ul>
+
+  <p style="margin-top:26px"><a class="btn-play" style="margin-left:0;display:inline-block" href="/">▶ Entrar na arena</a></p>
+</Layout>

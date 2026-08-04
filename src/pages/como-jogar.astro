@@ -1,40 +1,141 @@
 ---
+// /como-jogar — a página que responde pergunta.
+//
+// Ganhou HowTo + FAQPage no JSON-LD. Motivo: "como jogar X" é a pergunta que
+// mais chega por assistente de IA, e HowTo/FAQPage é o formato que esses
+// crawlers conseguem citar direto. Antes a página tinha só uma tabela de
+// teclas, sem nenhum dado estruturado — e o texto dizia "ranking global em
+// breve" quando o ranking global já estava no ar.
 import Layout from '../layouts/Layout.astro';
-const rows = [
-  ['W A S D', 'Mover'], ['MOUSE', 'Mirar'], ['SHIFT', 'Correr'],
-  ['CTRL ou C', 'Agachar (mira mais estável)'], ['ESPAÇO', 'Pular'],
-  ['CLIQUE ESQ.', 'Atirar'], ['CLIQUE DIR.', 'Luneta da AWP'],
-  ['R', 'Recarregar'], ['1 / 2 / 3', 'AWP / Pistola / Faca'],
-  ['Z / X / V', 'Comandos de voz (rádio)'], ['TAB', 'Placar'], ['ESC', 'Pausar'],
+import { CONTROLES } from '../data/jogo';
+import { BRAND_FULL, GAME_ID, abs } from '../lib/site';
+
+const PASSOS = [
+  { nome: 'Abra o jogo no navegador de desktop',
+    texto: 'Entre em www.csbrasil.online no Chrome, Edge ou Firefox. Não tem download, instalação nem cadastro — a arena carrega na própria aba.' },
+  { nome: 'Escolha um nick',
+    texto: 'O nick tem de 2 a 14 caracteres e é único: ele é a sua identidade no ranking global, como no CS 1.6. Fica salvo no navegador.' },
+  { nome: 'Escolha a facção e o personagem',
+    texto: 'Cinco facções: Petistas, Bolsonaristas, Tribos Urbanas, Palhaços e Funkeiros. São 44 personagens no total, e todos jogam igual — a escolha é de estilo, não de vantagem.' },
+  { nome: 'Escolha o mapa e o modo',
+    texto: 'Cinco arenas. Três abrem em rounds e duas em Capture the Flag, mas dá pra trocar o modo de qualquer mapa antes de começar.' },
+  { nome: 'Mire, agache, atire',
+    texto: 'WASD move, mouse mira, clique esquerdo atira e clique direito abre a luneta. Agachar com Ctrl deixa a mira bem mais estável — é a diferença entre acertar e errar com a AWP sem luneta.' },
+  { nome: 'Ganhe o round e apareça no ranking',
+    texto: 'Round de 1:39; leva o round o time com mais kills, e 3 rounds vencem a partida. Ao fim da partida os stats sobem pro ranking global e viram a sua página pública em /u/seu-nick, com badge própria pra compartilhar.' },
+];
+
+const FAQ: [string, string][] = [
+  ['Preciso instalar ou pagar alguma coisa?',
+   'Não. O jogo é 100% gratuito e roda direto no navegador de desktop (Chrome, Edge ou Firefox), sem download, sem instalação e sem cadastro.'],
+  ['Quais são os controles?',
+   'WASD move, mouse mira, clique esquerdo atira, clique direito abre a luneta, Ctrl (ou C) agacha e melhora a mira, Shift corre, Espaço pula, R recarrega, 1/2/3 trocam primária, pistola e faca, Z/X/V abrem os comandos de voz, M troca de time e Tab mostra o placar.'],
+  ['Como funciona um round?',
+   'Partidas 4×4 (você e 3 bots aliados contra 4 bots inimigos), com respawn de 2,5 segundos. Cada round dura 1 minuto e 39 segundos; o time com mais kills leva o round, e 3 rounds vencem a partida.'],
+  ['Como eu entro no ranking global?',
+   'Basta jogar com um nick registrado: ao fim de cada partida os stats sobem sozinhos. O seu perfil público fica em /u/<seu-nick>, com uma badge PNG gerada na hora pra postar nas redes.'],
+  ['Funciona no celular?',
+   'O jogo foi feito para desktop, com mouse e teclado. Em tela de toque aparece um aviso recomendando jogar no computador.'],
+  ['Dá pra jogar com amigos?',
+   'Hoje as partidas são contra bots. O multiplayer 4×4 é a próxima grande frente do projeto — o ranking global, que já está no ar, é a primeira metade dela.'],
+  ['O jogo tem lado político?',
+   'Não. É sátira leve distribuída igualmente para todos os lados, sem gore e sem ódio, com personagens 100% fictícios. Duas das cinco facções (Tribos Urbanas e Funkeiros) nem são políticas.'],
+];
+
+const jsonld = [
+  {
+    '@type': 'HowTo',
+    '@id': abs('/como-jogar') + '#howto',
+    name: `Como jogar ${BRAND_FULL}`,
+    description: 'Do primeiro clique até aparecer no ranking global, em 6 passos.',
+    totalTime: 'PT5M',
+    estimatedCost: { '@type': 'MonetaryAmount', currency: 'BRL', value: '0' },
+    tool: [{ '@type': 'HowToTool', name: 'Navegador de desktop (Chrome, Edge ou Firefox)' }],
+    step: PASSOS.map((p, i) => ({
+      '@type': 'HowToStep', position: i + 1, name: p.nome, text: p.texto,
+      url: abs('/como-jogar') + '#passo-' + (i + 1),
+    })),
+    about: { '@id': GAME_ID },
+  },
+  {
+    '@type': 'FAQPage',
+    '@id': abs('/como-jogar') + '#faq',
+    mainEntity: FAQ.map(([q, a]) => ({
+      '@type': 'Question', name: q,
+      acceptedAnswer: { '@type': 'Answer', text: a },
+    })),
+  },
+  {
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Início', item: abs('/') },
+      { '@type': 'ListItem', position: 2, name: 'Como jogar', item: abs('/como-jogar') },
+    ],
+  },
 ];
 ---
-<Layout title="Como jogar — CS BRASIL: Treta Suprema">
-  <h1>COMO JOGAR</h1>
-  <p>Abra o <a href="/">jogo</a> num navegador de desktop, defina seu nick, escolha time e personagem, e clique em JOGAR.</p>
+<Layout
+  title={`Como jogar — controles, regras e ranking | ${BRAND_FULL}`}
+  description={`Guia completo do ${BRAND_FULL}: os 6 passos do primeiro clique ao ranking global, tabela de controles, regras de round e CTF, e as dúvidas mais comuns.`}
+  jsonld={jsonld}>
+
+  <h1>Como jogar</h1>
+  <p class="sub">
+    Do primeiro clique até o seu nome no ranking global. Leva cinco minutos, não pede cadastro e
+    não instala nada.
+  </p>
+
+  <h2>Em 6 passos</h2>
+  <ol style="list-style:none;padding-left:0">
+    {PASSOS.map((p, i) => (
+      <li id={`passo-${i + 1}`} class="panel" style="margin:10px 0">
+        <h3 style="margin:0"><span style="color:var(--amber-dim)">{String(i + 1).padStart(2, '0')} ·</span> {p.nome}</h3>
+        <p style="margin-top:6px">{p.texto}</p>
+      </li>
+    ))}
+  </ol>
 
   <h2>Controles</h2>
-  <table style="border-collapse:collapse;width:100%;max-width:520px">
-    {rows.map(([k, a]) => (
-      <tr>
-        <td style="color:var(--yellow);padding:5px 14px 5px 0;font-family:Consolas,monospace;white-space:nowrap">{k}</td>
-        <td style="color:#c9bfa4;padding:5px 0">{a}</td>
-      </tr>
-    ))}
-  </table>
+  <div class="tw">
+    <table>
+      <thead><tr><th scope="col">Tecla</th><th scope="col">Ação</th></tr></thead>
+      <tbody>
+        {CONTROLES.map(c => (
+          <tr>
+            <td style="color:var(--amber);white-space:nowrap;font-weight:bold">{c.tecla}</td>
+            <td>{c.acao}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
 
   <h2>Regras</h2>
   <ul>
-    <li>Partidas 4×4 (você + 3 bots aliados × 4 bots inimigos), com respawn de 2,5s.</li>
-    <li>Cada round dura 1:39. O time com mais kills leva o round; 3 rounds vencem a partida.</li>
-    <li>AWP mata com 1 tiro; headshot tem som e marca próprios. Multikills disparam anúncios estilo Unreal Tournament.</li>
-    <li>Agachar (Ctrl ou C) deixa a mira mais estável — essencial pra AWP sem luneta.</li>
-    <li>Seus stats ficam salvos no navegador (tela RANKING no menu). Ranking global em breve.</li>
+    <li><strong>Formato:</strong> 4×4 — você mais 3 bots aliados contra 4 bots inimigos — com respawn de 2,5 s.</li>
+    <li><strong>Round:</strong> 1:39. Leva o round o time com mais kills; 3 rounds vencem a partida.</li>
+    <li><strong>Capture the Flag:</strong> modo alternativo, padrão na Loja H e no Ferro Velho. Qualquer mapa aceita qualquer modo.</li>
+    <li><strong>AWP:</strong> mata com um tiro em qualquer lugar do corpo. É a única arma do jogo com essa propriedade.</li>
+    <li><strong>Multikill:</strong> 2 a 6+ kills seguidas disparam anúncio estilo Unreal Tournament; 5 kills sem morrer é <em>killing spree</em>.</li>
+    <li><strong>Ranking:</strong> os stats da partida sobem sozinhos no fim e alimentam o <a href="/ranking">ranking global</a>.</li>
   </ul>
 
-  <h2>Dicas</h2>
+  <h2>Dicas que mudam o resultado</h2>
   <ul>
-    <li>A AWP sem luneta é imprecisa: atire parado e agachado, ou use a luneta (botão direito).</li>
-    <li>O radar mostra aliados sempre e inimigos por 1,6s quando atiram.</li>
-    <li>A urna quebrada no centro é a melhor cobertura do mid.</li>
+    <li>A AWP sem luneta é imprecisa de propósito: atire <strong>parado e agachado</strong>, ou abra a luneta com o botão direito.</li>
+    <li>O radar mostra aliados sempre, e inimigos por 1,6 s quando eles atiram. Barulho é informação.</li>
+    <li>Na Praça dos Três Poderes, a urna quebrada do meio é a melhor cobertura do mid.</li>
+    <li>Correndo (Shift) você faz barulho e perde precisão. Ande normal quando estiver cruzando ângulo.</li>
+    <li>Com a faca na mão você se move mais rápido — serve pra rotacionar, não só pra humilhar.</li>
   </ul>
+
+  <h2>Perguntas frequentes</h2>
+  {FAQ.map(([q, a]) => (
+    <details>
+      <summary><strong>{q}</strong></summary>
+      <p>{a}</p>
+    </details>
+  ))}
+
+  <p style="margin-top:26px"><a class="btn-play" style="margin-left:0;display:inline-block" href="/">▶ Jogar agora — grátis</a></p>
 </Layout>

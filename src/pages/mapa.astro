@@ -1,8 +1,17 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import { supabaseAdmin } from '../lib/supabase';
+import { BRAND_FULL, GAME_ID, abs } from '../lib/site';
 
 export const prerender = false;
+
+// Esta página faz QUATRO queries (online_now, count de players, stats inteira,
+// city_daily inteira) e não tinha cache nenhum: cada visita e cada rastreio
+// pagava as quatro. 60 s de CDN não atrasa um mapa de presença.
+Astro.response.headers.set(
+  'cache-control',
+  'public, max-age=0, s-maxage=60, stale-while-revalidate=300',
+);
 
 let online: any[] = [], cities: any[] = [], configured = !!supabaseAdmin;
 let totals = { players: 0, matches: 0, kills: 0, mp: 0, mb: 0 };
@@ -37,7 +46,16 @@ const sideTotal = Math.max(1, totals.mp + totals.mb);
 const pctP = Math.round((totals.mp / sideTotal) * 100), pctB = 100 - pctP;
 const mapData = { online: online.filter(o => o.lat && o.lon), cities: cities.filter(c => c.lat && c.lon) };
 ---
-<Layout title="Mapa da treta ao vivo — CS BRASIL" description="Jogadores online agora e partidas por cidade no CS BRASIL: Treta Suprema.">
+<Layout
+  title={`Mapa da treta ao vivo — quem está jogando agora | ${BRAND_FULL}`}
+  description={`Jogadores online agora e partidas por cidade no ${BRAND_FULL}. Localização aproximada, nível cidade — nenhum IP é exibido.`}
+  jsonld={[{ '@id': GAME_ID }, {
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Início', item: abs('/') },
+      { '@type': 'ListItem', position: 2, name: 'Mapa ao vivo', item: abs('/mapa') },
+    ],
+  }]}>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" slot="head">
   <style slot="head">
     .map-tip{background:rgba(8,12,8,.88)!important;border:1px solid #4a5a2a!important;color:#d8e0b0!important;
@@ -67,6 +85,13 @@ const mapData = { online: online.filter(o => o.lat && o.lon), cities: cities.fil
   <div id="map" style="height:520px;border-radius:10px;border:1px solid #3a3325;background:#10130c"></div>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" is:inline></script>
   <script is:inline define:vars={{ mapData }}>
+    // ESCAPA antes de montar HTML de popup. `nick` e `city` vêm do banco (o nick
+    // é escolhido pelo jogador no registro, sem filtro de caracteres) e caíam
+    // direto num innerHTML do Leaflet. O limite de 14 caracteres do nick torna
+    // um payload difícil, não impossível — e o custo de escapar é zero.
+    const esc = (s) => String(s ?? '')
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     const map = L.map('map', { scrollWheelZoom: true }).setView([-14.5, -52.5], 4);
     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png', {
       maxZoom: 12, attribution: '&copy; OpenStreetMap &copy; CARTO',
@@ -77,19 +102,23 @@ const mapData = { online: online.filter(o => o.lat && o.lon), cities: cities.fil
         radius: 6 + 18 * (c.matches / maxM), color: '#ffd23f', weight: 2,
         fillColor: '#ffd23f', fillOpacity: 0.25,
       }).addTo(map);
-      // nome da cidade sempre visível (amarelo)…
-      m.bindTooltip(`${c.city} · ${c.matches}`, { permanent: true, direction: 'top', offset: [0, -8], className: 'map-tip' });
-      // …e popup com a lista de jogadores + total
-      const shown = c.players.slice(0, 12), more = c.players.length - shown.length;
+      /* O nome da cidade era `permanent: true` — 40+ etiquetas amarelas empilhadas sobre o
+         Sudeste, ilegíveis, escondendo justamente os círculos que elas rotulavam. Decisão do
+         dono (04/08): o mapa não precisa do label; a cidade aparece no CLIQUE. O tooltip fica
+         só no hover (custo zero, ajuda quem varre o mapa com o mouse) e o popup do clique
+         continua sendo a informação completa. */
+      m.bindTooltip(`${esc(c.city)} · ${c.matches}`, { direction: 'top', offset: [0, -8], className: 'map-tip' });
+      // popup do CLIQUE: cidade, totais e lista de jogadores
+      const shown = c.players.slice(0, 12).map(esc), more = c.players.length - shown.length;
       const plist = c.players.length
         ? `<br><b>${c.players.length} jogador${c.players.length > 1 ? 'es' : ''}:</b> ${shown.join(', ')}${more > 0 ? ` +${more}` : ''}`
         : '';
-      m.bindPopup(`<b>${c.city}</b><br>${c.matches} partidas · ${c.rounds} rounds (histórico)${plist}`, { className: 'map-pop' });
+      m.bindPopup(`<b>${esc(c.city)}</b><br>${c.matches} partidas · ${c.rounds} rounds (histórico)${plist}`, { className: 'map-pop' });
     }
     for (const o of mapData.online) {
       L.circleMarker([o.lat, o.lon], {
         radius: 5, color: '#9dff9d', weight: 2, fillColor: '#9dff9d', fillOpacity: 0.9,
-      }).addTo(map).bindPopup(`<b>${o.nick}</b> online agora${o.city ? ' · ' + o.city : ''}`);
+      }).addTo(map).bindPopup(`<b>${esc(o.nick)}</b> online agora${o.city ? ' · ' + esc(o.city) : ''}`);
     }
   </script>
 </Layout>
