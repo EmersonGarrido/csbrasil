@@ -548,20 +548,33 @@ body{font-family:var(--font);font-weight:600;color:var(--ink1)}
   --hud-x:68px;   /* 4,5% de 1536 */
   --hud-xr:48px;  /* 3,1% de 1536 */
   --hud-y:36px}   /* 3,5% de 1024 */
-/* SCRIM DE CANTO DO HUD (CS2/Valorant): em vez de encaixotar cada bloco, escurece-se a
-   ZONA da tela onde o HUD mora. Motivo medido: no Piscinão o "100 HP" fica sobre areia
-   clara e no awp_map o relógio fica sobre parede branca — texto claro sobre fundo claro.
-   z-index:-1 mantém o scrim atrás do conteúdo do próprio #hud (que já é stacking context
-   por causa do z-index:20) e na frente do canvas. Custo: 2 gradientes estáticos, nenhum
-   blur — seguro em quality 'low' e em SwiftShader. Kill-switch: ?ui=legacy. */
-/* Raios/stops calibrados, não chutados: com 42%×34% e .84 → .48 (46%) → 0 (80%), em
-   1600×900 sobre a areia do Piscinão (RGB 214,196,164 = o pior fundo dos 4 mapas) todo
-   texto do canto fica >= 4,7:1. Sem o scrim, "100" dava 1,49:1 e o rótulo "HP" 1,14:1. */
-#hud::before{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;
-  background:
-    radial-gradient(42% 34% at 0% 100%,rgba(var(--bg-900-rgb),.84) 0%,rgba(var(--bg-900-rgb),.48) 46%,rgba(var(--bg-900-rgb),0) 80%),
-    radial-gradient(42% 34% at 100% 100%,rgba(var(--bg-900-rgb),.84) 0%,rgba(var(--bg-900-rgb),.48) 46%,rgba(var(--bg-900-rgb),0) 80%)}
-html[data-ui="legacy"] #hud::before{display:none}
+/* HUD SEM CAIXA E SEM SCRIM — pedido do dono: "o placar e as informações embaixo não
+   precisam de background, pode ser transparente".
+
+   O QUE ESTAVA AQUI e por que sai: um scrim de canto (dois radial-gradient .84 → 0)
+   escurecendo a ZONA do HUD, porque no Piscinão o "100" cai sobre areia clara
+   (RGB 214,196,164, o pior fundo dos 4 mapas) e no awp_map o relógio cai sobre parede
+   branca. Sem ele, medido na época: "100" dava 1,49:1 e o rótulo 1,14:1.
+
+   O QUE SUBSTITUI: contorno no GLIFO em vez de caixa atrás dele — é como todo FPS
+   resolve HUD sem moldura. Não é invenção desta rodada: o `--sh-hud` (contorno preto
+   de 2px colado no glifo) já era o recurso do resto do HUD, e a UI1 já o CREDITA como
+   fundo real do texto (`fundoEfetivo`, ui-check.mjs:389 — "contorno de texto = fundo
+   real do glifo"). Os números grandes ganham por cima um `-webkit-text-stroke` com
+   `paint-order:stroke fill`, que pinta o traço ATRÁS do preenchimento e dá separação
+   óptica sobre areia clara sem engordar o algarismo.
+
+   O QUE CONTINUA COM FUNDO, e não é esquecimento: `#hp-bar`. Barra é OBJETO GRÁFICO, e
+   a UI1 não dá crédito de contorno pra objeto gráfico (ui-check.mjs:480 — "o que o olho
+   compara é PREENCHIMENTO ×"). Sem trilho próprio, não existe barra.
+
+   O crédito de scrim FOI TIRADO DA RÉGUA JUNTO (`alfaScrim` devolve 0): deixar a régua
+   somando um scrim que não existe mais seria medir a favor do código.
+
+   `#pickup-hint` e `#respawn-overlay` MANTÊM fundo próprio: são avisos passageiros, não
+   o HUD permanente de que o dono falou. */
+/* contorno forte só nos ALGARISMOS grandes — é onde a leitura acontece a 2m da tela */
+#hp-num,#ammo,#round-time{paint-order:stroke fill;-webkit-text-stroke:3px rgba(0,0,0,.5)}
 #radar{position:absolute;top:36px;left:68px;opacity:.92;border-radius:50%;
   box-shadow:0 0 0 1px rgba(120,220,220,.10),0 2px 10px rgba(0,0,0,.45)}
 #radio-log{position:absolute;top:194px;left:68px;font-size:13px;color:var(--cs);text-shadow:var(--sh-hud)}
@@ -654,17 +667,22 @@ html[data-ui="legacy"] #hud::before{display:none}
    ATUALIZAÇÃO: #hud-mid ganhou uma plaquinha (padding 1px em cima + 2px embaixo),
    então a soma vira 14 + 1 + 32 + 5 + 15.6 + 2 ≈ 70px — ainda 6px acima do CTF
    em 76px. Se alguém aumentar esse padding, o topo do #ctf-hud tem que subir junto. */
-#hud-top{position:absolute;top:36px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:var(--s-5)}
+/* UM BLOCO SÓ, não três chips soltos (referência 05_hud_ingame.png): lá o topo é uma
+   peça contínua — tarja do time, placar, relógio, placar, tarja do time. Com gap s-5 os
+   três pedaços boiavam separados por ~40px e nada dizia que eram o mesmo painel. */
+#hud-top{position:absolute;top:36px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:var(--s-2)}
+/* SEM CAIXA (pedido do dono). O time continua legível por COR do texto + o trilho de 3px
+   na borda externa, que é marca de time sem virar moldura. O contorno do --sh-hud é o
+   que segura o contraste sobre parede branca agora que não há mais fundo. */
 .team-score{font-size:var(--fs-300);font-weight:700;letter-spacing:var(--tr-2);line-height:var(--lh-snug);
-  padding:var(--s-1) var(--s-3);background:rgba(var(--bg-900-rgb),.72);clip-path:var(--cut-sm);text-shadow:var(--sh-hud)}
-.ts-p{color:#ff9a9a;border:1px solid var(--team-p);border-left-width:3px}
-.ts-b{color:#a9f0b6;border:1px solid var(--team-b);border-right-width:3px}
-/* Plaquinha do bloco central: MESMO tratamento das .team-score (rgba .72 + chanfro), então
-   o topo do HUD lê como uma família só. Sem ela, "1:39" (branco) sobre a parede branca do
-   awp_map dava ~1,1:1 — e o scrim de canto não alcança o centro do topo.
-   Padding só 1px/2px na vertical: a altura do bloco entra na soma documentada acima. */
-#hud-mid{text-align:center;padding:1px var(--s-3) 2px;background:rgba(var(--bg-900-rgb),.72);clip-path:var(--cut-sm)}
-html[data-ui="legacy"] #hud-mid{padding:0;background:none;clip-path:none}
+  padding:var(--s-1) var(--s-3);text-shadow:var(--sh-hud)}
+.ts-p{color:#ff9a9a;border-left:3px solid var(--team-p)}
+.ts-b{color:#a9f0b6;border-right:3px solid var(--team-b)}
+/* A plaquinha do bloco central saiu junto: era rgba .72 + chanfro pra segurar o "1:39"
+   (branco) sobre a parede branca do awp_map, onde dava ~1,1:1. Quem segura agora é o
+   contorno do glifo (--sh-hud + text-stroke). O padding vertical FICA: ele entra na soma
+   de altura documentada acima, que é o que mantém o #ctf-hud fora do "RODADA 1". */
+#hud-mid{text-align:center;padding:1px var(--s-3) 2px}
 #round-time{font-size:var(--fs-700);line-height:var(--lh-tight);font-weight:700;color:var(--ink-100);
   font-family:var(--font);font-variant-numeric:tabular-nums;text-shadow:var(--sh-hud)}
 /* CAPTURA: o maior tipo do topo mostra BANDEIRAS, não segundo. O `.ctf` sobrou de quando
@@ -729,13 +747,25 @@ html[data-ui="legacy"] #hud-mid{padding:0;background:none;clip-path:none}
 /* Rótulos pequenos do HUD subiram de --ink-300 (5,5:1 só sobre --bg-800) para --ink-200
    (10,8:1): sobre a areia clara do Piscinão o ink-300 caía abaixo de AA e nenhum scrim
    de canto salva 12px de texto. A hierarquia continua vindo do TAMANHO (44px × 12px). */
-#hp-num::after{content:'HP';display:inline-block;margin-left:6px;font-size:var(--fs-100);
-  letter-spacing:var(--tr-2);color:var(--ink-200);vertical-align:.32em}   /* rótulo: o número sozinho não diz o que é */
+/* RÓTULO EMBAIXO DO NÚMERO, e "VIDA" em vez de "HP" (referência 05): lá o rótulo é uma
+   linha miúda SOB o algarismo, não uma sigla pendurada no ombro dele. O text-stroke
+   grosso do #hp-num tinha que ser desfeito aqui: num rótulo de 12px o traço de 3px
+   engole a letra. */
+#hp-num::after{content:'VIDA';display:block;margin-left:0;font-size:var(--fs-100);
+  letter-spacing:var(--tr-2);color:var(--ink-200);vertical-align:baseline;
+  -webkit-text-stroke:0;line-height:1.1}
 #hp-num.low{color:var(--crit)}
+/* A BARRA MANTÉM FUNDO DE PROPÓSITO: barra é OBJETO GRÁFICO e a UI1 não dá crédito de
+   contorno pra objeto gráfico — sem trilho próprio não existe barra. Preenchimento em
+   âmbar como na referência; o vermelho continua reservado pro alarme. */
 #hp-bar{width:200px;height:6px;background:rgba(var(--bg-900-rgb),.8);border:1px solid var(--line);overflow:hidden;margin-top:var(--s-1);clip-path:var(--cut-sm)}
-#hp-fill{height:100%;width:100%;background:var(--ink-100);transition:width var(--t),background var(--t-fast)}
+#hp-fill{height:100%;width:100%;background:var(--br-faixa);transition:width var(--t),background var(--t-fast)}
 #hp-fill.low{background:var(--crit)}
-#hud-bottom-right{position:absolute;right:48px;bottom:36px;text-align:right}
+/* MUNIÇÃO EM CIMA, NOME DA ARMA EMBAIXO (referência 05: "30 | 90" e só então "AK-47").
+   O DOM vem na ordem contrária e é escrito pelo game.js — `column-reverse` inverte a
+   leitura sem tocar em uma linha de JS, a mesma manobra que virou o placar da tela 08. */
+#hud-bottom-right{position:absolute;right:48px;bottom:36px;text-align:right;
+  display:flex;flex-direction:column-reverse;align-items:flex-end}
 #weapon-name{font-size:var(--fs-200);font-weight:700;letter-spacing:var(--tr-2);color:var(--ink-200);
   margin-bottom:var(--s-1);text-transform:uppercase;text-shadow:var(--sh-hud)}
 #ammo{font-size:var(--fs-800);line-height:var(--lh-tight);font-weight:700;color:var(--ink-100);
@@ -745,7 +775,11 @@ html[data-ui="legacy"] #hud-mid{padding:0;background:none;clip-path:none}
 .ammo-sep{color:var(--ink-400);margin:0 var(--s-2);font-size:var(--fs-600)}
 #ammo-reserve{font-size:var(--fs-600);color:var(--ink-200)}
 #smoke-count{font-size:var(--fs-200);color:var(--ink-200);letter-spacing:var(--tr-1);text-shadow:var(--sh-hud)}
-#reload-note{font-size:var(--fs-200);font-weight:700;letter-spacing:var(--tr-2);color:var(--am);animation:blink .5s steps(2) infinite}
+/* text-shadow explícito: o #reload-note era o ÚNICO texto do canto inferior direito sem
+   contorno próprio — ele vivia do scrim de canto, que saiu nesta rodada. Media 5,12:1
+   com scrim; sem contorno cairia pra âmbar sobre areia clara. */
+#reload-note{font-size:var(--fs-200);font-weight:700;letter-spacing:var(--tr-2);color:var(--am);
+  text-shadow:var(--sh-hud);animation:blink .5s steps(2) infinite}
 @keyframes blink{50%{opacity:.25}}
 #round-banner{position:absolute;left:0;right:0;top:30%;text-align:center;
   opacity:0;transition:opacity .38s ease;pointer-events:none}

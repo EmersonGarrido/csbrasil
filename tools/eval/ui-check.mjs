@@ -347,20 +347,24 @@ function computa(no, regras, vars) {
    ========================================================================== */
 const HERDA = ['color', 'text-shadow', 'font-size', 'font-weight', 'letter-spacing'];
 
-/** Alfa do scrim de canto do #hud (style.css:422-424) no ponto (fx,fy) em fração de tela.
-    Dois radial-gradient 42%×34% ancorados nos cantos INFERIORES, .84 no centro, .48 em
-    46% do raio e 0 em 80%. Modelo linear por trecho — é o que o browser desenha. */
-function alfaScrim(fx, fy) {
-  let a = 0;
-  for (const [cx, cy] of [[0, 1], [1, 1]]) {
-    const dx = (fx - cx) * VW / (0.42 * VW), dy = (fy - cy) * VH / (0.34 * VH);
-    const t = Math.hypot(dx, dy);                       // t=1 é a borda do gradiente
-    let v = 0;
-    if (t <= 0.46) v = 0.84 + (0.48 - 0.84) * (t / 0.46);
-    else if (t <= 0.80) v = 0.48 + (0 - 0.48) * ((t - 0.46) / 0.34);
-    a = a + v * (1 - a);                                // dois gradientes empilhados
-  }
-  return a;
+/** Alfa do scrim de canto do #hud no ponto (fx,fy) em fração de tela.
+
+    DEVOLVE 0 DESDE QUE O SCRIM SAIU DO CSS. O `#hud::before` (dois radial-gradient
+    42%×34% nos cantos inferiores, .84 → .48 em 46% → 0 em 80%) foi removido a pedido do
+    dono — "o placar e as informações embaixo não precisam de background". Quem segura o
+    contraste do HUD agora é o contorno no glifo (--sh-hud + -webkit-text-stroke), que
+    esta régua já credita logo abaixo, em `fundoEfetivo`.
+
+    ESTA FUNÇÃO NÃO FOI APAGADA DE PROPÓSITO: enquanto ela existir devolvendo 0, o portão
+    diz em voz alta que o crédito acabou. Apagá-la deixaria a próxima pessoa sem pista de
+    que já houve um scrim aqui e de por que os números do UI1 mudaram de patamar.
+
+    Isso APERTA a régua, não afrouxa: some uma fonte de contraste que o código não tem
+    mais. Deixar o modelo antigo somando um scrim inexistente seria medir a favor do
+    código — a régua passaria a mentir exatamente onde ela é mais necessária (areia do
+    Piscinão, RGB 214,196,164). */
+function alfaScrim(_fx, _fy) {
+  return 0;
 }
 
 /** Fundo EFETIVO atrás do texto de um nó: cena pior caso -> scrim de canto -> fundos
