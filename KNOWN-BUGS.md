@@ -393,6 +393,50 @@ quebrar o `vmPass` (o viewmodel recebe bloom/AgX de propósito, `bloom.js:872`) 
 `quality:'low'` / `?bloom=0`, que não tem pós-processamento. Medir o custo: máquina fraca é
 requisito do dono.
 
+### ~~BUG-24 · "todos os personagens depois desses também tão ruim na cor e iluminação"~~ · RESOLVIDO 04/08
+
+**Causa raiz — medida, e não era a textura.** O C9 (`char-color.mjs`) já tinha provado que a
+diferença ENTRE personagens nasce no GLB (saturação mediana 0,390, mas gotinha 0,031 contra
+canarinho 0,689 — spread de 22×) e tinha refutado resolução de textura como explicação. O que
+faltava era o que o SHADER faz com essa textura. `characters.js` aplicava o piso de albedo como
+um **DEGRAU por texel**: `diffuseColor.rgb *= max(1.0, csAlbMin / csMx)`, com `csAlbMin = 0,09`.
+
+**0,09 é LINEAR — vale sRGB 0,332 = byte 85 = L\* 36.** Não é "levantar o preto": é um **cinza
+médio**. Medido nas texturas reais dos 45 GLB (`tools/eval/char-floor.mjs`, C10):
+
+| | % do albedo abaixo do piso | contraste interno perdido |
+|---|---|---|
+| trapfunk | **94,1 %** | **61 %** |
+| palhaço mal | 90,4 % | 33 % |
+| oakley | 86,6 % | 46 % |
+| emo · punk | 79,2 % | 46 % · 43 % |
+| coach | 74,7 % | 43 % |
+| black metal | 67,3 % | 45 % |
+| **padata · canarinho** | **8,4 % · 8,8 %** | 10 % · 13 % |
+
+Ou seja: o personagem escuro inteiro colapsava num único valor (era isso o "liso, cor chapada,
+parece manequim") enquanto o claro não era tocado. **Mediana do elenco: 21 % do contraste
+interno comido pelo próprio piso.**
+
+**Correção.** O piso passou a olhar o nível **REGIONAL** do albedo (`textureLod(map, vMapUv, 6)`)
+e a multiplicar o texel por esse ganho. O ganho é constante dentro da região, então toda razão
+entre texels sobrevive por construção — o piso levanta o NÍVEL sem tocar no contraste — e acima
+do piso o ganho é 1,0 exato (personagem claro não muda um pixel). Perda mediana **21 % → 0,2 %**;
+pior caso 60,9 % (trapfunk) → 7,5 %. Medido no jogo (`char-shade.mjs`, C11, Havan + Ferro Velho):
+contraste interno **+19 % a +41 %** nos escuros, croma **+8 %**, e **padata/canarinho idênticos**.
+Preço: os dois mais escuros ficam 4-6 L\* mais escuros — o que na Havan **melhorou** a separação
+do C1 (ΔL\* mediano 7,8 → 10,6). Imagem: `tools/eval/char_piso_antes_depois.png`.
+
+Junto foi corrigido o fill do piso de irradiância, que somava **branco** (`irradiance += vec3(csAdd)`)
+e desbotava o iluminante na sombra: agora o fill herda a crominância do próprio ambiente com a
+**mesma luminância** (`dot(fill*csAdd, LUMA) == csAdd`), então é impossível estourar por causa
+dele. No Ferro Velho isso sozinho deu **C\* 7,2 → 7,6 com L\* byte a byte igual**.
+
+**Régua: `tools/eval/char-floor.mjs`** (C10, node+magick, ~40 s), no portão como **CHR8**, com o
+modo julgado LIDO DO FONTE (devolver o piso ao degrau acende a invariante sozinho) e 2 mutações
+medidas (`--mutante=bloco1`, `--mutante=pisozero`), cada uma acendendo a cláusula certa.
+Kill-switches: `?charalbreg=0` (volta ao degrau) e `?charambchroma=0` (volta ao fill branco).
+
 ### BUG-10 · Elenco: proporção, pés no chão e palma enterrada
 
 Três invariantes vermelhas, todas medidas no GLB, 44/44 personagens:

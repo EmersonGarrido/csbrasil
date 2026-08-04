@@ -68,6 +68,24 @@ export const CHAR_FX = {
   floorFar: _cnum('charfloorfar', 1.55),               // piso a 45 m+ (era 3.0 = fantasma branco distante)
   ceilIrr:  _cnum('charceil', 4.5),                    // teto: céu HDR não pode estourar o personagem
   albMin:   _cnum('charalbmin', 0.09),                 // valor mínimo do albedo, por ESCALA (matiz/S intactos)
+  /* PISO DE ALBEDO NA BANDA BAIXA, não no texel (C10 / char-floor.mjs).
+     `albMin` é 0,09 LINEAR — que é sRGB 0,332 = byte 85 = L* 36, um CINZA MÉDIO, não
+     um "preto levantado". Aplicado por texel (`max(V, albMin)`) ele é um DEGRAU: todo
+     texel abaixo do ponto sai com o MESMO valor. Medido nas texturas reais dos 45 GLB:
+     94,1 % do albedo do trapfunk está abaixo do piso, 90,4 % do palhaço mal, 86,6 % do
+     oakley, 79,2 % do emo e do punk, 74,7 % do coach, 67,3 % do black metal — contra
+     8,4 % do padata e 8,8 % do canarinho. Resultado: o personagem escuro inteiro colapsa
+     num único valor e perde 61 % (trapfunk) / 46 % (oakley, emo) / 45 % (blackmetal) do
+     seu contraste interno, enquanto o claro não perde nada. É esse o "liso, cor chapada,
+     parece manequim" — e é a causa do spread que o C9 mediu sem explicar.
+     A CORREÇÃO: o piso passa a olhar o nível REGIONAL do albedo (mip alto, `albLod`) e
+     multiplica o texel por esse ganho. Como o ganho é o MESMO para toda a região, TODA
+     razão entre texels sobrevive por construção — o piso levanta o NÍVEL sem tocar no
+     contraste. Acima do piso o ganho é 1,0 exato: personagem claro/saturado não muda um
+     pixel. Kill-switch `?charalbreg=0` volta ao degrau (o A/B é bloco × bloco). */
+  albReg:   _cqp.get('charalbreg') !== '0',            // piso do albedo regional (0 = degrau por texel)
+  ambChroma: _cqp.get('charambchroma') !== '0',        // fill do piso herda a crominância do ambiente (0 = branco)
+  albLod:   _cnum('charalblod', 6),                    // mip do nível regional (6 = bloco de 64 texels)
   sat:      _cnum('charsat', 1.32),                    // ganho de croma do albedo (+cor original dos moldes)
   rimNear: _cnum('rimnear', 0.18),                     // rim a queima-roupa: discreto, não vira fantasma
   rimFar:  _cnum('rimfar', 0.70),                      // rim a 34 m+: é longe que o inimigo some no fundo
@@ -102,6 +120,7 @@ uniform float csFloorIrr;
 uniform float csFloorFar;
 uniform float csCeilIrr;
 uniform float csAlbMin;
+uniform float csAlbLod;
 uniform float csSat;
 uniform float csSss;
 float csMaxC;
@@ -124,10 +143,22 @@ const CS_ALBEDO = `
 		// canais pelo mesmo fator mantém o matiz E a saturação HSV idênticos: o preto do
 		// Black Metal deixa de ser um buraco sem virar cinza lavado. (Somar aqui é o que
 		// transformava cabelo preto em branco-rosado na R2.)
+		// O NÍVEL que decide o ganho é REGIONAL (mip alto), não o texel: escalar cada texel
+		// pelo seu próprio máximo é um DEGRAU e achata tudo que está abaixo do piso num
+		// valor só. Com o nível regional o ganho é constante dentro da região, então toda
+		// razão entre texels — o contraste interno — passa intacta. Ver C10.
 		float csMx = max(diffuseColor.r, max(diffuseColor.g, diffuseColor.b));
+		CS_ALB_LEVEL
 		diffuseColor.rgb *= max(1.0, csAlbMin / max(csMx, 1e-4));
 	}
 `;
+// O nível regional só existe onde há atlas de cor E textureLod (WebGL2). Sem os dois, o
+// bloco cai no degrau antigo — degradação segura, não falha de compilação.
+const CS_ALB_REGIONAL = `
+		#ifdef USE_MAP
+			vec3 csLo = textureLod(map, vMapUv, csAlbLod).rgb;
+			csMx = max(csLo.r, max(csLo.g, csLo.b));
+		#endif`;
 
 // ── shader: CLAMP DE AMBIENTE. Injetado ANTES de <lights_fragment_end>, que é o
 // único ponto onde `irradiance`/`iblIrradiance` ainda existem e ainda NÃO foram
@@ -148,7 +179,17 @@ const CS_AMB = `
 		// (Riot: o agente distante é clareado E ganha mais fresnel).
 		float csFl  = mix(csFloorIrr, csFloorFar, smoothstep(10.0, 45.0, csD));
 		float csAdd = max(0.0, csFl - csAL);
-		irradiance += vec3(csAdd);            // fill neutro: não desloca o matiz do albedo
+		/* O FILL HERDA A CROMINÂNCIA DO AMBIENTE, com a MESMA luminância de antes.
+		   Somar vec3(csAdd) era somar BRANCO: no limite (personagem na sombra, onde
+		   o piso responde por quase toda a luz) o iluminante virava neutro e a cor do céu
+		   sumia do personagem — desbotar o iluminante desbota o pixel exatamente como
+		   desbotar o albedo. Aqui o fill é a crominância normalizada da própria irradiância
+		   (luminância 1 por construção), então dot(fill*csAdd, CS_LUMA) == csAdd: a
+		   energia é IDÊNTICA à do fill branco, ponto a ponto, e nada pode estourar por
+		   causa desta linha. csW desliga a herança quando a fonte é escura demais para
+		   ter crominância confiável (aí voltar ao branco é o certo, não o contrário). */
+		CS_AMB_FILL
+		irradiance += csFill * csAdd;
 		// Teto: um céu HDR muito claro não pode estourar o personagem (a outra metade do
 		// clamp da Riot — "nem escuro demais, nem claro demais em nenhum canto do mapa").
 		float csTot = csAL + csAdd;
@@ -160,6 +201,12 @@ const CS_AMB = `
 	}
 	#endif
 `;
+const CS_FILL_CROMA = `
+		float csIrrL  = dot(irradiance, CS_LUMA);
+		float csW     = smoothstep(0.02, 0.20, csIrrL);
+		vec3  csFill  = mix(vec3(1.0), irradiance / max(csIrrL, 1e-4), csW);`;
+const CS_FILL_BRANCO = `
+		vec3  csFill  = vec3(1.0);   // ?charambchroma=0 — o fill branco de antes, para o A/B`;
 
 // ── shader: rugosidade POR REGIÃO, injetada logo após <roughnessmap_fragment>
 // (aí diffuseColor já foi amostrado do atlas e roughnessFactor já existe).
@@ -231,6 +278,18 @@ const CS_SSS = `
 const CS_END = `	}
 `;
 
+/* Sonda de WebGL2, uma vez por carga. Um canvas 1×1 descartado é mais barato que um
+   shader que não compila: em WebGL1 `textureLod` não existe no GLSL ES 1.0 e o
+   personagem inteiro sumiria (material com erro de compilação não desenha). */
+const _hasTextureLod = (() => {
+  try {
+    const c = document.createElement('canvas'); c.width = c.height = 1;
+    const gl = c.getContext('webgl2');
+    if (gl) { const e = gl.getExtension('WEBGL_lose_context'); if (e) e.loseContext(); }
+    return !!gl;
+  } catch { return false; }
+})();
+
 // Instala a injeção num MeshStandardMaterial de personagem. Idempotente.
 export function applyCharFX(mat, rimColor) {
   if (!CHAR_FX.on || !mat || !mat.isMeshStandardMaterial || mat.userData.csFx) return mat;
@@ -246,9 +305,17 @@ export function applyCharFX(mat, rimColor) {
     csFloorFar: { value: CHAR_FX.floorFar },
     csCeilIrr:  { value: CHAR_FX.ceilIrr },
     csAlbMin:   { value: CHAR_FX.albMin },
+    csAlbLod:   { value: CHAR_FX.albLod },
     csSat:      { value: CHAR_FX.sat },
     csSss:      { value: CHAR_FX.sss },
   };
+  // `textureLod` só existe no GLSL ES 3.0 que o three emite em contexto WebGL2. Em
+  // WebGL1 o bloco regional NÃO PODE nem ser injetado (é erro de compilação, não perda
+  // de qualidade), então o piso volta a ser o degrau por texel. A decisão tem que ser a
+  // MESMA aqui e no customProgramCacheKey abaixo — se divergir, o three serve um programa
+  // compilado com o outro fonte. Por isso a sonda é module-level e não vem do renderer,
+  // que só chega em onBeforeCompile, depois da chave já ter sido calculada.
+  const regOn = clampOn && CHAR_FX.albReg && _hasTextureLod;
   mat.userData.csUniforms = u;   // tuning ao vivo sem recompilar
   mat.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, u);
@@ -261,8 +328,10 @@ export function applyCharFX(mat, rimColor) {
         (CHAR_FX.low ? CS_CLARITY_LOW : CS_CLARITY) + (CHAR_FX.low ? '' : CS_SSS) + CS_END + '\n#include <opaque_fragment>');
     if (clampOn) {
       f = f
-        .replace('#include <map_fragment>', '#include <map_fragment>\n' + CS_ALBEDO)
-        .replace('#include <lights_fragment_end>', CS_AMB + '\n#include <lights_fragment_end>');
+        .replace('#include <map_fragment>',
+          '#include <map_fragment>\n' + CS_ALBEDO.replace('CS_ALB_LEVEL', regOn ? CS_ALB_REGIONAL : ''))
+        .replace('#include <lights_fragment_end>',
+          CS_AMB.replace('CS_AMB_FILL', CHAR_FX.ambChroma ? CS_FILL_CROMA : CS_FILL_BRANCO) + '\n#include <lights_fragment_end>');
     }
     shader.fragmentShader = f;
   };
@@ -271,7 +340,7 @@ export function applyCharFX(mat, rimColor) {
   // propósito: todos os personagens compartilham UM programa, só os uniforms mudam.
   // O sufixo muda com a variante do FONTE (low corta SSS+banda fina; charclamp=0
   // corta albedo+ambiente) — se não mudasse, o three serviria o programa errado.
-  mat.customProgramCacheKey = () => 'csCharFx3' + (CHAR_FX.low ? 'L' : 'H') + (clampOn ? 'C' : 'c');
+  mat.customProgramCacheKey = () => 'csCharFx4' + (CHAR_FX.low ? 'L' : 'H') + (clampOn ? 'C' : 'c') + (regOn ? 'R' : 'r') + (CHAR_FX.ambChroma ? 'K' : 'k');
   mat.needsUpdate = true;
   return mat;
 }

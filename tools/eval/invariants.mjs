@@ -1544,6 +1544,35 @@ function runNode(script, env = {}, args = []) {
   }
 }
 
+/* ── CHR8 PISO DE ALBEDO NÃO COME CONTRASTE ─────────────────────────────────
+   Reclamação do dono (04/08): "todos os personagens depois desses também tão ruim
+   na cor e iluminação". Causa raiz medida em `tools/eval/char-floor.mjs`: o piso
+   de albedo de characters.js era um DEGRAU por texel (`max(V, 0.09)`), e 0,09
+   LINEAR é sRGB 0,332 = L* 36, um cinza MÉDIO. 94,1 % da textura do trapfunk,
+   90,4 % do palhaço mal e 86,6 % do oakley vivem abaixo desse ponto — o
+   personagem escuro inteiro colapsava num valor só e perdia até 61 % do seu
+   contraste interno, enquanto padata (8,4 %) e canarinho (8,8 %) não perdiam
+   nada. O teto não é gosto: é o CONTRATO que o próprio bloco declara no código
+   ("só operações que preservam matiz e saturação relativa"). O modo julgado é
+   lido do fonte, então devolver o piso ao degrau acende esta invariante sozinho.
+   Mutantes que a fazem ficar vermelha: `--mutante=bloco1` (região de 1 texel =
+   degrau) e `--mutante=pisozero` (piso que não levanta). */
+{
+  const out = runNode('char-floor.mjs');
+  const a = out.match(/C10a CONTRASTE[^\n]*: (✓|✗[^\n]*)/);
+  const b = out.match(/C10b CLAREZA[^\n]*: (✓|✗[^\n]*)/);
+  const med = out.match(/mediana da perda de contraste:\s*degrau ([\d.]+)%\s+regional ([\d.]+)%/);
+  if (!a || !b) {
+    skip('CHR8', 'piso de albedo não come o contraste interno do personagem',
+      'char-floor.mjs não produziu veredito (precisa de `magick` e dos GLB em public/models/characters)');
+  } else {
+    put('CHR8', 'piso de albedo levanta o nível SEM comer o contraste interno (≤ 10 % em 45)',
+      a[1] === '✓' && b[1] === '✓',
+      `contraste: ${a[1]} | clareza: ${b[1]}`
+      + (med ? ` | perda mediana: degrau ${med[1]}% → regional ${med[2]}%` : ''));
+  }
+}
+
 // ── 8c. C4: mão na arma (a régua delega ao tp-mount-probe, e aqui também) ───
 {
   const out = runNode('tp-mount-probe.mjs');
