@@ -304,6 +304,17 @@ export function buildPoolDay(scene, T) {
        (`claro: 1`), o que aqui é a favor e não contra: elas não vão no azulejo branco, vão no
        concreto cinza da pilastra, e bomba branca em coluna de concreto é o que existe. */
     const D_LETRA = decalIds(T, ['alfabeto-bolha.png', 'alfabeto-bolha2.png', 'alfabeto-grosso-01.png']);
+    /* CARTAZ (o "pôster na pilastra" que o dono pediu). Vem do tipo `cartaz` do pacote —
+       são os 7 únicos recortes RETRATO (aspecto 0,64-0,84) e os únicos que leem como papel
+       colado e não como tinta. `decalsDoTipo` em vez de lista à mão porque cartaz novo no
+       pacote tem que entrar sozinho (é a mesma lição do BUG-08: lista fixa ignora arquivo
+       novo em silêncio) — e se o tipo não existir, o pool fica vazio e nada é desenhado. */
+    const D_CARTAZ = (T.decalsDoTipo ? T.decalsDoTipo('cartaz') : []);
+    /* BOMBA de parede: letra-bolha + peça, o "bombs" do pedido. Só vai na BANDA ALTA
+       (acima de 3,90 m), onde não briga com a silhueta do inimigo no plano do duelo —
+       a contenção que reprovou o pool_ramos continua valendo (BAR-CONSISTENCIA §2.4). */
+    const D_BOMBA = decalIds(T, ['peca-bolha.png', 'alfabeto-bolha.png', 'alfabeto-bolha2.png',
+      'alfabeto-grosso-01.png', 'tag-flop.png', 'tags-treino-04.png']);
     // adesivo de armário: peça pequena e fechada, que aguenta 1 m sem virar borrão
     const D_ADESIVO = decalIds(T, ['tags-treino-02.png', 'tags-treino-03.png', 'tags-treino-05.png',
       'tags-treino-06.png', 'tag-money.png', 'tag-selvagem.png', 'alfabeto-reto-05.png',
@@ -358,22 +369,53 @@ export function buildPoolDay(scene, T) {
     for (const x of [-14, -7, 0, 7, 14]) decal(D_TAG, x, 3.9, -HALF_Z + OFFD, 0, 2.6, 5.0);
     for (const z of [-21, -13, -5, 4, 13, 21]) decal(D_TAG, -HALF_X + OFFD, 3.9, z, Math.PI / 2, 2.6, 5.0);
     for (const z of [-21, -13, -4, 5, 13, 21]) decal(D_TAG, HALF_X - OFFD, 3.9, z, -Math.PI / 2, 2.6, 5.0);
+    /* --- SEGUNDA FILEIRA DA BANDA ALTA (y 5,10-6,40) — "coloque mais graffitis" (05/08).
+       É BOMBA (letra-bolha e peça), não tag: nesta altura a peça é vista de longe e de
+       baixo, e letra fina some. Entra ENTRE as vagas da fileira de 3,90 (offset de meia
+       vaga) pra ler como parede bombardeada em camadas, e não como grade. Fica ACIMA da
+       linha do duelo, então não disputa leitura com a silhueta do inimigo. */
+    for (const x of [-11, -3, 4, 11]) decal(D_BOMBA, x, 5.1, -HALF_Z + OFFD, 0, 1.3, 3.4);
+    for (const x of [-19, 10]) decal(D_BOMBA, x, 5.1, HALF_Z - OFFD, Math.PI, 1.3, 3.4);
+    for (const z of [-17, -9, 0, 9, 17]) decal(D_BOMBA, -HALF_X + OFFD, 5.1, z, Math.PI / 2, 1.3, 3.4);
+    for (const z of [-17, -8, 1, 9, 17]) decal(D_BOMBA, HALF_X - OFFD, 5.1, z, -Math.PI / 2, 1.3, 3.4);
+    /* --- CARTAZ NA PAREDE, na altura do olho: o lambe-lambe de vestiário. Vai nas vagas
+       da banda baixa que sobraram entre os 12 cartazes de propaganda do mapa — por isso são
+       poucas e escolhidas, e por isso passam pelo `paredeAtras` como qualquer outra. */
+    for (const z of [-25, 16]) decal(D_CARTAZ, -HALF_X + OFFD, 0.9, z, Math.PI / 2, 1.7, 1.3);
+    for (const z of [-25, 25]) decal(D_CARTAZ, HALF_X - OFFD, 0.9, z, -Math.PI / 2, 1.7, 1.3);
+    for (const x of [-11, 11]) decal(D_CARTAZ, x, 0.9, -HALF_Z + OFFD, 0, 1.7, 1.3);
     /* PILASTRA, ARMÁRIO E GUARITA SÓ NASCEM ~150 LINHAS ABAIXO (bloco "COBERTURA"), e o
        `paredeAtras` mede a geometria que EXISTE no instante da chamada. Colar aqui devolvia
        null nas 42 peças, em silêncio — não é teoria: foi o que aconteceu na primeira
        versão desta rodada, e a régua acusou 26 em vez das ~66. Então a segunda leva vira
        função e é chamada no fim do bloco de cobertura. */
     pintaCobertura = () => {
-      /* --- PILASTRAS: as 8 de concreto (1,10 m de face, 6,50 m de altura). Uma letra na
-         face VIRADA PRA PISCINA (é a que o jogador vê ao correr pelo corredor) e uma em
-         cada face de z, em alturas diferentes — coluna pichada não tem marca alinhada. */
+      /* --- PILASTRAS: as 8 de concreto (1,10 m de face, 6,50 m de altura).
+         PEDIDO LITERAL DO DONO (05/08): "pode pôr pôsteres na pilastra, e use também bombs
+         e graffitis pra pôr nas paredes e pilastras, coloque mais graffitis".
+         Então a pilastra deixou de ter 2 peças e passou a ter as QUATRO FACES usadas, com
+         três linguagens diferentes — que é o que uma coluna de piscina pública tem:
+           · face virada pra PISCINA  — TAG (fonte de 186-256 px, a única nítida a 1 m)
+             + uma segunda TAG mais alta (y 2,9), porque writer empilha
+           · face de z A              — BOMBA de letra (throw-up)
+           · face de z B              — CARTAZ colado (o pôster que ele pediu)
+           · face virada pra FORA     — CARTAZ ou TAG, alternado por pilastra
+         O CARTAZ é o pool `cartaz` do pacote (7 recortes, aspecto 0,64-0,84 = RETRATO):
+         numa face de 1,02 m ele sai com 1,3-1,6 m de altura, que é lambe-lambe de poste
+         de verdade. Tag deitada (aspecto 1,3-1,5) na mesma face sairia com 0,7 m e sumiria
+         — é a mesma conta que já tinha escolhido letra em vez de tag aqui. */
       for (const sx of [-1, 1]) for (const [n, pz] of [-17, -6.5, 6.5, 17].entries()) {
         const px = sx * 13.6;
-        // face virada pra piscina: TAG (fonte de 186-256 px, a única que aguenta 1 m nítida)
-        decal(D_TAG, px - sx * 0.61, 1.35, pz, sx > 0 ? -Math.PI / 2 : Math.PI / 2, 1.1, 1.02);
-        // uma face de z alternada por pilastra: bomba de letra, em altura diferente da tag
+        const dentro = sx > 0 ? -Math.PI / 2 : Math.PI / 2;      // face virada pra piscina
+        decal(D_TAG, px - sx * 0.61, 1.35, pz, dentro, 1.1, 1.02);
+        decal(D_TAG, px - sx * 0.61, 2.90, pz, dentro, 0.9, 1.02);
+        // faces de z: bomba de um lado, cartaz do outro, alternando o lado por pilastra
         const s2 = n % 2 ? 1 : -1;
         decal(D_LETRA, px, s2 > 0 ? 0.75 : 1.5, pz + s2 * 0.61, s2 > 0 ? 0 : Math.PI, 1.9, 1.02);
+        decal(D_CARTAZ, px, s2 > 0 ? 1.5 : 0.9, pz - s2 * 0.61, s2 > 0 ? Math.PI : 0, 1.55, 1.02);
+        // face de fora (o corredor de trás): cartaz nas pares, tag nas ímpares
+        decal(n % 2 ? D_TAG : D_CARTAZ, px + sx * 0.61, n % 2 ? 1.4 : 1.1, pz, sx > 0 ? Math.PI / 2 : -Math.PI / 2,
+          n % 2 ? 1.1 : 1.6, 1.02);
       }
       /* --- ARMÁRIOS. Bancos laterais (x = ∓16,3, z = -11/0/11): 3 portas de 1,30 m ao
          longo de z, um adesivo em cada. A porta tem 2,10 m de altura, então o adesivo vai

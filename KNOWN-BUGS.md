@@ -183,7 +183,7 @@ mudar.
 
 ## P1 — o jogador vê
 
-### ~~BUG-21 · Parede invisível a 2,3 m do ônibus (Brasília)~~ · RESOLVIDO 04/08
+### ~~BUG-21 · Parede invisível a 2,3 m do ônibus (Brasília)~~ · RESOLVIDO 05/08 (2ª rodada)
 
 **Sintoma (do dono, com print):** *"o mapa não deixa eu andar perto do ônibus"*.
 
@@ -205,9 +205,30 @@ laterais.
 a AABB exata de cada célula — uma escada de 18 caixas seguindo a diagonal. 0,68 m já é menor
 que o raio do jogador (0,38 m) mais o passo.
 
-**O conserto de verdade, se voltar a incomodar:** collider com rotação no motor. Aí todo prop
-girado ganha de graça — e há outros. É mudança em `_collide`, caminho quente usado por jogador
-e bots, e não cabia junto desta correção.
+**E VOLTOU A INCOMODAR — 05/08.** Palavras do dono: *"o box do ônibus não deixa você andar
+perto e é como se fosse um quadrado, mas o ônibus está em diagonal. devia ser possível andar"*.
+0,68 m é meio passo de parede fantasma, e meio passo se sente.
+
+**CORREÇÃO DEFINITIVA: COLLIDER COM ROTAÇÃO NO MOTOR.** `game.js/_collideRot` testa no espaço
+local do prop; o colisor leva a AABB conservadora do mundo (rejeição barata + todo consumidor
+antigo continua válido) MAIS `ry/cx/cz/hx/hz/cos/sin`. Colisor sem `ry` não paga nada — o
+caminho girado é um RAMO, não o caso geral.
+
+| | 1ª rodada (18 AABBs) | agora (1 OBB) |
+|---|---|---|
+| parede fantasma ALÉM do raio do corpo | 2,033 m | **0,000 m** |
+| lataria sem colisão | 9,08 m² | **0,00 m²** |
+| colisores do ônibus | 18 | **1** |
+| `_collide` (awp_map, 400 k chamadas) | 238 ns | 287 ns (+49 ns; mapa sem prop girado: sem custo) |
+
+O mesmo conserto vale para `addBox({ry})` (era o QUADRADO circunscrito, `max(w,d)/2` nos dois
+eixos) e para `putBuilding` de GLB girado (era `Box3.setFromObject` do prédio JÁ GIRADO): urna,
+towner, drinkstand e as caixas da praça ganharam de graça.
+
+**Régua: `tools/eval/obb-check.mjs`** — não confere declaração, ela ANDA: grade de 5 cm com o
+`_collide` DE PRODUÇÃO e compara com a caixa real do prop. Tem inventário declarado (sem ele,
+apagar o `ry` deixaria a régua verde por vacuidade) e 2 mutações medidas: `--mutante=aabb`
+acende com 2,033 m de parede fantasma, `--mutante=semry` acende no inventário.
 
 ### ~~BUG-22 · Não dá para andar debaixo da escada (Havan)~~ · RESOLVIDO 04/08 (metade do jogador)
 
@@ -227,11 +248,42 @@ cabe gente em pé. Medido na escada da Havan:
 Sem o pé-direito o jogador entraria embaixo do primeiro degrau — 17 cm de vão — com a cabeça
 dentro da geometria.
 
-**A METADE QUE FALTA: os bots.** O A* é um grafo de `(x, z)` sem dimensão de camada, e
-`blocked()`/geração de nós chamam `groundHeightAt` **sem** `yRef`. Consequência: o bot não
-*planeja* rota por baixo da escada — ele só deixa de ser puxado pro topo quando já está lá
-embaixo. Grafo com camada é a segunda metade desta frente, e destrava de vez mezanino, ponte
-e viaduto em todos os mapas.
+### ~~BUG-22 (2ª rodada) · "continua impossível passar por baixo da escada"~~ · RESOLVIDO 05/08
+
+O dono jogou de novo e reprovou, com o teste numérico VERDE. Ele estava certo, e **não era
+nenhum dos quatro suspeitos**: não era colisor (o contrapiso mora em y 3,28-3,40 e o
+`_collide` não morde quem anda em y=0), não era o `yRef` faltando (o `_updatePlayer` passa nos
+três lugares), não era o step-up. **Era a PEGADA.**
+
+Reproduzido andando com o `_updatePlayer` DE VERDADE (harness, não fórmula): o único acesso ao
+vão da escada é POR BAIXO DO MEZANINO — e a pegada do mezanino não tinha camada nenhuma.
+`groundHeightAt` devolvia 3,40 para todo mundo dentro de (x −14..14, z −41,4..−31), inclusive
+para quem anda no piso da loja em y=0. O bolsão que a 1ª rodada abriu era **um quarto lacrado**,
+e havia uma parede invisível de **28 m de largura** na linha z = −31, cortando a loja em duas.
+
+| medido no harness | antes | depois |
+|---|---|---|
+| piso de loja sob a laje, inalcançável | **294,0 m²** | 0 m² |
+| gôndolas (colisores y 0-1,80) desenhadas nesse piso | 18, nunca alcançadas | alcançáveis |
+| vão sob as 2 escadas, aberto e **sem entrada** | 16,3 m² | com entrada |
+| colunas de entrada que atravessam z = −31 (x −13..13) | 0 de 27 | **26 de 27** (a 27ª é o pilar em x=9) |
+
+Andando de verdade: sob a laje → vão da escada, o corpo entra e para em z = −28,39, que é
+exatamente onde o pé-direito da escada cai abaixo de ALTURA_LIVRE. Capturado no navegador
+(`havan_sob_escada.png`): o jogador embaixo dos degraus, olhando o espelho por baixo.
+
+**OS BOTS FICAM NA CAMADA DE CIMA, DE PROPÓSITO, E O PREÇO ESTÁ MEDIDO.** O `yRef` do snap de
+chão do bot (`game.js`) foi retirado. Com ele o bot desce pro piso sob a laje sem plano nenhum,
+porque o A* é grafo de `(x, z)` SEM CAMADA — o nó de baixo e o de cima são o mesmo ponto:
+
+| `botsim 60 fy_havan` | latFlips | fwdFlips | stuck | eff |
+|---|---|---|---|---|
+| bot COM camada | 13,88 | 6,58 | **8,98 %** | 0,241 |
+| bot SEM camada | 11,10 | 7,23 | **1,73 %** | 0,226 |
+
+5× mais bot travado é regressão que o dono vê; o jogador não perde nada, porque quem usa o vão
+é ele. **Grafo com camada continua sendo a segunda metade desta frente** — e é exatamente o que
+falta para devolver o `yRef` ao bot.
 
 <details><summary>Diagnóstico original, mantido porque explica por que não era collider</summary>
 
@@ -255,6 +307,75 @@ poder usar é pior que não ter espaço.
   os mapas. É mudança estrutural e mexe no pathfinding.
 
 </details>
+
+### ~~BUG-27 · "grafite ainda em estrutura que não é parede"~~ · RESOLVIDO 05/08
+
+**Sintoma (do dono, 2ª reprovação):** com o `decal-probe` dizendo **"0 sem parede atrás"** nos
+5 mapas, ele continuou vendo peça em lugar errado.
+
+**Causa raiz — a régua media contra a LISTA ERRADA DE SÓLIDOS.** `paredeAtras` recebia
+`colliders` (e, na Brasília, `caixaDeBox3` da bounding box do GLB). Caixa DECLARADA mente, e
+mente exatamente onde o jogador olha. Medido no navegador, contra a MALHA desenhada:
+
+| mapa | peças | sem malha atrás | tapadas (sólido a <25 cm NA FRENTE) |
+|---|---|---|---|
+| **awp_map** | 16 | **16** | 0 |
+| **fy_quebrada** | 47 | **22** | **8** |
+| fy_pool_day · fy_havan · fy_ferrovelho | 103 | 0 | 0 |
+
+As 16 da Brasília estavam **no ar**: o ministério é um GLB sobre PILOTIS, o térreo é vazado, e
+a caixa do prédio inteiro conta o vão aberto como parede. Capturado: dá para ver o gramado
+através da peça (`scratchpad/shots/awp_map_01_25de25_*.png`). A única malha perto delas é
+`Pilotis_Glass_Ministry_1` — **vidro**, que a docstring da régua já admitia não saber rejeitar.
+As 8 da Quebrada nasciam do lado de dentro da parede: existem, são desenhadas, ninguém vê.
+
+**Correção — o critério passou a ser a MALHA QUE O JOGADOR VÊ.** `paredeAtras` aceita
+`Object3D` no lugar de caixa e mede com raycast na geometria desenhada, com três cláusulas:
+(1) os 25 raios atrás batem em malha **visível e opaca** dentro do alcance — caixa-occluder de
+bala (`material.visible = false`) e vidro/água deixam de contar; (2) nada nos **25 cm à
+frente**; (3) profundidade dos 25 acertos varia no máximo 25 cm (é UM plano). Os 5 mapas passam
+`[root]`. O caminho antigo de caixas continua para quem não tem malha própria (as folhas
+giradas do portão do Ferro Velho).
+
+| | antes | depois |
+|---|---|---|
+| awp_map | 16 (16 erradas) | **0** — o mapa não tem parede cega na altura do olho |
+| fy_quebrada | 47 (30 erradas) | **11** (0 erradas) |
+| fy_pool_day | 72 (0 erradas) | **117** (0 erradas — ver BUG-28) |
+| fy_havan · fy_ferrovelho | 31 (0 erradas) | 31 (0 erradas) |
+
+Que pool_day e havan não percam **uma** peça é a prova de que o critério novo não é só mais
+apertado: ele reprova o que estava errado e aprova o que estava certo.
+
+**Fica aberto (não é meu arquivo):** das 47 da Quebrada, 17 passariam no critério novo mas só
+11 nascem — as outras 6 são reprovadas porque o `decal()` roda ANTES de a parede delas existir.
+É o mesmo defeito de ordem que o pool_day já resolveu adiando para `pintaCobertura()`. Uma
+linha em `map_quebrada.js` devolve as 6.
+
+### BUG-28 · O harness headless faz raycast de occluder NA ORIGEM
+
+**Medido:** ao fim do build do `fy_pool_day`, **92 dos 92 occluders** estão com `matrixWorld`
+DESATUALIZADA (identidade). No navegador isso nunca aparece, porque `WebGLRenderer.render()`
+chama `scene.updateMatrixWorld()` todo quadro; no `botsim`/`harness` **não há renderer**, e
+ninguém atualiza. Ou seja: a LOS dos bots na régua headless mira caixas empilhadas na origem.
+
+Foi assim que se descobriu: o critério novo de decalque faz raycast na malha durante o build e,
+de quebra, atualiza 78 dessas 92 matrizes — e o `botsim` do Piscinão mudou (latFlips 15,92 →
+13,04, fwdFlips 13,98 → 10,26, stuck 1,62 → 2,96, eff 0,120 → 0,161) **com os mesmos 72
+decalques, conferidos peça a peça, e com mundo idêntico** (92 colisores, 92 occluders, 22
+pickups, 371 malhas, 11.460 triângulos, mesma soma de colisores, mesmos spawns de bot).
+
+**Consequência:** toda métrica de bot que dependa de linha de visão no headless está medida
+contra geometria na origem. **Correção:** `scene.updateMatrixWorld(true)` depois do build, em
+`harness.mjs/bootGame` e no stub do `botsim.mjs`. Não foi feito aqui de propósito — `botsim.mjs`
+é o baseline determinístico desta rodada e mexer nele no meio de um A/B é o erro clássico.
+
+**Segundo efeito do mesmo tipo, também medido:** dentro de um `botsim ... all` os mapas
+compartilham o cursor do `Math.random` através do cache preguiçoso de texturas (`T.decals[i]`
+gera na primeira leitura e memoiza). Pool_day passou a usar 24 arquivos em vez de 16, e o
+`fy_ferrovelho` — que **não foi tocado** — se moveu 0,2 no `all`. Rodado sozinho ele é
+**byte a byte idêntico** antes e depois (13,811 · 8,544 · 1,056 · 0,227). Comparação de
+`botsim all` só vale como sequência inteira.
 
 ### BUG-05 · A UI não bate com as telas de referência (`references/telas/`) — PARCIALMENTE FECHADO
 
