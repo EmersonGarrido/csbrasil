@@ -103,13 +103,15 @@ const jsonld = p ? [
   { '@id': GAME_ID },
 ] : [];
 ---
+{/* og:image:width/height vêm por PROP, não pelo slot: desde que o Layout passou
+    a emitir as duas (1200×630 por padrão), repetir 840×440 aqui produziria a
+    mesma propriedade duas vezes no <head> — e o scraper fica com a primeira. */}
 <Layout title={title} description={desc} ogImage={badgeUrl} ogType="profile"
+        ogImageWidth={840} ogImageHeight={440}
         noindex={!RANKING_ON}
         ogImageAlt={`Badge de ${nick} no ${BRAND_FULL}: ${p ? p.kills : 0} kills, K/D ${kd}`}
         jsonld={jsonld}>
   <Fragment slot="head">
-    <meta property="og:image:width" content="840">
-    <meta property="og:image:height" content="440">
     {p && <meta property="profile:username" content={nick} />}
   </Fragment>
 

@@ -17,6 +17,11 @@ interface Props {
   description?: string;
   ogImage?: string;
   ogImageAlt?: string;
+  /** dimensões da og:image. Sem elas o card fica em branco no primeiro
+   *  compartilhamento, enquanto o crawler da rede não baixou a imagem —
+   *  https://developers.facebook.com/docs/sharing/webmasters/images */
+  ogImageWidth?: number;
+  ogImageHeight?: number;
   ogType?: string;
   /** nós JSON-LD extras da página (ItemList, HowTo, ProfilePage…) */
   jsonld?: unknown[];
@@ -27,6 +32,8 @@ const {
   description = DESC_SHORT,
   ogImage = abs('/og-image.png'),
   ogImageAlt = `${BRAND_FULL} — arena de sniper estilo CS 1.6 numa Brasília fictícia`,
+  ogImageWidth = 1200,
+  ogImageHeight = 630,
   ogType = 'website',
   jsonld = [],
   noindex = false,
@@ -49,6 +56,40 @@ const baseGraph = [
   { '@type': 'Organization', '@id': ORG_ID, name: `${BRAND} contributors`,
     url: SITE + '/', logo: abs('/og-image.png') },
 ];
+
+/* NÓ DE PÁGINA (WebPage).
+   Faltava: as páginas emitiam ItemList, HowTo, AboutPage e BreadcrumbList, mas
+   nenhum nó dizendo "esta URL é uma página, e ela pertence a este site". Sem
+   ele o grafo tem entidades soltas sem dono, e `mainEntityOfPage` não tem em
+   que ancorar. schema.org: WebPage é o tipo do próprio documento
+   (https://schema.org/WebPage).
+
+   NÃO emitimos se a página já trouxe um nó do próprio tipo dela — AboutPage
+   (/sobre) e ProfilePage (/u/*) SÃO subtipos de WebPage, e dois nós de página
+   pra mesma URL é o mesmo defeito de deduplicação que os dois `VideoGame`
+   causavam antes do `@id` estável. FAQPage fica FORA desta lista de propósito:
+   em /como-jogar ela é uma seção da página (`#faq`), não o documento. */
+const PAGE_NODE_TYPES = new Set([
+  'WebPage', 'AboutPage', 'ProfilePage', 'CollectionPage', 'ItemPage',
+  'QAPage', 'ContactPage', 'SearchResultsPage',
+]);
+const hasOwnPageNode = (jsonld as { '@type'?: string | string[] }[]).some((n) => {
+  const t = n?.['@type'];
+  return Array.isArray(t) ? t.some((x) => PAGE_NODE_TYPES.has(x)) : !!t && PAGE_NODE_TYPES.has(t);
+});
+const pageGraph = hasOwnPageNode ? [] : [{
+  '@type': 'WebPage',
+  '@id': canonical + '#webpage',
+  url: canonical,
+  name: title,
+  description,
+  inLanguage: 'pt-BR',
+  isPartOf: { '@id': WEBSITE_ID },
+  primaryImageOfPage: {
+    '@type': 'ImageObject', url: ogImage,
+    width: ogImageWidth, height: ogImageHeight,
+  },
+}];
 
 // O /ranking sai do nav enquanto RANKING_ON for false (src/lib/site.ts). A página
 // continua respondendo — só deixa de ser oferecida, pra ninguém clicar num aviso.
@@ -78,6 +119,8 @@ const NAV: [string, string][] = [
 <meta property="og:description" content={description}>
 <meta property="og:url" content={canonical}>
 <meta property="og:image" content={ogImage}>
+<meta property="og:image:width" content={String(ogImageWidth)}>
+<meta property="og:image:height" content={String(ogImageHeight)}>
 <meta property="og:image:alt" content={ogImageAlt}>
 <meta property="og:locale" content="pt_BR">
 <meta name="twitter:card" content="summary_large_image">
@@ -87,7 +130,17 @@ const NAV: [string, string][] = [
 <meta name="twitter:image:alt" content={ogImageAlt}>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' fill='%230a0a08'/><rect x='2' y='7' width='12' height='2' fill='%23e8b34b'/><rect x='7' y='2' width='2' height='12' fill='%23e8b34b'/></svg>">
 <script type="importmap">{ "imports": { "three": "/vendor/three.module.js" } }</script>
-<script type="application/ld+json" set:html={JSON.stringify({ '@context': 'https://schema.org', '@graph': [...baseGraph, ...jsonld] })} />
+<!-- Espelhos em texto puro pros crawlers de resposta. `/llms.txt` é a proposta
+     de llmstxt.org; `/llms-full.txt`, `/docs.json` e `/ai-index.json` e os
+     espelhos `.md` são gerados no build (scripts/aeo.mjs, via aeo.js).
+     HIPÓTESE, não fato: NÃO existe especificação que obrigue crawler nenhum a
+     ler `rel="alternate" type="text/plain"` — nenhuma documentação de Google,
+     OpenAI ou Anthropic promete isso hoje. As tags custam 4 linhas e tornam os
+     arquivos descobríveis a partir do HTML; o ganho é declaradamente aposta. -->
+<link rel="alternate" type="text/plain" href={abs('/llms.txt')} title="Resumo do site em texto (llms.txt)">
+<link rel="alternate" type="text/plain" href={abs('/llms-full.txt')} title="Conteúdo completo em texto">
+<link rel="alternate" type="application/json" href={abs('/ai-index.json')} title="Índice do site para IA">
+<script type="application/ld+json" set:html={JSON.stringify({ '@context': 'https://schema.org', '@graph': [...baseGraph, ...pageGraph, ...jsonld] })} />
 <slot name="head" />
 <style is:global>
 :root{
