@@ -230,7 +230,10 @@ export function buildQuebrada(scene, T) {
      lado (folga ≥ 1,20 m e ≥ 40 m² de chão CONTÍGUO num raio de 5 m — foi assim que a fresta
      do depósito da Havan passou verde e ficou péssima). Solto, ele corta a visada direta da
      praça pros slots e ainda deixa contornar pelos dois lados. */
-  addBox(6, 2.4, 0.35, lam({ map: T.concrete, color: 0x9c9488 }), -16, 0, -40);
+  // 5 m em x ∈ [-20,5, -15,5]: cobre a diagonal que vem do miolo da praça (é ela que dá visada
+  // aos slots do fundo) e sai da frente do slot de x = -14,5, cujo disco de 5 m estava sendo
+  // cortado pelo próprio muro — 39,3 m² contíguos contra o piso de 40 m² da MAP2B.
+  addBox(5, 2.4, 0.35, lam({ map: T.concrete, color: 0x9c9488 }), -18, 0, -40);
 
   /* ===================== A ROTUNDA DO BAILE =====================
      "uma rotunda no final onde teria 2 carros tunados e caixas de som". A praça é o largo
@@ -260,7 +263,13 @@ export function buildQuebrada(scene, T) {
     occ(addBox(4.4, 0.62, 1.82, pint, cx, 0.28, cz, { ry, collide: false }));        // lataria rebaixada
     occ(addBox(2.3, 0.58, 1.66, MAT_VIDRO, cx, 0.90, cz, { ry, collide: false }));   // cabine/vidros
     occ(addBox(2.1, 0.10, 1.70, pint, cx, 1.48, cz, { ry, collide: false }));        // teto
-    occ(addBox(1.1, 0.34, 1.30, pint, cx - Math.sin(ry) * 1.9, 0.90, cz - Math.cos(ry) * 1.9, { ry, collide: false })); // aerofólio/mala
+    /* AEROFÓLIO — a peça tem que sair pela TRASEIRA, que é o -x LOCAL do carro. A 1ª versão
+       usava `cx - sin(ry)*1.9`, que é o deslocamento em +z local: o aerofólio nascia 1,9 m ao
+       LADO do carro, fora da malha coberta pelo `colRot`, e a MAP1 acusou dois pontos de chão
+       com o corpo DENTRO de sólido a 1,24 m de penetração — geometria visível sem colisor
+       nenhum embaixo, exatamente o defeito "submerso embaixo da estátua". A conversão certa é
+       a mesma do `colRot`: world = (cx + lx·cos + lz·sen, cz − lx·sen + lz·cos). */
+    occ(addBox(1.1, 0.34, 1.30, pint, cx - 1.55 * Math.cos(ry), 0.90, cz + 1.55 * Math.sin(ry), { ry, collide: false })); // aerofólio/mala
     for (const [lx, lz] of [[1.5, 0.85], [1.5, -0.85], [-1.5, 0.85], [-1.5, -0.85]]) {
       const wx = cx + lx * Math.cos(ry) + lz * Math.sin(ry), wz = cz - lx * Math.sin(ry) + lz * Math.cos(ry);
       const r = new THREE.Mesh(new THREE.CylinderGeometry(0.30, 0.30, 0.24, 12), MAT_PNEU);
@@ -333,6 +342,25 @@ export function buildQuebrada(scene, T) {
     if (!gprop('pilha_pneus', tx, tz, 1.1)) addBox(1.4, 1.1, 1.4, MAT_PNEU, tx, 0, tz);
   for (const [sx2, sz2] of [[19, 39.5], [-19.4, 43.5]])
     if (!gprop('stall', sx2, sz2, 2.3)) addBox(2.4, 2.3, 2.0, MAT_BARRACO[3], sx2, 0, sz2);
+  /* POVOAMENTO DO CAMPO (MAP5). Medido na 1ª passada: os dois quadrantes do campinho tinham
+     4 e 5 peças de cobertura em ~295 m² andáveis, o que dá espaçamento médio de 8,54 m — mais
+     que as duas arestas de grafo (7,0 m) que a régua usa como teto. Um descampado de 44 × 18 m
+     não é "estilo de mapa", é o mesmo defeito do "a loja fica vazia dos cantos": quem atravessa
+     não tem em que se encostar. As peças abaixo são todas de campo de várzea de verdade —
+     banco de reserva, pneu de canto, monte de terra, barraca de bebida na beira. */
+  for (const [tx, tz] of [[-12.5, 31.5], [-12.5, 43], [12.5, 31.5], [12.5, 43], [-6.5, 25.6], [6.5, 25.6]])
+    if (!gprop('tires', tx, tz, 0.75)) addBox(1.15, 0.75, 1.15, MAT_PNEU, tx, 0, tz);
+  for (const bx2 of [-9.2, 9.2]) {   // banco de reserva coberto
+    addBox(2.8, 0.5, 0.8, MAT.concreteDark, bx2, 0, 37.5);
+    addBox(2.8, 0.62, 0.16, MAT.concreteDark, bx2, 0.5, 37.5 + (bx2 < 0 ? -0.32 : 0.32), { collide: false });
+  }
+  // os montes ficam no MIOLO do campo, longe da fileira de respawn: em (4,2 , 40,5) o monte
+  // encostava no slot B de (4,5 , 41,5) e a folga de parede da MAP2B caía pra 0,15 m — o
+  // corpo tem 0,38 m de raio, o jogador nascia dentro do monte.
+  for (const [mx2, mz2] of [[-4.2, 34], [4.6, 33.2]])   // monte de terra/entulho no meio do campo
+    addBox(1.8, 0.85, 1.8, lam({ map: T.dirt, color: 0x9a8b74 }), mx2, 0, mz2);
+  for (const [sx3, sz3] of [[-11.4, 26.4], [11.4, 26.4]])
+    if (!gprop('drinkstand', sx3, sz3, 2.2)) addBox(2.2, 2.2, 1.6, MAT_BARRACO[4], sx3, 0, sz3);
   for (const [px2, pz2] of [[-16.9, 31], [16.9, 43]]) {   // refletor de campo de várzea
     addBox(0.26, 7.2, 0.26, posteMat, px2, 0, pz2);
     addBox(1.2, 0.5, 0.22, lam({ color: 0xcfc9b4 }), px2 + (px2 < 0 ? 0.6 : -0.6), 6.8, pz2, { collide: false, cast: false });
@@ -492,13 +520,24 @@ export function buildQuebrada(scene, T) {
   /* CACAMBA, ENTULHO E VARAL nas vielas e becos. As vielas são corredores de 4 m: sem nada
      dentro elas viram tubos, e o quadrante inteiro aparece DESERTO na MAP5 (o teto é
      espaçamento médio ≤ 7,0 m entre peças de cobertura, = duas arestas do grafo de 3,4 m). */
+  /* ONDE O ENTULHO **NÃO** PODE FICAR — medido, não estimado. A 1ª versão pôs caçamba de
+     1,9 m no CENTRO da viela de 4 m e entulho no CENTRO do beco de 3 m. Resultado no grafo:
+     a fileira de nós (x = ∓23 na viela, z do beco no meio) caía DENTRO da peça, os nós eram
+     rejeitados, e o `segClear` entre os nós dos dois lados atravessava a peça — a viela
+     virava três componentes conexas separadas. Medição: 8 componentes, a viela oeste partida
+     em comp 1 / 3 / 0, e a CTF2 despencou pra 1 rota em 5 dos 8 pares spawn↔bandeira.
+     Corredor estreito só aceita obstáculo ENCOSTADO NA PAREDE, e o vão que sobra tem que ser
+     maior que a inflação da fileira (0,35 m) — aqui sobra 0,55 m no pior caso, e 2,7 m de
+     passagem livre pro corpo de 0,38 m de raio. */
   const MAT_CACAMBA = lam({ color: 0x5e6a52, roughness: 0.85, metalness: 0.25 });
-  for (const [cx, cz] of [[-23, -30], [-23, -6], [-23, 12], [23, -26], [23, 2], [23, 20]])
-    if (!gprop('dumpster', cx, cz, 1.35)) addBox(1.9, 1.35, 2.6, MAT_CACAMBA, cx, 0, cz);
-  for (const [cx, cz] of [[-22.4, -18], [-23.6, 3], [-22.6, 22], [22.4, -12], [23.6, 10], [22.5, -34]])
-    addBox(1.0, 1.0, 1.0, MAT_BARRACO[5], cx, 0, cz);   // pilha de tijolo/sacaria
-  for (const [bx, bz] of [[-16.6, -10.5], [-16.6, 2.5], [-16.6, 16.5], [16.6, -3.5], [16.6, 10.5], [16.6, 20.5]])
-    addBox(1.15, 1.15, 1.15, MAT_BARRACO[1], bx, 0, bz);   // entulho no miolo de cada beco
+  for (const [cx, cz] of [[-24.15, -30], [-24.15, -6], [-24.15, 12], [24.15, -26], [24.15, 2], [24.15, 20]])
+    if (!gprop('dumpster', cx, cz, 1.35)) addBox(1.2, 1.35, 2.6, MAT_CACAMBA, cx, 0, cz);
+  for (const [cx, cz] of [[-24.3, -18], [-21.7, 3], [-24.3, 22], [24.3, -12], [21.7, 10], [24.3, -34]])
+    addBox(1.0, 1.0, 1.0, MAT_BARRACO[5], cx, 0, cz);   // pilha de tijolo/sacaria, colada no muro
+  // entulho na BOCA de cada beco (na calçada, não dentro dele): dá cover a quem sai do beco
+  // sem estrangular a passagem que a CTF2 depende.
+  for (const [bx, bz] of [[-11.6, -8.0], [-11.6, 5.0], [-11.6, 13.6], [11.6, -6.4], [11.6, 13.2], [11.6, 23.2]])
+    addBox(1.15, 1.15, 1.15, MAT_BARRACO[1], bx, 0, bz);
   // varais entre os barracos — só silhueta, a 2,6 m e sem colisor
   const MAT_ROUPA = new THREE.MeshStandardMaterial({ color: 0xd7cfc0, roughness: 0.95, side: THREE.DoubleSide });
   for (const [vx, vz] of [[-23, -22], [-23, 8], [23, -18], [23, 14], [-16.6, 6], [16.6, 15]])
@@ -564,7 +603,11 @@ export function buildQuebrada(scene, T) {
   // spawns: P na VILA DO BAILE (norte, olhando pra praça → yaw π/2); B no CAMPINHO (sul,
   // olhando pra rua → yaw π). Convenção do game.js: forward = (-sin yaw, -cos yaw).
   const spawns = {
-    P: [-23, -20.5, -18, -15.5].map(x => ({ x, z: -42.5, yaw: Math.PI / 2 })),
+    /* [-23,-20.5,-18,-15.5] -> [-22,-19.5,-17,-14.5] (invariante MAP2B). O slot de x = -23
+       ficava a 2,0 m do muro de fundo da vila e o disco de 5 m em volta dele batia na parede
+       oeste: 40,2 m² de chão contíguo, contra um piso de 40 m². Dois metros a leste e o pior
+       slot vai pra ~50 m² sem mexer em nenhuma parede. */
+    P: [-22, -19.5, -17, -14.5].map(x => ({ x, z: -42.5, yaw: Math.PI / 2 })),
     B: [-4.5, -1.5, 1.5, 4.5].map(x => ({ x, z: 41.5, yaw: Math.PI })),
   };
 
