@@ -318,14 +318,37 @@ body{font-family:var(--font);font-weight:600;color:var(--ink1)}
    Cada facção é uma PLACA de cartaz, não um cartão de formulário: arte da facção ao
    fundo, cor própria (--tc) no contorno/rodapé, grito em destaque e o elenco em letra
    miúda embaixo. Duas faces claras = a cor e o slogan dizem quem é quem antes de ler.  */
-#team-select{justify-content:center;gap:var(--s-5);padding:clamp(56px,7vh,90px) var(--s-5) var(--s-6)}
-.team-row{display:flex;gap:var(--s-4);flex-wrap:nowrap;justify-content:center;align-items:stretch;
-  width:min(1280px,96vw)}
-.team-card{flex:1 1 46%;max-width:calc(50% - var(--s-4));min-width:0;aspect-ratio:3/2;cursor:pointer;font-family:inherit;color:#fff;
-  position:relative;overflow:hidden;border:1px solid var(--line);clip-path:var(--cut);background:var(--bg-800);
+/* CARTAZ EM PÉ, NÃO FAIXA DEITADA (referência 02_escolha_faccao.png).
+   Medido na referência 512×341: cada placa ocupa x≈110px (21,5% da largura) por
+   y 100→337 (69% da ALTURA) — proporção ~47:100, um pôster em pé. O jogo tinha
+   `aspect-ratio:3/2`, ou seja 250×167 numa tela de 1024 de altura: 16% da altura,
+   uma tira deitada. É por isso que a arte entrava cortada — não havia altura pra ela.
+   O header também sobe: `justify-content:center` empurrava o título pra 43% da altura
+   e espremia as placas contra o rodapé; na referência o título mora em 16-22%. */
+#team-select{justify-content:flex-start;gap:var(--s-5);padding:clamp(40px,5vh,68px) var(--s-5) var(--s-5);
+  --team-band-h:28px}
+/* VOLTAR no alto à DIREITA (referência 02 e 03); só o map-screen leva ele pro rodapé */
+#team-select .btn-back,#char-select .btn-back{left:auto;right:26px}
+.team-row{display:flex;gap:var(--s-3);flex-wrap:nowrap;justify-content:center;align-items:center;
+  width:min(1280px,96vw);flex:1 1 auto;min-height:0}
+/* Altura POR TETO, não por aspect-ratio: a proporção 47:100 da referência é de uma tela
+   com QUATRO placas; com cinco a coluna cai pra ~245px e o mesmo aspect esticaria o
+   cartão pra 820px (medido: razão 0,30, um espeto). O teto de 620px dá razão ~0,40 e
+   mantém a placa na mesma fatia de altura da referência (~74% da tela) sem sobrar
+   buraco embaixo. Em 1280×720 o 72vh (518px) é quem manda e ainda cabe. */
+.team-card{flex:1 1 20%;max-width:none;min-width:0;height:min(72vh,620px);
+  cursor:pointer;font-family:inherit;color:#fff;
+  display:flex;flex-direction:column;align-items:stretch;text-align:left;padding:0;
+  position:relative;overflow:hidden;border:1px solid var(--line);clip-path:var(--cut);background:var(--tc-bg);
   transition:transform var(--t-slow) var(--ease),box-shadow var(--t) var(--ease),border-color var(--t) var(--ease)}
-/* Só a arte do time (já traz elenco + nome). Sem overlays de texto — pedido do dono. */
-.team-plate,.team-chars,.team-desc,.team-cta{display:none}
+/* fundo = degradê da facção e não --bg-800: `public/img/team-funkeiros.png` NÃO EXISTE no
+   repo (as outras quatro existem), e com fundo neutro a placa dos FUNKEIROS virava um
+   buraco preto no meio da fileira. Assim a arte que falta degrada pra um cartaz na cor
+   da facção em vez de um vazio. O arquivo continua faltando — isto é o amortecedor. */
+/* O elenco e a lista de nomes ficam fora: a referência não tem nem um nem outro, e no
+   jogo `.team-chars` desenhava TRÊS caixas 72px vazias por cima da arte (era esse o
+   "conteúdo cortado" da captura — miniatura que nunca chegou, moldura que ficou). */
+.team-chars,.team-desc{display:none}
 /* LUGAR RESERVADO PRA ARTE POR TIME (o dono vai gerar uma imagem por facção).
    Basta soltar o arquivo em /img/teams/<facção>.jpg. Se ele NÃO existir, a camada
    simplesmente não pinta e o degradê da facção continua sendo o fundo — nada de
@@ -333,59 +356,75 @@ body{font-family:var(--font);font-weight:600;color:var(--ink1)}
 /* O "apagado" do estado ocioso mora AQUI, na camada de arte — nunca num filter no card
    inteiro. O filter antigo (saturate .86) caía também sobre as miniaturas 3D do elenco e
    descolorir personagem é justamente a queixa nº 4 do dono. */
-.team-art{display:block;position:absolute;inset:0;z-index:0;background:var(--art) center/cover no-repeat;
+/* `.team-card>.team-art` e não `.team-art`: a regra genérica `.team-card>*` (logo abaixo)
+   empata em especificidade e vem DEPOIS, então ela estava reescrevendo o position pra
+   `relative` e a camada de arte virava um <span> vazio de ALTURA ZERO. Medido no
+   navegador: artBox = [244, 0]. Era essa a causa raiz de "os cards vêm com conteúdo
+   cortado" — a foto da facção nunca chegou a ser desenhada, e o que aparecia era só o
+   degradê de fundo com as molduras vazias por cima. */
+.team-card>.team-art{display:block;position:absolute;inset:0;z-index:0;background:var(--art) center/cover no-repeat;
   opacity:1;filter:none;transform-origin:center;transition:transform .28s var(--ease)}
 .team-card:hover .team-art,.team-card:focus-visible .team-art,
 .team-card[aria-pressed="true"] .team-art{transform:scale(1.2)}
-.team-p{--tc:#ff6b6b;--art:url('/img/team-time-e.png');
+/* O `-rgb` de cada facção existe pelo mesmo motivo do --bg-900-rgb documentado no topo:
+   o scrim tingido precisa de ALFA, e alfa não sai de um hex guardado em var(). */
+.team-p{--tc:#ff6b6b;--tc-rgb:255,107,107;--art:url('/img/team-time-e.png');
   --tc-bg:linear-gradient(165deg,#b52e2e 0%,#7a1a1a 52%,#3d0d0d 100%)}
-.team-b{--tc:#7de08f;--art:url('/img/team-time-b.png');
+.team-b{--tc:#7de08f;--tc-rgb:125,224,143;--art:url('/img/team-time-b.png');
   --tc-bg:linear-gradient(165deg,#1d8f45 0%,#2f7a2a 46%,#7a6412 100%)}
-.team-u{--tc:#c79bff;--art:url('/img/team-tribos.png');
+.team-u{--tc:#c79bff;--tc-rgb:199,155,255;--art:url('/img/team-tribos.png');
   --tc-bg:linear-gradient(165deg,#5f22c2 0%,#8a1f9c 55%,#3d0f52 100%)}
-.team-c{--tc:#ff8ad1;--art:url('/img/team-palhacos.png');
+.team-c{--tc:#ff8ad1;--tc-rgb:255,138,209;--art:url('/img/team-palhacos.png');
   --tc-bg:linear-gradient(165deg,#d81e8c 0%,#7a1fa0 52%,#e0761a 100%)}
-.team-f{--tc:#ffd23f;--art:url('/img/team-funkeiros.png');
+.team-f{--tc:#ffd23f;--tc-rgb:255,210,63;--art:url('/img/team-funkeiros.png');
   --tc-bg:linear-gradient(165deg,#c78a12 0%,#8a5a0d 52%,#3d2a05 100%)}
-/* scrim de leitura: nasce embaixo (onde mora o texto) e morre no meio da placa, pra
-   não apagar a arte — a mesma lição do scrim do menu principal. */
-.team-card::before{display:none}   /* sem scrim: a imagem aparece limpa e cheia */
+/* CABEÇALHO TINGIDO NA COR DA FACÇÃO (referência 02): o topo de cada placa lava de
+   vermelho/amarelo/roxo e morre no meio, e é isso que faz "quem é quem" ser legível
+   antes de ler o nome. Sem ele o texto branco caía direto na foto e sumia. */
+.team-card::before{content:"";display:block;position:absolute;left:0;right:0;top:0;height:52%;z-index:1;
+  pointer-events:none;
+  background:
+    linear-gradient(180deg,rgba(var(--tc-rgb),.34) 0%,rgba(var(--tc-rgb),.10) 55%,rgba(var(--tc-rgb),0) 100%),
+    linear-gradient(180deg,rgba(var(--bg-900-rgb),.92) 0%,rgba(var(--bg-900-rgb),.62) 52%,rgba(var(--bg-900-rgb),0) 100%)}
 .team-card>*{position:relative;z-index:2}
 .team-card:hover,.team-card:focus-visible{transform:translateY(-6px);
   box-shadow:var(--sh-2);border-color:var(--tc);outline:none}
-/* SELECIONADO: cor cheia, trilho da facção e a etiqueta — estado óbvio a 2 m de distância */
-.team-card[aria-pressed="true"]{border-color:var(--tc);
-  box-shadow:var(--sh-2),inset 0 0 0 2px var(--tc)}
+/* SELECIONADO EM ÂMBAR, não na cor do time: na referência a placa escolhida (PALHAÇOS)
+   tem contorno ÂMBAR, o mesmo de todas as outras telas — seleção é UMA cor no jogo
+   inteiro. A cor da facção continua mandando no cabeçalho e no kicker. */
+.team-card[aria-pressed="true"]{border-color:var(--br-faixa);
+  box-shadow:var(--sh-2),inset 0 0 0 2px var(--br-faixa)}
 .team-card[aria-pressed="true"]::after{content:"SEU LADO";position:absolute;top:0;right:0;z-index:3;
   font-family:var(--mono);font-size:var(--fs-50);letter-spacing:var(--tr-2);color:var(--bg-900);
   background:var(--br-faixa);padding:4px var(--s-3)}
-.team-plate{display:flex;flex-direction:column;gap:2px}
+/* Bloco de leitura no ALTO da placa (referência: kicker → nome → grito, tudo no primeiro
+   terço, sobre o degradê tingido; a foto fica com os dois terços de baixo). */
+.team-plate{display:flex;flex-direction:column;gap:3px;padding:var(--s-3) var(--s-3) 0}
 .team-kicker{font-family:var(--mono);font-size:var(--fs-50);letter-spacing:var(--tr-3);color:var(--tc)}
 /* "BOLSONARISTAS" a 32px + tracking 3px estourava a caixa e vazava pro card vizinho —
-   o corpo encolhe com a largura disponível e a linha pode quebrar. */
-.team-name{font-size:clamp(20px,1.9vw,28px);font-weight:700;letter-spacing:var(--tr-1);
+   o corpo encolhe com a largura disponível e a linha pode quebrar. Com cinco placas em
+   pé a coluna caiu pra ~236px, então o teto desce junto: 22px cabe "BOLSONARISTAS". */
+.team-name{font-size:clamp(15px,1.45vw,22px);font-weight:700;letter-spacing:var(--tr-1);
   text-transform:uppercase;line-height:var(--lh-tight);text-shadow:var(--sh-text)}
-.team-slogan{font-size:var(--fs-300);font-style:italic;font-weight:500;color:var(--ink-100);
-  text-shadow:var(--sh-text)}
+.team-slogan{font-size:var(--fs-100);font-style:italic;font-weight:500;color:var(--ink-100);
+  line-height:var(--lh-snug);text-shadow:var(--sh-text)}
 .team-desc{font-size:var(--fs-100);font-weight:600;letter-spacing:var(--tr-tight);color:var(--ink-200);
   line-height:var(--lh-snug);text-shadow:var(--sh-text)}
-/* CTA no rodapé da placa: a barra na cor do time é o "botão" — ela é o que muda entre
-   o passo do SEU LADO e o passo do ADVERSÁRIO (texto vem do data-step, abaixo). */
-.team-cta{display:block;margin:var(--s-3) calc(var(--s-4) * -1) 0;padding:9px var(--s-4);
-  font-family:var(--font);font-weight:700;font-size:var(--fs-100);letter-spacing:var(--tr-3);
+/* CTA da placa: a referência NÃO tem barra de ação no cartão — o rodapé dela é só a
+   tarja escura com o elenco. Mas o texto daqui carrega informação real (diz se você
+   está escolhendo o SEU lado ou o ADVERSÁRIO, via data-step), então em vez de apagar
+   ele some no repouso e aparece no hover/foco: parada igual à referência, affordance
+   preservada. Fica ancorado logo acima da tarja do rodapé. */
+.team-cta{position:absolute;left:0;right:0;bottom:var(--team-band-h);z-index:3;margin:0;
+  padding:7px var(--s-2);text-align:center;
+  font-family:var(--font);font-weight:700;font-size:var(--fs-50);letter-spacing:var(--tr-2);
   text-transform:uppercase;color:var(--bg-900);background:var(--tc);
-  opacity:.55;transition:opacity var(--t) var(--ease)}
+  opacity:0;transition:opacity var(--t) var(--ease)}
 .team-card:hover .team-cta,.team-card:focus-visible .team-cta{opacity:1}
 #team-select[data-step="side"] .team-cta::before{content:"ENTRAR NESSE CORO ▸"}
 #team-select[data-step="enemy"] .team-cta::before{content:"CHAMAR PRO CORO ▸"}
-/* previews 3D dos personagens da facção (renderizados do GLB real, ver main.js) */
-.team-chars{display:flex;gap:var(--s-2);margin-bottom:auto;min-height:72px;flex-wrap:wrap}
-.team-chars .tc-slot{width:72px;height:72px;display:block;border:1px solid rgba(255,255,255,.22);
-  background:rgba(0,0,0,.34);clip-path:var(--cut-sm)}
-.team-chars img{width:72px;height:72px;display:block;image-rendering:auto}
 @media(max-height:820px){
-  .team-card{height:min(62vh,400px)}
-  .team-chars,.team-chars .tc-slot,.team-chars img{min-height:56px;width:56px;height:56px}
+  .team-name{font-size:clamp(14px,1.3vw,19px)}
 }
 
 /* ---------- character select ----------
@@ -1330,11 +1369,15 @@ html[data-ui="legacy"] .cs-vignette{
 .xp-num{font-family:var(--mono);font-size:9px;letter-spacing:1px;color:var(--ink-400)}
 
 /* ============ AJUSTES DE PARIDADE (references/telas) ============ */
-/* 02 — contador de elenco no rodapé do card de facção (a arte continua protagonista;
-   o contador é um chip discreto, não um overlay de texto como os que o dono tirou) */
-.team-count{position:absolute;bottom:8px;left:0;right:0;z-index:2;text-align:center;
-  font-family:var(--mono);font-size:var(--fs-50);letter-spacing:var(--tr-2);color:var(--ink-100);
-  text-shadow:var(--sh-text);pointer-events:none}
+/* 02 — TARJA de rodapé com o elenco. Na referência é uma faixa escura colada na base da
+   placa, com o número em letra miúda apagada — não texto solto boiando sobre a foto,
+   que era como "9 PERSONAGENS" caía em cima da arte na captura. A altura vira token
+   porque o `.team-cta` se ancora nela: se a tarja mudar, os dois andam juntos. */
+.team-count{position:absolute;bottom:0;left:0;right:0;z-index:4;text-align:center;
+  box-sizing:border-box;height:var(--team-band-h);line-height:calc(var(--team-band-h) - 1px);
+  background:rgba(var(--bg-900-rgb),.90);border-top:1px solid rgba(255,255,255,.10);
+  font-family:var(--mono);font-size:var(--fs-50);letter-spacing:var(--tr-2);color:var(--ink-200);
+  text-shadow:none;pointer-events:none}
 
 /* 04 — chrome persistente da map screen: jogador no topo (nível/XP), VOLTAR embaixo */
 .ms-top{position:absolute;top:0;left:0;right:0;z-index:2;padding:14px 18px;
