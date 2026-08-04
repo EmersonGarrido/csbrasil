@@ -90,7 +90,42 @@ export class Sfx {
     this._lastVoice = performance.now();
     return true;
   }
-  roundSound(team) { const f = this._pick(this.pack?.round?.[team]); if (f) { this._sample(f); return true; } return false; }
+  /* SOM DE FIM DE ROUND — com teto e com fim.
+     Regra do dono (04/08), depois de uma faixa do Mc Magrinho de 188 s atravessar DOIS
+     rounds: "nenhum som de final de round pode ficar mais de 5 segs após o round acabar,
+     o máximo de 20-30 segs".
+
+     Duas travas, porque uma só não basta:
+       · TETO de 25 s com fade de 1,2 s — pega a faixa longa mesmo que nada mais aconteça.
+         O `round/` NÃO tem teto de duração no arquivo (só o `ingame/` tem, 8 s), de
+         propósito: vinheta longa é intencional. Quem corta é aqui, na reprodução.
+       · `stopRound()` no começo do round seguinte (game.js/_startRound) com fade de 0,45 s.
+         É o que garante os "5 s após o round acabar" — o teto sozinho deixaria a vinheta
+         entrar por cima da rodada nova.
+     Fade e não corte seco: som que some no talo lê como bug de áudio. */
+  roundSound(team) {
+    const f = this._pick(this.pack?.round?.[team]);
+    if (!f) return false;
+    this.stopRound(0);                       // vinheta anterior nunca acumula com a nova
+    const a = this._sample(f);
+    if (a) { this._roundAudio = a; this._roundT = setTimeout(() => this.stopRound(1.2), 25000); }
+    return true;
+  }
+  /** Corta a vinheta de round com fade (s). Idempotente: pode ser chamado sempre. */
+  stopRound(fade = 0.45) {
+    clearTimeout(this._roundT); this._roundT = null;
+    const a = this._roundAudio; if (!a) return;
+    this._roundAudio = null;
+    if (fade <= 0) { try { a.pause(); a.currentTime = 0; } catch {} return; }
+    const v0 = a.volume, t0 = performance.now();
+    const step = () => {
+      const k = (performance.now() - t0) / (fade * 1000);
+      if (k >= 1 || a.paused) { try { a.pause(); a.currentTime = 0; } catch {} return; }
+      a.volume = Math.max(0, v0 * (1 - k));
+      requestAnimationFrame(step);
+    };
+    step();
+  }
   csSound(key) { const f = this._cs(key); if (f) { this._sample(f); return true; } return false; }
   general(kind) { const f = this._pick(this.pack?.general?.[kind]); if (f) { this._sample(f); return true; } return false; }
   captureSound(faction) { const arr = (faction && this.pack?.captureByTeam?.[faction]) || this.pack?.capture; const f = this._pick(arr); if (f) { this._sample(f); return true; } return false; }   // captura de bandeira (CTF): pool por facção (captureByTeam) c/ fallback global

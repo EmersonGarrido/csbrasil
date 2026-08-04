@@ -2094,6 +2094,9 @@ export class Game {
     this._startRound();
   }
   _startRound() {
+    // corta a vinheta do round anterior — teto de 25 s no audio.js não cobre o caso de a
+    // rodada nova começar antes disso (regra do dono: nada passa de ~5 s do fim do round)
+    try { this.sfx.stopRound(); } catch {}
     this.roundNum++;
     // o placar do round zera aqui; o acumulado da partida sobrevive pro desempate
     this.matchKills.P += this.roundKills.P; this.matchKills.B += this.roundKills.B;
