@@ -188,19 +188,46 @@ poder usar é pior que não ter espaço.
 
 </details>
 
-### BUG-05 · A UI não bate com as telas de referência (`references/telas/`)
+### BUG-05 · A UI não bate com as telas de referência (`references/telas/`) — PARCIALMENTE FECHADO
 
 Nove telas de referência medidas em `tools/eval/ref_ui.json`. Dois desvios sistemáticos, ambos
 medidos:
 
-- **Cor:** `--bg-900/800/700` são azuis (h ≈ 253°) contra o marrom-neutro medido (h 84-129°).
-  Não foram trocados porque **metade dos scrims do HUD é `rgba(5,8,11,…)` literal no CSS** —
-  token e literal têm que mudar no mesmo commit, senão a tela fica bicolor.
-- **Escala:** a referência mede corpo em **1,17%** da altura e margens **4,5% / 3,1% / 3,5%**;
-  o jogo está em ~1,8% e 1,4-2,2%.
+- **Cor — FECHADO.** `--bg-900/800/700` eram azuis (h ≈ 253°) contra o marrom-neutro medido
+  (h 84-129°). O que travava era o literal: **79 ocorrências de `rgba(5,8,11,…)` no CSS, nenhuma
+  via token**. Consertado na causa — o token virou DERIVADO de `--bg-900-rgb` e todo scrim
+  consome `rgba(var(--bg-900-rgb),α)`, então token e literal não podem mais divergir. Medido
+  depois: o fundo do jogo saiu de h 260,7° para **h 81,0°** e o painel ficou em
+  `#3c372f` L\* 23,2 · C\* 5,4 · h 85,1 contra `#38342e` L\* 22,0 · C\* 4,3 · h 85,5 da
+  referência. Virou invariante na **UI5** (cláusula `b* >= 0`, com a mutação `ui5_fundo_azul`).
+- **Escala — MARGENS FECHADAS, TIPOGRAFIA PARCIAL.** As margens do HUD saíram de 1,17% / 0,98%
+  para **4,49% / 2,73%** (referência 4,69% / 7,03%) — trilho esquerdo de 68 px, direito de 48 px,
+  topo/base de 36 px em 1536×1024. A tipografia subiu os três degraus de título
+  (fs-700/800/900 = 40/56/76 px) e a razão título/corpo foi de 1,80-2,20 para 2,20-3,00 contra
+  3,33-5,00 da referência.
+
+**O QUE FICA ABERTO, e por quê:**
+
+1. **A razão título/corpo não fechou.** Falta ~35%. Subir mais em px cria o problema oposto em
+   tela baixa: a referência é uma FRAÇÃO da altura e o jogo é PX FIXO, então a proporção só bate
+   numa resolução. A correção certa é escala fluida (`clamp()`/`vh`), e ela **está bloqueada pela
+   régua**: `caixaDe()` (`tools/eval/ui-check.mjs:563`) lê `font-size` com `parseFloat`, e a UI3
+   só isenta elemento de canto ancorado em PX (`emPx`, mesma linha de raciocínio em :637).
+   Com `vh`/`clamp()` a UI3 mede caixa de 3,9 px e fica **cega**. **Ordem correta: ensinar
+   `px()`/`caixaDe()` a resolver `clamp()/min()/max()/vh` — com mutação — e só depois tornar a
+   escala fluida.**
+2. **`corpoFracMediana` (o -20% do menor corpo) não foi perseguido de propósito.** O piso de
+   11 px está documentado como "legível em 1280×720" e o desvio repousa numa banda que o próprio
+   `ref-ui.py` admite medir com ±12% de erro a 512 px (docstring). Encolher legibilidade por
+   ruído de instrumento seria o inverso da regra da casa.
+3. **`margens.baseFrac` da tela 05 continua medindo 0,0000.** Não é o CSS (a base do HUD está em
+   36 px = 3,5%): é o instrumento — `margens()` conta tinta de contraste alto, e o **viewmodel**
+   encosta na borda inferior. Medir margem de HUD sobre uma tela com arma exige máscara.
 
 **Verificação exige browser** (`#btn-jogar` é sticky, `.cs-setup` tem largura fixa — mudar
-tipografia sem olhar overflow já quebrou tela antes).
+tipografia sem olhar overflow já quebrou tela antes). As 9 telas foram capturadas em
+Chrome headless a 1536×1024 (3:2, o enquadramento do dono) e medidas com o mesmo `ref-ui.py`
+apontado para as capturas.
 
 ### BUG-06 · Alvo de capturas do CTF não deriva do número de bandeiras
 
