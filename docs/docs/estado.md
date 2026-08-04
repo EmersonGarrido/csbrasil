@@ -245,7 +245,7 @@ todos junto). Use `node tools/eval/vm-solve.mjs` antes de tunar no olho: ele lê
 do próprio `invariants.mjs` e responde se existe um ponto viável — as rodadas anteriores
 tunaram uma invariante por vez e cada acerto quebrava outra.
 
-### TPM1 — asset ausente, não bug de código
+### TPM1 — asset ausente, não bug de código (RESOLVIDA)
 
 ```
 ✗ FALHA   TPM1  sonda de mount 3ª pessoa roda sem erro e sem FAIL
@@ -324,14 +324,19 @@ superfície (normal + roughness + AO) — e hoje são 0 de 44. A referência do 
 
 ## O que está verde, e que vale defender
 
-31 críticas passam. Vale nomear as que custaram mais caro:
+31 críticas passavam em 03/08 (36 hoje). Vale nomear as que custaram mais caro — todas
+continuam verdes, exceto onde indicado:
 
 - **AUD1** — a régua bate com o jogo, incluindo a pose de ADS: *"pior Δ(grip,boca) 0.001 m
   · pior Δescala 0.0004 · lente do JSON casa (V0=42°, VM_OFF=[0.03,-0.1,0]) · termo
   vertical do argumento Y casa (vmOffY(16:9)=-0.1 = VM_OFF[1])"*. É a invariante META que
   fecha os buracos de mutação descritos em [Quality gates](./quality-gates.md#teste-de-mutação-da-própria-régua).
 - **VM14** — 246 pickups em 5 mapas, **0** sem alcance, **0** abaixo do piso, **0**
-  flutuando, com flood-fill de conectividade real (215.758 células no `awp_map`).
+  flutuando, com flood-fill de conectividade real (215.758 células no `awp_map`). *São
+  **244** desde a saída do `praca_old`, que tinha 2 armas no chão — e essa é a única
+  redução de arma no chão da rodada, vinda de mapa apagado, não de mapa vivo. O veto do
+  dono continua valendo: **não reduza o número de armas no chão**, porque hoje é a única
+  forma de o jogador escolher arma.*
 - **MAP1/MAP2/MAP3** — nenhum corpo dentro de sólido; respawn da loja no mezanino a 3,4 m
   com **0,0%** de exposição a ≥ 25 m; escada dentro da NBR 9077 (espelho 0,17 m, piso
   0,2911 m, 2h+p 0,631 m, 31,55°) e o A* sobe por ela.
@@ -339,8 +344,11 @@ superfície (normal + roughness + AO) — e hoje são 0 de 44. A referência do 
   −0,0 a 5,3 por mapa. Com o modo legado (`?vmmat=legacy`) o mesmo ΔL\* no `awp_map` seria
   **15,5**. Esse é o "na mão fica branca/cromada" resolvido e travado.
 - **CHR6** — 44 silhuetas distintas para 44 personagens, 0 pares acima de IoU 0,98.
-- **FOG1 / TEX1** — nenhuma camada de fumaça mais clara que o céu medido (0,75× em todos
-  os 5 mapas), e nenhuma superfície grande e clara sem albedo.
+- **FOG1** — nenhuma camada de fumaça mais clara que o céu medido (0,75× em todos os 5
+  mapas). Segue verde.
+- **TEX1** — nenhuma superfície grande e clara sem albedo. **Hoje está VERMELHA**, por 10
+  superfícies do `fy_quebrada` — o mapa que entrou depois desta medição e ainda está em
+  obra. É regressão de mapa novo, não de personagem.
 
 ## As 4 puladas
 
