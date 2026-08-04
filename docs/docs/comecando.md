@@ -29,33 +29,54 @@ import useBaseUrl from '@docusaurus/useBaseUrl';
 JavaScript vanilla sobre Three.js r160, no estilo do Counter-Strike 1.6: rounds,
 bots, AWP, placar por Tab, rádio de voz. Roda num link, sem instalar nada.
 
-Números **medidos em 2026-08-05**. Cada linha traz o comando que reproduz o número:
-se a sua saída divergir, a árvore andou e é esta tabela que está velha, não o código.
+Os números abaixo **não são escritos à mão**: eles são regerados por
+`node tools/gen-docs.mjs` a partir do código, e `npm run docs:check` reprova o portão
+quando a tabela e a árvore divergem. Antes disso esta página envelhecia no primeiro
+commit — ver [Como manter a doc honesta](./arquitetura.md#o-que-é-gerado-e-o-que-não-é).
+
+{/* BEGIN:GERADO:numeros — não edite à mão, rode `npm run docs` */}
 
 | O que | Quanto | Onde confere |
 |---|---:|---|
-| Código do jogo | 24.693 linhas em 26 arquivos | `cat public/js/*.js \| wc -l` · `ls public/js/*.js \| wc -l` |
+| Código do jogo | 24.698 linhas em 26 arquivos | `cat public/js/*.js \| wc -l` |
 | `game.js` | **6.427** linhas | `wc -l public/js/game.js` |
-| Armas com GLB | 26 | `ls public/models/weapons \| wc -l` |
-| GLBs de personagem | 45 | `ls public/models/characters \| wc -l` |
-| Personagens jogáveis | 44, em 5 facções | `public/js/characters.js`, array `CHARACTERS` |
-| Mapas no registro | 5 | `public/js/maps.js`, objeto `MAPS` |
+| `main.js` | 1.545 linhas | `wc -l public/js/main.js` |
+| Armas com GLB | 26 | `ls public/models/weapons/*.glb \| wc -l` |
+| GLBs de personagem | 45 | `ls public/models/characters/*.glb \| wc -l` |
+| Props em GLB | 108 | `ls public/models/props/*.glb \| wc -l` |
+| Clipes de animação versionados | 438 | `git ls-files public/models/anims \| wc -l` |
+| Personagens jogáveis | 44, em 5 facções | array `CHARACTERS` de `characters.js` |
+| Mapas no registro | 5 | objeto `MAPS` de `maps.js` |
 | Arnêses visuais em HTML | 12 | `ls public/*.html \| wc -l` |
 | Scripts do arnês | 140 | `ls tools/eval/*.mjs tools/eval/*.py \| wc -l` |
-| Versão | `2.0.0-alpha.12` | `public/js/version.js:5` e `package.json` |
+| Scripts de pipeline | 42 | `ls tools/*.mjs \| wc -l` |
+| Migrations do Supabase | 12 | `ls supabase/migrations/*.sql \| wc -l` |
+| Versão | `2.0.0-alpha.13` | `public/js/version.js` e `package.json` (batem) |
 
-E as regras de partida que mais mudam de lugar, todas lidas do `public/js/game.js`:
+> Bloco gerado por `node tools/gen-docs.mjs`. Fonte: `o comando da coluna direita de cada linha`
 
-| Regra | Valor | Onde confere |
+{/* END:GERADO:numeros */}
+
+E as regras de partida que mais mudam de lugar, todas lidas das constantes de
+`public/js/game.js`:
+
+{/* BEGIN:GERADO:regras — não edite à mão, rode `npm run docs` */}
+
+| Regra | Valor | Constante |
 |---|---|---|
-| Facções · personagens | 5 · 44 (P 8 · B 9 · U 9 · C 9 · F 9) | array `CHARACTERS` de `characters.js` |
-| Mapas no menu | 5 — 2 abrem em rodadas, **3 em captura** | `MAPS` em `maps.js:8-36` (`ctfMode`) |
-| Bots por lado | **2×2 a 8×8**, padrão 4×4 | `main.js:847` (menu) · `game.js:772` (o motor aceita 1 a 8) |
-| Respawn | **2,2 s** (`RESPAWN_DELAY`) | `game.js:76` |
-| Round | 99 s, 3 vitórias | `ROUND_TIME` / `ROUNDS_TO_WIN`, `game.js:76` |
-| Captura | alvo de 3 bandeiras, 2 rodadas | `CTF_CAPS_TO_WIN` / `CTF_ROUNDS_TO_WIN`, `game.js:106-107` |
-| Regeneração de vida | **DESLIGADA** — `?regen=1` religa | `game.js:303` |
-| Ranking / páginas `/u/`| **DESLIGADOS** — é uma flag, volta numa linha | `RANKING_ON` em `src/lib/site.ts:68` |
+| Facções · personagens | 5 · 44 (B 9 · C 9 · F 9 · P 8 · U 9) | `CHARACTERS` |
+| Mapas no menu | 5 — 2 abrem em rodadas, **3 em captura** | `MAPS` / `ctfMode` |
+| Respawn | 2,2 s | `RESPAWN_DELAY` |
+| Round | 99 s, 3 vitórias | `ROUND_TIME` / `ROUNDS_TO_WIN` |
+| Captura | alvo de 3 bandeiras, 2 rodadas (rede de segurança 480 s) | `CTF_CAPS_TO_WIN` / `CTF_ROUNDS_TO_WIN` |
+| Regeneração de vida | **DESLIGADA — `?regen=1` religa** | `REGEN` |
+| Ranking / páginas `/u/` | **DESLIGADOS — é uma flag, volta numa linha** | `RANKING_ON` em `src/lib/site.ts` |
+
+> Bloco gerado por `node tools/gen-docs.mjs`. Fonte: `constantes de public/js/game.js · RANKING_ON de src/lib/site.ts`
+
+{/* END:GERADO:regras */}
+
+O menu aceita de **2×2 a 8×8** bots (o motor aceita de 1 a 8 por lado); o padrão é 4×4.
 
 :::note Dois desses são escolha recente, não defeito
 **A regeneração de vida foi desligada** em 05/08 (`REGEN = QS.get('regen') === '1'`). Ela
@@ -73,14 +94,21 @@ e `/api/leaderboard` responde `{disabled:true}`.
 :::
 
 :::caution O portão NÃO está verde, e isso é declarado
-Última execução completa registrada (04/08/2026): **36 de 49 invariantes críticas
-passam**, mais 4 puladas por exigirem browser. A lista das vermelhas, com causa raiz e
-`arquivo:linha`, está em [`KNOWN-BUGS.md`](https://github.com/rubenmarcus/csbrasil/blob/main/KNOWN-BUGS.md)
-— é ele que é mantido dia a dia, não esta página.
+Quantas invariantes passam **não é derivável do código** — é o resultado de uma execução,
+e depende até de qual insumo existe na máquina. Por isso esse placar não é repetido aqui:
+ele mora no cabeçalho de
+[`KNOWN-BUGS.md`](https://github.com/rubenmarcus/csbrasil/blob/main/KNOWN-BUGS.md), colado
+de uma execução real, com a lista das vermelhas, causa raiz e `arquivo:linha` de cada uma.
+É esse arquivo que é mantido dia a dia.
 
-Não repita o número de cabeça: `npm run eval:vm && node tools/eval/invariants.mjs --json`
-leva 10-12 min e devolve o estado de hoje. **A ordem importa** — invariante de viewmodel
-medida com o JSON de ontem inventa vermelha (ver [Como colaborar](./colaborar.md#rodar-o-portão)).
+Para o estado de hoje, rode — não repita número de cabeça:
+
+```bash
+npm run eval:vm && node tools/eval/invariants.mjs --json   # 10-12 min
+```
+
+**A ordem importa**: invariante de viewmodel medida com o JSON de ontem inventa vermelha
+(ver [Como colaborar](./colaborar.md#rodar-o-portão)).
 :::
 
 ## Rodar em 3 comandos
@@ -128,26 +156,29 @@ sendo a primeira pedra no caminho de quem chega.
 
 Duas zonas de código e uma terceira zona que é a razão desta doc existir (o arnês):
 
+Nenhuma contagem aqui: a árvore diz **o que é cada coisa**, e os números vivem na tabela
+gerada lá em cima. Misturar os dois é como o `ARCH.md` escrito à mão nasceu errado.
+
 ```
 public/                 O JOGO — vanilla ES modules, ZERO build
-  js/                     26 arquivos, 24.693 linhas
-    game.js                 6.427 linhas: a classe Game (loop, bots, tiro, HUD)
-    main.js                 1.545 linhas: menu, wiring de DOM, persistência
+  js/
+    game.js               a classe Game (loop, bots, tiro, HUD) — o maior arquivo do repo
+    main.js               menu, wiring de DOM, persistência
     vmattach.js springs.js weapons.js fparms.js handik.js   viewmodel/armas
-    maps.js                 registro dos 5 mapas do menu (quem não está aqui não é jogável)
+    maps.js               o REGISTRO de mapas (quem não está aqui não é jogável)
     map_brasilia.js map_pool_day.js map_havan.js
-    map_ferrovelho.js map_quebrada.js                       os 5 mapas
-    map_pool_ramos.js       "Piscinão" — existe no disco, FORA do registro
+    map_ferrovelho.js map_quebrada.js                       os mapas registrados
+    map_pool_ramos.js     "Piscinão" — existe no disco, FORA do registro
     mapprops.js map_decals.js                               props e grafite
     bloom.js textures.js vao.js stylize.js gpuparticles.js  gráficos/FX
     characters.js glbchars.js                               personagens
     audio.js version.js site-bg.js
-  models/                 26 armas + 45 personagens em GLB
-  vendor/                 Three.js r160 vendorizado (sem CDN, sem npm no runtime)
+  models/                 armas, personagens, props e clipes de animação em GLB
+  vendor/                 Three.js vendorizado (sem CDN, sem npm no runtime)
   style.css               o HUD inteiro
-  *.html                  12 arnêses visuais (eval, mapview, weapontest, vm-inspect…)
+  *.html                  arnêses visuais (eval, mapview, weapontest, vm-inspect…)
 
-src/                    O SITE (Astro 7 + adapter Vercel)
+src/                    O SITE (Astro + adapter Vercel)
   pages/index.astro       ⚠ ISTO É O JOGO (HTML + import map + HUD)
   pages/sobre.astro       landing/FAQ com JSON-LD
   pages/personagens.astro  como-jogar.astro  ranking.astro  mapa.astro
@@ -157,16 +188,37 @@ src/                    O SITE (Astro 7 + adapter Vercel)
   lib/                    supabase, svg, geo, fmt
 
 tools/
-  eval/                   O ARNÊS — 140 scripts .mjs/.py. Ver "Quality gates"
-    invariants.mjs          o portão (49 críticas + 4 que exigem browser, medido 04/08)
+  eval/                   O ARNÊS — réguas, portão e sondas. Ver "Quality gates"
+    invariants.mjs          o portão
     ref-measure.py          mede os frames de referência (a doutrina da casa)
     harness.mjs             sobe o Game real em node com DOM stubado
     ARCH.md BAR.md          mapa de conflito (gerado) e a régua visual
   gen-arch.mjs            gera e VALIDA o ARCH.md
+  gen-docs.mjs            gera e VALIDA os blocos numéricos desta documentação
+  gen-asset.mjs           gera prop 3D por texto (Tripo/Meshy)
+  gen-image.mjs           gera arte 2D por texto (OpenRouter)
 
-supabase/               schema + 12 migrations do ranking (DESLIGADO — ver estado.md)
+supabase/               schema + migrations do ranking (DESLIGADO — ver estado.md)
 .github/workflows/ci.yml  o portão rodando em CI
 ```
+
+Os mapas registrados hoje, e em que modo cada um abre:
+
+{/* BEGIN:GERADO:mapas — não edite à mão, rode `npm run docs` */}
+
+| Id | Nome no menu | Abre em | Arquivo |
+|---|---|---|---|
+| `awp_map` | Praça dos Três Poderes | rodadas | `public/js/map_brasilia.js` (1.730 linhas) |
+| `fy_pool_day` | Piscina da Treta | rodadas | `public/js/map_pool_day.js` (701 linhas) |
+| `fy_havan` | Loja H (Estacionamento) | **captura** | `public/js/map_havan.js` (1.866 linhas) |
+| `fy_ferrovelho` | Ferro Velho do Zé | **captura** | `public/js/map_ferrovelho.js` (1.837 linhas) |
+| `fy_quebrada` | Quebrada (Rua do Baile) | **captura** | `public/js/map_quebrada.js` (1.319 linhas) |
+
+**5 mapas registrados** — 2 abrem em rodadas e 3 em captura. `ctfMode` **abre** o mapa em captura, não prende: o jogador troca no menu (é a `MOD1`). Há 6 arquivos `map_*.js` em `public/js/` — arquivo no disco **não** implica mapa jogável.
+
+> Bloco gerado por `node tools/gen-docs.mjs`. Fonte: `objeto MAPS de public/js/maps.js`
+
+{/* END:GERADO:mapas */}
 
 ### As duas zonas, e por que a fronteira é dura
 
@@ -192,19 +244,30 @@ chegavam ao usuário" por dias.
 ```bash
 npm run dev            # site + jogo (Astro, :4321) — a rota / JÁ É o jogo
 npm run build          # dist/client + dist/server
-npm run check          # O PORTÃO INTEIRO: syntax + áudio + ctfhud + vm + invariantes + coice + bots
-npm run check:fast     # ~1 min, sem as invariantes: syntax + arch + áudio + pés + anims
-                       #   + ctfhud + pausa + rodada de CTF + regeneração
-npm run eval:vm        # enquadramento do viewmodel nas 26 armas — RODE ANTES das invariantes
+npm run eval:vm        # enquadramento do viewmodel — RODE ANTES das invariantes
 npm run eval:invariants # as invariantes — node puro, 10-12 min
-npm run eval:bots      # botsim 60 s × 5 mapas, sementes fixas
-npm run eval:mat       # material/luz/fog/textura nos 5 mapas
+npm run eval:bots      # botsim 60 s por mapa, sementes fixas
+npm run eval:mat       # material/luz/fog/textura nos mapas
+npm run docs           # regenera os blocos numéricos desta documentação
 node tools/eval/serve.mjs 8123   # servidor estático sem Astro
 ```
 
-Todos estão em `package.json`, e vários trazem um par `//nome` logo acima com o motivo de
-existirem — é onde mora o porquê. O `npm run check` é o mesmo conjunto que o CI roda em
-`.github/workflows/ci.yml`.
+E os dois portões, com a lista exata do que cada um roda — direto do `package.json`:
+
+{/* BEGIN:GERADO:scripts — não edite à mão, rode `npm run docs` */}
+
+```bash
+npm run check        # npm run syntax && npm run audio:check && npm run eval:ctfhud && npm run eval:vm && npm run eval:invariants && npm run eval:kick && npm run eval:bots
+npm run check:fast   # npm run syntax && npm run arch:check && npm run docs:check && npm run audio:check && npm run feet:check && npm run anims:check && npm run eval:ctfhud && npm run eval:pause && npm run eval:ctfround && npm run eval:regen
+```
+
+`package.json` tem **34 scripts**. Vários trazem uma chave `//nome` logo acima com o motivo de existirem — é onde mora o porquê.
+
+> Bloco gerado por `node tools/gen-docs.mjs`. Fonte: `node -p "Object.keys(require('./package.json').scripts)"`
+
+{/* END:GERADO:scripts */}
+
+O `npm run check` é o mesmo conjunto que o CI roda em `.github/workflows/ci.yml`.
 
 :::tip Use o `check:fast` no loop, o `check` antes do PR
 O `check` gasta 10-12 min porque sobe o jogo cinco vezes. O `check:fast` cobre as réguas

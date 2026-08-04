@@ -42,11 +42,10 @@ $ npm run arch:check
          Rode: npm run arch
 ```
 
-O motivo desta vez é pequeno e vale conhecer, porque a mensagem induz ao erro: **o índice
-de símbolos está certo.** O que ficou para trás é o **número de versão do jogo**, que o
-bloco gerado também carrega e que subiu para `2.0.0-alpha.12` sem ninguém rodar
-`npm run arch`. A mensagem fala de linhas porque é o resumo que ela sabe imprimir; o que o
-`--check` compara de verdade é o bloco inteiro, byte a byte. Um comando resolve.
+A mensagem induz ao erro de propósito: ela **fala de linhas porque é o resumo que sabe
+imprimir**, mas o que o `--check` compara é o bloco gerado inteiro, byte a byte — e esse
+bloco carrega também o número de versão do jogo. Índice de símbolo certo e versão velha dá
+a mesma vermelha. Um comando resolve.
 
 Cuidado que continua valendo: no CI o passo está com `continue-on-error: true`, então o
 cheque roda mas **não bloqueia** — foi exatamente por isso que ele conseguiu ficar
@@ -54,55 +53,52 @@ vermelho sem que ninguém percebesse. Tirar essa linha é o que o transforma em 
 verdade.
 :::
 
-## Os arquivos indexados, medidos agora
+## Os arquivos indexados
 
-`node tools/gen-arch.mjs --json`, nesta árvore:
+Tamanho dos arquivos que o `gen-arch.mjs` indexa — bloco gerado, regenerado por
+`npm run docs` e conferido por `npm run docs:check`:
 
-| Arquivo | Linhas | Símbolos |
-|---|---:|---:|
-| `public/js/game.js` | 6.428 | 228 |
-| `public/js/main.js` | 1.546 | 147 |
-| `public/js/characters.js` | 1.061 | 41 |
-| `public/js/glbchars.js` | 750 | 59 |
-| `public/js/vmattach.js` | 628 | 4 |
-| `public/js/weapons.js` | 345 | 20 |
-| `public/js/springs.js` | 261 | 28 |
+{/* BEGIN:GERADO:arquivos — não edite à mão, rode `npm run docs` */}
+
+| Arquivo | Linhas |
+|---|---:|
+| `public/js/game.js` | 6.427 |
+| `public/js/main.js` | 1.545 |
+| `public/js/characters.js` | 1.060 |
+| `public/js/glbchars.js` | 754 |
+| `public/js/vmattach.js` | 627 |
+| `public/js/weapons.js` | 344 |
+| `public/js/springs.js` | 260 |
+
+Total de `public/js/`: **24.698 linhas em 26 arquivos**. O índice símbolo→linha, com a tabela de conflito, é outro bloco gerado: `tools/eval/ARCH.md` (`npm run arch`).
+
+> Bloco gerado por `node tools/gen-docs.mjs`. Fonte: ``wc -l public/js/*.js``
+
+{/* END:GERADO:arquivos */}
 
 ### Os maiores métodos de `game.js` — onde o conflito mora
 
-Os 15 maiores somam **3.219 linhas, 50% do arquivo** — a concentração PIOROU desde a
-medição anterior (2.717 linhas / 46%). Método grande = PR irrevisável e merge conflitante.
+Esta tabela **não é reproduzida aqui**, e a razão é a própria tese da página: ela é
+`linha → método`, o lado volátil da separação, e duplicá-la numa página de prosa cria uma
+segunda cópia que envelhece sozinha. Ela vive gerada, num lugar só:
 
-| Linhas | Início | Método | |
-|---:|---:|---|---|
-| 800 | 5308 | `_updateBot()` | ⚠️ candidato a extração |
-| 522 | 675 | `constructor()` | 🔴 append-only |
-| 327 | 4585 | `_updatePlayer()` | ⚠️ candidato a extração |
-| 244 | 2149 | `_resetPositions()` | |
-| 242 | 1286 | `_buildViewModels()` | |
-| 237 | 1676 | `_buildStaticVmClass()` | |
-| 148 | 1528 | `_vmFrame()` | |
-| 146 | 4912 | `_updatePickups()` | |
-| 133 | 4204 | `_botCtf()` | |
-| 83 | 2889 | `_tryShoot()` | |
-| 77 | 3220 | `_dmgArc()` | |
-| 69 | 4343 | `_updateCtfHud()` | |
-| 66 | 6146 | `_updateRadar()` | |
-| 64 | 3369 | `_wpnIcon()` | |
-| 61 | 6332 | `update()` | |
+```bash
+npm run arch                        # regenera tools/eval/ARCH.md
+node tools/gen-arch.mjs --json      # o índice cru, para outra ferramenta
+```
 
-> Os números de linha desta tabela envelhecem a cada commit em `game.js`, de propósito:
-> a fonte é `node tools/gen-arch.mjs --json`, e o `tools/eval/ARCH.md` gerado é o que
-> vale na hora de partir trabalho. Esta tabela é ilustração, não contrato.
-
-Um método de 800 linhas é dívida declarada. Extrair `_updateBot` em partes menores é
-trabalho de valor alto e risco médio — coordene antes de começar, porque a região é
-compartilhada.
+O que **não** envelhece, e por isso fica escrito aqui: `_updateBot()` é de longe o maior
+método do arquivo e está marcado pelo próprio índice como **candidato a extração**;
+`constructor()`, `update()` e `_dom()` são **zona vermelha, append-only**, porque qualquer
+frente pode precisar deles. Método grande = PR irrevisável e merge conflitante — extrair
+`_updateBot` é trabalho de valor alto e risco médio, e exige coordenar antes, porque a
+região é disputada.
 
 ## Faixas de linha disjuntas
 
 Este é o mecanismo que permite vários agentes (ou contribuidores) editarem o **mesmo
-arquivo de 6.428 linhas** ao mesmo tempo, sem conflito de merge.
+arquivo** — o maior do repositório, com milhares de linhas — ao mesmo tempo, sem conflito
+de merge.
 
 ### Como funciona
 
@@ -161,7 +157,7 @@ Três métodos são **append-only**, porque qualquer frente pode precisar deles
 
 - `update()` — o loop
 - `_dom()` — o wiring de HUD
-- `constructor()` — **522 linhas** hoje, o segundo maior método do arquivo
+- `constructor()` — um dos maiores métodos do arquivo (o tamanho de hoje está no `ARCH.md`)
 
 Editar o miolo destes é o jeito mais rápido de dois contribuidores se atropelarem.
 Acrescente no fim; não reorganize.
@@ -187,9 +183,12 @@ vai colidir com três frentes diferentes. Um PR por frente entra rápido.
 
 ```
 public/     jogo      vanilla ES modules, zero build, Three.js vendorizado
-src/        site      Astro 7 + adapter Vercel, API routes SSR
-tools/      arnês     140 scripts .mjs/.py — a régua, o portão e as sondas
+src/        site      Astro + adapter Vercel, API routes SSR
+tools/      arnês     scripts .mjs/.py — a régua, o portão e as sondas
 ```
+
+Versões, contagens e o que cada ferramenta faz estão em
+[Stack e ferramentas](./stack.md) — **gerado**, não escrito à mão.
 
 O acoplamento entre elas é deliberadamente fino e vale entender:
 
@@ -210,10 +209,74 @@ com a portabilidade.
 
 ## Sistema de dados de conteúdo
 
-Hoje mapas, armas e personagens são **código** (`map_havan.js` tem 1.866 linhas de
-geometria declarada à mão). O `ROADMAP.md`, Fase 2, define a direção: migrar para JSON
-com loader único, para que uma contribuição de conteúdo seja *"abre um JSON e cria
-conteúdo"* em vez de *"um PR de código hand-coded arriscado"*.
+Hoje mapas, armas e personagens são **código**: cada `map_*.js` é geometria declarada à
+mão, e os maiores deles rivalizam em tamanho com os módulos de sistema. O `ROADMAP.md`,
+Fase 2, define a direção: migrar para JSON com loader único, para que uma contribuição de
+conteúdo seja *"abre um JSON e cria conteúdo"* em vez de *"um PR de código hand-coded
+arriscado"*.
 
 Se você quer o trabalho de maior alavancagem no projeto inteiro, é esse. Ver
 [Roadmap e estado](./estado.md).
+
+## O que é gerado, e o que não é
+
+Duas coisas neste repositório são geradas por script, e pela mesma razão:
+
+| Gerado | Script | Portão |
+|---|---|---|
+| `tools/eval/ARCH.md` — índice símbolo→linha e tabela de conflito | `tools/gen-arch.mjs` | `npm run arch:check` |
+| Os blocos numéricos de `README.md` e desta documentação | `tools/gen-docs.mjs` | `npm run docs:check` (no `check:fast`) |
+
+A regra que separa o que entra e o que fica:
+
+- **Derivável do código?** Vira bloco gerado, entre marcadores, com `--check` no portão.
+  Contagem de linhas, de personagens, de armas, de mapas, de scripts, de invariantes,
+  versão, lista de scripts do `package.json`, versão de dependência.
+- **Não derivável?** Então é decisão ou explicação — e **não deve conter número que
+  envelhece**. Escreva sem o número, ou cite o comando que o produz. O placar do portão,
+  por exemplo, depende de qual insumo existe na máquina: ele mora colado de uma execução
+  real no `KNOWN-BUGS.md`, não repetido em cinco páginas.
+
+E o motivo de o `--check` estar no portão, não só disponível: **o que não vira régua é
+otimizado para fora.** Um gerador que ninguém é obrigado a rodar desatualiza em uma semana,
+e aí a documentação volta a mentir com a aparência de rigor — que é pior do que mentir sem
+ela.
+
+Colar um bloco novo é escrever o marcador e rodar `npm run docs`:
+
+```
+{/* BEGIN:GERADO:NOME_DO_BLOCO — não edite à mão, rode `npm run docs` */}
+{/* END:GERADO:NOME_DO_BLOCO */}
+```
+
+(`NOME_DO_BLOCO` é uma das chaves do objeto `BLOCOS` no topo do `gen-docs.mjs`. Bloco
+declarado que ninguém consome vira aviso alto na saída — bloco órfão é código morto que
+finge ser documentação.)
+
+Em Markdown puro (`README.md`) o marcador é comentário HTML (`<!-- BEGIN:GERADO:… -->`).
+Nas páginas desta doc é comentário **MDX** (`{/* … */}`): o Docusaurus 3 compila `.md`
+como MDX, e comentário HTML ali é erro de parse que derruba o build. O gerador aceita as
+duas sintaxes e preserva a que encontrar.
+
+### O que o gerador NÃO resolve: ponteiros `arquivo:linha` na prosa
+
+Um `game.js:5361` escrito no meio de um parágrafo é a versão barata do mesmo defeito — ele
+aponta pro lugar errado no primeiro commit que mexer no arquivo. Não dá pra gerar (o
+ponteiro faz parte da frase), mas dá pra **detectar o caso grosseiro**: ponteiro que aponta
+para além do fim do arquivo.
+
+{/* BEGIN:GERADO:ponteiros — não edite à mão, rode `npm run docs` */}
+
+⚠️ **Ponteiros que apontam para além do fim do arquivo** (a prosa envelheceu — corrija à mão):
+
+- `docs/docs/arquitetura.md` → `game.js:99999` (o arquivo tem 6.427 linhas)
+
+> Isto confere só o **limite** do arquivo: um ponteiro que ainda cabe mas mudou de assunto passa aqui. É a razão de a doutrina da casa ser declarar o SÍMBOLO e deixar a linha para o gerador — ver `tools/gen-arch.mjs`.
+
+> Bloco gerado por `node tools/gen-docs.mjs`. Fonte: `varredura de `arquivo:linha` em README/STATUS/HANDOFF/KNOWN-BUGS/docs/docs/SKILL`
+
+{/* END:GERADO:ponteiros */}
+
+Por isso a doutrina é declarar o **símbolo** e deixar a linha para o gerador. Quando o
+`arquivo:linha` for mesmo necessário, cite junto o nome do que está lá — assim quem ler
+daqui a um mês acha por `grep` mesmo com o ponteiro deslocado.

@@ -7,9 +7,32 @@
 ![CORO SOLTO: Treta Suprema — arena de sniper estilo CS 1.6 numa Brasília fictícia](public/og-image.png)
 
 **FPS gratuito de navegador em Three.js**: arena de sniper estilo CS 1.6
-(`awp_map`) numa Brasília fictícia e satírica. 5 facções, 44 personagens
-originais, 5 mapas, 26 armas, bots, rounds e Capture the Flag. Sem download,
-sem instalação, sem cadastro.
+(`awp_map`) numa Brasília fictícia e satírica. Facções, personagens originais,
+mapas, arsenal, bots, rounds e Capture the Flag. Sem download, sem instalação,
+sem cadastro.
+
+<!-- BEGIN:GERADO:numeros — não edite à mão, rode `npm run docs` -->
+
+| O que | Quanto | Onde confere |
+|---|---:|---|
+| Código do jogo | 24.698 linhas em 26 arquivos | `cat public/js/*.js \| wc -l` |
+| `game.js` | **6.427** linhas | `wc -l public/js/game.js` |
+| `main.js` | 1.545 linhas | `wc -l public/js/main.js` |
+| Armas com GLB | 26 | `ls public/models/weapons/*.glb \| wc -l` |
+| GLBs de personagem | 45 | `ls public/models/characters/*.glb \| wc -l` |
+| Props em GLB | 108 | `ls public/models/props/*.glb \| wc -l` |
+| Clipes de animação versionados | 438 | `git ls-files public/models/anims \| wc -l` |
+| Personagens jogáveis | 44, em 5 facções | array `CHARACTERS` de `characters.js` |
+| Mapas no registro | 5 | objeto `MAPS` de `maps.js` |
+| Arnêses visuais em HTML | 12 | `ls public/*.html \| wc -l` |
+| Scripts do arnês | 140 | `ls tools/eval/*.mjs tools/eval/*.py \| wc -l` |
+| Scripts de pipeline | 42 | `ls tools/*.mjs \| wc -l` |
+| Migrations do Supabase | 12 | `ls supabase/migrations/*.sql \| wc -l` |
+| Versão | `2.0.0-alpha.13` | `public/js/version.js` e `package.json` (batem) |
+
+> Bloco gerado por `node tools/gen-docs.mjs`. Fonte: `o comando da coluna direita de cada linha`
+
+<!-- END:GERADO:numeros -->
 
 > **Hoje o jogo é só contra bots.** Não existe multiplayer entre humanos: um
 > `grep RTCPeerConnection` no repositório devolve zero, e não há netcode em
@@ -33,11 +56,39 @@ sem instalação, sem cadastro.
 |---|---|
 | curioso | esta página, e depois <https://www.csbrasil.online> |
 | dev novo (ou agente) | [`STATUS.md`](STATUS.md) → [`docs/README.md`](docs/README.md) → [`CONTRIBUTING.md`](CONTRIBUTING.md) |
-| quer contribuir hoje | [`docs/issues/`](docs/issues/) — 15 tarefas com arquivos e critério de aceite |
+| quer entender a stack | [`docs/docs/stack.md`](docs/docs/stack.md) — Three.js, Astro, Supabase, geração de asset, skills |
+| quer contribuir hoje | [`docs/issues/`](docs/issues/) — tarefas de entrada com arquivos e critério de aceite |
 | quer saber o que está quebrado | [`KNOWN-BUGS.md`](KNOWN-BUGS.md) — defeitos com `arquivo:linha` e passo de reprodução |
 
 **Site de documentação** (Docusaurus, com instrumentação de IA, quality gates e
 arquitetura): `cd docs && npm install && npm start` → <http://localhost:3000/docs/>.
+
+## Stack
+
+<!-- BEGIN:GERADO:stack — não edite à mão, rode `npm run docs` -->
+
+| Camada | Ferramenta | Versão | Onde está declarada |
+|---|---|---|---|
+| Motor 3D | **Three.js** (WebGL) | `r160` | `public/vendor/three.module.js` — **vendorizado**, sem CDN e sem npm no runtime |
+| Jogo | ES modules vanilla | — | `public/js/` (26 arquivos, **zero build**) |
+| Site | **Astro** com SSR | `^7.1.1` | `package.json` · `astro.config.mjs` |
+| Hospedagem | adapter **Vercel** | `^11.0.3` | `package.json` · `vercel.json` |
+| Banco | **Supabase** (Postgres + RLS) | `^2.110.7` | `supabase/` (12 migrations) |
+| Browser nas réguas | **Playwright** | `^1.62.1` | 89 scripts de `tools/` importam |
+| Pipeline de GLB | **gltf-transform** | `^4.4.1` | 35 scripts de `tools/` importam |
+| Compressão de malha | **meshoptimizer** | `^1.2.0` | 4 scripts de `tools/` importam |
+| Imagem (build/API) | **sharp** · **resvg** | `^0.35.3` · `^2.6.2` | badge PNG em runtime, textura em WebP |
+| Esta documentação | **Docusaurus** | `3.6.3` | `docs/package.json` |
+| Runtime de CI | **Node** | `22` | `.github/workflows/ci.yml` |
+
+> Bloco gerado por `node tools/gen-docs.mjs`. Fonte: `dependencies/devDependencies do package.json · REVISION de public/vendor/three.module.js`
+
+<!-- END:GERADO:stack -->
+
+O detalhe de cada uma — por que o jogo não tem build, como o asset é gerado
+(mint.gg, Tripo3D, Meshy, OpenRouter), o que Playwright e gltf-transform fazem
+aqui, e o que são as skills de agente — está em
+[Stack e ferramentas](docs/docs/stack.md).
 
 ## Arquitetura
 
@@ -55,6 +106,10 @@ Um repositório, **duas zonas com regras diferentes**:
 O ranking global vive no **Supabase** (`supabase/`). A `service_role` key fica
 só no servidor; a `anon` key é pública por design, e a segurança vem das
 policies e dos grants por coluna.
+
+Sem contagem na árvore abaixo — os números vivem no bloco gerado lá em cima.
+Índice por número escrito à mão desatualiza no primeiro commit; é a mesma razão
+de o `tools/eval/ARCH.md` ser gerado.
 
 ```
 STATUS.md              estado de hoje (leia primeiro)
@@ -75,10 +130,13 @@ src/
 public/                O JOGO (vanilla, zero build)
   js/ vendor/ models/ style.css robots.txt llms.txt og-image.png
   audio/                 ⚠ NÃO versionado — ver "Áudio" abaixo
-supabase/              schema, 12 migrations e a ofuscação opcional
-tools/                 scripts one-off de asset e pipeline
+supabase/              schema, migrations e a ofuscação opcional
+tools/                 pipeline de asset (gen-asset, gen-image, otimização de GLB)
+  gen-arch.mjs         GERA tools/eval/ARCH.md (índice + tabela de conflito)
+  gen-docs.mjs         GERA os blocos numéricos deste README e de docs/
 tools/eval/            o arnês de medição e os portões de qualidade
-docs/                  documentação para devs (Docusaurus) + as 15 issues de entrada
+docs/                  documentação para devs (Docusaurus) + as issues de entrada
+.agents/skills/        skills de agente (.claude/skills/ são symlinks pra cá)
 ```
 
 **Duas pastas NÃO vêm no clone**, por decisão registrada: `public/audio/` (direitos
@@ -112,14 +170,31 @@ está lá. Use `npm run dev`.
 
 ## Portão de qualidade
 
+<!-- BEGIN:GERADO:scripts — não edite à mão, rode `npm run docs` -->
+
 ```bash
-npm run check        # sintaxe de public/js + invariantes + viewmodel + coice + bots
-npm run check:fast   # só sintaxe + ARCH.md atualizado (segundos)
-npm run arch         # regenera tools/eval/ARCH.md
+npm run check        # npm run syntax && npm run audio:check && npm run eval:ctfhud && npm run eval:vm && npm run eval:invariants && npm run eval:kick && npm run eval:bots
+npm run check:fast   # npm run syntax && npm run arch:check && npm run docs:check && npm run audio:check && npm run feet:check && npm run anims:check && npm run eval:ctfhud && npm run eval:pause && npm run eval:ctfround && npm run eval:regen
+```
+
+`package.json` tem **34 scripts**. Vários trazem uma chave `//nome` logo acima com o motivo de existirem — é onde mora o porquê.
+
+> Bloco gerado por `node tools/gen-docs.mjs`. Fonte: `node -p "Object.keys(require('./package.json').scripts)"`
+
+<!-- END:GERADO:scripts -->
+
+```bash
+npm run arch         # regenera tools/eval/ARCH.md (índice + tabela de conflito)
+npm run docs         # regenera os blocos numéricos deste README e de docs/
 ```
 
 Nada commita com invariante vermelha. O catálogo do arnês está em
 [`tools/eval/README.md`](tools/eval/README.md).
+
+**Documentação que carrega número é gerada.** `npm run docs:check` (dentro do
+`check:fast`) reprova quando um bloco gerado diverge do código — foi assim que
+uma linha afirmando "`game.js` tem 3.234 linhas" sobreviveu até o arquivo
+dobrar de tamanho.
 
 > `npm run check` lê GLBs de `public/models/`. Numa árvore sem os assets
 > baixados, `eval:invariants` e `eval:vm` falham com `ENOENT` — é ambiente, não
@@ -143,15 +218,51 @@ Nada commita com invariante vermelha. O catálogo do arnês está em
 | Tab | Placar |
 | Esc | Pausar |
 
-**Regras:** 4×4 contra bots **por padrão** — o menu aceita de 1 a 8 por lado
-(`settings.bots`) — com respawn de **2,2 s** (`public/js/game.js:76`,
-`RESPAWN_DELAY`). Round de 1:39; o time com mais abates leva o round; 3 rounds
-vencem a partida e a 5ª rodada é o teto. AWP mata com um tiro em qualquer lugar
-do corpo. Multikills disparam anúncios estilo Unreal Tournament. Capture the
-Flag tem 4 bandeiras e é o padrão em 3 dos 5 mapas.
+**Regras**, lidas das constantes de `public/js/game.js`:
+
+<!-- BEGIN:GERADO:regras — não edite à mão, rode `npm run docs` -->
+
+| Regra | Valor | Constante |
+|---|---|---|
+| Facções · personagens | 5 · 44 (B 9 · C 9 · F 9 · P 8 · U 9) | `CHARACTERS` |
+| Mapas no menu | 5 — 2 abrem em rodadas, **3 em captura** | `MAPS` / `ctfMode` |
+| Respawn | 2,2 s | `RESPAWN_DELAY` |
+| Round | 99 s, 3 vitórias | `ROUND_TIME` / `ROUNDS_TO_WIN` |
+| Captura | alvo de 3 bandeiras, 2 rodadas (rede de segurança 480 s) | `CTF_CAPS_TO_WIN` / `CTF_ROUNDS_TO_WIN` |
+| Regeneração de vida | **DESLIGADA — `?regen=1` religa** | `REGEN` |
+| Ranking / páginas `/u/` | **DESLIGADOS — é uma flag, volta numa linha** | `RANKING_ON` em `src/lib/site.ts` |
+
+> Bloco gerado por `node tools/gen-docs.mjs`. Fonte: `constantes de public/js/game.js · RANKING_ON de src/lib/site.ts`
+
+<!-- END:GERADO:regras -->
+
+O menu aceita de 1 a 8 bots por lado (`settings.bots`); o padrão é 4×4. O time
+com mais abates leva o round. AWP mata com um tiro em qualquer lugar do corpo.
+Multikills disparam anúncios estilo Unreal Tournament.
 
 **Regeneração de vida está DESLIGADA** (decisão do dono, 05/08/2026): vida só
-volta com respawn. `?regen=1` religa a regra antiga.
+volta com respawn. `?regen=1` religa a regra antiga — inteira, com a simetria
+jogador↔bot. Ela foi desligada porque era **invisível**: sem ícone, sem som e
+sem linha nas configurações, e regra que o jogador não percebe é
+indistinguível de defeito.
+
+Os mapas registrados, e em que modo cada um abre:
+
+<!-- BEGIN:GERADO:mapas — não edite à mão, rode `npm run docs` -->
+
+| Id | Nome no menu | Abre em | Arquivo |
+|---|---|---|---|
+| `awp_map` | Praça dos Três Poderes | rodadas | `public/js/map_brasilia.js` (1.730 linhas) |
+| `fy_pool_day` | Piscina da Treta | rodadas | `public/js/map_pool_day.js` (701 linhas) |
+| `fy_havan` | Loja H (Estacionamento) | **captura** | `public/js/map_havan.js` (1.866 linhas) |
+| `fy_ferrovelho` | Ferro Velho do Zé | **captura** | `public/js/map_ferrovelho.js` (1.837 linhas) |
+| `fy_quebrada` | Quebrada (Rua do Baile) | **captura** | `public/js/map_quebrada.js` (1.319 linhas) |
+
+**5 mapas registrados** — 2 abrem em rodadas e 3 em captura. `ctfMode` **abre** o mapa em captura, não prende: o jogador troca no menu (é a `MOD1`). Há 6 arquivos `map_*.js` em `public/js/` — arquivo no disco **não** implica mapa jogável.
+
+> Bloco gerado por `node tools/gen-docs.mjs`. Fonte: `objeto MAPS de public/js/maps.js`
+
+<!-- END:GERADO:mapas -->
 
 ## Ranking global — DESLIGADO
 
@@ -172,7 +283,8 @@ O motivo é o de sempre nesta base — o modelo é **client-authoritative**, o p
 rate limit por nick/IP/dia, tetos absolutos e consistência física) e a telemetria
 nova continua medindo. Quando o ranking voltar, o histórico está lá.
 
-- Schema e **12 migrations**: [`supabase/`](supabase/)
+- Schema e migrations: [`supabase/`](supabase/) (a contagem está no bloco
+  gerado no topo)
 - O que foi endurecido no pré-release: [`docs/seguranca.md`](docs/seguranca.md)
 
 A correção definitiva é o servidor de jogo escrever com `service_role` e o RLS
@@ -203,7 +315,13 @@ são distribuídos aqui.
 
 ## Licenças / créditos
 
-O código está sob **MIT** ([`LICENSE`](LICENSE)) — é o que vale hoje.
+<!-- BEGIN:GERADO:licenca — não edite à mão, rode `npm run docs` -->
+
+O código está sob **MIT License** ([`LICENSE`](LICENSE)) — é o que vale hoje.
+
+> Bloco gerado por `node tools/gen-docs.mjs`. Fonte: `head -1 LICENSE`
+
+<!-- END:GERADO:licenca -->
 
 > **Migração para AGPL-3.0 está DECIDIDA e NÃO aplicada.** Ela precisa ir num
 > commit só (`LICENSE`, o badge do topo deste arquivo, esta seção,

@@ -8,23 +8,32 @@ description: O que é uma invariante neste repo, como se escreve uma, as duas le
 
 # Quality gates
 
-O portão deste repositório é um arquivo: `tools/eval/invariants.mjs`, **2.187 linhas**, com
-**61 identificadores de invariante declarados** — dos quais a última execução completa
-registrada (04/08/2026) contou **49 críticas** avaliadas e **4 puladas** por exigirem
-browser. Ele roda em node puro e sai com código 1 se qualquer invariante **crítica**
-falhar. É o que o CI executa em todo PR (`.github/workflows/ci.yml`).
+O portão deste repositório é um arquivo: `tools/eval/invariants.mjs`. Ele roda em node puro
+e sai com código 1 se qualquer invariante **crítica** falhar. É o que o CI executa em todo
+PR (`.github/workflows/ci.yml`).
 
-Os dois números não batem de propósito: várias invariantes **viram `skip` em vez de `put`**
-quando falta o insumo delas (o JSON do auditor de viewmodel, um GLB, uma pasta de anims).
-Reproduz assim — `61` e `27` nesta árvore:
+{/* BEGIN:GERADO:invariantes — não edite à mão, rode `npm run docs` */}
+
+- `tools/eval/invariants.mjs`: **2.187 linhas**, **61 identificadores de invariante declarados** (`put()`), dos quais **27** têm caminho de `skip()` declarado.
+- O arnês inteiro são **140 scripts** em `tools/eval/` (`.mjs` + `.py`), mais **42 scripts** de pipeline em `tools/`.
+- Quantas invariantes rodam como **críticas** numa execução **não é derivável do fonte**: depende de qual insumo existe na máquina (o JSON do auditor de viewmodel, um GLB, uma pasta de anims). Esse número só sai rodando o portão — e o lugar dele é o cabeçalho do `KNOWN-BUGS.md`, atualizado com saída real.
+
+Reproduza:
 
 ```bash
-grep -o "put('[A-Z0-9_]*'"  tools/eval/invariants.mjs | sort -u | wc -l   # 61 ids
-grep -o "skip('[A-Z0-9_]*'" tools/eval/invariants.mjs | sort -u | wc -l   # 27 com pulo declarado
+grep -o "put('[A-Z0-9_]*'"  tools/eval/invariants.mjs | sort -u | wc -l
+grep -o "skip('[A-Z0-9_]*'" tools/eval/invariants.mjs | sort -u | wc -l
 ```
 
-`skip` é **portão verde por ausência de dado**, e é por isso que ele sempre carrega o
-motivo. Ver "Severidade", abaixo.
+> Bloco gerado por `node tools/gen-docs.mjs`. Fonte: `grep -o "put('[A-Z0-9_]*'" tools/eval/invariants.mjs | sort -u | wc -l`
+
+{/* END:GERADO:invariantes */}
+
+O terceiro item acima é a distinção que mais confunde quem chega: **identificador
+declarado ≠ invariante avaliada.** Várias viram `skip` em vez de `put` quando falta o
+insumo delas (o JSON do auditor de viewmodel, um GLB, uma pasta de anims). `skip` é
+**portão verde por ausência de dado**, e é por isso que ele sempre carrega o motivo. Ver
+"Severidade", abaixo.
 
 Esta página é a mais útil do site. Se você só for ler uma, leia esta.
 

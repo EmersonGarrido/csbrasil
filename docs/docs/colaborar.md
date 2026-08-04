@@ -8,10 +8,20 @@ description: Setup, como rodar o portão, o que um PR precisa, como adicionar ar
 
 # Como colaborar
 
-O projeto tem **3 pessoas**. É esse o tamanho hoje, e o número não é retórica: sai de
-`git shortlog -sn --no-merges`, descontando os autores que são agentes de IA (que assinam
-como `Claude` / `Claude (gauntlet …)`). Não existe time, não existe comunidade, não existe
-fila de revisores — existem três pessoas e um portão automatizado.
+O número abaixo não é retórica, e não é escrito à mão: sai de `git shortlog -sn
+--no-merges` descontando os autores que são agentes de IA (que assinam como `Claude` /
+`Claude (gauntlet …)`).
+
+{/* BEGIN:GERADO:pessoas — não edite à mão, rode `npm run docs` */}
+
+**3 pessoas** assinam commit neste repositório (`ruben-cytonic`, `Ruben`, `daltonfontes`), mais 10 commits assinados por agentes de IA, de 321 no total.
+
+> Bloco gerado por `node tools/gen-docs.mjs`. Fonte: `git shortlog -sn --no-merges (descontando autores que são agentes)`
+
+{/* END:GERADO:pessoas */}
+
+Não existe time, não existe comunidade, não existe fila de revisores — existem essas
+pessoas e um portão automatizado.
 
 Isso é relevante pra você de duas formas opostas. A ruim: se o seu PR travar, pode
 demorar. A boa: **quase toda a régua é máquina.** `npm run check` te dá o mesmo veredito

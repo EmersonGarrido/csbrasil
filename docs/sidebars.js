@@ -6,6 +6,7 @@
 const sidebars = {
   dev: [
     'comecando',
+    'stack',
     'instrumentacao-ai',
     'quality-gates',
     'colaborar',
