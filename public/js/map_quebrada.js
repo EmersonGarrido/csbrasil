@@ -387,6 +387,32 @@ export function buildQuebrada(scene, T) {
   comercio(1, -1.5, 2.5, 'LANCHONETE', 0xa2481f, '#a2481f', '#f4ecd6');
   comercio(1, 3.5, 8.5, 'BAR DO CANTO', 0x1f7a4c, '#1f7a4c', '#f6f2e2');
 
+  /* ===================== BAR DE ESQUINA COM MESA NA CALÇADA =====================
+     "um bar bem brasileiro com cadeiras de plástico na calçada". Mesa e cadeira de monobloco
+     branco são cover BAIXO: 0,75 m de tampo e 0,85 m de encosto. Vale a pena serem colisores
+     (o `_collide` bloqueia tudo com maxY > 0,30) porque cover baixo é o que falta numa
+     calçada — quem se agacha atrás de uma mesa some, e o corredor deixa de ser corrida limpa.
+     A FAIXA z ∈ [4,5 , 7,5] FICA VAZIA DE PROPÓSITO: é onde mora a bandeira do bar, e anel de
+     captura com mesa dentro vira anel que ninguém pisa. */
+  const MAT_PLAST = lam({ color: 0xe9e6dc, roughness: 0.55 });
+  function mesaBar(mx, mz) {
+    addBox(0.86, 0.72, 0.86, MAT_PLAST, mx, 0, mz, { cast: true });
+    for (const [dx, dz] of [[0.78, 0], [-0.78, 0], [0, 0.78], [0, -0.78]]) {
+      addBox(0.44, 0.44, 0.44, MAT_PLAST, mx + dx, 0, mz + dz);                        // assento
+      addBox(0.44, 0.46, 0.08, MAT_PLAST, mx + dx, 0.44, mz + dz + (dz > 0 ? 0.18 : -0.18), { collide: false, cast: false });
+    }
+  }
+  mesaBar(9.6, 2.2); mesaBar(9.6, 9.0); mesaBar(11.2, 10.6);
+  // engradado de cerveja empilhado e churrasqueira na porta do bar (leitura + cover)
+  const MAT_ENGRADADO = lam({ color: 0xc4302b, roughness: 0.8 });
+  for (let i = 0; i < 4; i++) addBox(0.5, 0.3, 0.36, MAT_ENGRADADO, 12.0, i * 0.3, 4.0, { collide: i === 0 });
+  if (!gprop('churrasqueira', 11.9, 7.6, 1.1)) addBox(1.2, 1.1, 0.8, MAT.concreteDark, 11.9, 0, 7.6);
+  // guarda-sol de cerveja: só silhueta, sem colisor (fica a 2,1 m)
+  for (const [ux, uz] of [[9.6, 2.2], [9.6, 9.0]]) {
+    addBox(0.09, 2.1, 0.09, posteMat, ux, 0.72, uz, { collide: false, cast: false });
+    addBox(2.9, 0.12, 2.9, lam({ color: 0xd8262a, roughness: 0.8 }), ux, 2.74, uz, { collide: false });
+  }
+
   // ===== ground height: o mapa é PLANO (nenhum degrau, nenhum mezanino) =====
   const groundHeightAt = () => 0;
 
