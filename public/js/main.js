@@ -20,6 +20,7 @@ const settings = Object.assign({ sens: 1, vol: 0.7, quality: 'med', speech: true
 const saveSettings = () => localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
 const NICK_KEY = 'awpbr_nick';
 const SOCIAL_KEY = 'awpbr_social';
+const STATS_KEY = 'awpbr_stats';   // declarado no bloco de storage: syncPlayState→renderPlayerPlate→loadStats roda ANTES da definição antiga (TDZ)
 
 /* ---------------- renderer ---------------- */
 // Import extra (top-level, legal em ESM) em vez de mexer no bloco de imports lá de cima:
@@ -132,27 +133,39 @@ function rebuildMenuBackdrop() {
 preloadMapProps(MAP_PROPS).then(() => { rebuildMenuBackdrop(); _splashSetReady(); }).catch(() => _splashSetReady());
 
 /* ---------------- screens ---------------- */
-const screens = ['mobile-warning', 'main-menu', 'team-select', 'char-select', 'settings-panel', 'howto-panel', 'ranking-panel', 'pause-menu', 'match-end'];
+const screens = ['mobile-warning', 'main-menu', 'map-screen', 'team-select', 'char-select', 'settings-panel', 'howto-panel', 'ranking-panel', 'pause-menu', 'match-end'];
 function show(id) {
   for (const s of screens) document.getElementById(s).classList.toggle('hidden', s !== id);
   if (!id) for (const s of screens) document.getElementById(s).classList.add('hidden');
   // ao navegar pra qualquer tela, fecha o painel de setup do menu CS (não fica aberto after)
-  if (id !== 'main-menu') { const ms = document.getElementById('menu-setup'); if (ms) ms.classList.remove('open'); }
+  // EXCEÇÃO: map-screen é EXTENSÃO do setup (abre pelo cartaz do mapa) — o painel fica
+  // aberto embaixo e o VOLTAR cai de volta nele, com mapa/modo/bots intactos.
+  if (id !== 'main-menu' && id !== 'map-screen') { const ms = document.getElementById('menu-setup'); if (ms) ms.classList.remove('open'); }
   else { applyHomeWall(); if (musicArmed) startMenuMusic(); }   // volta pra home: wallpaper + música de menu
 }
 const $ = id => document.getElementById(id);
 
-// Wallpapers rotativos (wall-1..8): 1 por tela no fluxo home→setup→lado→personagem, sem
-// repetir; o offset rotaciona a cada acesso (localStorage) pra variar entre visitas.
+/* Wallpapers rotativos (wall-1..9): 1 por tela no fluxo home→setup→lado→personagem, sem
+   repetir; o offset rotaciona a cada acesso (localStorage) pra variar entre visitas.
+
+   ESTAS LISTAS SÃO HARDCODED E JÁ ENGOLIRAM ARTE NOVA EM SILÊNCIO: o dono jogou wall-9.png e
+   loading-6.png na pasta em 04/08 e nenhum dos dois aparecia, porque o array parava em 8 e em
+   5 (mesmo defeito de MENU_TRACKS abaixo, que ignora a 27ª faixa). Página estática não lista
+   diretório pelo browser, então o conserto de verdade é um manifesto GERADO em build
+   (`tools/` → `public/img/walls.json`) e lido daqui com fallback. Ver KNOWN-BUGS.md BUG-08.
+   Enquanto isso: ARQUIVO NOVO NA PASTA = ENTRADA NOVA AQUI. */
 const WALLS = ['/img/wall-1.png', '/img/wall-2.png', '/img/wall-3.png', '/img/wall-4.png',
-  '/img/wall-5.png', '/img/wall-6.png', '/img/wall-7.png', '/img/wall-8.png'];
+  '/img/wall-5.png', '/img/wall-6.png', '/img/wall-7.png', '/img/wall-8.png',
+  '/img/wall-9.png'];
 let _wallK = 0;
 try { _wallK = (parseInt(localStorage.getItem('cs_wallK') || '-1', 10) + 1) % WALLS.length; localStorage.setItem('cs_wallK', String(_wallK)); } catch {}
 const wallUrl = (i) => `url('${WALLS[(_wallK + i) % WALLS.length]}')`;
 const HOME_WALL = wallUrl(0), SETUP_WALL = wallUrl(1), TEAM_WALL = wallUrl(2), CHAR_WALL = wallUrl(3);
-// loading-1..5: wallpaper rotativo SÓ da splash inicial (a msg "clique pra começar" fica por cima).
+// loading-1..6: wallpaper rotativo SÓ da splash inicial (a msg "clique pra começar" fica por cima).
 // O overlay de carregamento de MAPA usa os wall-* (mesmo fluxo rotativo) — ver showLoading/_loadWallI.
-const LOADING_WALLS = ['/img/loading-1.png', '/img/loading-2.png', '/img/loading-3.png', '/img/loading-4.png', '/img/loading-5.png'];
+// Hardcoded pelo mesmo motivo (e com o mesmo defeito) do WALLS acima — ver KNOWN-BUGS.md BUG-08.
+const LOADING_WALLS = ['/img/loading-1.png', '/img/loading-2.png', '/img/loading-3.png',
+  '/img/loading-4.png', '/img/loading-5.png', '/img/loading-6.png'];
 let _loadWallI = 4;
 { const bs = document.getElementById('boot-splash'); if (bs) bs.style.backgroundImage = `url('${LOADING_WALLS[_wallK % LOADING_WALLS.length]}')`; }
 function applyHomeWall() { const w = document.querySelector('#main-menu .cs-wallpaper'); if (w) w.style.backgroundImage = HOME_WALL; }
@@ -236,16 +249,17 @@ window.addEventListener('keydown', _armMusic);
 startMenuMusic();   // boot: começa MUDA imediatamente (loop rolando antes do 1º clique)
 const isMobile = matchMedia('(pointer: coarse)').matches || innerWidth < 820;
 let settingsReturn = 'main-menu';
+let howtoReturn = 'main-menu';   // CONTROLES aberto pelo pause volta pro pause, pelo menu volta pro menu
 
 /* ---------------- 3D character preview ---------------- */
-let pv = null;
+let pv = null, pvDrag = null;
 function ensurePreview() {
   if (pv) return pv;
   const canvas = $('char-preview');
   const r = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
-  // 400² de backing store exibido a 380 CSS px: o preview era 340 e ficava pequeno demais
-  // pra ser "a" peça da tela de personagem. O downscale ainda dá borda limpa.
-  r.setSize(400, 400, false);
+  // 640² de backing pro preview GIGANTE da tela nova (era 400² pra 380 CSS px).
+  // O downscale continua dando borda limpa em qualquer tamanho de exibição.
+  r.setSize(640, 640, false);
   r.toneMapping = THREE.ACESFilmicToneMapping;
   const scene = new THREE.Scene();
   scene.add(new THREE.HemisphereLight(0xffe6c0, 0x5a4a38, 1.1));
@@ -256,6 +270,20 @@ function ensurePreview() {
   const cam = new THREE.PerspectiveCamera(34, 1, 0.1, 20);
   cam.position.set(0, 1.3, 3.2); cam.lookAt(0, 0.92, 0);
   pv = { r, scene, cam, model: null, disc };
+  // GIRAR/ZOOM de verdade — a dica embaixo do canvas não pode ser enfeite.
+  // Arrastar gira o modelo; scroll aproxima. Durante o arraste o giro automático pausa (ver loop()).
+  canvas.addEventListener('pointerdown', e => {
+    pvDrag = { x: e.clientX, yaw: pv.model ? pv.model.rotation.y : 0 };
+    canvas.setPointerCapture(e.pointerId);
+  });
+  canvas.addEventListener('pointermove', e => {
+    if (pvDrag && pv.model) pv.model.rotation.y = pvDrag.yaw + (e.clientX - pvDrag.x) * 0.012;
+  });
+  canvas.addEventListener('pointerup', () => { pvDrag = null; });
+  canvas.addEventListener('wheel', e => {
+    e.preventDefault();
+    pv.cam.position.z = Math.min(4.6, Math.max(2.2, pv.cam.position.z + e.deltaY * 0.002));
+  }, { passive: false });
   return pv;
 }
 /* ---------- miniatura da lista de personagens ----------------------------------
@@ -299,7 +327,7 @@ function snapThumb(obj) {
   const x = c.getContext('2d');
   x.fillStyle = '#101a21';              // = var(--bg-700): a miniatura já nasce composta
   x.fillRect(0, 0, THUMB_PX, THUMB_PX);
-  x.drawImage(p.r.domElement, 0, 0, THUMB_PX, THUMB_PX);   // 400² -> 128²: downscale = antialias de graça
+  x.drawImage(p.r.domElement, 0, 0, THUMB_PX, THUMB_PX);   // backing 640² -> 128²: downscale = antialias de graça
   p.scene.remove(obj);
   if (p.disc) p.disc.visible = true;
   if (p.model) p.model.visible = prevVis;
@@ -348,6 +376,47 @@ function pvThumb(def) {
 let game = null, currentTeam = 'P', currentFaction = 'P', currentChar = CHARACTERS[0].id, selChar = null;
 let pickingEnemy = false, currentEnemyFaction = null;   // 2º passo do team-select: escolher o adversário
 let submitted = true;   // stats da partida atual já enviados?
+
+/* ---------------- TELEMETRIA ANÔNIMA (ver supabase/migrations/012) ----------------
+   O ranking está desligado (src/lib/site.ts, RANKING_ON) mas a MEDIÇÃO não: o dono
+   quer saber quanto tempo se joga e em que mapa.
+
+   POR QUE UM ID PRÓPRIO E NÃO O NICK: `recordMatchStats` só fala com o backend dentro
+   de `if (nick && !testMode)`. Quem entra e joga sem digitar nick — que é o caminho
+   de menor atrito, e por isso o mais comum — não registra, não manda heartbeat e não
+   submete: é invisível. Medir só quem se registrou enviesa a amostra exatamente para
+   o jogador mais engajado, que é o contrário do que serve pra decidir mapa.
+
+   `anonId` identifica NAVEGADOR, não pessoa: UUID no localStorage, some quando o
+   jogador limpa o storage. O nick vai junto quando existe, só pra cruzar com `stats`
+   quando o ranking voltar.
+
+   sendBeacon porque isto costuma sair junto com o fim da partida ou com a aba
+   fechando — `fetch` normal é cancelado no unload, sendBeacon não. */
+const ANON_KEY = 'cs_anon';
+function getAnonId() {
+  let a = localStorage.getItem(ANON_KEY);
+  if (!a) { a = crypto.randomUUID(); localStorage.setItem(ANON_KEY, a); }
+  return a;
+}
+let telemetrySent = true;
+function sendTelemetry() {
+  if (telemetrySent || testMode || !game) return;
+  telemetrySent = true;   // uma partida = uma linha, mesmo com quit + beforeunload juntos
+  const g = game;
+  const payload = {
+    anonId: getAnonId(),
+    map: currentMap,
+    mode: matchMode,
+    seconds: Math.round(g.time || 0),
+    rounds: (g.roundsWon?.P || 0) + (g.roundsWon?.B || 0),
+    nick: registeredNick || null,
+  };
+  try {
+    const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
+    if (!navigator.sendBeacon('/api/telemetry', blob)) api('/api/telemetry', payload);
+  } catch { try { api('/api/telemetry', payload); } catch {} }
+}
 let registeredNick = ''; // nick usado no registro da sessão (token está atrelado a ele)
 let heartbeatOff = false;
 const params = new URLSearchParams(location.search);
@@ -396,6 +465,7 @@ async function startGame(team, charId, enemyFaction) {
   });
   window.__game = game;
   submitted = false;
+  telemetrySent = false;   // partida nova = uma linha nova de telemetria
   retryPending();
   armSwitchHook();
   game.onOpenSettings = () => { game.setPaused(true); settingsReturn = 'pause-menu'; show('settings-panel'); };
@@ -469,6 +539,19 @@ const ui = {
   back()  { try { sfx.ensure(); sfx.duck(0.5, 0.1); sfx._beep('square', 560, 400, .06, .10, 0, true); } catch {} },
 };
 let matchMode = 'rounds';   // 'rounds' | 'ctf' — lido em startGame (ctf)
+/* O JOGADOR JÁ DISSE QUAL MODO QUER? (defeito: "esse mapa está como CAPTURA, mas eu
+   selecionei single player — e esse erro se repete em outros mapas")
+   O `ctfMode` do mapa é PADRÃO, não ordem. Só que `gotoMap` reescrevia `matchMode` a cada
+   troca de mapa, INCONDICIONALMENTE — e o carrossel de mapas fica DEPOIS da escolha do modo
+   no fluxo do menu. Quem clicava em SINGLE PLAYER e depois navegava até a Loja H ou o Ferro
+   Velho tinha a escolha dele apagada no caminho e caía em CTF; e quem clicava em CAPTURE THE
+   FLAG e navegava até os outros três caía em rounds. A invariante MOD1 não pegava isso: ela
+   só conferia que `ctfOnly` não existe mais no registro de mapas, que é outra coisa (o mapa
+   não FORÇA o modo — quem forçava era o menu).
+   Esta bandeira é a diferença entre PADRÃO e ESCOLHA: enquanto ninguém escolheu, o mapa
+   manda; depois que alguém escolheu, o mapa não encosta mais. Medida em tools/eval/mode-check.mjs
+   (invariante MOD2), que executa o CÓDIGO REAL destas funções nos 10 casos (5 mapas × 2 modos). */
+let modoEscolhido = false;
 if (MAPS[currentMap].ctfMode) matchMode = 'ctf';   // Loja H / Ferro Velho ABREM em CTF (geometria feita em volta das bandeiras), mas dá pra trocar
 const menuSetup = $('menu-setup');
 const csItems = [...document.querySelectorAll('.cs-item')];
@@ -502,7 +585,7 @@ function setSetupStep(step) {
   }
 }
 const openSetup = (mode, title, act) => {
-  if (mode) matchMode = mode;
+  if (mode) { matchMode = mode; modoEscolhido = true; }   // veio de SINGLE PLAYER/CAPTURE THE FLAG = escolha explícita
   setupTitle = title;
   markCurrent(act);
   menuSetup.classList.add('open');
@@ -520,7 +603,7 @@ csItems.forEach((it) => {
       case 'mapa':  openSetup(null, 'ESCOLHER MAPA', 'mapa'); break;
       case 'config': markCurrent('config'); show('settings-panel'); break;
       case 'ranking': markCurrent('ranking'); showRanking(); break;
-      case 'sobre': markCurrent('sobre'); show('howto-panel'); break;
+      case 'sobre': markCurrent('sobre'); howtoReturn = 'main-menu'; show('howto-panel'); break;
     }
   };
 });
@@ -565,6 +648,8 @@ $('profile-ok').onclick = () => { ui.click(); saveSettings(); setSetupStep('matc
 // e um listener preso ao container nunca receberia a tecla.
 addEventListener('keydown', (e) => {
   if (e.key !== 'Escape') return;
+  // ESC na map screen = o VOLTAR dela (cai de volta no setup, estado intacto)
+  if (!$('map-screen').classList.contains('hidden')) { e.preventDefault(); ui.back(); show('main-menu'); return; }
   if ($('main-menu').classList.contains('hidden')) return;
   // ESC no passo do perfil volta pro passo da partida — só o segundo ESC fecha o painel.
   if (menuSetup.classList.contains('open') && menuSetup.dataset.step === 'profile') {
@@ -593,6 +678,7 @@ function syncPlayState() {
     const s = $('profile-name');
     if (s) s.textContent = nick || 'PÔR O NOME NA CAMISA';
   }
+  renderPlayerPlate();   // nick do card do menu acompanha a digitação
 }
 $('btn-jogar').onclick = () => {
   if (!(nickEl.value || '').trim()) {
@@ -654,31 +740,77 @@ function setMapMode() {
   const mm = $('map-mode');
   if (mm) mm.addEventListener('click', () => {
     matchMode = matchMode === 'ctf' ? 'rounds' : 'ctf';
+    modoEscolhido = true;   // alternar no badge também é escolha do jogador
     ui.click();
     setMapMode();
     setSetupStep('match');   // o eyebrow do passo carrega o modo (PARTIDA / PARTIDA (CTF))
   });
 }
 let mapIdx = Math.max(0, MAP_IDS.indexOf(currentMap));
-function stepMap(dir) {
-  ui.click();
-  mapIdx = (mapIdx + dir + MAP_IDS.length) % MAP_IDS.length;
+function gotoMap(i) {
+  mapIdx = (i + MAP_IDS.length) % MAP_IDS.length;
   currentMap = resolveMapId(MAP_IDS[mapIdx]);
   settings.map = currentMap; saveSettings();
   mapNameEl.textContent = MAPS[currentMap].name;
   setMapThumb();
-  // troca de mapa aplica o PADRÃO do mapa (Loja H/Ferro Velho abrem em CTF, o resto em rounds);
-  // o jogador continua livre pra alternar depois no badge de modo
-  matchMode = MAPS[currentMap].ctfMode ? 'ctf' : 'rounds';
+  // troca de mapa aplica o PADRÃO do mapa (Loja H/Ferro Velho abrem em CTF, o resto em rounds)
+  // — mas SÓ enquanto o jogador não tiver escolhido. Ver `modoEscolhido` lá em cima: era
+  // aqui que a escolha dele morria (main.js:692 na versão anterior).
+  if (!modoEscolhido) matchMode = MAPS[currentMap].ctfMode ? 'ctf' : 'rounds';
   setMapMode();
   rebuildMenuBackdrop();
+  renderMapScreen();   // se a tela cheia estiver aberta, ela acompanha o carrossel
 }
+function stepMap(dir) { ui.click(); gotoMap(mapIdx + dir); }
 mapNameEl.textContent = MAPS[currentMap].name;
 setMapThumb();
 setMapMode();
 $('map-prev').onclick = () => stepMap(-1);
 $('map-next').onclick = () => stepMap(1);
 [$('map-prev'), $('map-next')].forEach(b => b && (b.onmouseenter = () => ui.hover()));
+
+/* ---------------- map screen (escolha de mapa em tela cheia) ----------------
+   Abre pelo cartaz do mapa no setup. Lê o MESMO estado do carrossel (currentMap/mapIdx) —
+   trocar aqui troca lá, e vice-versa. CONTINUAR segue o fluxo normal (nick → facção). */
+const MAP_DESC = {
+  awp_map: 'O coração do poder vira arena: rampas do Planalto, espelho d\'água e linhas de tiro longas entre os ministérios.',
+  fy_pool_day: 'Salão fechado, eco de tiro e briga de faca no raso. Quem controla a borda controla o round.',
+  fy_havan: 'Estacionamento de megastore: corredores de vaga, mezanino de sniper e a estátua te olhando atirar.',
+  fy_ferrovelho: 'Um ferro velho gigantesco onde tudo pode ser arma e toda sombra pode esconder um traira.',
+};
+function renderMapScreen() {
+  const img = $('ms-bg-img'); if (!img) return;
+  img.src = `/img/map-previews/${currentMap}.jpg?v=${VERSION}`;
+  $('ms-name').textContent = MAPS[currentMap].name;
+  $('ms-meta').textContent = $('map-meta').textContent;   // a MESMA ficha impressa no cartaz
+  $('ms-desc').textContent = MAP_DESC[currentMap] || '';
+  // chrome do topo: o mesmo jogador do plate do menu (uma fonte só de verdade)
+  const nick = (nickEl.value || '').trim();
+  $('ms-top-nick').textContent = nick || 'SEM NICK';
+  $('ms-avatar').textContent = (nick || 'CS').replace(/[^a-z0-9]/gi, '').slice(0, 2).toUpperCase() || 'CS';
+  $('ms-top-level').textContent = 'NÍVEL ' + (Math.floor(playerXp(loadStats()) / 2000) + 1);
+  $('ms-strip').innerHTML = MAP_IDS.map((id, i) =>
+    `<button class="ms-thumb${id === currentMap ? ' on' : ''}" data-i="${i}" type="button">` +
+    `<img src="/img/map-previews/${id}.jpg?v=${VERSION}" alt="${MAPS[id].name}"><span>${MAPS[id].name}</span></button>`).join('');
+  $('ms-strip').querySelectorAll('.ms-thumb').forEach(b => {
+    b.onclick = () => { ui.click(); gotoMap(+b.dataset.i); };
+    b.onmouseenter = () => ui.hover();
+  });
+}
+mapThumb.title = 'Ver mapa em tela cheia';
+mapThumb.style.cursor = 'pointer';
+mapThumb.onclick = () => { ui.click(); renderMapScreen(); show('map-screen'); };
+$('ms-prev').onclick = () => stepMap(-1);
+$('ms-next').onclick = () => stepMap(1);
+$('ms-back').onclick = () => { ui.back(); show('main-menu'); };
+// CONTINUAR = o JOGAR de sempre: ele decide o próximo passo (perfil se falta nick, facção se não)
+$('ms-continue').onclick = () => { show('main-menu'); $('btn-jogar').click(); };
+// ← → trocam de mapa com a tela cheia aberta (ESC fecha — ver o handler de ESC do menu)
+addEventListener('keydown', (e) => {
+  if ($('map-screen').classList.contains('hidden')) return;
+  if (e.key === 'ArrowLeft') { e.preventDefault(); stepMap(-1); }
+  else if (e.key === 'ArrowRight') { e.preventDefault(); stepMap(1); }
+});
 const wpnSel = { value: settings.wpnMode || 'all' };
 // dropdown custom de modo de armas (com ícones SVG originais)
 const WPN_ICONS = {
@@ -715,8 +847,8 @@ if (diffSel) {
   diffSel.value = settings.difficulty || 'normal';
   diffSel.onchange = () => { settings.difficulty = diffSel.value; saveSettings(); sfx.uiClick(); };
 }
-$('btn-howto').onclick = () => { sfx.uiClick(); show('howto-panel'); };
-$('howto-back').onclick = () => { ui.back(); markCurrent(null); show('main-menu'); };
+$('btn-howto').onclick = () => { sfx.uiClick(); howtoReturn = 'main-menu'; show('howto-panel'); };
+$('howto-back').onclick = () => { ui.back(); markCurrent(null); const r = howtoReturn; howtoReturn = 'main-menu'; show(r); };
 $('btn-settings').onclick = () => { sfx.uiClick(); settingsReturn = 'main-menu'; show('settings-panel'); };
 $('settings-back').onclick = () => {
   ui.back(); saveSettings();
@@ -724,17 +856,56 @@ $('settings-back').onclick = () => {
   if (settingsReturn === 'main-menu') markCurrent(null);
   show(settingsReturn);
 };
+// Abas das configurações: troca o pane visível; os inputs nunca são re-criados,
+// então o wiring de persistência abaixo vale pra todos os panes.
+document.querySelectorAll('.set-tab').forEach(tab => {
+  tab.onclick = () => {
+    sfx.uiClick();
+    document.querySelectorAll('.set-tab').forEach(t => {
+      const on = t === tab;
+      t.classList.toggle('active', on);
+      t.setAttribute('aria-selected', on);
+    });
+    document.querySelectorAll('.set-pane').forEach(p => p.classList.toggle('hidden', p.dataset.pane !== tab.dataset.tab));
+  };
+});
 $('mobile-ok').onclick = () => { sfx.uiClick(); show('main-menu'); };
 $('team-back').onclick = () => { ui.back(); pickingEnemy = false; setEnemyPickMode(false); setTeamStep('side'); show('main-menu'); };
 $('char-back').onclick = () => { ui.back(); show('team-select'); };
+// Setas do filmstrip: movem a SELEÇÃO (não só o scroll) e garantem a linha visível.
+const stripStep = (dir) => {
+  const rows = [...document.querySelectorAll('.char-row')];
+  if (!rows.length) return;
+  const i = Math.max(0, rows.findIndex(r => r.classList.contains('sel')));
+  const next = rows[(i + dir + rows.length) % rows.length];
+  next.click();
+  next.scrollIntoView({ block: 'nearest' });
+};
+$('strip-up').onclick = () => { ui.click(); stripStep(-1); };
+$('strip-down').onclick = () => { ui.click(); stripStep(1); };
+// Contador de elenco nos cards de facção ("8 PERSONAGENS" — referência telas/02)
+for (const f of ['p', 'b', 'u', 'c', 'f']) {
+  const n = CHARACTERS.filter(c => c.team === f.toUpperCase()).length;
+  const card = $('btn-team-' + f);
+  if (!card) continue;
+  const chip = document.createElement('span');
+  chip.className = 'team-count';
+  chip.textContent = `${n} PERSONAGENS`;
+  card.appendChild(chip);
+}
 $('btn-team-p').onclick = () => { sfx.uiClick(); pickTeam('P'); };
 $('btn-team-b').onclick = () => { sfx.uiClick(); pickTeam('B'); };
 $('btn-team-u') && ($('btn-team-u').onclick = () => { sfx.uiClick(); pickTeam('U'); });
 $('btn-team-c') && ($('btn-team-c').onclick = () => { sfx.uiClick(); pickTeam('C'); });
+$('btn-team-f') && ($('btn-team-f').onclick = () => { sfx.uiClick(); pickTeam('F'); });
 $('btn-resume').onclick = () => { sfx.uiClick(); game?.resume(); };
 $('btn-pause-settings').onclick = () => { sfx.uiClick(); settingsReturn = 'pause-menu'; show('settings-panel'); };
+$('btn-pause-controls').onclick = () => { sfx.uiClick(); howtoReturn = 'pause-menu'; show('howto-panel'); };
+// Mesma chamada da REVANCHE do match-end: recomeça a partida com time/personagem/adversário atuais.
+$('btn-restart').onclick = () => { sfx.uiClick(); startGame(currentTeam, currentChar); };
 $('btn-quit').onclick = () => {
   sfx.uiClick();
+  sendTelemetry();   // fora do `if (pl)`: partialPayload() devolve null sem nick, telemetria não depende disso
   const pl = partialPayload();
   if (pl) { submitted = true; submitGlobal(pl); }
   quitToMenu();
@@ -777,7 +948,7 @@ $('char-confirm').onclick = () => {
 
 // Esconde/mostra o card da sua facção na tela de adversário (btn-team-p/b/u).
 function setEnemyPickMode(on, myFaction) {
-  for (const f of ['p', 'b', 'u', 'c']) {
+  for (const f of ['p', 'b', 'u', 'c', 'f']) {
     const b = $('btn-team-' + f);
     if (b) b.classList.toggle('hidden', !!(on && f.toUpperCase() === myFaction));
   }
@@ -787,7 +958,7 @@ function setEnemyPickMode(on, myFaction) {
    ficava com cara de formulário ("escolha o adversário" e três caixas iguais).
    Agora o passo é um estado (data-step) que a tela inteira lê: eyebrow, título, dica
    e o texto da barra de ação de cada placa (ver .team-cta no style.css). */
-const FACTION_NAME = { P: 'PETISTAS', B: 'BOLSONARISTAS', U: 'TRIBOS URBANAS', C: 'PALHAÇOS' };
+const FACTION_NAME = { P: 'PETISTAS', B: 'BOLSONARISTAS', U: 'TRIBOS URBANAS', C: 'PALHAÇOS', F: 'FUNKEIROS' };
 function setTeamStep(step, myFaction) {
   const ts = $('team-select'); if (ts) ts.dataset.step = step;
   const st = $('team-step'), tt = $('team-title'), hint = $('team-hint');
@@ -903,6 +1074,7 @@ function partialPayload() {
   };
 }
 addEventListener('beforeunload', () => {
+  sendTelemetry();   // aba fechando no meio da partida ainda conta como tempo jogado
   const pl = partialPayload();
   if (pl) navigator.sendBeacon('/api/submit-match', new Blob([JSON.stringify(pl)], { type: 'application/json' }));
 });
@@ -925,14 +1097,15 @@ async function retryPending() {
   else if (res?.error && /aguarde/i.test(res.error)) setTimeout(retryPending, 95_000);
 }
 
-/* ---------------- local stats (espelhados pro ranking global) ---------------- */
-const STATS_KEY = 'awpbr_stats';
+/* ---------------- local stats (espelhados pro ranking global) ----------------
+   STATS_KEY mora no bloco de storage lá em cima (TDZ: renderPlayerPlate roda antes daqui). */
 function loadStats() {
   return Object.assign({ matches: 0, wins: 0, kills: 0, deaths: 0, headshots: 0, bestStreak: 0 },
     JSON.parse(localStorage.getItem(STATS_KEY) || '{}'));
 }
 async function recordMatchStats(s) {
   submitted = true;
+  sendTelemetry();   // ANTES do guard de nick lá embaixo: telemetria cobre quem não registrou
   const st = loadStats();
   st.matches++; if (s.won) st.wins++;
   st.kills += s.kills; st.deaths += s.deaths; st.headshots += s.headshots;
@@ -952,7 +1125,29 @@ async function recordMatchStats(s) {
     if (!res) submitNote('ranking global indisponível');
     else if (res.error) submitNote(res.error);
   }
+  renderPlayerPlate();   // XP/nível do card do menu sobem junto com os stats
 }
+
+/* ---------------- player plate (card do jogador no menu principal) ----------------
+   Nível/XP derivados dos MESMOS stats locais do ranking — uma fonte só de verdade.
+   2.000 XP por nível: kill 100 · headshot 25 · vitória 500 · partida 50. */
+function playerXp(st) { return st.kills * 100 + st.headshots * 25 + st.wins * 500 + st.matches * 50; }
+function renderPlayerPlate() {
+  const el = $('player-plate'); if (!el) return;
+  const st = loadStats();
+  const xp = playerXp(st);
+  const level = Math.floor(xp / 2000) + 1;
+  const into = xp % 2000;
+  const nick = (nickEl.value || '').trim();
+  $('pp-avatar').textContent = (nick || 'CS').replace(/[^a-z0-9]/gi, '').slice(0, 2).toUpperCase() || 'CS';
+  $('pp-nick').textContent = nick || 'SEM NICK';
+  $('pp-level').textContent = 'NÍVEL ' + level;
+  $('xp-fill').style.width = (into / 20) + '%';
+  $('xp-num').textContent = `${into.toLocaleString('pt-BR')} / 2.000 XP`;
+  el.dataset.empty = nick ? '0' : '1';
+}
+// o plate abre o passo de perfil do setup (onde nick/avatar se editam de verdade)
+$('player-plate').onclick = () => { openSetup(null, 'SEU PERFIL', null); openProfileStep(true); };
 function showRanking() {
   const st = loadStats();
   const kd = st.deaths ? (st.kills / st.deaths).toFixed(2) : st.kills.toFixed(2);
@@ -975,6 +1170,16 @@ async function renderGlobal(nick) {
   const box = $('rank-global');
   box.innerHTML = '<h3>RANKING GLOBAL</h3><div class="rg-off">carregando…</div>';
   const data = await api('/api/leaderboard');
+  /* `disabled` é escolha, `indisponível` é defeito — e o jogador lê a diferença.
+     A flag mora só no servidor (src/lib/site.ts, RANKING_ON); aqui a gente só
+     reage à resposta, pra não existirem duas fontes de verdade que divergem. */
+  if (data && data.disabled) {
+    box.innerHTML = '<h3>RANKING GLOBAL</h3>' +
+      '<div class="rg-off">desligado por enquanto — o jogo está em alpha e o ranking volta ' +
+      'quando o placar for confiável. Seus stats deste navegador continuam contando, ali em cima.</div>' +
+      '<div class="rg-links"><a href="/mapa" target="_blank" style="color:var(--cs)">MAPA AO VIVO ↗</a></div>';
+    return;
+  }
   if (!data || !data.players) {
     box.innerHTML = '<h3>RANKING GLOBAL</h3><div class="rg-off">indisponível no momento</div>';
     return;
@@ -1006,7 +1211,7 @@ let teamPreviewsDone = false;
 function ensureTeamPreviews() {
   if (teamPreviewsDone) return;
   teamPreviewsDone = true;
-  for (const [btn, fac] of [['btn-team-p', 'P'], ['btn-team-b', 'B'], ['btn-team-u', 'U'], ['btn-team-c', 'C']]) {
+  for (const [btn, fac] of [['btn-team-p', 'P'], ['btn-team-b', 'B'], ['btn-team-u', 'U'], ['btn-team-c', 'C'], ['btn-team-f', 'F']]) {
     const box = document.querySelector(`#${btn} .team-chars`);
     if (!box) continue;
     const chars = CHARACTERS.filter(c => c.team === fac && GLB_CHARS.has(c.id)).slice(0, 4);
@@ -1035,7 +1240,7 @@ function pickTeam(faction) {
   currentFaction = faction;
   currentTeam = faction === 'B' ? 'B' : 'P';
   // estado de seleção persistente nos cards: ao voltar do personagem, a tela diz qual é o SEU lado
-  for (const f of ['p', 'b', 'u', 'c']) {
+  for (const f of ['p', 'b', 'u', 'c', 'f']) {
     const b = $('btn-team-' + f);
     if (b) b.setAttribute('aria-pressed', String(f.toUpperCase() === faction));
   }
@@ -1075,6 +1280,48 @@ function pickTeam(faction) {
     show('char-select');
   });
 }
+/* Ficha do personagem (tela de seleção): raridade + atributos derivados da arma inicial
+   (charWeapon) e de um hash estável do id. É FLAVOR de apresentação no estilo CS2/Valorant —
+   NÃO afeta gameplay (vida/velocidade reais são iguais pra todo mundo). */
+const ATTR_BY_WPN = {
+  awp: [2, 2, 5], mosin: [2, 2, 5], deagle: [2, 3, 4], revolver38: [2, 3, 4], pistol: [2, 4, 3],
+  ak: [3, 3, 3], m4: [3, 3, 4], md97: [3, 3, 3], scar: [3, 3, 4],
+  mp5: [2, 4, 3], uzi: [2, 5, 2], p90: [2, 4, 2], shotgun: [4, 3, 1], lmg: [5, 1, 2],
+};
+/* Especialidade: flavor derivado da arma inicial (mesma fonte dos atributos).
+   É o "papel" do personagem na tela de seleção, estilo agente de Valorant. */
+const SPEC_BY_WPN = {
+  awp: ['FRANCO-ATIRADOR', 'Um tiro, uma história. Domina as linhas longas do mapa.'],
+  mosin: ['FRANCO-ATIRADOR', 'Ferrolho de guerra: lento, mas cada bala conta uma lenda.'],
+  deagle: ['DUELISTA', 'Canhão de mão. Recompensa mira fria e pavio curto.'],
+  revolver38: ['DUELISTA', 'Seis tiros de pura confiança. Não precisa de mais.'],
+  pistol: ['CORINGA', 'Leve e rápido: ganha no giro, na economia e na esperteza.'],
+  ak: ['SOLDADO', 'Dano bruto por bala. Controla o recuo, controla a treta.'],
+  m4: ['SOLDADO', 'Precisão consistente em qualquer distância.'],
+  md97: ['SOLDADO', 'O fuzil da pátria: equilibrado em tudo, ruim em nada.'],
+  scar: ['SOLDADO', 'Pesada e estável — tiroteio longo é com ela mesma.'],
+  mp5: ['BATEDOR', 'Mobilidade e cadência: entra, resolve, sai.'],
+  uzi: ['BATEDOR', 'A mais rápida do pedaço: o mapa inteiro é dela.'],
+  p90: ['BATEDOR', '50 balas de pressão constante no corredor.'],
+  shotgun: ['QUEBRA-PORTA', 'De perto não tem conversa. Nem round pro outro lado.'],
+  lmg: ['PAREDE', 'Fogo de supressão: segura o corredor sozinho.'],
+};
+const RARITIES = [['COMUM', 'var(--ink-300)'], ['RARO', 'var(--sys)'], ['ÉPICO', '#b47aff'], ['LENDÁRIO', 'var(--br-faixa)']];
+function renderCharAttrs(c) {
+  let h = 0; for (const ch of c.id) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  const wpn = charWeapon(c.id);
+  const [vida, velo, prec] = ATTR_BY_WPN[wpn] || [3, 3, 3];
+  const meme = 1 + (h % 5);
+  const r = h % 10, tier = r < 5 ? 0 : r < 8 ? 1 : r < 9 ? 2 : 3;   // 50% comum / 30% raro / 10% épico / 10% lendário
+  const rEl = $('char-rarity');
+  rEl.textContent = RARITIES[tier][0];
+  rEl.style.color = RARITIES[tier][1];
+  const [specName, specDesc] = SPEC_BY_WPN[wpn] || ['SOLDADO', 'Equilíbrio em tudo.'];
+  $('char-spec-name').textContent = specName;
+  $('char-spec-desc').textContent = specDesc;
+  $('char-attrs').innerHTML = [['VIDA', vida], ['VELOCIDADE', velo], ['PRECISÃO', prec], ['MEME', meme]]
+    .map(([l, v]) => `<div class="attr"><span>${l}</span><div class="attr-bar"><i style="width:${v * 20}%"></i></div></div>`).join('');
+}
 function selectChar(c, row) {
   selChar = c;
   // aria-selected além da classe: estado de seleção legível por teclado/leitor de tela
@@ -1083,6 +1330,7 @@ function selectChar(c, row) {
   pvSetChar(c);
   $('char-info-name').textContent = c.name;
   $('char-info-blurb').textContent = c.blurb;
+  renderCharAttrs(c);
 }
 
 /* ---------------- settings wiring ---------------- */
@@ -1229,7 +1477,7 @@ function loop() {
     renderer.render(menuScene, menuCam);
   }
   if (csOpen && pv && pv.model) {
-    pv.model.rotation.y += dt * 0.9;
+    if (!pvDrag) pv.model.rotation.y += dt * 0.9;   // giro automático pausa enquanto arrasta
     // ctrl.update (idle + IK da mão de apoio) quando há GLB; mixer cru só no fallback box
     if (pv.ctrl) pv.ctrl.update(dt, 0, false, 0); else if (pv.mixer) pv.mixer.update(dt);
     pv.r.render(pv.scene, pv.cam);

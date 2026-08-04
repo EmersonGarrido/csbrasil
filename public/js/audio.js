@@ -1,6 +1,14 @@
 // Procedural WebAudio SFX + user sample packs (audio/manifest.json).
 // Real CS 1.6 samples are NOT bundled (Valve copyright) — drop your own legally-owned
 // files in audio/cs/ and register them under "cs" in audio/manifest.json.
+/* Fator global do tiro — ver shotWeapon(). 0,62 = -4,2 dB, escolhido pra deixar a arma
+   audivelmente à frente da voz e do passo sem cobri-los (era 1,0: o tiro dominava tudo, e
+   o duck de 0,3 em cima ainda derrubava a voz de propósito). Tunável ao vivo: ?gunvol=N */
+const GUN_VOL = (() => {
+  const q = +new URLSearchParams(location.search).get('gunvol');
+  return Number.isFinite(q) && q > 0 ? q : 0.62;
+})();
+
 export class Sfx {
   constructor() {
     this.ctx = null; this.master = null; this.vol = 0.7;
@@ -185,10 +193,13 @@ export class Sfx {
   };
   static GUN_CLASS = {
     awp: 'sniper', mosin: 'sniper', rem700: 'sniper', m400: 'sniper', svd: 'sniper', g3sg1: 'sniper', sks: 'sniper',
-    shotgun: 'shotgun', md97: 'shotgun', mp5: 'smg', uzi: 'smg', p90: 'smg', lmg: 'lmg',
+    shotgun: 'shotgun', mp5: 'smg', uzi: 'smg', p90: 'smg', lmg: 'lmg',
+    // MD97 = IMBEL MD97, o fuzil 5,56 do Exército Brasileiro — NÃO é espingarda. Estava em
+    // 'shotgun' só porque o viewmodel dela reaproveita a malha da shotgun (STATIC_CLASS no
+    // game.js), e a classe de SOM foi arrastada junto. Som de classe é calibre, não malha.
     pistol: 'pistol', deagle: 'pistol', revolver38: 'pistol', m92: 'pistol',   // m92 = Beretta 92 (era 'ak', errado)
     ak: 'ak', akm: 'ak', g3: 'ak',                                              // 7.62 grave/soco
-    m4: 'ar', scar: 'ar', famas: 'ar', tavor: 'ar', carbine: 'ar',             // 5.56 crisp (era fallback 'rifle')
+    m4: 'ar', scar: 'ar', famas: 'ar', tavor: 'ar', carbine: 'ar', md97: 'ar', // 5.56 crisp (era fallback 'rifle')
   };
   // Ressonador metálico (mini struckResonator do CoD): burst de ruído em bandpass com Q alto
   // e decay curto — soa como ferrolho/mola, não como "beep atrasado" (o tal eco estranho).
@@ -360,6 +371,17 @@ export class Sfx {
   // dist em metros (game.js: 0 = player, _sd = distância do bot). pan/propDelay só de bots.
   shotWeapon(w, dist = 0, vol = 1, pan = 0, propDelay = 0) {
     if (w === 'knife') return this.knife();
+    /* TETO DE VOLUME DO TIRO (04/08, dono: "os sons das armas tão muito altos").
+
+       Por que um multiplicador aqui e não `setVolume` menor: o master é o volume do JOGO
+       INTEIRO — baixá-lo abafaria voz, rádio, passo e captura junto, e passo é informação
+       de jogo. O que estava desequilibrado era a arma CONTRA o resto, não o jogo contra o
+       mundo. Este fator mexe só no tiro, mantendo intacta a hierarquia de calibre da tabela
+       W abaixo (Deagle continua 1,25 do peso de uma AK).
+
+       Vale para os dois caminhos — sample CC0 e synth — porque o volume alto se ouve nos
+       dois. `?gunvol=N` para ajustar ao vivo sem recompilar nada. */
+    vol *= GUN_VOL;
     if (this.pack?.weaponSamples) { const f = this._pick(this.pack?.weapons?.[w]); if (f) { this.duck(0.3, 0.16); this._sample(f, vol); return; } }
     // GUNFEEL: peso POR ARMA dentro da classe — só a classe fazia .38, PT-38 e Deagle
     // soarem idênticos (e a SKS soar igual à AWP). `vol` é o único parâmetro por tiro que o
@@ -367,7 +389,7 @@ export class Sfx {
     const W = { deagle: 1.25, revolver38: 1.18, pistol: 0.90, m92: 0.95,
       awp: 1.15, mosin: 1.10, rem700: 1.12, m400: 0.85, svd: 0.90, g3sg1: 0.88, sks: 0.80,
       ak: 1.00, akm: 1.08, g3: 1.05, m4: 0.95, scar: 0.98, tavor: 0.93, famas: 0.90, carbine: 1.0,
-      mp5: 0.90, uzi: 0.88, p90: 0.85, lmg: 1.10, shotgun: 1.15, md97: 1.08 };
+      mp5: 0.90, uzi: 0.88, p90: 0.85, lmg: 1.10, shotgun: 1.15, md97: 0.96 };   // md97 = 5,56, peso de fuzil (era 1.08, de espingarda)
     this._gunshot(Sfx.GUN_CLASS[w] || 'rifle', dist, vol * (W[w] ?? 1), pan, propDelay);
   }
   // whizz: projétil supersônico passando perto do ouvido (CoD bulletWhizz) — tiro inimigo
