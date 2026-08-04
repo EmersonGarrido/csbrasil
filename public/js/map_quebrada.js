@@ -568,9 +568,41 @@ export function buildQuebrada(scene, T) {
     B: [-4.5, -1.5, 1.5, 4.5].map(x => ({ x, z: 41.5, yaw: Math.PI })),
   };
 
+  /* ===================== AS 4 BANDEIRAS =====================
+     Lista literal do dono: "1 no campinho do respawn, outra no bar de esquina, outra mais pra
+     frente perto do ponto de ônibus, e a final na praça onde é o baile".
+     ONDE ELAS **NÃO** PODEM FICAR, e por quê (CTF1, tools/eval/invariants.mjs):
+     (a) COLINEARES. O raio de captura é 4,5 m; se a altura do triângulo de qualquer trio for
+         menor que isso, o caminho mais curto entre as duas pontas passa DENTRO do anel do
+         meio — é o mecanismo do "os bots ficam todos na bandeira do meio". Num mapa que é uma
+         RUA RETA isso é o risco natural: quatro bandeiras no eixo da rua têm altura ZERO.
+         Por isso elas alternam de lado — campinho a OESTE do eixo (x -6), bar a LESTE (+9,5),
+         ponto a OESTE (-10), baile a LESTE (+5). Menor altura de triângulo medida: 10,4 m,
+         mais do que o dobro do raio de captura.
+     (b) A MENOS DE 2 RAIOS (9 m) DO SPAWN MAIS PRÓXIMO — capturável de dentro do respawn.
+         A do campinho é a crítica: fica a 11,6 m do slot B mais próximo, com o gol entre elas. */
+  const ctfPoints = [
+    { id: 'R', label: 'BAILE', x: 5, z: -30.5 },
+    { id: 'P', label: 'PONTO DE ÔNIBUS', x: -10, z: -6 },
+    { id: 'B', label: 'BAR DA ESQUINA', x: 9.5, z: 6 },
+    { id: 'C', label: 'CAMPINHO', x: -6, z: 30 },
+  ];
+
+  /* ARSENAL NO CHÃO — mesma colocação do ferro velho (caixa deitada a 0,10 m: a base da malha
+     fica 0,04 m do chão, dentro do teto de 0,05 m da pickup-check). Rifles no miolo da rua e
+     nos becos, snipers nas duas vielas (que são as linhas longas do mapa), curtas nas bocas. */
+  const gmat = lam({ color: 0x20242a });
+  const place = (kind, x, z) => { const m = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.12, 1.0), gmat); m.position.set(x, 0.1, z); m.castShadow = true; root.add(m); pickups.push({ x, z, kind, weapon: kind, readyAt: 0, mesh: m }); };
+  place('ak', 0.5, -13);         place('m4', 2.5, 12);
+  place('shotgun', -16.6, 2.5);  place('mp5', 16.6, -3.5);
+  place('awp', -23, 16);         place('m400', 23, -14);
+  place('deagle', -8, -25);      place('shotgun', 8, -35);
+  place('ak', 10.5, 34);         place('m4', -10.5, 40);
+  place('mp5', -20, 26);         place('deagle', 20, 26);
+
   SKIRT.build(root);
   return {
-    root, colliders, occluders, groundHeightAt, spawns, sun, hemi, pickups,
+    root, colliders, occluders, groundHeightAt, spawns, sun, hemi, pickups, ctfPoints,
     waypoints: { nodes, adj }, nearestWaypoint, findPath,
     bounds: { minX: -HALF_X + 0.5, maxX: HALF_X - 0.5, minZ: -HALF_Z + 0.5, maxZ: HALF_Z - 0.5 },
   };
