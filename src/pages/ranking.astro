@@ -50,6 +50,23 @@ const totKills = players.reduce((s, p) => s + (p.kills || 0), 0);
 const totMatches = players.reduce((s, p) => s + (p.matches || 0), 0);
 const totHs = players.reduce((s, p) => s + (p.headshots || 0), 0);
 
+/* Título e descrição também mentiam com RANKING_ON=false: prometiam
+   "leaderboard global … atualiza a cada partida" numa página que só mostra um
+   aviso. `noindex` tira do índice de BUSCA, mas NÃO impede que um crawler de IA
+   leia e cite — a página segue `Allow` no robots.txt de propósito, porque a
+   resposta certa pra "qual é o ranking de CORO SOLTO?" é "não tem por enquanto",
+   e é melhor que a IA leia isso do que invente. */
+const pageTitle = !RANKING_ON
+  ? `Ranking global — desligado durante o alpha | ${BRAND_FULL}`
+  : curPage > 1
+    ? `Ranking global — página ${curPage} | ${BRAND_FULL}`
+    : `Ranking global — os maiores abatedores | ${BRAND_FULL}`;
+const pageDesc = !RANKING_ON
+  ? `O ranking global do ${BRAND_FULL} está desligado enquanto o jogo está em alpha: o placar ainda é forjável, e publicar classificação forjável é publicar número errado. Volta no mesmo endereço.`
+  : players.length
+    ? `Leaderboard global do ${BRAND_FULL}: ${players.length} jogadores, ${totKills.toLocaleString('pt-BR')} kills e ${totMatches.toLocaleString('pt-BR')} partidas. Atualiza a cada partida.`
+    : `Leaderboard global do ${BRAND_FULL}: os maiores abatedores da arena Treta Suprema.`;
+
 const jsonld = (RANKING_ON && rows.length) ? [
   {
     '@type': 'ItemList',
@@ -81,12 +98,8 @@ const jsonld = (RANKING_ON && rows.length) ? [
 ] : [];
 ---
 <Layout
-  title={curPage > 1
-    ? `Ranking global — página ${curPage} | ${BRAND_FULL}`
-    : `Ranking global — os maiores abatedores | ${BRAND_FULL}`}
-  description={players.length
-    ? `Leaderboard global do ${BRAND_FULL}: ${players.length} jogadores, ${totKills.toLocaleString('pt-BR')} kills e ${totMatches.toLocaleString('pt-BR')} partidas. Atualiza a cada partida.`
-    : `Leaderboard global do ${BRAND_FULL}: os maiores abatedores da arena Treta Suprema.`}
+  title={pageTitle}
+  description={pageDesc}
   noindex={!RANKING_ON || curPage > 1}
   jsonld={jsonld}>
 

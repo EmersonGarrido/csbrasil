@@ -21,9 +21,13 @@ export const BRAND = 'CORO SOLTO';
 export const BRAND_FULL = 'CORO SOLTO: Treta Suprema';
 export const BRAND_ALT = 'CS BRASIL';
 
+// "40+ personagens" virou "44": o número exato existe e sai de src/data/jogo.ts
+// (PERSONAGENS.length), que é o mesmo que as páginas, o llms.txt e o JSON-LD
+// usam. Aproximação numa descrição que o buscador cita é ruído gratuito — e
+// aqui ela era a ÚNICA fonte que não dizia 44.
 export const DESC_SHORT =
   'FPS gratuito de navegador estilo CS 1.6: arena de sniper satírica numa Brasília fictícia, ' +
-  'com cinco facções e 40+ personagens originais.';
+  'com cinco facções e 44 personagens originais.';
 
 export const DESC_LONG =
   'Jogo FPS gratuito de navegador: arena de sniper estilo awp_map do CS 1.6 numa Brasília ' +

@@ -33,9 +33,13 @@ const jsonld = [
   },
 ];
 ---
+{/* A meta description NÃO é a DESC_LONG: ela tem 261 caracteres, e o snippet
+    do Google fica em torno de 155-160 — o resto é cortado e não ajuda ninguém.
+    A DESC_LONG continua sendo a `description` do nó AboutPage no JSON-LD, onde
+    tamanho não é problema e detalhe é bem-vindo. */}
 <Layout
   title={`Sobre — FPS grátis de navegador estilo CS 1.6 | ${BRAND_FULL}`}
-  description={DESC_LONG}
+  description={`O que é o ${BRAND_FULL}: FPS gratuito de navegador estilo CS 1.6, satírico e brasileiro, com ${PERSONAGENS.length} personagens, ${MAPAS.length} mapas e ${ARMAS.length} armas. Sem instalação.`}
   jsonld={jsonld}>
 
   <section style="text-align:center;margin-bottom:10px">
@@ -75,7 +79,7 @@ const jsonld = [
     <p>Um jogo FPS gratuito que roda no navegador: arena de sniper estilo awp_map do CS 1.6,
       ambientada numa Brasília fictícia e satírica, com {FACCOES.length} facções,
       {PERSONAGENS.length} personagens originais, {MAPAS.length} mapas, {ARMAS.length} armas, bots,
-      sistema de rounds, Capture the Flag e ranking global.</p></details>
+      sistema de rounds e Capture the Flag.</p></details>
   <details><summary><strong>Preciso instalar ou pagar algo?</strong></summary>
     <p>Não. É 100% gratuito e roda direto no navegador de desktop (Chrome, Edge ou Firefox), sem
       download, sem instalação e sem cadastro.</p></details>
@@ -89,8 +93,14 @@ const jsonld = [
     <p>Não. É sátira leve distribuída igualmente para todos os lados — sem gore, sem ódio,
       celebrando a cultura brasileira.</p></details>
   <details><summary><strong>Tem ranking global?</strong></summary>
-    <p>Tem, e está no ar: <a href="/ranking">/ranking</a>. Cada jogador ganha uma página pública em
-      <code>/u/&lt;nick&gt;</code> com badge PNG gerada na hora pra compartilhar nas redes.</p></details>
+    <p>Ainda não. O jogo está em <strong>alpha</strong> e o ranking global está desligado até o
+      placar ser confiável — o modelo atual é forjável, e classificação forjável é número errado
+      publicado. Os seus stats de partida ficam salvos no navegador e aparecem no menu RANKING do
+      jogo. Quando voltar, cada jogador ganha de novo a página pública em
+      <code>/u/&lt;id&gt;/&lt;nick&gt;</code>, com badge PNG gerada na hora.</p></details>
+  <details><summary><strong>Dá pra jogar com outras pessoas?</strong></summary>
+    <p>Ainda não. Hoje todas as partidas são contra bots, de 1 a 8 por lado (4 contra 4 é o
+      padrão). O multiplayer é a próxima grande frente do projeto.</p></details>
 
   <h2>Open source</h2>
   <p>
