@@ -8,9 +8,13 @@ import { placeProp } from './mapprops.js';
 import { VAO_BANDS, aoBoxGeo, aoMatFactory, ContactSkirt, BASE_FLOATING, onGround } from './vao.js';
 import { makeAerialFog } from './bloom.js';   // névoa exponencial + cor por direção do olhar
 import { detailFor, registerDetail } from './textures.js';   // normal+rough por Sobel (ver lam)
+import { decalIds, paredeAtras, caixaDeBox3 } from './map_decals.js';   // pool por NOME + raycast de parede
 
 export function buildBrasilia(scene, T) {
   const colliders = [];   // {minX,minY,minZ,maxX,maxY,maxZ}
+  /* Sólidos que valem como parede PRA DECALQUE mas não são collider. Sai no `buildWorld`
+     como declaração pra régua (tools/eval/decal-probe.mjs mede com a MESMA função do jogo). */
+  const decalSolids = [];
   const occluders = [];   // meshes for LOS / bullet raycasts
   const root = new THREE.Group();
   scene.add(root);
@@ -1141,17 +1145,31 @@ export function buildBrasilia(scene, T) {
        posição, porque o `botsim` é determinístico e mapa que muda a cada carregamento é
        defeito. Fora do pool: as 47 folhas de 'alfabeto' (letra fina e clara, some a 10 m —
        BAR §2.1) e os recortes de olho/boca soltos (viram mancha abstrata ampliados). */
-    const D_MURAL = [157, 158, 159, 160, 161, 162, 163, 164, 156, 97, 166];
+    const D_MURAL = decalIds(T, ['personagem-muro.png', 'personagens-graffiti-01.png',
+      'personagens-graffiti-02.png', 'personagens-graffiti-03.png', 'personagens-graffiti-04.png',
+      'personagens-graffiti-05.png', 'personagens-graffiti-06.png', 'personagens-graffiti-07.png',
+      'peca-bolha.png']);
+    /* SÓLIDOS DE DECALQUE. O bloco do ministério é GLB e, com `bigscale`, entra com
+       `solid: false` — a colisão fica só nos pilares do piloti, então `colliders` NÃO tem a
+       empena e o `paredeAtras` reprovaria as 16 peças certas. A empena entra aqui, medida do
+       Box3 do próprio GLB, que é a mesma caixa de onde saem `cx`/`w` logo abaixo. */
     const _dmix = (n) => { let v = (n * 2654435761) >>> 0; v ^= v >>> 15; v = Math.imul(v, 2246822519) >>> 0; v ^= v >>> 13; v = Math.imul(v, 3266489917) >>> 0; return (v ^ (v >>> 16)) >>> 0; };
     const _dmat = new Map(), _usados = [];
     const decal = (x, y0, z, ry, alt, larg) => {
-      if (!T.decals || !T.decalAspects || !T.decalAspects.length) return null;
+      if (!T.decals || !T.decalAspects || !D_MURAL.length) return null;
       const k = _dmix(_dmix(Math.round(x * 10) + 9973) + Math.round(z * 10) * 131 + 7);
       let i = D_MURAL[k % D_MURAL.length];        // anti-repetição: arte repetida a menos de
       for (let t = 0; t < D_MURAL.length; t++) {  // 30 m em fachada de bloco lê como falha de
         const j = D_MURAL[(k + t) % D_MURAL.length];   // asset, não como cidade pichada
         if (!_usados.some((u) => u.i === j && Math.hypot(u.x - x, u.z - z) < 30)) { i = j; break; }
       }
+      const asp = T.decalAspects[i] || 1;
+      let hh = alt, ww = alt * asp;
+      if (ww > larg) { ww = larg; hh = larg / asp; }
+      /* PAREDE ATRÁS ANTES DE DESENHAR (map_decals.js). A 1ª versão desta empena colava na
+         face LONGA, que é feita de 6 fitas de vidro fumê, e só a captura pegou. O raycast
+         fecha a classe: sem sólido atrás em 0,80 m, a peça não nasce. */
+      if (!paredeAtras(colliders.concat(decalSolids), x, y0 + hh / 2, z, ry, ww, hh)) return null;
       _usados.push({ i, x, z });
       let m = _dmat.get(i);
       if (!m) {
@@ -1165,9 +1183,7 @@ export function buildBrasilia(scene, T) {
         });
         _dmat.set(i, m);
       }
-      const a = T.decalAspects[i] || 1;
-      let h = alt, w = alt * a;
-      if (w > larg) { w = larg; h = larg / a; }   // encolhe inteiro; NUNCA estica
+      const h = hh, w = ww;                       // encolhe inteiro; NUNCA estica
       const q = addPlane(w, h, m, x, y0 + h / 2, z, ry);
       q.renderOrder = 2;
       q.name = 'decal:' + (T.decalFiles ? T.decalFiles[i] : i);
@@ -1176,6 +1192,7 @@ export function buildBrasilia(scene, T) {
     for (const b of ministries) {
       if (!b) continue;
       const bb = new THREE.Box3().setFromObject(b);
+      decalSolids.push(caixaDeBox3(bb));       // a empena é sólido de decalque mesmo sem collider
       const cx = (bb.min.x + bb.max.x) / 2, w = bb.max.x - bb.min.x;
       /* DUAS peças lado a lado por empena (norte com ry = π, sul com ry = 0). A empena tem
          ~11 m: uma peça só com `larg = 0,8 · w` toma a parede inteira e vira fachada pintada,
@@ -1659,6 +1676,9 @@ export function buildBrasilia(scene, T) {
 
   return {
     root, colliders, occluders, groundHeightAt, spawns, sun, hemi,
+    /* DECLARAÇÃO PRA RÉGUA (tools/eval/decal-probe.mjs): a lista COMPLETA contra a qual o
+       `paredeAtras` validou cada decalque = colliders + as empenas dos ministérios (GLB). */
+    decalSolids: colliders.concat(decalSolids),
     waypoints: { nodes, adj }, nearestWaypoint, findPath,
     // bounds abertos até a face externa dos ministérios: sem isso o jogador é empurrado
     // pra fora da rota de flanco sob os pilotis que acabamos de abrir.
