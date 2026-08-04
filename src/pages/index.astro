@@ -646,18 +646,25 @@
 <!-- Match end — veredito, placar e o desempenho DO JOGADOR em três blocos separados.
      Antes era um painel só: o título, uma frase longa e três números soltos que quebravam
      linha no meio ("9 kills de r"). O conteúdo de #match-stats é escrito pelo game.js. -->
+<!-- RESULTADO (tela 09 da referência). A referência NÃO é uma coluna centrada: é uma
+     coluna de conteúdo ANCORADA À ESQUERDA (título, sub, cartão de estatística, ações) com
+     a metade direita reservada pra arte do vencedor. O #me-hero é essa metade — hoje ela é
+     campo atmosférico, porque o retrato do personagem só existe em runtime (glbchars) e
+     quem saberia qual é é o game.js. Ver relatório: falta um gancho lá pra preencher. -->
 <div id="match-end" class="screen hidden">
   <div class="me-wrap">
-    <div class="me-verdict">
-      <span class="me-kicker">FIM DA TRETA</span>
-      <h1 id="match-title">VITÓRIA</h1>
-      <p id="match-sub" class="big"></p>
+    <div class="me-col">
+      <div class="me-verdict">
+        <h1 id="match-title">VITÓRIA</h1>
+        <p id="match-sub" class="big"></p>
+      </div>
+      <div id="match-stats"></div>
+      <div class="me-actions">
+        <button id="btn-again" class="btn btn-big btn-cta">JOGAR NOVAMENTE</button>
+        <button id="btn-menu" class="btn">VOLTAR AO MENU</button>
+      </div>
     </div>
-    <div id="match-stats"></div>
-    <div class="me-actions">
-      <button id="btn-again" class="btn btn-big">▶ REVANCHE</button>
-      <button id="btn-menu" class="btn">MENU PRINCIPAL</button>
-    </div>
+    <div class="me-hero" aria-hidden="true"></div>
   </div>
 </div>
 
