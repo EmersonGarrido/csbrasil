@@ -413,6 +413,56 @@ export function buildQuebrada(scene, T) {
     addBox(2.9, 0.12, 2.9, lam({ color: 0xd8262a, roughness: 0.8 }), ux, 2.74, uz, { collide: false });
   }
 
+  /* ===================== ÔNIBUS PARADO + PONTO =====================
+     "teria um ônibus parado com ponto de ônibus".
+     O ÔNIBUS É DE SÃO PAULO: BRANCO COM FAIXA VERMELHA (padrão SPTrans). NÃO é o Amarelinho
+     amarelo do DF que mora no map_brasilia.js — este mapa é quebrada paulistana, e o GLB
+     `bus` de lá é o carro do Distrito Federal. Aqui a carroceria é feita de FAIXAS
+     horizontais de caixa (branco / vermelho / branco / vidro / branco): sai a leitura certa
+     sem depender de GLB nenhum, e como não há textura de lateral não há o problema de a
+     mesma arte aparecer esticada na traseira.
+     COLISÃO — a decisão que evita o BUG-21 na origem: o ônibus fica PARALELO À GUIA, ou seja,
+     ALINHADO AOS EIXOS. Prop girado exige `colRot` (grade no espaço local) porque o motor não
+     tem collider rotacionado — no ônibus da Brasília, a 0,55 rad, a caixa única deixou 2,33 m
+     de parede invisível. Alinhado, UMA AABB é exata: erro zero, um colisor só. Ônibus
+     estacionado de banda pra guia não existe no mundo real e custaria 18 colisores aqui.
+     Por isso as faixas vão com `collide:false` + occluder à mão, e a colisão é um `col` só. */
+  {
+    const BX = -5.6, BZ = -6, BW = 2.55, BL = 12.4;
+    const branco = lam({ color: 0xf2f0ec, roughness: 0.45, metalness: 0.15 });
+    const vermelho = lam({ color: 0xc4161c, roughness: 0.42, metalness: 0.15 });
+    const vidro = lam({ color: 0x20303c, roughness: 0.18, metalness: 0.5 });
+    const preto = lam({ color: 0x1a1c1f, roughness: 0.8 });
+    //           w    h     d       mat        y-base
+    const faixas = [
+      [BW, 0.55, BL - 0.5, preto, 0.30],       // saia inferior / chassi
+      [BW, 0.62, BL, branco, 0.85],
+      [BW, 0.34, BL, vermelho, 1.47],          // A faixa vermelha do SPTrans
+      [BW, 0.22, BL, branco, 1.81],
+      [BW, 0.78, BL - 0.3, vidro, 2.03],       // janelas
+      [BW, 0.28, BL - 0.2, branco, 2.81],      // friso do teto
+    ];
+    for (const [w, h, d, m, y] of faixas) occ(addBox(w, h, d, m, BX, y, BZ, { collide: false }));
+    occ(addBox(BW - 0.1, 0.16, BW - 0.1, branco, BX, 3.09, BZ - BL / 2 + 1.4, { collide: false, cast: false }));
+    for (const wz of [BL / 2 - 2.0, -BL / 2 + 2.6, -BL / 2 + 4.0]) for (const sx of [-1, 1]) {
+      const r = new THREE.Mesh(new THREE.CylinderGeometry(0.46, 0.46, 0.3, 14), MAT_PNEU);
+      r.rotation.set(Math.PI / 2, 0, Math.PI / 2); r.position.set(BX + sx * (BW / 2 - 0.12), 0.46, BZ + wz);
+      r.castShadow = true; root.add(r);
+    }
+    col(BX - BW / 2, BX + BW / 2, 0, 3.1, BZ - BL / 2, BZ + BL / 2);   // AABB EXATA (alinhado)
+  }
+  /* PONTO DE ÔNIBUS — abrigo de calçada. O teto fica a 2,4 m (acima do 1,5 m que o `_collide`
+     testa: não estorva ninguém) e o banco a 0,45 m entra como cover baixo. A bandeira do
+     ponto mora em (-10,-6), 1,0 m livre do banco: o anel de captura tem que ser PISÁVEL. */
+  {
+    const teto = lam({ color: 0x2f6f8a, roughness: 0.6, metalness: 0.25 });
+    addBox(0.16, 2.05, 8.0, MAT_VIDRO, -11.85, 0, -6, { collide: false });          // costas de vidro
+    for (const pz of [-9.7, -2.3]) for (const px of [-11.85, -8.7]) addBox(0.14, 2.4, 0.14, posteMat, px, 0, pz);
+    addBox(3.5, 0.14, 8.4, teto, -10.3, 2.4, -6, { collide: false });
+    addBox(0.55, 0.12, 6.2, lam({ color: 0x6b5a44, roughness: 0.9 }), -11.35, 0.45, -6);   // banco de madeira
+    addBox(0.5, 2.6, 0.5, lam({ map: placaTex('8022', '#1c4f8a', '#f4ecd6'), roughness: 0.8 }), -8.2, 0, -1.4);   // totem da linha
+  }
+
   // ===== ground height: o mapa é PLANO (nenhum degrau, nenhum mezanino) =====
   const groundHeightAt = () => 0;
 
