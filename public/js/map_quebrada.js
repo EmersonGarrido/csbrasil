@@ -158,8 +158,9 @@ export function buildQuebrada(scene, T) {
   /* QUARTEIRÃO: fatia um lote comprido em módulos de ~5,6 m. É o que impede o "mesmo módulo
      repetido" e o que mantém cada pegada abaixo do teto de 60 m² da MAP5. */
   function quarteirao(x0, x1, z0, z1, seed = 0) {
-    const L = z1 - z0, n = Math.max(1, Math.round(L / 5.6));
-    for (let i = 0; i < n; i++) barraco(x0, x1, z0 + L * i / n, z0 + L * (i + 1) / n, { seed: seed + i * 17 });
+    const dx = x1 - x0, dz = z1 - z0;
+    if (dz >= dx) { const n = Math.max(1, Math.round(dz / 5.6)); for (let i = 0; i < n; i++) barraco(x0, x1, z0 + dz * i / n, z0 + dz * (i + 1) / n, { seed: seed + i * 17 }); }
+    else { const n = Math.max(1, Math.round(dx / 5.6)); for (let i = 0; i < n; i++) barraco(x0 + dx * i / n, x0 + dx * (i + 1) / n, z0, z1, { seed: seed + i * 23 }); }
   }
 
   /* ===================== A RUA =====================
@@ -192,6 +193,44 @@ export function buildQuebrada(scene, T) {
     addBox(1.5, 0.14, 0.16, posteMat, px + (px < 0 ? 0.75 : -0.75), 6.2, pz, { collide: false, cast: false });
     addBox(0.5, 0.16, 0.3, lam({ color: 0xcfc9b4, emissive: 0x2a2418 }), px + (px < 0 ? 1.4 : -1.4), 6.05, pz, { collide: false, cast: false });
   }
+
+  /* ===================== QUARTEIRÕES, VIELAS E BECOS =====================
+     Os vãos que NÃO recebem barraco são a malha de circulação, e ela é o coração da CTF2:
+       VIELA OESTE  x ∈ [-25,-21], z ∈ [-38, 28]  (nasce na vila do baile, morre na travessa)
+       VIELA LESTE  x ∈ [ 21, 25], z ∈ [-40, 28]  (nasce na passagem leste da praça)
+       BECOS oeste  z ∈ [-12,-9] · [1,4] · [15,18]   (atravessam o bloco x ∈ [-21,-12,5])
+       BECOS leste  z ∈ [-5,-2] · [9,12] · [19,22]   (atravessam o bloco x ∈ [12,5, 21])
+     Os becos dos dois lados são DESENCONTRADOS de propósito (nenhum par no mesmo z): beco
+     alinhado com beco vira uma travessa reta que atravessa a rua inteira — outra linha de
+     tiro de ponta a ponta, exatamente o que este mapa não pode ter. Desencontrados, quem sai
+     de um beco cai na calçada oposta sem ninguém já mirando o vão.
+     Separação medida: eixo da rua x = 0 contra eixo da viela x = ∓23 → 23 m, quase 4× o
+     mínimo de 6 m da CTF2. */
+  quarteirao(-28, -25, -46.5, 28, 101);          // fundo oeste (fecha o mapa atrás da viela)
+  quarteirao(25, 28, -46.5, 28, 211);            // fundo leste
+  quarteirao(-12.5, 21, -46.5, -43, 251);        // perímetro norte da praça
+  quarteirao(-25, -12.5, -46.5, -45, 271);       // fundo da vila do baile (atrás do spawn P)
+  quarteirao(21, 25, -46.5, -40, 281);           // tampa norte da viela leste
+  // bloco OESTE — 4 lotes, 3 becos
+  quarteirao(-21, -12.5, -38, -12, 301);
+  quarteirao(-21, -12.5, -9, 1, 311);
+  quarteirao(-21, -12.5, 4, 15, 321);
+  quarteirao(-21, -12.5, 18, 24, 331);
+  // bloco LESTE — 5 lotes, 3 becos + a passagem da praça pra viela leste (z ∈ [-40,-36])
+  quarteirao(12.5, 21, -43, -40, 401);
+  quarteirao(12.5, 21, -36, -5, 411);
+  quarteirao(12.5, 21, -2, 9, 421);
+  quarteirao(12.5, 21, 12, 19, 431);
+  quarteirao(12.5, 21, 22, 24, 441);
+  // fundos do campinho
+  quarteirao(-28, -22, 28, 46.5, 501);
+  quarteirao(22, 28, 28, 46.5, 551);
+  /* MURO DA VILA — anteparo solto de 6 m no meio do pátio do spawn P, NÃO uma parede que o
+     fecha. A diferença é a MAP2B: emparedar o respawn zera a exposição e reprova do outro
+     lado (folga ≥ 1,20 m e ≥ 40 m² de chão CONTÍGUO num raio de 5 m — foi assim que a fresta
+     do depósito da Havan passou verde e ficou péssima). Solto, ele corta a visada direta da
+     praça pros slots e ainda deixa contornar pelos dois lados. */
+  addBox(6, 2.4, 0.35, lam({ map: T.concrete, color: 0x9c9488 }), -16, 0, -40);
 
   // ===== ground height: o mapa é PLANO (nenhum degrau, nenhum mezanino) =====
   const groundHeightAt = () => 0;
