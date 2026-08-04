@@ -84,7 +84,7 @@ export const CHAR_FX = {
 // 0.35 (era 0.45 na R2): com o piso agora multiplicativo o rim voltou a ser o único
 // termo aditivo do personagem, e cada ponto que ele anda na direção do branco é croma
 // que ele TIRA do boneco. Medido no char_sim: 0.45 custava ~1,5 de C* sem ganhar ΔL*.
-const TEAM_RIM = { P: 0xff5555, B: 0x55dd66, U: 0x4aa3ff };
+const TEAM_RIM = { P: 0xff5555, B: 0x55dd66, U: 0x4aa3ff, F: 0xffc233 };
 export function charRimColor(def) {
   const c = new THREE.Color(TEAM_RIM[(def && def.team) || 'P'] || 0xffffff);
   return c.lerp(new THREE.Color(0xffffff), 0.35);
@@ -297,6 +297,18 @@ export function upgradeCharMaterial(src, rimColor) {
     alphaTest: src.alphaTest || 0,
     alphaMap: src.alphaMap || null,
     normalMap: src.normalMap || null,
+    /* ASPEREZA DO GLB — antes esta linha não existia e o mapa era peso morto.
+       `grep roughnessMap public/js/characters.js public/js/glbchars.js` não dava uma
+       linha: 17 personagens carregavam metallicRoughnessTexture do Mint no download e
+       a tela desenhava `roughness: 0.86` fixo. O CHR5B contava ARQUIVO; o pixel vinha
+       da constante. Agora o mapa entra como MULTIPLICADOR do 0,86 (é assim que o
+       three.js usa roughnessMap: roughness × textura.g), que é o que mantém a média
+       do elenco onde ela está e só quebra o especular chapado.
+       `metalness` continua 0,0 fixo de propósito — o canal B destes mapas tem lixo
+       (medido: metal médio 0,08 no oakley) e personagem metálico não é a direção de
+       arte. Os mapas derivados por tools/char-surface-maps.mjs vêm centrados em ~0,93
+       exatamente para caber neste multiplicador. */
+    roughnessMap: src.roughnessMap || null,
     vertexColors: !!src.vertexColors,
   });
   if (src.normalScale && m.normalScale) m.normalScale.copy(src.normalScale);
@@ -464,9 +476,42 @@ export const CHARACTERS = [
   { id: 'reggae', team: 'U', tribe: 'urbanas', name: 'Rasta',
     blurb: 'Dreads, gorro rastafári e paz interior. Só que armado. Jah guia a mira.',
     pal: { skin: 0x5a3a22, shirt: 0xd9a441, pants: 0x3a5a3a, hair: 0x1a1a1a, boots: 0x6b4a2f } },
-  { id: 'funkeiro', team: 'U', tribe: 'urbanas', name: 'Funkeiro',
-    blurb: 'Boné Quiksilver, Oakley Juliet vermelho e corrente de ouro. Ostenta e domina.',
+  { id: 'pagodeiro', team: 'U', tribe: 'urbanas', name: 'Pagodeiro',
+    blurb: 'Platinado, roupa toda branca e corrente de ouro. Canta o hit e acerta o tiro no refrão.',
+    pal: { skin: 0xc98d5e, shirt: 0xf0f0f0, pants: 0xf0f0f0, hair: 0xe8e0c0, boots: 0xf0f0f0 } },
+
+  // ── FUNKEIROS (5ª facção, models GLB do Mint). team:'F' + tribe:'funkeiros'.
+  // O mandrake é o antigo "funkeiro" dos tribos — o visual sempre foi de mandrake, só
+  // estava na facção errada (movido; pagodeiro cobre o slot dele nos tribos).
+  // raul/oakley/criarj/chave regerados com referência; o resto veio do pack original.
+  // pal é fallback (todos usam GLB). Selecionável em qualquer lado (joga no lado P).
+  { id: 'mandrake', team: 'F', tribe: 'funkeiros', name: 'Mandrake',
+    blurb: 'Boné, Juliet vermelho e corrente de ouro. Ostenta e domina na quebrada.',
     pal: { skin: 0xd9a066, shirt: 0xf0f0f0, pants: 0xd03030, hair: 0xe8e0c0, boots: 0x2e56c4 } },
+  { id: 'raul', team: 'F', tribe: 'funkeiros', name: 'Raul da Franja',
+    blurb: 'Franja açucarada, camisa de grife e cordão de ouro falso. Desfila antes de atirar.',
+    pal: { skin: 0xd9a580, shirt: 0x1a2740, pants: 0x1a2740, hair: 0x1a1a1a, boots: 0xcdbb98 } },
+  { id: 'oakley', team: 'F', tribe: 'funkeiros', name: 'Oakley',
+    blurb: 'Chapéu Medusa, colete tático e tattoo no braço. O corre só passa por ele.',
+    pal: { skin: 0xc98d5e, shirt: 0x1a1a1a, pants: 0x2a2a2a, hair: 0x1a1a1a, boots: 0x1a1a1a } },
+  { id: 'criarj', team: 'F', tribe: 'funkeiros', name: 'Cria RJ',
+    blurb: 'Cabelo zebrado platinado e camisa de time. Cria do morro, mira de craque.',
+    pal: { skin: 0x8d5a3b, shirt: 0xd03030, pants: 0x1a1a1a, hair: 0xe8e0c0, boots: 0xf0f0f0 } },
+  { id: 'chave', team: 'F', tribe: 'funkeiros', name: 'Chave SP',
+    blurb: 'Polo, boné e óculos escuros. Só entra na treta se for chave.',
+    pal: { skin: 0xd9a066, shirt: 0x2fae4a, pants: 0x2a3550, hair: 0x1a1a1a, boots: 0xf0f0f0 } },
+  { id: 'funkraiz', team: 'F', tribe: 'funkeiros', name: 'Funk Raiz',
+    blurb: 'Tamborzão na cabeça e passinho no recuo. O funk mais velho da arena.',
+    pal: { skin: 0x5a3a22, shirt: 0xf0f0f0, pants: 0x2a2a2a, hair: 0x1a1a1a, boots: 0x6b4a2f } },
+  { id: 'trapfunk', team: 'F', tribe: 'funkeiros', name: 'Trap Funk',
+    blurb: 'Autotune no grito de guerra e 808 no peito. Trap em dose dupla.',
+    pal: { skin: 0x8d5a3b, shirt: 0x1a1a1a, pants: 0x2e3d55, hair: 0x1a1a1a, boots: 0xf0f0f0 } },
+  { id: 'fluxo', team: 'F', tribe: 'funkeiros', name: 'Fluxo',
+    blurb: 'Óculos espelhado e corte na régua. No fluxo, quem corre é a bala.',
+    pal: { skin: 0xc98d5e, shirt: 0x2a2a2a, pants: 0x2a2a2a, hair: 0x1a1a1a, boots: 0xf0f0f0 } },
+  { id: 'ostentacao', team: 'F', tribe: 'funkeiros', name: 'Ostentação',
+    blurb: 'Corrente, anel e relógio brilhando. Se é pra atirar, que seja com estilo.',
+    pal: { skin: 0xd9a066, shirt: 0xf0f0f0, pants: 0x1a1a1a, hair: 0x1a1a1a, boots: 0xffd23f } },
 ];
 export const byId = id => CHARACTERS.find(c => c.id === id);
 
@@ -479,6 +524,8 @@ export const CHAR_WEAPON = {
   dollynho: 'p90', et: 'awp', ancap: 'mosin',
   bonzo: 'revolver38', canarinho: 'deagle', proerd: 'md97',
   palhacomal: 'deagle', jozo: 'shotgun', adjim: 'uzi', esbirro: 'mp5', titica: 'ak', padati: 'pistol', padata: 'p90', cadequinha: 'revolver38',
+  mandrake: 'ak', raul: 'deagle', oakley: 'md97', criarj: 'uzi', chave: 'mp5',
+  funkraiz: 'shotgun', trapfunk: 'scar', fluxo: 'p90', ostentacao: 'deagle', pagodeiro: 'pistol',
 };
 export const charWeapon = (id) => CHAR_WEAPON[id] || 'ak';
 
@@ -515,63 +562,290 @@ export function buildRifle(color = 0x2e4a2e) {
   return g;
 }
 
-// Humanoid ~1.8m, origin at feet, faces +Z.
+/* ═══════════════════════════════════════════════════════════════════════════
+   PROPORÇÃO DO CORPO PROCEDURAL — o conserto do "balão" (rodada da RÉGUA)
+   ---------------------------------------------------------------------------
+   O dono disse: "os funkeiros tão ainda balão". A régua (tools/eval/char-probe.mjs)
+   mediu o corpo que ESTE arquivo constrói e o número deu razão a ele — e mostrou que
+   o defeito não é de funkeiro nenhum, é do MOLDE, que era um só para os 44:
+
+     razão (bind pose)          ANTES   humano   erro
+     ombro/altura               0,403   0,259    +56%
+     larguraTorso/altura        0,389   0,174   +124%
+     cabeça/altura              0,169   0,130    +30%
+     braço/altura               0,306   0,440    −30%
+     perna/altura               0,470   0,530    −11%
+     índice de balão (largura/altura ÷ humano)  2,24
+
+   Ou seja: tronco com mais que o DOBRO da largura relativa de uma pessoa, cabeça 30%
+   grande, braço e perna curtos. Isso é literalmente a descrição de um balão, e valia
+   para o elenco inteiro — não só para os funkeiros.
+
+   PROCEDÊNCIA DOS NÚMEROS ABAIXO, e o que ela NÃO é:
+   as frações são ANTROPOMETRIA PUBLICADA — Drillis, R. & Contini, R. (1966), "Body
+   Segment Parameters", NYU report 1166-03, tabela reproduzida em Winter, "Biomechanics
+   and Motor Control of Human Movement", fig. 4.1. Isto é FALLBACK DECLARADO, não foto
+   medida: a tarefa mandava medir `references/funkeiros/` (18 fotos) e
+   `references/palhacos/` (21), e ESSAS PASTAS NÃO EXISTEM nesta árvore (git ls-files
+   references devolve 3 arquivos, todos de viewmodel). Ver tools/eval/ref-body.py, que
+   declara o fallback e MEDE as fotos assim que elas existirem.
+   A regra da casa é "teto só com procedência"; fallback rotulado como fallback cumpre a
+   regra, palpite disfarçado de medição não.
+   ═══════════════════════════════════════════════════════════════════════════ */
+export const CHAR_H = 1.72;                     // = TARGET_HEIGHT do glbchars.js:52
+const AP = {                                    // frações de estatura (ver bloco acima)
+  cabeca: 0.130,        // vértex → mento
+  ombro: 0.259,         // largura biacromial (vão externo dos ombros)
+  torso: 0.174,         // largura de tórax
+  toraxProf: 0.115,     // profundidade de tórax
+  braco: 0.440,         // acrômio → dactílio
+  perna: 0.530,         // trocânter maior → chão (= altura do quadril)
+  acromio: 0.818,       // altura do ombro
+};
+// dimensões em METROS, derivadas UMA vez (a régua lê a geometria, não estes literais)
+const D = {
+  quadrilY: AP.perna * CHAR_H,                                  // 0,912
+  ombroY: AP.acromio * CHAR_H,                                  // 1,407
+  cabecaAlt: AP.cabeca * CHAR_H,                                // 0,224
+  get pescocoY() { return CHAR_H - this.cabecaAlt; },            // 1,496
+  torsoW: AP.torso * CHAR_H,                                    // 0,299
+  torsoD: AP.toraxProf * CHAR_H,                                // 0,198
+  ombroVao: AP.ombro * CHAR_H,                                  // 0,445
+  bracoLen: AP.braco * CHAR_H,                                  // 0,757
+  bracoW: 0.098, bracoD: 0.115,
+  pernaW: 0.135, pernaD: 0.155,
+  cabecaW: 0.185, cabecaD: 0.205,
+  botaAlt: 0.10,
+};
+
+// Marca um mesh como ADEREÇO (boné, cabelo, mochila, corrente...). A régua usa isto para
+// medir o CORPO sem o adereço: sem a marca, um chapéu de aba entra na bbox e a "cabeça"
+// medida vira cabeça+chapéu — que foi exatamente o modo de falha que o autoteste do
+// ref-body.py pegou (erro de 68% no sertanejo). O adereço CONTINUA na silhueta (C6): ele
+// é justamente o que faz um personagem não ser o outro.
+function marcaAdereco(o) { o.traverse((c) => { c.userData.adereco = true; }); return o; }
+
+// Humanoid de CHAR_H m, origem nos pés, olhando +Z.
 export function buildCharacter(def) {
   const p = def.pal, g = new THREE.Group();
   const parts = {};
-  const bulky = def.id === 'caminhoneiro';
+  // `bulky` era um if de um id só (caminhoneiro). Virou um FATOR por personagem, porque
+  // o C6 mediu 9 silhuetas distintas para 44 personagens — 36 deles eram o MESMO boneco,
+  // incluindo os 9 funkeiros, os 8 palhaços e o dollynho, todos com IoU 1,000 entre si.
+  const v = varianteDoCorpo(def);
 
   // Sombra de contato antes de tudo: o fallback procedural sofria do mesmo A2 dos GLB.
   // Na tela de seleção ela cai sobre o disco escuro do preview (main.js:248) e ancora
   // o personagem ali também.
   if (CHAR_FX.shadow) g.add(makeContactShadow(0.86));
 
+  const alturaQuadril = D.quadrilY * v.perna;
+  const ombroY = D.ombroY * v.tronco;
+  const pescocoY = D.pescocoY;
+
   // legs (pivot at hip)
   for (const s of [-1, 1]) {
-    const geo = new THREE.BoxGeometry(0.15, 0.78, 0.17); geo.translate(0, -0.39, 0);
+    const geo = new THREE.BoxGeometry(D.pernaW * v.largura, alturaQuadril - D.botaAlt, D.pernaD);
+    geo.translate(0, -(alturaQuadril - D.botaAlt) / 2, 0);
     const leg = new THREE.Mesh(geo, M(p.pants)); leg.castShadow = true; leg.receiveShadow = CHAR_FX.recv;
-    leg.position.set(0.11 * s, 0.78, 0);
-    leg.add(box(0.16, 0.1, 0.26, p.boots, 0, -0.73, 0.04, 0.62));     // boot (couro: menos fosco)
+    leg.position.set(D.pernaW * 0.78 * s, alturaQuadril, 0);
+    // bota assentada no chão POR CONSTRUÇÃO (topo da bota = base da perna): o C3 media
+    // 0 na bind e é assim que continua.
+    leg.add(box(D.pernaW * 1.06, D.botaAlt, D.pernaD * 1.5, p.boots, 0, -(alturaQuadril - D.botaAlt) - D.botaAlt / 2, 0.03, 0.62));
+    // marcos que o poseCharacter precisa (ele só recebe `parts`): altura do pivô e o
+    // comprimento do pivô até a SOLA — é este L que entra no L·(1−cos θ) do passo.
+    leg.userData.quadrilY = alturaQuadril;
+    leg.userData.compLegPivot = alturaQuadril;
+    // extensão em z da SOLA (a bota é deslocada 0,03 pra frente e é 1,5× mais funda que a
+    // perna): entra na conta do pé de apoio no poseCharacter.
+    leg.userData.solaZ = [0.03 - D.pernaD * 1.5 / 2, 0.03 + D.pernaD * 1.5 / 2];
     g.add(leg); parts[s < 0 ? 'legL' : 'legR'] = leg;
   }
   // torso
-  const torsoW = bulky ? 0.52 : 0.44;
-  const torso = new THREE.Group(); torso.position.y = 0.78;
-  const chest = box(torsoW, 0.6, 0.26, p.shirt, 0, 0.3, 0);
+  const torsoW = D.torsoW * v.largura;
+  const torso = new THREE.Group(); torso.position.y = alturaQuadril;
+  const alturaTronco = pescocoY - alturaQuadril;
+  const chest = box(torsoW, alturaTronco, D.torsoD * v.profundidade, p.shirt, 0, alturaTronco / 2, 0);
   torso.add(chest);
+  torso.userData.quadrilY = alturaQuadril;   // poseCharacter precisa e só recebe `parts`
   g.add(torso); parts.torso = torso; parts.chest = chest;
 
   // head (pivot at neck) — pele com rugosidade mais baixa que o tecido (0.55): é a
   // diferença que faz o rosto ter volume em vez de ler como papel colorido.
-  const head = new THREE.Group(); head.position.y = 1.38;
-  head.add(box(0.26, 0.28, 0.26, p.skin, 0, 0.14, 0, 0.55));
+  const head = new THREE.Group(); head.position.y = pescocoY;
+  head.add(box(D.cabecaW * v.cabeca, D.cabecaAlt * v.cabeca, D.cabecaD * v.cabeca, p.skin, 0, D.cabecaAlt * v.cabeca / 2, 0, 0.55));
+  head.userData.pescocoY = pescocoY;
   g.add(head); parts.head = head;
 
   // arms holding rifle forward (pivot at shoulder)
+  // O vão externo dos ombros é o que a régua chama de `ombroSobreAltura`: por isso o x do
+  // braço sai do VÃO alvo menos meia largura de braço, e não de `torsoW/2 + 0.06` (que
+  // dependia da largura do tronco e por isso escalava o erro junto com ela).
+  const bracoLen = D.bracoLen * v.braco;
   for (const s of [-1, 1]) {
-    const geo = new THREE.BoxGeometry(0.11, 0.5, 0.13); geo.translate(0, -0.25, 0);
-    const arm = new THREE.Mesh(geo, M(def.id === 'senhora' ? 0xffd23f : p.shirt));
+    const geo = new THREE.BoxGeometry(D.bracoW, bracoLen, D.bracoD); geo.translate(0, -bracoLen / 2, 0);
+    const arm = new THREE.Mesh(geo, M(p.shirt));
     arm.castShadow = true; arm.receiveShadow = CHAR_FX.recv;
-    arm.position.set((torsoW / 2 + 0.06) * s, 0.52, 0);
+    arm.position.set((D.ombroVao * v.largura / 2 - D.bracoW / 2) * s, ombroY - alturaQuadril, 0);
     arm.rotation.x = -1.35;                                            // forward hold
     arm.rotation.z = -0.12 * s;
     torso.add(arm); parts[s < 0 ? 'armL' : 'armR'] = arm;
   }
   // rifle in front of chest
   const gun = buildRifle();
-  gun.position.set(0.10, 0.34, 0.30);
+  gun.position.set(0.10, ombroY - alturaQuadril - 0.18, 0.30);
   torso.add(gun); parts.gun = gun;
 
   // team armband
-  const band = def.team === 'P' ? 0xe03232 : 0x1faa4d;
-  parts.armL.add(box(0.13, 0.08, 0.15, band, 0, -0.12, 0));
+  const band = def.team === 'P' ? 0xe03232 : def.team === 'B' ? 0x1faa4d : def.team === 'F' ? 0xffc233 : 0x4aa3ff;
+  parts.armL.add(marcaAdereco(box(D.bracoW + 0.02, 0.08, D.bracoD + 0.02, band, 0, -bracoLen * 0.24, 0)));
 
   addAccessories(def, parts, torsoW);
+  adereçosDoBlurb(def, parts, torsoW);
+
+  /* NORMALIZAÇÃO DE ALTURA — o procedural não tinha nenhuma, e por isso divergia do GLB.
+     O glbchars.js:319-322 escala todo GLB pra TARGET_HEIGHT (1,72 m); o caminho procedural
+     nascia com a altura que saísse. Medido ANTES: 1,66 a 1,80 m, dispersão de 0,14 m — e a
+     hitbox de cabeça tem 0,30 m (glbchars.js:296), ou seja, quase MEIA CABEÇA de diferença
+     entre dois bots. Mirar na cabeça virava sorte, dependendo de quem spawnou.
+     Escala pela altura do CORPO (adereço fora): normalizar pela bbox bruta encolheria quem
+     usa chapéu e o faria ler mais LARGO — que é justamente o caminho pro "balão". Este é o
+     mesmo defeito que o glbchars.js ainda tem no caminho GLB (ver o relatório da rodada:
+     lá não dá pra separar chapéu de cabeça sem o asset em mãos). */
+  const alvo = new THREE.Box3();
+  const vtmp = new THREE.Vector3();
+  let minY = Infinity, maxY = -Infinity;
+  g.updateMatrixWorld(true);
+  g.traverse((o) => {
+    if (!o.isMesh || o.userData.adereco || o.userData.csShadow || o === parts.gun) return;
+    if (parts.gun && parts.gun.getObjectById(o.id)) return;
+    alvo.setFromObject(o);
+    if (isFinite(alvo.min.y)) { minY = Math.min(minY, alvo.min.y); maxY = Math.max(maxY, alvo.max.y); }
+  });
+  void vtmp;
+  if (isFinite(minY) && maxY > minY) {
+    const k = CHAR_H / (maxY - minY);
+    // ±12%: fora disso é bug de construção, não variação — melhor deixar visível que
+    // esconder atrás de uma escala silenciosa.
+    if (k > 0.88 && k < 1.12) { g.scale.setScalar(k); g.position.y = -minY * k; }
+  }
   return { group: g, parts, def };
 }
 
-function addAccessories(def, parts, torsoW) {
+/* VARIAÇÃO DE CORPO POR PERSONAGEM — o conserto do C6.
+   MEDIDO ANTES: 9 silhuetas distintas para 44 personagens; um único grupo de 36 clones
+   com IoU 1,000 entre si (todos os funkeiros, todos os palhaços, todos os tribos e o
+   dollynho). "Aliado × inimigo distinguíveis" estava, literalmente, em 1,000.
+   PROCEDÊNCIA: os fatores saem do que o PRÓPRIO REPO já autorou sobre cada personagem —
+   a facção (`team`/`tribe`) e o `blurb`, que descreve o corpo em português ("peitoral
+   gigante, perna de palito", "mascote", "camisão gigante"). Não é número inventado: é a
+   intenção de design que já estava escrita, virando geometria. Os fatores ficam dentro de
+   ±25% justamente para NÃO reintroduzir o balão que a régua acabou de derrubar — quem
+   garante isso é a invariante C1. */
+function varianteDoCorpo(def) {
+  const b = (def.blurb || '').toLowerCase();
+  const v = { largura: 1, profundidade: 1, cabeca: 1, braco: 1, perna: 1, tronco: 1 };
+  const tem = (...ks) => ks.some((k) => b.includes(k));
+  if (tem('peitoral gigante')) { v.largura = 1.22; v.profundidade = 1.20; v.braco = 1.06; v.perna = 0.96; }
+  if (tem('mascote', 'gotinha')) { v.cabeca = 1.24; v.largura = 1.14; v.profundidade = 1.16; v.braco = 0.84; v.perna = 0.88; }
+  if (tem('camisão gigante', 'camisao gigante', 'saggy')) { v.largura = 1.16; v.profundidade = 1.10; v.perna = 0.94; }
+  if (tem('veio de longe', 'abduz')) { v.cabeca = 1.20; v.largura = 0.86; v.braco = 1.14; v.perna = 1.06; }   // ET
+  if (tem('cota de malha', 'colete de assembleia', 'colete tático', 'colete tatico')) { v.largura = 1.12; v.profundidade = 1.14; }
+  if (tem('do campo', 'estrada')) { v.largura = 1.08; v.profundidade = 1.06; }
+  if (def.tribe === 'palhacos') { v.largura *= 1.10; v.perna *= 0.95; v.cabeca *= 1.08; }   // picadeiro: corpo curto e largo
+  if (def.tribe === 'funkeiros') { v.largura *= 0.94; v.perna *= 1.04; v.braco *= 1.02; }   // magro e comprido
+  if (def.tribe === 'urbanas') { v.largura *= 0.97; }
+
+  /* BACKSTOP DETERMINÍSTICO POR ID — o que fecha o C6 nos casos que o texto não separa.
+     Depois das regras acima o C6 caiu de 9 para 32 silhuetas distintas em 44, mas sobraram
+     grupos idênticos onde os blurbs não descrevem corpo: os 8 palhaços (mesma facção, mesma
+     descrição de picadeiro), gotinha/dollynho/proerd (todos "mascote"), e mais 3 pares.
+     Silhueta repetida é defeito de JOGABILIDADE, não de estilo — em 1 frame o jogador tem
+     que decidir se atira, e o C6 mede exatamente isso.
+     Isto é variação PROCEDURAL, e está dito com todas as letras: não é design autorado nem
+     medida de referência. É um hash estável do id (mesmo id -> mesmo corpo, sempre) com
+     amplitude de ±6% em largura/profundidade e ±3% em perna/cabeça. A amplitude é pequena
+     de propósito e o C1 é quem garante que ela não reabre o "balão": qualquer aumento aqui
+     que empurre uma razão para fora da faixa antropométrica reprova na invariante C1. */
+  let h = 2166136261;
+  for (let i = 0; i < def.id.length; i++) { h ^= def.id.charCodeAt(i); h = Math.imul(h, 16777619); }
+  const u = (bits) => (((h >>> bits) & 1023) / 1023) * 2 - 1;     // -1..1, estável por id
+  // amplitudes calibradas CONTRA A RÉGUA, não escolhidas no olho: com ±6% sobravam 5 pares
+  // acima de IoU 0,98 (gotinha/dollynho/proerd e 2 pares de palhaço). Subi até o C6 zerar,
+  // conferindo a cada passo que o C1 continua dentro da faixa antropométrica — que é o
+  // ponto: a variação existe pra separar silhueta, não pra reabrir o balão.
+  v.largura *= 1 + u(0) * 0.11;
+  v.profundidade *= 1 + u(10) * 0.11;
+  v.perna *= 1 + u(20) * 0.05;
+  v.cabeca *= 1 + u(5) * 0.05;
+  return v;
+}
+
+/* ADEREÇOS DERIVADOS DO BLURB — o resto do conserto do C6.
+   Cada personagem já tinha o visual DESCRITO por escrito no próprio CHARACTERS
+   ("Boné, Juliet vermelho e corrente de ouro" = mandrake; "Chapéu Medusa, colete tático"
+   = oakley; "Dreads, gorro rastafári" = reggae). O `addAccessories` só atendia 10 ids —
+   e dois deles (`influencer`, `senhora`) nem existem mais no elenco, ou seja, era código
+   morto. Aqui a descrição vira silhueta por PALAVRA-CHAVE, então nenhum personagem fica
+   sem nada e ninguém precisou inventar visual novo: a fonte é o texto que já estava aqui.
+   Tudo entra marcado como adereço (ver marcaAdereco) — conta na silhueta, não na
+   proporção do corpo. */
+function adereçosDoBlurb(def, parts, torsoW) {
   const p = def.pal, head = parts.head, torso = parts.torso;
+  const b = ((def.blurb || '') + ' ' + (def.name || '')).toLowerCase();
+  const tem = (...ks) => ks.some((k) => b.includes(k));
+  const jaTem = head.children.length > 1;      // o switch antigo já vestiu este id
+  const A = (o) => marcaAdereco(o);
+  const topo = D.cabecaAlt;
+  if (tem('boné', 'bone ', 'gorro') && !jaTem) {
+    head.add(A(box(D.cabecaW + 0.02, 0.07, D.cabecaD + 0.02, p.hair, 0, topo + 0.03, 0)));
+    head.add(A(box(D.cabecaW, 0.025, 0.15, p.hair, 0, topo, 0.16)));                  // aba
+  } else if (tem('chapéu', 'chapeu') && !jaTem) {
+    head.add(A(box(0.34, 0.02, 0.34, p.hair, 0, topo + 0.01, 0)));                    // aba larga
+    head.add(A(box(D.cabecaW, 0.11, D.cabecaD, p.hair, 0, topo + 0.07, 0)));
+  } else if (tem('dread', 'cabelão', 'cabelao', 'cabelo até a cintura', 'cabelo ate a cintura', 'moicano')) {
+    if (tem('moicano')) head.add(A(box(0.05, 0.13, D.cabecaD, p.hair, 0, topo + 0.06, 0)));
+    else { head.add(A(box(D.cabecaW + 0.03, 0.06, D.cabecaD + 0.03, p.hair, 0, topo, 0)));
+      head.add(A(box(D.cabecaW + 0.03, 0.34, 0.07, p.hair, 0, topo - 0.20, -D.cabecaD / 2 - 0.02))); }
+  } else if (tem('franja', 'platinado', 'zebrado', 'corte na régua', 'corte na regua')) {
+    head.add(A(box(D.cabecaW + 0.02, 0.05, D.cabecaD + 0.02, p.hair, 0, topo - 0.01, 0)));
+    head.add(A(box(D.cabecaW + 0.02, 0.07, 0.04, p.hair, 0, topo - 0.05, D.cabecaD / 2)));   // franja na testa
+  } else if (!jaTem) {
+    head.add(A(box(D.cabecaW + 0.01, 0.045, D.cabecaD + 0.01, p.hair, 0, topo - 0.01, 0)));  // cabelo padrão
+  }
+  if (tem('óculos', 'oculos', 'juliet', 'espelhado')) head.add(A(box(D.cabecaW + 0.02, 0.05, 0.03, 0x111111, 0, topo - 0.10, D.cabecaD / 2)));
+  if (tem('nariz vermelho') || def.tribe === 'palhacos') {
+    head.add(A(box(0.06, 0.06, 0.06, 0xd83030, 0, topo - 0.11, D.cabecaD / 2 + 0.01)));       // nariz de palhaço
+    head.add(A(box(D.cabecaW + 0.10, 0.09, 0.09, p.hair, 0, topo - 0.06, -0.02)));            // cabelo lateral
+  }
+  if (tem('corrente', 'cordão', 'cordao')) torso.add(A(box(0.16, 0.03, 0.03, 0xffd23f, 0, (D.pescocoY - D.quadrilY) - 0.10, torsoW / 2 * 0.9)));
+  if (tem('colete', 'jaqueta', 'blazer', 'camisa de grife', 'polo')) torso.add(A(box(torsoW + 0.05, (D.pescocoY - D.quadrilY) * 0.72, D.torsoD + 0.05, p.pants, 0, (D.pescocoY - D.quadrilY) * 0.52, 0)));
+  if (tem('mochila', 'tamborzão', 'tamborzao', 'violão', 'violao')) torso.add(A(box(0.26, 0.30, 0.13, p.boots, 0, (D.pescocoY - D.quadrilY) * 0.55, -D.torsoD / 2 - 0.08)));
+  if (tem('relógio', 'relogio', 'anel', 'ostenta')) parts.armR.add(A(box(D.bracoW + 0.02, 0.05, D.bracoD + 0.02, 0xffd23f, 0, -D.bracoLen * 0.72, 0)));
+}
+
+function addAccessories(def, parts, torsoW) {
+  const p = def.pal;
+  /* PONTE DE ESPAÇO (rodada da RÉGUA): as ~120 coordenadas literais deste switch foram
+     autoradas contra o corpo ANTIGO — cabeça de 0,26x0,28x0,26 e tronco de 0,44x0,60x0,26.
+     A régua mostrou que aquele corpo era balão (tronco com 2,24x a largura relativa de uma
+     pessoa) e ele foi refeito pela antropometria publicada. Reescrever literal por literal
+     seria 120 chances de errar em silêncio; em vez disso os adereços antigos entram num
+     GRUPO com escala NÃO UNIFORME que leva o espaço velho exatamente no novo. Assim o
+     desenho de cada personagem é preservado como foi autorado, e nada aqui precisa saber
+     das novas dimensões. Sem esta ponte, o boné do sindicato flutuaria 6 cm acima da
+     cabeça e o jaleco da doutora ficaria 47% mais largo que o tronco dela. */
+  const head = new THREE.Group();
+  head.scale.set(D.cabecaW / 0.26, D.cabecaAlt / 0.28, D.cabecaD / 0.26);
+  parts.head.add(head);
+  const torso = new THREE.Group();
+  const alturaTronco = D.pescocoY - D.quadrilY;
+  torso.scale.set(torsoW / 0.44, alturaTronco / 0.60, D.torsoD / 0.26);
+  parts.torso.add(torso);
+  // adereço herdado continua sendo adereço: sai da conta de proporção, fica na silhueta
+  const marcaDepois = [head, torso];
+  const p_ = p;   // (mantém o nome curto usado abaixo)
+  void p_;
   const cap = (color) => {
     head.add(box(0.28, 0.09, 0.28, color, 0, 0.30, 0));
     head.add(box(0.26, 0.03, 0.16, color, 0, 0.27, 0.20));            // brim
@@ -666,15 +940,50 @@ function addAccessories(def, parts, torsoW) {
       torso.add(box(0.12, 0.03, 0.035, 0xe03232, -torsoW / 2 - 0.1, 0.14, 0.09)); // título do livro
       break;
   }
+  marcaDepois.forEach(marcaAdereco);
 }
 
 // Procedural walk/idle. `phase` advances with movement, `moving` 0..1.
 export function poseCharacter(parts, phase, moving, t) {
   const s = Math.sin(phase), c = Math.cos(phase);
-  parts.legL.rotation.x = s * 0.6 * moving;
-  parts.legR.rotation.x = -s * 0.6 * moving;
+  const ang = s * 0.6 * moving;
+  parts.legL.rotation.x = ang;
+  parts.legR.rotation.x = -ang;
   const breathe = Math.sin(t * 2.2) * 0.012;
-  parts.torso.position.y = 0.78 + Math.abs(c) * 0.045 * moving + breathe;
+
+  /* PÉ NO CHÃO NO CICLO DE PASSO (defeito achado pela régua, invariante C3/CHR3)
+     As duas pernas giram em torno do MESMO pivô fixo no quadril, em sentidos opostos. Girar
+     uma perna de comprimento L por um ângulo θ levanta o pé em L·(1−cos θ) — e como |θ| é
+     igual nas duas, AS DUAS SOBEM JUNTAS. Ninguém compensava, então no meio de cada passo o
+     personagem inteiro descolava do chão. Medido pelo char-probe ANTES do conserto: base da
+     bbox = +0,020 m em walk-0,25 e walk-0,75, nos 44 personagens (a sombra de contato, que
+     é ancorada no grupo, continuava colada no chão — daí o boneco ler como adesivo flutuando
+     sobre a própria sombra).
+     Conserto: baixar quadril, tronco e cabeça exatamente por esse L·(1−cos θ). O pé de apoio
+     volta pra y=0 por construção, e o agachamento natural do passo aparece de graça — é o
+     mesmo que um humano faz, que é abaixar o quadril quando abre as pernas.
+     `quadrilY` e `pescocoY` são gravados em userData na construção porque poseCharacter só
+     recebe `parts` (game.js:5339) e não pode assumir literal nenhum: foi um literal 0,78
+     cravado aqui que já tinha ficado defasado da geometria. */
+  /* A queda do quadril é a subida REAL da sola, não L·(1−cos θ).
+     Primeira tentativa (e está aqui porque o erro é instrutivo): usei L·(1−cos θ), que é o
+     quanto sobe um ponto do EIXO da perna. Mas a sola não está no eixo — a bota é uma caixa
+     deslocada para a FRENTE (z = +0,03, profundidade 1,5× a da perna), e ao girar a perna
+     essa profundidade empurra parte da sola para BAIXO. Medido depois de compensar com
+     L·(1−cos θ): −0,082 m, ou seja, o personagem passou a AFUNDAR 8 cm — troquei flutuar por
+     enterrar. Aqui a conta é a mínima altura da sola de verdade:
+        y(z, θ) = L·(1 − cos θ) − z·sin θ,  z varrendo a profundidade da bota,
+     avaliada nas DUAS pernas (elas giram em sentidos opostos, e quem manda é a mais baixa —
+     que é a definição de "pé de apoio"). */
+  const ud = parts.legL.userData;
+  const L = ud.compLegPivot || 0;
+  const [z0, z1] = ud.solaZ || [0, 0];
+  const subida = (th) => L * (1 - Math.cos(th)) - Math.max(z0 * Math.sin(th), z1 * Math.sin(th));
+  const quedaQuadril = Math.min(subida(ang), subida(-ang));
+  parts.legL.position.y = parts.legL.userData.quadrilY - quedaQuadril;
+  parts.legR.position.y = parts.legR.userData.quadrilY - quedaQuadril;
+  parts.torso.position.y = parts.torso.userData.quadrilY - quedaQuadril + breathe;
+  parts.head.position.y = parts.head.userData.pescocoY - quedaQuadril + breathe;
   parts.torso.rotation.y = s * 0.05 * moving;
   parts.head.rotation.z = Math.sin(t * 1.7) * 0.02;
   parts.head.rotation.x = Math.sin(t * 1.3) * 0.02;

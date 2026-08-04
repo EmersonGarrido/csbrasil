@@ -1,5 +1,5 @@
 {
- "gerado": "2026-08-04T07:14:02.543Z",
+ "gerado": "2026-08-04T07:22:00.571Z",
  "protocolo": "node puro; DOM stubado + three vendorizado (mesmo protocolo de botsim.mjs/pickup-check.mjs); GLB lido por tp-mount-probe.mjs",
  "fontes": {
   "glb": 44,
@@ -262,13 +262,15 @@
     "materiais": 1,
     "triangulos": 5072,
     "map": 1,
-    "normalMap": 0,
-    "roughnessMap": 0,
+    "normalMap": 1,
+    "roughnessMap": 1,
     "aoMap": 0,
     "texturas": [
-     "base 512x512"
+     "base 512x512",
+     "normal 512x512",
+     "rough 512x512"
     ],
-    "mapasDeSuperficie": 0
+    "mapasDeSuperficie": 2
    },
    "C6": {
     "piorIoU": 0.7486754966887417,
@@ -386,13 +388,15 @@
     "materiais": 1,
     "triangulos": 4809,
     "map": 1,
-    "normalMap": 0,
-    "roughnessMap": 0,
+    "normalMap": 1,
+    "roughnessMap": 1,
     "aoMap": 0,
     "texturas": [
-     "base 512x512"
+     "base 512x512",
+     "normal 512x512",
+     "rough 512x512"
     ],
-    "mapasDeSuperficie": 0
+    "mapasDeSuperficie": 2
    },
    "C6": {
     "piorIoU": 0.6892341842397336,
@@ -510,13 +514,15 @@
     "materiais": 1,
     "triangulos": 4929,
     "map": 1,
-    "normalMap": 0,
-    "roughnessMap": 0,
+    "normalMap": 1,
+    "roughnessMap": 1,
     "aoMap": 0,
     "texturas": [
-     "base 512x512"
+     "base 512x512",
+     "normal 512x512",
+     "rough 512x512"
     ],
-    "mapasDeSuperficie": 0
+    "mapasDeSuperficie": 2
    },
    "C6": {
     "piorIoU": 0.6725451467268623,
@@ -634,13 +640,15 @@
     "materiais": 1,
     "triangulos": 5008,
     "map": 1,
-    "normalMap": 0,
-    "roughnessMap": 0,
+    "normalMap": 1,
+    "roughnessMap": 1,
     "aoMap": 0,
     "texturas": [
-     "base 512x512"
+     "base 512x512",
+     "normal 512x512",
+     "rough 512x512"
     ],
-    "mapasDeSuperficie": 0
+    "mapasDeSuperficie": 2
    },
    "C6": {
     "piorIoU": 0.6459470810583788,
@@ -758,13 +766,15 @@
     "materiais": 1,
     "triangulos": 5034,
     "map": 1,
-    "normalMap": 0,
-    "roughnessMap": 0,
+    "normalMap": 1,
+    "roughnessMap": 1,
     "aoMap": 0,
     "texturas": [
-     "base 512x512"
+     "base 512x512",
+     "normal 512x512",
+     "rough 512x512"
     ],
-    "mapasDeSuperficie": 0
+    "mapasDeSuperficie": 2
    },
    "C6": {
     "piorIoU": 0.8189360663738409,
@@ -882,13 +892,15 @@
     "materiais": 1,
     "triangulos": 4916,
     "map": 1,
-    "normalMap": 0,
-    "roughnessMap": 0,
+    "normalMap": 1,
+    "roughnessMap": 1,
     "aoMap": 0,
     "texturas": [
-     "base 512x512"
+     "base 512x512",
+     "normal 512x512",
+     "rough 512x512"
     ],
-    "mapasDeSuperficie": 0
+    "mapasDeSuperficie": 2
    },
    "C6": {
     "piorIoU": 0.7881727881727881,
@@ -1006,13 +1018,15 @@
     "materiais": 1,
     "triangulos": 4825,
     "map": 1,
-    "normalMap": 0,
-    "roughnessMap": 0,
+    "normalMap": 1,
+    "roughnessMap": 1,
     "aoMap": 0,
     "texturas": [
-     "base 512x512"
+     "base 512x512",
+     "normal 512x512",
+     "rough 512x512"
     ],
-    "mapasDeSuperficie": 0
+    "mapasDeSuperficie": 2
    },
    "C6": {
     "piorIoU": 0.7140471717804217,
@@ -1130,13 +1144,15 @@
     "materiais": 1,
     "triangulos": 4999,
     "map": 1,
-    "normalMap": 0,
-    "roughnessMap": 0,
+    "normalMap": 1,
+    "roughnessMap": 1,
     "aoMap": 0,
     "texturas": [
-     "base 512x512"
+     "base 512x512",
+     "normal 512x512",
+     "rough 512x512"
     ],
-    "mapasDeSuperficie": 0
+    "mapasDeSuperficie": 2
    },
    "C6": {
     "piorIoU": 0.6595441595441596,
@@ -1254,13 +1270,15 @@
     "materiais": 1,
     "triangulos": 4866,
     "map": 1,
-    "normalMap": 0,
-    "roughnessMap": 0,
+    "normalMap": 1,
+    "roughnessMap": 1,
     "aoMap": 0,
     "texturas": [
-     "base 512x512"
+     "base 512x512",
+     "normal 512x512",
+     "rough 512x512"
     ],
-    "mapasDeSuperficie": 0
+    "mapasDeSuperficie": 2
    },
    "C6": {
     "piorIoU": 0.6522026431718062,
@@ -1378,13 +1396,15 @@
     "materiais": 1,
     "triangulos": 4831,
     "map": 1,
-    "normalMap": 0,
-    "roughnessMap": 0,
+    "normalMap": 1,
+    "roughnessMap": 1,
     "aoMap": 0,
     "texturas": [
-     "base 512x512"
+     "base 512x512",
+     "normal 512x512",
+     "rough 512x512"
     ],
-    "mapasDeSuperficie": 0
+    "mapasDeSuperficie": 2
    },
    "C6": {
     "piorIoU": 0.8437255821222066,
@@ -1502,13 +1522,15 @@
     "materiais": 1,
     "triangulos": 4760,
     "map": 1,
-    "normalMap": 0,
-    "roughnessMap": 0,
+    "normalMap": 1,
+    "roughnessMap": 1,
     "aoMap": 0,
     "texturas": [
-     "base 512x512"
+     "base 512x512",
+     "normal 512x512",
+     "rough 512x512"
     ],
-    "mapasDeSuperficie": 0
+    "mapasDeSuperficie": 2
    },
    "C6": {
     "piorIoU": 0.7385542168674699,
@@ -1626,13 +1648,15 @@
     "materiais": 1,
     "triangulos": 4881,
     "map": 1,
-    "normalMap": 0,
-    "roughnessMap": 0,
+    "normalMap": 1,
+    "roughnessMap": 1,
     "aoMap": 0,
     "texturas": [
-     "base 512x512"
+     "base 512x512",
+     "normal 512x512",
+     "rough 512x512"
     ],
-    "mapasDeSuperficie": 0
+    "mapasDeSuperficie": 2
    },
    "C6": {
     "piorIoU": 0.7165912222003543,
@@ -1750,13 +1774,15 @@
     "materiais": 1,
     "triangulos": 4547,
     "map": 1,
-    "normalMap": 0,
-    "roughnessMap": 0,
+    "normalMap": 1,
+    "roughnessMap": 1,
     "aoMap": 0,
     "texturas": [
-     "base 512x512"
+     "base 512x512",
+     "normal 512x512",
+     "rough 512x512"
     ],
-    "mapasDeSuperficie": 0
+    "mapasDeSuperficie": 2
    },
    "C6": {
     "piorIoU": 0.6848998459167951,
@@ -1874,13 +1900,15 @@
     "materiais": 1,
     "triangulos": 4849,
     "map": 1,
-    "normalMap": 0,
-    "roughnessMap": 0,
+    "normalMap": 1,
+    "roughnessMap": 1,
     "aoMap": 0,
     "texturas": [
-     "base 512x512"
+     "base 512x512",
+     "normal 512x512",
+     "rough 512x512"
     ],
-    "mapasDeSuperficie": 0
+    "mapasDeSuperficie": 2
    },
    "C6": {
     "piorIoU": 0.662374151252634,
@@ -1998,13 +2026,15 @@
     "materiais": 1,
     "triangulos": 4894,
     "map": 1,
-    "normalMap": 0,
-    "roughnessMap": 0,
+    "normalMap": 1,
+    "roughnessMap": 1,
     "aoMap": 0,
     "texturas": [
-     "base 512x512"
+     "base 512x512",
+     "normal 512x512",
+     "rough 512x512"
     ],
-    "mapasDeSuperficie": 0
+    "mapasDeSuperficie": 2
    },
    "C6": {
     "piorIoU": 0.6861440851412198,
@@ -2122,13 +2152,15 @@
     "materiais": 1,
     "triangulos": 5028,
     "map": 1,
-    "normalMap": 0,
-    "roughnessMap": 0,
+    "normalMap": 1,
+    "roughnessMap": 1,
     "aoMap": 0,
     "texturas": [
-     "base 512x512"
+     "base 512x512",
+     "normal 512x512",
+     "rough 512x512"
     ],
-    "mapasDeSuperficie": 0
+    "mapasDeSuperficie": 2
    },
    "C6": {
     "piorIoU": 0.654073199527745,
@@ -2246,13 +2278,15 @@
     "materiais": 1,
     "triangulos": 5034,
     "map": 1,
-    "normalMap": 0,
-    "roughnessMap": 0,
+    "normalMap": 1,
+    "roughnessMap": 1,
     "aoMap": 0,
     "texturas": [
-     "base 512x512"
+     "base 512x512",
+     "normal 512x512",
+     "rough 512x512"
     ],
-    "mapasDeSuperficie": 0
+    "mapasDeSuperficie": 2
    },
    "C6": {
     "piorIoU": 0.7381854108348428,
@@ -2370,13 +2404,15 @@
     "materiais": 1,
     "triangulos": 4851,
     "map": 1,
-    "normalMap": 0,
-    "roughnessMap": 0,
+    "normalMap": 1,
+    "roughnessMap": 1,
     "aoMap": 0,
     "texturas": [
-     "base 512x512"
+     "base 512x512",
+     "normal 512x512",
+     "rough 512x512"
     ],
-    "mapasDeSuperficie": 0
+    "mapasDeSuperficie": 2
    },
    "C6": {
     "piorIoU": 0.7488659793814433,
@@ -3523,13 +3559,15 @@
     "materiais": 1,
     "triangulos": 4946,
     "map": 1,
-    "normalMap": 0,
-    "roughnessMap": 0,
+    "normalMap": 1,
+    "roughnessMap": 1,
     "aoMap": 0,
     "texturas": [
-     "base 1024x1024"
+     "base 1024x1024",
+     "normal 512x512",
+     "rough 512x512"
     ],
-    "mapasDeSuperficie": 0
+    "mapasDeSuperficie": 2
    },
    "C6": {
     "piorIoU": 0.6996190821694177,
@@ -3647,13 +3685,15 @@
     "materiais": 1,
     "triangulos": 4641,
     "map": 1,
-    "normalMap": 0,
-    "roughnessMap": 0,
+    "normalMap": 1,
+    "roughnessMap": 1,
     "aoMap": 0,
     "texturas": [
-     "base 1024x1024"
+     "base 1024x1024",
+     "normal 512x512",
+     "rough 512x512"
     ],
-    "mapasDeSuperficie": 0
+    "mapasDeSuperficie": 2
    },
    "C6": {
     "piorIoU": 0.7988609112709832,
@@ -3771,13 +3811,15 @@
     "materiais": 1,
     "triangulos": 4729,
     "map": 1,
-    "normalMap": 0,
-    "roughnessMap": 0,
+    "normalMap": 1,
+    "roughnessMap": 1,
     "aoMap": 0,
     "texturas": [
-     "base 1024x1024"
+     "base 1024x1024",
+     "normal 512x512",
+     "rough 512x512"
     ],
-    "mapasDeSuperficie": 0
+    "mapasDeSuperficie": 2
    },
    "C6": {
     "piorIoU": 0.8189360663738409,
@@ -3895,13 +3937,15 @@
     "materiais": 1,
     "triangulos": 5000,
     "map": 1,
-    "normalMap": 0,
-    "roughnessMap": 0,
+    "normalMap": 1,
+    "roughnessMap": 1,
     "aoMap": 0,
     "texturas": [
-     "base 1024x1024"
+     "base 1024x1024",
+     "normal 512x512",
+     "rough 512x512"
     ],
-    "mapasDeSuperficie": 0
+    "mapasDeSuperficie": 2
    },
    "C6": {
     "piorIoU": 0.6881091617933723,
@@ -4019,13 +4063,15 @@
     "materiais": 1,
     "triangulos": 4767,
     "map": 1,
-    "normalMap": 0,
-    "roughnessMap": 0,
+    "normalMap": 1,
+    "roughnessMap": 1,
     "aoMap": 0,
     "texturas": [
-     "base 1024x1024"
+     "base 1024x1024",
+     "normal 512x512",
+     "rough 512x512"
     ],
-    "mapasDeSuperficie": 0
+    "mapasDeSuperficie": 2
    },
    "C6": {
     "piorIoU": 0.8334108887854816,
@@ -4143,13 +4189,15 @@
     "materiais": 1,
     "triangulos": 4919,
     "map": 1,
-    "normalMap": 0,
-    "roughnessMap": 0,
+    "normalMap": 1,
+    "roughnessMap": 1,
     "aoMap": 0,
     "texturas": [
-     "base 1024x1024"
+     "base 1024x1024",
+     "normal 512x512",
+     "rough 512x512"
     ],
-    "mapasDeSuperficie": 0
+    "mapasDeSuperficie": 2
    },
    "C6": {
     "piorIoU": 0.7988609112709832,
@@ -4267,13 +4315,15 @@
     "materiais": 1,
     "triangulos": 4704,
     "map": 1,
-    "normalMap": 0,
-    "roughnessMap": 0,
+    "normalMap": 1,
+    "roughnessMap": 1,
     "aoMap": 0,
     "texturas": [
-     "base 1024x1024"
+     "base 1024x1024",
+     "normal 512x512",
+     "rough 512x512"
     ],
-    "mapasDeSuperficie": 0
+    "mapasDeSuperficie": 2
    },
    "C6": {
     "piorIoU": 0.7529344729344729,
@@ -4393,13 +4443,15 @@
     "materiais": 1,
     "triangulos": 4895,
     "map": 1,
-    "normalMap": 0,
-    "roughnessMap": 0,
+    "normalMap": 1,
+    "roughnessMap": 1,
     "aoMap": 0,
     "texturas": [
-     "base 1024x1024"
+     "base 1024x1024",
+     "normal 512x512",
+     "rough 512x512"
     ],
-    "mapasDeSuperficie": 0
+    "mapasDeSuperficie": 2
    },
    "C6": {
     "piorIoU": 0.7690573770491803,
@@ -4646,13 +4698,15 @@
     "materiais": 1,
     "triangulos": 4756,
     "map": 1,
-    "normalMap": 0,
-    "roughnessMap": 0,
+    "normalMap": 1,
+    "roughnessMap": 1,
     "aoMap": 0,
     "texturas": [
-     "base 1024x1024"
+     "base 1024x1024",
+     "normal 512x512",
+     "rough 512x512"
     ],
-    "mapasDeSuperficie": 0
+    "mapasDeSuperficie": 2
    },
    "C6": {
     "piorIoU": 0.7996591261233343,
@@ -4666,15 +4720,15 @@
    "tribo": "funkeiros",
    "fonte": "glb",
    "marcos": {
-    "alturaTotal": 1.7200000000000002,
-    "cabeca": 0.3829969998848126,
-    "ombroLargura": 0.3345105638042629,
-    "cinturaLargura": 0.3403949903176202,
-    "torsoLargura": 0.3615718158772181,
-    "torsoProfundidade": 0.2804716335695353,
-    "braco": 0.4779002903430113,
-    "perna": 0.6506142088553172,
-    "larguraMax": 1.709804510911306
+    "alturaTotal": 1.7199999999999998,
+    "cabeca": 0.38299708553164713,
+    "ombroLargura": 0.3345105443117674,
+    "cinturaLargura": 0.34039497334764557,
+    "torsoLargura": 0.3615717849134139,
+    "torsoProfundidade": 0.28047155732655876,
+    "braco": 0.4779002624949543,
+    "perna": 0.6506141709429285,
+    "larguraMax": 1.7098044114415305
    },
    "marcosUsados": {
     "cabeca": "Head",
@@ -4693,85 +4747,81 @@
     "clipesNoGLB": 0,
     "impressaoEsqueleto": 531.45,
     "curlDuplicado": 4,
-    "convencaoSkinPai": 13,
-    "convencaoSkinFilho": 0,
+    "convencaoSkinPai": 2,
+    "convencaoSkinFilho": 13,
     "ossosInvertidos": [
-     "LeftLeg",
-     "LeftFoot",
-     "RightLeg",
-     "RightFoot",
-     "Spine",
-     "LeftShoulder"
+     "LeftHand",
+     "RightHand"
     ],
-    "raioSkinP50": 0.171,
-    "raioSkinP95": 0.278,
-    "desalinhamentoRMS": 0.1158,
+    "raioSkinP50": 0.069,
+    "raioSkinP95": 0.292,
+    "desalinhamentoRMS": 0.1454,
     "piorJunta": "LeftHand",
-    "piorDesalinhamento": 0.174,
+    "piorDesalinhamento": 0.253,
     "antebraco": 0.234,
-    "dPalmaOsso": 0.079,
-    "alavancaPalma": 0.34,
+    "dPalmaOsso": 0.027,
+    "alavancaPalma": 0.11,
     "abducaoBraco": 86.5
    },
    "C1": {
     "razoes": {
-     "cabecaSobreAltura": 0.2226726743516352,
-     "ombroSobreAltura": 0.19448288593271099,
-     "cinturaSobreOmbro": 1.0175911530160242,
-     "larguraTorsoSobreAltura": 0.2102161720216384,
-     "bracoSobreAltura": 0.27784900601337864,
-     "pernaSobreAltura": 0.37826407491588204
+     "cabecaSobreAltura": 0.2226727241463065,
+     "ombroSobreAltura": 0.1944828745998648,
+     "cinturaSobreOmbro": 1.0175911615820212,
+     "larguraTorsoSobreAltura": 0.21021615401942673,
+     "bracoSobreAltura": 0.2778489898226479,
+     "pernaSobreAltura": 0.3782640528737957
     },
     "pctElenco": {
-     "cabecaSobreAltura": -2.2510781835798954e-7,
-     "ombroSobreAltura": 6.311440904459726e-8,
-     "cinturaSobreOmbro": -0.059001967751840606,
-     "larguraTorsoSobreAltura": -0.031576203795513215,
-     "bracoSobreAltura": 6.254787993176215e-8,
-     "pernaSobreAltura": 6.365733353134321e-8
+     "cabecaSobreAltura": -1.4851388407617691e-9,
+     "ombroSobreAltura": 4.842716652870446e-9,
+     "cinturaSobreOmbro": -0.059001959830598055,
+     "larguraTorsoSobreAltura": -0.03157628672809635,
+     "bracoSobreAltura": 4.276187687485878e-9,
+     "pernaSobreAltura": 5.385641378500528e-9
     },
-    "piorPct": -0.059001967751840606,
+    "piorPct": -0.059001959830598055,
     "piorPctRazao": "cinturaSobreOmbro",
     "zElenco": {
-     "cabecaSobreAltura": -0.0000028749371924181853,
-     "ombroSobreAltura": 0.0000019660119644848612,
-     "cinturaSobreOmbro": -0.5353285409495608,
-     "larguraTorsoSobreAltura": -0.19300350564073937,
-     "bracoSobreAltura": 0.000008240950208767747,
-     "pernaSobreAltura": 0.0000036464466335724655
+     "cabecaSobreAltura": -1.8967270529985567e-8,
+     "ombroSobreAltura": 1.5085047969673393e-7,
+     "cinturaSobreOmbro": -0.535328469079632,
+     "larguraTorsoSobreAltura": -0.19300401255028998,
+     "bracoSobreAltura": 5.63405983613872e-7,
+     "pernaSobreAltura": 3.085026152500145e-7
     },
     "desvioRef": {
-     "cabecaSobreAltura": 0.7128667257818092,
-     "ombroSobreAltura": -0.24910082651462942,
-     "cinturaSobreOmbro": 0.3751231797513841,
-     "larguraTorsoSobreAltura": 0.20813891966458856,
-     "bracoSobreAltura": -0.3685249863332304,
-     "pernaSobreAltura": -0.2862941982719207
+     "cabecaSobreAltura": 0.7128671088177423,
+     "ombroSobreAltura": -0.2491008702707923,
+     "cinturaSobreOmbro": 0.37512319132705574,
+     "larguraTorsoSobreAltura": 0.20813881620360197,
+     "bracoSobreAltura": -0.36852502313034574,
+     "pernaSobreAltura": -0.28629423986076286
     },
     "elencoDegenerado": false,
-    "piorZ": -0.5353285409495608,
+    "piorZ": -0.535328469079632,
     "piorZRazao": "cinturaSobreOmbro",
-    "piorDesvioRef": 0.7128667257818092,
+    "piorDesvioRef": 0.7128671088177423,
     "piorDesvioRefRazao": "cabecaSobreAltura",
-    "indiceBalao": 1.2081389196645886
+    "indiceBalao": 1.208138816203602
    },
    "C2": {
-    "alturaM": 1.7200000000000002,
-    "alturaBBox": 1.7200000000000002,
+    "alturaM": 1.7199999999999998,
+    "alturaBBox": 1.7199999999999998,
     "adereçoAcima": null
    },
    "C3": {
     "porPose": {
      "bind": 0,
-     "idle": 0.024777563714138615,
-     "walk": 0.045271398463703434,
-     "run": 0.03835573728653394,
-     "shoot": 0.03047162452160812,
-     "crouch": 0.04436544710162272
+     "idle": 0.022966640279598112,
+     "walk": 0.04496347897491987,
+     "run": 0.03231807093897728,
+     "shoot": 0.029796617621199468,
+     "crouch": 0.04046437155728703
     },
     "afunda": 0,
-    "flutua": 0.045271398463703434,
-    "piorDesvio": 0.045271398463703434
+    "flutua": 0.04496347897491987,
+    "piorDesvio": 0.04496347897491987
    },
    "C5": {
     "materiais": 1,
