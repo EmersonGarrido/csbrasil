@@ -22,29 +22,52 @@ Na máquina onde isto foi rodado (2 CPUs, com outros cinco processos de avaliaç
 concorrendo), a execução levou cerca de **10 minutos**. Ela sobe o jogo real cinco vezes
 (um por mapa), roda 60 s de simulação de bots por mapa e audita 26 GLBs.
 
-:::danger Esta página é uma FOTOGRAFIA datada, e o placar abaixo é de 2026-08-03
-O corpo desta página ficou como estava porque a saída colada tem que ser a de uma execução
-real — reescrever número de portão à mão é exatamente o que ela existe para impedir. Mas
-**cinco coisas mudaram desde então**, e ignorá-las manda o contribuidor consertar o que já
-foi consertado:
+:::danger LEIA ISTO ANTES DA SAÍDA COLADA: ela é de 2026-08-03 e o jogo andou muito
+A saída lá embaixo continua palavra por palavra como saiu de uma execução real — reescrever
+número de portão à mão é exatamente o que esta página existe para impedir. Mas o que ela
+fotografou **não é o jogo de hoje**, e ler aquele bloco como se fosse manda o contribuidor
+consertar o que já foi consertado.
 
-| O que a página diz | Estado em 2026-08-05 | Como conferir |
+O que mudou, item a item:
+
+| O que a saída de 03/08 diz | Estado em 2026-08-05 | Como conferir |
 |---|---|---|
-| `CRÍTICAS: 31/42` | **36/49** (a contagem cresceu porque entraram invariantes novas) | `KNOWN-BUGS.md`, cabeçalho |
+| mapas: `awp_map`, **`praca_old`**, `fy_pool_day`, `fy_havan`, `fy_ferrovelho` | **`praca_old` SAIU** e **`fy_quebrada` ENTROU**. Continuam 5 — por isso nenhuma contagem acusou | `MAPS` em `public/js/maps.js:8-36` |
+| CTF medido em 5 mapas | **3 mapas abrem em captura** (`fy_havan`, `fy_ferrovelho`, `fy_quebrada`); os outros 2 abrem em rodadas | `ctfMode` no mesmo objeto |
+| `CRÍTICAS: 31/42` | **36/49** — a contagem cresceu porque entraram invariantes novas | `KNOWN-BUGS.md`, cabeçalho |
+| `CHR5B` como AVISO (27/44 personagens sem mapa de superfície) | **VERDE**: 0 de 44 | `KNOWN-BUGS.md` |
+| `TEX1` verde | **VERMELHA**, por 10 superfícies do `fy_quebrada`, que é mapa em obra | `KNOWN-BUGS.md` |
 | `public/models/anims/` não versionado → TPM1 vermelha em clone limpo | **versionada**: 438 arquivos | `git ls-files public/models/anims \| wc -l` |
 | `npm run arch` / `arch:check` não existem | **existem** no `package.json` | `npm run arch:check` |
-| `ARCH.md` desatualizado (5.509 × 6.427) | **em dia** — `✓ ARCH1` | `npm run arch:check` |
 | README manda o dev pro lugar errado | **corrigido** | `README.md` da raiz |
-| `version.js` = `3.3.0` | `2.0.0-alpha.11` | `public/js/version.js:5` |
+| `version.js` = `3.3.0` | `2.0.0-alpha.12` | `public/js/version.js:5` |
+
+E duas mudanças de **regra de jogo** que a saída não tem como mostrar, porque não são
+invariantes de portão:
+
+- **Regeneração de vida DESLIGADA** (`game.js:303`). `?regen=1` religa.
+- **Ranking DESLIGADO** (`RANKING_ON = false`, `src/lib/site.ts:68`), trocado por
+  telemetria anônima. `/ranking` e `/u/*` respondem 200 com aviso e `noindex`.
 
 O estado corrente, com causa raiz e `arquivo:linha` de cada vermelha, mora em
 [`KNOWN-BUGS.md`](https://github.com/rubenmarcus/csbrasil/blob/main/KNOWN-BUGS.md) — é ele
 que é mantido dia a dia, não esta página.
 :::
 
-## Placar de hoje
+:::caution Onde `praca_old` aparecer abaixo, leia "mapa que não existe mais"
+A Praça (clássico) saiu do registro por pedido literal do dono (*"vamos apagar praça
+clássica"*) e o `public/js/map.js` foi apagado junto — era uma versão procedural anterior
+da mesma praça que o `awp_map` já entrega em Brasília fiel. Efeito colateral medido: o
+`pickup-check` caiu de 246 para 244 pickups (ela tinha 2 armas no chão). O mapa que
+entrou no lugar, e que **não aparece em nenhuma linha da saída de 03/08**, é o
+`fy_quebrada` — rua reta com rotunda de baile numa ponta e campinho de terra na outra,
+CTF de 4 bandeiras.
+:::
 
-Execução em `2026-08-03`, commit `e332c87`, `public/js/version.js` = `3.3.0`:
+## Placar da última execução COLADA (2026-08-03)
+
+Não é o placar de hoje — é o último que existe colado por inteiro. Execução em
+`2026-08-03`, commit `e332c87`, `public/js/version.js` = `3.3.0`:
 
 ```
 CRÍTICAS: 31/42 passam  ← VM1, VM3, VM5, VM12, VM16, VM18, VM18b, VM19, TPM1, BOT8, CHR1 VERMELHAS
@@ -230,22 +253,19 @@ tunaram uma invariante por vez e cada acerto quebrava outra.
                  Error: ENOENT ... public/models/anims/mixamo/idle.glb
 ```
 
-`public/models/anims/` **não existe nesta árvore e não está versionado** — `git ls-files`
-não devolve nada sob esse caminho, em nenhum worktree. Os GLBs de animação Mixamo são
-locais da máquina do dono.
+:::tip RESOLVIDO — não pegue esta tarefa
+Na época, `public/models/anims/` não estava versionado e **TPM1 falhava em todo clone
+limpo**, deixando `npm run check` e CI vermelhos por motivo que não era código. Foi
+escolhida a saída de versionar: hoje `git ls-files public/models/anims | wc -l` devolve
+**438**.
 
-Consequência: **num clone limpo, TPM1 falha para todo mundo**, e como qualquer crítica
-vermelha reprova, o `npm run check` e o CI ficam vermelhos por um motivo que não é código.
-Isso é dívida real e tem duas saídas possíveis, ambas legítimas:
-
-1. Fazer o `tp-mount-probe.mjs` **pular com motivo declarado** quando o diretório não
-   existe (é o padrão que o resto do arquivo já usa: `skip(id, desc, porquê)`), e as TPM
-   viram PULADAS num clone limpo.
-2. Versionar os anims, ou baixá-los num `scripts/fetch-anims.sh` no molde do
-   `scripts/fetch-audio.sh`.
-
-A opção 1 é um PR pequeno e de alto valor: ela devolve o portão para "vermelho só quando
-o código está errado". Ver [Como colaborar](./colaborar.md).
+Ficou uma lição que vale mais que a tarefa: em 05/08 descobriu-se que **100 clipes
+estavam no disco mas não no git** — 10 personagens com 1 de 11 clipes versionados. Num
+clone limpo (e no deploy) isso são 100 requisições 404 e 10 personagens caindo no pack
+compartilhado sem ninguém saber, porque `glbchars.js` engolia a falha num `catch` vazio.
+Quem achou foi uma cláusula de régua nova, não um humano olhando. *"Está no meu disco"* e
+*"está no repositório"* são afirmações diferentes, e só a segunda chega no usuário.
+:::
 
 ### BOT8 — bot com linha de visão e sem atirar
 
@@ -253,10 +273,18 @@ o código está errado". Ver [Como colaborar](./colaborar.md).
 ✗ FALHA   BOT8  2.7 episódios | maior silêncio 3.03 s | 494 s em condição
 ```
 
-Teto: zero episódios de bot com LOS no jogador por mais de 1,5 s sem disparar. Medido:
-2,7 episódios, com um silêncio máximo de 3,03 s em 494 s de condição. É o defeito "o bot
-me viu e ficou parado" — visível em jogo, mensurável, e com uma janela clara de conserto
-no `_updateBot`.
+Teto: zero episódios de bot com LOS no jogador por mais de 1,5 s sem disparar. Em 03/08:
+2,7 episódios, silêncio máximo 3,03 s em 494 s de condição. É o defeito "o bot me viu e
+ficou parado" — visível em jogo e mensurável.
+
+**Ela PIOROU desde então: 4 episódios, silêncio máximo 4,23 s.** E a causa raiz já está
+achada (BUG-03): `game.js:5361` avalia
+`const hasTurn = !(BOT_FAIR && e.isPlayer) || this._duelToken(b)` **todo frame, para todo
+bot cujo alvo é o jogador**, antes de qualquer gate de "pode atirar" — e `_duelToken` não
+consulta, ele **reserva** o token por `BOT_TOKEN_HOLD`. Um bot em atraso de reação,
+recarregando ou sem linha de tiro rouba um dos 2 tokens e o segura; os outros recebem
+`hasTurn === false` e atravessam o campo de visão sem disparar. A correção é mover a
+chamada para dentro do `if`. É a dívida mais barata de fechar do repositório inteiro.
 
 ### CHR1 — proporção humana
 
@@ -279,19 +307,20 @@ invariante. É a Lei 1 aplicada ao contrário.
 
 ### Avisos (não bloqueiam)
 
-| ID | Teto | Medido |
-|---|---|---|
-| BOT1 | latFlips ≤ 12/min | 12,3/min |
-| BOT2 | spin ≤ 0,25 volta/min | 0,25/min |
-| CHR5B | personagem não abaixo do acabamento do melhor mapa | 27/44 personagens com 0 mapas de superfície contra 70 normalMaps no `praca_old` |
+| ID | Teto | Medido em 03/08 | Hoje |
+|---|---|---|---|
+| BOT1 | latFlips ≤ 12/min | 12,3/min | segue no aviso |
+| BOT2 | spin ≤ 0,25 volta/min | 0,25/min | segue no aviso |
+| CHR5B | personagem não abaixo do acabamento do melhor mapa | 27/44 personagens com 0 mapa de superfície | **VERDE — 0 de 44** |
 
 BOT1 e BOT2 estão **na borda exata do teto**. Isso é informação, não ruído: qualquer
 mudança no `_updateBot` vai empurrar os dois para um lado ou para o outro, e vale medir
 antes e depois.
 
-CHR5B é o "três níveis de acabamento na mesma tela" que o dono descreveu, quantificado:
-27 dos 44 personagens não têm **nenhum** mapa de superfície (normal + roughness + AO),
-enquanto o melhor mapa do jogo tem 70 normalMaps.
+**CHR5B foi resolvida em 04/08 e não é mais tarefa.** Ela era o "três níveis de acabamento
+na mesma tela" que o dono descreveu — 27 dos 44 personagens sem **nenhum** mapa de
+superfície (normal + roughness + AO) — e hoje são 0 de 44. A referência do texto original
+("70 normalMaps no `praca_old`") aponta para um mapa que não existe mais.
 
 ## O que está verde, e que vale defender
 
@@ -340,14 +369,14 @@ Nenhuma destas é surpresa: todas estão escritas no repo, e estão aqui reunida
 
 | Dívida | Onde está declarada | Impacto |
 |---|---|---|
-| `_updateBot()` com 772 linhas | `tools/eval/ARCH.md` (gerado) marca como candidato a extração | PR irrevisável, merge conflitante |
-| ~~`tools/eval/ARCH.md` desatualizado~~ **RESOLVIDA** | `npm run arch:check` sai `✓ ARCH1` | — |
+| `_updateBot()` com **800** linhas | `tools/eval/ARCH.md` (gerado) marca como candidato a extração | PR irrevisável, merge conflitante |
+| `tools/eval/ARCH.md` desatualizado | `npm run arch:check` sai **vermelho** hoje — e por um motivo pequeno: o bloco gerado carrega o número de versão do jogo, que subiu para `2.0.0-alpha.12`. Um `npm run arch` resolve | o cheque está com `continue-on-error: true` no CI, então ele **não bloqueia** |
 | ~~`npm run arch` / `arch:check` não existem~~ **RESOLVIDA** | os dois estão no `package.json` | — |
 | ~~`public/models/anims/` não versionado~~ **RESOLVIDA** | `git ls-files public/models/anims` → 438 | — |
 | Conteúdo é código, não dado | `ROADMAP.md`, Fase 2 | cada mapa/arma novo é PR de código arriscado |
-| Placar forjável | `ROADMAP.md`, Fase 3 + `RELATORIO-ANALISE.md` §2 | ranking global não é confiável sem HMAC |
+| Placar forjável | `ROADMAP.md`, Fase 3 + `RELATORIO-ANALISE.md` §2 | ranking global não é confiável sem HMAC — e é uma das razões de ele estar **desligado** hoje |
 | ~~README manda o dev pro lugar errado~~ **RESOLVIDA** | `README.md` da raiz, revisado em 05/08 | — |
-| `setTimeout` não limpos no `dispose()` | `RELATORIO-ANALISE.md:134` (`game.js:554,666,673,684,1104`) | vazamento entre partidas |
+| `setTimeout` não limpos no `dispose()` | `RELATORIO-ANALISE.md:134` — **os `game.js:NNN` de lá estão velhos**, o arquivo andou ~1.000 linhas; use `grep -n setTimeout` | vazamento entre partidas |
 | Referências de personagem ausentes | `tools/eval/char-probe.mjs:28-42` | o teto do CHR1 é fallback publicado, não medição |
 
 ## Roadmap
@@ -364,10 +393,29 @@ validados por teste. É a fase que transforma *"cada contribuição é um PR de 
 hand-coded arriscado"* em *"abre um JSON e cria conteúdo"*. É onde o projeto mais precisa
 de gente, e é o pré-requisito do cliente Godot.
 
-**Fase 3 — Infra e viralidade.** Multiplayer por sala num servidor autoritativo fora da
-Vercel (WebRTC), anti-cheat com HMAC, card de resultado compartilhável, desafio por link.
+**Fase 3 — Infra e viralidade.** Multiplayer, anti-cheat com HMAC, card de resultado
+compartilhável, desafio por link.
 
-**Fase 4 — Analytics e `/mapa`.** Barato e paralelizável.
+:::warning O plano de multiplayer escrito no repo foi CONTRADITO por decisão posterior
+`plans/03` defende **servidor autoritativo** — é literalmente o título da §1 dele: *"Por
+que servidor autoritativo e não P2P"*. A decisão do dono em 04/08 é o contrário:
+**WebRTC, com o servidor criado pelo próprio usuário**, público (entra numa lista) ou por
+código (só convidado). Não dá para "seguir o plano 03 com prioridade alta" — ele precisa
+ser reescrito antes de virar tarefa.
+
+Não existe netcode nenhum no repositório hoje
+(`grep -rl "WebSocket\|geckos\|socket.io" public/js/ src/` devolve vazio) e o modelo é
+client-authoritative, com o anti-cheat vivendo no RPC `submit_match`. Três decisões vêm
+antes de qualquer código: topologia (malha P2P × um par fazendo de host), quem faz o
+*signaling* e hospeda a lista de servidores públicos (é serviço com custo e com
+moderação), e o que acontece com o ranking — partida P2P **não pode** submeter no
+`submit_match` sem repensar o anti-cheat.
+:::
+
+**Fase 4 — Analytics e `/mapa`.** Barato e paralelizável. A parte de medição já começou:
+a telemetria anônima que substituiu o ranking (`POST /api/telemetry`, migration `012`)
+agrega tempo de jogo e mapa por dia, e cobre também quem **não digita nick** — que era
+invisível para o banco.
 
 Princípios que não mudam, do `ROADMAP.md:12-16`: fricção zero é o superpoder (o jogo abre
 num link, ~1,5 MB); web é o cliente canônico; conteúdo é dado, não código; sátira 100%

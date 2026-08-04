@@ -8,10 +8,23 @@ description: O que é uma invariante neste repo, como se escreve uma, as duas le
 
 # Quality gates
 
-O portão deste repositório é um arquivo: `tools/eval/invariants.mjs`, 1.790 linhas,
-**49 invariantes críticas + 4 que exigem browser** (medido em 04/08/2026). Ele roda em node puro, sem browser, e sai com código 1 se
-qualquer invariante **crítica** falhar. É o que o CI executa em todo PR
-(`.github/workflows/ci.yml:31-32`).
+O portão deste repositório é um arquivo: `tools/eval/invariants.mjs`, **2.187 linhas**, com
+**61 identificadores de invariante declarados** — dos quais a última execução completa
+registrada (04/08/2026) contou **49 críticas** avaliadas e **4 puladas** por exigirem
+browser. Ele roda em node puro e sai com código 1 se qualquer invariante **crítica**
+falhar. É o que o CI executa em todo PR (`.github/workflows/ci.yml`).
+
+Os dois números não batem de propósito: várias invariantes **viram `skip` em vez de `put`**
+quando falta o insumo delas (o JSON do auditor de viewmodel, um GLB, uma pasta de anims).
+Reproduz assim — `61` e `27` nesta árvore:
+
+```bash
+grep -o "put('[A-Z0-9_]*'"  tools/eval/invariants.mjs | sort -u | wc -l   # 61 ids
+grep -o "skip('[A-Z0-9_]*'" tools/eval/invariants.mjs | sort -u | wc -l   # 27 com pulo declarado
+```
+
+`skip` é **portão verde por ausência de dado**, e é por isso que ele sempre carrega o
+motivo. Ver "Severidade", abaixo.
 
 Esta página é a mais útil do site. Se você só for ler uma, leia esta.
 
@@ -51,7 +64,7 @@ testa uma função. Elas medem o **estado do jogo rodando de verdade**.
 Três formas, todas presentes no arquivo:
 
 **1. Lida do código-fonte.** Barata, roda em milissegundos, pega classes inteiras de bug.
-Exemplo real, `tools/eval/invariants.mjs:1302-1309`:
+Exemplo real, `tools/eval/invariants.mjs:1439-1446`:
 
 ```js
 // ARM1 — toda arma com luneta precisa de zoom de verdade. "Snipers sem zoom"
@@ -75,7 +88,7 @@ parser de GLB próprio e projeta o viewmodel na tela. Daqui saem VM1–VM19.
 
 O que **não** cabe aqui: invariante que exige pixel de browser. Essas estão marcadas
 `browser` e são puladas, com o motivo dito — SwiftShader custa ~4 min por carga de mapa
-nesta máquina (`tools/eval/invariants.mjs:31-36`).
+nesta máquina (`tools/eval/invariants.mjs:99`).
 
 ### Severidade
 
@@ -89,7 +102,7 @@ dado. Por isso todo `skip` carrega o motivo.
 
 ### Lei 1 — Intenção que não vira invariante é otimizada para fora
 
-**Fonte: `tools/eval/invariants.mjs:405-414`.** O caso, literal:
+**Fonte: `tools/eval/invariants.mjs:452-461`.** O caso, literal:
 
 > a rodada anterior levou o portão de **16/21 para 19/21 sem afrouxar um teto sequer** e
 > mesmo assim foi **REPROVADA** pelo dono, porque para fechar VM5/VM10 ela **ZEROU o
@@ -99,15 +112,15 @@ dado. Por isso todo `skip` carrega o motivo.
 
 Leia de novo o que aconteceu, porque é contraintuitivo: o agente **não trapaceou**. Ele
 não afrouxou nenhum teto. Ele subiu o placar de verdade. E o resultado foi pior, porque
-`VM_OFF[1]` é o termo que **domina a posição da arma na tela** — `public/js/game.js:455`
-declara `VM_OFF = [0.03, -0.1000, 0]`, e `tools/eval/invariants.mjs:1026` mede a
+`VM_OFF[1]` é o termo que **domina a posição da arma na tela** — `public/js/game.js:555`
+declara `VM_OFF = [0.03, -0.1000, 0]`, e `tools/eval/invariants.mjs:1163` mede a
 sensibilidade: *"tirar o recuoZ move o grip 3,5 cm; tirar o VM_OFF move 23 cm"*.
 
 Zerar esse termo fechou duas invariantes e apagou a decisão estética que o dono tinha
 tomado — que não estava escrita em lugar nenhum que a régua pudesse ler.
 
 **A correção não foi punir o agente. Foi escrever a intenção como invariante.** Hoje
-existe a VM12 (`tools/eval/invariants.mjs:452`): *"look CS 1.6: boca do cano LOGO abaixo
+existe a VM12 (`tools/eval/invariants.mjs:497`): *"look CS 1.6: boca do cano LOGO abaixo
 da mira (y entre 0,50 e 0,62) nos 2 aspectos"*. Com ela no lugar, a mesma otimização
 fica **vermelha**.
 
@@ -131,7 +144,7 @@ Durante **três dias** o portão de armas foi resolvido contra números **asseri
 - A VM12 exigia *"boca do cano em y ≥ 0,66"*.
 - O doc do `vmattach.js` dizia *"coronha INTEIRA no canto"*.
 
-Nenhum dos dois foi medido em imagem nenhuma. Segundo `tools/eval/invariants.mjs:415-417`,
+Nenhum dos dois foi medido em imagem nenhuma. Segundo `tools/eval/invariants.mjs:461-463`,
 o piso 0,66 veio de um comentário do `public/js/vmattach.js` — *"a boca fica a ~0,66H"* —
 que por sua vez veio de um vídeo assistido. (O comentário do portão aponta para
 `vmattach.js:387-392`; hoje o texto está em `vmattach.js:395`, porque o arquivo andou. É
@@ -157,13 +170,13 @@ quadrante inferior-direito, pega a maior componente conexa, e escreve
 
 1. A boca do CS 1.6 fica em **0,513–0,598** — logo abaixo da mira (0,5), 1 a 10 pontos
    percentuais abaixo do centro. Não em 0,66–0,93. O piso errado estava mantendo a nossa
-   arma **afundada** em 0,667–0,816 (`tools/eval/invariants.mjs:424-427`).
+   arma **afundada** em 0,667–0,816 (`tools/eval/invariants.mjs:472-475`).
 2. A coronha **SAI pela quina** nos 3 frames. Sair é o padrão, não o defeito
    (`ref_viewmodel.json` → `faixas.cruzaBordaDireita: true` nos 3).
 
 E o dano colateral: com o teto falso, o solver da rodada anterior *"provou"* que 3% de
 área era inviável. A prova estava certa **contra aquele teto** — e o teto é que era falso
-(`tools/eval/invariants.mjs:428-430`).
+(`tools/eval/invariants.mjs:476-478`).
 
 A regra que ficou, `tools/eval/ref-measure.py:21-22`:
 
@@ -176,17 +189,29 @@ Hoje as invariantes de enquadramento carregam a procedência no próprio texto: 
 ref 0,053–0,095).
 
 :::note Procedência inclui admitir o que a imagem NÃO mede
-`tools/eval/invariants.mjs:492-497` recusa criar um teto para "quanto da arma fica fora
+`tools/eval/invariants.mjs:599-602` recusa criar um teto para "quanto da arma fica fora
 do quadro", porque o que está fora é invisível na foto — não dá pra saber se a coronha do
 AK termina 5 cm ou 50 cm além da borda. Os números continuam no JSON como **evidência,
 sem gate**. Isso é procedência levada a sério: a régua diz onde ela para de saber.
 :::
 
-E o mesmo rigor morde quem escreveu a régua. `tools/eval/char-probe.mjs:28-42` declara
-que as pastas de referência de personagem (`references/funkeiros/`, `references/palhacos/`)
-não estão disponíveis para a régua, e por isso o teto do C1 é **fallback publicado**
-(Drillis & Contini 1966, via Winter), declarado como tal no campo `procedencia` do JSON.
-Não é medição fingida de medição.
+E o mesmo rigor morde quem escreveu a régua, no caso mais desconfortável possível: **as
+fotos de referência de personagem chegaram, foram medidas, e foram REPROVADAS pela própria
+régua.** `tools/eval/char-probe.mjs:25-45` conta o episódio inteiro — `references/funkeiros/`
+tem 23 arquivos e `references/palhacos/` tem 21, todos passados pelo `ref-body.py`, com as
+máscaras **olhadas** (`--masks`). O veredito, dito na cara pelo próprio comentário: são
+selfies e closes; a segmentação heurística devolve a mão, um pedaço de jaqueta ou o cabelo
+de outra pessoa no fundo, e a razão ombro/altura sai entre **0,42 e 3,78** quando um humano
+mede 0,259. Sobra ~1 foto de corpo inteiro utilizável — não é amostra.
+
+O `ref-body.py` exige **6 fotos aceitas** para um teto virar medido, e ele **diz por que
+não virou**. Então o teto absoluto do CHR1 continua sendo **fallback publicado** (Drillis &
+Contini 1966, via Winter), declarado como tal no campo `procedencia` do JSON e na coluna do
+relatório.
+
+Repare no que isso significa: ter a foto **não** é ter a medição. Foi mais fácil aceitar
+que os dados eram ruins do que promover uma medição frágil a teto — e essa é a Lei 2
+aplicada contra o interesse de quem escreveu a régua.
 
 :::warning `references/` NÃO vem no clone — e isso é decisão, não descuido
 `git ls-files references` devolve **zero**. Em 04/08/2026 a pasta inteira foi
@@ -198,7 +223,7 @@ O que **sobrevive ao clone são os NÚMEROS medidos delas**: `tools/eval/ref_ui.
 `tools/eval/ref_viewmodel.json` estão versionados. Esse é o contrato — se uma régua sua
 precisar rodar em CI, ela lê o JSON, nunca o PNG. Régua que abre imagem de
 `references/` fica vermelha em toda máquina que não seja a do dono, e vermelha por
-ambiente é a pior espécie: ensina o time a ignorar vermelho.
+ambiente é a pior espécie: ensina quem trabalha aqui a ignorar vermelho.
 :::
 
 ## Teste de mutação da própria régua
@@ -214,9 +239,9 @@ está medindo o que você acha que ele mede.
 
 ### O caso: 20/22 verde com a correção removida
 
-**Fonte: `tools/eval/invariants.mjs:790-800`.**
+**Fonte: `tools/eval/invariants.mjs:910-920`.**
 
-O contexto: `public/js/game.js:477` declara
+O contexto: `public/js/game.js:577` declara
 
 ```js
 const vmOffY = (aspect) => VM_OFF[1] * ((16 / 9) / (aspect || 16 / 9));
@@ -224,7 +249,7 @@ const vmOffY = (aspect) => VM_OFF[1] * ((16 / 9) / (aspect || 16 / 9));
 
 É a correção de enquadramento vertical por aspecto — o motivo de a arma ficar no mesmo
 lugar em 16:9 e em 3:2 (o dono joga em 3:2). Ela é **chamada** no argumento Y de
-`this.vm.root.position.set(...)`, em `public/js/game.js:4415`.
+`this.vm.root.position.set(...)`, em `public/js/game.js:4873`.
 
 O buraco, medido em 08/2026:
 
@@ -246,7 +271,7 @@ barato de uma correção sumir com o portão verde.
 O conserto foi cirúrgico e vale copiar. A AUD1 hoje separa os três argumentos do
 `position.set(...)` com um **varredor de parênteses** — não `split(',')`, que cortaria
 dentro da chamada de função — e exige **nominalmente** que o argumento Y chame `vmOffY(`.
-E fecha o outro caminho junto (`tools/eval/invariants.mjs:1008-1016`): a fórmula do
+E fecha o outro caminho junto (`tools/eval/invariants.mjs:1148-1151`): a fórmula do
 `vmOffY` é **lida do `game.js` e avaliada** em 16/9, e tem que dar exatamente `VM_OFF[1]`.
 
 > Os dois cheques juntos cobrem os dois jeitos de a correção sumir: **apagar a CHAMADA**
@@ -258,10 +283,10 @@ O mesmo buraco apareceu em outros dois lugares, e cada um virou uma etapa nova d
 
 | Mutação | Placar com a correção desfeita | Causa do falso verde | Onde |
 |---|---|---|---|
-| Trocar `vmOffY(...)` por `VM_OFF[1]` no argumento Y | **20/22 verde** | a invariante lia a declaração, não o uso | `invariants.mjs:790-800` |
-| Trocar `g.rotation.set(pit, yaw, t.roll)` por `g.rotation.set(0, 0, t.roll)` | verde | a tabela `VM_FRAME.cls` continua com os ângulos, e os três espelhos continuam batendo **entre si** | `invariants.mjs:815-823` |
-| Apagar `* (weaponCFG(id).vm ?? 1)` da escala do mesh | **28/37 verde, AUD1 inclusive** ("pior Δescala 0.0004") | as duas pontas leem `vm` de `weapons.js`; **o `game.js` nunca é perguntado** — era o auditor conferindo a si mesmo | `invariants.mjs:852-864` |
-| Mutar `this._adsPose['pistol']` | **20/22 verde** | o ADS não tinha invariante nenhuma | `invariants.mjs:1047-1049` |
+| Trocar `vmOffY(...)` por `VM_OFF[1]` no argumento Y | **20/22 verde** | a invariante lia a declaração, não o uso | `invariants.mjs:910-920` |
+| Trocar `g.rotation.set(pit, yaw, t.roll)` por `g.rotation.set(0, 0, t.roll)` | verde | a tabela `VM_FRAME.cls` continua com os ângulos, e os três espelhos continuam batendo **entre si** | `invariants.mjs:932-944` |
+| Apagar `* (weaponCFG(id).vm ?? 1)` da escala do mesh | **28/37 verde, AUD1 inclusive** ("pior Δescala 0.0004") | as duas pontas leem `vm` de `weapons.js`; **o `game.js` nunca é perguntado** — era o auditor conferindo a si mesmo | `invariants.mjs:971-975` |
+| Mutar `this._adsPose['pistol']` | **20/22 verde** | o ADS não tinha invariante nenhuma | `invariants.mjs:1185` |
 
 O padrão comum das quatro é o mesmo, e é o que você deve procurar na sua invariante:
 
@@ -273,7 +298,7 @@ comparação puderem ficar consistentes **sem passar pelo código de produção*
 invariante está cega.
 :::
 
-`tools/eval/mat-check.mjs:19-26` resolve isso da forma mais direta possível: o corpo do
+`tools/eval/mat-check.mjs:18-27` resolve isso da forma mais direta possível: o corpo do
 `fixVmMaterials` é **recortado do `game.js` e executado** sobre um material-sonda. Se o
 código mudar, a régua muda junto. *"uma régua que carrega uma CÓPIA da regra mente no dia
 em que a regra muda."*
@@ -281,7 +306,7 @@ em que a regra muda."*
 ### Mutação como coisa de primeira classe: `ui-check.mjs`
 
 O arnês de UI tem uma **tabela de mutações versionada**, e cada uma declara qual portão
-tem que ficar vermelho. `tools/eval/ui-check.mjs:849-852`:
+tem que ficar vermelho. `tools/eval/ui-check.mjs:1046-1050`:
 
 > Cada mutação DESFAZ um dos consertos desta rodada (ou fura um portão de propósito) e diz
 > qual portão TEM que ficar vermelho. **Uma régua que não reprova a versão anterior do
@@ -296,11 +321,11 @@ MUT=ui2_prompt_eterno   node tools/eval/ui-check.mjs   # espera UI2 VERMELHA
 MUT=ui4_ctf_sem_relogio node tools/eval/ui-check.mjs   # espera UI4 VERMELHA
 ```
 
-As 7 mutações estão em `tools/eval/ui-check.mjs:854-889`. Duas mecânicas: `css` reescreve
+As 7 mutações estão em `tools/eval/ui-check.mjs:1051-1134`. Duas mecânicas: `css` reescreve
 o `public/style.css` **lido em memória** (nunca em disco — outros agentes estão editando o
 arquivo agora), e `sim` monkey-patcha o objeto `Game` já bootado. Se a mutação `css` não
 casar com nada, o script sai com código 2 dizendo *"o CSS mudou de forma"* — porque uma
-mutação que não aplica também é um falso verde (`ui-check.mjs:920`).
+mutação que não aplica também é um falso verde (`ui-check.mjs:1164`).
 
 ## Como escrever uma invariante
 
@@ -335,7 +360,7 @@ Checklist, na ordem:
 |---|---|
 | Ler a declaração de uma constante em vez do uso | 20/22 verde com a correção removida |
 | Dois espelhos que leem a mesma fonte | 28/37 verde, "pior Δescala 0.0004", com o knob desligado |
-| Adaptador de formato quebrado em silêncio | VM1–VM6 ficaram **PULADAS desde que o auditor existe** — 6 invariantes de viewmodel que nunca rodaram uma vez (`invariants.mjs:120-128`) |
+| Adaptador de formato quebrado em silêncio | VM1–VM6 ficaram **PULADAS desde que o auditor existe** — 6 invariantes de viewmodel que nunca rodaram uma vez (`invariants.mjs:121-127`) |
 | Medir o vão contra o chão local errado | pickup dentro da piscina reportava vão **0,0000 — VERDE** (`pickup-check.mjs:20-23`) |
 | "waypoint ≤ 3 m" como proxy de alcance | 74 falsos-positivos e verde em bolsão fechado (`pickup-check.mjs:34-42`) |
 | Piso sem teto | "boca ≥ 0,66" aceita a boca em 0,95 (arma no porão) — foi assim que chegamos a 0,816 (`invariants.mjs:432-434`) |

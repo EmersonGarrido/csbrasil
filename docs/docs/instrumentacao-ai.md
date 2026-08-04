@@ -55,8 +55,9 @@ Antes de qualquer edição, existe um instrumento. Duas coisas diferentes se cha
 - **`tools/eval/BAR.md`** — a régua VISUAL: 25 critérios A1–D4 num screenshot, em dois
   eixos independentes ("isso parece um FPS moderno?" e "isso parece o Brasil de
   verdade?"). Um mapa pode passar num e falhar no outro; a régua separa de propósito.
-- **`tools/eval/invariants.mjs`** — o PORTÃO: 49 invariantes críticas que rodam em node puro e
-  saem com código 1 se qualquer crítica falhar. Ver [Quality gates](./quality-gates.md).
+- **`tools/eval/invariants.mjs`** — o PORTÃO: 61 identificadores declarados (49 avaliados
+  como críticos na última execução registrada), rodando em node puro, saindo com código 1
+  se qualquer crítica falhar. Ver [Quality gates](./quality-gates.md).
 
 A régua nunca é escrita pelo mesmo agente que vai consertar o defeito que ela mede.
 Quando isso aconteceu, o resultado está documentado no repo — ver a seção

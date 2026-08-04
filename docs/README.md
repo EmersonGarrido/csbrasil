@@ -12,9 +12,13 @@ docs/
   package.json            docusaurus 3.6.3 + react 18 (+ override do webpackbar, ver abaixo)
   docusaurus.config.js    config mínima; baseUrl '/docs/'
   sidebars.js             sidebar manual, na ordem de leitura
-  src/css/custom.css      paleta do HUD do jogo
+  src/css/custom.css      paleta do jogo (marrom-neutro + âmbar), com a procedência
+                          de cada valor no topo do arquivo
   static/
-    img/favicon.svg
+    img/favicon.ico             cópia do public/favicon.ico do site (o canarinho, 16/32/48)
+    img/canarinho-icone.webp    ícone da navbar (128 px)
+    img/canarinho-header.webp   banner animado da home (604×240, 24 quadros)
+    img/logo-coro-solto.webp    a logomarca, no rodapé (recorte de public/logo.png)
     .nojekyll
   docs/
     comecando.md          o que é, 3 comandos, estrutura real do repo
@@ -150,6 +154,39 @@ url: 'https://SEU-DOMINIO',
 
 e rode `npm run build` normal. Nesse caso `static/.nojekyll` (já incluído) é o que impede
 o GitHub Pages de ignorar diretórios começados com `_`.
+
+## Identidade visual — de onde vem cada peça
+
+Nada aqui foi desenhado nesta pasta: as quatro imagens são recortes/conversões de
+arquivos que já existem na raiz, e ficam duplicadas porque **o Docusaurus só enxerga
+`docs/static/`**.
+
+| Onde aparece | Arquivo | Origem |
+|---|---|---|
+| aba do navegador | `static/img/favicon.ico` | `public/favicon.ico` (cópia byte a byte) |
+| navbar | `static/img/canarinho-icone.webp` | `public/img/canarinho-pistola.png`, recortado e reduzido a 128 px |
+| cabeçalho da home | `static/img/canarinho-header.webp` | `public/img/canarinho-header.webp` (cópia) |
+| rodapé | `static/img/logo-coro-solto.webp` | `public/logo.png`, recortado e reduzido a 440 px |
+
+Duas decisões que parecem arbitrárias e não são:
+
+- **A logomarca não vai na navbar.** Ela é um letreiro de 4 linhas (`CORO / SOLTO / TRETA
+  / SUPREMA`); a 32 px de altura, que é a altura da navbar, vira borrão. Na navbar vai o
+  ícone do canarinho; o letreiro vai no rodapé, onde tem largura.
+- **O banner animado já traz o letreiro**, então a logomarca solta não se repete na
+  mesma dobra da home.
+
+Se o favicon ou o banner mudarem no site, recopie:
+
+```bash
+cd docs
+cp ../public/favicon.ico static/img/favicon.ico
+cp ../public/img/canarinho-header.webp static/img/canarinho-header.webp
+```
+
+**Peso:** `docs/static/img/` inteiro são ~174 KB. É de propósito — o `public/` versionado
+do repositório já está bem acima do teto de 250 MB da CrazyGames, então imagem nova entra
+convertida para WebP na resolução de uso, nunca no tamanho original.
 
 ## Como manter esta documentação honesta
 

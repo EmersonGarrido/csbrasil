@@ -41,15 +41,46 @@ se a sua saída divergir, a árvore andou e é esta tabela que está velha, não
 | Personagens jogáveis | 44, em 5 facções | `public/js/characters.js`, array `CHARACTERS` |
 | Mapas no registro | 5 | `public/js/maps.js`, objeto `MAPS` |
 | Arnêses visuais em HTML | 12 | `ls public/*.html \| wc -l` |
-| Scripts do arnês | 139 | `ls tools/eval/*.mjs tools/eval/*.py \| wc -l` |
-| Versão | `2.0.0-alpha.11` | `public/js/version.js:5` e `package.json` |
+| Scripts do arnês | 140 | `ls tools/eval/*.mjs tools/eval/*.py \| wc -l` |
+| Versão | `2.0.0-alpha.12` | `public/js/version.js:5` e `package.json` |
+
+E as regras de partida que mais mudam de lugar, todas lidas do `public/js/game.js`:
+
+| Regra | Valor | Onde confere |
+|---|---|---|
+| Facções · personagens | 5 · 44 (P 8 · B 9 · U 9 · C 9 · F 9) | array `CHARACTERS` de `characters.js` |
+| Mapas no menu | 5 — 2 abrem em rodadas, **3 em captura** | `MAPS` em `maps.js:8-36` (`ctfMode`) |
+| Bots por lado | **2×2 a 8×8**, padrão 4×4 | `main.js:847` (menu) · `game.js:772` (o motor aceita 1 a 8) |
+| Respawn | **2,2 s** (`RESPAWN_DELAY`) | `game.js:76` |
+| Round | 99 s, 3 vitórias | `ROUND_TIME` / `ROUNDS_TO_WIN`, `game.js:76` |
+| Captura | alvo de 3 bandeiras, 2 rodadas | `CTF_CAPS_TO_WIN` / `CTF_ROUNDS_TO_WIN`, `game.js:106-107` |
+| Regeneração de vida | **DESLIGADA** — `?regen=1` religa | `game.js:303` |
+| Ranking / páginas `/u/`| **DESLIGADOS** — é uma flag, volta numa linha | `RANKING_ON` em `src/lib/site.ts:68` |
+
+:::note Dois desses são escolha recente, não defeito
+**A regeneração de vida foi desligada** em 05/08 (`REGEN = QS.get('regen') === '1'`). Ela
+existia, estilo CoD — 6 s sem tomar dano e 22 HP/s —, e o dono a reportou como bug
+(*"a vida do 1st player volta a 100, não sei porque"*) justamente porque era **invisível**:
+sem ícone, sem som, sem linha nas configurações. Regra que o jogador não percebe é
+indistinguível de defeito. Ela continua inteira atrás de `?regen=1`, com a simetria
+jogador↔bot. **Quem religar tem que entregar o feedback junto** — e resolver o que ela
+vinha tapando: sem cura, kit ou colete, cada vida depois do primeiro contato já estava
+perdida.
+
+**O ranking foi desligado** e trocado por telemetria anônima. `/ranking` e `/u/*`
+respondem **200 com aviso + `noindex`** (não 404 — as URLs estão indexadas e vão voltar),
+e `/api/leaderboard` responde `{disabled:true}`.
+:::
 
 :::caution O portão NÃO está verde, e isso é declarado
 Última execução completa registrada (04/08/2026): **36 de 49 invariantes críticas
 passam**, mais 4 puladas por exigirem browser. A lista das vermelhas, com causa raiz e
-`arquivo:linha`, está em [`KNOWN-BUGS.md`](https://github.com/rubenmarcus/csbrasil/blob/main/KNOWN-BUGS.md).
-Não repita o número de cabeça: `node tools/eval/invariants.mjs --json` leva 10-12 min e
-devolve o estado de hoje.
+`arquivo:linha`, está em [`KNOWN-BUGS.md`](https://github.com/rubenmarcus/csbrasil/blob/main/KNOWN-BUGS.md)
+— é ele que é mantido dia a dia, não esta página.
+
+Não repita o número de cabeça: `npm run eval:vm && node tools/eval/invariants.mjs --json`
+leva 10-12 min e devolve o estado de hoje. **A ordem importa** — invariante de viewmodel
+medida com o JSON de ontem inventa vermelha (ver [Como colaborar](./colaborar.md#rodar-o-portão)).
 :::
 
 ## Rodar em 3 comandos
@@ -103,9 +134,11 @@ public/                 O JOGO — vanilla ES modules, ZERO build
     game.js                 6.427 linhas: a classe Game (loop, bots, tiro, HUD)
     main.js                 1.545 linhas: menu, wiring de DOM, persistência
     vmattach.js springs.js weapons.js fparms.js handik.js   viewmodel/armas
-    maps.js mapprops.js map_brasilia.js map_havan.js map_decals.js
-    map_pool_day.js map_pool_ramos.js map_ferrovelho.js
-    map_quebrada.js                                         mundo
+    maps.js                 registro dos 5 mapas do menu (quem não está aqui não é jogável)
+    map_brasilia.js map_pool_day.js map_havan.js
+    map_ferrovelho.js map_quebrada.js                       os 5 mapas
+    map_pool_ramos.js       "Piscinão" — existe no disco, FORA do registro
+    mapprops.js map_decals.js                               props e grafite
     bloom.js textures.js vao.js stylize.js gpuparticles.js  gráficos/FX
     characters.js glbchars.js                               personagens
     audio.js version.js site-bg.js
@@ -124,7 +157,7 @@ src/                    O SITE (Astro 7 + adapter Vercel)
   lib/                    supabase, svg, geo, fmt
 
 tools/
-  eval/                   O ARNÊS — 139 scripts .mjs/.py. Ver "Quality gates"
+  eval/                   O ARNÊS — 140 scripts .mjs/.py. Ver "Quality gates"
     invariants.mjs          o portão (49 críticas + 4 que exigem browser, medido 04/08)
     ref-measure.py          mede os frames de referência (a doutrina da casa)
     harness.mjs             sobe o Game real em node com DOM stubado
@@ -157,18 +190,27 @@ chegavam ao usuário" por dias.
 ## Comandos que você vai usar
 
 ```bash
-npm run dev            # site + jogo (Astro, :4321)
+npm run dev            # site + jogo (Astro, :4321) — a rota / JÁ É o jogo
 npm run build          # dist/client + dist/server
-npm run eval:invariants # O PORTÃO — node puro, 10-12 min
+npm run check          # O PORTÃO INTEIRO: syntax + áudio + ctfhud + vm + invariantes + coice + bots
+npm run check:fast     # ~1 min, sem as invariantes: syntax + arch + áudio + pés + anims
+                       #   + ctfhud + pausa + rodada de CTF + regeneração
+npm run eval:vm        # enquadramento do viewmodel nas 26 armas — RODE ANTES das invariantes
+npm run eval:invariants # as invariantes — node puro, 10-12 min
 npm run eval:bots      # botsim 60 s × 5 mapas, sementes fixas
-npm run eval:vm        # enquadramento do viewmodel nas 26 armas
 npm run eval:mat       # material/luz/fog/textura nos 5 mapas
-npm run check          # syntax check + portão + vm + coice + bots
 node tools/eval/serve.mjs 8123   # servidor estático sem Astro
 ```
 
-Todos estão em `package.json:5-16`. O `npm run check` é o mesmo conjunto que o CI
-roda em `.github/workflows/ci.yml:19-38`.
+Todos estão em `package.json`, e vários trazem um par `//nome` logo acima com o motivo de
+existirem — é onde mora o porquê. O `npm run check` é o mesmo conjunto que o CI roda em
+`.github/workflows/ci.yml`.
+
+:::tip Use o `check:fast` no loop, o `check` antes do PR
+O `check` gasta 10-12 min porque sobe o jogo cinco vezes. O `check:fast` cobre as réguas
+que nasceram dos bugs mais recentes (menu de pausa, rodada de captura, regeneração,
+manifesto de animação) e roda em cerca de um minuto.
+:::
 
 ## Onde ir agora
 
@@ -176,4 +218,9 @@ roda em `.github/workflows/ci.yml:19-38`.
   Se você nunca colaborou com agentes num repo, comece por aí.
 - **[Quality gates](./quality-gates.md)** — o que é uma invariante, como se escreve
   uma, e as duas leis da casa. É a página mais útil do site.
-- **[Como colaborar](./colaborar.md)** — o que um PR precisa pra entrar.
+- **[Como colaborar](./colaborar.md)** — o que um PR precisa pra entrar, e as **15 tarefas
+  de primeira contribuição** que já estão escritas em
+  [`docs/issues/`](https://github.com/rubenmarcus/csbrasil/tree/main/docs/issues) (com um
+  `abrir-issues.sh` pronto — elas ainda não foram abertas no GitHub).
+- **[Roadmap e estado](./estado.md)** — o que está verde, o que está vermelho, e o que
+  mudou desde a última medição colada.
