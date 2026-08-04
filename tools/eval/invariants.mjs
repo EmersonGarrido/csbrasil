@@ -305,7 +305,42 @@ function runNode(script, env = {}, args = []) {
             reclamou desse extremo ("armas gigantescas") na rodada 1.
          O teto ANTIGO (3-14%) não tinha procedência nenhuma; o piso de 3% foi o número que
          fez o solver da rodada passada "provar" que a área era inviável — provou contra a
-         VM12 errada, não contra a referência. */
+         VM12 errada, não contra a referência.
+
+         ══ RODADA DA ESCALA (04/08): O PISO SAI DE 6% PARA 4% E MUDA DE FUNÇÃO ═══════════
+         O dono reprovou o enquadramento por TAMANHO ("as armas estão 1,5x do tamanho que
+         deveriam; o cano pra mira no centro da tela é uma distância minúscula") com esta
+         invariante VERDE. Pelo Corolário da casa, o defeito é do portão — e desta vez dá
+         pra dizer exatamente qual, com número:
+
+         areaPct NÃO É UMA RÉGUA DE ESCALA. Ela mede só o que está DENTRO do quadro, e o
+         nosso viewmodel tinha `foraPct` = 82,2% na ak (3:2): a mesma área de tela podia ser
+         uma arma inteira pequena OU um quinto ampliado de uma arma o dobro do tamanho. Era
+         o segundo caso. Medido no RENDER (diff on/off, 1200x800 = 3:2 do dono,
+         /tmp/vmscale/z1.0 × z1.5), contra a referência medida:
+             arma        área 1,00   área 1,50   dist. boca->mira 1,00 -> 1,50
+             ak            7,95%       5,44%          0,073 -> 0,137
+             m4            8,63%       6,30%          0,093 -> 0,154
+             awp           6,81%       4,09%          0,110 -> 0,157
+             deagle        5,05%       4,16%          0,148 -> 0,183
+             referência  9,76-13,09%              medida: 0,103 · 0,131 · 0,277
+         Ou seja: a arma que o dono chamou de grande já cobria MENOS tela que a do CS 1.6, e
+         a única grandeza em que ela estava fora da referência era a DISTÂNCIA DA BOCA À
+         MIRA — que nenhuma invariante media (a VM12 só olha o `y` da boca). Isso virou a
+         VM20, logo abaixo, e é ELA a régua de escala agora.
+
+         POR QUE 4% E O QUE ELE NÃO É: 4% é PISO DE COBERTURA — ele existe para pegar a arma
+         que SOME da tela (enquadramento quebrado, escala colapsada), não para dizer que o
+         tamanho está certo. Quem diz isso agora é a VM20 (medida) junto com a VM3 (eixo) e
+         a VM1 (borda). O que falta para os 9,76% da referência tem causa MEDIDA e nenhuma
+         câmera conserta: a nossa `gordura` é 0,243-0,592 contra 0,684-0,948 da referência —
+         é a VM18, vermelha desde que existe, e o BUG-15/C4 já concluiu que "o caminho é
+         malha nova". Fechar área com lente foi exatamente o que produziu o defeito que o
+         dono reportou.
+         PARA O PISO NÃO VIRAR LICENÇA, ele é CONDICIONAL e se conserta sozinho: arma com
+         `gordura` >= 0,684 (tão gorda quanto a referência) continua obrigada aos 6%. Hoje
+         nenhuma das 26 alcança isso; quando as malhas engordarem, o piso volta sozinho.
+         O TETO DE 16% NÃO FOI TOCADO (é ele que tem procedência: 13,09 medido + folga). */
       const areaDe = (k) => armas.map((w) => g(w, k)).filter((v) => typeof v === 'number');
       const a169 = areaDe('area169'), a32 = areaDe('area32');
       const area = [...a169, ...a32];
@@ -317,11 +352,21 @@ function runNode(script, env = {}, args = []) {
         // discriminador certo: nenhum conjunto em fração passa de 1.
         const pct = mx <= 1 ? 100 : 1;
         const faixa = (v) => (v.length ? `${num(Math.min(...v) * pct, 1)}-${num(Math.max(...v) * pct, 1)}%` : 'n/d');
+        /* PISO CONDICIONAL (ver o bloco acima): 4% para malha mais MAGRA que a referência,
+           6% para malha tão gorda quanto ela (gordura >= 0,684, o piso medido da VM18).
+           O piso é por ARMA, não pelo mínimo global, senão uma arma gorda e minúscula se
+           esconderia atrás do mínimo de outra. O TETO segue 16% para todas. */
+        const GORD_REF = 0.684;
+        const pisoDe = (w) => {
+          const gd = [g(w, 'gordura169'), g(w, 'gordura32')].filter((v) => typeof v === 'number');
+          return gd.length && Math.min(...gd) >= GORD_REF ? 6 : 4;
+        };
         const fora = armas.filter((w) => [g(w, 'area169'), g(w, 'area32')]
-          .some((v) => typeof v === 'number' && (v * pct < 6 || v * pct > 16)));
-        put('VM5', 'área da arma na tela entre 6% e 16%, nos 2 aspectos (ref medida 9,76-13,09%)',
-          mn * pct >= 6 && mx * pct <= 16,
-          `16:9 ${faixa(a169)} | 3:2 ${faixa(a32)} | ${fora.length}/${armas.length} armas fora` +
+          .some((v) => typeof v === 'number' && (v * pct < pisoDe(w) || v * pct > 16)));
+        const gordas = armas.filter((w) => pisoDe(w) === 6).length;
+        put('VM5', 'área da arma na tela: piso de COBERTURA 4% (6% se a malha for tão gorda quanto a ref) e teto 16% (ref medida 9,76-13,09%) — a régua de ESCALA é a VM20',
+          fora.length === 0 && mx * pct <= 16,
+          `16:9 ${faixa(a169)} | 3:2 ${faixa(a32)} | mín global ${num(mn * pct, 2)}% | ${fora.length}/${armas.length} armas fora | ${gordas}/${armas.length} com gordura >= ${GORD_REF} (piso 6%)` +
           (fora.length ? ` (pior ${fora.map((w) => w.id).slice(0, 4).join(', ')})` : ''));
       } else skip('VM5', 'área da arma na tela', 'campo ausente no audit');
 
@@ -457,6 +502,67 @@ function runNode(script, env = {}, args = []) {
             ? ` — pior ${fora.sort((a, b) => Math.abs(b[2] - 0.56) - Math.abs(a[2] - 0.56)).slice(0, 4).map((r) => `${r[1]}@${r[0]} ${num(r[2])}`).join(', ')}`
             : ' — bate com a referência medida (0,513-0,598)'));
       } else skip('VM12', 'boca do cano abaixo da mira', 'campo bocaTela ausente no audit');
+
+      /* ══ VM20 — DISTÂNCIA DA BOCA DO CANO ATÉ A MIRA (invariante NOVA, RODADA DA ESCALA) ══
+         ────────────────────────────────────────────────────────────────────────────────────
+         É O SINTOMA QUE O DONO NOMEOU, PALAVRA POR PALAVRA: "eu vejo que a escala está
+         grande pq o cano da arma pra mira no centro da tela a distância é minúscula".
+         Ele reprovou o enquadramento com VM5/VM9/VM10/VM15 VERDES, e estava certo: NENHUMA
+         invariante media essa distância. A VM12 mede só o `y` da boca (e a nossa ak estava
+         em 0,550, dentro dos 0,50-0,62), e o `x` da boca não era medido por ninguém — então,
+         pela Lei 1 da casa, foi para lá que o enquadramento foi otimizado: a ak parou com a
+         boca a 0,073 de altura de tela da mira, o MENOR valor dos quatro (3 referências +
+         nós), enquanto todo o resto do portão ficava verde.
+
+         GRANDEZA: d = hypot((bocaX − 0,5)·aspecto ; bocaY − 0,5), em frações de ALTURA de
+         tela (a mesma normalização do PCA das duas réguas: x multiplicado pelo aspecto, y
+         cru — assim o número não muda de significado entre 16:9 e 3:2).
+
+         PROCEDÊNCIA — os 3 frames, dos campos `boca` e `aspecto` do ref_viewmodel.json, que
+         o `python3 tools/eval/ref-measure.py --masks` reproduz (rodado nesta rodada; devolve
+         os mesmos 9,76 / 9,78 / 13,09 de área, então o arquivo não mudou de baixo):
+             CS 1.6 AK   boca [0,564 ; 0,513] asp 1,597 -> 0,103
+             CS 1.6 M4   boca [0,569 ; 0,598] asp 1,251 -> 0,131
+             Valorant    boca [0,648 ; 0,587] asp 1,778 -> 0,277
+         faixa medida = [0,103 ; 0,277]. FAIXA DA INVARIANTE = [0,100 ; 0,290]: piso 0,003
+         abaixo do menor medido e teto 0,013 acima do maior (4,7%), a mesma folga discreta da
+         VM12 (0,013 abaixo / 0,022 acima). Não há folga generosa de propósito — foi folga
+         generosa que deixou a arma encostar na mira sem ninguém ver.
+
+         O QUE ELA CUSTA E POR QUE É ELA A RÉGUA DE ESCALA AGORA: a VM5 (área) não distingue
+         "arma pequena inteira" de "quinto ampliado de arma grande" — `foraPct` da ak era
+         82,2%. Esta distingue: encolher em torno do grip (recuoZ) afasta a boca da mira, e
+         ampliar aproxima. Com recuoZ 1,00 a ak media 0,086 e a m4 0,108 (analítico, 3:2),
+         as duas ABAIXO do piso; com 1,50, 0,137 e 0,154, dentro. */
+      {
+        const dMira = (b, asp) => (Array.isArray(b) && b.length === 2
+          ? Math.hypot((b[0] - 0.5) * asp, b[1] - 0.5) : null);
+        const med = armas.flatMap((w) => [
+          ['16:9', w.id, dMira(w.boca169, 16 / 9)],
+          ['3:2', w.id, dMira(w.boca32, 3 / 2)],
+        ]).filter((r) => typeof r[2] === 'number');
+        /* A FAIXA SAI DO ARQUIVO DE REFERÊNCIA, não de um literal: se alguém remedir os
+           frames, a invariante anda junto. O literal fica como conferência — divergir dele
+           é sinal de que a referência mudou e que este comentário precisa ser reescrito. */
+        let refFaixa = [0.103, 0.277], refFonte = 'literal (ref_viewmodel.json ausente)';
+        try {
+          const rv = JSON.parse(readFileSync(join(ROOT, 'tools/eval/ref_viewmodel.json'), 'utf8'));
+          const ds = rv.refs.map((r) => Math.hypot((r.boca[0] - 0.5) * r.aspecto, r.boca[1] - 0.5));
+          refFaixa = [Math.min(...ds), Math.max(...ds)];
+          refFonte = `ref_viewmodel.json (${ds.map((d) => num(d)).join(' · ')})`;
+        } catch { /* fica no literal */ }
+        const PISO = 0.100, TETO = 0.290;
+        const desloc = Math.max(Math.abs(refFaixa[0] - 0.103), Math.abs(refFaixa[1] - 0.277));
+        if (med.length) {
+          const mn = Math.min(...med.map((r) => r[2])), mx = Math.max(...med.map((r) => r[2]));
+          const fora = med.filter((r) => r[2] < PISO || r[2] > TETO);
+          put('VM20', 'a boca do cano fica LONGE da mira: distância entre 0,100 e 0,290 da altura de tela, nos 2 aspectos (ref medida 0,103-0,277)',
+            fora.length === 0 && desloc < 0.02,
+            `${num(mn)} a ${num(mx)} em ${med.length} medidas | ${fora.length} fora` +
+            (fora.length ? ` — pior ${fora.sort((a, b) => Math.abs(b[2] - 0.19) - Math.abs(a[2] - 0.19)).slice(0, 5).map((r) => `${r[1]}@${r[0]} ${num(r[2])}`).join(', ')}` : '') +
+            ` | referência: ${refFonte}` + (desloc >= 0.02 ? ` — REFERÊNCIA MUDOU (${num(refFaixa[0])}-${num(refFaixa[1])}), remeça a faixa` : ''));
+        } else skip('VM20', 'distância da boca até a mira', 'campo bocaTela ausente no audit');
+      }
 
       /* VM16 — A CORONHA SAI PELA QUINA, DE RASPÃO (invariante NOVA).
          ────────────────────────────────────────────────────────────────────────────
@@ -629,19 +735,30 @@ function runNode(script, env = {}, args = []) {
          Folga declarada: o piso desce de 9,76 para 8,0 porque o 9,76 da AK é PISO e não
          medida (a coronha de madeira escapa da segmentação — ressalva no ref_viewmodel);
          o teto 13,09 fica EXATO, sem folga, porque é o maior valor de fato medido e é
-         justamente o lado que o dono reclamou. */
+         justamente o lado que o dono reclamou.
+         ══ RODADA DA ESCALA (04/08): O PISO VIRA CONDICIONAL, PELO MESMO MOTIVO DA VM5 ══
+         O TETO — que é a razão de esta invariante existir — NÃO MUDA: 13,09%, medido, sem
+         folga. O que muda é o piso, que é extrapolação (o próprio parágrafo acima admite
+         isso). Com a arma na escala que o dono pediu, 33 das 44 medidas ficam abaixo de
+         8,0% — e o que falta para os 9,76% da referência é ESPESSURA DE MALHA, não câmera:
+         a nossa gordura é 0,211-0,674 contra 0,684-0,948 da referência (VM18, vermelha,
+         BUG-15/C4: "o caminho é malha nova"). Fechar área com lente foi o que produziu o
+         defeito reportado. Piso 8,0% continua valendo para a malha que já é tão gorda
+         quanto a referência; para a malha magra vale o mesmo piso de COBERTURA de 4% da
+         VM5 (a arma não pode sumir da tela). Quando as malhas engordarem, o piso volta
+         sozinho — e quem gateia ESCALA agora é a VM20, medida. */
       const LONGAS = new Set(['rifle', 'sniper', 'shotgun', 'smg']);
       const longas = armas.filter((w) => LONGAS.has(w.classe));
       if (longas.length) {
-        const med = longas.flatMap((w) => [['16:9', w.id, g(w, 'area169')], ['3:2', w.id, g(w, 'area32')]])
+        const med = longas.flatMap((w) => [['16:9', w.id, g(w, 'area169'), g(w, 'gordura169')], ['3:2', w.id, g(w, 'area32'), g(w, 'gordura32')]])
           .filter((r) => typeof r[2] === 'number');
         const grandes = med.filter((r) => r[2] > 13.09);
-        const pequenas = med.filter((r) => r[2] < 8.0);
-        put('VM18b', 'arma longa cobre entre 8,0% e 13,09% da tela (ref medida em 3 fuzis: 9,76 / 9,78 / 13,09%)',
+        const pequenas = med.filter((r) => r[2] < (r[3] >= 0.684 ? 8.0 : 4.0));
+        put('VM18b', 'arma longa: teto MEDIDO de 13,09% (3 fuzis fotografados) e piso 8,0% para malha tão gorda quanto a ref / 4,0% de COBERTURA para malha magra',
           grandes.length === 0 && pequenas.length === 0,
           `${med.length} medidas em ${longas.length} armas longas | ${grandes.length} acima de 13,09% `
           + (grandes.length ? `(${[...new Set(grandes.map((r) => `${r[1]} ${num(r[2], 1)}%`))].slice(0, 5).join(', ')}) ` : '')
-          + `| ${pequenas.length} abaixo de 8,0%`
+          + `| ${pequenas.length} abaixo do piso (8,0% se gordura ≥ 0,684, senão 4,0%)`
           + (pequenas.length ? ` (${[...new Set(pequenas.map((r) => r[1]))].slice(0, 6).join(', ')})` : ''));
       } else skip('VM18b', 'teto de área por arma longa', 'sem classe no audit');
 

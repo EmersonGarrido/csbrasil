@@ -432,7 +432,56 @@ export const VM_FRAME = {
        6,00 e "praticamente solta": o piso que ela impoe vira back·1,051, abaixo do minz de
        todas as classes. Nao foi zerada para o parametro continuar existindo e tunavel
        (?vmnearx=) — quem quiser o comportamento antigo poe 1,05 e ve a arma encolher. */
-  recuoZ: 1.00,         // recuo de tamanho aparente: multiplica o Zg do enquadramento (?vmzmul=)
+  /* ══ recuoZ 1,00 -> 1,50 (RODADA DA ESCALA — pedido do dono, 04/08) ══════════════════
+     PEDIDO, nas palavras dele: "o ângulo das armas está muito bom, mas a escala está
+     grande ainda — digamos que as armas estão 1,5x do tamanho que deveriam. Eu vejo isso
+     pq o cano da arma pra mira no centro da tela a distância é minúscula."
+
+     ELE DEU O SINTOMA CERTO, E O SINTOMA É MENSURÁVEL — MAS NÃO É ÁREA. Medido no RENDER
+     (diff on/off do vm-quake-capture, 1200x800 = 3:2, o aspecto dele) contra a referência
+     medida (ref_viewmodel.json, `python3 tools/eval/ref-measure.py --masks`):
+
+       DISTÂNCIA BOCA -> MIRA, em fração de ALTURA de tela   (hypot((bocaX-0,5)*asp; bocaY-0,5))
+         referência   CS 1.6 AK 0,103 · CS 1.6 M4 0,131 · Valorant Vandal 0,277
+         nós (1,00)   ak 0,073 · m4 0,093 · awp 0,110 · deagle 0,148   <- AK e M4 ABAIXO
+                                                                          do MÍNIMO medido
+         nós (1,50)   ak 0,137 · m4 0,154 · awp 0,157 · deagle 0,183   <- todas DENTRO
+
+       ÁREA na tela (a grandeza que a VM5 gateia), MESMAS capturas:
+         referência   9,76 · 9,78 · 13,09 %
+         nós (1,00)   ak 7,95 · m4 8,63 · awp 6,81 · deagle 5,05 %  <- JÁ ABAIXO da ref
+         nós (1,50)   ak 5,44 · m4 6,30 · awp 4,09 · deagle 4,16 %
+
+     Ou seja: a arma NUNCA tomou mais área que a do CS 1.6. O que ela fazia era entrar no
+     quadro com 82% da malha FORA dele (foraPct da ak, 3:2) — o que sobrava na tela era um
+     pedaço AMPLIADO de cano e guarda-mão, com a boca a 0,073 da mira. Área igual, arma ~2x
+     maior. É por isso que a régua de área dizia "dentro da faixa" enquanto o olho do dono
+     dizia "grande": areaPct NÃO É UMA RÉGUA DE ESCALA quando o recorte muda (VM5 mede o
+     que aparece; foraPct diz que aparece um quinto).
+
+     POR QUE recuoZ E NÃO vmScale/V0/tanH: o enquadramento é INVARIANTE À ESCALA DA MALHA
+     (back, fwd e gx crescem todos com vmScale — game.js, bloco RECUO DE TAMANHO APARENTE),
+     então mexer em vmScale não muda um pixel. recuoZ multiplica só o Zg: encolhe o tamanho
+     aparente por 1/recuoZ EM TORNO DO GRIP, que fica no MESMO pixel (gx = Zg·tanH escala
+     junto). Consequência direta: a boca se afasta da mira sozinha, que é o sintoma que ele
+     nomeou. E o que ele elogiou fica: eixo da silhueta em PIXEL medido no render
+     1,00 -> 1,50: ak 34,8° -> 33,3° · m4 34,7° -> 31,3° (VM3 = 22-42°), e pitch/yaw/roll,
+     tanBarrel e knifeRot não foram tocados.
+
+     O QUE EU VI (capturas em /tmp/vmscale/z{1.0,1.1765,1.3333,1.5}, 5 armas cada):
+       1,00  ak = cano + guarda-mão ampliados, coronha e pente fora do quadro; a faca é uma
+             lâmina gigante atravessando a tela inteira, ponta em x=0,32.
+       0,85  boca já sai de cima da mira (dBoca 0,099), mas o pente da ak ainda é cortado.
+       0,75  bom; pente ainda cortado pela base.
+       0,67  a AK INTEIRA lê — guarda-mão de madeira, tubo de gás, pente curvo, receiver — e
+             a coronha sai pela quina inferior direita, que é a assinatura do CS 1.6 (VM16)
+             e o enquadramento do references/viewmodel/cs16_ak_dust.jpg. A faca vira uma
+             faca (cabo + guarda + lâmina) com a MESMA direção de lâmina de antes.
+     CUSTO MEDIDO, declarado: a silhueta inteira anda ~0,04 para a direita, então a borda
+     esquerda (VM1, faixa 0,50-0,60 sobre ref medida 0,520-0,565) fica mais apertada, e a
+     área cai abaixo do piso de 6% da VM5 — piso que o próprio comentário da VM5 declara
+     como extrapolação sem pixel ("DÍVIDA DE MEDIÇÃO, não licença"). Ver VM5/VM20. */
+  recuoZ: 1.50,         // recuo de tamanho aparente: multiplica o Zg do enquadramento (?vmzmul=)
   nearX: 6.00,          // trava de borda: coronha pode projetar até esta fração da meia-largura (?vmnearx=)
   cls: {
     // tanH  = tangente do ângulo horizontal do grip. 0,800 (Quake) → 0,670 (CS 1.6): arma

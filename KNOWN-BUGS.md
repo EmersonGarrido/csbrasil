@@ -494,6 +494,48 @@ parâmetro.
 
 ---
 
+### ~~BUG-24 · "as armas estão 1,5x do tamanho que deveriam"~~ · RESOLVIDO 04/08
+
+**Sintoma (do dono):** *"o ângulo das armas está muito bom, mas a escala está grande ainda —
+digamos que estão 1,5x do tamanho que deveriam. Eu vejo isso pq o cano da arma pra mira no
+centro da tela a distância é minúscula."* Reportado com o portão **VERDE** em VM5/VM9/VM10/VM15.
+
+**Causa raiz — confirmada, e NÃO era área.** Medido no render (diff on/off do
+`vm-quake-capture`, 1200×800 = 3:2) contra a referência (`ref_viewmodel.json`):
+
+| | área na tela | boca → mira (altura de tela) |
+|---|---|---|
+| ref CS 1.6 AK / M4 / Vandal | 9,76 · 9,78 · 13,09 % | 0,103 · 0,131 · 0,277 |
+| nós, escala 1,00 | ak 7,95 · m4 8,63 % | **ak 0,073 · m4 0,093** |
+| nós, escala 0,67 | ak 5,44 · m4 6,30 % | ak 0,137 · m4 0,154 |
+
+A arma **nunca** cobriu mais tela que a do CS 1.6 — ela entrava no quadro com **82,2 % da malha
+FORA dele** (`foraPct` da ak, 3:2; mediana do arsenal 84,1 %), então o que aparecia era um
+pedaço **ampliado** de cano e guarda-mão com a boca em cima da mira. `areaPct` não é régua de
+escala quando o recorte muda — e era a única régua de tamanho que existia. A distância
+boca→mira, o número que o dono nomeou, **não era medida por ninguém**: a VM12 olha só o `y` da
+boca. Lei 1 da casa, ao vivo — e a faca é a prova: o `vm: 2.2` dela (`weapons.js`) foi posto
+para satisfazer o piso de 6 % da VM5, e virou uma lâmina atravessando a tela inteira.
+
+**Correção:** `VM_FRAME.recuoZ` 1,00 → **1,50** (`public/js/vmattach.js`) — encolhe o tamanho
+aparente em 1/1,5 em torno do grip, que fica no mesmo pixel. Ângulo, pose, `tanBarrel` e
+`knifeRot` **intocados** (eixo da silhueta no render: ak 34,8° → 33,3°). `foraPct` mediano cai
+de 84,1 % para 49,6 %.
+
+**Réguas:** **VM20** nova (distância boca→mira, faixa **0,100–0,290**, medida dos 3 frames),
+VM5 e VM18b com **piso condicional** (4 % de cobertura para malha mais magra que a referência,
+piso medido para malha gorda; **tetos intocados**). Mutação: com o audit do estado antigo a
+VM20 acusa 14/52 fora. Capturas: `/tmp/vmscale/z{1.0,1.1765,1.3333,1.5}` e o comparativo em
+`/tmp/vmscale/comparativo.png`.
+
+**Custo declarado, medido:** VM9/VM15 ficaram **vermelhas** (grip sobe de 0,959-1,063 para
+0,835-0,902 contra a faixa medida 0,90-1,08 — o `VM_OFF[1]` é deslocamento em METROS e perde
+efeito quando o grip se afasta), VM1 vai de 3 para 10 armas fora e VM3 de 2 para 8. E, com
+`?hands=1`, 15 armas passam a acusar "MÃO SOLTA NO AR" (folga do braço 0,174 → 0,003 m) —
+invisível hoje, porque `WEAPON_ONLY` é o padrão.
+
+---
+
 ## P2 — infra, repo e deploy
 
 ### BUG-12 · `issues/` tem 2,5 GB fora do git e fora do `.gitignore`
