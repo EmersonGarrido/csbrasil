@@ -16,6 +16,17 @@
 //   PERSONAGENS <- public/js/characters.js, arrays de roster (id/team/tribe/name/blurb)
 //
 // Extraído do código em 2026-08-03 (44 personagens, 5 facções, 5 mapas, 26 armas).
+// Reconferido em 2026-08-05 — e a lista de MAPAS estava errada por DOIS motivos
+// que se anulavam na contagem e por isso ninguém tinha visto:
+//   · `praca_old` ("Praça (clássico)") SAIU do registro (`public/js/maps.js:11-20`,
+//     pedido literal do dono: "vamos apagar praça clássica"; o `map.js` foi apagado
+//     junto). Ela continuava listada aqui, em /mapas, no llms.txt e no JSON-LD;
+//   · `fy_quebrada` ("Quebrada (Rua do Baile)") ENTROU (`maps.js:35`) e não estava
+//     em lugar nenhum do site.
+// Um mapa a menos e um a mais: o total continuou 5 e o texto continuou mentindo.
+// Efeito colateral que também estava errado por causa disso: o default de modo.
+// Com `ctfMode: true` em fy_havan, fy_ferrovelho e fy_quebrada, hoje são
+// 2 arenas em rounds e 3 em CTF — as páginas diziam "três em rounds e duas em CTF".
 
 export interface Arma {
   id: string; nome: string; curto: string; classe: string;
@@ -54,12 +65,18 @@ export const ARMAS: Arma[] = [
 
 export interface Mapa {
   id: string; nome: string; modo: string; resumo: string; detalhe: string;
+  /** `ctfMode: true` no registro do jogo — a arena ABRE em Capture the Flag.
+   *  Não é trava: qualquer mapa aceita qualquer modo pelo menu. Existe como
+   *  BOOLEANO (e não como texto dentro de `modo`) porque as páginas precisavam
+   *  contar "quantas abrem em rounds e quantas em CTF", e contar essa frase à mão
+   *  foi exatamente o que fez /mapas e /como-jogar dizerem 3×2 quando é 2×3. */
+  ctf: boolean;
 }
 
-/** 5 arenas jogáveis (public/js/maps.js, objeto MAPS). */
+/** 5 arenas jogáveis — a ordem é a do registro (public/js/maps.js, objeto MAPS). */
 export const MAPAS: Mapa[] = [
   {
-    id: 'awp_map', nome: 'Praça dos Três Poderes', modo: 'Rounds · padrão',
+    id: 'awp_map', nome: 'Praça dos Três Poderes', modo: 'Rounds · padrão', ctf: false,
     resumo: 'A arena principal: uma Brasília fictícia com urna gigante quebrada no meio.',
     detalhe: 'Reinterpretação do awp_map do CS 1.6 em versão Brasília. Duas plataformas altas se encaram, ' +
       'e o mid é dominado por uma urna eletrônica gigante e rachada que serve de cobertura central. ' +
@@ -67,20 +84,14 @@ export const MAPAS: Mapa[] = [
       'É o mapa em que a AWP manda — ângulo longo, cobertura curta e nenhum lugar realmente seguro.',
   },
   {
-    id: 'praca_old', nome: 'Praça (clássico)', modo: 'Rounds',
-    resumo: 'A primeira versão da praça, mantida como mapa próprio.',
-    detalhe: 'Geometria mais simples e mais aberta que a Praça dos Três Poderes: menos props, ' +
-      'linhas de tiro mais limpas e rounds mais rápidos. É o mapa de treino de mira do jogo.',
-  },
-  {
-    id: 'fy_pool_day', nome: 'Piscina da Treta', modo: 'Rounds',
+    id: 'fy_pool_day', nome: 'Piscina da Treta', modo: 'Rounds', ctf: false,
     resumo: 'Salão fechado com piscina no meio — o fy_pool_day brasileiro.',
     detalhe: 'Arena interna, sem céu, com a piscina rebaixada partindo o mapa em dois níveis. ' +
       'Combate curto e vertical: quem controla a borda controla o round. ' +
       'É onde a escopeta e as SMGs finalmente ganham da AWP.',
   },
   {
-    id: 'fy_havan', nome: 'Loja H (Estacionamento)', modo: 'CTF por padrão · rounds opcional',
+    id: 'fy_havan', nome: 'Loja H (Estacionamento)', modo: 'CTF · rounds opcional', ctf: true,
     resumo: 'Estacionamento de megaloja com estátua, carrinhos e carros sorteados por partida.',
     detalhe: 'Mapa de asfalto e concreto, com fileiras de carros que MUDAM a cada partida ' +
       '(a seleção é sorteada por semente), então a cobertura nunca é a mesma duas vezes. ' +
@@ -88,22 +99,44 @@ export const MAPAS: Mapa[] = [
       'mas dá pra trocar pra rounds no menu.',
   },
   {
-    id: 'fy_ferrovelho', nome: 'Ferro Velho do Zé', modo: 'CTF por padrão · rounds opcional',
+    id: 'fy_ferrovelho', nome: 'Ferro Velho do Zé', modo: 'CTF · rounds opcional', ctf: true,
     resumo: 'Ferro-velho de fim de tarde, com o cânion de carros empilhados do BECO OESTE.',
     detalhe: 'Pilhas de carros formam paredes de verdade. O flanco oeste é o BECO OESTE: um cânion reto ' +
       'de muros duplos de carros, com duas saídas laterais pro miolo e uma placa suspensa na boca sul. ' +
       'Luz baixa e quente, sombras longas. Quatro bandeiras, todas alcançáveis dos dois spawns.',
   },
+  {
+    id: 'fy_quebrada', nome: 'Quebrada (Rua do Baile)', modo: 'CTF · rounds opcional', ctf: true,
+    resumo: 'Uma rua reta e comprida de periferia, com a rotunda do baile numa ponta e o campinho de terra na outra.',
+    detalhe: 'O mapa mais novo, e o único que é uma RUA: asfalto no eixo, calçada dos dois lados, ' +
+      'barracos e comércio de quebrada em volta — adega, açaí, sorveteria, lanchonete, móveis. ' +
+      'Numa ponta a praça do baile, com carros tunados e paredão de caixa de som; na outra, o ' +
+      'campinho de terra. Pelo meio: ônibus parado com ponto, bar com cadeira de plástico na ' +
+      'calçada e barricadas. As duas vielas do fundo não são enfeite — são a rota alternativa que ' +
+      'impede a rua virar corredor de sniper. Quatro bandeiras: campinho, bar de esquina, ponto de ' +
+      'ônibus e praça do baile.',
+  },
 ];
 
 export interface Personagem { faccao: string; nome: string; blurb: string; }
 
+/* As CORES saem de `public/style.css:384-392` (`.team-p/-b/-u/-c/-f`, variável `--tc`),
+   que é o que o jogador vê na tela de seleção. Elas estavam próximas mas diferentes
+   (#ff8080 × #ff6b6b, #9dff9d × #7de08f, #c8a8ff × #c79bff, #ff9de0 × #ff8ad1) — perto
+   o bastante pra ninguém notar e longe o bastante pra não ser a mesma marca. Só o
+   amarelo dos funkeiros já batia.
+
+   Os LEMAS são copiados do jogo — `src/pages/index.astro`, `span.team-slogan` das
+   5 team-cards. Três dos cinco divergiam ("A treta se faz na rua!" × "na quebrada!",
+   "A treta é um circo!" × "se faz no picadeiro!", "A treta é no fluxo!" × "se faz no
+   bailão!"), e o /personagens publicava a versão que ninguém vê na tela. Regra da casa:
+   se divergir, o JOGO está certo e este arquivo está velho. */
 export const FACCOES: { id: string; nome: string; lema: string; cor: string; nota: string }[] = [
-  { id: 'P', nome: 'Petistas', lema: 'A treta se faz na praça!', cor: '#ff8080', nota: 'O time vermelho da arena. Oito arquétipos de esquerda caricata — nenhum deles é uma pessoa real.' },
-  { id: 'B', nome: 'Bolsonaristas', lema: 'A treta se faz na rodovia!', cor: '#9dff9d', nota: 'O time verde. Nove arquétipos de direita caricata, com a mesma dose de zoeira dos adversários.' },
-  { id: 'urbanas', nome: 'Tribos Urbanas', lema: 'A treta se faz na rua!', cor: '#c8a8ff', nota: 'Facção sem lado político: emo, punk, metaleiro, skatista, rapper e companhia. Entra na treta pelo estilo.' },
-  { id: 'palhacos', nome: 'Palhaços', lema: 'A treta é um circo!', cor: '#ff9de0', nota: 'O picadeiro invadiu a arena. Nove palhaços, do clássico de cartola ao que dá medo de verdade.' },
-  { id: 'funkeiros', nome: 'Funkeiros', lema: 'A treta é no fluxo!', cor: '#ffd23f', nota: 'A facção mais nova: mandrake, cria, trap, tamborzão. Ostenta antes, atira depois.' },
+  { id: 'P', nome: 'Petistas', lema: 'A treta se faz na praça!', cor: '#ff6b6b', nota: 'O time vermelho da arena. Oito arquétipos de esquerda caricata — nenhum deles é uma pessoa real.' },
+  { id: 'B', nome: 'Bolsonaristas', lema: 'A treta se faz na rodovia!', cor: '#7de08f', nota: 'O time verde. Nove arquétipos de direita caricata, com a mesma dose de zoeira dos adversários.' },
+  { id: 'urbanas', nome: 'Tribos Urbanas', lema: 'A treta se faz na quebrada!', cor: '#c79bff', nota: 'Facção sem lado político: emo, punk, metaleiro, skatista, rapper e companhia. Entra na treta pelo estilo.' },
+  { id: 'palhacos', nome: 'Palhaços', lema: 'A treta se faz no picadeiro!', cor: '#ff8ad1', nota: 'O picadeiro invadiu a arena. Nove palhaços, do clássico de cartola ao que dá medo de verdade.' },
+  { id: 'funkeiros', nome: 'Funkeiros', lema: 'A treta se faz no bailão!', cor: '#ffd23f', nota: 'A facção mais nova: mandrake, cria, trap, tamborzão. Ostenta antes, atira depois.' },
 ];
 
 /** 44 personagens (public/js/characters.js). `faccao` casa com FACCOES[].id */

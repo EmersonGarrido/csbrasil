@@ -16,9 +16,20 @@
 //   · "4×4" é o PADRÃO, mas o menu aceita de 1 a 8 por lado (`settings.bots`)
 //   · a partida é melhor de 5 (`ROUNDS_MAX = ROUNDS_TO_WIN*2-1`), não "3 rounds"
 //     soltos: 3 rounds VENCEM, e a 5ª rodada é o teto que evita partida eterna.
+//
+// PASSAGEM DE VERDADE (05/08/2026) — o passo 4 e a regra de CTF diziam "cinco
+// arenas, três em rounds e duas em Capture the Flag". O número TOTAL continua 5,
+// mas a divisão virou 2×3 quando a `fy_quebrada` entrou no registro e a
+// `praca_old` saiu (ver o cabeçalho de src/data/jogo.ts). Os dois números agora
+// são CONTADOS de `MAPAS[].ctf` — digitar a divisão à mão é o que a quebrou.
 import Layout from '../layouts/Layout.astro';
-import { CONTROLES } from '../data/jogo';
+import { CONTROLES, MAPAS } from '../data/jogo';
 import { BRAND_FULL, GAME_ID, abs } from '../lib/site';
+
+const nCtf = MAPAS.filter(m => m.ctf).length;
+const nRounds = MAPAS.length - nCtf;
+const CTF_NOMES = MAPAS.filter(m => m.ctf).map(m => m.nome);
+const porExtenso = ['zero', 'uma', 'duas', 'três', 'quatro', 'cinco', 'seis', 'sete', 'oito'];
 
 const PASSOS = [
   { nome: 'Abra o jogo no navegador de desktop',
@@ -28,7 +39,7 @@ const PASSOS = [
   { nome: 'Escolha a facção e o personagem',
     texto: 'Cinco facções: Petistas, Bolsonaristas, Tribos Urbanas, Palhaços e Funkeiros. São 44 personagens no total, e todos jogam igual — a escolha é de estilo, não de vantagem.' },
   { nome: 'Escolha o mapa e o modo',
-    texto: 'Cinco arenas. Três abrem em rounds e duas em Capture the Flag, mas dá pra trocar o modo de qualquer mapa antes de começar. O tamanho dos times também é seu: de 1 contra 1 até 8 contra 8, com 4 contra 4 como padrão.' },
+    texto: `${porExtenso[MAPAS.length][0].toUpperCase()}${porExtenso[MAPAS.length].slice(1)} arenas: ${MAPAS.map(m => m.nome).join(', ')}. ${porExtenso[nRounds][0].toUpperCase()}${porExtenso[nRounds].slice(1)} abrem em rounds e ${porExtenso[nCtf]} em Capture the Flag, mas dá pra trocar o modo de qualquer mapa antes de começar. O tamanho dos times também é seu: de 1 contra 1 até 8 contra 8, com 4 contra 4 como padrão.` },
   { nome: 'Mire, agache, atire',
     texto: 'WASD move, mouse mira, clique esquerdo atira e clique direito abre a luneta. Agachar com Ctrl deixa a mira bem mais estável — é a diferença entre acertar e errar com a AWP sem luneta.' },
   { nome: 'Ganhe o round',
@@ -96,7 +107,7 @@ const jsonld = [
       mesmos números do JSON-LD logo abaixo. */}
   <p class="sub">
     <strong>Resposta curta:</strong> abra <strong>www.csbrasil.online</strong> num navegador de
-    desktop, clique para travar o mouse e jogue — não tem download, instalação nem cadastro.
+    desktop, clique para travar o mouse e jogue — não tem download, instalação nem cadastro.{' '}
     <strong>WASD</strong> move, o <strong>mouse</strong> mira, o <strong>clique esquerdo</strong>{' '}
     atira e o <strong>direito</strong> abre a luneta. Cada round dura <strong>1:39</strong>, o
     padrão é <strong>4 contra 4</strong> contra bots e <strong>3 rounds vencem</strong> a partida.
@@ -133,7 +144,7 @@ const jsonld = [
       com respawn de 2,2 s. No menu o time vai de 1 a 8 por lado.</li>
     <li><strong>Round:</strong> 1:39. Leva o round o time com mais abates quando o relógio zera;
       3 rounds vencem a partida, e a 5ª rodada é o teto.</li>
-    <li><strong>Capture the Flag:</strong> modo alternativo, padrão na Loja H e no Ferro Velho.
+    <li><strong>Capture the Flag:</strong> quatro bandeiras. É o padrão em {CTF_NOMES.join(', ')}.
       Qualquer mapa aceita qualquer modo. Em CTF a rodada acaba por captura, não por relógio.</li>
     <li><strong>AWP:</strong> mata com um tiro em qualquer lugar do corpo. É a única arma do jogo com essa propriedade.</li>
     <li><strong>Multikill:</strong> 2 a 6+ kills seguidas disparam anúncio estilo Unreal Tournament; 5 kills sem morrer é <em>killing spree</em>.</li>

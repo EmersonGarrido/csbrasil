@@ -71,8 +71,16 @@ const mapData = { online: online.filter(o => o.lat && o.lon), cities: cities.fil
       <span><b style="color:var(--yellow);font-size:20px">{totals.players}</b> jogadores</span>
       <span><b style="color:var(--yellow);font-size:20px">{totals.matches}</b> partidas</span>
       <span><b style="color:var(--yellow);font-size:20px">{totals.kills}</b> kills</span>
+      {/* ESTA BARRA MEDE 2 DAS 5 FACÇÕES. A tabela `stats` só tem `matches_p` e
+          `matches_b`; Tribos Urbanas, Palhaços e Funkeiros não têm coluna e caem em
+          nulo (o `submit_match` aceita `p_team` só como 'P'|'B'). Enquanto isso não
+          for corrigido no RPC, a barra é uma proporção ENTRE petistas e bolsonaristas,
+          não uma divisão do total — e é isso que o rótulo agora diz. */}
       <span style="flex:1;min-width:220px">
-        <span style="color:#ff8080">{pctP}% petistas</span> × <span style="color:#9dff9d">{pctB}% bolsonaristas</span>
+        <span style="color:#ff6b6b">{pctP}% petistas</span> × <span style="color:#7de08f">{pctB}% bolsonaristas</span>
+        <span style="display:block;font-size:11px;color:var(--bone-dim);margin-top:2px">
+          só entre estas duas facções — Tribos Urbanas, Palhaços e Funkeiros ainda não são contados
+        </span>
         <span style="display:flex;height:8px;border-radius:4px;overflow:hidden;margin-top:4px;border:1px solid #3a3325">
           <span style={`width:${pctP}%;background:#e03232`}></span>
           <span style={`width:${pctB}%;background:#1faa4d`}></span>
@@ -80,7 +88,14 @@ const mapData = { online: online.filter(o => o.lat && o.lon), cities: cities.fil
       </span>
     </div>
   )}
-  <p><strong style="color:#9dff9d">{online.length}</strong> jogadores online agora · em amarelo, o histórico total de partidas por cidade (localização aproximada, nível cidade — sem IP).</p>
+  <p><strong style="color:#7de08f">{online.length}</strong> jogadores online agora · em amarelo, o histórico total de partidas por cidade (localização aproximada, nível cidade — sem IP).</p>
+  {/* COBERTURA DECLARADA: o registro, o heartbeat e o submit-match só acontecem para
+      quem digitou um nick (`public/js/main.js`, `if (nick && …)`). Quem entra e joga
+      sem nick é invisível aqui. Dizer "quem está jogando agora" sem essa ressalva
+      transforma uma amostra enviesada em número absoluto. */}
+  <p style="font-size:12px;color:var(--bone-dim);margin-top:-6px">
+    Conta só quem escolheu um nick — jogar sem nick não registra presença.
+  </p>
   {!configured && <p>Mapa ainda não configurado.</p>}
   <div id="map" style="height:520px;border-radius:10px;border:1px solid #3a3325;background:#10130c"></div>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" is:inline></script>

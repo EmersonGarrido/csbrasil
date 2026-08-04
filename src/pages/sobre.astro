@@ -77,7 +77,7 @@ const jsonld = [
   <h2>Perguntas frequentes</h2>
   <details open><summary><strong>O que é {BRAND_FULL}?</strong></summary>
     <p>Um jogo FPS gratuito que roda no navegador: arena de sniper estilo awp_map do CS 1.6,
-      ambientada numa Brasília fictícia e satírica, com {FACCOES.length} facções,
+      ambientada numa Brasília fictícia e satírica, com {FACCOES.length} facções,{' '}
       {PERSONAGENS.length} personagens originais, {MAPAS.length} mapas, {ARMAS.length} armas, bots,
       sistema de rounds e Capture the Flag.</p></details>
   <details><summary><strong>Preciso instalar ou pagar algo?</strong></summary>
@@ -96,18 +96,30 @@ const jsonld = [
     <p>Ainda não. O jogo está em <strong>alpha</strong> e o ranking global está desligado até o
       placar ser confiável — o modelo atual é forjável, e classificação forjável é número errado
       publicado. Os seus stats de partida ficam salvos no navegador e aparecem no menu RANKING do
-      jogo. Quando voltar, cada jogador ganha de novo a página pública em
+      jogo. Quando voltar, cada jogador ganha de novo a página pública em{' '}
       <code>/u/&lt;id&gt;/&lt;nick&gt;</code>, com badge PNG gerada na hora.</p></details>
   <details><summary><strong>Dá pra jogar com outras pessoas?</strong></summary>
     <p>Ainda não. Hoje todas as partidas são contra bots, de 1 a 8 por lado (4 contra 4 é o
       padrão). O multiplayer é a próxima grande frente do projeto.</p></details>
 
+  {/* LICENÇA: hoje o `LICENSE` da raiz É MIT, então esta frase está correta HOJE.
+      Há decisão registrada do dono de migrar para AGPL-3.0 (HANDOFF.md:143,
+      plans/08 degrau 3), e ela NÃO foi aplicada — a troca é retroativa e exige
+      levantar PRs de terceiros já mesclados antes. Quando o degrau 3 rodar, esta
+      linha muda no MESMO commit que LICENSE, README, CONTRIBUTING, llms.txt e o
+      rodapé do Layout — meia troca de licença é pior que nenhuma.
+
+      LINK DAS TAREFAS: apontava para `tree/main/docs/issues`, que dá 404 —
+      `docs/` inteiro nunca foi commitado e `docs/issues/` ainda por cima casava
+      com o padrão `issues/` do .gitignore da raiz. Enquanto as 15 issues não
+      estiverem abertas no GitHub, o link honesto é a própria aba de issues do
+      repositório: ela existe. Link quebrado é pior que link ausente. */}
   <h2>Open source</h2>
   <p>
     Código aberto sob licença MIT (menos o pacote de áudio, que tem direitos incertos e fica fora
-    do repositório). Contribuições são bem-vindas — inclusive as primeiras:
-    <a href="https://github.com/rubenmarcus/csbrasil" rel="noopener">github.com/rubenmarcus/csbrasil</a>,
-    e a lista de tarefas boas pra começar está em
-    <a href="https://github.com/rubenmarcus/csbrasil/tree/main/docs/issues" rel="noopener">docs/issues</a>.
+    do repositório). Contribuições são bem-vindas:{' '}
+    <a href="https://github.com/rubenmarcus/csbrasil" rel="noopener">github.com/rubenmarcus/csbrasil</a>{' '}
+    — e as tarefas boas pra primeira contribuição ficam em
+    <a href="https://github.com/rubenmarcus/csbrasil/issues" rel="noopener"> issues</a>.
   </p>
 </Layout>
