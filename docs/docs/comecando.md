@@ -7,6 +7,22 @@ slug: /
 description: O que é o CORO SOLTO, como rodar em 3 comandos e a estrutura real do repositório — conferida contra o código.
 ---
 
+import useBaseUrl from '@docusaurus/useBaseUrl';
+
+{/* Cabeçalho: o banner do canarinho girando, no formato largo em que ele foi feito
+    (604×240, 24 quadros). Ele JÁ traz o letreiro — por isso a logomarca solta não
+    aparece aqui; ela mora no rodapé, e o ícone do canarinho na navbar. Repetir o
+    letreiro duas vezes na mesma dobra é ruído, não identidade. */}
+<div className="cs-hero">
+  <img
+    className="cs-hero__bird"
+    src={useBaseUrl('/img/canarinho-header.webp')}
+    alt="CORO SOLTO: Treta Suprema — o canarinho, mascote do jogo, girando"
+    width="604"
+    height="240"
+  />
+</div>
+
 # Começando
 
 **CORO SOLTO: Treta Suprema** (ex-CS BRASIL) é um FPS de navegador escrito em

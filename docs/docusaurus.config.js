@@ -11,7 +11,11 @@
 const config = {
   title: 'CORO SOLTO — Docs do Dev',
   tagline: 'Instrumentação de IA, quality gates e como colaborar',
-  favicon: 'img/favicon.svg',
+  // Favicon = o MESMO arquivo do site (`public/favicon.ico`, 16/32/48), que é o canarinho.
+  // Copiado, não linkado: o Docusaurus só enxerga `docs/static/`. Se o do site mudar,
+  // rode `cp ../public/favicon.ico static/img/favicon.ico` — dois ícones diferentes para
+  // o mesmo produto é o tipo de detalhe que faz a doc parecer de outro projeto.
+  favicon: 'img/favicon.ico',
 
   url: 'https://csbrasil.online',
   baseUrl: '/docs/',
@@ -58,6 +62,14 @@ const config = {
       },
       navbar: {
         title: 'CORO SOLTO · Docs',
+        // O ícone da navbar é o CANARINHO (o mascote), não a logomarca: a logomarca é um
+        // letreiro de 4 linhas ("CORO / SOLTO / TRETA / SUPREMA") e a 32 px de altura ela
+        // vira borrão ilegível. O letreiro inteiro aparece no cabeçalho da home, onde tem
+        // espaço para ser lido. Mesma divisão que o site usa: ícone pequeno, letreiro grande.
+        logo: {
+          alt: 'Canarinho — mascote do CORO SOLTO',
+          src: 'img/canarinho-icone.webp',
+        },
         items: [
           { type: 'docSidebar', sidebarId: 'dev', position: 'left', label: 'Documentação' },
           { href: 'https://csbrasil.online/', label: 'Jogar', position: 'right' },
@@ -66,6 +78,16 @@ const config = {
       },
       footer: {
         style: 'dark',
+        // A LOGOMARCA (`public/logo.png` da raiz, recortada e convertida) mora aqui: é o
+        // único lugar da doc com largura sobrando para um letreiro de 4 linhas ser lido.
+        // Até 05/08/2026 esse arquivo não era usado por ninguém, em lugar nenhum.
+        logo: {
+          alt: 'CORO SOLTO: Treta Suprema',
+          src: 'img/logo-coro-solto.webp',
+          href: 'https://csbrasil.online/',
+          width: 200,
+          height: 152,
+        },
         links: [
           {
             title: 'Comece por aqui',
