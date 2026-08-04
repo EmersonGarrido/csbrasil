@@ -7,6 +7,7 @@ import * as THREE from 'three';
 import { placeProp } from './mapprops.js';
 import { VAO_BANDS, aoBoxGeo, aoMatFactory, ContactSkirt, BASE_FLOATING, onGround } from './vao.js';
 import { makeAerialFog } from './bloom.js';   // névoa exponencial + cor por direção do olhar
+import { detailFor, registerDetail } from './textures.js';   // normal+rough por Sobel (ver lam)
 
 export function buildBrasilia(scene, T) {
   const colliders = [];   // {minX,minY,minZ,maxX,maxY,maxZ}
@@ -16,7 +17,28 @@ export function buildBrasilia(scene, T) {
 
   // PBR: era MeshLambertMaterial (chapado). Standard reage ao env map (IBL) e à luz com
   // roughness/metalness — mesmo com map/color, ganha ambiente e sombreamento real.
-  const lam = (opts) => new THREE.MeshStandardMaterial({ roughness: 0.92, metalness: 0.0, ...opts });
+  /* PBR DE SUPERFÍCIE — o MESMO caminho do map.js:17-28, que era o único mapa a ter.
+     MEDIDO antes desta rodada, varrendo a cena dos 5 mapas reais em runtime: 877 materiais,
+     70 normalMap e 70 roughnessMap, TODOS no praca_old (o único que chamava `detailFor`).
+     Este mapa tinha ZERO. Depois: 113/113 no total. O `detailFor`
+     pendura normal+roughness derivados do PRÓPRIO albedo por Sobel (textures.js), então a
+     superfície deixa de ser cor chapada e passa a reagir ao sol e ao env map — sem asset
+     externo e sem textura nova: os dois mapas derivados são gerados UMA vez por canvas de
+     albedo e cacheados num WeakMap, e materiais que compartilham o mesmo albedo compartilham
+     os mesmos derivados.
+     CUSTO NA MÁQUINA FRACA (a preocupação do dono): zero. O `withDetail` do textures.js já
+     sai fora em quality 'low' e com ?detail=0, e nesses casos `detailFor` devolve null e o
+     material fica exatamente como era. normalScale 0,65 é o mesmo do map.js — relevo por
+     Sobel exagera fácil e vira plástico. */
+  const lam = (opts) => {
+    const m = new THREE.MeshStandardMaterial({ roughness: 0.92, metalness: 0.0, ...opts });
+    const det = m.map && detailFor(m.map);
+    if (det) {
+      if (det.normalMap && !m.normalMap) { m.normalMap = det.normalMap; m.normalScale.set(0.65, 0.65); }
+      if (det.roughnessMap && !m.roughnessMap) m.roughnessMap = det.roughnessMap;
+    }
+    return m;
+  };
   /* AO DE VÉRTICE (critério A1). Toda caixa procedural ganha faixas de escurecimento na
      base + uma saia de contato no chão. Ver vao.js para a calibração dos multiplicadores.
      `opts.vao === false` isenta caixas onde o efeito seria errado (volume invisível). */
@@ -75,7 +97,16 @@ export function buildBrasilia(scene, T) {
     const t = new THREE.CanvasTexture(c);
     t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rx, ry);
     t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = LOWQ ? 1 : 8;
-    return t;
+    /* PBR DE SUPERFÍCIE — este é o ÚNICO ponto por onde passa toda textura local deste mapa,
+       então registrar aqui cobre o mapa inteiro numa linha (ver `lam` logo acima e
+       textures.js `registerDetail`). Antes desta rodada o awp_map — que é o mapa PADRÃO —
+       tinha 41 materiais com albedo e ZERO normalMap/roughnessMap: cada superfície era cor
+       chapada, sem reagir ao sol nem ao env map, e era um dos "três níveis de acabamento na
+       mesma tela" que o dono descreveu.
+       CUSTO: o Sobel roda uma vez por canvas, teto de 512² (MAX_DETAIL do textures.js), e
+       some inteiro em quality 'low' e com ?detail=0 — o gate já é o do textures.js, não um
+       segundo gate que alguém tem que lembrar de manter. */
+    return registerDetail(t, c, 2.2, 0.60, 0.98);
   };
   // BAR §4.1: na seca (mai–set) o gramado do Eixo é PALHA DOURADA com manchas verdes, não
   // verde-esmeralda. E o solo laterítico vermelho aparece onde a grama falhou — é o único
@@ -477,14 +508,35 @@ export function buildBrasilia(scene, T) {
     if (occlude) occluders.push(im);   // InstancedMesh é Mesh: entra no raycast de bala
     return im;
   }
-  // Caixa invisível de colisão de BALA/LOS. Os landmarks são GLB (Group) e o raycast do
-  // jogo é NÃO-recursivo (game.js intersectObjects(..., false)) — sem isso a bala atravessa
-  // o Congresso inteiro. Mesmo truque já usado no ônibus.
-  function occBox(w, h, d, x, y, z, ry = 0) {
+  /* Caixa invisível de colisão de BALA/LOS. Os landmarks são GLB (Group) e o raycast do
+     jogo é NÃO-recursivo (game.js:2611 `intersectObjects(..., false)`) — sem isso a bala
+     atravessa o Congresso inteiro. Mesmo truque já usado no ônibus.
+
+     REGRA DE USO (invariante MAP4, tools/eval/map-check.mjs): esta caixa só pode existir
+     como PROCURAÇÃO de uma malha que a régua não consegue medir — ou seja, de um GLB. Ela
+     é o que a bala bate; se ela for MAIOR que a massa que o jogador VÊ, a bala para no
+     vazio e o decal de impacto fica boiando no ar. Foi exatamente o defeito que o dono
+     relatou ("se atira e fica a marca no ar como se tivesse uma parede invisível"): o
+     Panteão, o monumento dos Candangos e o Pombal eram GEOMETRIA PROCEDURAL (não GLB) e
+     mesmo assim ganharam uma caixa cheia envolvendo um volume que é quase todo AR — asas
+     inclinadas com 0,9 m de espessura dentro de uma caixa de 14 × 12 × 12 m, duas figuras
+     de bronze de 0,6 m dentro de uma caixa de 3,2 × 8,9 m, e um bloco VAZADO de Niemeyer
+     (o vazio é o assunto dele) dentro de uma caixa maciça de 4,6 × 6 × 4,6 m.
+     Para geometria procedural o certo é o que se faz agora: registrar as PRÓPRIAS MALHAS
+     em `occluders` (`occMesh`), porque aí a bala bate onde a malha está, por construção.
+     `proxyGLB` marca as procurações legítimas (a régua as pula e reporta quantas pulou —
+     em node nenhum GLB carrega). */
+  function occBox(w, h, d, x, y, z, ry = 0, proxyGLB = null) {
     const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), invis);
     b.position.set(x, y + h / 2, z); b.rotation.y = ry; root.add(b); occluders.push(b);
+    if (proxyGLB) b.userData.proxyGLB = proxyGLB;
     return b;
   }
+  /* Registra uma malha VISÍVEL (inclusive filha de Group, que é o caso de todo landmark
+     procedural montado em grupo) como alvo de bala/LOS. É a alternativa certa ao occBox
+     quando a geometria existe e é desenhada: a bala passa a bater na forma real — entre as
+     duas asas do Panteão, por exemplo, ela ATRAVESSA, que é o que os olhos prometem. */
+  const occMesh = (o) => { o.traverse((m) => { if (m.isMesh) occluders.push(m); }); return o; };
 
   // Place a Mint building GLB, normalized to targetH metres, and derive a footprint
   // collider from its real placed bounds. Returns the object (or null if not loaded).
@@ -512,8 +564,10 @@ export function buildBrasilia(scene, T) {
     // O GLB é um Group e o raycast de bala/LOS do game.js é NÃO-recursivo — sem uma caixa
     // MESH invisível a bala atravessa o prédio inteiro (mesmo bug já corrigido no ônibus).
     // Sem isso não existe "cobertura" nenhuma nos ângulos longos da Esplanada.
+    // proxyGLB: caixa DERIVADA da bounding box do próprio GLB — procuração legítima da
+    // MAP4 (o GLB não carrega em node, então a régua a pula em vez de acusar).
     if (occ) occBox(bb.max.x - bb.min.x, Math.max(0.4, bb.max.y - bb.min.y),
-      bb.max.z - bb.min.z, (bb.min.x + bb.max.x) / 2, bb.min.y, (bb.min.z + bb.max.z) / 2);
+      bb.max.z - bb.min.z, (bb.min.x + bb.max.x) / 2, bb.min.y, (bb.min.z + bb.max.z) / 2, 0, id);
     return o;
   }
 
@@ -666,7 +720,7 @@ export function buildBrasilia(scene, T) {
         const bb2 = new THREE.Box3().setFromObject(b);
         col(bb2.min.x, bb2.max.x, 0, Math.max(1, bb2.max.y), bb2.min.z, bb2.max.z);
         occBox(bb2.max.x - bb2.min.x, bb2.max.y - PL, bb2.max.z - bb2.min.z,
-          (bb2.min.x + bb2.max.x) / 2, PL, (bb2.min.z + bb2.max.z) / 2);
+          (bb2.min.x + bb2.max.x) / 2, PL, (bb2.min.z + bb2.max.z) / 2, 0, 'palacio');   // procuração de GLB (MAP4)
         /* ============ IDENTIDADE DO PLANALTO / STF (reclamação nº 4 do dono) ============
            "ganhou texturas mas perdeu toda identidade". A versão anterior enfiava BRISE
            VERTICAL nas QUATRO faces + uma laje de coroamento de 60 cm: brise vertical em
@@ -779,7 +833,7 @@ export function buildBrasilia(scene, T) {
     const bb = new THREE.Box3().setFromObject(b);
     const w = bb.max.x - bb.min.x, d = bb.max.z - bb.min.z;
     const cx = (bb.min.x + bb.max.x) / 2, cz = (bb.min.z + bb.max.z) / 2;
-    occBox(w, bb.max.y - PILOTI, d, cx, PILOTI, cz);   // bala/LOS só a partir do piloti
+    occBox(w, bb.max.y - PILOTI, d, cx, PILOTI, cz, 0, 'ministerio');   // bala/LOS só a partir do piloti (procuração de GLB, MAP4)
     if (!BIG) continue;
     // laje inferior (fecha o vão por baixo e dá sombra dura de meio-dia no piso)
     addBox(w, 0.9, d, MAT.concBranco, cx, PILOTI - 0.9, cz, { collide: false });
@@ -836,7 +890,9 @@ export function buildBrasilia(scene, T) {
     // primitivas simples, proporção certa = silhueta humana. Nada de textura nova.
     const bx = BIG ? 9 : 6, bz = BIG ? 24 : 40, S = BIG ? 1.25 : 0.85;
     const bronze = MAT.bronze;
-    const g = new THREE.Group(); g.position.set(bx, 0, bz); root.add(g); occluders.push(g);
+    // `occluders.push(g)` (Group) era LETRA MORTA: Group.raycast é no-op e o raycast de bala
+    // é não-recursivo — quem registrava o monumento era só o occBox de baixo. Ver occMesh.
+    const g = new THREE.Group(); g.position.set(bx, 0, bz); root.add(g);
     const ped = new THREE.Mesh(new THREE.BoxGeometry(2.5 * S, 0.5, 1.6 * S), MAT.granitoPreto);
     ped.position.y = 0.25; ped.receiveShadow = true; g.add(ped);
     // uma figura, em metros "de figura" (a escala S é aplicada no grupo)
@@ -873,7 +929,13 @@ export function buildBrasilia(scene, T) {
     }
     // colisão FINA (o monumento é uma lâmina): fica fora da faixa de tiro da lane
     col(bx - 1.4 * S, bx + 1.4 * S, 0, 0.5 + 6.7 * S, bz - 0.95 * S, bz + 0.95 * S);
-    occBox(2.6 * S, 0.5 + 6.7 * S, 1.8 * S, bx, 0, bz);
+    /* PAREDE INVISÍVEL CORRIGIDA (map_brasilia.js:928, invariante MAP4). Era
+       `occBox(2.6*S, 0.5+6.7*S, 1.8*S, …)`: uma caixa MACIÇA de 3,2 × 8,9 × 2,2 m em volta
+       de duas figuras de bronze que somam ~1,2 m de largura de massa. Medido: 92% da
+       superfície dessa caixa não tinha NENHUMA malha visível atrás, até 8,2 m de altura —
+       quem mirava o céu entre as duas cabeças via o tiro parar no ar. Agora a bala bate nas
+       figuras: pernas, tronco, ombro, cabeça, braços e lança viram occluders de verdade. */
+    occMesh(g);
   }
 
   /* ---------------- praça furniture ---------------- */
@@ -979,7 +1041,15 @@ export function buildBrasilia(scene, T) {
       emb.position.y = 0.21; g.add(emb);
       g.traverse(o => { if (o.isMesh) { o.castShadow = !LOWQ; o.receiveShadow = true; } });
       col(px - 7, px + 7, 0, 12, pz - 6, pz + 6);
-      occBox(14, 12, 12, px, 0, pz);
+      /* PAREDE INVISÍVEL CORRIGIDA (map_brasilia.js:1042, invariante MAP4). Era
+         `occBox(14, 12, 12, …)`: um bloco maciço de 14 × 12 × 12 m em cima de um edifício
+         que é DUAS chapas de 0,90 m inclinadas e um bico. Medido: 100% da superfície dessa
+         caixa sem malha visível atrás, até 11,1 m de altura — o "V" entre as asas do
+         Panteão, que é o vazio que o edifício desenha, parava bala. Este era o pior dos
+         três, e fica no quadrante nordeste da praça, de frente pro eixo de duelo.
+         Agora as próprias chapas (com os frisos), o bico, a base e o embasamento são os
+         occluders: atirar no V atravessa, atirar na asa acerta a asa. */
+      occMesh(g);
     }
     // Pombal (Niemeyer) — bloco vazado de concreto branco, escala pequena, ISOLADO no vazio.
     {
@@ -993,15 +1063,23 @@ export function buildBrasilia(scene, T) {
         { const w = new THREE.Mesh(new THREE.BoxGeometry(0.4, 5.6, 4.4), MAT.concBranco); w.position.set(ox, 2.9, oz); g.add(w); }
       g.traverse(o => { if (o.isMesh) { o.castShadow = !LOWQ; o.receiveShadow = true; } });
       col(px - 2.4, px + 2.4, 0, 6, pz - 2.4, pz + 2.4);
-      occBox(4.6, 6, 4.6, px, 0, pz);
+      /* PAREDE INVISÍVEL CORRIGIDA (map_brasilia.js:1056, invariante MAP4). O Pombal é um
+         bloco VAZADO — o vazio entre as duas paredes é literalmente o assunto da peça — e
+         estava dentro de um `occBox(4,6 × 6 × 4,6)` maciço: 44% da superfície sem malha
+         atrás, até 5,6 m. Quem atirava PELO vazado via a bala parar no meio do buraco. */
+      occMesh(g);
     }
     // Museu da Cidade — laje de concreto branco apoiada num ÚNICO pilar.
     {
       const px = -24, pz = PAL_ZMAX + 8;
       addBox(1.4, 3.2, 1.4, MAT.concBranco, px, 0, pz);
-      addBox(11, 0.9, 6, MAT.concBranco, px, 3.2, pz, { collide: false, cast: true });
+      const laje = addBox(11, 0.9, 6, MAT.concBranco, px, 3.2, pz, { collide: false, cast: true });
       addBox(11.4, 0.2, 6.4, MAT.granitoPreto, px, 0, pz, { collide: false });   // soleira/piso
-      occBox(11, 1.1, 6, px, 3.1, pz);
+      /* PAREDE INVISÍVEL CORRIGIDA (map_brasilia.js:1076, invariante MAP4). O `occBox(11,
+         1.1, 6, …, y 3,1)` era 20 cm mais alto que a laje visível (0,90 m, y 3,2-4,1): uma
+         fatia de 10 cm de ar acima e abaixo dela parava bala — 32% da superfície medida.
+         Pouco, mas é o mesmo defeito: a laje é geometria PRÓPRIA, então ela é o occluder. */
+      occMesh(laje);
     }
   }
 
@@ -1059,8 +1137,59 @@ export function buildBrasilia(scene, T) {
   // demais (teto invisível ACIMA do real → "tiros num layer acima").
   {
     const bx = new THREE.Mesh(new THREE.BoxGeometry(9.3, 3.1, 4.5), new THREE.MeshBasicMaterial({ visible: false }));
+    // PROCURAÇÃO LEGÍTIMA (invariante MAP4): as medidas acima são as do MESH do GLB, medidas
+    // no browser. Em node o GLB não carrega, então a régua PULA esta caixa em vez de acusá-la
+    // de parede invisível — é o limite declarado da MAP4, não uma isenção de conveniência.
+    bx.userData.proxyGLB = 'bus';
     bx.position.set(2.5, 3.1 / 2, -4); bx.rotation.y = 0.55; root.add(bx); occluders.push(bx);
-    col(2.5 - 4.5, 2.5 + 4.5, 0, 3.1, -4 - 2.6, -4 + 2.6);
+
+    /* COLISÃO DO ÔNIBUS — defeito reportado pelo dono com print: "o mapa não deixa eu andar
+       perto do ônibus".
+
+       CAUSA RAIZ: o ônibus está girado 0,55 rad (31,5°) — o occluder ACIMA respeita isso
+       (`bx.rotation.y`), mas `col()` empurra `{minX,maxX,minY,maxY,minZ,maxZ}` e **o motor
+       não tem collider rotacionado em lugar nenhum** (nem `_collide`, nem o A* dos bots).
+       A caixa única de 9,0 × 5,2 alinhada aos eixos é o retângulo girado "achatado": sobra
+       nas quinas e falta nas laterais.
+
+       MEDIDO (planta, amostragem de 2 cm — script no fim deste comentário):
+         ônibus real ................ 41,5 m²
+         collider antigo ............ 46,8 m²
+         BLOQUEAVA SEM ÔNIBUS ....... 12,9 m², com parede invisível a até **2,33 m** da
+                                      lataria  <- é isso que ele sentiu
+         ônibus SEM colisão ......... 7,6 m² (dava pra entrar no ônibus pelas quinas)
+
+       CORREÇÃO: decompor o retângulo girado numa grade 6×3 no espaço LOCAL do ônibus e
+       empurrar a AABB exata de cada célula. Vira uma escada de caixas que segue a diagonal.
+         parede invisível ........... 2,33 m -> **0,69 m**
+         bloqueio indevido .......... 12,9 -> 9,4 m²
+         ônibus sem colisão ......... 7,6 -> **0 m²**
+       18 caixas num mapa que tem ~20 chamadas de `col()` é caro em legibilidade, não em
+       CPU (AABB é um teste de 6 comparações). Aumentar a grade continua melhorando
+       (8×4 dá 0,51 m), mas 0,69 m já é menor que o raio do jogador (0,38) + passo.
+
+       O JEITO CERTO, se um dia isto voltar a incomodar, é collider com rotação no motor —
+       aí todo prop girado ganha de graça. É mudança em `_collide` (caminho quente, usado
+       por jogador E bots) e não cabia junto com esta correção.
+
+       Reproduzir os números:
+         node -e "…" com inBus(x,z) no espaço local e a união das AABBs — ver o histórico
+         desta correção no CHANGELOG (2.0.0-alpha.4). */
+    {
+      const BX = 2.5, BZ = -4, BTH = 0.55, BL = 9.26, BW = 4.48, NX = 6, NZ = 3;
+      const cs = Math.cos(BTH), sn = Math.sin(BTH), sx = BL / NX, sz = BW / NZ;
+      for (let i = 0; i < NX; i++) for (let j = 0; j < NZ; j++) {
+        const lx = -BL / 2 + sx * (i + 0.5), lz = -BW / 2 + sz * (j + 0.5);
+        let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
+        for (const dx of [-sx / 2, sx / 2]) for (const dz of [-sz / 2, sz / 2]) {
+          const px = lx + dx, pz = lz + dz;
+          const wx = BX + px * cs + pz * sn, wz = BZ - px * sn + pz * cs;
+          x0 = Math.min(x0, wx); x1 = Math.max(x1, wx);
+          z0 = Math.min(z0, wz); z1 = Math.max(z1, wz);
+        }
+        col(x0, x1, 0, 3.1, z0, z1);
+      }
+    }
   }
 
   /* ---------------- urna eletrônica (Sketchfab — monumento no MEIO do mapa) ---------------- */
