@@ -29,18 +29,35 @@
      V=1 node tools/eval/decal-probe.mjs [mapId] # + uma linha por peça
    ============================================================================ */
 import { THREE, MAPS, initTextures } from './harness.mjs';
+import { paredeAtras } from '../../public/js/map_decals.js';
 
 const T = initTextures();
 const ONLY = process.argv[2];
 const VERBOSE = process.env.V === '1';
 const H_CARTAZ = 2.2;   // altura do cartaz do Piscinão — a régua de tamanho do dono
 
-let total = 0, curtos = 0;
+/* ── PAREDE ATRÁS (04/08) ───────────────────────────────────────────────────────
+   Reprovação literal do dono: "os graffites que colocaste, colocaste em lugares
+   que não são parede". Esta régua repete, DEPOIS de construído, o mesmo raycast
+   que os mapas rodam ANTES de desenhar — de propósito com a MESMA função
+   (`public/js/map_decals.js`), pra não haver duas medidas discordando por causa do
+   instrumento. Se alguém tirar a chamada de dentro de um `decal()`, a peça errada
+   nasce e ESTA contagem sobe; é a mutação que faz a régua morder.
+
+   `decalSolids` sai do `buildWorld` e é declaração, não geometria nova: em havan,
+   pool_day e quebrada ele É o `colliders`; em ferrovelho leva as duas folhas
+   giradas do portão e em brasilia as empenas dos ministérios (GLB sem collider).
+
+   LIMITE CONHECIDO: em node NENHUM GLB carrega, então os ministérios da Brasília
+   não existem e o awp_map mede 0 decalque aqui. As 16 peças dele só aparecem no
+   navegador — capturar continua sendo obrigatório. */
+let total = 0, curtos = 0, semParede = 0;
 for (const [id, m] of Object.entries(MAPS)) {
   if (ONLY && id !== ONLY) continue;
   const scene = new THREE.Scene();
   const W = m.build(scene, T);
-  const files = new Map(), linhas = [];
+  const files = new Map(), linhas = [], soltas = [];
+  const solids = W.decalSolids || W.colliders || [];
   let n = 0, menor = Infinity, maior = 0;
   W.root.traverse((o) => {
     if (!o.isMesh || !String(o.name).startsWith('decal:')) return;
@@ -48,16 +65,24 @@ for (const [id, m] of Object.entries(MAPS)) {
     const w = g.width || 0, h = g.height || 0;
     n++; files.set(f, (files.get(f) || 0) + 1);
     menor = Math.min(menor, h); maior = Math.max(maior, h);
+    const p = o.getWorldPosition(new THREE.Vector3());
+    if (!paredeAtras(solids, p.x, p.y, p.z, o.rotation.y, w, h)) {
+      soltas.push(`    SEM PAREDE  ${w.toFixed(2)} × ${h.toFixed(2)} m  ry=${o.rotation.y.toFixed(2)}  `
+        + `(${p.x.toFixed(2)}, ${p.y.toFixed(2)}, ${p.z.toFixed(2)})  ${f}`);
+    }
     linhas.push(`    ${w.toFixed(2)} × ${h.toFixed(2)} m  ry=${o.rotation.y.toFixed(2)}  `
       + `(${o.position.x.toFixed(2)}, ${o.position.y.toFixed(2)}, ${o.position.z.toFixed(2)})  ${f}`);
   });
-  total += n;
+  total += n; semParede += soltas.length;
   /* Peça mais baixa que o cartaz não é erro por si: em armário de vestiário e em
      muro de 3 m com faixa pintada no topo o teto é FÍSICO. Por isso conta, não reprova. */
   const abaixo = linhas.filter((l) => parseFloat(l.split('×')[1]) < H_CARTAZ).length;
   curtos += abaixo;
   console.log(`${id.padEnd(15)} ${String(n).padStart(3)} decalque(s) | ${files.size} arquivo(s) distinto(s)`
-    + (n ? ` | altura ${menor.toFixed(2)}–${maior.toFixed(2)} m | ${abaixo} abaixo dos ${H_CARTAZ} m do cartaz` : ''));
+    + (n ? ` | altura ${menor.toFixed(2)}–${maior.toFixed(2)} m | ${abaixo} abaixo dos ${H_CARTAZ} m do cartaz`
+      + ` | ${soltas.length} sem parede atrás` : ''));
+  soltas.forEach((l) => console.log(l));      // sempre, não só no V=1: isto é defeito
   if (VERBOSE) linhas.sort().forEach((l) => console.log(l));
 }
-console.log(`DECALPROBE total ${total} | abaixo do cartaz ${curtos}`);
+console.log(`DECALPROBE total ${total} | abaixo do cartaz ${curtos} | SEM PAREDE ${semParede}`);
+if (semParede > 0) process.exitCode = 1;
