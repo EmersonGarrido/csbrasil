@@ -568,7 +568,10 @@ export function buildHavan(scene, T) {
     /* PAREDE ATRÁS ANTES DE DESENHAR (map_decals.js). Vem antes do `_usados` e do
        material de propósito: peça reprovada não pode gastar a vaga da anti-repetição
        nem acordar o getter memoizado de uma textura que ninguém vai ver. */
-    if (!paredeAtras(colliders, x, y + h / 2, z, ry, w, h)) return null;
+    /* `[root]` e não `colliders`: o critério mede a MALHA DESENHADA, não a lista de caixas
+       declaradas — caixa declarada é maior que o prop e deixou 16 peças nascerem no ar na
+       Brasília e 21 sem parede na Quebrada. Ver a docstring do map_decals.js. */
+    if (!paredeAtras([root], x, y + h / 2, z, ry, w, h)) return null;
     _usados.push({ i, x, z });
     let m = _dmat.get(i);
     if (!m) {
@@ -1609,9 +1612,38 @@ export function buildHavan(scene, T) {
        primeiro degrau — 17 cm de vão — e andaria com a cabeça dentro da escada. É por isso
        que só o fundo da escada abre: perto do piso ela é baixa demais, e lá o motor
        continua mandando subir. */
+    /* ── SEGUNDA RODADA (05/08): O VÃO DA ESCADA NÃO TINHA PORTA ─────────────────
+       A correção anterior abriu a camada 0 SÓ debaixo das escadas, e o teste numérico
+       confirmou: jogador em y=0 sob a parte alta recebe chão 0. No jogo continuava
+       impossível — e o defeito não era nenhum dos suspeitos óbvios (não é colisor: o
+       contrapiso mora em y 3,28-3,40 e o `_collide` não morde quem anda em y=0; não é
+       o `yRef`, que o `_updatePlayer` passa nos três lugares; não é o step-up).
+
+       Era a PEGADA: reproduzido andando com o `_updatePlayer` de verdade, o único
+       acesso ao vão da escada é POR BAIXO DO MEZANINO — e a pegada do mezanino não
+       tinha camada nenhuma. `groundHeightAt` devolvia 3,40 para todo mundo dentro de
+       (x −14..14, z −41,4..−31), inclusive para quem anda no piso da loja em y=0.
+       Ou seja: o bolsão que a rodada passada abriu (16,3 m² sob as duas escadas) era
+       um quarto lacrado, e havia uma parede invisível de 28 m de largura na linha
+       z = −31, cortando a loja em duas.
+
+       MEDIDO no harness (o mesmo `_updatePlayer` que o jogador usa):
+         · 294,0 m² de piso de loja inalcançáveis sob a laje;
+         · 9 gôndolas (18 colisores, y 0-1,80) desenhadas nesse piso, que nenhum
+           jogador jamais alcançou;
+         · andando reto de z = −22 para o fundo, o corpo subia a escada e parava
+           colado em z = −34,89 (dentro da laje), nunca em y=0.
+
+       A CORREÇÃO é a mesma regra, aplicada à laje: o mezanino é uma PLATAFORMA, e
+       plataforma com pé-direito tem chão embaixo. `MZ_SOB` é a face de baixo do
+       contrapiso (MZ.h − 0,12 = 3,28 m), bem acima do ALTURA_LIVRE de 1,95. */
+    const MZ_SOB = MZ.h - 0.12;
     const camadas = [];   // do mais baixo para o mais alto
     let topo = 0;
-    if (x > MZ.x0 && x < MZ.x1 && z >= MZ.z0 && z <= MZ.z1) topo = MZ.h;
+    if (x > MZ.x0 && x < MZ.x1 && z >= MZ.z0 && z <= MZ.z1) {
+      topo = MZ.h;
+      if (MZ_SOB >= ALTURA_LIVRE) camadas.push(0);
+    }
     for (const R of RAMPAS)
       if (x >= R.x0 && x <= R.x1 && z >= R.z0 && z <= R.z1) {
         const h = Math.min(MZ.h, ESC.espelho / 2 + MZ.h * Math.max(0, Math.min(1, (R.z1 - z) / (R.z1 - R.z0))));
@@ -1818,7 +1850,7 @@ export function buildHavan(scene, T) {
   PROPS_LOJA.build(root);
 
   return {
-    root, colliders, occluders, decalSolids: colliders, groundHeightAt, spawns, sun, hemi, pickups, doors, ctfPoints,
+    root, colliders, occluders, decalSolids: [root], groundHeightAt, spawns, sun, hemi, pickups, doors, ctfPoints,
     waypoints: { nodes, adj }, nearestWaypoint, findPath,
     /* DECLARAÇÃO PRA RÉGUA (tools/eval/map-check.mjs) — não é usada pelo jogo.
        `stairs` diz ONDE fica a escada; o perfil (espelho, piso, largura, inclinação) é

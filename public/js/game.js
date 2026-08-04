@@ -5945,11 +5945,20 @@ export class Game {
     }
     this._botSeparation(b, dt);   // empurra pra longe de colegas próximos -> não andam em fila colados
     this._updateTeamMark(b);      // halo/chevron acompanham o corpo (custa 2 objetos por bot)
-    /* Bot recebe o próprio Y pelo mesmo motivo do jogador. ATENÇÃO, LIMITE CONHECIDO: o
-       A* ainda é um grafo de (x,z) sem camada, então o bot NÃO planeja rota por baixo da
-       escada — ele só não é teleportado pro topo se já estiver lá embaixo. Grafo com
-       camada é a segunda metade desta frente. */
-    b.pos.y = this.world.groundHeightAt(b.pos.x, b.pos.z, b.pos.y);
+    /* BOT FICA NA CAMADA DE CIMA — DE PROPÓSITO, E O PREÇO ESTÁ MEDIDO.
+       O `yRef` daqui foi RETIRADO quando a Havan ganhou chão embaixo do mezanino INTEIRO
+       (map_havan.js). Com ele o bot passa a poder andar no piso da loja sob a laje — só
+       que o A* é um grafo de (x, z) SEM CAMADA: o nó embaixo da laje e o nó em cima dela
+       são o MESMO ponto, então o bot desce sem plano nenhum e fica moendo lá embaixo.
+       Medido (`node tools/eval/botsim.mjs 60 fy_havan`, determinístico):
+
+         bot COM camada:  latFlips 13,88 · fwdFlips 6,58 · stuck  8,98 % · eff 0,241
+         bot SEM camada:  latFlips 11,10 · fwdFlips 7,23 · stuck  1,73 % · eff 0,226
+
+       5× mais bot travado é regressão que o dono VÊ; o jogador não perde nada, porque
+       quem usa o vão é ele. Grafo com camada continua sendo a segunda metade desta
+       frente (BUG-22) — e é exatamente o que falta pra devolver o `yRef` aqui. */
+    b.pos.y = this.world.groundHeightAt(b.pos.x, b.pos.z);
     g.position.copy(b.pos);
     g.rotation.set(0, b.yaw, 0);
     if (b.mesh.isGLB) {
