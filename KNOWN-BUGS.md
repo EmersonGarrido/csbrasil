@@ -27,6 +27,67 @@ lista de "balão" do CHR1 tem os mesmos 13 antes e depois).
 
 ## P0 — quebram o jogo ou mentem para quem mede
 
+### ~~BUG-00 · "o jogo reiniciou sozinho e foi pro menu principal"~~ · RESOLVIDO 04/08
+
+**Sintoma (do dono, cinco ocorrências):** *"pela quinta vez o jogo reiniciou sozinho, eu
+estava no meio de uma partida e ele foi pro menu principal sozinho"*.
+
+**Causa raiz — confirmada, e NÃO era caminho automático.** `quitToMenu()` tem exatamente
+dois chamadores (`public/js/main.js`, `#btn-quit` e `#btn-menu`) e os dois são `onclick`;
+`show('main-menu')` só aparece em handlers de clique e no ESC do próprio menu (guardado por
+`#map-screen` visível, impossível em partida porque `startGame` chama `show(null)`). Não há
+`location.reload`, `history`, nem um `<a href>` na página do jogo. **O clique era real.** O
+defeito é que o jogo põe os botões que destroem a partida debaixo da mira, sozinho:
+
+1. `game.js:_plc` pausa a **qualquer** perda de pointer lock — alt-tab, ESC, notificação do
+   SO, o Chrome tirando o foco. O jogador não pediu pausa nenhuma.
+2. O menu de pausa nasce clicável no mesmo frame, centrado.
+3. **Medido** (`node tools/eval/pause-check.mjs --geo`, Chromium 1536×1024, o enquadramento
+   3:2 do dono, com o pause aberto):
+
+   | sob o cursor | % da tela |
+   |---|---|
+   | canvas (o "clique pra voltar") | **0,00 %** |
+   | `#pause-menu` (fundo) | 95,59 % |
+   | os 5 botões | 4,42 % — `REINICIAR`+`SAIR` somam 1,66 % |
+
+   E na coluna vertical do **centro da tela**, que é onde mora a mira:
+   centro → `CONFIGURAÇÕES`; centro **+100 px** → `REINICIAR PARTIDA` (*"reiniciou
+   sozinho"*); centro **+150 px** → `SAIR PRO MENU` (*"foi pro menu principal sozinho"*).
+4. O escape hatch estava **morto**: `_md` só retomava com
+   `e.target === renderer.domElement`, e com 0,00 % de canvas exposto isso nunca acontece
+   pausado. O gate nasceu no G2-R2 pra consertar o inverso (*"clico em SAIR PRO MENU e não
+   acontece nada"*) e, ao consertar aquilo, entregou **todo** clique pausado pros botões.
+
+**O que foi descartado com medição, não com palpite:** o fim de partida (`_endMatch`) não
+dispara cedo — `killsToWin`/`capsToWin` são `Infinity` e só são lidos sob `PACE`
+(`QS.get('pace')==='1'`, desligado); 900 s headless em 5 mapas (harness `bootGame`) fecham
+sempre em 5 rodadas / 530,7 s, sem transição espúria. `dispose()` só é chamado por
+`startGame` e `quitToMenu`. `beforeunload`/`sendBeacon` não navegam.
+
+**Correção** (`game.js` + `main.js`):
+- `PAUSE_ARM_MS = 600` — o painel de ações nasce com `pointer-events:none`, então o tiro
+  em voo não alcança botão nenhum;
+- clique no **fundo** do menu (95,59 % da tela) retoma a partida — o escape hatch de volta,
+  agora num alvo que existe;
+- passada a guarda o painel volta a aceitar clique (senão o G2-R2 ressuscita);
+- `confirmGate` (game.js) — `SAIR PRO MENU` e `REINICIAR` exigem dois toques com
+  **CONFIRM_MIN_MS = 350 ms de silêncio** entre eles. Não é "clique de novo" ingênuo: a
+  primeira versão desta trava foi **reprovada em Chromium por uma rajada de 8 cliques a
+  60 ms no mesmo pixel** (o que a mão do jogador faz quando a arma "para de atirar"), que
+  confirmou sozinha e saiu pro menu. Clique cedo demais agora **re-arma** o relógio.
+
+**Régua: `tools/eval/pause-check.mjs`** (node puro, ~5 s, no `check:fast` e no portão como
+invariante `PAUSA`). 6 cláusulas, **7 mutações medidas, todas fazem a cláusula certa ficar
+vermelha** — inclusive `PAUSA5`, que reprova qualquer caminho automático novo (um
+`setTimeout(quitToMenu, 1000)` deixa o portão vermelho). Duas armadilhas achadas escrevendo
+a própria régua e consertadas: a isenção do corpo de `quitToMenu` era por "tem `function
+quitToMenu` por perto" (passava verde com a mutação colada logo abaixo da função) e a busca
+era por `quitToMenu(` (não pegava `setTimeout(quitToMenu, …)`, que é justamente como se
+cria um caminho automático sem escrever parênteses).
+
+---
+
 ### BUG-01 · Bandeiras de CTF aparecem no HUD em partida de rodadas
 
 **Sintoma (do dono):** mapas em modo *rounds* mostram a faixa de bandeiras no HUD, sem existir

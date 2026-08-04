@@ -1585,6 +1585,34 @@ function runNode(script, env = {}, args = []) {
   }
 }
 
+// ── 8b2. PAUSA — A PARTIDA NÃO ACABA SOZINHA (pause-check.mjs) ───────────────
+/* "pela quinta vez o jogo reiniciou sozinho, eu estava no meio de uma partida e ele foi
+   pro menu principal sozinho" (dono, 04/08). Não era caminho automático: `quitToMenu()`
+   só é chamado por dois `onclick`. O jogo é que PÕE esses botões debaixo da mira — o
+   `_plc` pausa a qualquer perda de pointer lock (alt-tab, ESC, notificação) e o menu de
+   pausa nasce clicável no mesmo frame, com REINICIAR a 100 px e SAIR PRO MENU a 150 px
+   do centro da tela (medido em 1536×1024, o enquadramento 3:2 do dono). O tiro que já
+   estava saindo apertava o botão.
+   As 6 cláusulas e as 7 mutações que as fazem morder estão no cabeçalho do
+   pause-check.mjs. Ele roda em node puro (~5 s) e dirige a classe Game de verdade. */
+{
+  if (!existsSync(join(HERE, 'pause-check.mjs'))) {
+    skip('PAUSA', 'a partida não volta pro menu sozinha', 'pause-check.mjs ausente');
+  } else {
+    const out = runNode('pause-check.mjs');
+    const m = out.match(/PAUSECHECK (\d+)\/(\d+) clausulas/);
+    if (!m) {
+      skip('PAUSA', 'a partida não volta pro menu sozinha',
+        'pause-check não imprimiu a linha PAUSECHECK: ' + (out.split('__ERRO__')[1] || out).slice(0, 160));
+    } else {
+      const ok = +m[1], tot = +m[2];
+      const falhas = (out.match(/FALHAS: (.*)$/m) || [])[1] || '';
+      put('PAUSA', 'nenhum clique perdido tira o jogador da partida (guarda do pause + 2 toques + zero caminho automático pro menu)',
+        ok === tot, `${ok}/${tot} cláusulas` + (falhas ? ` | ${falhas.slice(0, 240)}` : ' | 0 falhas'));
+    }
+  }
+}
+
 // ── 8c. MAPAS: corpo dentro de sólido / respawn / escada / bandeiras ─────────
 /* Sete invariantes alimentadas por tools/eval/map-check.mjs, que sobe os 4 mapas REAIS
    e mede com o instrumento do próprio jogo (`_collide`, `groundHeightAt`, `_losClear`,

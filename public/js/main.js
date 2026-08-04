@@ -8,7 +8,7 @@ import { preloadMapProps } from './mapprops.js';
 import { MAPS, MAP_IDS, DEFAULT_MAP, resolveMapId } from './maps.js';
 import { setHavanCarSeed } from './map_havan.js';
 import { Sfx } from './audio.js';
-import { Game, vmPreloadClasses } from './game.js';
+import { Game, vmPreloadClasses, confirmGate, CONFIRM_MAX_MS } from './game.js';
 import { VERSION } from './version.js';
 import { enableLightBloom } from './bloom.js';
 import { enableStylize } from './stylize.js';
@@ -469,6 +469,9 @@ async function startGame(team, charId, enemyFaction) {
   retryPending();
   armSwitchHook();
   game.onOpenSettings = () => { game.setPaused(true); settingsReturn = 'pause-menu'; show('settings-panel'); };
+  // pausa nova = botão destrutivo desarmado (senão um "CLIQUE DE NOVO" velho sobrevive
+  // até a pausa seguinte e o primeiro clique já confirmaria)
+  game.onPauseChange = () => resetConfirms();
   game.onToggleSpeech = () => {
     settings.speech = !settings.speech;
     sfx.speechEnabled = settings.speech;
@@ -901,15 +904,57 @@ $('btn-team-f') && ($('btn-team-f').onclick = () => { sfx.uiClick(); pickTeam('F
 $('btn-resume').onclick = () => { sfx.uiClick(); game?.resume(); };
 $('btn-pause-settings').onclick = () => { sfx.uiClick(); settingsReturn = 'pause-menu'; show('settings-panel'); };
 $('btn-pause-controls').onclick = () => { sfx.uiClick(); howtoReturn = 'pause-menu'; show('howto-panel'); };
+/* ---- AÇÕES QUE DESTROEM A PARTIDA EM ANDAMENTO: DOIS TOQUES ----------------
+   "pela quinta vez o jogo reiniciou sozinho, eu estava no meio de uma partida e ele foi
+   pro menu principal sozinho" (dono, 04/08).
+
+   Não havia caminho automático: `quitToMenu()` só é chamado por estes dois `onclick`.
+   O clique era REAL — o menu de pausa cai debaixo da MIRA quando o pointer lock some
+   sozinho (alt-tab, ESC, notificação), e o tiro que já estava saindo apertava o botão.
+   Medido com o pause aberto em 1536×1024: centro da tela = CONFIGURAÇÕES,
+   centro+100 px = REINICIAR PARTIDA, centro+150 px = SAIR PRO MENU — a coluna inteira
+   fica na linha de tiro. Ver PAUSE_ARM_MS em game.js e tools/eval/pause-check.mjs.
+
+   A janela de guarda do game.js resolve o tiro em voo; esta trava resolve o resto:
+   NENHUM clique único tira o jogador da partida. A REGRA do segundo toque
+   (`confirmGate`) mora no game.js e é medida em node — ver a cláusula PAUSA6 de
+   tools/eval/pause-check.mjs, que nasceu de uma rajada de 8 cliques a 60 ms que
+   atravessou a primeira versão desta trava e saiu pro menu. */
+const confirmables = [];
+function needsConfirm(btn, run) {
+  const label = btn.textContent;
+  let armedAt = 0, t = null;
+  // o aviso é INLINE de propósito: style.css é território de outra frente nesta rodada, e
+  // um estado que só existe como classe sem regra seria um botão que muda de texto e não
+  // avisa NADA — o jogador tem que ver que o próximo clique é o que vale
+  const reset = () => {
+    if (t) clearTimeout(t); t = null; armedAt = 0;
+    btn.textContent = label; btn.classList.remove('confirming');
+    btn.style.color = ''; btn.style.borderColor = '';
+  };
+  confirmables.push(reset);
+  btn.onclick = () => {
+    const now = performance.now();
+    const acao = confirmGate(now, armedAt);
+    if (acao === 'confirma') { reset(); run(); return; }
+    if (acao === 'arma') sfx.uiClick();
+    armedAt = now;   // 'rearma' (rajada) cai aqui também: o relógio volta ao zero
+    btn.textContent = 'CLIQUE DE NOVO PRA CONFIRMAR';
+    btn.classList.add('confirming');
+    btn.style.color = 'var(--am, #ffc93f)'; btn.style.borderColor = 'var(--am, #ffc93f)';
+    if (t) clearTimeout(t);
+    t = setTimeout(reset, CONFIRM_MAX_MS);
+  };
+}
+const resetConfirms = () => { for (const r of confirmables) r(); };
 // Mesma chamada da REVANCHE do match-end: recomeça a partida com time/personagem/adversário atuais.
-$('btn-restart').onclick = () => { sfx.uiClick(); startGame(currentTeam, currentChar); };
-$('btn-quit').onclick = () => {
-  sfx.uiClick();
+needsConfirm($('btn-restart'), () => startGame(currentTeam, currentChar));
+needsConfirm($('btn-quit'), () => {
   sendTelemetry();   // fora do `if (pl)`: partialPayload() devolve null sem nick, telemetria não depende disso
   const pl = partialPayload();
   if (pl) { submitted = true; submitGlobal(pl); }
   quitToMenu();
-};
+});
 $('btn-again').onclick = () => { sfx.uiClick(); startGame(currentTeam, currentChar); };
 $('btn-menu').onclick = () => { sfx.uiClick(); quitToMenu(); };
 // M in-game: escolhe o personagem do novo time antes de trocar

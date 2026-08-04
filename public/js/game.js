@@ -118,6 +118,55 @@ const KILLS_PER_PLAYER = 3, KILLS_MIN = 6;
    RELÓGIO ou eliminação, que é a regra do CS. `?pace=1` devolve o alvo pra comparar.
    O CTF não passa por aqui: lá o alvo é de bandeiras (`capsToWin`), é a mecânica do modo. */
 const PACE = QS.get('pace') === '1';
+/* ===================== JANELA DE GUARDA DO MENU DE PAUSA =====================
+   DEFEITO DO DONO, CINCO VEZES: "o jogo reiniciou sozinho, eu estava no meio de uma
+   partida e ele foi pro menu principal sozinho".
+
+   NÃO existe caminho automático pro menu — `quitToMenu()` tem exatamente dois chamadores
+   e os dois são `onclick` (main.js, SAIR PRO MENU e MENU). O clique é REAL; o que estava
+   errado era ONDE o jogo põe esses botões e QUANDO.
+
+   MEDIDO (tools/eval/pause-check.mjs --geo, Chromium 1536×1024, o enquadramento 3:2 do dono),
+   com o menu de pausa no ar:
+     - canvas sob o cursor:            0,00 % da tela  (o overlay cobre TUDO)
+     - #pause-menu (fundo):           95,59 %
+     - os 5 botões:                    4,42 %, e REINICIAR+SAIR somam 1,66 %
+     - coluna vertical no CENTRO da tela, que é onde mora a MIRA:
+         centro       -> CONFIGURAÇÕES
+         centro +100  -> REINICIAR PARTIDA   ("o jogo reiniciou sozinho")
+         centro +150  -> SAIR PRO MENU       ("foi pro menu principal sozinho")
+
+   E a pausa não é pedida pelo jogador: `_plc` pausa a QUALQUER perda de pointer lock
+   (alt-tab, ESC, notificação do SO, o Chrome tirando o foco). O menu cai debaixo da mira
+   no exato instante em que o dedo está no botão de atirar — e o tiro que já estava saindo
+   vira "REINICIAR PARTIDA" ou "SAIR PRO MENU".
+
+   Pior: o escape hatch que existia pra isso está MORTO. `_md` só retoma quando
+   `e.target === renderer.domElement`, e com 0,00 % de canvas exposto isso nunca acontece
+   enquanto pausado (o gate nasceu em G2-R2 pra consertar o inverso — o "SAIR PRO MENU não
+   funcionava" —, e ao consertar aquilo entregou todo clique pausado pros botões).
+
+   Guarda: nos primeiros PAUSE_ARM_MS o painel de ações fica com `pointer-events:none`,
+   então o tiro em voo não alcança botão nenhum e cai no FUNDO — que agora RETOMA a
+   partida. Depois da janela o painel volta a aceitar clique (senão a regressão do G2-R2
+   volta) e as duas ações destrutivas ainda exigem confirmação de dois toques (main.js). */
+const PAUSE_ARM_MS = 600;
+/* Segunda trava, do mesmo defeito: NENHUM clique único pode destruir a partida em
+   andamento (SAIR PRO MENU / REINICIAR). Dois toques — mas com uma pausa MEDIDA entre
+   eles, e a regra mora aqui, exportada, porque "clique de novo" ingênuo NÃO resolve:
+   uma rajada de 8 cliques a 60 ms no mesmo pixel (que é exatamente o que a mão do
+   jogador faz quando a arma "parou de atirar") atravessa qualquer teto fixo de tempo
+   e confirma sozinha — medido em Chromium, o jogo saiu pro menu no meio da rajada.
+   Por isso um clique cedo demais não confirma NEM é ignorado: ele RE-ARMA o relógio.
+   Confirmar exige parar de clicar por CONFIRM_MIN_MS. */
+export const CONFIRM_MIN_MS = 350, CONFIRM_MAX_MS = 3500;
+export function confirmGate(agora, armadoEm) {
+  if (!armadoEm) return 'arma';                              // 1º toque: pede confirmação
+  const dt = agora - armadoEm;
+  if (dt >= CONFIRM_MAX_MS) return 'arma';                   // esfriou: começa de novo
+  if (dt >= CONFIRM_MIN_MS) return 'confirma';               // toque deliberado
+  return 'rearma';                                           // rajada: relógio volta ao zero
+}
 const BOT_SPEED = 4.1, BOT_EYE = 1.5;   // 3.3 = 30% mais lento que o jogador: o bot nunca chegava no lugar
 const BOT_VIEW = 45;              // alcance de aquisição de alvo (m) — ver comentário no think
 const BOT_VIEW_SNIPER = 82;       // com luneta o bot enxerga longe (o jogador de AWP era impune a 100m)
@@ -1140,6 +1189,9 @@ export class Game {
       scoreboard: $('scoreboard'), sbBody: $('sb-body'),
       matchEnd: $('match-end'), matchTitle: $('match-title'), matchSub: $('match-sub'), matchStats: $('match-stats'),
       pause: $('pause-menu'), radar: $('radar'),
+      // painel de botões do pause: a JANELA DE GUARDA (PAUSE_ARM_MS) desliga o ponteiro
+      // NELE, não no overlay inteiro — o fundo continua clicável, e é ele que retoma
+      pauseActions: document.querySelector('#pause-menu .pause-actions'),
       radioMenu: $('radio-menu'), radioLog: $('radio-log'), mkBanner: $('mk-banner'),
       lockHint: $('lock-hint'), hudSpeech: $('hud-speech'), hudSettings: $('hud-settings'),
       pickupHint: $('pickup-hint'),
@@ -1929,6 +1981,15 @@ export class Game {
         // G2-R2: o gate agora exige que o alvo seja o CANVAS — antes qualquer mousedown
         // no document (inclusive nos botões do pause) despausava e re-travava o ponteiro,
         // então o clique no "SAIR PRO MENU" nunca disparava (o dono clicava e nada).
+        // MEDIDO DEPOIS (ver PAUSE_ARM_MS): com o menu de pausa no ar o canvas fica com
+        // 0,00 % da tela exposta, então este gate NUNCA passa enquanto pausado — o
+        // "clique pra voltar" virou código morto e todo clique do jogador só podia cair
+        // nos botões do pause. O FUNDO do menu (95,59 % da tela) reassume esse papel:
+        if (this.paused && this._pauseBackdrop(e.target)) {
+          this.setPaused(false);
+          this._requestLock();
+          return;
+        }
         if (!this.testMode && (this.state === 'live' || this.state === 'countdown') && !document.pointerLockElement
             && e.target === this.renderer.domElement) {
           if (this.paused) this.setPaused(false);
@@ -1988,6 +2049,15 @@ export class Game {
   _acceptInput() {
     if (this.paused || this.state !== 'live' && this.state !== 'countdown') return false;
     return this.testMode || !!document.pointerLockElement;
+  }
+  /* O clique caiu no FUNDO do menu de pausa (e não num botão dele)? Durante a janela de
+     guarda o painel está com `pointer-events:none`, então até o clique MIRADO num botão
+     chega aqui como fundo — que é o ponto: o tiro que já estava saindo volta pro jogo em
+     vez de virar REINICIAR/SAIR. */
+  _pauseBackdrop(t) {
+    if (!t || !this.el.pause || this.el.pause.classList.contains('hidden')) return false;
+    if (t !== this.el.pause && !(t.closest && t.closest('#pause-menu'))) return false;   // clique fora do overlay não conta
+    return !(t.closest && t.closest('.pause-actions'));
   }
 
   /* ================= radio (CS-style voice commands) ================= */
@@ -2455,10 +2525,28 @@ export class Game {
 
   setPaused(v) {
     if (this.state !== 'live' && this.state !== 'countdown') v = false;
+    const entrou = v && !this.paused;
     this.paused = v;
     if (v) this.keys = {};
     this.el.pause.classList.toggle('hidden', !v);
     if (v && document.pointerLockElement) document.exitPointerLock();
+    // JANELA DE GUARDA (ver PAUSE_ARM_MS): o menu acabou de cair debaixo da mira, então
+    // por PAUSE_ARM_MS ele não aceita clique — o tiro em voo cai no fundo e RETOMA.
+    if (entrou) this.pauseArmAt = this._now() + PAUSE_ARM_MS;
+    if (!v) this.pauseArmAt = 0;
+    this._syncPauseArm();
+    this.onPauseChange?.(v);
+  }
+  _now() { return (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now(); }
+  /** Os botões do pause já podem ser clicados? Fora da pausa a resposta é sempre sim —
+   *  desarmar por engano ressuscitaria o defeito G2-R2 ("clico em SAIR PRO MENU e nada"). */
+  pauseArmed() { return !this.paused || !this.pauseArmAt || this._now() >= this.pauseArmAt; }
+  _syncPauseArm() {
+    const pa = this.el && this.el.pauseActions;
+    if (pa) pa.style.pointerEvents = this.pauseArmed() ? '' : 'none';
+    clearTimeout(this._pauseArmT); this._pauseArmT = null;
+    // o update() não roda pausado, então quem devolve o ponteiro ao painel é um timer
+    if (!this.pauseArmed()) this._pauseArmT = setTimeout(() => this._syncPauseArm(), Math.max(0, this.pauseArmAt - this._now()) + 16);
   }
   resume() {
     this.setPaused(false);
@@ -6217,6 +6305,9 @@ export class Game {
     window.removeEventListener('blur', this._blur);
     this.el.hud.classList.add('hidden');
     this.el.pause.classList.add('hidden');
+    // timer da janela de guarda: sem isso ele acorda depois da partida morta e mexe no DOM
+    clearTimeout(this._pauseArmT); this._pauseArmT = null; this.pauseArmAt = 0;
+    if (this.el.pauseActions) this.el.pauseActions.style.pointerEvents = '';
     this.el.matchEnd.classList.add('hidden');
     this._hideCtfHud();   // sem isto a faixa de bandeiras sobrevive para a próxima partida
     this.el.killfeed.innerHTML = '';
