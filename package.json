@@ -1,12 +1,30 @@
 {
-  "name": "csbrasil",
-  "version": "1.0.0",
-  "description": "CS BRASIL: Treta Suprema — FPS de navegador estilo CS 1.6 (site Astro + jogo vanilla)",
+  "name": "coro-solto",
+  "version": "2.0.0-alpha.4",
+  "description": "CORO SOLTO: Treta Suprema (ex-CS BRASIL) — FPS de navegador estilo CS 1.6 (site Astro + jogo vanilla em Three.js)",
   "scripts": {
-    "dev": "astro dev",
-    "build": "astro build",
+    "dev": "npm run copy-wasm && astro dev",
+    "build": "npm run copy-wasm && astro build",
+    "copy-wasm": "node scripts/copy-wasm.mjs",
     "preview": "python3 -m http.server 4321 -d dist/client",
-    "fetch-audio": "bash scripts/fetch-audio.sh"
+    "fetch-audio": "bash scripts/fetch-audio.sh",
+    "arch": "node tools/gen-arch.mjs",
+    "arch:check": "node tools/gen-arch.mjs --check",
+    "syntax": "for f in public/js/*.js; do node --input-type=module --check < \"$f\" || exit 1; done",
+    "eval:invariants": "node tools/eval/invariants.mjs",
+    "eval:vm": "node tools/eval/vm-mint-audit.mjs",
+    "eval:kick": "node tools/eval/vm-kick-sim.mjs",
+    "eval:bots": "node tools/eval/botsim.mjs 60 all",
+    "eval:ctfhud": "node tools/eval/ctfhud-check.mjs",
+    "eval:mat": "node tools/eval/mat-check.mjs",
+    "eval:serve": "node tools/eval/serve.mjs 8123",
+    "audio": "node tools/gen-audio-manifest.mjs",
+    "audio:check": "node tools/gen-audio-manifest.mjs --check",
+    "feet": "node tools/gen-foot-offsets.mjs",
+    "feet:check": "node tools/gen-foot-offsets.mjs --check",
+    "check:fast": "npm run syntax && npm run arch:check && npm run audio:check && npm run feet:check && npm run eval:ctfhud",
+    "//check": "eval:vm ANTES de eval:invariants: as invariantes de VM LEEM o vm_mint_audit.json que o eval:vm ESCREVE. Na ordem antiga o && cortava no primeiro vermelho e o JSON nunca era regenerado — o portão media o viewmodel de ontem e inventava vermelha (26/26 armas 'fora' que viraram 3/26 depois de regenerar). Ver KNOWN-BUGS.md BUG-02.",
+    "check": "npm run syntax && npm run audio:check && npm run eval:ctfhud && npm run eval:vm && npm run eval:invariants && npm run eval:kick && npm run eval:bots"
   },
   "repository": {
     "type": "git",
@@ -15,7 +33,7 @@
   "bugs": {
     "url": "https://github.com/rubenmarcus/csbrasil/issues"
   },
-  "homepage": "https://github.com/rubenmarcus/csbrasil#readme",
+  "homepage": "https://www.csbrasil.online",
   "dependencies": {
     "@astrojs/vercel": "^11.0.3",
     "@resvg/resvg-js": "^2.6.2",

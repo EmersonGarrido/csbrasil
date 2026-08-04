@@ -1,29 +1,94 @@
-# pacote de áudio NÃO vai pro git (licenciamento dos memes) — ver README
-public/audio/*
-!public/audio/cs/
-!public/audio/cs/LEIA-ME.txt
-!public/audio/manifest.example.json
-!public/audio/manifest.default.json
-!public/audio/cc0/
-audio-pack.zip
-.DS_Store
-# dev-only model/animation viewer (not part of the shipped game)
-public/modelviewer.html
+# ── Dependências e build ────────────────────────────────────────────────────
 node_modules/
 dist/
-.vercel/
 .astro/
+.vercel/
+*.tsbuildinfo
+
+# ── Segredos ────────────────────────────────────────────────────────────────
+# NUNCA commite .env: ele carrega a SUPABASE_SERVICE_ROLE_KEY, que ignora RLS.
+# O modelo público é .env.example.
 .env
 .env.*
+!.env.example
 
-# transferencia para o container de eval (gauntlet) — nao versionar
+# ── Áudio ───────────────────────────────────────────────────────────────────
+# Vozes e memes têm direitos incertos; o repositório público leva só o código.
+# Recupere com `npm run fetch-audio`. O manifest de exemplo é versionado.
+public/audio/
+!public/audio/manifest.example.json
+
+# ── Skills de terceiros ─────────────────────────────────────────────────────
+# 13 MB de skills de terceiros (incluindo 8 GIFs de demonstração, 3,2 MB o
+# maior) que eram versionadas junto do produto. Elas são declaradas em
+# skills-lock.json, com SHA-256 por skill — o lock é a fonte da verdade, e é ele
+# que deve reinstalá-las. Manter o conteúdo no git dobrava o tamanho do clone e
+# não dava nenhuma garantia extra (nada verificava o hash — ver docs/issues/12).
+.agents/skills/
+
+# ── Artefato de build ───────────────────────────────────────────────────────
+# `scripts/copy-wasm.mjs` copia o resvg.wasm do node_modules pra cá em todo
+# build. É binário derivado de dependência: não versione.
+public/wasm/
+
+# ── Python ──────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# ── Pastas de transferência entre máquinas (nunca são produto) ───────────────
+.xfer/
 xferwork/
+.b64tmp/
+_xfer/
+_to_delete/
 --help/
 
-# skills instaladas por `npx skills add` sao symlinks para .agents/skills/ —
-# nao versionar a copia (a .claude/skills/gauntlet-fps, que e do projeto, fica)
-.claude/skills/fps-shooter
-.claude/skills/game-feel
-.claude/skills/game-ui-ux
-.claude/skills/gameplay-mechanics
-.claude/skills/level-design
+# ── Saída de harness e capturas ─────────────────────────────────────────────
+# Os JSON de contrato (vm_mint_audit.json, vm_kick_sim.json…) SÃO versionados
+# de propósito — ver tools/eval/README.md §1. O que não vai é imagem/vídeo de
+# rodada, que é gerado a cada execução.
+tools/eval/out/
+tools/eval/*.mp4
+tools/eval/*.webm
+/*.png
+/*.jpg
+!public/**/*.png
+!tools/eval/havan-planta.png
+
+# ── Material de trabalho que fica SÓ na máquina do dono ─────────────────────
+# Decisão de 04/08: a construção é local, então referência visual não sobe.
+#
+# `references/` são as telas-alvo da UI, plantas e frames de referência. Ficam
+# fora do git de propósito — quem clonar não tem o alvo da UI, e é assim que
+# tem que ser por enquanto. Os NÚMEROS medidos delas continuam versionados em
+# `tools/eval/ref_ui.json` e `ref_viewmodel.json`: é o contrato que sobrevive.
+#
+# `issues/` são 2,5 GB de captura de rodada. Nunca esteve versionado; só não
+# estava ignorado, e por isso poluía todo `git status`.
+references/
+issues/
+
+# `public/audio/` já está ignorado lá em cima (linha 18). O que mudou em 04/08: os 20
+# arquivos que ainda estavam VERSIONADOS lá dentro (os 16 sons CC0, o LEIA-ME e o
+# manifest.default.json) foram destrackeados — decisão do dono, "essa pasta audio tem que
+# estar no gitignore e só no meu repo local, assim como references".
+#
+# CONSEQUÊNCIA QUE PRECISA FICAR ESCRITA: com isso o `audio-pack.zip` vira a ÚNICA fonte de
+# áudio para qualquer clone e para o deploy (o `vercel.json` roda `fetch-audio.sh` antes do
+# build). Se o pacote não contiver os sons CC0 de arma e um manifest, produção fica sem tiro
+# real e sem voz — o jogo cai no SFX sintetizado e ninguém vê erro nenhum. Ver BUG-19.
+#
+# `manifest.example.json` FICA versionado de propósito: não é áudio, é o fallback que o
+# `fetch-audio.sh` copia quando o pacote não traz manifest. Sem ele o build fica sem rede
+# de segurança.
+
+# ── Sistema operacional e editor ────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+*.swp
+*~
+.idea/
+.vscode/
+!.vscode/extensions.json

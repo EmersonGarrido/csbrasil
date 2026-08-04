@@ -1,69 +1,87 @@
 {
- "gerado": "2026-07-31T17:32:40.324Z",
+ "gerado": "2026-08-04T03:32:24.605Z",
  "lente": {
-  "V0deg": 62,
-  "halfTanH": 1.0682
+  "V0deg": 42,
+  "halfTanH": 0.6824,
+  "vmOff": [
+   0.03,
+   -0.1,
+   0
+  ],
+  "offYForma": "VM_OFF[1]*(16/9)/aspecto (fração de altura; 16:9 == VM_OFF[1])",
+  "offY": {
+   "16:9": -0.1,
+   "3:2": -0.1185
+  }
  },
  "tuning": {
   "vmScale": 0.72,
-  "tanBarrel": 0.2217,
+  "tanBarrel": 0.22,
   "adsPullZ": 0.02,
+  "recuoZ": 1,
+  "nearX": 6,
   "cls": {
    "rifle": {
     "roll": -0.07,
-    "tanH": 0.6,
-    "clear": 0.04,
+    "pitch": 0.1571,
+    "yaw": 0.2793,
+    "tanH": 0.36,
+    "clear": 0.02,
     "minz": 0.345,
     "fwdTan": 1.6
    },
    "sniper": {
     "roll": -0.055,
-    "tanH": 0.6,
-    "clear": 0.04,
-    "minz": 0.36,
+    "pitch": 0.1571,
+    "yaw": 0.2094,
+    "tanH": 0.36,
+    "clear": 0.02,
+    "minz": 0.335,
     "fwdTan": 1.6
    },
    "shotgun": {
     "roll": -0.078,
-    "tanH": 0.6,
-    "clear": 0.04,
+    "pitch": 0.1047,
+    "yaw": 0.3491,
+    "tanH": 0.36,
+    "clear": 0.02,
     "minz": 0.345,
     "fwdTan": 1.6
    },
    "smg": {
     "roll": -0.085,
-    "tanH": 0.575,
-    "clear": 0.04,
-    "minz": 0.3,
+    "pitch": 0.4189,
+    "yaw": 0.4887,
+    "tanH": 0.36,
+    "clear": 0.02,
+    "minz": 0.35,
     "fwdTan": 1.6
    },
    "pistol": {
     "roll": -0.05,
-    "tanH": 0.42,
-    "clear": 0.04,
-    "minz": 0.258,
+    "pitch": 0.4712,
+    "yaw": 0.5585,
+    "tanH": 0.28,
+    "clear": 0.02,
+    "minz": 0.27,
     "fwdTan": 1.6
    },
    "knife": {
     "roll": 0,
-    "tanH": 0.5,
-    "clear": 0.04,
-    "minz": 0.23,
+    "pitch": 0,
+    "yaw": 0,
+    "tanH": 0.24,
+    "clear": 0.02,
+    "minz": 0.31,
     "fwdTan": 1.6
    }
   },
   "knifeRot": [
-   -0.14,
-   0.42,
-   -0.4
+   0.45,
+   0.9,
+   -0.3
   ],
-  "zMul": {
-   "m92": 1.12,
-   "p90": 1.12,
-   "uzi": 1.12,
-   "famas": 1.08,
-   "tavor": 1.06
-  },
+  "zMul": {},
   "classOf": {
    "ak": "rifle",
    "akm": "rifle",
@@ -102,19 +120,19 @@
     "canoEmZmais": true
    },
    "alcanceBraco": {
-    "dist": 0.461,
+    "dist": 0.417,
     "max": 0.606,
-    "folga": 0.145
+    "folga": 0.188
    },
    "alcanceApoio": {
-    "foreT": 0.2,
-    "dist": 0.563,
+    "foreT": 0.33,
+    "dist": 0.567,
     "max": 0.577,
-    "folga": 0.014,
+    "folga": 0.01,
     "guardaMao": [
-     0.217,
-     -0.061,
-     -0.451
+     0.121,
+     -0.114,
+     -0.485
     ]
    },
    "len": 1.15,
@@ -145,69 +163,123 @@
    },
    "viewSpace": {
     "grip": [
-     0.216,
-     -0.048,
-     -0.36
+     0.151,
+     -0.127,
+     -0.335
     ],
     "boca": [
-     0.225,
-     -0.03,
-     -0.825
+     0.063,
+     -0.038,
+     -0.783
     ],
     "alca": [
-     0.23,
-     0.036,
-     -0.5
+     0.135,
+     -0.022,
+     -0.46
     ]
    },
-   "coronhaZ": -0.179,
-   "anguloCanoGraus": 12.5,
+   "coronhaZ": -0.154,
+   "anguloCanoGraus": 12.41,
    "adsDelta": [
-    -0.23,
-    -0.036,
+    -0.135,
+    0.022,
     0.02
    ],
    "aspectos": {
     "16:9": {
-     "bordaEsq": 0.623,
-     "bordaDir": 1.129,
-     "topo": 0.429,
-     "base": 1.078,
-     "areaPct": 8.39,
+     "bordaEsq": 0.551,
+     "bordaDir": 1.444,
+     "topo": 0.548,
+     "base": 2.24,
+     "areaPct": 8.62,
+     "silBordaEsq": 0.553,
+     "anguloEixoGraus": 31.5,
+     "foraPct": 79.69,
+     "fatiaDir": 0,
+     "fatiaBaixo": 0.215,
+     "frenteVisivel": 1.018,
+     "trasVisivel": 0.184,
+     "gordura": 0.562,
+     "ads": {
+      "areaPct": 6.11,
+      "silBordaEsq": 0.619,
+      "anguloEixoGraus": 53.36,
+      "gripTela": [
+       0.776,
+       0.952
+      ],
+      "bocaTela": [
+       0.626,
+       0.665
+      ],
+      "frenteVisivel": 1.036,
+      "trasVisivel": 0.385,
+      "gordura": 0.744,
+      "fatiaDir": 0
+     },
+     "cruzaDir": true,
+     "cruzaBaixo": true,
      "gripTela": [
-      0.781,
-      0.611
+      0.829,
+      0.992
      ],
-     "bracoBordaDir": 1.395,
-     "bracoBordaBaixo": 4.553,
+     "bracoBordaDir": 2.422,
+     "bracoBordaBaixo": 11.955,
      "bocaTela": [
-      0.628,
-      0.53
+      0.559,
+      0.562
      ],
      "adsAlcaTela": [
       0.5,
-      0.501
+      0.5
      ]
     },
     "3:2": {
-     "bordaEsq": 0.623,
-     "bordaDir": 1.129,
-     "topo": 0.44,
-     "base": 0.988,
-     "areaPct": 7.45,
+     "bordaEsq": 0.551,
+     "bordaDir": 1.444,
+     "topo": 0.566,
+     "base": 2.087,
+     "areaPct": 7.82,
+     "silBordaEsq": 0.553,
+     "anguloEixoGraus": 38.33,
+     "foraPct": 78.5,
+     "fatiaDir": 0,
+     "fatiaBaixo": 0.184,
+     "frenteVisivel": 1.019,
+     "trasVisivel": 0.206,
+     "gordura": 0.528,
+     "ads": {
+      "areaPct": 5.65,
+      "silBordaEsq": 0.619,
+      "anguloEixoGraus": 57.99,
+      "gripTela": [
+       0.776,
+       0.94
+      ],
+      "bocaTela": [
+       0.626,
+       0.664
+      ],
+      "frenteVisivel": 1.031,
+      "trasVisivel": 0.405,
+      "gordura": 0.677,
+      "fatiaDir": 0
+     },
+     "cruzaDir": true,
+     "cruzaBaixo": true,
      "gripTela": [
-      0.781,
-      0.593
+      0.829,
+      0.976
      ],
-     "bracoBordaDir": 1.395,
-     "bracoBordaBaixo": 3.92,
+     "bracoBordaDir": 2.422,
+     "bracoBordaBaixo": 10.841,
      "bocaTela": [
-      0.628,
-      0.526
+      0.559,
+      0.579
      ],
      "adsAlcaTela": [
       0.5,
-      0.501
+      0.5
      ]
     }
    }
@@ -220,19 +292,19 @@
     "canoEmZmais": true
    },
    "alcanceBraco": {
-    "dist": 0.445,
+    "dist": 0.427,
     "max": 0.606,
-    "folga": 0.161
+    "folga": 0.179
    },
    "alcanceApoio": {
-    "foreT": 0.29,
+    "foreT": 0.38,
     "dist": 0.565,
     "max": 0.577,
     "folga": 0.012,
     "guardaMao": [
-     0.205,
-     -0.051,
-     -0.456
+     0.112,
+     -0.106,
+     -0.483
     ]
    },
    "len": 0.88,
@@ -263,69 +335,123 @@
    },
    "viewSpace": {
     "grip": [
-     0.207,
-     -0.046,
+     0.154,
+     -0.127,
      -0.345
     ],
     "boca": [
-     0.205,
-     0.01,
-     -0.733
+     0.045,
+     -0.014,
+     -0.704
     ],
     "alca": [
-     0.208,
-     0.05,
-     -0.461
+     0.123,
+     -0.015,
+     -0.441
     ]
    },
    "coronhaZ": -0.104,
-   "anguloCanoGraus": 12.5,
+   "anguloCanoGraus": 12.41,
    "adsDelta": [
-    -0.208,
-    -0.05,
+    -0.123,
+    0.015,
     0.02
    ],
    "aspectos": {
     "16:9": {
-     "bordaEsq": 0.627,
-     "bordaDir": 1.467,
-     "topo": 0.387,
-     "base": 0.994,
-     "areaPct": 6.95,
+     "bordaEsq": 0.54,
+     "bordaDir": 1.989,
+     "topo": 0.457,
+     "base": 2.401,
+     "areaPct": 11.54,
+     "silBordaEsq": 0.541,
+     "anguloEixoGraus": 28.04,
+     "foraPct": 82.77,
+     "fatiaDir": 0.188,
+     "fatiaBaixo": 0.352,
+     "frenteVisivel": 1.062,
+     "trasVisivel": 0.349,
+     "gordura": 0.575,
+     "ads": {
+      "areaPct": 8.24,
+      "silBordaEsq": 0.611,
+      "anguloEixoGraus": 35.73,
+      "gripTela": [
+       0.736,
+       0.914
+      ],
+      "bocaTela": [
+       0.615,
+       0.612
+      ],
+      "frenteVisivel": 1.148,
+      "trasVisivel": 0.912,
+      "gordura": 0.67,
+      "fatiaDir": 0.02
+     },
+     "cruzaDir": true,
+     "cruzaBaixo": true,
      "gripTela": [
-      0.781,
-      0.611
+      0.827,
+      0.981
      ],
-     "bracoBordaDir": 1.447,
-     "bracoBordaBaixo": 4.887,
+     "bracoBordaDir": 2.329,
+     "bracoBordaBaixo": 11.314,
      "bocaTela": [
-      0.631,
-      0.489
+      0.547,
+      0.525
      ],
      "adsAlcaTela": [
       0.5,
-      0.499
+      0.5
      ]
     },
     "3:2": {
-     "bordaEsq": 0.627,
-     "bordaDir": 1.467,
-     "topo": 0.404,
-     "base": 0.917,
-     "areaPct": 6.16,
+     "bordaEsq": 0.54,
+     "bordaDir": 1.989,
+     "topo": 0.493,
+     "base": 2.27,
+     "areaPct": 10.22,
+     "silBordaEsq": 0.541,
+     "anguloEixoGraus": 31.64,
+     "foraPct": 82.18,
+     "fatiaDir": 0.16,
+     "fatiaBaixo": 0.348,
+     "frenteVisivel": 1.063,
+     "trasVisivel": 0.349,
+     "gordura": 0.567,
+     "ads": {
+      "areaPct": 7.2,
+      "silBordaEsq": 0.611,
+      "anguloEixoGraus": 43.8,
+      "gripTela": [
+       0.736,
+       0.902
+      ],
+      "bocaTela": [
+       0.615,
+       0.621
+      ],
+      "frenteVisivel": 1.142,
+      "trasVisivel": 0.829,
+      "gordura": 0.635,
+      "fatiaDir": 0
+     },
+     "cruzaDir": true,
+     "cruzaBaixo": true,
      "gripTela": [
-      0.781,
-      0.593
+      0.827,
+      0.965
      ],
-     "bracoBordaDir": 1.447,
-     "bracoBordaBaixo": 4.201,
+     "bracoBordaDir": 2.329,
+     "bracoBordaBaixo": 10.263,
      "bocaTela": [
-      0.631,
-      0.49
+      0.547,
+      0.55
      ],
      "adsAlcaTela": [
       0.5,
-      0.499
+      0.5
      ]
     }
    }
@@ -338,19 +464,19 @@
     "canoEmZmais": true
    },
    "alcanceBraco": {
-    "dist": 0.445,
+    "dist": 0.427,
     "max": 0.606,
-    "folga": 0.161
+    "folga": 0.179
    },
    "alcanceApoio": {
-    "foreT": 0.29,
-    "dist": 0.562,
+    "foreT": 0.42,
+    "dist": 0.576,
     "max": 0.577,
-    "folga": 0.015,
+    "folga": 0.001,
     "guardaMao": [
-     0.207,
-     -0.053,
-     -0.451
+     0.112,
+     -0.104,
+     -0.494
     ]
    },
    "len": 0.84,
@@ -381,44 +507,71 @@
    },
    "viewSpace": {
     "grip": [
-     0.207,
-     -0.046,
+     0.154,
+     -0.127,
      -0.345
     ],
     "boca": [
-     0.212,
-     0.005,
-     -0.718
+     0.056,
+     -0.02,
+     -0.693
     ],
     "alca": [
-     0.216,
-     0.036,
-     -0.457
+     0.132,
+     -0.029,
+     -0.441
     ]
    },
    "coronhaZ": -0.115,
-   "anguloCanoGraus": 12.5,
+   "anguloCanoGraus": 12.41,
    "adsDelta": [
-    -0.216,
-    -0.036,
+    -0.132,
+    0.029,
     0.02
    ],
    "aspectos": {
     "16:9": {
-     "bordaEsq": 0.632,
-     "bordaDir": 1.429,
-     "topo": 0.352,
-     "base": 1.084,
-     "areaPct": 8.53,
+     "bordaEsq": 0.55,
+     "bordaDir": 1.9,
+     "topo": 0.469,
+     "base": 2.447,
+     "areaPct": 11.75,
+     "silBordaEsq": 0.549,
+     "anguloEixoGraus": 25.44,
+     "foraPct": 82.99,
+     "fatiaDir": 0.137,
+     "fatiaBaixo": 0.309,
+     "frenteVisivel": 1.019,
+     "trasVisivel": 0.36,
+     "gordura": 0.593,
+     "ads": {
+      "areaPct": 9.56,
+      "silBordaEsq": 0.615,
+      "anguloEixoGraus": 26.65,
+      "gripTela": [
+       0.736,
+       0.914
+      ],
+      "bocaTela": [
+       0.625,
+       0.622
+      ],
+      "frenteVisivel": 1.14,
+      "trasVisivel": 0.939,
+      "gordura": 0.722,
+      "fatiaDir": 0.105
+     },
+     "cruzaDir": true,
+     "cruzaBaixo": true,
      "gripTela": [
-      0.781,
-      0.611
+      0.827,
+      0.981
      ],
-     "bracoBordaDir": 1.447,
-     "bracoBordaBaixo": 4.887,
+     "bracoBordaDir": 2.329,
+     "bracoBordaBaixo": 11.314,
      "bocaTela": [
-      0.638,
-      0.494
+      0.559,
+      0.538
      ],
      "adsAlcaTela": [
       0.5,
@@ -426,20 +579,47 @@
      ]
     },
     "3:2": {
-     "bordaEsq": 0.632,
-     "bordaDir": 1.429,
-     "topo": 0.375,
-     "base": 0.993,
-     "areaPct": 7.55,
+     "bordaEsq": 0.55,
+     "bordaDir": 1.9,
+     "topo": 0.509,
+     "base": 2.299,
+     "areaPct": 10.51,
+     "silBordaEsq": 0.549,
+     "anguloEixoGraus": 30.24,
+     "foraPct": 82.16,
+     "fatiaDir": 0.121,
+     "fatiaBaixo": 0.313,
+     "frenteVisivel": 1.019,
+     "trasVisivel": 0.359,
+     "gordura": 0.59,
+     "ads": {
+      "areaPct": 8.43,
+      "silBordaEsq": 0.615,
+      "anguloEixoGraus": 34.01,
+      "gripTela": [
+       0.736,
+       0.902
+      ],
+      "bocaTela": [
+       0.625,
+       0.63
+      ],
+      "frenteVisivel": 1.131,
+      "trasVisivel": 0.9,
+      "gordura": 0.694,
+      "fatiaDir": 0.066
+     },
+     "cruzaDir": true,
+     "cruzaBaixo": true,
      "gripTela": [
-      0.781,
-      0.593
+      0.827,
+      0.965
      ],
-     "bracoBordaDir": 1.447,
-     "bracoBordaBaixo": 4.201,
+     "bracoBordaDir": 2.329,
+     "bracoBordaBaixo": 10.263,
      "bocaTela": [
-      0.638,
-      0.495
+      0.559,
+      0.562
      ],
      "adsAlcaTela": [
       0.5,
@@ -456,19 +636,19 @@
     "canoEmZmais": true
    },
    "alcanceBraco": {
-    "dist": 0.397,
+    "dist": 0.432,
     "max": 0.606,
-    "folga": 0.209
+    "folga": 0.174
    },
    "alcanceApoio": {
     "foreT": 0.42,
-    "dist": 0.519,
+    "dist": 0.536,
     "max": 0.577,
-    "folga": 0.058,
+    "folga": 0.041,
     "guardaMao": [
-     0.175,
-     -0.047,
-     -0.415
+     0.104,
+     -0.094,
+     -0.448
     ]
    },
    "len": 0.66,
@@ -499,69 +679,123 @@
    },
    "viewSpace": {
     "grip": [
-     0.173,
-     -0.038,
-     -0.3
+     0.156,
+     -0.128,
+     -0.35
     ],
     "boca": [
-     0.184,
-     -0.008,
-     -0.575
+     0.037,
+     0.001,
+     -0.564
     ],
     "alca": [
-     0.188,
-     0.037,
-     -0.382
+     0.131,
+     -0.026,
+     -0.392
     ]
    },
-   "coronhaZ": -0.1,
-   "anguloCanoGraus": 12.5,
+   "coronhaZ": -0.15,
+   "anguloCanoGraus": 12.41,
    "adsDelta": [
-    -0.188,
-    -0.037,
+    -0.131,
+    0.026,
     0.02
    ],
    "aspectos": {
     "16:9": {
-     "bordaEsq": 0.642,
-     "bordaDir": 1.413,
-     "topo": 0.386,
-     "base": 1.183,
-     "areaPct": 7.85,
+     "bordaEsq": 0.539,
+     "bordaDir": 1.569,
+     "topo": 0.407,
+     "base": 2.01,
+     "areaPct": 11.02,
+     "silBordaEsq": 0.541,
+     "anguloEixoGraus": 33.47,
+     "foraPct": 65.31,
+     "fatiaDir": 0.098,
+     "fatiaBaixo": 0.25,
+     "frenteVisivel": 1.033,
+     "trasVisivel": 0.342,
+     "gordura": 0.4,
+     "ads": {
+      "areaPct": 6.12,
+      "silBordaEsq": 0.631,
+      "anguloEixoGraus": 40.76,
+      "gripTela": [
+       0.737,
+       0.91
+      ],
+      "bocaTela": [
+       0.651,
+       0.681
+      ],
+      "frenteVisivel": 1.271,
+      "trasVisivel": 1.05,
+      "gordura": 0.56,
+      "fatiaDir": 0
+     },
+     "cruzaDir": true,
+     "cruzaBaixo": true,
      "gripTela": [
-      0.769,
-      0.606
+      0.827,
+      0.975
      ],
-     "bracoBordaDir": 1.436,
-     "bracoBordaBaixo": 4.96,
+     "bracoBordaDir": 2.286,
+     "bracoBordaBaixo": 11.02,
      "bocaTela": [
-      0.65,
-      0.512
+      0.548,
+      0.498
      ],
      "adsAlcaTela": [
       0.499,
-      0.499
+      0.5
      ]
     },
     "3:2": {
-     "bordaEsq": 0.642,
-     "bordaDir": 1.413,
-     "topo": 0.403,
-     "base": 1.076,
-     "areaPct": 6.84,
+     "bordaEsq": 0.539,
+     "bordaDir": 1.569,
+     "topo": 0.461,
+     "base": 1.874,
+     "areaPct": 9.73,
+     "silBordaEsq": 0.541,
+     "anguloEixoGraus": 36.5,
+     "foraPct": 64.26,
+     "fatiaDir": 0.094,
+     "fatiaBaixo": 0.23,
+     "frenteVisivel": 1.033,
+     "trasVisivel": 0.349,
+     "gordura": 0.378,
+     "ads": {
+      "areaPct": 5.48,
+      "silBordaEsq": 0.631,
+      "anguloEixoGraus": 46.96,
+      "gripTela": [
+       0.737,
+       0.898
+      ],
+      "bocaTela": [
+       0.651,
+       0.683
+      ],
+      "frenteVisivel": 1.251,
+      "trasVisivel": 0.992,
+      "gordura": 0.511,
+      "fatiaDir": 0
+     },
+     "cruzaDir": true,
+     "cruzaBaixo": true,
      "gripTela": [
-      0.769,
-      0.59
+      0.827,
+      0.959
      ],
-     "bracoBordaDir": 1.436,
-     "bracoBordaBaixo": 4.263,
+     "bracoBordaDir": 2.286,
+     "bracoBordaBaixo": 9.997,
      "bocaTela": [
-      0.65,
-      0.51
+      0.548,
+      0.535
      ],
      "adsAlcaTela": [
       0.499,
-      0.499
+      0.5
      ]
     }
    }
@@ -574,25 +808,25 @@
     "canoEmZmais": true
    },
    "alcanceBraco": {
-    "dist": 0.445,
+    "dist": 0.427,
     "max": 0.606,
-    "folga": 0.161
+    "folga": 0.179
    },
    "alcanceApoio": {
-    "foreT": 0.29,
-    "dist": 0.576,
+    "foreT": 0.42,
+    "dist": 0.569,
     "max": 0.577,
-    "folga": 0,
+    "folga": 0.008,
     "guardaMao": [
-     0.206,
-     -0.051,
-     -0.468
+     0.101,
+     -0.11,
+     -0.491
     ]
    },
    "len": 1,
    "gripZ": 0.6,
-   "vm": 1,
-   "escalaVM": 0.72,
+   "vm": 0.86,
+   "escalaVM": 0.619,
    "gunSpace": {
     "bboxMin": [
      -0.024,
@@ -617,69 +851,123 @@
    },
    "viewSpace": {
     "grip": [
-     0.207,
-     -0.046,
+     0.154,
+     -0.127,
      -0.345
     ],
     "boca": [
-     0.21,
-     0.011,
-     -0.777
+     0.03,
+     -0.042,
+     -0.688
     ],
     "alca": [
-     0.213,
-     0.026,
-     -0.475
+     0.121,
+     -0.054,
+     -0.444
     ]
    },
-   "coronhaZ": -0.057,
-   "anguloCanoGraus": 12.5,
+   "coronhaZ": -0.097,
+   "anguloCanoGraus": 12.41,
    "adsDelta": [
-    -0.213,
-    -0.026,
+    -0.121,
+    0.054,
     0.02
    ],
    "aspectos": {
     "16:9": {
-     "bordaEsq": 0.621,
-     "bordaDir": 2.291,
-     "topo": 0.44,
-     "base": 1.908,
-     "areaPct": 7.09,
+     "bordaEsq": 0.523,
+     "bordaDir": 2.066,
+     "topo": 0.564,
+     "base": 2.67,
+     "areaPct": 7.06,
+     "silBordaEsq": 0.525,
+     "anguloEixoGraus": 25.95,
+     "foraPct": 89.71,
+     "fatiaDir": 0.043,
+     "fatiaBaixo": 0.195,
+     "frenteVisivel": 1.024,
+     "trasVisivel": 0.381,
+     "gordura": 0.29,
+     "ads": {
+      "areaPct": 4.11,
+      "silBordaEsq": 0.615,
+      "anguloEixoGraus": 45.77,
+      "gripTela": [
+       0.736,
+       0.914
+      ],
+      "bocaTela": [
+       0.623,
+       0.627
+      ],
+      "frenteVisivel": 1.05,
+      "trasVisivel": 0.641,
+      "gordura": 0.377,
+      "fatiaDir": 0
+     },
+     "cruzaDir": true,
+     "cruzaBaixo": true,
      "gripTela": [
-      0.781,
-      0.611
+      0.827,
+      0.981
      ],
-     "bracoBordaDir": 1.447,
-     "bracoBordaBaixo": 4.887,
+     "bracoBordaDir": 2.329,
+     "bracoBordaBaixo": 11.314,
      "bocaTela": [
-      0.627,
-      0.489
+      0.532,
+      0.58
      ],
      "adsAlcaTela": [
       0.5,
-      0.499
+      0.5
      ]
     },
     "3:2": {
-     "bordaEsq": 0.621,
-     "bordaDir": 2.291,
-     "topo": 0.449,
-     "base": 1.688,
-     "areaPct": 6.29,
+     "bordaEsq": 0.523,
+     "bordaDir": 2.066,
+     "topo": 0.583,
+     "base": 2.492,
+     "areaPct": 6.27,
+     "silBordaEsq": 0.525,
+     "anguloEixoGraus": 29.63,
+     "foraPct": 89.35,
+     "fatiaDir": 0.043,
+     "fatiaBaixo": 0.176,
+     "frenteVisivel": 1.023,
+     "trasVisivel": 0.379,
+     "gordura": 0.276,
+     "ads": {
+      "areaPct": 3.76,
+      "silBordaEsq": 0.615,
+      "anguloEixoGraus": 51.01,
+      "gripTela": [
+       0.736,
+       0.902
+      ],
+      "bocaTela": [
+       0.623,
+       0.634
+      ],
+      "frenteVisivel": 1.039,
+      "trasVisivel": 0.641,
+      "gordura": 0.362,
+      "fatiaDir": 0
+     },
+     "cruzaDir": true,
+     "cruzaBaixo": true,
      "gripTela": [
-      0.781,
-      0.593
+      0.827,
+      0.965
      ],
-     "bracoBordaDir": 1.447,
-     "bracoBordaBaixo": 4.201,
+     "bracoBordaDir": 2.329,
+     "bracoBordaBaixo": 10.263,
      "bocaTela": [
-      0.627,
-      0.49
+      0.532,
+      0.597
      ],
      "adsAlcaTela": [
       0.5,
-      0.499
+      0.5
      ]
     }
    }
@@ -692,15 +980,15 @@
     "canoEmZmais": true
    },
    "alcanceBraco": {
-    "dist": 0.349,
+    "dist": 0.357,
     "max": 0.606,
-    "folga": 0.257
+    "folga": 0.249
    },
    "alcanceApoio": null,
    "len": 0.3,
    "gripZ": 0.7,
-   "vm": 1,
-   "escalaVM": 0.72,
+   "vm": 0.94,
+   "escalaVM": 0.677,
    "gunSpace": {
     "bboxMin": [
      -0.026,
@@ -725,68 +1013,122 @@
    },
    "viewSpace": {
     "grip": [
-     0.108,
-     -0.024,
-     -0.258
+     0.106,
+     -0.117,
+     -0.27
     ],
     "boca": [
-     0.114,
-     0.029,
-     -0.408
+     0.036,
+     -0.017,
+     -0.356
     ],
     "alca": [
-     0.114,
-     0.036,
-     -0.303
+     0.088,
+     -0.049,
+     -0.279
     ]
    },
-   "coronhaZ": -0.193,
-   "anguloCanoGraus": 12.5,
+   "coronhaZ": -0.209,
+   "anguloCanoGraus": 12.41,
    "adsDelta": [
-    -0.114,
-    -0.036,
+    -0.088,
+    0.049,
     0.02
    ],
    "aspectos": {
     "16:9": {
-     "bordaEsq": 0.613,
-     "bordaDir": 0.786,
-     "topo": 0.357,
-     "base": 0.83,
-     "areaPct": 5.33,
+     "bordaEsq": 0.548,
+     "bordaDir": 0.982,
+     "topo": 0.535,
+     "base": 1.431,
+     "areaPct": 6.98,
+     "silBordaEsq": 0.549,
+     "anguloEixoGraus": 33.6,
+     "foraPct": 48.58,
+     "fatiaDir": 0,
+     "fatiaBaixo": 0.219,
+     "frenteVisivel": 1.032,
+     "trasVisivel": 0.165,
+     "gordura": 0.494,
+     "ads": {
+      "areaPct": 3.19,
+      "silBordaEsq": 0.557,
+      "anguloEixoGraus": 80.45,
+      "gripTela": [
+       0.61,
+       0.923
+      ],
+      "bocaTela": [
+       0.583,
+       0.643
+      ],
+      "frenteVisivel": 1.088,
+      "trasVisivel": 0.309,
+      "gordura": 0.494,
+      "fatiaDir": 0
+     },
+     "cruzaDir": false,
+     "cruzaBaixo": true,
      "gripTela": [
-      0.697,
-      0.577
+      0.787,
+      1.063
      ],
-     "bracoBordaDir": 1.207,
-     "bracoBordaBaixo": 4.276,
+     "bracoBordaDir": 2.233,
+     "bracoBordaBaixo": 11.362,
      "bocaTela": [
-      0.631,
-      0.44
+      0.573,
+      0.561
      ],
      "adsAlcaTela": [
-      0.5,
+      0.499,
       0.5
      ]
     },
     "3:2": {
-     "bordaEsq": 0.613,
-     "bordaDir": 0.786,
-     "topo": 0.379,
-     "base": 0.779,
-     "areaPct": 4.71,
+     "bordaEsq": 0.548,
+     "bordaDir": 0.982,
+     "topo": 0.588,
+     "base": 1.364,
+     "areaPct": 5.94,
+     "silBordaEsq": 0.549,
+     "anguloEixoGraus": 36.16,
+     "foraPct": 48.5,
+     "fatiaDir": 0,
+     "fatiaBaixo": 0.211,
+     "frenteVisivel": 1.034,
+     "trasVisivel": 0.157,
+     "gordura": 0.471,
+     "ads": {
+      "areaPct": 2.89,
+      "silBordaEsq": 0.557,
+      "anguloEixoGraus": 79.98,
+      "gripTela": [
+       0.61,
+       0.924
+      ],
+      "bocaTela": [
+       0.583,
+       0.667
+      ],
+      "frenteVisivel": 1.08,
+      "trasVisivel": 0.324,
+      "gordura": 0.444,
+      "fatiaDir": 0
+     },
+     "cruzaDir": false,
+     "cruzaBaixo": true,
      "gripTela": [
-      0.697,
-      0.565
+      0.787,
+      1.05
      ],
-     "bracoBordaDir": 1.207,
-     "bracoBordaBaixo": 3.686,
+     "bracoBordaDir": 2.233,
+     "bracoBordaBaixo": 10.328,
      "bocaTela": [
-      0.631,
-      0.45
+      0.573,
+      0.609
      ],
      "adsAlcaTela": [
-      0.5,
+      0.499,
       0.5
      ]
     }
@@ -800,15 +1142,15 @@
     "canoEmZmais": true
    },
    "alcanceBraco": {
-    "dist": 0.349,
+    "dist": 0.357,
     "max": 0.606,
-    "folga": 0.257
+    "folga": 0.249
    },
    "alcanceApoio": null,
    "len": 0.26,
    "gripZ": 0.7,
-   "vm": 1,
-   "escalaVM": 0.72,
+   "vm": 1.1,
+   "escalaVM": 0.792,
    "gunSpace": {
     "bboxMin": [
      -0.024,
@@ -833,44 +1175,71 @@
    },
    "viewSpace": {
     "grip": [
-     0.108,
-     -0.024,
-     -0.258
+     0.106,
+     -0.117,
+     -0.27
     ],
     "boca": [
-     0.111,
-     0.018,
-     -0.387
+     0.033,
+     -0.02,
+     -0.358
     ],
     "alca": [
-     0.117,
-     0.042,
-     -0.297
+     0.091,
+     -0.033,
+     -0.274
     ]
    },
-   "coronhaZ": -0.202,
-   "anguloCanoGraus": 12.5,
+   "coronhaZ": -0.208,
+   "anguloCanoGraus": 12.41,
    "adsDelta": [
-    -0.117,
-    -0.042,
+    -0.091,
+    0.033,
     0.02
    ],
    "aspectos": {
     "16:9": {
-     "bordaEsq": 0.62,
-     "bordaDir": 0.784,
-     "topo": 0.32,
-     "base": 0.859,
-     "areaPct": 6.62,
+     "bordaEsq": 0.548,
+     "bordaDir": 1.027,
+     "topo": 0.48,
+     "base": 1.539,
+     "areaPct": 11.21,
+     "silBordaEsq": 0.549,
+     "anguloEixoGraus": 30.23,
+     "foraPct": 47.2,
+     "fatiaDir": 0.102,
+     "fatiaBaixo": 0.305,
+     "frenteVisivel": 1.114,
+     "trasVisivel": 0.294,
+     "gordura": 0.56,
+     "ads": {
+      "areaPct": 4.56,
+      "silBordaEsq": 0.557,
+      "anguloEixoGraus": 87.54,
+      "gripTela": [
+       0.61,
+       0.923
+      ],
+      "bocaTela": [
+       0.58,
+       0.655
+      ],
+      "frenteVisivel": 1.327,
+      "trasVisivel": 0.338,
+      "gordura": 0.575,
+      "fatiaDir": 0
+     },
+     "cruzaDir": true,
+     "cruzaBaixo": true,
      "gripTela": [
-      0.697,
-      0.577
+      0.787,
+      1.063
      ],
-     "bracoBordaDir": 1.207,
-     "bracoBordaBaixo": 4.276,
+     "bracoBordaDir": 2.233,
+     "bracoBordaBaixo": 11.362,
      "bocaTela": [
-      0.635,
-      0.462
+      0.568,
+      0.574
      ],
      "adsAlcaTela": [
       0.5,
@@ -878,20 +1247,47 @@
      ]
     },
     "3:2": {
-     "bordaEsq": 0.62,
-     "bordaDir": 0.784,
-     "topo": 0.348,
-     "base": 0.803,
-     "areaPct": 5.84,
+     "bordaEsq": 0.548,
+     "bordaDir": 1.027,
+     "topo": 0.544,
+     "base": 1.459,
+     "areaPct": 9.32,
+     "silBordaEsq": 0.549,
+     "anguloEixoGraus": 33.2,
+     "foraPct": 48,
+     "fatiaDir": 0.07,
+     "fatiaBaixo": 0.293,
+     "frenteVisivel": 1.106,
+     "trasVisivel": 0.278,
+     "gordura": 0.536,
+     "ads": {
+      "areaPct": 4.06,
+      "silBordaEsq": 0.557,
+      "anguloEixoGraus": 85.59,
+      "gripTela": [
+       0.61,
+       0.924
+      ],
+      "bocaTela": [
+       0.58,
+       0.677
+      ],
+      "frenteVisivel": 1.302,
+      "trasVisivel": 0.349,
+      "gordura": 0.521,
+      "fatiaDir": 0
+     },
+     "cruzaDir": true,
+     "cruzaBaixo": true,
      "gripTela": [
-      0.697,
-      0.565
+      0.787,
+      1.05
      ],
-     "bracoBordaDir": 1.207,
-     "bracoBordaBaixo": 3.686,
+     "bracoBordaDir": 2.233,
+     "bracoBordaBaixo": 10.328,
      "bocaTela": [
-      0.635,
-      0.468
+      0.568,
+      0.619
      ],
      "adsAlcaTela": [
       0.5,
@@ -908,15 +1304,15 @@
     "canoEmZmais": true
    },
    "alcanceBraco": {
-    "dist": 0.327,
+    "dist": 0.392,
     "max": 0.606,
-    "folga": 0.279
+    "folga": 0.214
    },
    "alcanceApoio": null,
    "len": 0.3,
    "gripZ": 0.6,
-   "vm": 1,
-   "escalaVM": 0.72,
+   "vm": 2.2,
+   "escalaVM": 1.584,
    "gunSpace": {
     "bboxMin": [
      -0.013,
@@ -941,69 +1337,123 @@
    },
    "viewSpace": {
     "grip": [
-     0.115,
-     -0.025,
-     -0.23
+     0.104,
+     -0.116,
+     -0.31
     ],
     "boca": [
-     0.115,
-     -0.021,
-     -0.358
+     -0.115,
+     -0.032,
+     -0.466
     ],
     "alca": [
-     0.115,
-     -0.006,
-     -0.268
+     0.046,
+     -0.053,
+     -0.349
     ]
    },
-   "coronhaZ": -0.144,
-   "anguloCanoGraus": 12.5,
+   "coronhaZ": -0.12,
+   "anguloCanoGraus": 12.41,
    "adsDelta": [
-    -0.115,
-    0.006,
+    -0.046,
+    0.053,
     0.02
    ],
    "aspectos": {
     "16:9": {
-     "bordaEsq": 0.649,
-     "bordaDir": 0.898,
-     "topo": 0.521,
-     "base": 0.73,
-     "areaPct": 3.85,
+     "bordaEsq": 0.316,
+     "bordaDir": 1.443,
+     "topo": 0.586,
+     "base": 1.732,
+     "areaPct": 10.68,
+     "silBordaEsq": 0.314,
+     "anguloEixoGraus": 19.39,
+     "foraPct": 68.9,
+     "fatiaDir": 0.008,
+     "fatiaBaixo": 0.379,
+     "frenteVisivel": 1.01,
+     "trasVisivel": 0.458,
+     "gordura": 0.243,
+     "ads": {
+      "areaPct": 4.59,
+      "silBordaEsq": 0.6,
+      "anguloEixoGraus": 27.35,
+      "gripTela": [
+       0.692,
+       0.946
+      ],
+      "bocaTela": [
+       0.605,
+       0.72
+      ],
+      "frenteVisivel": 1.014,
+      "trasVisivel": 0.787,
+      "gordura": 0.743,
+      "fatiaDir": 0
+     },
+     "cruzaDir": true,
+     "cruzaBaixo": true,
      "gripTela": [
-      0.734,
-      0.592
+      0.747,
+      0.989
      ],
-     "bracoBordaDir": 1.284,
-     "bracoBordaBaixo": 4.359,
+     "bracoBordaDir": 2.109,
+     "bracoBordaBaixo": 10.881,
      "bocaTela": [
-      0.65,
-      0.55
+      0.319,
+      0.588
      ],
      "adsAlcaTela": [
       0.501,
-      0.501
+      0.5
      ]
     },
     "3:2": {
-     "bordaEsq": 0.649,
-     "bordaDir": 0.898,
-     "topo": 0.518,
-     "base": 0.694,
-     "areaPct": 3.33,
+     "bordaEsq": 0.316,
+     "bordaDir": 1.443,
+     "topo": 0.616,
+     "base": 1.641,
+     "areaPct": 9.41,
+     "silBordaEsq": 0.314,
+     "anguloEixoGraus": 21.5,
+     "foraPct": 67.93,
+     "fatiaDir": 0.008,
+     "fatiaBaixo": 0.359,
+     "frenteVisivel": 1.01,
+     "trasVisivel": 0.453,
+     "gordura": 0.243,
+     "ads": {
+      "areaPct": 4.18,
+      "silBordaEsq": 0.6,
+      "anguloEixoGraus": 37.18,
+      "gripTela": [
+       0.692,
+       0.94
+      ],
+      "bocaTela": [
+       0.605,
+       0.719
+      ],
+      "frenteVisivel": 1.012,
+      "trasVisivel": 0.687,
+      "gordura": 0.697,
+      "fatiaDir": 0
+     },
+     "cruzaDir": true,
+     "cruzaBaixo": true,
      "gripTela": [
-      0.734,
-      0.578
+      0.747,
+      0.978
      ],
-     "bracoBordaDir": 1.284,
-     "bracoBordaBaixo": 3.756,
+     "bracoBordaDir": 2.109,
+     "bracoBordaBaixo": 9.884,
      "bocaTela": [
-      0.65,
-      0.542
+      0.319,
+      0.618
      ],
      "adsAlcaTela": [
       0.501,
-      0.501
+      0.5
      ]
     }
    }
@@ -1016,25 +1466,25 @@
     "canoEmZmais": true
    },
    "alcanceBraco": {
-    "dist": 0.489,
+    "dist": 0.427,
     "max": 0.606,
-    "folga": 0.117
+    "folga": 0.179
    },
    "alcanceApoio": {
-    "foreT": 0.2,
-    "dist": 0.568,
+    "foreT": 0.42,
+    "dist": 0.546,
     "max": 0.577,
-    "folga": 0.008,
+    "folga": 0.031,
     "guardaMao": [
-     0.229,
-     -0.058,
-     -0.45
+     0.116,
+     -0.1,
+     -0.459
     ]
    },
    "len": 0.76,
    "gripZ": 0.6,
-   "vm": 1,
-   "escalaVM": 0.72,
+   "vm": 0.9,
+   "escalaVM": 0.648,
    "gunSpace": {
     "bboxMin": [
      -0.054,
@@ -1059,44 +1509,71 @@
    },
    "viewSpace": {
     "grip": [
-     0.232,
-     -0.051,
-     -0.386
+     0.154,
+     -0.127,
+     -0.345
     ],
     "boca": [
-     0.223,
-     0.024,
-     -0.711
+     0.066,
+     -0.017,
+     -0.61
     ],
     "alca": [
-     0.227,
-     0.078,
-     -0.484
+     0.126,
+     0.001,
+     -0.409
     ]
    },
-   "coronhaZ": -0.168,
-   "anguloCanoGraus": 12.5,
+   "coronhaZ": -0.148,
+   "anguloCanoGraus": 12.41,
    "adsDelta": [
-    -0.227,
-    -0.078,
+    -0.126,
+    -0.001,
     0.02
    ],
    "aspectos": {
     "16:9": {
-     "bordaEsq": 0.639,
-     "bordaDir": 1.114,
-     "topo": 0.261,
-     "base": 0.966,
-     "areaPct": 10.06,
+     "bordaEsq": 0.567,
+     "bordaDir": 1.508,
+     "topo": 0.441,
+     "base": 1.991,
+     "areaPct": 12.52,
+     "silBordaEsq": 0.568,
+     "anguloEixoGraus": 32.14,
+     "foraPct": 76.3,
+     "fatiaDir": 0.309,
+     "fatiaBaixo": 0.25,
+     "frenteVisivel": 1.052,
+     "trasVisivel": 0.36,
+     "gordura": 0.59,
+     "ads": {
+      "areaPct": 12.48,
+      "silBordaEsq": 0.615,
+      "anguloEixoGraus": 29.24,
+      "gripTela": [
+       0.736,
+       0.914
+      ],
+      "bocaTela": [
+       0.625,
+       0.605
+      ],
+      "frenteVisivel": 1.203,
+      "trasVisivel": 0.794,
+      "gordura": 0.787,
+      "fatiaDir": 0
+     },
+     "cruzaDir": true,
+     "cruzaBaixo": true,
      "gripTela": [
-      0.781,
-      0.611
+      0.827,
+      0.981
      ],
-     "bracoBordaDir": 1.485,
-     "bracoBordaBaixo": 5.135,
+     "bracoBordaDir": 2.329,
+     "bracoBordaBaixo": 11.314,
      "bocaTela": [
-      0.647,
-      0.472
+      0.579,
+      0.536
      ],
      "adsAlcaTela": [
       0.5,
@@ -1104,20 +1581,47 @@
      ]
     },
     "3:2": {
-     "bordaEsq": 0.639,
-     "bordaDir": 1.114,
-     "topo": 0.298,
-     "base": 0.893,
-     "areaPct": 9.01,
+     "bordaEsq": 0.567,
+     "bordaDir": 1.508,
+     "topo": 0.487,
+     "base": 1.874,
+     "areaPct": 10.97,
+     "silBordaEsq": 0.568,
+     "anguloEixoGraus": 36.38,
+     "foraPct": 75.71,
+     "fatiaDir": 0.262,
+     "fatiaBaixo": 0.266,
+     "frenteVisivel": 1.05,
+     "trasVisivel": 0.363,
+     "gordura": 0.592,
+     "ads": {
+      "areaPct": 10.8,
+      "silBordaEsq": 0.615,
+      "anguloEixoGraus": 35.83,
+      "gripTela": [
+       0.736,
+       0.902
+      ],
+      "bocaTela": [
+       0.625,
+       0.618
+      ],
+      "frenteVisivel": 1.192,
+      "trasVisivel": 0.784,
+      "gordura": 0.76,
+      "fatiaDir": 0
+     },
+     "cruzaDir": true,
+     "cruzaBaixo": true,
      "gripTela": [
-      0.781,
-      0.593
+      0.827,
+      0.965
      ],
-     "bracoBordaDir": 1.485,
-     "bracoBordaBaixo": 4.411,
+     "bracoBordaDir": 2.329,
+     "bracoBordaBaixo": 10.263,
      "bocaTela": [
-      0.647,
-      0.476
+      0.579,
+      0.563
      ],
      "adsAlcaTela": [
       0.5,
@@ -1134,25 +1638,25 @@
     "canoEmZmais": true
    },
    "alcanceBraco": {
-    "dist": 0.445,
+    "dist": 0.427,
     "max": 0.606,
-    "folga": 0.161
+    "folga": 0.179
    },
    "alcanceApoio": {
-    "foreT": 0.29,
-    "dist": 0.566,
+    "foreT": 0.42,
+    "dist": 0.565,
     "max": 0.577,
-    "folga": 0.011,
+    "folga": 0.012,
     "guardaMao": [
-     0.208,
-     -0.054,
-     -0.456
+     0.117,
+     -0.109,
+     -0.483
     ]
    },
    "len": 1.1,
    "gripZ": 0.58,
-   "vm": 0.85,
-   "escalaVM": 0.612,
+   "vm": 0.75,
+   "escalaVM": 0.54,
    "gunSpace": {
     "bboxMin": [
      -0.048,
@@ -1177,69 +1681,123 @@
    },
    "viewSpace": {
     "grip": [
-     0.207,
-     -0.046,
+     0.154,
+     -0.127,
      -0.345
     ],
     "boca": [
-     0.216,
-     -0.011,
-     -0.733
+     0.068,
+     -0.045,
+     -0.667
     ],
     "alca": [
-     0.212,
-     0.02,
-     -0.461
+     0.131,
+     -0.054,
+     -0.435
     ]
    },
-   "coronhaZ": -0.062,
-   "anguloCanoGraus": 12.5,
+   "coronhaZ": -0.096,
+   "anguloCanoGraus": 12.41,
    "adsDelta": [
-    -0.212,
-    -0.02,
+    -0.131,
+    0.054,
     0.02
    ],
    "aspectos": {
     "16:9": {
-     "bordaEsq": 0.633,
-     "bordaDir": 2.245,
-     "topo": 0.393,
-     "base": 1.676,
-     "areaPct": 8.07,
+     "bordaEsq": 0.567,
+     "bordaDir": 2.132,
+     "topo": 0.53,
+     "base": 2.804,
+     "areaPct": 8.09,
+     "silBordaEsq": 0.568,
+     "anguloEixoGraus": 26.84,
+     "foraPct": 89.63,
+     "fatiaDir": 0.113,
+     "fatiaBaixo": 0.277,
+     "frenteVisivel": 1.026,
+     "trasVisivel": 0.401,
+     "gordura": 0.519,
+     "ads": {
+      "areaPct": 5.99,
+      "silBordaEsq": 0.627,
+      "anguloEixoGraus": 36.7,
+      "gripTela": [
+       0.736,
+       0.914
+      ],
+      "bocaTela": [
+       0.633,
+       0.664
+      ],
+      "frenteVisivel": 1.133,
+      "trasVisivel": 0.921,
+      "gordura": 0.581,
+      "fatiaDir": 0
+     },
+     "cruzaDir": true,
+     "cruzaBaixo": true,
      "gripTela": [
-      0.781,
-      0.611
+      0.827,
+      0.981
      ],
-     "bracoBordaDir": 1.447,
-     "bracoBordaBaixo": 4.887,
+     "bracoBordaDir": 2.329,
+     "bracoBordaBaixo": 11.314,
      "bocaTela": [
-      0.638,
-      0.512
+      0.574,
+      0.588
      ],
      "adsAlcaTela": [
-      0.501,
-      0.499
+      0.499,
+      0.5
      ]
     },
     "3:2": {
-     "bordaEsq": 0.633,
-     "bordaDir": 2.245,
-     "topo": 0.41,
-     "base": 1.493,
-     "areaPct": 7.15,
+     "bordaEsq": 0.567,
+     "bordaDir": 2.132,
+     "topo": 0.561,
+     "base": 2.622,
+     "areaPct": 7.37,
+     "silBordaEsq": 0.568,
+     "anguloEixoGraus": 31.04,
+     "foraPct": 88.99,
+     "fatiaDir": 0.102,
+     "fatiaBaixo": 0.285,
+     "frenteVisivel": 1.024,
+     "trasVisivel": 0.399,
+     "gordura": 0.529,
+     "ads": {
+      "areaPct": 5.49,
+      "silBordaEsq": 0.627,
+      "anguloEixoGraus": 44.09,
+      "gripTela": [
+       0.736,
+       0.902
+      ],
+      "bocaTela": [
+       0.633,
+       0.666
+      ],
+      "frenteVisivel": 1.125,
+      "trasVisivel": 0.865,
+      "gordura": 0.564,
+      "fatiaDir": 0
+     },
+     "cruzaDir": true,
+     "cruzaBaixo": true,
      "gripTela": [
-      0.781,
-      0.593
+      0.827,
+      0.965
      ],
-     "bracoBordaDir": 1.447,
-     "bracoBordaBaixo": 4.201,
+     "bracoBordaDir": 2.329,
+     "bracoBordaBaixo": 10.263,
      "bocaTela": [
-      0.638,
-      0.51
+      0.574,
+      0.605
      ],
      "adsAlcaTela": [
-      0.501,
-      0.499
+      0.499,
+      0.5
      ]
     }
    }
@@ -1252,19 +1810,19 @@
     "canoEmZmais": true
    },
    "alcanceBraco": {
-    "dist": 0.445,
+    "dist": 0.427,
     "max": 0.606,
-    "folga": 0.161
+    "folga": 0.179
    },
    "alcanceApoio": {
-    "foreT": 0.29,
-    "dist": 0.564,
+    "foreT": 0.38,
+    "dist": 0.563,
     "max": 0.577,
-    "folga": 0.013,
+    "folga": 0.014,
     "guardaMao": [
-     0.205,
-     -0.052,
-     -0.454
+     0.112,
+     -0.107,
+     -0.481
     ]
    },
    "len": 0.88,
@@ -1295,68 +1853,122 @@
    },
    "viewSpace": {
     "grip": [
-     0.207,
-     -0.046,
+     0.154,
+     -0.127,
      -0.345
     ],
     "boca": [
-     0.204,
-     0.007,
-     -0.729
+     0.046,
+     -0.018,
+     -0.701
     ],
     "alca": [
-     0.208,
-     0.049,
-     -0.46
+     0.124,
+     -0.016,
+     -0.44
     ]
    },
    "coronhaZ": -0.104,
-   "anguloCanoGraus": 12.5,
+   "anguloCanoGraus": 12.41,
    "adsDelta": [
-    -0.208,
-    -0.049,
+    -0.124,
+    0.016,
     0.02
    ],
    "aspectos": {
     "16:9": {
-     "bordaEsq": 0.626,
-     "bordaDir": 1.47,
-     "topo": 0.386,
-     "base": 0.903,
-     "areaPct": 6.9,
+     "bordaEsq": 0.539,
+     "bordaDir": 2.02,
+     "topo": 0.459,
+     "base": 2.325,
+     "areaPct": 11.12,
+     "silBordaEsq": 0.541,
+     "anguloEixoGraus": 27.81,
+     "foraPct": 82.92,
+     "fatiaDir": 0.203,
+     "fatiaBaixo": 0.344,
+     "frenteVisivel": 1.071,
+     "trasVisivel": 0.354,
+     "gordura": 0.578,
+     "ads": {
+      "areaPct": 8.61,
+      "silBordaEsq": 0.607,
+      "anguloEixoGraus": 31.37,
+      "gripTela": [
+       0.736,
+       0.914
+      ],
+      "bocaTela": [
+       0.616,
+       0.618
+      ],
+      "frenteVisivel": 1.154,
+      "trasVisivel": 0.933,
+      "gordura": 0.701,
+      "fatiaDir": 0.07
+     },
+     "cruzaDir": true,
+     "cruzaBaixo": true,
      "gripTela": [
-      0.781,
-      0.611
+      0.827,
+      0.981
      ],
-     "bracoBordaDir": 1.447,
-     "bracoBordaBaixo": 4.887,
+     "bracoBordaDir": 2.329,
+     "bracoBordaBaixo": 11.314,
      "bocaTela": [
-      0.631,
-      0.492
+      0.548,
+      0.533
      ],
      "adsAlcaTela": [
-      0.5,
+      0.499,
       0.5
      ]
     },
     "3:2": {
-     "bordaEsq": 0.626,
-     "bordaDir": 1.47,
-     "topo": 0.404,
-     "base": 0.84,
-     "areaPct": 6.1,
+     "bordaEsq": 0.539,
+     "bordaDir": 2.02,
+     "topo": 0.495,
+     "base": 2.211,
+     "areaPct": 9.84,
+     "silBordaEsq": 0.541,
+     "anguloEixoGraus": 31.5,
+     "foraPct": 82.38,
+     "fatiaDir": 0.176,
+     "fatiaBaixo": 0.34,
+     "frenteVisivel": 1.072,
+     "trasVisivel": 0.353,
+     "gordura": 0.566,
+     "ads": {
+      "areaPct": 7.48,
+      "silBordaEsq": 0.607,
+      "anguloEixoGraus": 38.63,
+      "gripTela": [
+       0.736,
+       0.902
+      ],
+      "bocaTela": [
+       0.616,
+       0.626
+      ],
+      "frenteVisivel": 1.146,
+      "trasVisivel": 0.894,
+      "gordura": 0.663,
+      "fatiaDir": 0.031
+     },
+     "cruzaDir": true,
+     "cruzaBaixo": true,
      "gripTela": [
-      0.781,
-      0.593
+      0.827,
+      0.965
      ],
-     "bracoBordaDir": 1.447,
-     "bracoBordaBaixo": 4.201,
+     "bracoBordaDir": 2.329,
+     "bracoBordaBaixo": 10.263,
      "bocaTela": [
-      0.631,
-      0.493
+      0.548,
+      0.557
      ],
      "adsAlcaTela": [
-      0.5,
+      0.499,
       0.5
      ]
     }
@@ -1370,15 +1982,15 @@
     "canoEmZmais": true
    },
    "alcanceBraco": {
-    "dist": 0.349,
+    "dist": 0.357,
     "max": 0.606,
-    "folga": 0.257
+    "folga": 0.249
    },
    "alcanceApoio": null,
    "len": 0.24,
    "gripZ": 0.68,
-   "vm": 1,
-   "escalaVM": 0.72,
+   "vm": 1.3,
+   "escalaVM": 0.936,
    "gunSpace": {
     "bboxMin": [
      -0.025,
@@ -1403,69 +2015,123 @@
    },
    "viewSpace": {
     "grip": [
-     0.108,
-     -0.024,
-     -0.258
+     0.106,
+     -0.117,
+     -0.27
     ],
     "boca": [
-     0.11,
-     0.021,
-     -0.374
+     0.028,
+     -0.006,
+     -0.359
     ],
     "alca": [
-     0.111,
-     0.032,
-     -0.293
+     0.085,
+     -0.034,
+     -0.273
     ]
    },
-   "coronhaZ": -0.203,
-   "anguloCanoGraus": 12.5,
+   "coronhaZ": -0.198,
+   "anguloCanoGraus": 12.41,
    "adsDelta": [
-    -0.111,
-    -0.032,
+    -0.085,
+    0.034,
     0.02
    ],
    "aspectos": {
     "16:9": {
-     "bordaEsq": 0.627,
-     "bordaDir": 0.771,
-     "topo": 0.402,
-     "base": 0.832,
-     "areaPct": 4.56,
+     "bordaEsq": 0.536,
+     "bordaDir": 0.946,
+     "topo": 0.469,
+     "base": 1.641,
+     "areaPct": 8.95,
+     "silBordaEsq": 0.537,
+     "anguloEixoGraus": 42.28,
+     "foraPct": 50.64,
+     "fatiaDir": 0,
+     "fatiaBaixo": 0.238,
+     "frenteVisivel": 1.053,
+     "trasVisivel": 0.091,
+     "gordura": 0.519,
+     "ads": {
+      "areaPct": 4.08,
+      "silBordaEsq": 0.549,
+      "anguloEixoGraus": 80.36,
+      "gripTela": [
+       0.61,
+       0.923
+      ],
+      "bocaTela": [
+       0.577,
+       0.615
+      ],
+      "frenteVisivel": 1.148,
+      "trasVisivel": 0.309,
+      "gordura": 0.495,
+      "fatiaDir": 0
+     },
+     "cruzaDir": false,
+     "cruzaBaixo": true,
      "gripTela": [
-      0.697,
-      0.577
+      0.787,
+      1.063
      ],
-     "bracoBordaDir": 1.207,
-     "bracoBordaBaixo": 4.276,
+     "bracoBordaDir": 2.233,
+     "bracoBordaBaixo": 11.362,
      "bocaTela": [
-      0.638,
-      0.453
+      0.556,
+      0.52
      ],
      "adsAlcaTela": [
-      0.5,
-      0.501
+      0.499,
+      0.5
      ]
     },
     "3:2": {
-     "bordaEsq": 0.627,
-     "bordaDir": 0.771,
-     "topo": 0.417,
-     "base": 0.78,
-     "areaPct": 3.99,
+     "bordaEsq": 0.536,
+     "bordaDir": 0.946,
+     "topo": 0.532,
+     "base": 1.547,
+     "areaPct": 7.6,
+     "silBordaEsq": 0.537,
+     "anguloEixoGraus": 44.48,
+     "foraPct": 50.55,
+     "fatiaDir": 0,
+     "fatiaBaixo": 0.227,
+     "frenteVisivel": 1.05,
+     "trasVisivel": 0.081,
+     "gordura": 0.493,
+     "ads": {
+      "areaPct": 3.67,
+      "silBordaEsq": 0.549,
+      "anguloEixoGraus": 81.03,
+      "gripTela": [
+       0.61,
+       0.924
+      ],
+      "bocaTela": [
+       0.577,
+       0.642
+      ],
+      "frenteVisivel": 1.133,
+      "trasVisivel": 0.319,
+      "gordura": 0.457,
+      "fatiaDir": 0
+     },
+     "cruzaDir": false,
+     "cruzaBaixo": true,
      "gripTela": [
-      0.697,
-      0.565
+      0.787,
+      1.05
      ],
-     "bracoBordaDir": 1.207,
-     "bracoBordaBaixo": 3.686,
+     "bracoBordaDir": 2.233,
+     "bracoBordaBaixo": 10.328,
      "bocaTela": [
-      0.638,
-      0.46
+      0.556,
+      0.574
      ],
      "adsAlcaTela": [
-      0.5,
-      0.501
+      0.499,
+      0.5
      ]
     }
    }
@@ -1478,25 +2144,25 @@
     "canoEmZmais": true
    },
    "alcanceBraco": {
-    "dist": 0.445,
+    "dist": 0.427,
     "max": 0.606,
-    "folga": 0.161
+    "folga": 0.179
    },
    "alcanceApoio": {
-    "foreT": 0.29,
+    "foreT": 0.38,
     "dist": 0.568,
     "max": 0.577,
-    "folga": 0.008,
+    "folga": 0.009,
     "guardaMao": [
-     0.204,
-     -0.057,
-     -0.461
+     0.11,
+     -0.113,
+     -0.489
     ]
    },
    "len": 1.05,
    "gripZ": 0.62,
-   "vm": 0.88,
-   "escalaVM": 0.634,
+   "vm": 0.87,
+   "escalaVM": 0.626,
    "gunSpace": {
     "bboxMin": [
      -0.042,
@@ -1521,69 +2187,123 @@
    },
    "viewSpace": {
     "grip": [
-     0.207,
-     -0.046,
+     0.154,
+     -0.127,
      -0.345
     ],
     "boca": [
-     0.203,
-     -0.018,
-     -0.754
+     0.039,
+     -0.04,
+     -0.723
     ],
     "alca": [
-     0.206,
-     0.027,
-     -0.468
+     0.12,
+     -0.038,
+     -0.449
     ]
    },
-   "coronhaZ": -0.092,
-   "anguloCanoGraus": 12.5,
+   "coronhaZ": -0.095,
+   "anguloCanoGraus": 12.41,
    "adsDelta": [
-    -0.206,
-    -0.027,
+    -0.12,
+    0.038,
     0.02
    ],
    "aspectos": {
     "16:9": {
-     "bordaEsq": 0.62,
-     "bordaDir": 1.588,
-     "topo": 0.399,
-     "base": 1.274,
-     "areaPct": 7.37,
+     "bordaEsq": 0.53,
+     "bordaDir": 2.088,
+     "topo": 0.555,
+     "base": 2.794,
+     "areaPct": 8.2,
+     "silBordaEsq": 0.529,
+     "anguloEixoGraus": 23.56,
+     "foraPct": 88.92,
+     "fatiaDir": 0.199,
+     "fatiaBaixo": 0.23,
+     "frenteVisivel": 1.027,
+     "trasVisivel": 0.378,
+     "gordura": 0.426,
+     "ads": {
+      "areaPct": 5.37,
+      "silBordaEsq": 0.604,
+      "anguloEixoGraus": 43.96,
+      "gripTela": [
+       0.736,
+       0.914
+      ],
+      "bocaTela": [
+       0.611,
+       0.657
+      ],
+      "frenteVisivel": 1.049,
+      "trasVisivel": 0.668,
+      "gordura": 0.548,
+      "fatiaDir": 0
+     },
+     "cruzaDir": true,
+     "cruzaBaixo": true,
      "gripTela": [
-      0.781,
-      0.611
+      0.827,
+      0.981
      ],
-     "bracoBordaDir": 1.447,
-     "bracoBordaBaixo": 4.887,
+     "bracoBordaDir": 2.329,
+     "bracoBordaBaixo": 11.314,
      "bocaTela": [
-      0.626,
-      0.52
+      0.539,
+      0.571
      ],
      "adsAlcaTela": [
       0.5,
-      0.501
+      0.5
      ]
     },
     "3:2": {
-     "bordaEsq": 0.62,
-     "bordaDir": 1.588,
-     "topo": 0.415,
-     "base": 1.153,
-     "areaPct": 6.56,
+     "bordaEsq": 0.53,
+     "bordaDir": 2.088,
+     "topo": 0.575,
+     "base": 2.61,
+     "areaPct": 7.32,
+     "silBordaEsq": 0.529,
+     "anguloEixoGraus": 27.97,
+     "foraPct": 88.53,
+     "fatiaDir": 0.168,
+     "fatiaBaixo": 0.223,
+     "frenteVisivel": 1.026,
+     "trasVisivel": 0.375,
+     "gordura": 0.409,
+     "ads": {
+      "areaPct": 4.84,
+      "silBordaEsq": 0.604,
+      "anguloEixoGraus": 50.03,
+      "gripTela": [
+       0.736,
+       0.902
+      ],
+      "bocaTela": [
+       0.611,
+       0.658
+      ],
+      "frenteVisivel": 1.043,
+      "trasVisivel": 0.653,
+      "gordura": 0.497,
+      "fatiaDir": 0
+     },
+     "cruzaDir": true,
+     "cruzaBaixo": true,
      "gripTela": [
-      0.781,
-      0.593
+      0.827,
+      0.965
      ],
-     "bracoBordaDir": 1.447,
-     "bracoBordaBaixo": 4.201,
+     "bracoBordaDir": 2.329,
+     "bracoBordaBaixo": 10.263,
      "bocaTela": [
-      0.626,
-      0.517
+      0.539,
+      0.588
      ],
      "adsAlcaTela": [
       0.5,
-      0.501
+      0.5
      ]
     }
    }
@@ -1596,25 +2316,25 @@
     "canoEmZmais": true
    },
    "alcanceBraco": {
-    "dist": 0.445,
+    "dist": 0.427,
     "max": 0.606,
-    "folga": 0.161
+    "folga": 0.179
    },
    "alcanceApoio": {
-    "foreT": 0.29,
-    "dist": 0.572,
+    "foreT": 0.38,
+    "dist": 0.564,
     "max": 0.577,
-    "folga": 0.005,
+    "folga": 0.013,
     "guardaMao": [
-     0.206,
-     -0.054,
-     -0.464
+     0.114,
+     -0.109,
+     -0.482
     ]
    },
    "len": 0.98,
    "gripZ": 0.6,
-   "vm": 1,
-   "escalaVM": 0.72,
+   "vm": 0.92,
+   "escalaVM": 0.662,
    "gunSpace": {
     "bboxMin": [
      -0.024,
@@ -1639,69 +2359,123 @@
    },
    "viewSpace": {
     "grip": [
-     0.207,
-     -0.046,
+     0.154,
+     -0.127,
      -0.345
     ],
     "boca": [
-     0.21,
-     0.001,
-     -0.761
+     0.052,
+     -0.027,
+     -0.703
     ],
     "alca": [
-     0.212,
-     0.026,
-     -0.47
+     0.127,
+     -0.044,
+     -0.445
     ]
    },
-   "coronhaZ": -0.063,
-   "anguloCanoGraus": 12.5,
+   "coronhaZ": -0.085,
+   "anguloCanoGraus": 12.41,
    "adsDelta": [
-    -0.212,
-    -0.026,
+    -0.127,
+    0.044,
     0.02
    ],
    "aspectos": {
     "16:9": {
-     "bordaEsq": 0.623,
-     "bordaDir": 2.108,
-     "topo": 0.424,
-     "base": 1.729,
-     "areaPct": 6.82,
+     "bordaEsq": 0.544,
+     "bordaDir": 2.236,
+     "topo": 0.518,
+     "base": 2.982,
+     "areaPct": 6.31,
+     "silBordaEsq": 0.545,
+     "anguloEixoGraus": 31.74,
+     "foraPct": 92.83,
+     "fatiaDir": 0,
+     "fatiaBaixo": 0.176,
+     "frenteVisivel": 1.04,
+     "trasVisivel": 0.335,
+     "gordura": 0.332,
+     "ads": {
+      "areaPct": 3.96,
+      "silBordaEsq": 0.611,
+      "anguloEixoGraus": 47.29,
+      "gripTela": [
+       0.736,
+       0.914
+      ],
+      "bocaTela": [
+       0.621,
+       0.635
+      ],
+      "frenteVisivel": 1.082,
+      "trasVisivel": 0.671,
+      "gordura": 0.394,
+      "fatiaDir": 0
+     },
+     "cruzaDir": true,
+     "cruzaBaixo": true,
      "gripTela": [
-      0.781,
-      0.611
+      0.827,
+      0.981
      ],
-     "bracoBordaDir": 1.447,
-     "bracoBordaBaixo": 4.887,
+     "bracoBordaDir": 2.329,
+     "bracoBordaBaixo": 11.314,
      "bocaTela": [
-      0.629,
-      0.499
+      0.554,
+      0.55
      ],
      "adsAlcaTela": [
       0.5,
-      0.499
+      0.5
      ]
     },
     "3:2": {
-     "bordaEsq": 0.623,
-     "bordaDir": 2.108,
-     "topo": 0.436,
-     "base": 1.537,
-     "areaPct": 5.94,
+     "bordaEsq": 0.544,
+     "bordaDir": 2.236,
+     "topo": 0.545,
+     "base": 2.766,
+     "areaPct": 5.59,
+     "silBordaEsq": 0.545,
+     "anguloEixoGraus": 35.33,
+     "foraPct": 92.59,
+     "fatiaDir": 0,
+     "fatiaBaixo": 0.176,
+     "frenteVisivel": 1.042,
+     "trasVisivel": 0.343,
+     "gordura": 0.315,
+     "ads": {
+      "areaPct": 3.6,
+      "silBordaEsq": 0.611,
+      "anguloEixoGraus": 52.1,
+      "gripTela": [
+       0.736,
+       0.902
+      ],
+      "bocaTela": [
+       0.621,
+       0.64
+      ],
+      "frenteVisivel": 1.072,
+      "trasVisivel": 0.667,
+      "gordura": 0.356,
+      "fatiaDir": 0
+     },
+     "cruzaDir": true,
+     "cruzaBaixo": true,
      "gripTela": [
-      0.781,
-      0.593
+      0.827,
+      0.965
      ],
-     "bracoBordaDir": 1.447,
-     "bracoBordaBaixo": 4.201,
+     "bracoBordaDir": 2.329,
+     "bracoBordaBaixo": 10.263,
      "bocaTela": [
-      0.629,
-      0.499
+      0.554,
+      0.572
      ],
      "adsAlcaTela": [
       0.5,
-      0.499
+      0.5
      ]
     }
    }
@@ -1714,19 +2488,19 @@
     "canoEmZmais": true
    },
    "alcanceBraco": {
-    "dist": 0.461,
+    "dist": 0.417,
     "max": 0.606,
-    "folga": 0.145
+    "folga": 0.188
    },
    "alcanceApoio": {
-    "foreT": 0.29,
-    "dist": 0.57,
+    "foreT": 0.42,
+    "dist": 0.559,
     "max": 0.577,
-    "folga": 0.007,
+    "folga": 0.018,
     "guardaMao": [
-     0.213,
-     -0.057,
-     -0.459
+     0.117,
+     -0.11,
+     -0.476
     ]
    },
    "len": 0.92,
@@ -1757,69 +2531,123 @@
    },
    "viewSpace": {
     "grip": [
-     0.216,
-     -0.048,
-     -0.36
+     0.151,
+     -0.127,
+     -0.335
     ],
     "boca": [
-     0.21,
-     -0.017,
-     -0.707
+     0.072,
+     -0.043,
+     -0.664
     ],
     "alca": [
-     0.211,
-     0.056,
-     -0.464
+     0.124,
+     -0.009,
+     -0.418
     ]
    },
-   "coronhaZ": -0.146,
-   "anguloCanoGraus": 12.5,
+   "coronhaZ": -0.121,
+   "anguloCanoGraus": 12.41,
    "adsDelta": [
-    -0.211,
-    -0.056,
+    -0.124,
+    0.009,
     0.02
    ],
    "aspectos": {
     "16:9": {
-     "bordaEsq": 0.633,
-     "bordaDir": 1.228,
-     "topo": 0.367,
-     "base": 0.983,
-     "areaPct": 8.55,
+     "bordaEsq": 0.571,
+     "bordaDir": 1.7,
+     "topo": 0.547,
+     "base": 2.439,
+     "areaPct": 10.93,
+     "silBordaEsq": 0.572,
+     "anguloEixoGraus": 26.52,
+     "foraPct": 80.7,
+     "fatiaDir": 0.258,
+     "fatiaBaixo": 0.27,
+     "frenteVisivel": 1.03,
+     "trasVisivel": 0.373,
+     "gordura": 0.582,
+     "ads": {
+      "areaPct": 8.16,
+      "silBordaEsq": 0.623,
+      "anguloEixoGraus": 44.11,
+      "gripTela": [
+       0.776,
+       0.952
+      ],
+      "bocaTela": [
+       0.631,
+       0.668
+      ],
+      "frenteVisivel": 1.044,
+      "trasVisivel": 0.719,
+      "gordura": 0.646,
+      "fatiaDir": 0
+     },
+     "cruzaDir": true,
+     "cruzaBaixo": true,
      "gripTela": [
-      0.781,
-      0.611
+      0.829,
+      0.992
      ],
-     "bracoBordaDir": 1.395,
-     "bracoBordaBaixo": 4.553,
+     "bracoBordaDir": 2.422,
+     "bracoBordaBaixo": 11.955,
      "bocaTela": [
-      0.639,
-      0.52
+      0.58,
+      0.584
      ],
      "adsAlcaTela": [
       0.5,
-      0.501
+      0.5
      ]
     },
     "3:2": {
-     "bordaEsq": 0.633,
-     "bordaDir": 1.228,
-     "topo": 0.388,
-     "base": 0.908,
-     "areaPct": 7.58,
+     "bordaEsq": 0.571,
+     "bordaDir": 1.7,
+     "topo": 0.587,
+     "base": 2.292,
+     "areaPct": 9.68,
+     "silBordaEsq": 0.572,
+     "anguloEixoGraus": 32.14,
+     "foraPct": 80.07,
+     "fatiaDir": 0.215,
+     "fatiaBaixo": 0.27,
+     "frenteVisivel": 1.028,
+     "trasVisivel": 0.368,
+     "gordura": 0.572,
+     "ads": {
+      "areaPct": 7.2,
+      "silBordaEsq": 0.623,
+      "anguloEixoGraus": 50.21,
+      "gripTela": [
+       0.776,
+       0.94
+      ],
+      "bocaTela": [
+       0.631,
+       0.671
+      ],
+      "frenteVisivel": 1.042,
+      "trasVisivel": 0.639,
+      "gordura": 0.635,
+      "fatiaDir": 0
+     },
+     "cruzaDir": true,
+     "cruzaBaixo": true,
      "gripTela": [
-      0.781,
-      0.593
+      0.829,
+      0.976
      ],
-     "bracoBordaDir": 1.395,
-     "bracoBordaBaixo": 3.92,
+     "bracoBordaDir": 2.422,
+     "bracoBordaBaixo": 10.841,
      "bocaTela": [
-      0.639,
-      0.517
+      0.58,
+      0.602
      ],
      "adsAlcaTela": [
       0.5,
-      0.501
+      0.5
      ]
     }
    }
@@ -1832,19 +2660,19 @@
     "canoEmZmais": true
    },
    "alcanceBraco": {
-    "dist": 0.461,
+    "dist": 0.417,
     "max": 0.606,
-    "folga": 0.145
+    "folga": 0.188
    },
    "alcanceApoio": {
-    "foreT": 0.24,
-    "dist": 0.573,
+    "foreT": 0.38,
+    "dist": 0.572,
     "max": 0.577,
-    "folga": 0.003,
+    "folga": 0.005,
     "guardaMao": [
-     0.212,
-     -0.054,
-     -0.463
+     0.112,
+     -0.103,
+     -0.489
     ]
    },
    "len": 1.2,
@@ -1875,69 +2703,123 @@
    },
    "viewSpace": {
     "grip": [
-     0.216,
-     -0.048,
-     -0.36
+     0.151,
+     -0.127,
+     -0.335
     ],
     "boca": [
-     0.204,
-     -0.006,
-     -0.788
+     0.05,
+     -0.02,
+     -0.739
     ],
     "alca": [
-     0.207,
-     0.035,
-     -0.488
+     0.115,
+     -0.026,
+     -0.444
     ]
    },
-   "coronhaZ": -0.14,
-   "anguloCanoGraus": 12.5,
+   "coronhaZ": -0.115,
+   "anguloCanoGraus": 12.41,
    "adsDelta": [
-    -0.207,
-    -0.035,
+    -0.115,
+    0.026,
     0.02
    ],
    "aspectos": {
     "16:9": {
-     "bordaEsq": 0.619,
-     "bordaDir": 1.234,
-     "topo": 0.424,
-     "base": 1.223,
-     "areaPct": 5.72,
+     "bordaEsq": 0.546,
+     "bordaDir": 1.661,
+     "topo": 0.506,
+     "base": 2.774,
+     "areaPct": 6.68,
+     "silBordaEsq": 0.545,
+     "anguloEixoGraus": 36.94,
+     "foraPct": 87.13,
+     "fatiaDir": 0,
+     "fatiaBaixo": 0.148,
+     "frenteVisivel": 1.028,
+     "trasVisivel": 0.114,
+     "gordura": 0.442,
+     "ads": {
+      "areaPct": 4.64,
+      "silBordaEsq": 0.607,
+      "anguloEixoGraus": 58.64,
+      "gripTela": [
+       0.776,
+       0.952
+      ],
+      "bocaTela": [
+       0.613,
+       0.632
+      ],
+      "frenteVisivel": 1.053,
+      "trasVisivel": 0.196,
+      "gordura": 0.579,
+      "fatiaDir": 0
+     },
+     "cruzaDir": true,
+     "cruzaBaixo": true,
      "gripTela": [
-      0.781,
-      0.611
+      0.829,
+      0.992
      ],
-     "bracoBordaDir": 1.395,
-     "bracoBordaBaixo": 4.553,
+     "bracoBordaDir": 2.422,
+     "bracoBordaBaixo": 11.955,
      "bocaTela": [
-      0.621,
-      0.506
+      0.55,
+      0.535
      ],
      "adsAlcaTela": [
       0.5,
-      0.501
+      0.5
      ]
     },
     "3:2": {
-     "bordaEsq": 0.619,
-     "bordaDir": 1.234,
-     "topo": 0.436,
-     "base": 1.11,
-     "areaPct": 5.19,
+     "bordaEsq": 0.546,
+     "bordaDir": 1.661,
+     "topo": 0.533,
+     "base": 2.568,
+     "areaPct": 6.02,
+     "silBordaEsq": 0.545,
+     "anguloEixoGraus": 41.99,
+     "foraPct": 86.55,
+     "fatiaDir": 0,
+     "fatiaBaixo": 0.145,
+     "frenteVisivel": 1.026,
+     "trasVisivel": 0.133,
+     "gordura": 0.416,
+     "ads": {
+      "areaPct": 4.21,
+      "silBordaEsq": 0.607,
+      "anguloEixoGraus": 61.23,
+      "gripTela": [
+       0.776,
+       0.94
+      ],
+      "bocaTela": [
+       0.613,
+       0.638
+      ],
+      "frenteVisivel": 1.048,
+      "trasVisivel": 0.218,
+      "gordura": 0.512,
+      "fatiaDir": 0
+     },
+     "cruzaDir": true,
+     "cruzaBaixo": true,
      "gripTela": [
-      0.781,
-      0.593
+      0.829,
+      0.976
      ],
-     "bracoBordaDir": 1.395,
-     "bracoBordaBaixo": 3.92,
+     "bracoBordaDir": 2.422,
+     "bracoBordaBaixo": 10.841,
      "bocaTela": [
-      0.621,
-      0.505
+      0.55,
+      0.557
      ],
      "adsAlcaTela": [
       0.5,
-      0.501
+      0.5
      ]
     }
    }
@@ -1950,19 +2832,19 @@
     "canoEmZmais": true
    },
    "alcanceBraco": {
-    "dist": 0.461,
+    "dist": 0.417,
     "max": 0.606,
-    "folga": 0.145
+    "folga": 0.188
    },
    "alcanceApoio": {
-    "foreT": 0.24,
-    "dist": 0.573,
+    "foreT": 0.38,
+    "dist": 0.571,
     "max": 0.577,
-    "folga": 0.004,
+    "folga": 0.006,
     "guardaMao": [
-     0.212,
-     -0.054,
-     -0.462
+     0.112,
+     -0.103,
+     -0.488
     ]
    },
    "len": 1.15,
@@ -1993,69 +2875,123 @@
    },
    "viewSpace": {
     "grip": [
-     0.216,
-     -0.048,
-     -0.36
+     0.151,
+     -0.127,
+     -0.335
     ],
     "boca": [
-     0.205,
-     -0.004,
-     -0.784
+     0.051,
+     -0.019,
+     -0.735
     ],
     "alca": [
-     0.207,
-     0.046,
-     -0.487
+     0.116,
+     -0.015,
+     -0.441
     ]
    },
-   "coronhaZ": -0.14,
-   "anguloCanoGraus": 12.5,
+   "coronhaZ": -0.115,
+   "anguloCanoGraus": 12.41,
    "adsDelta": [
-    -0.207,
-    -0.046,
+    -0.116,
+    0.015,
     0.02
    ],
    "aspectos": {
     "16:9": {
-     "bordaEsq": 0.617,
-     "bordaDir": 1.243,
-     "topo": 0.407,
-     "base": 1.295,
-     "areaPct": 5.91,
+     "bordaEsq": 0.543,
+     "bordaDir": 1.671,
+     "topo": 0.519,
+     "base": 2.876,
+     "areaPct": 9.34,
+     "silBordaEsq": 0.541,
+     "anguloEixoGraus": 32.27,
+     "foraPct": 85.71,
+     "fatiaDir": 0,
+     "fatiaBaixo": 0.156,
+     "frenteVisivel": 1.024,
+     "trasVisivel": 0.143,
+     "gordura": 0.479,
+     "ads": {
+      "areaPct": 6.21,
+      "silBordaEsq": 0.604,
+      "anguloEixoGraus": 56.14,
+      "gripTela": [
+       0.776,
+       0.952
+      ],
+      "bocaTela": [
+       0.613,
+       0.63
+      ],
+      "frenteVisivel": 1.034,
+      "trasVisivel": 0.302,
+      "gordura": 0.588,
+      "fatiaDir": 0
+     },
+     "cruzaDir": true,
+     "cruzaBaixo": true,
      "gripTela": [
-      0.781,
-      0.611
+      0.829,
+      0.992
      ],
-     "bracoBordaDir": 1.395,
-     "bracoBordaBaixo": 4.553,
+     "bracoBordaDir": 2.422,
+     "bracoBordaBaixo": 11.955,
      "bocaTela": [
-      0.622,
-      0.504
+      0.551,
+      0.533
      ],
      "adsAlcaTela": [
-      0.5,
-      0.501
+      0.499,
+      0.5
      ]
     },
     "3:2": {
-     "bordaEsq": 0.617,
-     "bordaDir": 1.243,
-     "topo": 0.421,
-     "base": 1.171,
-     "areaPct": 5.51,
+     "bordaEsq": 0.543,
+     "bordaDir": 1.671,
+     "topo": 0.544,
+     "base": 2.658,
+     "areaPct": 8.36,
+     "silBordaEsq": 0.541,
+     "anguloEixoGraus": 37.81,
+     "foraPct": 85.17,
+     "fatiaDir": 0,
+     "fatiaBaixo": 0.152,
+     "frenteVisivel": 1.024,
+     "trasVisivel": 0.16,
+     "gordura": 0.447,
+     "ads": {
+      "areaPct": 5.58,
+      "silBordaEsq": 0.604,
+      "anguloEixoGraus": 59.14,
+      "gripTela": [
+       0.776,
+       0.94
+      ],
+      "bocaTela": [
+       0.613,
+       0.636
+      ],
+      "frenteVisivel": 1.032,
+      "trasVisivel": 0.272,
+      "gordura": 0.555,
+      "fatiaDir": 0
+     },
+     "cruzaDir": true,
+     "cruzaBaixo": true,
      "gripTela": [
-      0.781,
-      0.593
+      0.829,
+      0.976
      ],
-     "bracoBordaDir": 1.395,
-     "bracoBordaBaixo": 3.92,
+     "bracoBordaDir": 2.422,
+     "bracoBordaBaixo": 10.841,
      "bocaTela": [
-      0.622,
-      0.504
+      0.551,
+      0.556
      ],
      "adsAlcaTela": [
-      0.5,
-      0.501
+      0.499,
+      0.5
      ]
     }
    }
@@ -2068,19 +3004,19 @@
     "canoEmZmais": true
    },
    "alcanceBraco": {
-    "dist": 0.445,
+    "dist": 0.427,
     "max": 0.606,
-    "folga": 0.161
+    "folga": 0.179
    },
    "alcanceApoio": {
-    "foreT": 0.33,
-    "dist": 0.565,
+    "foreT": 0.42,
+    "dist": 0.56,
     "max": 0.577,
-    "folga": 0.012,
+    "folga": 0.017,
     "guardaMao": [
-     0.208,
-     -0.05,
-     -0.453
+     0.118,
+     -0.107,
+     -0.477
     ]
    },
    "len": 1.1,
@@ -2111,69 +3047,123 @@
    },
    "viewSpace": {
     "grip": [
-     0.207,
-     -0.046,
+     0.154,
+     -0.127,
      -0.345
     ],
     "boca": [
-     0.214,
-     -0.01,
-     -0.673
+     0.07,
+     -0.043,
+     -0.653
     ],
     "alca": [
-     0.247,
-     0.043,
-     -0.444
+     0.165,
+     -0.023,
+     -0.435
     ]
    },
    "coronhaZ": -0.105,
-   "anguloCanoGraus": 12.5,
+   "anguloCanoGraus": 12.41,
    "adsDelta": [
-    -0.247,
-    -0.043,
+    -0.165,
+    0.023,
     0.02
    ],
    "aspectos": {
     "16:9": {
-     "bordaEsq": 0.64,
-     "bordaDir": 1.52,
-     "topo": 0.405,
-     "base": 1.125,
-     "areaPct": 8.44,
+     "bordaEsq": 0.566,
+     "bordaDir": 2.003,
+     "topo": 0.544,
+     "base": 2.547,
+     "areaPct": 10.58,
+     "silBordaEsq": 0.564,
+     "anguloEixoGraus": 22.09,
+     "foraPct": 86.33,
+     "fatiaDir": 0.172,
+     "fatiaBaixo": 0.355,
+     "frenteVisivel": 1.038,
+     "trasVisivel": 0.4,
+     "gordura": 0.635,
+     "ads": {
+      "areaPct": 8.91,
+      "silBordaEsq": 0.588,
+      "anguloEixoGraus": 7.05,
+      "gripTela": [
+       0.736,
+       0.914
+      ],
+      "bocaTela": [
+       0.635,
+       0.659
+      ],
+      "frenteVisivel": 1.079,
+      "trasVisivel": 0.823,
+      "gordura": 0.946,
+      "fatiaDir": 0
+     },
+     "cruzaDir": true,
+     "cruzaBaixo": true,
      "gripTela": [
-      0.781,
-      0.611
+      0.827,
+      0.981
      ],
-     "bracoBordaDir": 1.447,
-     "bracoBordaBaixo": 4.887,
+     "bracoBordaDir": 2.329,
+     "bracoBordaBaixo": 11.314,
      "bocaTela": [
-      0.649,
-      0.513
+      0.579,
+      0.585
      ],
      "adsAlcaTela": [
       0.5,
-      0.501
+      0.5
      ]
     },
     "3:2": {
-     "bordaEsq": 0.64,
-     "bordaDir": 1.52,
-     "topo": 0.42,
-     "base": 1.028,
-     "areaPct": 7.49,
+     "bordaEsq": 0.566,
+     "bordaDir": 2.003,
+     "topo": 0.575,
+     "base": 2.39,
+     "areaPct": 9.72,
+     "silBordaEsq": 0.564,
+     "anguloEixoGraus": 26.47,
+     "foraPct": 85.27,
+     "fatiaDir": 0.145,
+     "fatiaBaixo": 0.359,
+     "frenteVisivel": 1.037,
+     "trasVisivel": 0.398,
+     "gordura": 0.633,
+     "ads": {
+      "areaPct": 8.35,
+      "silBordaEsq": 0.584,
+      "anguloEixoGraus": 12.26,
+      "gripTela": [
+       0.736,
+       0.902
+      ],
+      "bocaTela": [
+       0.635,
+       0.662
+      ],
+      "frenteVisivel": 1.073,
+      "trasVisivel": 0.806,
+      "gordura": 0.911,
+      "fatiaDir": 0
+     },
+     "cruzaDir": true,
+     "cruzaBaixo": true,
      "gripTela": [
-      0.781,
-      0.593
+      0.827,
+      0.965
      ],
-     "bracoBordaDir": 1.447,
-     "bracoBordaBaixo": 4.201,
+     "bracoBordaDir": 2.329,
+     "bracoBordaBaixo": 10.263,
      "bocaTela": [
-      0.649,
-      0.511
+      0.579,
+      0.603
      ],
      "adsAlcaTela": [
       0.5,
-      0.501
+      0.5
      ]
     }
    }
@@ -2186,19 +3176,19 @@
     "canoEmZmais": true
    },
    "alcanceBraco": {
-    "dist": 0.445,
+    "dist": 0.427,
     "max": 0.606,
-    "folga": 0.161
+    "folga": 0.179
    },
    "alcanceApoio": {
-    "foreT": 0.29,
-    "dist": 0.569,
+    "foreT": 0.38,
+    "dist": 0.571,
     "max": 0.577,
-    "folga": 0.008,
+    "folga": 0.006,
     "guardaMao": [
-     0.21,
-     -0.053,
-     -0.458
+     0.118,
+     -0.108,
+     -0.488
     ]
    },
    "len": 0.9,
@@ -2229,69 +3219,123 @@
    },
    "viewSpace": {
     "grip": [
-     0.207,
-     -0.046,
+     0.154,
+     -0.127,
      -0.345
     ],
     "boca": [
-     0.224,
-     0.004,
-     -0.743
+     0.06,
+     -0.018,
+     -0.719
     ],
     "alca": [
-     0.226,
-     0.047,
-     -0.464
+     0.139,
+     -0.016,
+     -0.449
     ]
    },
    "coronhaZ": -0.099,
-   "anguloCanoGraus": 12.5,
+   "anguloCanoGraus": 12.41,
    "adsDelta": [
-    -0.226,
-    -0.047,
+    -0.139,
+    0.016,
     0.02
    ],
    "aspectos": {
     "16:9": {
-     "bordaEsq": 0.632,
-     "bordaDir": 1.624,
-     "topo": 0.297,
-     "base": 1.189,
-     "areaPct": 9.08,
+     "bordaEsq": 0.548,
+     "bordaDir": 2.176,
+     "topo": 0.499,
+     "base": 2.675,
+     "areaPct": 12.84,
+     "silBordaEsq": 0.549,
+     "anguloEixoGraus": 28.77,
+     "foraPct": 86.98,
+     "fatiaDir": 0.316,
+     "fatiaBaixo": 0.27,
+     "frenteVisivel": 1.037,
+     "trasVisivel": 0.356,
+     "gordura": 0.608,
+     "ads": {
+      "areaPct": 11.72,
+      "silBordaEsq": 0.619,
+      "anguloEixoGraus": 24.11,
+      "gripTela": [
+       0.736,
+       0.914
+      ],
+      "bocaTela": [
+       0.632,
+       0.621
+      ],
+      "frenteVisivel": 1.085,
+      "trasVisivel": 0.923,
+      "gordura": 0.819,
+      "fatiaDir": 0.234
+     },
+     "cruzaDir": true,
+     "cruzaBaixo": true,
      "gripTela": [
-      0.781,
-      0.611
+      0.827,
+      0.981
      ],
-     "bracoBordaDir": 1.447,
-     "bracoBordaBaixo": 4.887,
+     "bracoBordaDir": 2.329,
+     "bracoBordaBaixo": 11.314,
      "bocaTela": [
-      0.641,
-      0.496
+      0.562,
+      0.532
      ],
      "adsAlcaTela": [
-      0.5,
-      0.499
+      0.501,
+      0.5
      ]
     },
     "3:2": {
-     "bordaEsq": 0.632,
-     "bordaDir": 1.624,
-     "topo": 0.329,
-     "base": 1.081,
-     "areaPct": 8.11,
+     "bordaEsq": 0.548,
+     "bordaDir": 2.176,
+     "topo": 0.534,
+     "base": 2.507,
+     "areaPct": 11.43,
+     "silBordaEsq": 0.549,
+     "anguloEixoGraus": 33.7,
+     "foraPct": 86.44,
+     "fatiaDir": 0.273,
+     "fatiaBaixo": 0.273,
+     "frenteVisivel": 1.037,
+     "trasVisivel": 0.354,
+     "gordura": 0.601,
+     "ads": {
+      "areaPct": 10.36,
+      "silBordaEsq": 0.619,
+      "anguloEixoGraus": 31.04,
+      "gripTela": [
+       0.736,
+       0.902
+      ],
+      "bocaTela": [
+       0.632,
+       0.628
+      ],
+      "frenteVisivel": 1.059,
+      "trasVisivel": 0.881,
+      "gordura": 0.79,
+      "fatiaDir": 0.184
+     },
+     "cruzaDir": true,
+     "cruzaBaixo": true,
      "gripTela": [
-      0.781,
-      0.593
+      0.827,
+      0.965
      ],
-     "bracoBordaDir": 1.447,
-     "bracoBordaBaixo": 4.201,
+     "bracoBordaDir": 2.329,
+     "bracoBordaBaixo": 10.263,
      "bocaTela": [
-      0.641,
-      0.496
+      0.562,
+      0.555
      ],
      "adsAlcaTela": [
-      0.5,
-      0.499
+      0.501,
+      0.5
      ]
     }
    }
@@ -2304,25 +3348,25 @@
     "canoEmZmais": true
    },
    "alcanceBraco": {
-    "dist": 0.467,
+    "dist": 0.427,
     "max": 0.606,
-    "folga": 0.139
+    "folga": 0.179
    },
    "alcanceApoio": {
-    "foreT": 0.38,
-    "dist": 0.574,
+    "foreT": 0.42,
+    "dist": 0.527,
     "max": 0.577,
-    "folga": 0.003,
+    "folga": 0.05,
     "guardaMao": [
-     0.216,
-     -0.055,
-     -0.462
+     0.123,
+     -0.116,
+     -0.443
     ]
    },
    "len": 0.72,
    "gripZ": 0.5,
-   "vm": 1,
-   "escalaVM": 0.72,
+   "vm": 0.96,
+   "escalaVM": 0.691,
    "gunSpace": {
     "bboxMin": [
      -0.039,
@@ -2347,65 +3391,119 @@
    },
    "viewSpace": {
     "grip": [
-     0.219,
-     -0.049,
-     -0.366
+     0.154,
+     -0.127,
+     -0.345
     ],
     "boca": [
-     0.215,
-     -0.009,
-     -0.622
+     0.083,
+     -0.053,
+     -0.571
     ],
     "alca": [
-     0.218,
-     0.031,
-     -0.442
+     0.133,
+     -0.041,
+     -0.403
     ]
    },
-   "coronhaZ": -0.106,
-   "anguloCanoGraus": 12.5,
+   "coronhaZ": -0.096,
+   "anguloCanoGraus": 12.41,
    "adsDelta": [
-    -0.218,
-    -0.031,
+    -0.133,
+    0.041,
     0.02
    ],
    "aspectos": {
     "16:9": {
-     "bordaEsq": 0.653,
-     "bordaDir": 1.538,
-     "topo": 0.293,
-     "base": 1.152,
-     "areaPct": 8.84,
+     "bordaEsq": 0.592,
+     "bordaDir": 2.173,
+     "topo": 0.515,
+     "base": 2.782,
+     "areaPct": 10.73,
+     "silBordaEsq": 0.592,
+     "anguloEixoGraus": 23.35,
+     "foraPct": 91.28,
+     "fatiaDir": 0.195,
+     "fatiaBaixo": 0.27,
+     "frenteVisivel": 1.042,
+     "trasVisivel": 0.441,
+     "gordura": 0.66,
+     "ads": {
+      "areaPct": 10.13,
+      "silBordaEsq": 0.627,
+      "anguloEixoGraus": 23.99,
+      "gripTela": [
+       0.736,
+       0.914
+      ],
+      "bocaTela": [
+       0.64,
+       0.673
+      ],
+      "frenteVisivel": 1.24,
+      "trasVisivel": 1.146,
+      "gordura": 0.771,
+      "fatiaDir": 0.156
+     },
+     "cruzaDir": true,
+     "cruzaBaixo": true,
      "gripTela": [
-      0.781,
-      0.611
+      0.827,
+      0.981
      ],
-     "bracoBordaDir": 1.377,
-     "bracoBordaBaixo": 4.44,
+     "bracoBordaDir": 2.329,
+     "bracoBordaBaixo": 11.314,
      "bocaTela": [
-      0.662,
-      0.511
+      0.606,
+      0.62
      ],
      "adsAlcaTela": [
       0.5,
-      0.499
+      0.5
      ]
     },
     "3:2": {
-     "bordaEsq": 0.653,
-     "bordaDir": 1.538,
-     "topo": 0.325,
-     "base": 1.05,
-     "areaPct": 7.92,
+     "bordaEsq": 0.592,
+     "bordaDir": 2.173,
+     "topo": 0.558,
+     "base": 2.605,
+     "areaPct": 9.45,
+     "silBordaEsq": 0.592,
+     "anguloEixoGraus": 28.25,
+     "foraPct": 90.99,
+     "fatiaDir": 0.164,
+     "fatiaBaixo": 0.266,
+     "frenteVisivel": 1.041,
+     "trasVisivel": 0.441,
+     "gordura": 0.645,
+     "ads": {
+      "areaPct": 8.72,
+      "silBordaEsq": 0.627,
+      "anguloEixoGraus": 31.15,
+      "gripTela": [
+       0.736,
+       0.902
+      ],
+      "bocaTela": [
+       0.64,
+       0.678
+      ],
+      "frenteVisivel": 1.217,
+      "trasVisivel": 1.103,
+      "gordura": 0.726,
+      "fatiaDir": 0.105
+     },
+     "cruzaDir": true,
+     "cruzaBaixo": true,
      "gripTela": [
-      0.781,
-      0.593
+      0.827,
+      0.965
      ],
-     "bracoBordaDir": 1.377,
-     "bracoBordaBaixo": 3.824,
+     "bracoBordaDir": 2.329,
+     "bracoBordaBaixo": 10.263,
      "bocaTela": [
-      0.662,
-      0.51
+      0.606,
+      0.637
      ],
      "adsAlcaTela": [
       0.5,
@@ -2422,25 +3520,25 @@
     "canoEmZmais": true
    },
    "alcanceBraco": {
-    "dist": 0.474,
+    "dist": 0.427,
     "max": 0.606,
-    "folga": 0.132
+    "folga": 0.179
    },
    "alcanceApoio": {
-    "foreT": 0.33,
-    "dist": 0.576,
+    "foreT": 0.42,
+    "dist": 0.524,
     "max": 0.577,
-    "folga": 0.001,
+    "folga": 0.053,
     "guardaMao": [
-     0.221,
-     -0.06,
-     -0.462
+     0.125,
+     -0.119,
+     -0.44
     ]
    },
    "len": 0.76,
    "gripZ": 0.5,
-   "vm": 1,
-   "escalaVM": 0.72,
+   "vm": 0.87,
+   "escalaVM": 0.626,
    "gunSpace": {
     "bboxMin": [
      -0.038,
@@ -2465,68 +3563,122 @@
    },
    "viewSpace": {
     "grip": [
-     0.224,
-     -0.05,
-     -0.373
+     0.154,
+     -0.127,
+     -0.345
     ],
     "boca": [
-     0.221,
-     -0.017,
-     -0.645
+     0.087,
+     -0.064,
+     -0.565
     ],
     "alca": [
-     0.227,
-     0.054,
-     -0.454
+     0.137,
+     -0.028,
+     -0.399
     ]
    },
-   "coronhaZ": -0.099,
-   "anguloCanoGraus": 12.5,
+   "coronhaZ": -0.107,
+   "anguloCanoGraus": 12.41,
    "adsDelta": [
-    -0.227,
-    -0.054,
+    -0.137,
+    0.028,
     0.02
    ],
    "aspectos": {
     "16:9": {
-     "bordaEsq": 0.653,
-     "bordaDir": 1.631,
-     "topo": 0.329,
-     "base": 1.132,
-     "areaPct": 9.94,
+     "bordaEsq": 0.602,
+     "bordaDir": 1.947,
+     "topo": 0.567,
+     "base": 2.471,
+     "areaPct": 8.77,
+     "silBordaEsq": 0.604,
+     "anguloEixoGraus": 22.98,
+     "foraPct": 88.31,
+     "fatiaDir": 0.273,
+     "fatiaBaixo": 0.188,
+     "frenteVisivel": 1.036,
+     "trasVisivel": 0.473,
+     "gordura": 0.574,
+     "ads": {
+      "areaPct": 6.8,
+      "silBordaEsq": 0.635,
+      "anguloEixoGraus": 43.97,
+      "gripTela": [
+       0.736,
+       0.914
+      ],
+      "bocaTela": [
+       0.644,
+       0.697
+      ],
+      "frenteVisivel": 1.202,
+      "trasVisivel": 1.247,
+      "gordura": 0.566,
+      "fatiaDir": 0.008
+     },
+     "cruzaDir": true,
+     "cruzaBaixo": true,
      "gripTela": [
-      0.781,
-      0.611
+      0.827,
+      0.981
      ],
-     "bracoBordaDir": 1.357,
-     "bracoBordaBaixo": 4.311,
+     "bracoBordaDir": 2.329,
+     "bracoBordaBaixo": 11.314,
      "bocaTela": [
-      0.661,
-      0.522
+      0.613,
+      0.647
      ],
      "adsAlcaTela": [
-      0.499,
+      0.5,
       0.5
      ]
     },
     "3:2": {
-     "bordaEsq": 0.653,
-     "bordaDir": 1.631,
-     "topo": 0.356,
-     "base": 1.033,
-     "areaPct": 9.26,
+     "bordaEsq": 0.602,
+     "bordaDir": 1.947,
+     "topo": 0.603,
+     "base": 2.327,
+     "areaPct": 7.81,
+     "silBordaEsq": 0.604,
+     "anguloEixoGraus": 28.45,
+     "foraPct": 87.79,
+     "fatiaDir": 0.234,
+     "fatiaBaixo": 0.191,
+     "frenteVisivel": 1.035,
+     "trasVisivel": 0.471,
+     "gordura": 0.539,
+     "ads": {
+      "areaPct": 5.96,
+      "silBordaEsq": 0.635,
+      "anguloEixoGraus": 52.23,
+      "gripTela": [
+       0.736,
+       0.902
+      ],
+      "bocaTela": [
+       0.644,
+       0.699
+      ],
+      "frenteVisivel": 1.179,
+      "trasVisivel": 1.033,
+      "gordura": 0.544,
+      "fatiaDir": 0
+     },
+     "cruzaDir": true,
+     "cruzaBaixo": true,
      "gripTela": [
-      0.781,
-      0.593
+      0.827,
+      0.965
      ],
-     "bracoBordaDir": 1.357,
-     "bracoBordaBaixo": 3.715,
+     "bracoBordaDir": 2.329,
+     "bracoBordaBaixo": 10.263,
      "bocaTela": [
-      0.661,
-      0.518
+      0.613,
+      0.66
      ],
      "adsAlcaTela": [
-      0.499,
+      0.5,
       0.5
      ]
     }
@@ -2535,117 +3687,171 @@
   "uzi": {
    "classe": "smg",
    "cano": {
-    "rFrente": 0.009,
-    "rTras": 0.071,
+    "rFrente": 0.007,
+    "rTras": 0.055,
     "canoEmZmais": true
    },
    "alcanceBraco": {
-    "dist": 0.433,
+    "dist": 0.432,
     "max": 0.606,
-    "folga": 0.173
+    "folga": 0.174
    },
    "alcanceApoio": {
     "foreT": 0.42,
-    "dist": 0.528,
+    "dist": 0.498,
     "max": 0.577,
-    "folga": 0.049,
+    "folga": 0.079,
     "guardaMao": [
-     0.194,
-     -0.031,
-     -0.412
+     0.125,
+     -0.098,
+     -0.401
     ]
    },
-   "len": 0.6,
+   "len": 0.47,
    "gripZ": 0.58,
-   "vm": 0.72,
-   "escalaVM": 0.518,
+   "vm": 0.81,
+   "escalaVM": 0.583,
    "gunSpace": {
     "bboxMin": [
-     -0.069,
-     -0.208,
-     -0.252
+     -0.054,
+     -0.163,
+     -0.197
     ],
     "bboxMax": [
-     0.069,
-     0.208,
-     0.348
+     0.054,
+     0.163,
+     0.273
     ],
     "boca": [
-     0.001,
-     0.126,
-     0.347
+     0,
+     0.099,
+     0.272
     ],
     "alca": [
      -0.001,
-     0.204,
-     0.104
+     0.16,
+     0.082
     ]
    },
    "viewSpace": {
     "grip": [
-     0.193,
-     -0.043,
-     -0.336
+     0.156,
+     -0.128,
+     -0.35
     ],
     "boca": [
-     0.198,
-     0.022,
-     -0.516
+     0.086,
+     -0.018,
+     -0.457
     ],
     "alca": [
-     0.203,
-     0.062,
-     -0.39
+     0.141,
+     -0.024,
+     -0.354
     ]
    },
-   "coronhaZ": -0.205,
-   "anguloCanoGraus": 12.5,
+   "coronhaZ": -0.235,
+   "anguloCanoGraus": 12.41,
    "adsDelta": [
-    -0.203,
-    -0.062,
+    -0.141,
+    0.024,
     0.02
    ],
    "aspectos": {
     "16:9": {
-     "bordaEsq": 0.662,
-     "bordaDir": 0.988,
-     "topo": 0.282,
-     "base": 0.868,
-     "areaPct": 9.59,
+     "bordaEsq": 0.63,
+     "bordaDir": 1.147,
+     "topo": 0.5,
+     "base": 1.442,
+     "areaPct": 9.82,
+     "silBordaEsq": 0.631,
+     "anguloEixoGraus": 35,
+     "foraPct": 48.02,
+     "fatiaDir": 0.188,
+     "fatiaBaixo": 0.25,
+     "frenteVisivel": 1.024,
+     "trasVisivel": 0.382,
+     "gordura": 0.593,
+     "ads": {
+      "areaPct": 7.21,
+      "silBordaEsq": 0.643,
+      "anguloEixoGraus": 54.85,
+      "gripTela": [
+       0.737,
+       0.91
+      ],
+      "bocaTela": [
+       0.674,
+       0.655
+      ],
+      "frenteVisivel": 1.256,
+      "trasVisivel": 0.66,
+      "gordura": 0.743,
+      "fatiaDir": 0
+     },
+     "cruzaDir": true,
+     "cruzaBaixo": true,
      "gripTela": [
-      0.769,
-      0.606
+      0.827,
+      0.975
      ],
-     "bracoBordaDir": 1.459,
-     "bracoBordaBaixo": 5.106,
+     "bracoBordaDir": 2.286,
+     "bracoBordaBaixo": 11.02,
      "bocaTela": [
-      0.68,
-      0.464
+      0.637,
+      0.55
      ],
      "adsAlcaTela": [
       0.5,
-      0.499
+      0.5
      ]
     },
     "3:2": {
-     "bordaEsq": 0.662,
-     "bordaDir": 0.988,
-     "topo": 0.316,
-     "base": 0.811,
-     "areaPct": 8.42,
+     "bordaEsq": 0.63,
+     "bordaDir": 1.147,
+     "topo": 0.549,
+     "base": 1.371,
+     "areaPct": 8.71,
+     "silBordaEsq": 0.631,
+     "anguloEixoGraus": 38.11,
+     "foraPct": 45.67,
+     "fatiaDir": 0.168,
+     "fatiaBaixo": 0.254,
+     "frenteVisivel": 1.023,
+     "trasVisivel": 0.399,
+     "gordura": 0.59,
+     "ads": {
+      "areaPct": 6.48,
+      "silBordaEsq": 0.643,
+      "anguloEixoGraus": 59.8,
+      "gripTela": [
+       0.737,
+       0.898
+      ],
+      "bocaTela": [
+       0.674,
+       0.668
+      ],
+      "frenteVisivel": 1.234,
+      "trasVisivel": 0.702,
+      "gordura": 0.673,
+      "fatiaDir": 0
+     },
+     "cruzaDir": true,
+     "cruzaBaixo": true,
      "gripTela": [
-      0.769,
-      0.59
+      0.827,
+      0.959
      ],
-     "bracoBordaDir": 1.459,
-     "bracoBordaBaixo": 4.387,
+     "bracoBordaDir": 2.286,
+     "bracoBordaBaixo": 9.997,
      "bocaTela": [
-      0.68,
-      0.47
+      0.637,
+      0.587
      ],
      "adsAlcaTela": [
       0.5,
-      0.499
+      0.5
      ]
     }
    }
@@ -2658,25 +3864,25 @@
     "canoEmZmais": true
    },
    "alcanceBraco": {
-    "dist": 0.433,
+    "dist": 0.432,
     "max": 0.606,
-    "folga": 0.173
+    "folga": 0.174
    },
    "alcanceApoio": {
     "foreT": 0.42,
-    "dist": 0.527,
+    "dist": 0.526,
     "max": 0.577,
-    "folga": 0.05,
+    "folga": 0.051,
     "guardaMao": [
-     0.192,
-     -0.065,
-     -0.422
+     0.105,
+     -0.115,
+     -0.445
     ]
    },
    "len": 0.52,
    "gripZ": 0.55,
-   "vm": 1,
-   "escalaVM": 0.72,
+   "vm": 1.22,
+   "escalaVM": 0.878,
    "gunSpace": {
     "bboxMin": [
      -0.034,
@@ -2701,69 +3907,123 @@
    },
    "viewSpace": {
     "grip": [
-     0.193,
-     -0.043,
-     -0.336
+     0.156,
+     -0.128,
+     -0.35
     ],
     "boca": [
-     0.194,
-     -0.045,
-     -0.541
+     0.039,
+     -0.04,
+     -0.553
     ],
     "alca": [
-     0.199,
-     0.02,
-     -0.397
+     0.127,
+     -0.029,
+     -0.382
     ]
    },
-   "coronhaZ": -0.168,
-   "anguloCanoGraus": 12.5,
+   "coronhaZ": -0.144,
+   "anguloCanoGraus": 12.41,
    "adsDelta": [
-    -0.199,
-    -0.02,
+    -0.127,
+    0.029,
     0.02
    ],
    "aspectos": {
     "16:9": {
-     "bordaEsq": 0.658,
-     "bordaDir": 1.101,
-     "topo": 0.429,
-     "base": 1.034,
-     "areaPct": 7.19,
+     "bordaEsq": 0.536,
+     "bordaDir": 1.607,
+     "topo": 0.409,
+     "base": 2.235,
+     "areaPct": 12.85,
+     "silBordaEsq": 0.537,
+     "anguloEixoGraus": 36.79,
+     "foraPct": 78.98,
+     "fatiaDir": 0.035,
+     "fatiaBaixo": 0.379,
+     "frenteVisivel": 1.039,
+     "trasVisivel": 0.411,
+     "gordura": 0.528,
+     "ads": {
+      "areaPct": 6.91,
+      "silBordaEsq": 0.631,
+      "anguloEixoGraus": 36.25,
+      "gripTela": [
+       0.737,
+       0.91
+      ],
+      "bocaTela": [
+       0.645,
+       0.755
+      ],
+      "frenteVisivel": 1.522,
+      "trasVisivel": 1.522,
+      "gordura": 0.569,
+      "fatiaDir": 0
+     },
+     "cruzaDir": true,
+     "cruzaBaixo": true,
      "gripTela": [
-      0.769,
-      0.606
+      0.827,
+      0.975
      ],
-     "bracoBordaDir": 1.459,
-     "bracoBordaBaixo": 5.106,
+     "bracoBordaDir": 2.286,
+     "bracoBordaBaixo": 11.02,
      "bocaTela": [
-      0.668,
-      0.569
+      0.552,
+      0.595
      ],
      "adsAlcaTela": [
-      0.5,
-      0.499
+      0.499,
+      0.5
      ]
     },
     "3:2": {
-     "bordaEsq": 0.658,
-     "bordaDir": 1.101,
-     "topo": 0.44,
-     "base": 0.95,
-     "areaPct": 6.43,
+     "bordaEsq": 0.536,
+     "bordaDir": 1.607,
+     "topo": 0.467,
+     "base": 2.065,
+     "areaPct": 11.59,
+     "silBordaEsq": 0.537,
+     "anguloEixoGraus": 39.37,
+     "foraPct": 77.82,
+     "fatiaDir": 0.043,
+     "fatiaBaixo": 0.313,
+     "frenteVisivel": 1.038,
+     "trasVisivel": 0.416,
+     "gordura": 0.505,
+     "ads": {
+      "areaPct": 6.57,
+      "silBordaEsq": 0.631,
+      "anguloEixoGraus": 43.3,
+      "gripTela": [
+       0.737,
+       0.898
+      ],
+      "bocaTela": [
+       0.645,
+       0.747
+      ],
+      "frenteVisivel": 1.525,
+      "trasVisivel": 1.403,
+      "gordura": 0.572,
+      "fatiaDir": 0
+     },
+     "cruzaDir": true,
+     "cruzaBaixo": true,
      "gripTela": [
-      0.769,
-      0.59
+      0.827,
+      0.959
      ],
-     "bracoBordaDir": 1.459,
-     "bracoBordaBaixo": 4.387,
+     "bracoBordaDir": 2.286,
+     "bracoBordaBaixo": 9.997,
      "bocaTela": [
-      0.668,
-      0.558
+      0.552,
+      0.617
      ],
      "adsAlcaTela": [
-      0.5,
-      0.499
+      0.499,
+      0.5
      ]
     }
    }
@@ -2776,19 +4036,19 @@
     "canoEmZmais": true
    },
    "alcanceBraco": {
-    "dist": 0.461,
+    "dist": 0.417,
     "max": 0.606,
-    "folga": 0.145
+    "folga": 0.188
    },
    "alcanceApoio": {
-    "foreT": 0.24,
-    "dist": 0.571,
+    "foreT": 0.38,
+    "dist": 0.569,
     "max": 0.577,
-    "folga": 0.005,
+    "folga": 0.008,
     "guardaMao": [
-     0.217,
-     -0.061,
-     -0.46
+     0.12,
+     -0.114,
+     -0.489
     ]
    },
    "len": 1.15,
@@ -2819,68 +4079,122 @@
    },
    "viewSpace": {
     "grip": [
-     0.216,
-     -0.048,
-     -0.36
+     0.151,
+     -0.127,
+     -0.335
     ],
     "boca": [
-     0.223,
-     -0.033,
-     -0.778
+     0.07,
+     -0.047,
+     -0.738
     ],
     "alca": [
-     0.226,
-     0.021,
-     -0.485
+     0.134,
+     -0.039,
+     -0.447
     ]
    },
-   "coronhaZ": -0.122,
-   "anguloCanoGraus": 12.5,
+   "coronhaZ": -0.097,
+   "anguloCanoGraus": 12.41,
    "adsDelta": [
-    -0.226,
-    -0.021,
+    -0.134,
+    0.039,
     0.02
    ],
    "aspectos": {
     "16:9": {
-     "bordaEsq": 0.629,
-     "bordaDir": 1.41,
-     "topo": 0.451,
-     "base": 1.195,
-     "areaPct": 8.24,
+     "bordaEsq": 0.562,
+     "bordaDir": 1.986,
+     "topo": 0.554,
+     "base": 2.953,
+     "areaPct": 7.09,
+     "silBordaEsq": 0.561,
+     "anguloEixoGraus": 24.98,
+     "foraPct": 91.04,
+     "fatiaDir": 0.129,
+     "fatiaBaixo": 0.25,
+     "frenteVisivel": 1.024,
+     "trasVisivel": 0.371,
+     "gordura": 0.44,
+     "ads": {
+      "areaPct": 6,
+      "silBordaEsq": 0.623,
+      "anguloEixoGraus": 20.71,
+      "gripTela": [
+       0.776,
+       0.952
+      ],
+      "bocaTela": [
+       0.632,
+       0.679
+      ],
+      "frenteVisivel": 1.054,
+      "trasVisivel": 0.519,
+      "gordura": 0.673,
+      "fatiaDir": 0
+     },
+     "cruzaDir": true,
+     "cruzaBaixo": true,
      "gripTela": [
-      0.781,
-      0.611
+      0.829,
+      0.992
      ],
-     "bracoBordaDir": 1.395,
-     "bracoBordaBaixo": 4.553,
+     "bracoBordaDir": 2.422,
+     "bracoBordaBaixo": 11.955,
      "bocaTela": [
-      0.634,
-      0.535
+      0.57,
+      0.584
      ],
      "adsAlcaTela": [
-      0.5,
+      0.501,
       0.5
      ]
     },
     "3:2": {
-     "bordaEsq": 0.629,
-     "bordaDir": 1.41,
-     "topo": 0.459,
-     "base": 1.086,
-     "areaPct": 7.37,
+     "bordaEsq": 0.562,
+     "bordaDir": 1.986,
+     "topo": 0.575,
+     "base": 2.748,
+     "areaPct": 6.48,
+     "silBordaEsq": 0.561,
+     "anguloEixoGraus": 30.1,
+     "foraPct": 90.55,
+     "fatiaDir": 0.109,
+     "fatiaBaixo": 0.254,
+     "frenteVisivel": 1.024,
+     "trasVisivel": 0.363,
+     "gordura": 0.444,
+     "ads": {
+      "areaPct": 5.49,
+      "silBordaEsq": 0.623,
+      "anguloEixoGraus": 29.47,
+      "gripTela": [
+       0.776,
+       0.94
+      ],
+      "bocaTela": [
+       0.632,
+       0.678
+      ],
+      "frenteVisivel": 1.045,
+      "trasVisivel": 0.502,
+      "gordura": 0.651,
+      "fatiaDir": 0
+     },
+     "cruzaDir": true,
+     "cruzaBaixo": true,
      "gripTela": [
-      0.781,
-      0.593
+      0.829,
+      0.976
      ],
-     "bracoBordaDir": 1.395,
-     "bracoBordaBaixo": 3.92,
+     "bracoBordaDir": 2.422,
+     "bracoBordaBaixo": 10.841,
      "bocaTela": [
-      0.634,
-      0.53
+      0.57,
+      0.598
      ],
      "adsAlcaTela": [
-      0.5,
+      0.501,
       0.5
      ]
     }
@@ -2894,25 +4208,25 @@
     "canoEmZmais": true
    },
    "alcanceBraco": {
-    "dist": 0.461,
+    "dist": 0.417,
     "max": 0.606,
-    "folga": 0.145
+    "folga": 0.188
    },
    "alcanceApoio": {
-    "foreT": 0.24,
-    "dist": 0.566,
+    "foreT": 0.42,
+    "dist": 0.552,
     "max": 0.577,
-    "folga": 0.011,
+    "folga": 0.024,
     "guardaMao": [
-     0.214,
-     -0.061,
-     -0.455
+     0.12,
+     -0.114,
+     -0.47
     ]
    },
    "len": 1.12,
    "gripZ": 0.58,
-   "vm": 0.85,
-   "escalaVM": 0.612,
+   "vm": 0.71,
+   "escalaVM": 0.511,
    "gunSpace": {
     "bboxMin": [
      -0.036,
@@ -2937,69 +4251,123 @@
    },
    "viewSpace": {
     "grip": [
-     0.216,
-     -0.048,
-     -0.36
+     0.151,
+     -0.127,
+     -0.335
     ],
     "boca": [
-     0.214,
-     -0.028,
-     -0.756
+     0.08,
+     -0.06,
+     -0.651
     ],
     "alca": [
-     0.219,
-     0.049,
-     -0.479
+     0.132,
+     -0.031,
+     -0.419
     ]
    },
-   "coronhaZ": -0.072,
-   "anguloCanoGraus": 12.5,
+   "coronhaZ": -0.095,
+   "anguloCanoGraus": 12.41,
    "adsDelta": [
-    -0.219,
-    -0.049,
+    -0.132,
+    0.031,
     0.02
    ],
    "aspectos": {
     "16:9": {
-     "bordaEsq": 0.627,
-     "bordaDir": 1.963,
-     "topo": 0.371,
-     "base": 1.679,
-     "areaPct": 9.75,
+     "bordaEsq": 0.582,
+     "bordaDir": 1.986,
+     "topo": 0.588,
+     "base": 2.986,
+     "areaPct": 8.43,
+     "silBordaEsq": 0.584,
+     "anguloEixoGraus": 23.16,
+     "foraPct": 89.11,
+     "fatiaDir": 0.168,
+     "fatiaBaixo": 0.25,
+     "frenteVisivel": 1.028,
+     "trasVisivel": 0.387,
+     "gordura": 0.523,
+     "ads": {
+      "areaPct": 6.25,
+      "silBordaEsq": 0.631,
+      "anguloEixoGraus": 37.68,
+      "gripTela": [
+       0.776,
+       0.952
+      ],
+      "bocaTela": [
+       0.639,
+       0.7
+      ],
+      "frenteVisivel": 1.044,
+      "trasVisivel": 0.587,
+      "gordura": 0.671,
+      "fatiaDir": 0
+     },
+     "cruzaDir": true,
+     "cruzaBaixo": true,
      "gripTela": [
-      0.781,
-      0.611
+      0.829,
+      0.992
      ],
-     "bracoBordaDir": 1.395,
-     "bracoBordaBaixo": 4.553,
+     "bracoBordaDir": 2.422,
+     "bracoBordaBaixo": 11.955,
      "bocaTela": [
-      0.632,
-      0.531
+      0.59,
+      0.619
      ],
      "adsAlcaTela": [
       0.5,
-      0.499
+      0.5
      ]
     },
     "3:2": {
-     "bordaEsq": 0.627,
-     "bordaDir": 1.963,
-     "topo": 0.391,
-     "base": 1.495,
-     "areaPct": 8.73,
+     "bordaEsq": 0.582,
+     "bordaDir": 1.986,
+     "topo": 0.612,
+     "base": 2.783,
+     "areaPct": 7.62,
+     "silBordaEsq": 0.584,
+     "anguloEixoGraus": 28.18,
+     "foraPct": 88.52,
+     "fatiaDir": 0.141,
+     "fatiaBaixo": 0.254,
+     "frenteVisivel": 1.025,
+     "trasVisivel": 0.381,
+     "gordura": 0.523,
+     "ads": {
+      "areaPct": 5.66,
+      "silBordaEsq": 0.631,
+      "anguloEixoGraus": 46.18,
+      "gripTela": [
+       0.776,
+       0.94
+      ],
+      "bocaTela": [
+       0.639,
+       0.699
+      ],
+      "frenteVisivel": 1.037,
+      "trasVisivel": 0.556,
+      "gordura": 0.655,
+      "fatiaDir": 0
+     },
+     "cruzaDir": true,
+     "cruzaBaixo": true,
      "gripTela": [
-      0.781,
-      0.593
+      0.829,
+      0.976
      ],
-     "bracoBordaDir": 1.395,
-     "bracoBordaBaixo": 3.92,
+     "bracoBordaDir": 2.422,
+     "bracoBordaBaixo": 10.841,
      "bocaTela": [
-      0.632,
-      0.526
+      0.59,
+      0.632
      ],
      "adsAlcaTela": [
       0.5,
-      0.499
+      0.5
      ]
     }
    }
@@ -3012,25 +4380,25 @@
     "canoEmZmais": true
    },
    "alcanceBraco": {
-    "dist": 0.461,
+    "dist": 0.417,
     "max": 0.606,
-    "folga": 0.145
+    "folga": 0.188
    },
    "alcanceApoio": {
-    "foreT": 0.29,
-    "dist": 0.574,
+    "foreT": 0.42,
+    "dist": 0.563,
     "max": 0.577,
-    "folga": 0.002,
+    "folga": 0.014,
     "guardaMao": [
-     0.213,
-     -0.061,
-     -0.465
+     0.116,
+     -0.113,
+     -0.482
     ]
    },
    "len": 1.02,
    "gripZ": 0.6,
-   "vm": 0.85,
-   "escalaVM": 0.612,
+   "vm": 0.83,
+   "escalaVM": 0.598,
    "gunSpace": {
     "bboxMin": [
      -0.039,
@@ -3055,69 +4423,123 @@
    },
    "viewSpace": {
     "grip": [
-     0.216,
-     -0.048,
-     -0.36
+     0.151,
+     -0.127,
+     -0.335
     ],
     "boca": [
-     0.21,
-     -0.029,
-     -0.729
+     0.07,
+     -0.053,
+     -0.679
     ],
     "alca": [
-     0.213,
-     -0.01,
-     -0.471
+     0.125,
+     -0.074,
+     -0.433
     ]
    },
-   "coronhaZ": -0.11,
-   "anguloCanoGraus": 12.5,
+   "coronhaZ": -0.091,
+   "anguloCanoGraus": 12.41,
    "adsDelta": [
-    -0.213,
-    0.01,
+    -0.125,
+    0.074,
     0.02
    ],
    "aspectos": {
     "16:9": {
-     "bordaEsq": 0.63,
-     "bordaDir": 1.433,
-     "topo": 0.437,
-     "base": 1.332,
-     "areaPct": 6.99,
+     "bordaEsq": 0.568,
+     "bordaDir": 1.986,
+     "topo": 0.551,
+     "base": 3.13,
+     "areaPct": 6.42,
+     "silBordaEsq": 0.568,
+     "anguloEixoGraus": 22.99,
+     "foraPct": 90.48,
+     "fatiaDir": 0.086,
+     "fatiaBaixo": 0.242,
+     "frenteVisivel": 1.057,
+     "trasVisivel": 0.387,
+     "gordura": 0.399,
+     "ads": {
+      "areaPct": 4.82,
+      "silBordaEsq": 0.623,
+      "anguloEixoGraus": 24.6,
+      "gripTela": [
+       0.776,
+       0.952
+      ],
+      "bocaTela": [
+       0.629,
+       0.687
+      ],
+      "frenteVisivel": 1.101,
+      "trasVisivel": 0.466,
+      "gordura": 0.556,
+      "fatiaDir": 0
+     },
+     "cruzaDir": true,
+     "cruzaBaixo": true,
      "gripTela": [
-      0.781,
-      0.611
+      0.829,
+      0.992
      ],
-     "bracoBordaDir": 1.395,
-     "bracoBordaBaixo": 4.553,
+     "bracoBordaDir": 2.422,
+     "bracoBordaBaixo": 11.955,
      "bocaTela": [
-      0.635,
-      0.533
+      0.576,
+      0.602
      ],
      "adsAlcaTela": [
       0.5,
-      0.501
+      0.5
      ]
     },
     "3:2": {
-     "bordaEsq": 0.63,
-     "bordaDir": 1.433,
-     "topo": 0.447,
-     "base": 1.202,
-     "areaPct": 6.21,
+     "bordaEsq": 0.568,
+     "bordaDir": 1.986,
+     "topo": 0.574,
+     "base": 2.898,
+     "areaPct": 5.76,
+     "silBordaEsq": 0.568,
+     "anguloEixoGraus": 27.79,
+     "foraPct": 90.04,
+     "fatiaDir": 0.07,
+     "fatiaBaixo": 0.238,
+     "frenteVisivel": 1.059,
+     "trasVisivel": 0.38,
+     "gordura": 0.392,
+     "ads": {
+      "areaPct": 4.38,
+      "silBordaEsq": 0.623,
+      "anguloEixoGraus": 34.02,
+      "gripTela": [
+       0.776,
+       0.94
+      ],
+      "bocaTela": [
+       0.629,
+       0.687
+      ],
+      "frenteVisivel": 1.098,
+      "trasVisivel": 0.461,
+      "gordura": 0.516,
+      "fatiaDir": 0
+     },
+     "cruzaDir": true,
+     "cruzaBaixo": true,
      "gripTela": [
-      0.781,
-      0.593
+      0.829,
+      0.976
      ],
-     "bracoBordaDir": 1.395,
-     "bracoBordaBaixo": 3.92,
+     "bracoBordaDir": 2.422,
+     "bracoBordaBaixo": 10.841,
      "bocaTela": [
-      0.635,
-      0.528
+      0.576,
+      0.616
      ],
      "adsAlcaTela": [
       0.5,
-      0.501
+      0.5
      ]
     }
    }
@@ -3125,22 +4547,59 @@
  },
  "braco": {
   "cotoveloL": [
-   -0.15778532434753967,
-   -0.19717864561538856,
+   -0.12778532434753967,
+   -0.29717864561538865,
    0.044760342928098065
   ],
   "ombro": [
-   0.03322008094375196,
-   -0.19497358329867254,
+   0.06322008094375195,
+   -0.2949735832986726,
    0.036836336914558995
   ],
   "alcance": 0.605925352225444,
   "ombroL": [
-   -0.030063592380390584,
-   -0.19717890871182164,
+   -0.00006359238039058482,
+   -0.29717890871182173,
    0.03697163942961422
   ],
-  "alcanceL": 0.6136713361553476
+  "alcanceL": 0.6136713361553475
  },
- "reprovacoes": []
+ "reprovacoes": [
+  "awp 16:9: fatia na borda direita 0 (ref 0,053-0,095)",
+  "awp 3:2: fatia na borda direita 0 (ref 0,053-0,095)",
+  "deagle 16:9: fatia na borda direita 0 (ref 0,053-0,095)",
+  "deagle 3:2: fatia na borda direita 0 (ref 0,053-0,095)",
+  "deagle 3:2: área 5.94% (alvo 6-16, ref 8,11-13,09)",
+  "knife 16:9: borda esq da silhueta 0.314 (ref 0,520-0,565)",
+  "knife 16:9: eixo 19.39° (ref CS 27,3° e 34,8°)",
+  "knife 16:9: fatia na borda direita 0.008 (ref 0,053-0,095)",
+  "knife 3:2: borda esq da silhueta 0.314 (ref 0,520-0,565)",
+  "knife 3:2: eixo 21.5° (ref CS 27,3° e 34,8°)",
+  "knife 3:2: fatia na borda direita 0.008 (ref 0,053-0,095)",
+  "m92 16:9: fatia na borda direita 0.309 (ref 0,053-0,095)",
+  "m92 3:2: fatia na borda direita 0.262 (ref 0,053-0,095)",
+  "akm 16:9: fatia na borda direita 0.203 (ref 0,053-0,095)",
+  "revolver38 16:9: eixo 42.28° (ref CS 27,3° e 34,8°)",
+  "revolver38 16:9: fatia na borda direita 0 (ref 0,053-0,095)",
+  "revolver38 3:2: eixo 44.48° (ref CS 27,3° e 34,8°)",
+  "revolver38 3:2: fatia na borda direita 0 (ref 0,053-0,095)",
+  "carbine 16:9: fatia na borda direita 0 (ref 0,053-0,095)",
+  "carbine 3:2: fatia na borda direita 0 (ref 0,053-0,095)",
+  "carbine 3:2: área 5.59% (alvo 6-16, ref 8,11-13,09)",
+  "m400 16:9: fatia na borda direita 0.258 (ref 0,053-0,095)",
+  "m400 3:2: fatia na borda direita 0.215 (ref 0,053-0,095)",
+  "mosin 16:9: fatia na borda direita 0 (ref 0,053-0,095)",
+  "mosin 3:2: fatia na borda direita 0 (ref 0,053-0,095)",
+  "rem700 16:9: fatia na borda direita 0 (ref 0,053-0,095)",
+  "rem700 3:2: fatia na borda direita 0 (ref 0,053-0,095)",
+  "scar 16:9: fatia na borda direita 0.316 (ref 0,053-0,095)",
+  "scar 3:2: fatia na borda direita 0.273 (ref 0,053-0,095)",
+  "famas 16:9: borda esq da silhueta 0.604 (ref 0,520-0,565)",
+  "famas 16:9: fatia na borda direita 0.273 (ref 0,053-0,095)",
+  "famas 3:2: borda esq da silhueta 0.604 (ref 0,520-0,565)",
+  "famas 3:2: fatia na borda direita 0.234 (ref 0,053-0,095)",
+  "uzi 16:9: borda esq da silhueta 0.631 (ref 0,520-0,565)",
+  "uzi 3:2: borda esq da silhueta 0.631 (ref 0,520-0,565)",
+  "sks 3:2: área 5.76% (alvo 6-16, ref 8,11-13,09)"
+ ]
 }
