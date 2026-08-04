@@ -10,6 +10,7 @@ import { placeProp, PropBatch, StaticBatch, PROP_BATCH } from './mapprops.js';
 import { VAO_BANDS, aoBoxGeo, aoMatFactory, ContactSkirt, BASE_FLOATING, onGround } from './vao.js';
 import { makeAerialFog } from './bloom.js';   // névoa exponencial + cor por direção do olhar
 import { detailFor, registerDetail } from './textures.js';   // normal+rough por Sobel (ver lam)
+import { decalIds, paredeAtras } from './map_decals.js';     // pool por NOME + raycast de parede
 
 const HALF_X = 38, HALF_Z = 58;
 // Carros do estacionamento (ids otimizados em public/models/props). Forte cara BR.
@@ -545,18 +546,29 @@ export function buildHavan(scene, T) {
      5. Escolha determinística por posição — o `botsim` é determinístico.
      Fora do pool: as 47 folhas de 'alfabeto' (letra fina e clara, some a 10 m) e os
      recortes de olho/boca soltos (mancha abstrata quando ampliados). */
-  const D_TAG = [167, 168, 169, 170, 171, 172, 174, 175, 176, 177];
-  const D_MURAL = [157, 158, 159, 160, 161, 162, 163, 164, 156, 97, 166];
+  const D_TAG = decalIds(T, ['tag-fina.png', 'tag-flop.png', 'tag-larga.png', 'tag-money.png',
+    'tag-pingo.png', 'tag-selvagem.png', 'tags-treino-02.png', 'tags-treino-05.png']);
+  const D_MURAL = decalIds(T, ['personagem-muro.png', 'personagens-graffiti-01.png',
+    'personagens-graffiti-02.png', 'personagens-graffiti-03.png', 'personagens-graffiti-04.png',
+    'personagens-graffiti-05.png', 'personagens-graffiti-06.png', 'personagens-graffiti-07.png',
+    'peca-bolha.png']);
   const _dmix = (n) => { let v = (n * 2654435761) >>> 0; v ^= v >>> 15; v = Math.imul(v, 2246822519) >>> 0; v ^= v >>> 13; v = Math.imul(v, 3266489917) >>> 0; return (v ^ (v >>> 16)) >>> 0; };
   const _dmat = new Map(), _usados = [];
   function decal(pool, x, y, z, ry, alt, larg = 99) {
-    if (!T.decals || !T.decalAspects || !T.decalAspects.length) return null;
+    if (!T.decals || !T.decalAspects || !pool.length) return null;
     const k = _dmix(_dmix(Math.round(x * 10) + 9973) + Math.round(z * 10) * 131 + 7);
     let i = pool[k % pool.length];                       // anti-repetição a menos de 16 m:
     for (let t = 0; t < pool.length; t++) {              // arte repetida perto lê como falha
       const j = pool[(k + t) % pool.length];             // de asset, não como muro pichado
       if (!_usados.some((u) => u.i === j && Math.hypot(u.x - x, u.z - z) < 16)) { i = j; break; }
     }
+    const a = T.decalAspects[i] || 1;
+    let h = alt, w = alt * a;
+    if (w > larg) { w = larg; h = larg / a; }             // encolhe inteiro; NUNCA estica
+    /* PAREDE ATRÁS ANTES DE DESENHAR (map_decals.js). Vem antes do `_usados` e do
+       material de propósito: peça reprovada não pode gastar a vaga da anti-repetição
+       nem acordar o getter memoizado de uma textura que ninguém vai ver. */
+    if (!paredeAtras(colliders, x, y + h / 2, z, ry, w, h)) return null;
     _usados.push({ i, x, z });
     let m = _dmat.get(i);
     if (!m) {
@@ -566,9 +578,6 @@ export function buildHavan(scene, T) {
       });
       _dmat.set(i, m);
     }
-    const a = T.decalAspects[i] || 1;
-    let h = alt, w = alt * a;
-    if (w > larg) { w = larg; h = larg / a; }             // encolhe inteiro; NUNCA estica
     const q = new THREE.Mesh(new THREE.PlaneGeometry(w, h), m);
     q.position.set(x, y + h / 2, z); q.rotation.y = ry; q.renderOrder = 2;
     q.receiveShadow = true;                               // tinta escurece junto com o muro
@@ -1809,7 +1818,7 @@ export function buildHavan(scene, T) {
   PROPS_LOJA.build(root);
 
   return {
-    root, colliders, occluders, groundHeightAt, spawns, sun, hemi, pickups, doors, ctfPoints,
+    root, colliders, occluders, decalSolids: colliders, groundHeightAt, spawns, sun, hemi, pickups, doors, ctfPoints,
     waypoints: { nodes, adj }, nearestWaypoint, findPath,
     /* DECLARAÇÃO PRA RÉGUA (tools/eval/map-check.mjs) — não é usada pelo jogo.
        `stairs` diz ONDE fica a escada; o perfil (espelho, piso, largura, inclinação) é
