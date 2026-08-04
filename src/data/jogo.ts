@@ -63,6 +63,61 @@ export const ARMAS: Arma[] = [
   { id: 'knife', nome: 'FACA "CONVERSA FIADA"', curto: 'FACA', classe: 'Corpo a corpo', dano: 55, pente: 0, reserva: 0, cadencia: 0.55, nota: 'Alcance de 2,4 m. Anda mais rápido com ela na mão — e humilha mais também.' },
 ];
 
+export interface Arremesso {
+  id: string; nome: string; classe: string; tecla: string;
+  /** Quantas o jogador recebe no início de cada rodada. */
+  quantidade: number;
+  /** Segundos entre o arremesso e o estouro. */
+  fusivel: number;
+  /** Raio de efeito em metros — dano no caso da frag, nuvem no caso da fumaça. */
+  raio: number;
+  efeito: string; nota: string;
+}
+
+/* AS DUAS DE ARREMESSO — e por que elas não entram em `ARMAS`.
+ *
+ * O jogo tem granada e fumaça desde sempre (`_spawnGrenade`, `_explodeFrag`,
+ * `_updateGrenades` em `public/js/game.js`) e o HUD as mostra em toda partida
+ * ("💨 5  🧨 1", `#smoke-count`, `src/pages/index.astro`). /armas listava as 26 armas de
+ * FOGO e ignorava as duas jogáveis de arremesso — a página prometia "o arsenal" e
+ * entregava parte dele.
+ *
+ * Elas ficam num array PRÓPRIO de propósito. `ARMAS.length` é a origem do "26" em título,
+ * meta description, kicker, JSON-LD e nos espelhos de máquina; empurrar as duas para
+ * dentro de `ARMAS` viraria "28 armas" em todo lugar e passaria a contar fumaça como arma
+ * de fogo — além de quebrar as colunas da tabela (granada não tem pente, reserva nem
+ * cadência). São coisas diferentes, então são listas diferentes.
+ *
+ * TODO número abaixo foi lido do motor, com arquivo:linha. Nada aqui é estimativa. */
+export const ARREMESSO: Arremesso[] = [
+  {
+    id: 'smoke', nome: 'FUMAÇA', classe: 'Arremesso', tecla: '4 (ou G)',
+    // quantidade  game.js:2174  `this.player.smokes = 5` a cada rodada
+    // fusível     game.js:3752  `fuse: kind === 'frag' ? 1.5 : 2.2`
+    // raio        game.js:3828 (`const R = 2.6`) + 3843 (`radius: R + 1.4`) = 4,0 m de bloqueio
+    // duração     game.js:3843  `dur: 13`
+    // tecla       game.js:1986 (`Digit4`) e 1988 (`KeyG`, atalho legado)
+    quantidade: 5, fusivel: 2.2, raio: 4.0,
+    efeito: 'Nuvem que bloqueia linha de visão por 13 s',
+    nota: 'Cinco por rodada — é a granada que você tem de sobra. Corta ângulo de sniper, cobre travessia '
+      + 'e tapa a bandeira no CTF. A cor da nuvem é o céu do mapa multiplicado por 0,75, então ela nunca '
+      + 'lava a tela pra branco.',
+  },
+  {
+    id: 'frag', nome: 'GRANADA DE FRAGMENTAÇÃO', classe: 'Arremesso', tecla: '5',
+    // quantidade  game.js:2174  `this.player.frags = 1` a cada rodada
+    // fusível     game.js:3752  `fuse: kind === 'frag' ? 1.5 : 2.2`
+    // raio/dano   game.js:3775 (`const R = 6.5`) e 3785 (`Math.round(95 * (1 - d / R))`)
+    // só inimigo  game.js:3781  `if (!c.alive || c.team === team) continue`
+    // tecla       game.js:1987  `Digit5`
+    quantidade: 1, fusivel: 1.5, raio: 6.5,
+    efeito: 'Até 95 de dano no epicentro, caindo a zero na borda',
+    nota: 'UMA por rodada. O dano cai linearmente com a distância: 95 em cima, ~47 na metade do raio, '
+      + 'zero na borda. Não acerta o próprio time, e o fusível curto (1,5 s) significa que ela estoura '
+      + 'quase onde cai — jogar por cima de cobertura é o uso, não arremessar longe.',
+  },
+];
+
 export interface Mapa {
   id: string; nome: string; modo: string; resumo: string; detalhe: string;
   /** `ctfMode: true` no registro do jogo — a arena ABRE em Capture the Flag.
