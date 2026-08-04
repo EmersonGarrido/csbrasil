@@ -243,7 +243,16 @@ function resolveVar(val, vars, prof = 0) {
 /* ==========================================================================
    3. HTML do HUD — árvore mínima (o cálculo de fundo/herança precisa de ancestrais)
    ========================================================================== */
-function recortaHud(astro) {
+function recortaHud(astroBruto) {
+  /* COMENTÁRIO HTML É NEUTRALIZADO ANTES DA CONTAGEM (o `parseArvore` já fazia isso, e
+     por motivo parecido). Sem isso um `<thead>` escrito DENTRO de um comentário de
+     documentação conta profundidade: o `d` nunca volta a zero, o recorte passa do
+     `</div>` do #hud e engole o resto do documento — a UI1 passou a medir o #match-title
+     e até a tag <script> do rodapé, contra o pior fundo de CENA, e reprovou por 1,5:1
+     texto que nem é HUD. Caso real desta rodada, com o comentário do #scoreboard.
+     Mutação que prova que a régua morde: escreva `<thead>` num comentário do #hud com
+     esta linha revertida e a UI1 salta de ~63 para ~86 itens medidos e fica VERMELHA. */
+  const astro = astroBruto.replace(/<!--[\s\S]*?-->/g, m => m.replace(/[^\n]/g, ' '));
   const ini = astro.indexOf('<div id="hud"');
   if (ini < 0) throw new Error('não achei <div id="hud"> em index.astro');
   let d = 0, i = ini;
