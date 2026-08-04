@@ -97,8 +97,9 @@ aqui, e o que são as skills de agente — está em
 
 Um repositório, **duas zonas com regras diferentes**:
 
-- **O JOGO — `public/`** · JavaScript vanilla com ES modules, Three.js r160
-  vendorizado em `public/vendor/`, **zero build**. Nunca vira framework.
+- **O JOGO — `public/`** · JavaScript vanilla com ES modules, Three.js
+  vendorizado em `public/vendor/` (a revisão está na tabela de stack acima),
+  **zero build**. Nunca vira framework.
   **Não existe `public/index.html`:** o HTML do jogo é `src/pages/index.astro`,
   servido na rota `/`. (Este README já afirmou o contrário por meses e mandava
   todo dev novo para o arquivo errado.)
@@ -106,9 +107,10 @@ Um repositório, **duas zonas com regras diferentes**:
   ranking global, perfis públicos, páginas de conteúdo e as rotas `/api/*`. Aqui
   framework é bem-vindo — mas o jogo continua intocado.
 
-O ranking global vive no **Supabase** (`supabase/`). A `service_role` key fica
-só no servidor; a `anon` key é pública por design, e a segurança vem das
-policies e dos grants por coluna.
+O ranking e a telemetria vivem no **Supabase** (`supabase/`) — o ranking está
+**desligado por flag** hoje, a coleta não parou (ver a seção abaixo). A
+`service_role` key fica só no servidor; a `anon` key é pública por design, e a
+segurança vem das policies e dos grants por coluna.
 
 Sem contagem na árvore abaixo — os números vivem no bloco gerado lá em cima.
 Índice por número escrito à mão desatualiza no primeiro commit; é a mesma razão
