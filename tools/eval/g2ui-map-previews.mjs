@@ -42,6 +42,9 @@ const POSES = process.env.POSES ? JSON.parse(process.env.POSES) : {
   fy_havan:     { pos: [0, 3.0, 44], pitch: -0.12, yaw:  0.6 },
   // Pilhas de carro + guindaste + rotatória: o "cânion" e a profundidade do pátio.
   fy_ferrovelho:{ pos: [0, 5.0, 12], pitch: -0.15, yaw: -0.6 },
+  // Rua inteira do campinho até a rotunda do baile, comércio dos dois lados, faixa na
+  // frente. Câmera alta e pitch fundo porque a -0,17 metade do cartaz era céu.
+  fy_quebrada:  { pos: [0, 8.0, 30], pitch: -0.30, yaw:  0.0 },
 };
 const NOPOSE = process.env.NOPOSE === '1';   // captura do spawn, sem pino de posição
 const TAG = process.env.TAG || '';
@@ -60,7 +63,7 @@ if (process.argv[2] === '--write') {
 }
 
 /* ---------------- modo captura ---------------- */
-const LIST = (process.argv[2] || 'awp_map,fy_pool_day,fy_havan,fy_ferrovelho').split(',');
+const LIST = (process.argv[2] || 'awp_map,fy_pool_day,fy_havan,fy_ferrovelho,fy_quebrada').split(',');
 const YAWS = (process.argv[3] || '-2.4,-1.8,-1.2,-0.6,0,0.6,1.2,1.8,2.4,3.0').split(',').map(Number);
 const gRoot = execSync('npm root -g').toString().trim();
 const _pw = await import(pathToFileURL(`${gRoot}/playwright/index.js`).href);
