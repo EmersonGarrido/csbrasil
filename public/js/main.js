@@ -496,6 +496,10 @@ async function startGame(team, charId, enemyFaction) {
   if (!testMode) { try { renderer.domElement.requestPointerLock()?.catch?.(() => {}); } catch {} }
 }
 function quitToMenu() {
+  // corta a vinheta de round ao sair da partida (pedido do dono): o teto de 25 s do
+  // audio.js e o corte no _startRound cobrem a partida em andamento, mas nenhum dos dois
+  // roda quando o jogador VAI EMBORA — a vinheta seguia tocando por cima da música do menu
+  try { sfx.stopRound(); } catch {}
   switchMode = false;   // never carry an in-match team-switch into the menu
   // dispose protegido: se a limpeza da partida falhar, o menu volta MESMO assim
   // (antes, uma exceção aqui deixava o botão "SAIR PRO MENU" morto e o jogo zumbi)

@@ -6347,7 +6347,8 @@ export class Game {
 
   /* ================= teardown ================= */
   dispose() {
-    this._disposed = true;   // lazy-load de VM em voo (_ensureStaticVm) aborta no then
+    this._disposed = true;
+    try { this.sfx.stopRound(); } catch {}   // vinheta não sobrevive ao fim da partida   // lazy-load de VM em voo (_ensureStaticVm) aborta no then
     if (this._envRT) { this._envRT.dispose(); this._envRT = null; this.scene.environment = null; }   // libera o env map (IBL)
     document.removeEventListener('keydown', this._kd);
     document.removeEventListener('keyup', this._ku);
