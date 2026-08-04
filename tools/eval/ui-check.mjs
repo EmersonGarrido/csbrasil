@@ -1038,12 +1038,12 @@ const MUTACOES = {
   },
   ui3_prompt_como_antes: {
     portao: 'UI3', o_que: 'devolve o prompt do [E] pro centro-baixo (left:50%/top:58%) — o estado do print',
-    css: (c) => c.replace('#pickup-hint{position:absolute;left:22px;bottom:118px;',
+    css: (c) => c.replace('#pickup-hint{position:absolute;left:68px;bottom:134px;',
       '#pickup-hint{position:absolute;left:50%;top:58%;transform:translateX(-50%);'),
   },
   ui3_prompt_na_mira: {
     portao: 'UI3', o_que: 'põe o prompt do [E] no centro EXATO da tela',
-    css: (c) => c.replace('#pickup-hint{position:absolute;left:22px;bottom:118px;',
+    css: (c) => c.replace('#pickup-hint{position:absolute;left:68px;bottom:134px;',
       '#pickup-hint{position:absolute;left:50%;top:50%;transform:translateX(-50%);'),
   },
   ui2_prompt_eterno: {

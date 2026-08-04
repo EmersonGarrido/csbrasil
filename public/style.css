@@ -17,7 +17,18 @@
 :root{
   /* ---- escala tipográfica (razão ~1.22; piso 11px = legível em 1280×720) ---- */
   --fs-50:11px;  --fs-100:12px; --fs-200:13px; --fs-300:15px; --fs-400:17px;
-  --fs-500:20px; --fs-600:24px; --fs-700:32px; --fs-800:44px; --fs-900:60px;
+  /* OS TRÊS DEGRAUS DE TÍTULO SUBIRAM, e é medição: `ref-ui.py` sobre as 9 telas dá
+     tituloFracMediana 0,0440 e razao (maior/menor por tela) 3,33. A MESMA medição sobre
+     capturas do jogo (3:2, 1536×1024) dava titulo 0,0264-0,0323 e razao 1,8-2,2 — quatro
+     telas de fluxo independentes (01, 02, 04, 05) concordando: a hierarquia estava CHATA,
+     e o defeito não era "corpo grande demais", era TÍTULO PEQUENO DEMAIS.
+        --fs-700 32 -> 40px   (titulo de tela, relogio do HUD)
+        --fs-800 44 -> 56px   (numero-heroi: vida e municao)
+        --fs-900 60 -> 76px
+     Continuam em PX de propósito: `caixaDe()` da UI3 (tools/eval/ui-check.mjs:563) lê
+     font-size com `parseFloat`, então `vh`/`clamp()` fariam a régua medir 3,9 px de caixa
+     e ficar CEGA. Escala fluida exige consertar a régua primeiro — está no relatório. */
+  --fs-500:20px; --fs-600:24px; --fs-700:40px; --fs-800:56px; --fs-900:76px;
   --lh-tight:1; --lh-snug:1.2; --lh-base:1.45;
   --tr-tight:.5px; --tr-1:1px; --tr-2:2px; --tr-3:3px; --tr-4:4px; --tr-6:6px;
 
@@ -258,7 +269,7 @@ body{font-family:var(--font);font-weight:600;color:var(--ink1)}
 /* Sem nick, JOGAR é ESTADO desabilitado — não um shake depois do clique. */
 #btn-jogar[aria-disabled="true"]{opacity:var(--op-disabled);filter:saturate(.25);cursor:not-allowed}
 #btn-jogar[aria-disabled="true"]:hover{background:var(--cta-bg);color:var(--br-faixa)}
-#hud-actions{position:absolute;top:14px;right:14px;display:flex;gap:var(--s-2);z-index:25}
+#hud-actions{position:absolute;top:36px;right:48px;display:flex;gap:var(--s-2);z-index:25}
 #hud-actions button{width:32px;height:32px;border:1px solid var(--line);cursor:pointer;
   display:flex;align-items:center;justify-content:center;
   background:rgba(var(--bg-900-rgb),.72);color:var(--ink-300);font-size:var(--fs-400);pointer-events:auto;clip-path:var(--cut-sm);
@@ -457,7 +468,20 @@ body{font-family:var(--font);font-weight:600;color:var(--ink1)}
 .howto-grid span:nth-child(odd){color:var(--br-faixa);font-family:var(--mono);font-size:var(--fs-100)}
 
 /* ---------- HUD ---------- */
-#hud{position:fixed;inset:0;z-index:20;pointer-events:none;font-family:var(--font);font-weight:600}
+/* MARGENS DO HUD — desvio 2 do BUG-05, medido e não achado. `ref-ui.py` dá, no consenso
+   das 9 telas, esq 4,49% / dir 3,12% / base 3,50% da tela. A mesma medição sobre a captura
+   do HUD do jogo dava esq 1,17% / dir 0,98% / base 0,00%: o HUD estava COLADO na moldura.
+   Traduzido para o enquadramento do dono (3:2, 1536×1024): 69 / 48 / 36 px.
+
+   POR QUE PX E NÃO vw/vh, já que a referência é FRAÇÃO: a UI3 só concede a isenção de
+   "elemento de canto" a quem ancora em PX (`emPx` em ui-check.mjs:637 — a convenção do
+   gênero: munição e vida no canto, e o viewmodel do CS 1.6 sai pelas duas bordas). Trocar
+   por vw faria o bloco de munição virar "flutuante" aos olhos da régua e reprovar por
+   invadir a zona da arma — melhoria de layout que acende portão é regressão. */
+#hud{position:fixed;inset:0;z-index:20;pointer-events:none;font-family:var(--font);font-weight:600;
+  --hud-x:68px;   /* 4,5% de 1536 */
+  --hud-xr:48px;  /* 3,1% de 1536 */
+  --hud-y:36px}   /* 3,5% de 1024 */
 /* SCRIM DE CANTO DO HUD (CS2/Valorant): em vez de encaixotar cada bloco, escurece-se a
    ZONA da tela onde o HUD mora. Motivo medido: no Piscinão o "100 HP" fica sobre areia
    clara e no awp_map o relógio fica sobre parede branca — texto claro sobre fundo claro.
@@ -472,11 +496,11 @@ body{font-family:var(--font);font-weight:600;color:var(--ink1)}
     radial-gradient(42% 34% at 0% 100%,rgba(var(--bg-900-rgb),.84) 0%,rgba(var(--bg-900-rgb),.48) 46%,rgba(var(--bg-900-rgb),0) 80%),
     radial-gradient(42% 34% at 100% 100%,rgba(var(--bg-900-rgb),.84) 0%,rgba(var(--bg-900-rgb),.48) 46%,rgba(var(--bg-900-rgb),0) 80%)}
 html[data-ui="legacy"] #hud::before{display:none}
-#radar{position:absolute;top:14px;left:14px;opacity:.92;border-radius:50%;
+#radar{position:absolute;top:36px;left:68px;opacity:.92;border-radius:50%;
   box-shadow:0 0 0 1px rgba(120,220,220,.10),0 2px 10px rgba(0,0,0,.45)}
-#radio-log{position:absolute;top:172px;left:14px;font-size:13px;color:var(--cs);text-shadow:var(--sh-hud)}
+#radio-log{position:absolute;top:194px;left:68px;font-size:13px;color:var(--cs);text-shadow:var(--sh-hud)}
 .radio-line{animation:kfFade 4.2s forwards;margin-bottom:2px}
-#radio-menu{position:absolute;top:200px;left:14px;background:rgba(11,17,22,.92);border:1px solid var(--line);padding:10px 16px;min-width:220px}
+#radio-menu{position:absolute;top:222px;left:68px;background:rgba(11,17,22,.92);border:1px solid var(--line);padding:10px 16px;min-width:220px}
 .radio-title{color:var(--yellow);font-size:12px;letter-spacing:2px;margin-bottom:6px;border-bottom:1px solid var(--line);padding-bottom:4px}
 .radio-item{color:var(--cs);font-size:14px;padding:2px 0}
 /* Mira: FORA do sistema de cor (não é "sistema", nem "objetivo", nem "crítico").
@@ -551,7 +575,7 @@ html[data-ui="legacy"] #hud::before{display:none}
 #mk-banner.show{opacity:1;transform:scale(1);letter-spacing:8px}
 /* PROTEGIDO é estado DO JOGADOR: mora junto da vida (canto inferior esquerdo), não no
    centro superior — ali colidia com a faixa de objetivos do CTF e disputava o centro. */
-#prot-badge{position:absolute;left:22px;bottom:92px;
+#prot-badge{position:absolute;left:68px;bottom:108px;
   font-weight:700;font-size:var(--fs-200);letter-spacing:var(--tr-2);color:var(--am);
   text-shadow:var(--sh-hud);pointer-events:none}
 #prot-badge svg{vertical-align:-2px;margin-right:5px}   /* inline: flex separava o "3" do "s" */
@@ -564,7 +588,7 @@ html[data-ui="legacy"] #hud::before{display:none}
    ATUALIZAÇÃO: #hud-mid ganhou uma plaquinha (padding 1px em cima + 2px embaixo),
    então a soma vira 14 + 1 + 32 + 5 + 15.6 + 2 ≈ 70px — ainda 6px acima do CTF
    em 76px. Se alguém aumentar esse padding, o topo do #ctf-hud tem que subir junto. */
-#hud-top{position:absolute;top:14px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:var(--s-5)}
+#hud-top{position:absolute;top:36px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:var(--s-5)}
 .team-score{font-size:var(--fs-300);font-weight:700;letter-spacing:var(--tr-2);line-height:var(--lh-snug);
   padding:var(--s-1) var(--s-3);background:rgba(var(--bg-900-rgb),.72);clip-path:var(--cut-sm);text-shadow:var(--sh-hud)}
 .ts-p{color:#ff9a9a;border:1px solid var(--team-p);border-left-width:3px}
@@ -590,7 +614,7 @@ html[data-ui="legacy"] #hud-mid{padding:0;background:none;clip-path:none}
   font-variant-numeric:tabular-nums}
 /* Faixa de objetivos do CTF: banda própria abaixo do bloco de round, com largura
    TETO (não empurra mais o killfeed nem cresce com o nome do ponto). */
-#ctf-hud{position:absolute;top:76px;left:50%;transform:translateX(-50%);
+#ctf-hud{position:absolute;top:98px;left:50%;transform:translateX(-50%);
   display:flex;align-items:center;justify-content:center;gap:var(--s-2);
   font-family:var(--font);font-weight:700;font-size:var(--fs-100);letter-spacing:var(--tr-1);
   text-transform:uppercase;text-shadow:var(--sh-hud);pointer-events:none;white-space:nowrap;
@@ -603,8 +627,8 @@ html[data-ui="legacy"] #hud-mid{padding:0;background:none;clip-path:none}
    .92 é o mesmo patamar do chip do killfeed (.82) e da plaquinha de round (.72), levado
    até onde o objeto gráfico dentro dele consegue atingir os 3:1 da WCAG 1.4.11. */
 /* irmão POSTERIOR no DOM: quando a faixa de CTF existe, o killfeed desce. */
-#ctf-hud:not(.hidden) ~ #killfeed{top:114px}
-#killfeed{position:absolute;top:76px;right:18px;display:flex;flex-direction:column;gap:var(--s-1);
+#ctf-hud:not(.hidden) ~ #killfeed{top:136px}
+#killfeed{position:absolute;top:98px;right:48px;display:flex;flex-direction:column;gap:var(--s-1);
   align-items:flex-end;font-size:var(--fs-200);font-weight:600;max-width:min(42vw,460px)}
 .kf-row{display:flex;align-items:center;gap:var(--s-2);background:rgba(var(--bg-900-rgb),.82);padding:5px var(--s-3);
   border-left:2px solid var(--line);clip-path:var(--cut-sm);animation:kfFade 4.5s forwards;
@@ -631,7 +655,7 @@ html[data-ui="legacy"] #hud-mid{padding:0;background:none;clip-path:none}
    Antes vida, munição, mira, rádio e radar eram o MESMO ciano: cor saturada sem
    significado, o olho tinha que ler o número pra saber o que era. Agora o número
    grande é branco (hierarquia por tamanho/peso) e a cor só entra como alarme. */
-#hud-bottom-left{position:absolute;left:22px;bottom:20px}
+#hud-bottom-left{position:absolute;left:68px;bottom:36px}
 #hp-row{display:flex;align-items:baseline;gap:var(--s-2)}
 #hp-num{font-size:var(--fs-800);line-height:var(--lh-tight);font-weight:700;color:var(--ink-100);
   font-family:var(--font);font-variant-numeric:tabular-nums;text-shadow:var(--sh-hud);
@@ -645,7 +669,7 @@ html[data-ui="legacy"] #hud-mid{padding:0;background:none;clip-path:none}
 #hp-bar{width:200px;height:6px;background:rgba(var(--bg-900-rgb),.8);border:1px solid var(--line);overflow:hidden;margin-top:var(--s-1);clip-path:var(--cut-sm)}
 #hp-fill{height:100%;width:100%;background:var(--ink-100);transition:width var(--t),background var(--t-fast)}
 #hp-fill.low{background:var(--crit)}
-#hud-bottom-right{position:absolute;right:26px;bottom:20px;text-align:right}
+#hud-bottom-right{position:absolute;right:48px;bottom:36px;text-align:right}
 #weapon-name{font-size:var(--fs-200);font-weight:700;letter-spacing:var(--tr-2);color:var(--ink-200);
   margin-bottom:var(--s-1);text-transform:uppercase;text-shadow:var(--sh-hud)}
 #ammo{font-size:var(--fs-800);line-height:var(--lh-tight);font-weight:700;color:var(--ink-100);
@@ -707,9 +731,10 @@ html[data-ui="legacy"] #hud-mid{padding:0;background:none;clip-path:none}
    nome comprido voltaria a atravessar a tela. 380px cabe a string mais longa que o jogo
    consegue escrever ("[E] PEGAR G3SG1 · mire pra escolher", 35 caracteres em ST Mono de
    15px com tracking de 2px = 362px com o padding); em tela estreita ela quebra em duas
-   linhas em vez de ser cortada por reticências. Caixa resultante: x 0,022-0,399, y 0,765-
-   0,820: fora da mira (0,470-0,530 × 0,449-0,551) e fora do viewmodel (x < 0,525). */
-#pickup-hint{position:absolute;left:22px;bottom:118px;font-family:var(--mono);
+   linhas em vez de ser cortada por reticências. Caixa resultante (com a margem nova de
+   68 px): x 0,067-0,444, y 0,740-0,795 — fora da mira (0,470-0,530 × 0,449-0,551) e fora
+   do viewmodel (x < 0,525). Medido em `node tools/eval/ui-check.mjs ui3`. */
+#pickup-hint{position:absolute;left:68px;bottom:134px;font-family:var(--mono);
   font-size:15px;letter-spacing:2px;color:var(--cs);background:rgba(var(--bg-800-rgb),.92);
   border:1px solid var(--line);padding:8px 14px;max-width:min(38vw,380px)}
 /* Véu de morte a .6 sobre a areia do Piscinão deixava o texto de apoio em 3,94:1
