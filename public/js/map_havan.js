@@ -517,6 +517,65 @@ export function buildHavan(scene, T) {
     return deco(m, DECO_BATCH);
   }
   const addFloor = (w, d, x, z, mat, y = 0) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d), mat); m.rotation.x = -Math.PI / 2; m.position.set(x, y, z); m.receiveShadow = true; root.add(m); };
+
+  /* ===================== DECALQUE DE RUA (public/img/decals) =====================
+     Pedido do dono (04/08): aplicar os 179 recortes de `public/img/decals` "na textura de
+     todos mapas onde faz sentido ... e num tamanho MAIOR que os posters atuais".
+
+     ONDE FAZ SENTIDO NESTE MAPA, e por que só ali: a loja é um TEMPLO GRECO-ROMANO branco
+     com colunata, frontão e logo — é o marco de orientação do mapa inteiro (C23 da
+     BAR-CONSISTENCIA) e pichar a fachada apagaria justamente o que a torna reconhecível. O
+     que recebe tinta é o MURO DO ESTACIONAMENTO: 78 m de bloco de concreto de fundo de
+     estacionamento de loja de rodovia, que no Brasil é a superfície pichada por definição.
+     Loja limpa + muro pichado é a leitura certa; os dois pichados seria só ruído.
+
+     TETO DE ALTURA MEDIDO, não escolhido: o muro tem 3,00 m e a FAIXA AZUL HAVAN ocupa de
+     2,56 a 3,00 m, com o filete dourado em 2,48. Sobram 2,48 m de bloco livre — por isso o
+     decalque vai com base em 0,15 e 2,30 m de altura (topo em 2,45, 3 cm abaixo do filete).
+     Continua MAIOR que os 2,2 m dos cartazes do Piscinão, e a folga vem da LARGURA: as tags
+     deste pool são deitadas (aspecto 1,3-3,0), então a peça sai com 3 a 5,5 m de base.
+
+     REGRAS (cada uma com defeito real atrás):
+     1. `T.decals[i]` lido por ÍNDICE — getter memoizado (textures.js:696). Spread/`.map()`
+        acordaria os 179 PNG (7 MB) de uma vez.
+     2. `transparent: true` — sem isso o alpha vira retângulo preto no bloco.
+     3. PLANO, fora de `colliders` e de `occluders`: decalque com colisor vira parede
+        invisível (BUG-21, o ônibus da Brasília), e occluder sem colisor é o que a MAP4 mede.
+     4. 8 cm de afastamento da face + polygonOffset (o muro tem bumpMap; coplanar cintila).
+     5. Escolha determinística por posição — o `botsim` é determinístico.
+     Fora do pool: as 47 folhas de 'alfabeto' (letra fina e clara, some a 10 m) e os
+     recortes de olho/boca soltos (mancha abstrata quando ampliados). */
+  const D_TAG = [167, 168, 169, 170, 171, 172, 174, 175, 176, 177];
+  const D_MURAL = [157, 158, 159, 160, 161, 162, 163, 164, 156, 97, 166];
+  const _dmix = (n) => { let v = (n * 2654435761) >>> 0; v ^= v >>> 15; v = Math.imul(v, 2246822519) >>> 0; v ^= v >>> 13; v = Math.imul(v, 3266489917) >>> 0; return (v ^ (v >>> 16)) >>> 0; };
+  const _dmat = new Map(), _usados = [];
+  function decal(pool, x, y, z, ry, alt, larg = 99) {
+    if (!T.decals || !T.decalAspects || !T.decalAspects.length) return null;
+    const k = _dmix(_dmix(Math.round(x * 10) + 9973) + Math.round(z * 10) * 131 + 7);
+    let i = pool[k % pool.length];                       // anti-repetição a menos de 16 m:
+    for (let t = 0; t < pool.length; t++) {              // arte repetida perto lê como falha
+      const j = pool[(k + t) % pool.length];             // de asset, não como muro pichado
+      if (!_usados.some((u) => u.i === j && Math.hypot(u.x - x, u.z - z) < 16)) { i = j; break; }
+    }
+    _usados.push({ i, x, z });
+    let m = _dmat.get(i);
+    if (!m) {
+      m = new THREE.MeshStandardMaterial({
+        map: T.decals[i], transparent: true, alphaTest: 0.22, roughness: 0.95, metalness: 0,
+        polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4,
+      });
+      _dmat.set(i, m);
+    }
+    const a = T.decalAspects[i] || 1;
+    let h = alt, w = alt * a;
+    if (w > larg) { w = larg; h = larg / a; }             // encolhe inteiro; NUNCA estica
+    const q = new THREE.Mesh(new THREE.PlaneGeometry(w, h), m);
+    q.position.set(x, y + h / 2, z); q.rotation.y = ry; q.renderOrder = 2;
+    q.receiveShadow = true;                               // tinta escurece junto com o muro
+    q.name = 'decal:' + (T.decalFiles ? T.decalFiles[i] : i);
+    root.add(q);
+    return q;
+  }
   /* PROPS DA LOJA — lote separado, SEM sombra de sol.
      PORQUE: desde a r2 a laje do teto tem castShadow (foi o que criou a identidade de
      interior: dentro da loja só existe a fluorescente fria). Ou seja, TODO o piso da loja
@@ -1221,6 +1280,13 @@ export function buildHavan(scene, T) {
       addBox(1.08, 0.08, HALF_Z - SF, MAT.trim, sx * (HALF_X + 0.5), BY - 0.08, (wZ + SF) / 2, { collide: false, cast: false });
     }
   }
+  /* PICHAÇÃO NO MURO DO ESTACIONAMENTO — ver o bloco `decal` lá em cima pro porquê de ser
+     aqui e só aqui. Nos laterais as vagas caem no MEIO do vão entre pilaretes (eles ficam
+     em z = -2, 6, 14 … de 8 em 8 e avançam 0,35 m sobre o asfalto): peça centrada em cima
+     de um pilarete ficaria com um talho de concreto no meio da arte. */
+  for (const x of [-30, -17, -4, 11, 26]) decal(D_MURAL, x, 0.15, wZ - 0.58, Math.PI, 2.3, 5.5);
+  for (const z of [2, 18, 34, 50]) decal(D_TAG, -(HALF_X - 0.08), 0.15, z, Math.PI / 2, 2.3, 5.5);
+  for (const z of [10, 26, 42]) decal(D_TAG, HALF_X - 0.08, 0.15, z, -Math.PI / 2, 2.3, 5.5);
   // RITMO NO MURO (crítico: "paredão liso" — 64m de parede sem nenhuma quebra de massa):
   // pilaretes salientes a cada 8m + rufo de coroamento. Tudo collide:false: a caixa de
   // colisão do muro continua exatamente a mesma, só a silhueta melhora.
