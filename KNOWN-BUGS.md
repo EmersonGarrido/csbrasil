@@ -484,6 +484,82 @@ transplantada: 0,150 → 0,078 (critério era ≤ 0,10). Guarda: **invariante CH
 **Continua aberto:** a POSTURA encurvada (o personagem anda dobrado pra frente) é outro
 defeito, do retarget de clipe (C2 do handoff), e aparece igual antes e depois do reskin.
 
+#### BUG-25 · O balão CONTINUA na tela de seleção, e a régua do reskin é cega para ele
+
+**Sintoma (do dono, 04/08, depois do reskin):** *"os personagens dos funkeiros ainda estão
+balãozados na tela de seleção, alguns palhaços estão esquisitos ainda também. basicamente o
+mesmo erro de personagens"*.
+
+**O conserto CHEGOU.** Descartado com hash, não com fé:
+
+| verificação | resultado |
+|---|---|
+| último commit a tocar cada GLB dos 17 | `88144c4` (o próprio reskin) — nada sobrescreveu |
+| `git status public/models/characters/` | limpo |
+| `pose-inflate.mjs` rodado hoje | mediana dos 17 = **0,535**, idêntica à do commit |
+| disco × servido × `dist/` (md5, 7 arquivos) | **iguais nos três** |
+
+**A causa é outra, e está medida.** O que ele vê na tela de seleção NÃO é o que a
+`pose-inflate.mjs` mede, por três motivos independentes:
+
+1. **Clipe errado.** Ela roda `['walk','run','idle','crouchwalk']`. Quem carrega arma de uma
+   mão (deagle/pistol/revolver38 — `raul`, `padati`, `ostentacao`, `palhacomal`,
+   `cadequinha`…) usa **`idle1h`** na tela de seleção (`ctrl.oneHanded`,
+   `glbchars.js:404`), que a régua nunca abriu.
+2. **Pose que só existe em runtime.** Metade da deformação da tela é escrita **depois** do
+   mixer, em JS, e não está em clipe nenhum: o `solveCCDIK` da mão de apoio
+   (`glbchars.js:539` → `handik.js:30`, 8 iterações, **sem limite de junta**) e o
+   `rotation.x += curl` dos ossos de dedo (`glbchars.js:529-531`). O GLB no disco não
+   contém nada disso, então a régua do GLB não podia ver.
+3. **Percentil cego.** `ostentacao` em `idle` marca `esticP95 = 0,163` — o **5º melhor de
+   44** — e a imagem mostra os dois braços virados em asa de morcego. Só 2,9% das arestas
+   passam de 25%: um defeito que mora acima do P97 é invisível para um P95 **por
+   construção**. Prova de que é deformação e não malha: a mesma imagem em bind pose está
+   limpa (`ikab3/ostentacao-Z.png` × `-C.png`).
+
+**Régua nova: `tools/eval/select-inflate.mjs`.** Abre o jogo no Chromium, chama o MESMO
+`buildCharacterModel(def, { weaponId: charWeapon(id) })` da tela de seleção, assenta com o
+MESMO `ctrl.update(dt, 0, false, 0)` do loop do preview (`main.js:1527`) e mede a pele com
+`applyBoneTransform` — o que a GPU desenha. Percentis altos (P99/P99,9/máx) e um contador
+`ruins/1e4` (arestas que **dobraram** de tamanho por 10 mil), porque é lá que o defeito mora.
+
+Teto com procedência: o pior dos DOIS personagens que o dono elogia, medidos pela mesma
+régua no mesmo caminho, com 25% de folga — `pagodeiro` p99 0,609 / ruins 44,6 e `mandrake`
+0,540 / 24,9 → **p99 ≤ 0,761 e ruins/1e4 ≤ 55,8**.
+
+**Resultado — separação limpa, 16 × 0:**
+
+```
+REPROVADOS: 16/44   e são exatamente os 16 rigs transplantados (os 17 do reskin menos
+                    o pagodeiro, que é referência e passa)
+pior reprovado  padati     ruins/1e4 254,9   (4,6× o pagodeiro)
+melhor reprovado funkraiz  ruins/1e4  81,0
+pior aprovado   pagodeiro  ruins/1e4  44,6   <- folga de 1,8× entre os dois grupos
+0 dos 27 personagens rigados no Mint reprovam
+```
+
+**O que a régua nova REFUTOU, com número:**
+
+- **Não é o CCD IK.** `--mutate=semik` desliga o solver: os 11 transplantados com IK caem só
+  5-20% (`chave` 160→158, `oakley` 142,3→133,6, `adjim` 132,7→106,2) e **todos continuam
+  reprovados**. O CCD agrava, não causa. (Visualmente ele é escandaloso — o braço de apoio do
+  `fluxo` vira uma folha chata — mas na malha inteira ele é minoria.)
+- **Não é parâmetro do reskin.** Sweep medido pela régua nova em 4 personagens:
+  `SUAVIZA=8` tira 4-23%, `LOCAL=2` **piora** o `fluxo` (152→219), `MAX_R=0,14` não fecha.
+  Nada chega perto de 55,8. A pintura automática do transplante é o teto, não o ajuste.
+- **ARMADILHA: reskin NÃO é idempotente.** Repintar com os mesmos parâmetros piora o
+  `padati` de 254,9 para 286 (+12%). **Não rode `reskin-glb.mjs` de novo nos arquivos
+  commitados** achando que é inócuo.
+
+**Conclusão:** o que sobra é a qualidade do auto-skin do transplante
+(`tools/rig-from-donor.mjs`), que é 2-6× pior que um rig do Mint na malha inteira. Fechar
+isso é rig novo (Mint/Mixamo) para os 16, não mais um passe de parâmetro — e a memória do
+projeto já registra que rig de dedo de verdade exige sair do Meshy.
+
+**Régua:** `tools/eval/select-inflate.mjs` (16/44 vermelhos hoje). Morde:
+`--mutate=skin` devolve o off-by-one do `88144c4` e leva as duas referências ao vermelho
+(mandrake 24,9→97,7; pagodeiro 44,6→111). `--mutate=curl` leva o pagodeiro a 15,52 %>25.
+
 ### BUG-11 · VM18 / VM18b — a silhueta é um cano, não uma arma
 
 12 das 26 armas têm espessura perpendicular **abaixo do piso medido no CS 1.6** (shotgun 0,269 ·
