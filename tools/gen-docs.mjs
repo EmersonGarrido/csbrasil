@@ -450,9 +450,13 @@ const BLOCOS = {
   ].join('\n'),
 
   /* Quantas pessoas. */
+  /* De propósito SEM o total de commits: ele muda a cada commit e deixaria o `docs:check`
+     vermelho logo depois de todo commit — inclusive dos commits que só mexem em doc.
+     Vermelho que não corresponde a defeito ensina a ignorar vermelho. O que este bloco
+     publica é quem assina, que muda quando alguém novo aparece — que é o fato. */
   pessoas: (f) => [
-    `**${f.pessoas.humanos} pessoa${f.pessoas.humanos === 1 ? '' : 's'}** assinam commit neste repositório (${f.pessoas.nomes.map((n) => `\`${n}\``).join(', ')}), ` +
-    `mais ${num(f.pessoas.commitsDeAgente)} commits assinados por agentes de IA, de ${num(f.pessoas.total)} no total.`,
+    `**${f.pessoas.humanos} pessoa${f.pessoas.humanos === 1 ? '' : 's'}** assinam commit neste repositório: ` +
+    `${f.pessoas.nomes.map((n) => `\`${n}\``).join(', ')}. O resto dos commits é assinado por agentes de IA.`,
     rodape(f.pessoas.cmd),
   ].join('\n'),
 

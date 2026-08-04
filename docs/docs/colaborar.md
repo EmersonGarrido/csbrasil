@@ -14,7 +14,7 @@ O número abaixo não é retórica, e não é escrito à mão: sai de `git short
 
 {/* BEGIN:GERADO:pessoas — não edite à mão, rode `npm run docs` */}
 
-**3 pessoas** assinam commit neste repositório (`ruben-cytonic`, `Ruben`, `daltonfontes`), mais 10 commits assinados por agentes de IA, de 323 no total.
+**3 pessoas** assinam commit neste repositório: `ruben-cytonic`, `Ruben`, `daltonfontes`. O resto dos commits é assinado por agentes de IA.
 
 > Bloco gerado por `node tools/gen-docs.mjs`. Fonte: `git shortlog -sn --no-merges (descontando autores que são agentes)`
 
