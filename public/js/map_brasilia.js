@@ -1100,6 +1100,92 @@ export function buildBrasilia(scene, T) {
       addPlane(H * A, H, lam({ map: imgs[ti], side: THREE.DoubleSide }), fx, fy, cz, lane > 0 ? Math.PI / 2 : -Math.PI / 2);
     };
     ministries.forEach((b, i) => putPoster(b, laneOrder[i] ?? i));
+
+    /* ---------------- DECALQUE DE RUA nas fachadas dos ministérios ----------------
+       Pedido do dono (04/08): aplicar os 179 recortes de `public/img/decals` "na textura de
+       todos mapas onde faz sentido: laterais de prédios ... e num tamanho MAIOR que os
+       posters atuais para serem bem visíveis".
+
+       POR QUE AQUI FAZ SENTIDO E NOS MONUMENTOS NÃO: este mapa já é o 8 de janeiro — tem
+       acampamento de barraca, barricada de pneu e cartaz de protesto colado na fachada. Bloco
+       de ministério pichado é a continuação literal dessa cena. Planalto, STF, Congresso e
+       Catedral NÃO recebem nada: são os quatro marcos que orientam o mapa inteiro (C23 da
+       BAR-CONSISTENCIA — "um marco por área, e ele não se repete"), e cobrir a silhueta deles
+       destrói justamente a leitura que faz a Esplanada ser reconhecível de qualquer ponto.
+
+       VAI NA EMPENA (as duas faces CURTAS, ±z), e não na fachada da lane. A 1ª versão colou
+       na face longa e a captura mostrou o defeito na hora: aquela face é feita de 6 FITAS DE
+       VIDRO FUMÊ separadas por testeiras brancas de 15 cm, então a peça inteira cai em cima
+       de janela — grafite em vidro não existe e lê como adesivo flutuando. A empena é o
+       oposto: ~11 m de concreto branco liso e 22 m de altura, sem uma abertura, virada para a
+       travessa entre um bloco e o outro. É a parede cega do prédio, que é exatamente onde
+       grafite grande mora na cidade real.
+
+       ALTURA: até 5,0 m de peça começando em 5,2 m — logo acima do piloti, que é vazado e onde
+       ninguém pinta. Bem maior que os 2,2 m dos cartazes do Piscinão, que é a régua de tamanho
+       que o dono deu; aqui os cartazes de protesto locais são de 5,6 m e ficam no CENTRO da
+       fachada da lane, então as duas famílias não competem pela mesma parede.
+
+       O QUE FOI TENTADO E MEDIDO COMO RUIM: uma faixa de pixação na testeira da laje do piloti
+       (0,90 m de altura entre 3,90 e 4,80 m, a única alvenaria cega da fachada da lane). A
+       captura mostrou o motivo de sair: a 24 m — que é a largura da lane, ou seja, a distância
+       NORMAL de quem olha pro bloco — a peça fica com ~25 px de altura na tela. É exatamente o
+       "detalhe invisível a 10 m" que a BAR §2.1 chama de ruído: custa GPU e não entrega nada.
+
+       REGRAS (cada uma com defeito real atrás): `T.decals[i]` lido por ÍNDICE — é getter
+       memoizado (textures.js:696) e spread acordaria os 179 PNG (7 MB) de uma vez;
+       `transparent: true`, senão o alpha vira retângulo preto na fachada; `addPlane`, que NÃO
+       empurra collider nem occluder — decalque com colisor vira parede invisível, que foi o
+       BUG-21 do ônibus DESTE mapa (2,33 m de parede fantasma); 0,35 m de afastamento, o mesmo
+       do cartaz, pra não brigar em z com as fitas de vidro fumê; e escolha determinística por
+       posição, porque o `botsim` é determinístico e mapa que muda a cada carregamento é
+       defeito. Fora do pool: as 47 folhas de 'alfabeto' (letra fina e clara, some a 10 m —
+       BAR §2.1) e os recortes de olho/boca soltos (viram mancha abstrata ampliados). */
+    const D_MURAL = [157, 158, 159, 160, 161, 162, 163, 164, 156, 97, 166];
+    const _dmix = (n) => { let v = (n * 2654435761) >>> 0; v ^= v >>> 15; v = Math.imul(v, 2246822519) >>> 0; v ^= v >>> 13; v = Math.imul(v, 3266489917) >>> 0; return (v ^ (v >>> 16)) >>> 0; };
+    const _dmat = new Map(), _usados = [];
+    const decal = (x, y0, z, ry, alt, larg) => {
+      if (!T.decals || !T.decalAspects || !T.decalAspects.length) return null;
+      const k = _dmix(_dmix(Math.round(x * 10) + 9973) + Math.round(z * 10) * 131 + 7);
+      let i = D_MURAL[k % D_MURAL.length];        // anti-repetição: arte repetida a menos de
+      for (let t = 0; t < D_MURAL.length; t++) {  // 30 m em fachada de bloco lê como falha de
+        const j = D_MURAL[(k + t) % D_MURAL.length];   // asset, não como cidade pichada
+        if (!_usados.some((u) => u.i === j && Math.hypot(u.x - x, u.z - z) < 30)) { i = j; break; }
+      }
+      _usados.push({ i, x, z });
+      let m = _dmat.get(i);
+      if (!m) {
+        /* MeshStandardMaterial direto, NÃO o `lam` daqui: o `lam` roda `detailFor(map)`, que
+           deriva normal/roughness do albedo por Sobel — num PNG com alpha isso gera relevo a
+           partir do RECORTE, e a peça ganha um contorno em baixo-relevo que não existe na
+           arte. Tinta é lisa; quem tem relevo é a parede. */
+        m = new THREE.MeshStandardMaterial({
+          map: T.decals[i], transparent: true, alphaTest: 0.22, roughness: 0.95, metalness: 0,
+          polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4,
+        });
+        _dmat.set(i, m);
+      }
+      const a = T.decalAspects[i] || 1;
+      let h = alt, w = alt * a;
+      if (w > larg) { w = larg; h = larg / a; }   // encolhe inteiro; NUNCA estica
+      const q = addPlane(w, h, m, x, y0 + h / 2, z, ry);
+      q.renderOrder = 2;
+      q.name = 'decal:' + (T.decalFiles ? T.decalFiles[i] : i);
+      return q;
+    };
+    for (const b of ministries) {
+      if (!b) continue;
+      const bb = new THREE.Box3().setFromObject(b);
+      const cx = (bb.min.x + bb.max.x) / 2, w = bb.max.x - bb.min.x;
+      /* DUAS peças lado a lado por empena (norte com ry = π, sul com ry = 0). A empena tem
+         ~11 m: uma peça só com `larg = 0,8 · w` toma a parede inteira e vira fachada pintada,
+         que não é grafite — é publicidade. Duas de 0,44 · w deixam respiro entre elas e entre
+         cada uma e a quina, que é como muro bombardeado de verdade se distribui. */
+      for (const s of [-1, 1]) {
+        decal(cx + s * w * 0.24, BIG ? 5.2 : 0.6, bb.min.z - 0.35, Math.PI, BIG ? 5.0 : 2.8, w * 0.44);
+        decal(cx + s * w * 0.24, BIG ? 5.2 : 0.6, bb.max.z + 0.35, 0, BIG ? 5.0 : 2.8, w * 0.44);
+      }
+    }
   }
 
   /* ---------------- gameplay cover: props do 8 de janeiro ---------------- */
