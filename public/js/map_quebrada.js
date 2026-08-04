@@ -463,6 +463,51 @@ export function buildQuebrada(scene, T) {
     addBox(0.5, 2.6, 0.5, lam({ map: placaTex('8022', '#1c4f8a', '#f4ecd6'), roughness: 0.8 }), -8.2, 0, -1.4);   // totem da linha
   }
 
+  /* ===================== BARRICADAS =====================
+     "barricadas na rua". Elas não são enfeite nem só tema: uma rua reta de 44 m com 14 m de
+     largura é uma linha de tiro contínua, e o que quebra linha de tiro sem fechar passagem é
+     obstáculo ALTERNADO — barricada encostada num lado, a próxima no outro, formando chicane.
+     Assim o corredor continua andável de ponta a ponta (a CTF2 precisa dele) mas ninguém
+     enxerga da praça até o campinho de uma vez só.
+     As peças ficam ALINHADAS AOS EIXOS pela mesma razão do ônibus: AABB alinhada é exata e a
+     girada precisaria de `colRot` (o motor não tem collider rotacionado — BUG-21). Quando o
+     ângulo importa pra leitura, é a MALHA que gira e o `colRot` acompanha. */
+  const MAT_MADEIRA = lam({ color: 0x8a6a44, roughness: 0.95 });
+  const MAT_TAMBOR = lam({ color: 0xb4542a, roughness: 0.85, metalness: 0.3 });
+  function barricada(cx, cz, larg, ry) {
+    if (ry) {
+      occ(addBox(larg, 1.05, 0.7, MAT_MADEIRA, cx, 0, cz, { ry, collide: false }));
+      colRot(cx, cz, larg, 0.7, 0, 1.05, ry, 4, 2);
+    } else addBox(larg, 1.05, 0.7, MAT_MADEIRA, cx, 0, cz);
+    for (let i = 0; i < 3; i++) {
+      const tx = cx - larg / 2 + 0.5 + i * (larg - 1) / 2;
+      if (!gprop('tires', tx, cz + 1.0, 0.72)) addBox(1.1, 0.72, 1.1, MAT_PNEU, tx, 0, cz + 1.0);
+    }
+    addBox(0.62, 0.92, 0.62, MAT_TAMBOR, cx + larg / 2 + 0.6, 0, cz);
+  }
+  barricada(-4.2, -14.0, 5.0, 0.22);     // encosta no lado oeste
+  barricada(4.6, -2.5, 4.6, -0.18);      // devolve pro leste
+  barricada(-3.6, 9.0, 4.4, 0.15);
+  barricada(4.0, 18.5, 5.2, -0.24);
+  /* CACAMBA, ENTULHO E VARAL nas vielas e becos. As vielas são corredores de 4 m: sem nada
+     dentro elas viram tubos, e o quadrante inteiro aparece DESERTO na MAP5 (o teto é
+     espaçamento médio ≤ 7,0 m entre peças de cobertura, = duas arestas do grafo de 3,4 m). */
+  const MAT_CACAMBA = lam({ color: 0x5e6a52, roughness: 0.85, metalness: 0.25 });
+  for (const [cx, cz] of [[-23, -30], [-23, -6], [-23, 12], [23, -26], [23, 2], [23, 20]])
+    if (!gprop('dumpster', cx, cz, 1.35)) addBox(1.9, 1.35, 2.6, MAT_CACAMBA, cx, 0, cz);
+  for (const [cx, cz] of [[-22.4, -18], [-23.6, 3], [-22.6, 22], [22.4, -12], [23.6, 10], [22.5, -34]])
+    addBox(1.0, 1.0, 1.0, MAT_BARRACO[5], cx, 0, cz);   // pilha de tijolo/sacaria
+  for (const [bx, bz] of [[-16.6, -10.5], [-16.6, 2.5], [-16.6, 16.5], [16.6, -3.5], [16.6, 10.5], [16.6, 20.5]])
+    addBox(1.15, 1.15, 1.15, MAT_BARRACO[1], bx, 0, bz);   // entulho no miolo de cada beco
+  // varais entre os barracos — só silhueta, a 2,6 m e sem colisor
+  const MAT_ROUPA = new THREE.MeshStandardMaterial({ color: 0xd7cfc0, roughness: 0.95, side: THREE.DoubleSide });
+  for (const [vx, vz] of [[-23, -22], [-23, 8], [23, -18], [23, 14], [-16.6, 6], [16.6, 15]])
+    for (let i = 0; i < 4; i++) addBox(0.5, 0.62, 0.03, MAT_ROUPA, vx - 0.9 + i * 0.6, 2.0, vz, { collide: false, cast: false });
+  // camelô e caçamba na praça (o largo é grande: sem peça no meio ele vira arena de sniper)
+  for (const [sx2, sz2, ry2] of [[-9.4, -24.5, 0.3], [9.6, -25.5, -0.4], [-9.8, -39, 0.5], [9.4, -38.5, -0.5]])
+    if (!gprop('tent', sx2, sz2, 2.4, ry2)) { occ(addBox(3.0, 2.4, 2.4, MAT_BARRACO[2], sx2, 0, sz2, { ry: ry2, collide: false })); colRot(sx2, sz2, 3.0, 2.4, 0, 2.4, ry2, 3, 2); }
+  if (!gprop('kombi', -7.5, -21.5, 2.0, 0.1)) addBox(2.0, 2.0, 4.6, MAT_BARRACO[6], -7.5, 0, -21.5);
+
   // ===== ground height: o mapa é PLANO (nenhum degrau, nenhum mezanino) =====
   const groundHeightAt = () => 0;
 
