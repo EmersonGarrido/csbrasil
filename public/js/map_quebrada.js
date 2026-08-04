@@ -115,6 +115,53 @@ export function buildQuebrada(scene, T) {
   // chão base: terra/laje batida sob tudo (a rua, a praça e o campinho pintam por cima)
   addFloor(HALF_X * 2, HALF_Z * 2, 0, 0, MAT.dirt, -0.01);
 
+  /* ===================== BARRACO — a unidade construtiva do mapa =====================
+     O dono pediu "as casas seriam de barraco a maioria". Barraco é caixa e plano: laje
+     inacabada, 2º pavimento MENOR e deslocado (a silhueta em escada que faz uma favela ler
+     como favela), caixa d'água em cima.
+     DUAS DECISÕES DE COLISÃO, cada uma com o número que a justifica:
+     (a) o módulo é SÓLIDO (uma caixa, um colisor) e não uma casca de 4 paredes. Nenhum
+         interior é acessível neste mapa, então casca só multiplicaria colisor — e a lista de
+         colisores é caminho quente (`_collide` varre TODOS a cada passo do jogador, do bot e
+         de cada célula do flood-fill das réguas: ~85 mil células por mapa).
+     (b) o módulo tem no MÁXIMO ~6 m de frente, então a pegada fica ≤ 8,5 × 6 = 51 m², abaixo
+         do teto de 60 m² com que a MAP5 distingue "peça de cobertura" de "estrutura". Um
+         quarteirão inteiro numa caixa só sairia da conta de densidade e o quadrante
+         apareceria DESERTO tendo prédio em cima — régua mentindo por causa da geometria.
+     A laje e o 2º pavimento ficam com colisor (minY ≥ 2,7 m, acima do 1,5 m que o `_collide`
+     testa: não bloqueiam o andar) porque colisor é o que a BALA usa — laje sem colisor é
+     telhado que o tiro atravessa. */
+  const CORES_BARRACO = [0xb9ab96, 0x9d7f63, 0xa8b4ad, 0xc4b58c, 0x8e8378, 0xb08a76, 0x9aa7b0, 0xc9c0ae];
+  const MAT_BARRACO = CORES_BARRACO.map((c) => lam({ map: T.concrete, color: c, roughness: 0.97 }));
+  const MAT_LAJE = lam({ map: T.concreteDark, color: 0xa39c90, roughness: 0.95 });
+  const MAT_CXDAGUA = lam({ color: 0x2f5fa0, roughness: 0.5 });
+  // hash de avalanche (mesma razão do ferro velho: `i % n` com passo divisível cai sempre no
+  // mesmo balde e o quarteirão inteiro sai da MESMA cor/altura — o "chapado" do BAR §4.4)
+  const mix32 = (n) => { let v = (n * 2654435761) >>> 0; v ^= v >>> 15; v = Math.imul(v, 2246822519) >>> 0; v ^= v >>> 13; v = Math.imul(v, 3266489917) >>> 0; return (v ^ (v >>> 16)) >>> 0; };
+  let _bi = 0;
+  function barraco(x0, x1, z0, z1, o = {}) {
+    const w = x1 - x0, d = z1 - z0, cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
+    const k = mix32(++_bi + (o.seed || 0));
+    const h = o.h || (2.7 + (k % 5) * 0.42);
+    solids.push({ x0, x1, z0, z1 });
+    addBox(w, h, d, o.mat || MAT_BARRACO[k % MAT_BARRACO.length], cx, 0, cz);
+    addBox(w + 0.44, 0.18, d + 0.44, MAT_LAJE, cx, h, cz);                       // laje com beiral
+    if (o.up !== false && (k >> 3) % 3 !== 0) {                                   // 2º pavimento parcial
+      const uh = 2.3 + ((k >> 5) % 4) * 0.3, uw = w * 0.68, ud = d * 0.74;
+      const ox = ((k >> 7) % 3 - 1) * (w - uw) * 0.4, oz = ((k >> 9) % 3 - 1) * (d - ud) * 0.4;
+      addBox(uw, uh, ud, MAT_BARRACO[(k >> 11) % MAT_BARRACO.length], cx + ox, h + 0.18, cz + oz);
+      addBox(uw + 0.36, 0.16, ud + 0.36, MAT_LAJE, cx + ox, h + 0.18 + uh, cz + oz);
+      if ((k >> 13) % 2) addBox(1.0, 1.0, 1.0, MAT_CXDAGUA, cx + ox + uw * 0.28, h + 0.34 + uh, cz + oz, { collide: false });
+    } else if ((k >> 4) % 2) addBox(1.0, 1.0, 1.0, MAT_CXDAGUA, cx + w * 0.25, h + 0.18, cz, { collide: false });
+    return { cx, cz, h, w, d };
+  }
+  /* QUARTEIRÃO: fatia um lote comprido em módulos de ~5,6 m. É o que impede o "mesmo módulo
+     repetido" e o que mantém cada pegada abaixo do teto de 60 m² da MAP5. */
+  function quarteirao(x0, x1, z0, z1, seed = 0) {
+    const L = z1 - z0, n = Math.max(1, Math.round(L / 5.6));
+    for (let i = 0; i < n; i++) barraco(x0, x1, z0 + L * i / n, z0 + L * (i + 1) / n, { seed: seed + i * 17 });
+  }
+
   /* ===================== A RUA =====================
      14 m de asfalto (x ∈ [-7,7]) e calçadas de 5,5 m (x ∈ [∓12,5, ∓7]) de z = -20 (boca da
      praça) a z = 24 (travessa do campinho). A calçada é LARGA de propósito: é onde cabem a
