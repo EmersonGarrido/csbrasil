@@ -325,7 +325,7 @@ function snapThumb(obj) {
   p.r.render(p.scene, thumbCam());
   const c = document.createElement('canvas'); c.width = c.height = THUMB_PX;
   const x = c.getContext('2d');
-  x.fillStyle = '#101a21';              // = var(--bg-700): a miniatura já nasce composta
+  x.fillStyle = '#1c1812';              // = var(--bg-700): a miniatura já nasce composta
   x.fillRect(0, 0, THUMB_PX, THUMB_PX);
   x.drawImage(p.r.domElement, 0, 0, THUMB_PX, THUMB_PX);   // backing 640² -> 128²: downscale = antialias de graça
   p.scene.remove(obj);
