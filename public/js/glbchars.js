@@ -68,6 +68,25 @@ if (qp.get('feet') !== '0') {
 }
 export function footOffset(id, pose) { return (_footOff && _footOff[id] && _footOff[id][pose]) || 0; }
 
+/* ÍNDICE DE CLIPES POR PERSONAGEM (models/anims/index.json, gerado por `npm run anims`).
+   MEDIDO: sem ele o preload pedia os 11 clipes de TODO personagem, e 8 dos 44 (os 8
+   palhaços) nunca tiveram pasta — **88 requisições 404 por carregamento de partida**.
+   O `catch` vazio abaixo engolia tudo, então o jogo funcionava e o console mentia: com
+   88 erros por partida, qualquer exceção de verdade ficava enterrada, e foi assim que o
+   dono viu "vários erros no console" enquanto caçávamos um reinício.
+   Página estática não lista diretório: quem sabe o que existe é o build (mesmo desenho
+   do `audio/manifest.json` e do `foot-offsets.json`).
+   Falha do fetch = `null` = comportamento antigo (pede tudo). Nunca quebra. */
+let _animIdxP = null;
+function animIndex() {
+  if (!_animIdxP) {
+    _animIdxP = fetch(`models/anims/index.json?v=${VERSION}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .catch(() => null);
+  }
+  return _animIdxP;
+}
+
 const ANIM_DIR = qp.get('animdir') || 'models/anims/mixamo';   // pack Mixamo rifle (retarget próprio, tools/retarget-mixamo.mjs) — padrão desde 22/07; override via ?animdir=
 const TARGET_HEIGHT = parseFloat(qp.get('charh')) || 1.72;      // meters (match box silhouette)
 // Per-clip natural ground speed (m/s) that plants the feet at timeScale 1, MEASURED from
@@ -272,7 +291,12 @@ export async function preloadCharacterAssets(ids) {
     // deformava quem divergia (doutora agachada, dollynho dobrado). Aqui cada char usa
     // seus próprios clipes; qualquer estado ausente cai no pack compartilhado (_clips).
     const set = { ..._clips };
+    // GUARDA DE DISPONIBILIDADE — ver o comentário do animIndex(). `disponiveis === null`
+    // (manifesto ausente ou fetch falhou) mantém o comportamento antigo: pede tudo.
+    const _idx = await animIndex();
+    const disponiveis = _idx && _idx.clipes ? (_idx.clipes[id] || []) : null;
     await Promise.all([...STATES, ...OPT_STATES].map(async (s) => {
+      if (disponiveis && !disponiveis.includes(s)) return;   // não pede o que o build sabe que não existe
       try {
         const g = await loadGLB(`models/anims/${id}/${s}.glb?v=${VERSION}`);
         if (g.animations[0]) { g.animations[0].name = s; set[s] = g.animations[0]; }

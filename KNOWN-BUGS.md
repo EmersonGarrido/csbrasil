@@ -27,6 +27,141 @@ lista de "balão" do CHR1 tem os mesmos 13 antes e depois).
 
 ## P0 — quebram o jogo ou mentem para quem mede
 
+### ~~BUG-29 · "o jogo tá reiniciando do nada, estava num CTF no ferro velho do Zé"~~ · RESOLVIDO 05/08
+
+**NÃO era o BUG-00 de volta.** O menu de pausa continua consertado: `pause-check.mjs`
+passa 6/6 e a `PAUSA5` (nenhum caminho automático pro menu) segue verde. É defeito novo,
+e é **do modo CAPTURA**.
+
+**Causa raiz — confirmada.** O bloco de doutrina do modo (`game.js:84-104`) declara que
+*"a RODADA fecha por ALVO DE CAPTURAS (`CTF_CAPS_TO_WIN`) ou por dominação — **nunca por
+tempo**"*, e chama `CTF_MATCH_TIME` (480 s) de **rede de segurança**. Mas quem implementava
+"fecha por alvo de capturas" morava dentro do `_checkPace()`, que abre com
+`if (!PACE || …) return` — e `PACE = QS.get('pace') === '1'`, **desligado por padrão**.
+O `_updatePlayer` ainda o chamava sob `if (PACE)`.
+
+Ou seja: **numa partida normal de CAPTURA a condição de vitória declarada nunca era
+avaliada.** A rodada 1 não fechava nunca, e a partida inteira morria de uma vez quando
+`ctfMatchLeft` zerava — `_endRound()` e `_endMatch()` no mesmo frame, sem cronômetro na
+tela (o relógio só materializa nos últimos `CTF_CLOCK_SHOW` = 60 s). Do lado do jogador:
+você está no meio do tiroteio e a partida evapora.
+
+**Medido no navegador antes do conserto** (`tools/eval/crash-watch.mjs`, CTF
+`fy_ferrovelho`): o time B chegou a **3 capturas — o alvo** — e a rodada 1 seguiu correndo.
+
+**Medido no motor** (`tools/eval/ctf-round-check.mjs`, semente 4242, `fy_ferrovelho`):
+
+| | 1º fecho de rodada | fim da partida |
+|---|---|---|
+| **antes** (`--mutante=pace`) | **NUNCA** (488 s com capturas chegando) | 487,5 s, tudo de uma vez |
+| depois | **29,1 s**, por objetivo | 79,6 s, por vitórias de rodada |
+
+**Correção:** o alvo de bandeiras saiu do `_checkPace()` e virou `_checkCtfAlvo()`,
+chamado **sem gate**. O modo de ABATE continua sob `PACE` de propósito — lá o alvo por
+abates é experimento e o round já fecha pelo relógio de 99 s; no CAPTURA não existe
+relógio de round, então o alvo não é ritmo, é a **única** condição de vitória.
+
+**Régua: `tools/eval/ctf-round-check.mjs`** (`npm run eval:ctfround`, no `check:fast`).
+3 cláusulas, 2 mutações medidas: `--mutante=pace` reproduz o defeito exato do dono
+(1º fecho NUNCA / partida evapora aos 487 s) e `--mutante=semteto` acende a CTF-R3.
+A CTF-R2 **anda o motor** em vez de ler a declaração — a UI4 não pegava isto porque ela
+cobra que a *partida* feche, e ela fechava, pela rede de segurança.
+
+### ~~BUG-30 · "a vida do 1st player volta a 100, não sei porque, isso não pode"~~ · RESOLVIDO 05/08
+
+**NÃO É BUG, e não é regra mal aplicada ao modo** — é a regra `REGEN` (`game.js`)
+funcionando como escrita, e ela dispara **igual** em rodadas e em CAPTURA. Não vem do
+`_resetPositions`, nem do respawn, nem do fim de rodada do CTF: é regeneração fora de
+combate, estilo CoD, **6 s sem tomar dano e 22 HP/s**, ligada por padrão desde 31/07 (num
+commit grande, sem entrada no CHANGELOG).
+
+**Reproduzida no navegador** (`tools/eval/crash-watch.mjs`, CTF `fy_ferrovelho`, amostra
+de 2 em 2 s), com o jogador **vivo**, sem respawn e sem rodada nova:
+
+```
+t 25,7 s   hp  68   (hurtAt 22,1)
+t 30,3 s   hp 100   (hurtAt 22,1)
+```
+
+**O defeito de verdade é que ela é invisível.** O dono disse *"não sei porque"* — não há
+ícone, som, vinheta nem linha nas configurações. Regra que o jogador não percebe é
+indistinguível de defeito.
+
+**Decisão:** o padrão **inverteu** (`REGEN = QS.get('regen') === '1'`). O veto do dono
+manda, e a regra continua religável por `?regen=1` — inteira, com a simetria
+jogador↔bot que o desenho exige.
+
+**Custo declarado, medido** (`botsim 300 all`, os 5 mapas): sem regeneração o bot morre
+antes, então a simulação anda. latFlips/min 9,647 → 10,014 · fwdFlips/min 7,353 → 7,081 ·
+stuck% 2,100 → 2,155 · eff 0,041 → 0,036.
+
+**O que volta a doer, e quem religar tem que resolver junto:** sem cura, kit ou colete,
+cada vida depois do primeiro contato já estava perdida (um tiro de bot deixa em ~40 e o
+próximo mata). Foi esse problema real que a `REGEN` veio resolver. Religar por padrão sem
+entregar o feedback que falta é repetir o mesmo erro.
+
+**Régua: `tools/eval/regen-check.mjs`** (`npm run eval:regen`, no `check:fast`).
+3 cláusulas, 2 mutações medidas: `--mutante=ligado` devolve **40 → 100 hp** (o número que
+o dono reportou) e `--mutante=semkill` acende a REGEN3. A REGEN2 **anda o motor** — 20 s
+parado com o `_damage` congelado — em vez de ler a constante.
+
+### ~~BUG-31 · 88 requisições 404 por partida escondendo qualquer erro de verdade~~ · RESOLVIDO 05/08
+
+**Sintoma (do dono):** *"vários erros no console"*, junto com o BUG-29.
+
+**Medido** (`tools/eval/crash-watch.mjs`, CTF `fy_ferrovelho`, 420 s): **88 `error` de
+console, todos 404**, e **zero** `pageerror` / `unhandledrejection`. Todos em
+`models/anims/<id>/<clipe>.glb`, dos **8 palhaços** (`adjim, cadequinha, esbirro, jozo,
+padata, padati, palhacomal, titica`) — os únicos 8 dos 44 sem pasta de clipe. 8 × 11 = 88.
+O `catch` vazio de `glbchars.js` engolia tudo, então o jogo funcionava e o console mentia.
+
+**Duas saídas; a primeira foi MEDIDA E DESCARTADA.** `plans/02-BOTS-E-MODELS.md:285`
+previa "B7: rodar `retarget-glb.mjs` para os Palhaços". Rodado — e o retarget é um
+**no-op** para essa família:
+
+| desvio angular do clipe retargetado × pack compartilhado (walk, máx por osso) | |
+|---|---|
+| palhacomal / raul / mst (rig do doador `mst`) | **0,13°** · médio **0,03°** |
+| doutora / ancap (rig Meshy próprio) | 170,89° / 168,01° · médio 37,42° / 40,76° |
+
+E `pose-inflate.mjs palhacomal` dá **0,689 / 17,4 %** com pasta e **0,689 / 17,4 %** sem
+pasta. Os 8 palhaços foram auto-skinnados a partir do esqueleto do `mst`
+(`tools/rig-from-donor.mjs`), que é o mesmo contra o qual o pack compartilhado foi assado:
+re-assar não move um vértice. Gerar 88 GLB (~3,6 MB) para não mudar nada é peso morto
+contra o teto de 250 MB da CrazyGames. **O "palhaço esquisito" é a qualidade do auto-skin
+(BUG-10/BUG-25, exige rig novo), não a origem do clipe.**
+
+**Correção — manifesto:** `public/models/anims/index.json`, gerado por
+`tools/gen-anim-manifest.mjs` (`npm run anims`), lido pelo `glbchars.js` **antes** de
+pedir o clipe. Mesmo desenho do `audio/manifest.json` e do `foot-offsets.json`; página
+estática não lista diretório, quem sabe o que existe é o build. Manifesto ausente ou
+fetch falhando = comportamento antigo (pede tudo): nunca quebra.
+
+**Medido depois:** 420 s → 120 s de CTF no mesmo mapa, **88 erros de console → 0**
+(sobram 4 avisos benignos: 2 de perf do WebGL e 2 de extensão glTF desconhecida).
+
+**E o tool `retarget-glb.mjs` estava quebrado — foi por isso que os palhaços nunca tiveram
+clipe.** `[...TG.values()].filter(x => !x.parent)[0]` pegava a **primeira** raiz do glTF.
+Nos 8 GLB de palhaço existem **duas** raízes e o nó da malha (`"Spiked Ringmaster Clown"`,
+0 filhos) vem antes de `"Armature"`: a varredura andava só pelo nó da malha, `mappedTgt`
+saía com **0 ossos**, e o tool gravava 11 clipes **sem uma única track** imprimindo
+"RETARGET-GLB COMPLETO". Nos 36 personagens de raiz única o acaso acertava. Corrigido: a
+raiz passou a ser o ancestral do `Hips`, e menos de 8 ossos mapeados agora **falha alto**.
+
+**E 100 clipes estavam no disco mas não no git.** Achado pela cláusula A4 da régua nova:
+10 personagens (`chave, criarj, fluxo, funkraiz, mandrake, oakley, ostentacao, pagodeiro,
+raul, trapfunk`) tinham **1 de 11** clipes versionados — só o `idle1h.glb`. Num clone
+limpo ou no deploy isso são **mais 100 requisições 404** e 10 personagens caindo no pack
+compartilhado sem ninguém saber; o manifesto gerado do disco local prometeria arquivos que
+a produção não tem. Os 100 foram versionados (4,5 MB). É o C3 do HANDOFF, agora com número.
+
+**Régua: `tools/gen-anim-manifest.mjs --check`** (`npm run anims:check`, no `check:fast`).
+4 cláusulas, **5 mutações medidas**: `sobrando` e `faltando` acendem A1/A2, `semguarda` e
+`semfetch` acendem a A3 (que confere que o **jogo consulta** o manifesto antes de pedir —
+sem ela o manifesto podia ficar perfeito e os 88 404 continuarem), `semgit` acende a A4.
+
+---
+
 ### ~~BUG-00 · "o jogo reiniciou sozinho e foi pro menu principal"~~ · RESOLVIDO 04/08
 
 **Sintoma (do dono, cinco ocorrências):** *"pela quinta vez o jogo reiniciou sozinho, eu

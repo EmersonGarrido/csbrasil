@@ -280,7 +280,27 @@ const RACK_RETA = QS.get('rackreta') === '1';
 // primeiro contato já estava perdida (um tiro de bot deixa em ~40 e o próximo mata, faça o
 // que fizer). Como aqui o respawn é contínuo e não há economia, o modelo é o do CoD: X s sem
 // tomar dano e o HP volta. Vale pra jogador E bots (simetria). ?regen=0 desliga.
-const REGEN = QS.get('regen') !== '0', REGEN_DELAY = 6, REGEN_RATE = 22;
+/* VETADO PELO DONO EM 05/08, E POR ISSO O PADRÃO INVERTEU (`?regen=1` traz de volta).
+   Palavras dele: *"a vida do 1st player volta a 100, não sei porque, ISSO NÃO PODE."*
+
+   NÃO É BUG — é esta regra, funcionando como escrita, e ela NÃO é específica de modo:
+   dispara igual em rodadas e em CAPTURA. Reproduzida no navegador
+   (`tools/eval/crash-watch.mjs`, CTF fy_ferrovelho, amostra de 2 em 2 s):
+
+     t 25,7 s  hp 68   (hurtAt 22,1)
+     t 30,3 s  hp 100  (hurtAt 22,1)   <- sem morrer, sem respawn, sem rodada nova
+
+   6 s sem tomar dano e 22 HP/s devolvem a vida cheia em ~1,5-3 s. O jogador não tem
+   como saber que existe: não há ícone, som, vinheta nem linha de configuração — e regra
+   que o jogador não percebe é indistinguível de defeito. Foi assim que ela chegou (num
+   commit grande de 31/07, sem entrada no CHANGELOG) e é assim que o dono a encontrou.
+
+   O QUE ELA RESOLVIA, e que volta a doer com ela desligada: sem cura, kit ou colete,
+   cada vida depois do primeiro contato já estava perdida (um tiro de bot deixa em ~40 e
+   o próximo mata). Quem religar por padrão precisa entregar JUNTO o feedback que falta.
+   A simetria é parte do desenho: vale pra jogador E bots — meia regeneração faria o bot
+   virar esponja. Régua: invariante REGEN de `tools/eval/regen-check.mjs`. */
+const REGEN = QS.get('regen') === '1', REGEN_DELAY = 6, REGEN_RATE = 22;
 const TEAM_LABEL = { P: 'PETISTAS', B: 'BOLSONARISTAS' };
 const RADIO = {
   z: { title: 'COMANDOS', items: ['Bora, bora, bora!', 'Cobre eu!', 'Recua, recua!'] },
@@ -2344,25 +2364,48 @@ export class Game {
      cada frame a partir do _updatePlayer (o update() principal não é desta região de edição;
      zerar timeLeft deixa o fluxo de fim de round existente fazer o resto, sem duplicar
      caminho). Também emite o MATCH POINT a 2 abates do fim: é o pico que o round não tinha. */
+  /* ALVO DE CAPTURAS — FORA DO GATE DE PACE, e é POR ISSO que ele é uma função separada.
+     ═══════════════════════════════════════════════════════════════════════════════════
+     CAUSA RAIZ de *"o jogo tá reiniciando do nada, estava num CTF no ferro velho do Zé"*.
+
+     O bloco de doutrina do modo (game.js:84-104) declara que "a RODADA fecha por ALVO DE
+     CAPTURAS (CTF_CAPS_TO_WIN) ou por dominação — NUNCA por tempo", e chama o
+     CTF_MATCH_TIME de **rede de segurança**. Mas esta verificação morava dentro do
+     `_checkPace()`, que abre com `if (!PACE ...) return` — e `PACE` é `?pace=1`,
+     DESLIGADO por padrão. O `_updatePlayer` ainda chamava tudo sob `if (PACE)`.
+
+     Consequência medida numa partida normal de CAPTURA (crash-watch, fy_ferrovelho):
+     o time B chegou a 3 capturas — o alvo — e a rodada 1 seguiu correndo. A rodada
+     NUNCA fechava. O único fim possível era `ctfMatchLeft <= 0` aos 480 s, que dispara
+     `_endRound()` e `_endMatch()` no MESMO frame, sem cronômetro na tela (o relógio só
+     materializa nos últimos CTF_CLOCK_SHOW = 60 s). Do lado do jogador: você está no
+     meio do tiroteio e a partida evapora. É o "reiniciou do nada", e não tem nada a ver
+     com o menu de pausa do BUG-00 — aquele defeito continua consertado.
+
+     O modo de ABATE continua sob PACE de propósito: lá o alvo por abates é experimento,
+     e o round já fecha sozinho pelo relógio de 99 s. No CAPTURA não existe relógio de
+     round pra fechar nada, então o alvo não é ritmo — é a ÚNICA condição de vitória.
+
+     Caminho separado (flag em vez de chamada direta): o CAPTURA não tem `timeLeft` pra
+     zerar, então PEDE o fim por `_roundOverPedido` e o `update()` atende no mesmo frame;
+     sem a flag, a única saída seria chamar `_endRound()` de dentro da varredura de
+     combatentes. Régua: `tools/eval/ctf-round-check.mjs`. */
+  _checkCtfAlvo() {
+    if (!this.ctf || this.state !== 'live') return;
+    const cp = this.roundCaps.P, cb = this.roundCaps.B, alvo = this.capsToWin;
+    if (!Number.isFinite(alvo)) return;
+    const lider = Math.max(cp, cb);
+    if (!this._matchPoint && alvo > 1 && lider >= alvo - 1) {
+      this._matchPoint = true;
+      const lado = cp > cb ? 'P' : 'B';
+      this._banner('BANDEIRA DECISIVA', `${this._teamName(lado)} a ${alvo - lider} de levar a rodada`);
+      try { this.sfx.vuvuzela(0.9); } catch {}
+    }
+    if (lider >= alvo) this._roundOverPedido = true;
+  }
   _checkPace() {
     if (!PACE || this.state !== 'live') return;
-    /* game.js:2106 — RITMO DO CAPTURA. Caminho separado de propósito: o modo de abate
-       fecha o round zerando `timeLeft` (existe relógio pra zerar); o CAPTURA não tem
-       relógio de round pra zerar, então ele PEDE o fim da rodada por flag e o `update()`
-       atende no mesmo frame. Sem essa flag a única saída seria chamar `_endRound()` de
-       dentro do `_updatePlayer`, no meio da varredura de combatentes. */
-    if (this.ctf) {
-      const cp = this.roundCaps.P, cb = this.roundCaps.B, alvo = this.capsToWin;
-      const lider = Math.max(cp, cb);
-      if (!this._matchPoint && alvo > 1 && lider >= alvo - 1) {
-        this._matchPoint = true;
-        const lado = cp > cb ? 'P' : 'B';
-        this._banner('BANDEIRA DECISIVA', `${this._teamName(lado)} a ${alvo - lider} de levar a rodada`);
-        try { this.sfx.vuvuzela(0.9); } catch {}
-      }
-      if (lider >= alvo) this._roundOverPedido = true;
-      return;
-    }
+    if (this.ctf) return;   // o CAPTURA fecha pelo _checkCtfAlvo, que roda SEMPRE
     const p = this.roundKills.P, b = this.roundKills.B, tgt = this.killsToWin;
     const lead = Math.max(p, b);
     if (!this._matchPoint && lead >= tgt - 2) {
@@ -4541,6 +4584,7 @@ export class Game {
   }
   _updatePlayer(dt) {
     const p = this.player;
+    this._checkCtfAlvo();          // alvo de BANDEIRAS: única condição de vitória da rodada de CAPTURA (sem gate)
     if (PACE) this._checkPace();   // alvo de abates / match point — vale também com o jogador morto
     if (!p.alive) {
       const left = p.respawnAt - this.time;

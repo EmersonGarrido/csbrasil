@@ -92,7 +92,19 @@ function sampleAt(times, arr, stride, t) {
 const tgtDoc = await io.read(tgtPath);
 const TG = buildGraph(tgtDoc);
 const tgtOrder = [];
-(function walk(g) { if (g) { tgtOrder.push(g); for (const c of g.children) walk(c); } })([...TG.values()].filter(x => !x.parent)[0]);
+/* A RAIZ É A DO ESQUELETO, NÃO A PRIMEIRA DA LISTA.
+   Bug que custou os 8 palhaços: `filter(x => !x.parent)[0]` pegava o PRIMEIRO nó sem pai.
+   Nos 8 GLB de palhaço o glTF tem DUAS raízes — o nó da malha ("Spiked Ringmaster Clown",
+   0 filhos) vem ANTES de "Armature" — então a varredura andava só pelo nó da malha,
+   `mappedTgt` saía com 0 ossos e o tool gravava 11 clipes SEM UMA ÚNICA TRACK, dizendo
+   "RETARGET-GLB COMPLETO". Nos 36 personagens de raiz única ("Armature" sozinha) o acaso
+   acertava. Agora a raiz é o ancestral do `Hips`, que é o osso que define o esqueleto. */
+const raizEsqueleto = (() => {
+  const h = TG.get('Hips');
+  if (h) { let n = h; while (n.parent) n = n.parent; return n; }
+  return [...TG.values()].filter(x => !x.parent).sort((a, b) => b.children.length - a.children.length)[0];
+})();
+(function walk(g) { if (g) { tgtOrder.push(g); for (const c of g.children) walk(c); } })(raizEsqueleto);
 const tgtNames = new Set(tgtOrder.map(g => g.name));
 const hipsT = TG.get('Hips');
 const tgtHipsRestW = hipsT ? worldPos(hipsT) : new THREE.Vector3();
@@ -124,6 +136,15 @@ for (const state of STATES) {
   const srcRestW = new Map(); for (const g of SG.values()) srcRestW.set(g.name, restWorldQ(g));
 
   const mappedTgt = tgtOrder.filter(g => SG.has(g.name));   // identity map: same Meshy bone names
+  /* CLIPE SEM OSSO É ARQUIVO MENTINDO. Sem esta guarda o tool gravava GLB válido, sem
+     nenhuma track de rotação, e imprimia "COMPLETO" — o personagem carregava o clipe e
+     ficava congelado em bind. Falhar alto vale mais que 11 arquivos inúteis no disco. */
+  if (mappedTgt.length < 8) {
+    console.error(`FALHOU: ${state} mapeou ${mappedTgt.length} ossos (mínimo 8). ` +
+      `A raiz do esqueleto do alvo é "${raizEsqueleto && raizEsqueleto.name}" com ${tgtOrder.length} nós; ` +
+      `a fonte tem ${SG.size}. Nomes de osso não batem, ou a raiz está errada.`);
+    process.exit(1);
+  }
   const times = [], tracksQ = new Map(mappedTgt.map(g => [g.name, []])), trackP = [];
 
   for (let fi = 0; fi < frames; fi++) {
