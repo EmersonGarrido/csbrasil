@@ -608,7 +608,12 @@ export function buildQuebrada(scene, T) {
        oeste: 40,2 m² de chão contíguo, contra um piso de 40 m². Dois metros a leste e o pior
        slot vai pra ~50 m² sem mexer em nenhuma parede. */
     P: [-22, -19.5, -17, -14.5].map(x => ({ x, z: -42.5, yaw: Math.PI / 2 })),
-    B: [-4.5, -1.5, 1.5, 4.5].map(x => ({ x, z: 41.5, yaw: Math.PI })),
+    /* z 41,5 -> 40,5: o armário do spawn (game.js `_resetPositions`) monta duas fileiras
+       ATRÁS de quem nasce, a 1,6 m e 3,6 m. Com o slot em 41,5 a fileira de trás caía em
+       44,1 e o `_freeSpot` empurrava uma arma até z = 46, a 0,94 m do chão alcançável mais
+       próximo — teto da pickup-check é 1,0 m, ou seja, passava raspando por causa do
+       clamp de `bounds`. Um metro ao norte devolve 1,9 m de folga até a borda do campo. */
+    B: [-4.5, -1.5, 1.5, 4.5].map(x => ({ x, z: 40.5, yaw: Math.PI })),
   };
 
   /* ===================== AS 4 BANDEIRAS =====================
