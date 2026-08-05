@@ -100,18 +100,24 @@ const config = {
             title: 'A régua',
             items: [
               { label: 'Instrumentação de IA', to: '/instrumentacao-ai' },
-              { label: 'Quality gates', to: '/quality-gates' },
+              { label: 'O portão (quality gates)', to: '/quality-gates' },
             ],
           },
           {
             title: 'Projeto',
             items: [
+              { label: 'Licença, arte e marca', to: '/licenca' },
               { label: 'GitHub', href: 'https://github.com/rubenmarcus/csbrasil' },
               { label: 'Issues', href: 'https://github.com/rubenmarcus/csbrasil/issues' },
             ],
           },
         ],
-        copyright: 'CORO SOLTO: Treta Suprema — código MIT. Sátira ficcional.',
+        // O rodapé NÃO nomeia a licença de propósito. Ele dizia "código MIT" à mão, e este
+        // arquivo é uma das 8 superfícies que precisam mudar JUNTO quando a licença mudar —
+        // e era a única que NENHUMA das duas listas escritas à mão (README e plans/08 §3)
+        // lembrava. Superfície que não repete o nome é uma a menos para esquecer; quem quer
+        // a resposta clica no link acima, que aponta para a fonte gerada do `LICENSE`.
+        copyright: 'CORO SOLTO: Treta Suprema — código aberto; a licença vigente está na página "Licença, arte e marca". Sátira ficcional.',
       },
       prism: {
         additionalLanguages: ['bash', 'json', 'diff'],
