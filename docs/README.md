@@ -20,16 +20,19 @@ docs/
     img/canarinho-header.webp   banner animado da home (604×240, 24 quadros)
     img/logo-coro-solto.webp    a logomarca, no rodapé (recorte de public/logo.png)
     .nojekyll
-  docs/
+  docs/                   NA ORDEM DE LEITURA — a mesma do sidebars.js
     comecando.md          o que é, 3 comandos, estrutura real do repo
     stack.md              Three.js/WebGL sem build, Astro/Vercel, Supabase, geração de
                           asset (mint.gg, Tripo3D, Meshy, OpenRouter), Playwright,
-                          gltf-transform, as skills e o gauntlet loop
+                          gltf-transform e as skills. É a página CANÔNICA das duas zonas
     instrumentacao-ai.md  o loop: régua -> builders -> crítico -> caçador de regressões
     quality-gates.md      invariantes, as 2 leis da casa, teste de mutação da régua
-    colaborar.md          setup, portão, o que um PR precisa, boas primeiras tarefas
     arquitetura.md        ARCH gerado + faixas de linha disjuntas + o que é gerado aqui
-    estado.md             saída REAL do portão + dívidas declaradas
+    colaborar.md          setup, portão, o que um PR precisa, boas primeiras tarefas
+    licenca.md            o que vale hoje, a AGPL decidida e não aplicada, e a separação
+                          código × arte paga × marca
+    estado.md             saída REAL do portão + dívidas declaradas (a DIREÇÃO não mora
+                          aqui: é o ../ROADMAP.md)
   issues/                 as good-first-issues, uma por arquivo (README.md indexa)
   historico/              prompts e handoffs antigos — arquivo morto, não é doc viva
   INDICE.md               índice dos .md soltos desta pasta

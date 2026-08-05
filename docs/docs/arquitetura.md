@@ -1,12 +1,12 @@
 ---
 id: arquitetura
-title: Arquitetura
+title: 'Arquitetura: N agentes no mesmo arquivo'
 sidebar_label: Arquitetura
 sidebar_position: 5
 description: A arquitetura de verdade, gerada por tools/gen-arch.mjs — e o mecanismo de faixas de linha disjuntas que permite agentes em paralelo sem colisão.
 ---
 
-# Arquitetura
+# Arquitetura: N agentes no mesmo arquivo
 
 ## Por que este documento é gerado por script
 
@@ -65,12 +65,12 @@ Tamanho dos arquivos que o `gen-arch.mjs` indexa — bloco gerado, regenerado po
 | `public/js/game.js` | 6.427 |
 | `public/js/main.js` | 1.545 |
 | `public/js/characters.js` | 1.060 |
-| `public/js/glbchars.js` | 754 |
+| `public/js/glbchars.js` | 794 |
 | `public/js/vmattach.js` | 627 |
 | `public/js/weapons.js` | 344 |
 | `public/js/springs.js` | 260 |
 
-Total de `public/js/`: **24.698 linhas em 26 arquivos**. O índice símbolo→linha, com a tabela de conflito, é outro bloco gerado: `tools/eval/ARCH.md` (`npm run arch`).
+Total de `public/js/`: **24.773 linhas em 26 arquivos**. O índice símbolo→linha, com a tabela de conflito, é outro bloco gerado: `tools/eval/ARCH.md` (`npm run arch`).
 
 > Bloco gerado por `node tools/gen-docs.mjs`. Fonte: ``wc -l public/js/*.js``
 
@@ -210,13 +210,14 @@ com a portabilidade.
 ## Sistema de dados de conteúdo
 
 Hoje mapas, armas e personagens são **código**: cada `map_*.js` é geometria declarada à
-mão, e os maiores deles rivalizam em tamanho com os módulos de sistema. O `ROADMAP.md`,
-Fase 2, define a direção: migrar para JSON com loader único, para que uma contribuição de
-conteúdo seja *"abre um JSON e cria conteúdo"* em vez de *"um PR de código hand-coded
-arriscado"*.
+mão, e os maiores deles rivalizam em tamanho com os módulos de sistema. A direção
+"conteúdo como dado" do
+[`docs/ROADMAP.md`](https://github.com/rubenmarcus/csbrasil/blob/main/docs/ROADMAP.md)
+quer migrar isso para JSON com loader único, para que uma contribuição de conteúdo seja
+*"abre um JSON e cria conteúdo"* em vez de *"um PR de código hand-coded arriscado"*.
 
 Se você quer o trabalho de maior alavancagem no projeto inteiro, é esse. Ver
-[Roadmap e estado](./estado.md).
+[Estado medido](./estado.md).
 
 ## O que é gerado, e o que não é
 
@@ -279,9 +280,7 @@ para além do fim do arquivo.
 
 {/* BEGIN:GERADO:ponteiros — não edite à mão, rode `npm run docs` */}
 
-⚠️ **Ponteiros que apontam para além do fim do arquivo** (a prosa envelheceu — corrija à mão):
-
-- `docs/docs/arquitetura.md` → `game.js:99999` (o arquivo tem 6.427 linhas)
+Nenhum ponteiro `arquivo:linha` das docs aponta para fora do arquivo que ele cita. ✓
 
 > Isto confere só o **limite** do arquivo: um ponteiro que ainda cabe mas mudou de assunto passa aqui. É a razão de a doutrina da casa ser declarar o SÍMBOLO e deixar a linha para o gerador — ver `tools/gen-arch.mjs`.
 

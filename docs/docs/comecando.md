@@ -1,6 +1,6 @@
 ---
 id: comecando
-title: Começando
+title: O que é, e como rodar
 sidebar_label: Começando
 sidebar_position: 1
 slug: /
@@ -23,7 +23,7 @@ import useBaseUrl from '@docusaurus/useBaseUrl';
   />
 </div>
 
-# Começando
+# O que é, e como rodar
 
 **CORO SOLTO: Treta Suprema** (ex-CS BRASIL) é um FPS de navegador escrito em
 JavaScript vanilla sobre Three.js r160, no estilo do Counter-Strike 1.6: rounds,
@@ -39,7 +39,7 @@ esta página envelhecia no primeiro commit — ver
 
 | O que | Quanto | Onde confere |
 |---|---:|---|
-| Código do jogo | 24.698 linhas em 26 arquivos | `cat public/js/*.js \| wc -l` |
+| Código do jogo | 24.773 linhas em 26 arquivos | `cat public/js/*.js \| wc -l` |
 | `game.js` | **6.427** linhas | `wc -l public/js/game.js` |
 | `main.js` | 1.545 linhas | `wc -l public/js/main.js` |
 | Armas com GLB | 26 | `ls public/models/weapons/*.glb \| wc -l` |
@@ -49,11 +49,11 @@ esta página envelhecia no primeiro commit — ver
 | Personagens jogáveis | 44, em 5 facções | array `CHARACTERS` de `characters.js` |
 | Mapas no registro | 5 | objeto `MAPS` de `maps.js` |
 | Arnêses visuais em HTML | 12 | `ls public/*.html \| wc -l` |
-| Scripts do arnês | 140 | `ls tools/eval/*.mjs tools/eval/*.py \| wc -l` |
+| Scripts do arnês | 144 | `ls tools/eval/*.mjs tools/eval/*.py \| wc -l` |
 | Scripts de pipeline | 42 | `ls tools/*.mjs \| wc -l` |
 | Migrations do Supabase | 12 | `ls supabase/migrations/*.sql \| wc -l` |
 | Tarefas de entrada escritas | 15 | `ls docs/issues/[0-9]*.md \| wc -l` |
-| Versão | `2.0.0-alpha.13` | `public/js/version.js` e `package.json` (batem) |
+| Versão | `2.0.0-alpha.14` | `public/js/version.js` e `package.json` (batem) |
 
 > Bloco gerado por `node tools/gen-docs.mjs`. Fonte: `o comando da coluna direita de cada linha`
 
@@ -210,7 +210,7 @@ Os mapas registrados hoje, e em que modo cada um abre:
 
 | Id | Nome no menu | Abre em | Arquivo em `public/js/` | Linhas |
 |---|---|---|---|---:|
-| `awp_map` | Praça dos Três Poderes | rodadas | `map_brasilia.js` | 1.730 |
+| `awp_map` | Praça dos Três Poderes | rodadas | `map_brasilia.js` | 1.765 |
 | `fy_pool_day` | Piscina da Treta | rodadas | `map_pool_day.js` | 701 |
 | `fy_havan` | Loja H (Estacionamento) | **captura** | `map_havan.js` | 1.866 |
 | `fy_ferrovelho` | Ferro Velho do Zé | **captura** | `map_ferrovelho.js` | 1.837 |
@@ -222,17 +222,16 @@ Os mapas registrados hoje, e em que modo cada um abre:
 
 {/* END:GERADO:mapas */}
 
-### As duas zonas, e por que a fronteira é dura
+### As duas zonas
 
-- **`public/` é o jogo.** Vanilla JS com ES modules, **sem framework e sem bundler**.
-  Isso é decisão de projeto, não preguiça: o jogo tem que rodar arrastando a pasta
-  pra qualquer host estático. Three.js é vendorizado em `public/vendor/` — não
-  adicione CDN nem dependência de runtime sem abrir issue.
-- **`src/` é o site.** Astro, com API routes SSR (`/api/*`). Aqui framework é
-  bem-vindo. A `service_role` do Supabase vive no servidor e nunca no browser.
+Em uma linha cada: **`public/` é o jogo** (vanilla, ES modules, sem framework e sem
+bundler) e **`src/` é o site** (Astro com SSR, onde framework é bem-vindo). O que cada
+regra da fronteira paga, e por que ela é dura, está em
+**[Stack e ferramentas](./stack.md#as-duas-zonas-e-por-que-a-fronteira-é-dura)** — uma
+página só, para não haver duas versões da mesma fronteira.
 
-O jogo é carregado pela página Astro via **import map com versão**
-(`src/pages/index.astro:97-123`). Isso importa na prática:
+O que você precisa saber **antes de editar** é a consequência: o jogo é carregado pela
+página Astro via **import map com versão** (`src/pages/index.astro:97-123`).
 
 :::danger Bump do `?v=` nos dois lados
 `public/js/version.js:2-4` avisa, com todas as letras, que o mesmo `?v=` vai no
@@ -260,10 +259,10 @@ E os dois portões, com a lista exata do que cada um roda — direto do `package
 
 ```bash
 npm run check        # npm run syntax && npm run audio:check && npm run eval:ctfhud && npm run eval:vm && npm run eval:invariants && npm run eval:kick && npm run eval:bots
-npm run check:fast   # npm run syntax && npm run docs:check && npm run arch:check && npm run audio:check && npm run feet:check && npm run anims:check && npm run eval:ctfhud && npm run eval:pause && npm run eval:ctfround && npm run eval:regen
+npm run check:fast   # npm run syntax && npm run docs:check && npm run arch:check && npm run audio:check && npm run feet:check && npm run anims:check && npm run eval:ctfhud && npm run eval:pause && npm run eval:ctfround && npm run eval:regen && npm run eval:pegada
 ```
 
-`package.json` tem **34 scripts**. Vários trazem uma chave `//nome` logo acima com o motivo de existirem — é onde mora o porquê.
+`package.json` tem **35 scripts**. Vários trazem uma chave `//nome` logo acima com o motivo de existirem — é onde mora o porquê.
 
 > Bloco gerado por `node tools/gen-docs.mjs`. Fonte: `node -p "Object.keys(require('./package.json').scripts)"`
 
@@ -279,13 +278,27 @@ manifesto de animação) e roda em cerca de um minuto.
 
 ## Onde ir agora
 
-- **[Instrumentação de IA](./instrumentacao-ai.md)** — como o trabalho é feito aqui.
-  Se você nunca colaborou com agentes num repo, comece por aí.
-- **[Quality gates](./quality-gates.md)** — o que é uma invariante, como se escreve
-  uma, e as duas leis da casa. É a página mais útil do site.
-- **[Como colaborar](./colaborar.md)** — o que um PR precisa pra entrar, e as **tarefas
-  de primeira contribuição** que já estão escritas em
-  [`docs/issues/`](https://github.com/rubenmarcus/csbrasil/tree/main/docs/issues) (com um
-  `abrir-issues.sh` pronto — elas ainda não foram abertas no GitHub).
-- **[Roadmap e estado](./estado.md)** — o que está verde, o que está vermelho, e o que
-  mudou desde a última medição colada.
+A ordem da barra lateral **é** a ordem de leitura, e cada página entrega uma coisa:
+
+1. **[Stack e ferramentas](./stack.md)** — com o que isso é feito, com a versão declarada
+   de cada peça. É onde a fronteira `public/` × `src/` está explicada por inteiro.
+2. **[Instrumentação de IA](./instrumentacao-ai.md)** — como o trabalho é feito aqui. Se
+   você nunca colaborou com agentes num repositório, comece por essa.
+3. **[O portão](./quality-gates.md)** — o que é uma invariante, como se escreve uma, as
+   duas leis da casa e o teste de mutação da própria régua. **É a página mais útil do
+   site.**
+4. **[Arquitetura](./arquitetura.md)** — como N agentes editam o mesmo arquivo sem
+   colidir, e a tabela de conflito. Leia antes de tocar em `game.js`.
+5. **[Como colaborar](./colaborar.md)** — o que um PR precisa pra entrar, e as **tarefas
+   de primeira contribuição** já escritas em
+   [`docs/issues/`](https://github.com/rubenmarcus/csbrasil/tree/main/docs/issues) (com um
+   `abrir-issues.sh` pronto — elas ainda não foram abertas no GitHub).
+6. **[Licença, arte e marca](./licenca.md)** — sob que licença você contribui, o que está
+   decidido e ainda não aplicado, e por que arte paga não mora no repositório público.
+7. **[Estado medido](./estado.md)** — o que está verde, o que está vermelho, e o que mudou
+   desde a última medição colada.
+
+Para onde o projeto **vai** não está nesta documentação: é o
+[`docs/ROADMAP.md`](https://github.com/rubenmarcus/csbrasil/blob/main/docs/ROADMAP.md), e o
+plano executável é o
+[`plans/08`](https://github.com/rubenmarcus/csbrasil/blob/main/plans/08-RELEASE-PROFISSIONAL.md).

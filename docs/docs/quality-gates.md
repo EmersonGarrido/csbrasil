@@ -1,12 +1,12 @@
 ---
 id: quality-gates
-title: Quality gates
-sidebar_label: Quality gates
-sidebar_position: 3
+title: 'O portão: invariantes, procedência e mutação'
+sidebar_label: O portão (quality gates)
+sidebar_position: 4
 description: O que é uma invariante neste repo, como se escreve uma, as duas leis da casa com o caso real de cada uma, e o teste de mutação da própria régua.
 ---
 
-# Quality gates
+# O portão: invariantes, procedência e mutação
 
 O portão deste repositório é um arquivo: `tools/eval/invariants.mjs`. Ele roda em node puro
 e sai com código 1 se qualquer invariante **crítica** falhar. É o que o CI executa em todo
@@ -15,7 +15,7 @@ PR (`.github/workflows/ci.yml`).
 {/* BEGIN:GERADO:invariantes — não edite à mão, rode `npm run docs` */}
 
 - `tools/eval/invariants.mjs`: **2.187 linhas**, **61 identificadores de invariante declarados** (`put()`), dos quais **27** têm caminho de `skip()` declarado.
-- O arnês inteiro são **140 scripts** em `tools/eval/` (`.mjs` + `.py`), mais **42 scripts** de pipeline em `tools/`.
+- O arnês inteiro são **144 scripts** em `tools/eval/` (`.mjs` + `.py`), mais **42 scripts** de pipeline em `tools/`.
 - Quantas invariantes rodam como **críticas** numa execução **não é derivável do fonte**: depende de qual insumo existe na máquina (o JSON do auditor de viewmodel, um GLB, uma pasta de anims). Esse número só sai rodando o portão — e o lugar dele é o cabeçalho do `KNOWN-BUGS.md`, atualizado com saída real.
 
 Reproduza:
@@ -382,4 +382,4 @@ node tools/eval/invariants.mjs --json    # saída pra máquina
 npm run check                            # syntax + portão + vm + coice + bots
 ```
 
-Saída real de hoje, com o que está verde e o que está vermelho: [Roadmap e estado](./estado.md).
+Saída real de hoje, com o que está verde e o que está vermelho: [Estado medido](./estado.md).

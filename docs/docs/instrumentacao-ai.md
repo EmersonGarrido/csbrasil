@@ -1,12 +1,12 @@
 ---
 id: instrumentacao-ai
-title: Instrumentação de IA
+title: 'Instrumentação de IA: como o trabalho é feito'
 sidebar_label: Instrumentação de IA
-sidebar_position: 2
+sidebar_position: 3
 description: Como o trabalho é feito aqui — régua, construtores em faixas disjuntas, crítico adversarial com contexto limpo, caçador de regressões. E a regra "quem constrói nunca dá a nota".
 ---
 
-# Instrumentação de IA
+# Instrumentação de IA: como o trabalho é feito
 
 Este jogo foi construído quase inteiro por agentes de IA, e continua sendo. Isso não
 é um adjetivo de marketing: é uma restrição de engenharia que muda como o repositório
@@ -55,9 +55,9 @@ Antes de qualquer edição, existe um instrumento. Duas coisas diferentes se cha
 - **`tools/eval/BAR.md`** — a régua VISUAL: 25 critérios A1–D4 num screenshot, em dois
   eixos independentes ("isso parece um FPS moderno?" e "isso parece o Brasil de
   verdade?"). Um mapa pode passar num e falhar no outro; a régua separa de propósito.
-- **`tools/eval/invariants.mjs`** — o PORTÃO: 61 identificadores declarados (49 avaliados
-  como críticos na última execução registrada), rodando em node puro, saindo com código 1
-  se qualquer crítica falhar. Ver [Quality gates](./quality-gates.md).
+- **`tools/eval/invariants.mjs`** — o PORTÃO: roda em node puro e sai com código 1 se
+  qualquer invariante crítica falhar. Quantas existem e quantas são avaliadas está no bloco
+  gerado de [O portão](./quality-gates.md) — não é número para repetir aqui.
 
 A régua nunca é escrita pelo mesmo agente que vai consertar o defeito que ela mede.
 Quando isso aconteceu, o resultado está documentado no repo — ver a seção
@@ -147,17 +147,16 @@ esquerda, borda direita e área de tela do viewmodel com precisão de subpixel
 
 ## Por que "quem constrói nunca dá a nota" não é filosofia
 
-Tem caso medido, e ele está no código.
+Tem caso medido, e ele está no código: um crítico que também construía subiu o placar do
+portão **de verdade, sem afrouxar um teto sequer**, e mesmo assim foi reprovado — porque
+para fechar duas invariantes destruiu em silêncio uma decisão estética que nenhuma régua
+codificava.
 
-O crítico que também construía levou o portão de **16/21 para 19/21 sem afrouxar um
-teto sequer** — e foi reprovado pelo dono, porque para fechar duas invariantes ele
-zerou em silêncio o `VM_OFF` e destruiu o look escolhido. O relato completo, com o
-número e a lei que saiu dele, está em `tools/eval/invariants.mjs:405-414` e na página
-[Quality gates](./quality-gates.md#lei-1--intenção-que-não-vira-invariante-é-otimizada-para-fora).
-
-O ponto: o agente não trapaceou. Ele otimizou honestamente a única coisa que estava
-medida. **A régua era o problema**, e quem escreveu a régua era quem ia ser medido por
-ela.
+O relato completo, com os números e a lei que saiu dele, está em
+[Lei 1](./quality-gates.md#lei-1--intenção-que-não-vira-invariante-é-otimizada-para-fora).
+O que importa aqui é o mecanismo, não o episódio: **o agente não trapaceou.** Ele otimizou
+honestamente a única coisa que estava medida. A régua era o problema, e quem escreveu a
+régua era quem ia ser medido por ela.
 
 ## Armadilhas caras desta base (não repita)
 
@@ -191,8 +190,9 @@ refazer o mesmo erro de três dias. Não delete comentário de procedência num 
 limpeza.
 
 :::warning Nem tudo que está escrito está atualizado
-`SKILL.md:72` diz que o `game.js` tem 3.234 linhas. Hoje ele tem **6.427**
-(`tools/eval/ARCH.md`, gerado). Esse é o motivo exato de o `ARCH.md` ser **gerado por
-script** e não escrito à mão — ver `tools/gen-arch.mjs:5-8`. Índice por número de linha
-escrito à mão desatualiza no primeiro commit.
+`SKILL.md:72` afirma que o `game.js` tem 3.234 linhas — o arquivo passou do dobro disso
+(o número de hoje está no bloco gerado de [Arquitetura](./arquitetura.md#os-arquivos-indexados),
+e no `tools/eval/ARCH.md`). Esse é o motivo exato de o `ARCH.md` e os blocos desta
+documentação serem **gerados por script**: índice por número escrito à mão desatualiza no
+primeiro commit, e corrigi-lo à mão dura exatamente um commit também.
 :::

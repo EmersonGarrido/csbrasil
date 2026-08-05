@@ -2,7 +2,7 @@
 id: colaborar
 title: Como colaborar
 sidebar_label: Como colaborar
-sidebar_position: 4
+sidebar_position: 6
 description: Setup, como rodar o portão, o que um PR precisa, como adicionar arma / personagem / mapa, e as boas primeiras tarefas.
 ---
 
@@ -14,7 +14,7 @@ O número abaixo não é retórica, e não é escrito à mão: sai de `git short
 
 {/* BEGIN:GERADO:pessoas — não edite à mão, rode `npm run docs` */}
 
-**3 pessoas** assinam commit neste repositório: `ruben-cytonic`, `Ruben`, `daltonfontes`. O resto dos commits é assinado por agentes de IA.
+**3 pessoas** assinam commit no histórico **desta branch**: `ruben-cytonic`, `Ruben`, `daltonfontes`. O resto dos commits é assinado por agentes de IA. Branch não é repositório: quem contribuiu num ramo que esta branch não contém **não aparece aqui**.
 
 > Bloco gerado por `node tools/gen-docs.mjs`. Fonte: `git shortlog -sn --no-merges (descontando autores que são agentes)`
 
@@ -23,10 +23,18 @@ O número abaixo não é retórica, e não é escrito à mão: sai de `git short
 Não existe time, não existe comunidade, não existe fila de revisores — existem essas
 pessoas e um portão automatizado.
 
+:::note O bloco acima conta a BRANCH, e o projeto é maior que ela
+A `main` tem um quarto contribuidor que esta branch de trabalho não contém — 13 commits
+de um cliente desktop, mesclados em julho. Quem, quanto e por que isso importa para
+qualquer decisão de licença está em [Licença, arte e marca](./licenca.md).
+:::
+
 Isso é relevante pra você de duas formas opostas. A ruim: se o seu PR travar, pode
 demorar. A boa: **quase toda a régua é máquina.** `npm run check` te dá o mesmo veredito
 que o mantenedor daria, antes de você abrir o PR, sem esperar ninguém. A barreira é baixa
-**de propósito** (`ROADMAP.md:16`) — mas a régua não é.
+**de propósito** — é um dos princípios que não mudam do
+[`docs/ROADMAP.md`](https://github.com/rubenmarcus/csbrasil/blob/main/docs/ROADMAP.md).
+Mas a régua não é.
 
 Resumo em uma frase: **traga o número.** Um PR que muda comportamento visível e não traz
 nem uma invariante nova nem a razão de não precisar de uma vai voltar com uma pergunta.
@@ -122,7 +130,7 @@ Razão inválida: "testei manualmente e ficou bom".
 Por quê: **intenção que não vira invariante é otimizada para fora**. Uma rodada levou o
 portão de 16/21 para 19/21 sem afrouxar um teto sequer, e foi reprovada, porque destruiu
 em silêncio uma decisão estética que nenhuma invariante codificava. Caso completo em
-[Quality gates](./quality-gates.md#lei-1--intenção-que-não-vira-invariante-é-otimizada-para-fora).
+[O portão](./quality-gates.md#lei-1--intenção-que-não-vira-invariante-é-otimizada-para-fora).
 
 ### 2. O portão não pode piorar
 
@@ -223,7 +231,9 @@ O pipeline é data-driven a partir do GLB. Os GLBs de arma vivem em `public/mode
 
 Hoje mapas são **código**, não dado: cada `map_*.js` é geometria declarada à mão, e os
 maiores rivalizam em tamanho com os módulos de sistema. Migrar isso para JSON é a Fase 2
-do `ROADMAP.md` e é a contribuição de maior alavancagem do projeto.
+conteúdo como dado do
+[`docs/ROADMAP.md`](https://github.com/rubenmarcus/csbrasil/blob/main/docs/ROADMAP.md), e é a
+contribuição de maior alavancagem do projeto.
 
 O registro, gerado do `MAPS` de `public/js/maps.js`:
 
@@ -231,7 +241,7 @@ O registro, gerado do `MAPS` de `public/js/maps.js`:
 
 | Id | Nome no menu | Abre em | Arquivo em `public/js/` | Linhas |
 |---|---|---|---|---:|
-| `awp_map` | Praça dos Três Poderes | rodadas | `map_brasilia.js` | 1.730 |
+| `awp_map` | Praça dos Três Poderes | rodadas | `map_brasilia.js` | 1.765 |
 | `fy_pool_day` | Piscina da Treta | rodadas | `map_pool_day.js` | 701 |
 | `fy_havan` | Loja H (Estacionamento) | **captura** | `map_havan.js` | 1.866 |
 | `fy_ferrovelho` | Ferro Velho do Zé | **captura** | `map_ferrovelho.js` | 1.837 |
@@ -248,7 +258,7 @@ Dois avisos que custam tempo se você não souber:
 - **`praca_old` ("Praça (clássico)") NÃO existe mais.** Saiu do registro e o
   `public/js/map.js` foi apagado junto (pedido literal do dono: *"vamos apagar praça
   clássica"*). Se você encontrar `praca_old` numa saída de régua, essa saída é anterior à
-  remoção — é o caso da tabela colada em [Roadmap e estado](./estado.md).
+  remoção — é o caso da tabela colada em [Estado medido](./estado.md).
 - **`map_pool_ramos.js` existe no disco e NÃO está no registro** (é a versão "Piscinão",
   fora do menu). Arquivo de mapa em `public/js/` não implica mapa jogável; quem decide é
   o objeto `MAPS`.
@@ -279,7 +289,7 @@ Para adicionar um mapa no formato de hoje:
 5. **Rode `node tools/eval/botsim.mjs 60 <mapId>`**: os bots precisam navegar o seu mapa
    sem travar (`BOT3` stuck ≤ 4%), sem andar de lado (`BOT1`) e sem girar parados (`BOT2`).
    Waypoint desconexo é o defeito mais comum de mapa novo, e já quebrou PRs antes
-   (`ROADMAP.md`, Fase 2).
+   (é o defeito que a direção "conteúdo como dado" existe para matar).
 
 ## Boas primeiras tarefas
 
@@ -375,17 +385,10 @@ o arnês certo, ou marcar como "arnês a escrever", é um PR de 15 minutos.
    diz o que a branch é vira depósito. (Fonte: `CONTRIBUTING.md`.)
 3. Rode `npm run check`. Cole a saída no PR.
 4. PR pequeno, uma frente, descrição com números e `arquivo:linha`.
-5. Ao contribuir você licencia sob **MIT** (`LICENSE`).
-
-   :::note Aviso de mudança planejada
-   Existe decisão registrada de migrar o projeto para **AGPL-3.0**. Ela **ainda não foi
-   aplicada** — enquanto o `LICENSE` disser MIT, é MIT que vale, aqui e em qualquer outro
-   arquivo. A troca é retroativa e depende de levantar consentimento de quem já
-   contribuiu, então ela virá num commit único e anunciado. Se isso for decisivo pra você,
-   pergunte antes de abrir o PR. (Mesmo texto do
-   [`CONTRIBUTING.md`](https://github.com/rubenmarcus/csbrasil/blob/main/CONTRIBUTING.md),
-   que é a fonte.)
-   :::
+5. **Ao contribuir você licencia sob a licença que o `LICENSE` disser no momento do seu
+   PR.** Qual é ela hoje, o que está decidido e ainda não aplicado, e quem precisa
+   concordar para a mudança acontecer: **[Licença, arte e marca](./licenca.md)**. Se isso
+   for decisivo pra você, leia aquela página antes de escrever a primeira linha.
 
 Reportando bug: o que aconteceu, o que esperava, passos pra reproduzir, navegador/SO e
 print do console (F12). E se o bug for de comportamento, ele vai virar invariante — é

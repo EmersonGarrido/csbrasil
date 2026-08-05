@@ -218,7 +218,7 @@ PULADAS:  4 (exigem browser ou arnês ausente)
 
 Oito das onze críticas vermelhas são a mesma frente: o **enquadramento das armas na
 tela**. É a frente mais medida do repositório e a mais difícil, porque as invariantes se
-cruzam (ver [Quality gates](./quality-gates.md#lei-2--teto-sem-procedência-é-opinião)).
+cruzam (ver [O portão](./quality-gates.md#lei-2--teto-sem-procedência-é-opinião)).
 
 O que a saída diz, arma a arma:
 
@@ -330,7 +330,7 @@ continuam verdes, exceto onde indicado:
 - **AUD1** — a régua bate com o jogo, incluindo a pose de ADS: *"pior Δ(grip,boca) 0.001 m
   · pior Δescala 0.0004 · lente do JSON casa (V0=42°, VM_OFF=[0.03,-0.1,0]) · termo
   vertical do argumento Y casa (vmOffY(16:9)=-0.1 = VM_OFF[1])"*. É a invariante META que
-  fecha os buracos de mutação descritos em [Quality gates](./quality-gates.md#teste-de-mutação-da-própria-régua).
+  fecha os buracos de mutação descritos em [O portão](./quality-gates.md#teste-de-mutação-da-própria-régua).
 - **VM14** — 246 pickups em 5 mapas, **0** sem alcance, **0** abaixo do piso, **0**
   flutuando, com flood-fill de conectividade real (215.758 células no `awp_map`). *São
   **244** desde a saída do `praca_old`, que tinha 2 armas no chão — e essa é a única

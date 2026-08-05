@@ -2,7 +2,7 @@
 id: stack
 title: Stack e ferramentas
 sidebar_label: Stack e ferramentas
-sidebar_position: 1.5
+sidebar_position: 2
 description: Three.js/WebGL sem build, Astro na Vercel, Supabase, o pipeline de geração de asset (mint.gg, Tripo3D, Meshy, OpenRouter), Playwright, gltf-transform e as skills de agente — cada um com a versão lida do package.json.
 ---
 
@@ -28,7 +28,7 @@ a partir do `package.json`, do `docs/package.json` e do próprio Three.js vendor
 | Esta documentação | **Docusaurus** | `3.6.3` |
 | Runtime de CI | **Node** | `22` |
 
-Three.js sai de `public/vendor/three.module.js` (**sem CDN, sem npm no runtime**). Astro e Vercel de `package.json` + `astro.config.mjs` + `vercel.json`. Supabase tem 12 migrations em `supabase/`. Dos scripts de `tools/`, **89** importam Playwright, **35** importam gltf-transform e **4** importam meshoptimizer.
+Three.js sai de `public/vendor/three.module.js` (**sem CDN, sem npm no runtime**). Astro e Vercel de `package.json` + `astro.config.mjs` + `vercel.json`. Supabase tem 12 migrations em `supabase/`. Dos scripts de `tools/`, **91** importam Playwright, **36** importam gltf-transform e **4** importam meshoptimizer.
 
 > Bloco gerado por `node tools/gen-docs.mjs`. Fonte: `dependencies/devDependencies do package.json · REVISION de public/vendor/three.module.js`
 
@@ -56,11 +56,9 @@ Isso é **decisão de projeto, não preguiça**, e ela paga em três lugares:
 3. **`node --check` em cada arquivo é um teste de sintaxe completo** (`npm run syntax`),
    porque o arquivo que o node parseia é byte a byte o que o browser executa.
 
-O preço, que também é real: **cache**. O jogo é carregado pela página Astro via
-**import map com versão** (`src/pages/index.astro`), e o mesmo `?v=` tem que ser bumpado
-nos dois lados — `public/js/version.js` avisa isso nas primeiras linhas. Mexer em `.js`
-sem bumpar serve o módulo velho do cache, e isso já custou dias de "correção que não
-chegava ao usuário".
+O preço, que também é real: **cache**. Sem build não há hash no nome do arquivo, então a
+invalidação é manual — o `?v=` do import map. A regra e o que ela já custou estão em
+[Começando](./comecando.md#as-duas-zonas), num lugar só.
 
 **Three.js é vendorizado** em `public/vendor/three.module.js` (mais `vendor/addons/`).
 Sem CDN e sem dependência de runtime: o import map aponta para o arquivo local. Não
@@ -98,7 +96,7 @@ por `GET /api/config`. Vem das *policies*, dos grants por coluna e do rate limit
 no Postgres (`src/lib/ratelimit.ts` + RPC `rl_take`), não em memória de lambda.
 
 **O ranking está desligado hoje** (`RANKING_ON` em `src/lib/site.ts`) e foi trocado por
-telemetria anônima. É flag, não remoção — detalhes em [Roadmap e estado](./estado.md).
+telemetria anônima. É flag, não remoção — detalhes em [Estado medido](./estado.md).
 
 :::note Nada disso é obrigatório pra rodar o jogo
 Sem as variáveis do Supabase o site sobe igual: as rotas de ranking respondem
@@ -267,27 +265,14 @@ desta casa:
 > **crítico adversarial → construtores em paralelo → captura medida → verificação A/B →
 > caçador de regressões**
 
-O problema que ela resolve está na primeira linha do arquivo: um agente sozinho produz
-*um* resultado decente e para, porque **ele mesmo** é quem julga — e ele conhece toda a
-razão por trás de cada decisão que tomou, o que o torna excelente em explicar por que o
-próprio trabalho é aceitável.
-
-As três regras:
-
-1. **A régua não é negociável.** Não é "ficou bom", é "perde ou ganha de um frame de CS2,
-   e por qual medida".
-2. **Quem constrói nunca dá a nota.** O crítico é outro agente, com contexto limpo, que só
-   vê o pixel — nunca a justificativa do builder.
-3. **O loop não tem número fixo de rodadas.** Ele para quando você para, não quando o
-   agente se declara satisfeito.
-
 **Quando usar:** melhorar, avaliar ou revisar qualquer parte do jogo — gráficos,
 fidelidade de mapa, feel de arma, menu, HUD, bots, movimento — e quando algo é reportado
 como feio, estranho ou "não parece profissional". **Quando não usar:** tarefa mecânica de
 uma linha, ou pergunta conceitual que não mexe no jogo.
 
-A página [Instrumentação de IA](./instrumentacao-ai.md) descreve o ciclo inteiro, passo a
-passo, com o caso medido de cada regra.
+O ciclo inteiro — as três regras, o problema que cada uma resolve e o caso medido de cada
+uma — tem página própria: **[Instrumentação de IA](./instrumentacao-ai.md)**. Esta seção
+existe só para dizer que a skill existe e quando acioná-la.
 
 ## A documentação
 
@@ -303,13 +288,9 @@ cd docs && npm run build:site         # buildar PARA DENTRO de public/docs/
 `baseUrl` é `/docs/` porque a saída pode ser buildada para `public/docs/`, e o Astro copia
 `public/` inteiro para `dist/client/`.
 
-:::tip O que é gerado, e o que não é
-Os blocos numéricos desta documentação — a tabela de números, as regras de partida, o
-registro de mapas, esta tabela de stack, as contagens de skill e de invariante — são
-**gerados** por `node tools/gen-docs.mjs` e conferidos por `npm run docs:check`, que roda
-no `check:fast`.
-
-O resto é conhecimento humano e o script não toca. A regra que separa os dois é a mesma do
-`tools/gen-arch.mjs`: **o que é derivável do código vira bloco gerado; o que não é
-derivável é decisão ou explicação, e não deve carregar número que envelhece.**
+:::tip Todo número desta página é gerado
+As tabelas acima saem de `node tools/gen-docs.mjs` e são conferidas por
+`npm run docs:check`, dentro do `check:fast`. O mecanismo — o que entra num bloco gerado, o
+que fica escrito à mão, e como colar um bloco novo — está em
+[Arquitetura](./arquitetura.md#o-que-é-gerado-e-o-que-não-é).
 :::
