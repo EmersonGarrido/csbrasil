@@ -227,6 +227,12 @@ dentro da régua. `--mutante=y0` devolve o y literal 0 e acende **13 cláusulas*
 os 3,40 m de teleporte dos 4 bots da Havan. Teto: **|y(frame 30) − y(frame 0)| < 0,25 m**,
 que pega o teleporte vertical em qualquer mapa, não só na Havan.
 
+**Verificado NO NAVEGADOR** (Playwright, `fy_havan`, jogando do lado da loja): **20 respawns
+seguidos pelo `_respawnPlayer()` de verdade**, olhando o `y` quadro a quadro por 30 quadros
+em cada um. Os 20 nasceram em **y = 3,40** e ficaram em 3,40; **pior Δ = 0,00 m**. E a
+figura: o screenshot do spawn mostra o jogador DENTRO do depósito — piso sob os pés, rack de
+armas no mesmo nível, parede do fundo à frente —, não embaixo de uma laje.
+
 **Custo declarado, medido — e ele existe.** A/B controlado no `botsim` (`node tools/eval/botsim.mjs 60 fy_havan`,
 média das 9 sementes; o "antes" é o próprio `_spawnY` devolvendo 0, aplicado e revertido):
 
@@ -690,6 +696,16 @@ já lê `g.capsToWin` do objeto vivo — nunca teve o 3 escrito à mão.
 (alvo 3 nos mapas de 4, rodada fechando na 3ª — **7 cláusulas vermelhas**) e
 `--mutante=menos1` (alvo = bandeiras − 1) acende **10**, provando que a CTF-W2 mede o fecho
 no motor e não a declaração. A CTF-W3 lê o fonte e reprova se o alvo voltar a ser constante.
+
+**Verificado NO NAVEGADOR** (Playwright, `fy_havan` em CTF, jogando do lado da loja, com o
+renderer encolhido para 32×32 porque o que está sob julgamento é a lógica e o swiftshader
+gasta ~1 s por quadro desenhando a Havan). O HUD escreve `RODADA 1/3 · BANDEIRAS (ALVO 4)`
+e lista as quatro, e a rodada:
+
+```
+PÁTIO O  -> capturas 3/4 · donos "BPBB" · state=live       <- ANTES fechava AQUI
+PÁTIO L  -> capturas 4/4 · donos "BBBB" · state=roundEnd    <- fecha na 4ª, com o placar 0 × 1
+```
 
 **Custo declarado, medido:** a rodada de captura ficou mais longa nos mapas de 4 bandeiras —
 `ctf-round-check.mjs` (`fy_ferrovelho`, semente 4242) mede o 1º fecho de rodada indo de
