@@ -57,6 +57,17 @@ const sh = (cmd, args) => {
   try { return execFileSync(cmd, args, { cwd: ROOT, encoding: 'utf8' }); } catch { return ''; }
 };
 const glob = (dir, teste) => (existe(dir) ? readdirSync(R(dir)).filter(teste).sort() : []);
+/* Varredura recursiva. `src/pages/` tem subpasta (`api/`, `u/`), e contar só o primeiro
+   nível devolvia 10 páginas para um site que tem mais — número errado com cara de medido. */
+const globR = (dir, teste, acc = []) => {
+  if (!existe(dir)) return acc;
+  for (const e of readdirSync(R(dir), { withFileTypes: true })) {
+    const p = `${dir}/${e.name}`;
+    if (e.isDirectory()) globR(p, teste, acc);
+    else if (teste(e.name)) acc.push(p);
+  }
+  return acc.sort();
+};
 /* Comentário É a cultura deste repo — os arquivos têm parágrafos inteiros explicando de
    onde cada número veio, e vários CITAM a constante com outro valor ("Com CTF_CAPS_TO_WIN
    = 2, o mapa mais lento…"). Ler constante sem tirar comentário antes devolve o número da
@@ -265,9 +276,56 @@ function medir() {
     opcionais: glob('supabase/opcional', (x) => x.endsWith('.sql')).length,
     cmd: 'ls supabase/migrations/*.sql | wc -l',
   };
+  /* ---- o site, para a tabela de ZONAS: a fronteira public/ × src/ é a primeira coisa
+         que um agente precisa saber, e ela tem tamanho medível dos dois lados ---- */
+  f.site = {
+    paginas: globR('src/pages', (x) => x.endsWith('.astro')).length,
+    apis: globR('src/pages/api', (x) => x.endsWith('.ts')).length,
+    /* A pegadinha que custa a primeira hora de todo mundo, medida em vez de afirmada:
+       servir `public/` estaticamente NÃO roda o jogo, porque não há index.html ali. Se
+       um dia alguém criar o arquivo, este bloco muda e a frase inverte sozinha. */
+    indexHtml: existe('public/index.html'),
+    cmd: "find src/pages -name '*.astro' | wc -l · find src/pages/api -name '*.ts' | wc -l · ls public/index.html",
+  };
+
+  /* ---- licença: o arquivo LICENSE é a verdade, e as SUPERFÍCIES são os lugares que
+         repetem o nome dela e por isso mudam JUNTO com ela.
+         Duas listas escritas à mão já enumeraram esses lugares (README.md e
+         `plans/08 §3`) e as duas esquecem o JSON-LD de `src/pages/index.astro` e o
+         rodapé desta documentação. Lista à mão de onde a licença aparece tem o mesmo
+         prazo de validade de qualquer outro número escrito à mão — por isso é medida. */
+  const NOME_LICENCA = /\b(AGPL-3\.0|AGPL|GPL-3\.0|MIT)\b/;
+  const SUPERFICIES = [
+    ['licença canônica', 'LICENSE'],
+    ['badge + seção de licenças', 'README.md'],
+    ['termo que o contribuidor aceita', 'CONTRIBUTING.md'],
+    ['rodapé do site', 'src/layouts/Layout.astro'],
+    ['JSON-LD do jogo', 'src/pages/index.astro'],
+    ['página `/sobre`', 'src/pages/sobre.astro'],
+    ['`llms.txt` (resposta para LLM)', 'public/llms.txt'],
+    ['rodapé desta documentação', 'docs/docusaurus.config.js'],
+  ];
+  const cabecalho = existe('LICENSE') ? ler('LICENSE').split('\n')[0].trim() : null;
+  const atual = cabecalho && NOME_LICENCA.exec(cabecalho) ? NOME_LICENCA.exec(cabecalho)[1] : null;
+  const ondeAparece = (arq, nome) => {
+    if (!existe(arq) || !nome) return [];
+    const re = new RegExp(`\\b${nome.replace(/[.]/g, '\\.')}\\b`);
+    return ler(arq).split('\n').map((l, i) => (re.test(l) ? i + 1 : 0)).filter(Boolean);
+  };
   f.licenca = {
-    nome: existe('LICENSE') ? ler('LICENSE').split('\n')[0].trim() : null,
-    cmd: 'head -1 LICENSE',
+    nome: cabecalho,
+    atual,
+    superficies: SUPERFICIES.map(([rotulo, arq]) => ({
+      rotulo, arquivo: arq, existe: existe(arq), linhas: ondeAparece(arq, atual),
+    })),
+    /* Quem já NOMEIA a licença futura. A regra escrita no README é que nenhum arquivo
+       pode DECLARAR AGPL antes de o LICENSE dizer — as menções de hoje são avisos de
+       mudança planejada, e este número existe para que a diferença não passe batida. */
+    outroNome: atual === 'MIT' ? 'AGPL' : 'MIT',
+    mencoesOutro: SUPERFICIES.map(([, arq]) => ({ arquivo: arq, linhas: ondeAparece(arq, atual === 'MIT' ? 'AGPL' : 'MIT') }))
+      .filter((x) => x.linhas.length),
+    cmdNome: 'head -1 LICENSE',
+    cmd: 'grep -n do nome lido do LICENSE, nas superfícies declaradas em tools/gen-docs.mjs',
   };
   f.issues = {
     escritas: glob('docs/issues', (x) => /^\d+-.*\.md$/.test(x)).length,
@@ -305,6 +363,48 @@ const BLOCOS = {
     `| Tarefas de entrada escritas | ${f.issues.escritas} | \`ls docs/issues/[0-9]*.md \\| wc -l\` |`,
     `| Versão | \`${f.versao.jogo}\` | \`public/js/version.js\`${f.versao.concordam ? ' e `package.json` (batem)' : ' — **DIVERGE do `package.json`: `' + f.versao.pacote + '`**'} |`,
     rodape('o comando da coluna direita de cada linha'),
+  ].join('\n'),
+
+  /* AS DUAS ZONAS (mais o arnês). É a primeira coisa que um agente precisa saber antes de
+     escrever uma linha, e é a que mais gente escreve à mão errado — por isso os dois lados
+     da fronteira vêm MEDIDOS. O porquê de cada regra é conhecimento humano e mora na doc;
+     aqui só o tamanho e a regra em uma linha. */
+  zonas: (f) => [
+    '| Zona | O que é | Tamanho medido | Regra |',
+    '|---|---|---|---|',
+    `| \`public/\` | o **jogo** | ${f.jogo.arquivos} arquivos \`.js\`, ${num(f.jogo.linhas)} linhas · Three.js \`${f.stack.three}\` vendorizado | ES modules servidos crus, **zero build**, sem dependência de runtime |`,
+    `| \`src/\` | o **site** | ${f.site.paginas} páginas \`.astro\`, ${f.site.apis} rotas \`/api\` · Astro \`${f.stack.astro}\` | framework é bem-vindo; \`service_role\` só no servidor |`,
+    `| \`tools/\` | o **arnês** | ${f.portao.scriptsEval} scripts em \`tools/eval/\`, ${f.portao.scriptsTools} em \`tools/\` | node puro: sobe o jogo real sem browser |`,
+    '',
+    f.site.indexHtml
+      ? '⚠️ **Existe `public/index.html`** — o que contradiz a doc, que afirma o contrário em várias páginas. Confira quem serve o quê antes de acreditar em qualquer das duas.'
+      : '**Não existe `public/index.html`.** O HTML do jogo é `src/pages/index.astro`, servido na rota `/`. ' +
+        'Servir `public/` estaticamente entrega os arnêses visuais, **não o jogo** — é a pegadinha que custa a primeira hora de todo mundo.',
+    rodape(f.site.cmd),
+  ].join('\n'),
+
+  /* AS SUPERFÍCIES DA LICENÇA — todo arquivo que REPETE o nome da licença e por isso muda
+     JUNTO com ela. Duas listas escritas à mão já tentaram enumerar isto (README.md e
+     `plans/08 §3`) e as duas esquecem lugares reais. A lista de superfícies é decisão
+     humana (vive no topo deste script); ONDE cada uma nomeia a licença é medido. */
+  licenca_pontos: (f) => [
+    `| Superfície | Arquivo | Onde diz \`${f.licenca.atual || '?'}\` |`,
+    '|---|---|---|',
+    ...f.licenca.superficies.map((s) => `| ${s.rotulo} | \`${s.arquivo}\` | ${
+      !s.existe ? '**arquivo não existe**'
+        : s.linhas.length ? `linha${s.linhas.length > 1 ? 's' : ''} ${s.linhas.join(', ')}`
+          : '— (não nomeia a licença)'}  |`),
+    '',
+    `**${f.licenca.superficies.reduce((a, s) => a + s.linhas.length, 0)} ocorrências** de ` +
+    `\`${f.licenca.atual}\` em **${f.licenca.superficies.filter((s) => s.linhas.length).length}** das ` +
+    `${f.licenca.superficies.length} superfícies declaradas. Trocar a licença é mudar **todas elas no mesmo commit**: ` +
+    'metade trocada é pior que nenhuma, porque cada arquivo passa a responder uma coisa diferente para quem pergunta.',
+    '',
+    f.licenca.mencoesOutro.length
+      ? `\`${f.licenca.outroNome}\` já aparece em ${f.licenca.mencoesOutro.map((m) => `\`${m.arquivo}\` (linha${m.linhas.length > 1 ? 's' : ''} ${m.linhas.join(', ')})`).join(', ')} — ` +
+        `como **aviso de mudança planejada**, não como declaração. A regra é essa: nenhum arquivo pode DECLARAR \`${f.licenca.outroNome}\` antes de o \`LICENSE\` dizer.`
+      : `Nenhuma superfície menciona \`${f.licenca.outroNome}\`.`,
+    rodape(f.licenca.cmd),
   ].join('\n'),
 
   /* Regras de partida, lidas das constantes. */
@@ -454,29 +554,60 @@ const BLOCOS = {
      vermelho logo depois de todo commit — inclusive dos commits que só mexem em doc.
      Vermelho que não corresponde a defeito ensina a ignorar vermelho. O que este bloco
      publica é quem assina, que muda quando alguém novo aparece — que é o fato. */
+  /* "neste repositório" era FALSO e custou caro descobrir: o shortlog roda contra o HEAD, e
+     o HEAD é uma branch. A `v2/alpha` saiu de `main` antes do merge do PR #14 e por isso não
+     tem os 13 commits do William Oliveira — a doc anunciava 3 pessoas num repositório que
+     tem 4, apagando um contribuidor de terceiro da própria página que fala de contribuir.
+     A frase agora diz qual histórico foi medido; a diferença entre branches está em
+     `docs/docs/licenca.md`, com o comando que a reproduz. */
   pessoas: (f) => [
-    `**${f.pessoas.humanos} pessoa${f.pessoas.humanos === 1 ? '' : 's'}** assinam commit neste repositório: ` +
-    `${f.pessoas.nomes.map((n) => `\`${n}\``).join(', ')}. O resto dos commits é assinado por agentes de IA.`,
+    `**${f.pessoas.humanos} pessoa${f.pessoas.humanos === 1 ? '' : 's'}** assinam commit no histórico ` +
+    `**desta branch**: ${f.pessoas.nomes.map((n) => `\`${n}\``).join(', ')}. O resto dos commits é assinado por agentes de IA. ` +
+    'Branch não é repositório: quem contribuiu num ramo que esta branch não contém **não aparece aqui**.',
     rodape(f.pessoas.cmd),
   ].join('\n'),
 
   /* Licença — a resposta correta é a que está no arquivo LICENSE, e só ela. */
+  /* SEM link markdown para `LICENSE`: um link relativo `(LICENSE)` funciona no GitHub e
+     é LINK QUEBRADO no Docusaurus (`onBrokenLinks: 'throw'` derruba o build), porque
+     `LICENSE` não é uma rota do site. O mesmo bloco vive nos dois lugares, então ele só
+     pode conter markdown que sobrevive aos dois renderizadores. */
   licenca: (f) => [
-    `O código está sob **${f.licenca.nome}** ([\`LICENSE\`](LICENSE)) — é o que vale hoje.`,
-    rodape(f.licenca.cmd),
+    `O código está sob **${f.licenca.nome}** — é o que vale hoje, e a fonte é o arquivo ` +
+    '`LICENSE` na raiz do repositório. Nenhum outro arquivo tem autoridade sobre isso.',
+    rodape(f.licenca.cmdNome),
   ].join('\n'),
 
   /* Validação dos ponteiros arquivo:linha escritos à mão na prosa. Um ponteiro que aponta
      para além do fim do arquivo é a versão barata do mesmo defeito que este script combate. */
   ponteiros: () => {
-    const alvos = ['README.md', 'STATUS.md', 'HANDOFF.md', 'KNOWN-BUGS.md',
+    const alvos = ['README.md', 'STATUS.md', 'HANDOFF.md', 'KNOWN-BUGS.md', 'AGENTS.md',
       ...glob('docs/docs', (x) => x.endsWith('.md')).map((x) => `docs/docs/${x}`),
       ...(existe('.claude/skills/gauntlet-fps') ? ['.claude/skills/gauntlet-fps/SKILL.md'] : [])];
     const quebrados = [];
     let conferidos = 0;
+    /* O QUE ESTE FILTRO CONSERTA — vale a explicação, porque o defeito era um loop.
+       A varredura lia o arquivo INTEIRO, inclusive o bloco que ela mesma escreve. Quando
+       um ponteiro quebrado era reportado, o relatório passava a CONTER o ponteiro
+       (`… → \`game.js:99999\` …`), e a execução seguinte o encontrava de novo — no próprio
+       relatório. Resultado medido: o `arquitetura.md` acusava um `game.js:99999` que não
+       existia em parágrafo nenhum da página; o único lugar em que ele aparecia era a
+       denúncia anterior. Régua que se alimenta da própria saída nunca fica verde, e
+       vermelho que não corresponde a defeito ensina a ignorar vermelho.
+       Conteúdo entre marcadores é GERADO — não é prosa humana e não se audita. */
+    const semGerados = (t) => {
+      const out = [];
+      let dentro = false;
+      for (const l of t.split('\n')) {
+        if (/BEGIN:GERADO:/.test(l)) { dentro = true; continue; }
+        if (/END:GERADO:/.test(l)) { dentro = false; continue; }
+        if (!dentro) out.push(l);
+      }
+      return out.join('\n');
+    };
     for (const alvo of alvos) {
       if (!existe(alvo)) continue;
-      const txt = ler(alvo);
+      const txt = semGerados(ler(alvo));
       for (const [, arq, ln] of txt.matchAll(/`([\w./-]+\.(?:js|mjs|ts|py|astro|css|json|sql|yml))[:](\d+)/g)) {
         const cand = ['', 'public/js/', 'tools/eval/', 'tools/', 'src/lib/', 'src/pages/', 'public/']
           .map((p) => p + arq).find((p) => existe(p) && statSync(R(p)).isFile());
@@ -517,11 +648,13 @@ const COLOCACAO = {
   numeros: ['README.md', 'docs/docs/comecando.md'],
   regras: ['README.md', 'docs/docs/comecando.md'],
   mapas: ['README.md', 'docs/docs/comecando.md', 'docs/docs/colaborar.md'],
-  scripts: ['README.md', 'docs/docs/comecando.md'],
+  scripts: ['README.md', 'docs/docs/comecando.md', 'AGENTS.md'],
+  zonas: ['AGENTS.md'],
   stack: ['README.md', 'docs/docs/stack.md'],
   assets: ['docs/docs/stack.md'],
   skills: ['docs/docs/stack.md'],
-  licenca: ['README.md'],
+  licenca: ['README.md', 'docs/docs/licenca.md'],
+  licenca_pontos: ['docs/docs/licenca.md'],
   arquivos: ['docs/docs/arquitetura.md'],
   ponteiros: ['docs/docs/arquitetura.md'],
   invariantes: ['docs/docs/quality-gates.md'],
