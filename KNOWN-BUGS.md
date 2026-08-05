@@ -15,11 +15,23 @@
 **Portão na data deste arquivo** (`node tools/eval/invariants.mjs`, ~10-12 min):
 
 ```
-CRÍTICAS: 36/49 passam  ← VM1, VM3, VM5, VM12, VM16, VM18, VM18b, VM19,
+CRÍTICAS: 39/52 passam  ← VM1, VM3, VM9, VM12, VM20, VM16, VM18, VM19,
                           BOT8, CHR1, CHR3, CHR4, TEX1 VERMELHAS
-AVISOS:   nenhum
-PULADAS:  4 (exigem browser)
+AVISOS:   VM15 fora do alvo
+PULADAS:  4 (exigem browser ou arnês ausente)
 ```
+
+Colado de uma execução real de **05/08** (`npm run check`, que roda `eval:vm` antes das
+invariantes — ver BUG-02). **Continuam 13 vermelhas**, e continuam todas de viewmodel,
+personagem e textura: o total foi de 49 para 52 porque entraram invariantes novas, e os
+nomes mudaram (VM5/VM18b viraram VM9/VM20). Nada da rodada de captura/spawn de 05/08
+(BUG-06, BUG-32) aparece aqui — as duas réguas novas moram no `check:fast`.
+
+Duas reprovações do `check:fast` que **não são defeito de código de jogo** e que cortam a
+corrente de `&&` se ficarem no meio dela: `anims:check` (BUG-15, `public/models/anims/`
+não versionado) — por isso ele foi para o FIM do `check:fast` em 05/08 — e `feet:check`,
+que reprova enquanto houver mudança de personagem não regenerada na árvore
+(`npm run feet`).
 
 Mudou em 04/08: **CHR5B saiu do aviso e ficou VERDE** (27/44 personagens sem mapa de
 superfície → 0/44) e entrou a **CHR7** (convenção de skin), verde — daí 49 e não 48.
