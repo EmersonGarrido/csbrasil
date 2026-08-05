@@ -1,0 +1,208 @@
+# AGENTS.md — porta de entrada
+
+Você acabou de chegar num repositório onde **documentação errada é o defeito mais caro que
+existe**. Este arquivo não repete o que já está escrito em outro lugar: ele diz **as regras
+que valem antes da primeira linha de código** e **para onde ir** para cada assunto.
+
+Se você se pegar escrevendo aqui um fato que já mora em outro arquivo, pare e escreva um
+link. Já foram encontrados quatro lugares diferentes com o mesmo número escrito à mão, todos
+desatualizados. Duplicar é criar o quinto.
+
+---
+
+## O que é este projeto
+
+FPS de navegador em **Three.js vanilla, zero build**, em `public/`, servido por um site
+**Astro com SSR** na raiz (`src/`), com **Supabase** para ranking e telemetria. Sátira
+cultural brasileira, jogável num link, sem instalar nada.
+
+A v1 chegou a mil jogadores por dia com gráfico nível Minecraft. A v2 persegue a
+**jogabilidade, a uniformidade e a animação do CS 1.6** — o alvo é **consistência**, não
+fidelidade de CoD. O dono se chama Ruben, responde em português, joga em **3:2** e revisa
+olhando screenshot. **Ele acerta com mais frequência do que a métrica:** quando ele diz que
+algo está errado e o portão está verde, o defeito é do portão.
+
+## As duas zonas
+
+<!-- BEGIN:GERADO:zonas — não edite à mão, rode `npm run docs` -->
+
+| Zona | O que é | Tamanho medido | Regra |
+|---|---|---|---|
+| `public/` | o **jogo** | 26 arquivos `.js`, 24.754 linhas · Three.js `r160` vendorizado | ES modules servidos crus, **zero build**, sem dependência de runtime |
+| `src/` | o **site** | 10 páginas `.astro`, 8 rotas `/api` · Astro `^7.1.1` | framework é bem-vindo; `service_role` só no servidor |
+| `tools/` | o **arnês** | 143 scripts em `tools/eval/`, 42 em `tools/` | node puro: sobe o jogo real sem browser |
+
+**Não existe `public/index.html`.** O HTML do jogo é `src/pages/index.astro`, servido na rota `/`. Servir `public/` estaticamente entrega os arnêses visuais, **não o jogo** — é a pegadinha que custa a primeira hora de todo mundo.
+
+> Bloco gerado por `node tools/gen-docs.mjs`. Fonte: `find src/pages -name '*.astro' | wc -l · find src/pages/api -name '*.ts' | wc -l · ls public/index.html`
+
+<!-- END:GERADO:zonas -->
+
+**`public/` não pode ganhar dependência de runtime nem passo de build.** Isso não é
+conservadorismo: é o que permite `tools/eval/harness.mjs` subir a classe `Game` real em node
+puro em segundos — que é o que faz o portão existir. Um bundler no meio quebraria a régua
+junto com a portabilidade. Three.js é vendorizado em `public/vendor/`; não adicione CDN.
+
+**Mexeu em `public/js/*.js`? Bump o `?v=` nos dois lados** — `public/js/version.js` e o
+import map de `src/pages/index.astro`. Sem isso o browser serve o módulo velho do cache, e
+isso já custou dias de "correção que não chegava ao usuário".
+
+O porquê completo de cada regra da fronteira está em
+[`docs/docs/stack.md`](docs/docs/stack.md).
+
+---
+
+## As leis da casa
+
+Não são estilo. Cada uma custou dias, e cada uma está documentada no código com o caso real
+que a gerou — os casos completos estão em
+[`docs/docs/quality-gates.md`](docs/docs/quality-gates.md).
+
+**1 · Régua antes do conserto.** Escreva a medição, prove que ela **reprova** o estado atual,
+só então conserte. Intenção que não vira invariante é otimizada para fora: uma rodada levou o
+portão de 16/21 para 19/21 sem afrouxar um teto sequer e foi reprovada, porque para fechar
+duas invariantes destruiu em silêncio uma decisão estética que nenhuma régua codificava.
+
+**2 · Teto sem procedência é opinião.** Todo número novo cita **arquivo de referência +
+pixel medido + o script que reproduz**. Três dias foram gastos perseguindo dois números
+asseridos que a referência contradizia. O padrão de qualidade desta base é a docstring de
+`tools/eval/ref-measure.py` — leia antes de propor qualquer teto.
+
+**3 · Toda invariante vem com a mutação que a faz ficar vermelha.** Um portão que não se mexe
+quando você quebra o código de propósito está cego. Caso real: um mutante que desfazia
+inteiramente a correção do enquadramento passava **20/22 VERDE**, porque a invariante lia a
+*declaração* de uma constante e não o *uso*. Outros três buracos iguais foram achados depois.
+Se ela não morde, ela não existe.
+
+**4 · Gere a figura e OLHE.** Número sem imagem já enganou este projeto quatro vezes. Se a
+mudança é visível, capture, olhe, e **descreva o que você viu** — não o que você esperava
+ver.
+
+**Corolário que vale para você especificamente: quem constrói nunca dá a nota.** Um agente
+lê o próprio resultado através da justificativa que ele mesmo construiu. Antes de considerar
+uma frente pronta, rode um crítico adversarial com contexto limpo. O ciclo inteiro está em
+[`docs/docs/instrumentacao-ai.md`](docs/docs/instrumentacao-ai.md) e em
+`.claude/skills/gauntlet-fps/SKILL.md`.
+
+---
+
+## Onde está cada coisa
+
+Um assunto, um arquivo. Se você precisa da informação, é daqui que você sai.
+
+| Você quer… | Vá para | Observação |
+|---|---|---|
+| o estado de hoje, em ≤100 linhas | [`STATUS.md`](STATUS.md) | comece por aqui |
+| contexto, leis e o que fazer em ordem | [`HANDOFF.md`](HANDOFF.md) | auto-contido, assume que você não viu nada |
+| **defeitos com evidência** | [`KNOWN-BUGS.md`](KNOWN-BUGS.md) | `arquivo:linha`, régua e reprodução por bug — **e o placar real do portão** |
+| a ordem de trabalho de uma sessão | [`PROMPT.md`](PROMPT.md) | o que atacar primeiro, e por quê |
+| **índice símbolo→linha do `game.js`** e a tabela de conflito | [`tools/eval/ARCH.md`](tools/eval/ARCH.md) | **GERADO** (`npm run arch`) — leia **antes** de tocar em `game.js` |
+| o que cada script do arnês mede | [`tools/eval/README.md`](tools/eval/README.md) | inclui quais estão obsoletos |
+| a régua visual vigente | [`tools/eval/BAR-CONSISTENCIA.md`](tools/eval/BAR-CONSISTENCIA.md) | **tem precedência** sobre a `BAR.md` |
+| para onde o projeto vai | [`docs/ROADMAP.md`](docs/ROADMAP.md) | aponta para os planos, não os duplica |
+| o plano de release, degrau a degrau | [`plans/08-RELEASE-PROFISSIONAL.md`](plans/08-RELEASE-PROFISSIONAL.md) | com o corte defendido |
+| como abrir um PR que passa | [`CONTRIBUTING.md`](CONTRIBUTING.md) | linha editorial, higiene, processo |
+| a documentação de dev inteira | [`docs/docs/`](docs/docs/) | site Docusaurus; `docs/INDICE.md` indexa os `.md` soltos |
+| licença, arte paga e marca | [`docs/docs/licenca.md`](docs/docs/licenca.md) | **o que vale hoje** e o que está decidido e pendente |
+| fronteira de segurança do backend | [`docs/seguranca.md`](docs/seguranca.md) | leia antes de mexer em `/api/*` ou `supabase/` |
+| tarefas boas de primeira contribuição | [`docs/issues/`](docs/issues/) | uma por arquivo, com critério de aceite |
+| por que uma decisão antiga é como é | [`docs/historico/`](docs/historico/) | arquivo morto: **não** descreve o estado atual |
+
+---
+
+## O portão, e a ordem que importa
+
+<!-- BEGIN:GERADO:scripts — não edite à mão, rode `npm run docs` -->
+
+```bash
+npm run check        # npm run syntax && npm run audio:check && npm run eval:ctfhud && npm run eval:vm && npm run eval:invariants && npm run eval:kick && npm run eval:bots
+npm run check:fast   # npm run syntax && npm run docs:check && npm run arch:check && npm run audio:check && npm run feet:check && npm run anims:check && npm run eval:ctfhud && npm run eval:pause && npm run eval:ctfround && npm run eval:regen
+```
+
+`package.json` tem **34 scripts**. Vários trazem uma chave `//nome` logo acima com o motivo de existirem — é onde mora o porquê.
+
+> Bloco gerado por `node tools/gen-docs.mjs`. Fonte: `node -p "Object.keys(require('./package.json').scripts)"`
+
+<!-- END:GERADO:scripts -->
+
+> ### `npm run eval:vm` roda ANTES de `invariants.mjs`. Sempre.
+>
+> As invariantes de viewmodel **leem** o `tools/eval/vm_mint_audit.json` que o `eval:vm`
+> **escreve**. Rodar as invariantes com esse JSON velho mede o viewmodel de ontem e
+> **inventa vermelha**: com o JSON em `V0=80°` contra o `game.js` em `V0=42°`, a VM5 acusava
+> **26/26 armas fora**; depois de regenerar, **3/26**. A ordem do `npm run check` já está
+> corrigida — o cuidado é para quando você chamar `node tools/eval/invariants.mjs` na mão.
+> É o **BUG-02** do [`KNOWN-BUGS.md`](KNOWN-BUGS.md).
+
+A mesma armadilha tem uma segunda forma, e ela morde quem adiciona portão: **`check:fast` é
+uma corrente de `&&`, e o primeiro erro corta o resto.** Portão colocado depois de um passo
+que já está vermelho nasce morto — roda zero vezes e ninguém percebe. Leia a chave
+`//check:fast` do `package.json` antes de acrescentar um passo.
+
+**O placar do portão não mora neste arquivo, e não deve morar em nenhum outro além de um.**
+Quantas invariantes passam **não é derivável do fonte** — depende de qual insumo existe na
+máquina. O número vive colado de uma execução real no cabeçalho do
+[`KNOWN-BUGS.md`](KNOWN-BUGS.md).
+
+---
+
+## Concorrência: quando paralelizar e quando não
+
+**Sistema interconectado se mexe sequencialmente, por um agente só.** Arma + mão + animação
++ ADS + mira + HUD são um sistema: fan-out paralelo nele já produziu **13 regressões numa
+única rodada**.
+
+Fora desse sistema, o paralelismo é seguro **e medido** — desde que as frentes tenham faixas
+de linha disjuntas:
+
+- A partição é declarada por **símbolo**, nunca por linha (`tools/gen-arch.mjs`), e o script
+  resolve símbolo → linha a cada execução. A tabela de conflito resultante está em
+  [`tools/eval/ARCH.md`](tools/eval/ARCH.md). **Consulte antes de editar.**
+- Em `game.js`, **edite por trecho — nunca sobrescreva o arquivo inteiro.** Uma ferramenta
+  que reescreve o arquivo apaga o trabalho de quem está na outra faixa, agora.
+- `constructor()`, `update()` e `_dom()` são **zona vermelha, append-only**: qualquer frente
+  pode precisar deles. Acrescente no fim; não reorganize.
+- **Um único agente roda browser.** Duas capturas headless em paralelo derrubam o boot e
+  produzem "countdown travado" que parece bug e é carga.
+
+Mecanismo completo: [`docs/docs/arquitetura.md`](docs/docs/arquitetura.md).
+
+---
+
+## Vetos do dono
+
+Estes não se negociam. Se você acha que um deles está errado, **traga a medição** — não o
+contorne.
+
+- **Não reduza o número de armas no chão.** *"não pode deixar todas, porque é a única forma
+  do usuário escolher armas — hoje não temos menu de compra."*
+- **Não afrouxe teto de invariante para fechar placar.** Se achar que um teto está errado,
+  meça na referência e **mostre o pixel**.
+- **`AUD1` tem que ficar verde.** É a invariante que garante que o auditor mede o que o jogo
+  desenha. Foi ela que pegou o portão mentindo. Se você mexer no caminho do viewmodel,
+  **estenda a `AUD1` junto e prove com mutação**.
+- **Nada de asset com copyright, nada de pessoa real, nada de gore.** É linha editorial e é
+  proteção contra takedown — ver [`CONTRIBUTING.md`](CONTRIBUTING.md).
+- **Segredo nunca no git.** `service_role` e `.env` só na Vercel.
+
+---
+
+## Como não estragar esta documentação
+
+**Número derivável do código não se escreve à mão em lugar nenhum deste repositório.** Ele
+vira bloco gerado por `node tools/gen-docs.mjs`, entre marcadores, e `npm run docs:check`
+(dentro do `check:fast`) reprova quando ele diverge da árvore.
+
+```bash
+npm run docs          # regenera todos os blocos
+npm run docs:check    # sai 1 se algum estiver velho — é o que roda no portão
+npm run arch          # regenera o índice e a tabela de conflito do game.js
+```
+
+Precisa de um número que ainda não é gerado? **Estenda o gerador** e ponha o marcador. Se
+não der para gerar, escreva a frase **sem o número** — ou cite o comando que o produz. Esta
+é a regra que existe porque um `SKILL.md` afirmava 3.234 linhas de `game.js` quando o arquivo
+já tinha o dobro; corrigir à mão dura exatamente um commit.
+
+E o resto — o porquê, a decisão, o caso que gerou a regra — é conhecimento humano, mora em
+**um** arquivo só, e os outros apontam para ele.
