@@ -3691,19 +3691,54 @@ export class Game {
   _flagTexFor(fac) {
     this._flagTexCache = this._flagTexCache || {};
     const k = fac || '_';
-    if (!this._flagTexCache[k]) this._flagTexCache[k] = this._makeCtfFlagTex(fac);
+    if (!this._flagTexCache[k]) {
+      /* BRASÃO DE FACÇÃO (`public/js/brasoes.js`) — APARÊNCIA é de outra frente; aqui só se
+         CONSOME, e com guarda. O módulo pode não existir (é opcional por contrato) e pode
+         devolver `null` para uma facção que ainda não tem brasão: nos dois casos cai no pano
+         procedural de sempre, e o CTF continua funcionando exatamente como hoje. */
+      let tex = null;
+      /* `fac` É LETRA DE FACÇÃO, não lado da partida — vem sempre de `_factionOf(side)`
+         (ver `_updateCTF`). A diferença morde no 'B': como LADO quer dizer "time B", como
+         FACÇÃO quer dizer Bolsonaristas, e os dois só coincidem por acidente. Passar o lado
+         cru aqui entrega a bandeira do time errado SEM erro nenhum no console. */
+      if (fac && this._bandeiraTextura) { try { tex = this._bandeiraTextura(fac); } catch { tex = null; } }
+      if (!tex) this._legadoSimbolo(fac);
+      this._flagTexCache[k] = tex || this._makeCtfFlagTex(fac);
+    }
     return this._flagTexCache[k];
   }
-  // Pré-carrega os 4 emblemas; ao carregar, repinta a textura já cacheada daquela facção.
+  /* EMBLEMA LEGADO (`img/symbols/<fac>.png`) — SÓ quando o `brasoes.js` não responde.
+     Os quatro PNG antigos somam 3,58 MB (768×512 para desenhar numa caixa de ~250 px) e
+     eram baixados de olhos fechados no início de toda partida de captura. Com o
+     `brasoes.js` no ar eles NUNCA são desenhados: quem ganha o pano é a textura do módulo
+     (141,6 KB nos cinco, agora com o F dos funkeiros, que aqui nunca existiu). Baixar os
+     dois é manter dois caminhos vivos e pagar o pior deles. Carrega sob demanda, por
+     facção, e só depois que o import falhou de verdade. */
+  _legadoSimbolo(fac) {
+    if (!fac || !this._brasoesFalhou || !this._ctfSymImg || this._ctfSymImg[fac]) return;
+    const img = new Image();
+    img.onload = () => { const t = this._flagTexCache && this._flagTexCache[fac]; if (t) this._paintFlagSymbol(t); };
+    this._ctfSymImg[fac] = img;
+    img.src = `img/symbols/${fac.toLowerCase()}.png`;
+  }
+  // Liga o módulo de brasões (cor do time + emblema). Assíncrono e OPCIONAL por contrato.
   _loadCtfSymbols() {
     if (this._ctfSymImg) return;
     this._ctfSymImg = {};
-    for (const f of ['P', 'B', 'U', 'C']) {
-      const img = new Image();
-      img.onload = () => { const t = this._flagTexCache && this._flagTexCache[f]; if (t) this._paintFlagSymbol(t); };
-      img.src = `img/symbols/${f.toLowerCase()}.png`;
-      this._ctfSymImg[f] = img;
-    }
+    /* O módulo é assíncrono: se ele chegar DEPOIS das bandeiras já criadas, o `pt._flagFac`
+       fica igual ao dono e o `_updateCTF` nunca pediria textura nova. Invalidar o cache e
+       zerar o `_flagFac` faz o próximo frame repintar — nos dois sentidos (chegou, ou
+       falhou e o legado assume). */
+    const repintaTudo = () => {
+      this._flagTexCache = {};
+      for (const pt of this.ctfPts || []) pt._flagFac = undefined;
+    };
+    const falhou = () => { this._brasoesFalhou = true; repintaTudo(); };
+    import('./brasoes.js').then((m) => {
+      if (!m || typeof m.bandeiraTextura !== 'function') return falhou();
+      this._bandeiraTextura = m.bandeiraTextura;
+      repintaTudo();
+    }).catch(falhou);
   }
 
   // Zona de captura CTF: disco de terra compactada escura c/ borda irregular + anel pintado
