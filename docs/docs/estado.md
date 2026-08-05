@@ -1,12 +1,12 @@
 ---
 id: estado
-title: Roadmap e estado
-sidebar_label: Roadmap e estado
-sidebar_position: 6
+title: 'Estado medido: o que está verde e o que está vermelho'
+sidebar_label: Estado medido
+sidebar_position: 8
 description: O que está verde e o que está vermelho HOJE, com a saída real do portão, e as dívidas declaradas do projeto.
 ---
 
-# Roadmap e estado
+# Estado medido: o que está verde e o que está vermelho
 
 Esta página tem a saída **real** do portão, colada de uma execução de verdade. Se ela
 divergir do que você vê na sua máquina, a sua máquina está certa e esta página está
@@ -381,53 +381,39 @@ Nenhuma destas é surpresa: todas estão escritas no repo, e estão aqui reunida
 | `tools/eval/ARCH.md` desatualizado | `npm run arch:check` sai **vermelho** hoje — e por um motivo pequeno: o bloco gerado carrega o número de versão do jogo, que subiu para `2.0.0-alpha.12`. Um `npm run arch` resolve | o cheque está com `continue-on-error: true` no CI, então ele **não bloqueia** |
 | ~~`npm run arch` / `arch:check` não existem~~ **RESOLVIDA** | os dois estão no `package.json` | — |
 | ~~`public/models/anims/` não versionado~~ **RESOLVIDA** | `git ls-files public/models/anims` → 438 | — |
-| Conteúdo é código, não dado | `ROADMAP.md`, Fase 2 | cada mapa/arma novo é PR de código arriscado |
-| Placar forjável | `ROADMAP.md`, Fase 3 + `RELATORIO-ANALISE.md` §2 | ranking global não é confiável sem HMAC — e é uma das razões de ele estar **desligado** hoje |
+| Conteúdo é código, não dado | direção "conteúdo como dado" do `docs/ROADMAP.md` | cada mapa/arma novo é PR de código arriscado |
+| Placar forjável | `docs/historico/RELATORIO-ANALISE.md` §2 | ranking global não é confiável sem HMAC — e é uma das razões de ele estar **desligado** hoje |
 | ~~README manda o dev pro lugar errado~~ **RESOLVIDA** | `README.md` da raiz, revisado em 05/08 | — |
 | `setTimeout` não limpos no `dispose()` | `RELATORIO-ANALISE.md:134` — **os `game.js:NNN` de lá estão velhos**, o arquivo andou ~1.000 linhas; use `grep -n setTimeout` | vazamento entre partidas |
 | Referências de personagem ausentes | `tools/eval/char-probe.mjs:28-42` | o teto do CHR1 é fallback publicado, não medição |
 
-## Roadmap
+## Para onde o projeto vai
 
-O documento canônico é `ROADMAP.md` na raiz. O resumo, com o que já está medido aqui:
+**Não está nesta página, de propósito.** Estado e direção envelhecem em ritmos diferentes:
+o placar do portão muda a cada rodada, o rumo muda a cada decisão do dono. Mantê-los no
+mesmo arquivo garante que um dos dois esteja velho.
 
-**Fase 1 — Gráficos e jogabilidade (nível CS 1.3).** Boa parte já foi entregue e está
-travada por invariante: material consistente (MAT1/MAT2), fog (FOG1), textura (TEX1),
-pickups alcançáveis (VM14), geometria de mapa (MAP1–MAP3). O que resta é o enquadramento
-do viewmodel (as 8 VM vermelhas) e o acabamento dos personagens (CHR1, CHR5B).
+| Você quer | Vá para |
+|---|---|
+| a direção, o recorte da v2 e o que foi substituído | [`docs/ROADMAP.md`](https://github.com/rubenmarcus/csbrasil/blob/main/docs/ROADMAP.md) |
+| o plano executável, degrau a degrau, com o corte defendido | [`plans/08-RELEASE-PROFISSIONAL.md`](https://github.com/rubenmarcus/csbrasil/blob/main/plans/08-RELEASE-PROFISSIONAL.md) |
+| o estado dos defeitos, com causa raiz | [`KNOWN-BUGS.md`](https://github.com/rubenmarcus/csbrasil/blob/main/KNOWN-BUGS.md) |
 
-**Fase 2 — Extensibilidade.** Mapas/armas/personagens como JSON, loader único, waypoints
-validados por teste. É a fase que transforma *"cada contribuição é um PR de código
-hand-coded arriscado"* em *"abre um JSON e cria conteúdo"*. É onde o projeto mais precisa
-de gente, e é o pré-requisito do cliente Godot.
-
-**Fase 3 — Infra e viralidade.** Multiplayer, anti-cheat com HMAC, card de resultado
-compartilhável, desafio por link.
+O que **esta** página acrescenta ao roadmap é a ligação entre os dois: boa parte do que o
+plano chama de "consistência" já está travada por invariante (MAT1/MAT2, FOG1, TEX1, VM14,
+MAP1–MAP3), e o que resta vermelho é o enquadramento do viewmodel e o acabamento dos
+personagens — com nome, número e faixa medida, tudo acima.
 
 :::warning O plano de multiplayer escrito no repo foi CONTRADITO por decisão posterior
-`plans/03` defende **servidor autoritativo** — é literalmente o título da §1 dele: *"Por
-que servidor autoritativo e não P2P"*. A decisão do dono em 04/08 é o contrário:
-**WebRTC, com o servidor criado pelo próprio usuário**, público (entra numa lista) ou por
-código (só convidado). Não dá para "seguir o plano 03 com prioridade alta" — ele precisa
-ser reescrito antes de virar tarefa.
+`plans/03` defende **servidor autoritativo** — é literalmente o título da §1 dele. A
+decisão do dono é o contrário: **WebRTC, com o servidor criado pelo próprio usuário**.
+Aquele plano precisa ser **reescrito** antes de virar tarefa, não seguido em paralelo.
 
-Não existe netcode nenhum no repositório hoje
-(`grep -rl "WebSocket\|geckos\|socket.io" public/js/ src/` devolve vazio) e o modelo é
-client-authoritative, com o anti-cheat vivendo no RPC `submit_match`. Três decisões vêm
-antes de qualquer código: topologia (malha P2P × um par fazendo de host), quem faz o
-*signaling* e hospeda a lista de servidores públicos (é serviço com custo e com
-moderação), e o que acontece com o ranking — partida P2P **não pode** submeter no
-`submit_match` sem repensar o anti-cheat.
+E não existe netcode nenhum no repositório hoje (`grep -rl "RTCPeerConnection\|WebSocket"
+public/js/ src/` devolve vazio): o modelo é client-authoritative, com o anti-cheat vivendo
+no RPC `submit_match`. **Partida P2P não pode submeter no `submit_match`** sem repensar o
+anti-cheat — é a contradição central do `plans/08 §2`.
 :::
-
-**Fase 4 — Analytics e `/mapa`.** Barato e paralelizável. A parte de medição já começou:
-a telemetria anônima que substituiu o ranking (`POST /api/telemetry`, migration `012`)
-agrega tempo de jogo e mapa por dia, e cobre também quem **não digita nick** — que era
-invisível para o banco.
-
-Princípios que não mudam, do `ROADMAP.md:12-16`: fricção zero é o superpoder (o jogo abre
-num link, ~1,5 MB); web é o cliente canônico; conteúdo é dado, não código; sátira 100%
-ficcional; **a barreira de contribuição é baixa de propósito**.
 
 ## Como manter esta página honesta
 
