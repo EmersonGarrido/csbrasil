@@ -66,6 +66,12 @@ const num = (k, d) => {
 };
 const TMP = (args.find((a) => a.startsWith('--tmp=')) || '').split('=')[1]
   || '/private/tmp/claude-504/-Users-ruben-game/8e0ad904-6bb5-4589-ab1a-48cf35c08b4f/scratchpad/ico';
+/* Diretório de saída. `public` é o padrão e é o que ninguém precisa digitar; existe para
+   que a variante de CONTROLE (`--armaenv=0`) possa ser gerada sem sobrescrever o que
+   está no ar — é isso que torna o antes/depois da `--medir-arma` uma comparação entre
+   dois arquivos REALMENTE PRODUZIDOS, e não entre dois renders de laboratório. */
+const OUT = (args.find((a) => a.startsWith('--out=')) || '').split('=')[1] || 'public';
+const dest = (rel) => { const f = path.join(OUT, rel); fs.mkdirSync(path.dirname(f), { recursive: true }); return f; };
 
 const ID = 'canarinho';
 const SS = 4;              // supersampling do quadro grande
@@ -108,6 +114,10 @@ const POSE = {
    parado na aba. Escolhido na `--sheet`, olhando a coluna de 16 px. */
 const YAW_HERO = num('yaw', 60);
 
+/* Intensidade do envMap aplicado SÓ na arma. 0 desliga (comportamento anterior, para o
+   antes/depois de `--medir-arma`). 1,45 é o valor medido: ver o bloco `iluminaArma`. */
+const ARMA_ENV = num('armaenv', 1.45);
+
 const TETO = { p99: 0.761, ruins1e4: 55.8 };   // select_inflate.json — mesma procedência
 
 // ────────────────────────────────────────────────────────────────────────────────────
@@ -124,13 +134,13 @@ page.on('console', (m) => { if (m.type() === 'error') console.error('[console]',
 await page.goto(`${BASE}/?debug=1`, { waitUntil: 'domcontentloaded', timeout: 120000 });
 await page.waitForTimeout(1500);
 
-await page.evaluate(async ({ pose }) => {
+await page.evaluate(async ({ pose, armaEnv }) => {
   const THREE = await import('three');
   const G = await import('./js/glbchars.js');
   const C = await import('./js/characters.js');
   const P = {};
   window.__ico = P;
-  P.THREE = THREE; P.G = G; P.C = C; P.pose = pose;
+  P.THREE = THREE; P.G = G; P.C = C; P.pose = pose; P.armaEnv = armaEnv;
 
   const osso = (raiz, re) => { let b = null; raiz.traverse((o) => { if (o.isBone && !b && re.test(o.name)) b = o; }); return b; };
 
@@ -287,6 +297,89 @@ await page.evaluate(async ({ pose }) => {
     return s;
   };
 
+  /* ── A PISTOLA ESTAVA LÁ E NINGUÉM VIA ────────────────────────────────────────────
+     O pedido do dono foi "o canarinho girando devia segurar uma arma", e a arma JÁ
+     estava na mão desde o primeiro giro: `monta()` reparenta o mount da `deagle` e o
+     `pronto()` gira exatamente esse modelo. Extraindo os 24 quadros do
+     `canarinho-header.webp` commitado, a pistola aparece em todos.
+
+     O defeito é de LEITURA, e tem a mesma causa raiz que as miniaturas de /armas
+     tiveram — está escrita em `public/js/game.js:1457`: "SEM ambiente (?env=0, ou PMREM
+     falhando) metalness 1,0 lê como silhueta preta". A `cena()` daqui tem três
+     direcionais e nenhum `environment`, então a deagle (metal preto) devolve quase preto
+     — e ela é servida a 60 px de altura, dentro de um recorte de CSS, sobre um fundo
+     marrom escuro. Preto sobre preto, com 8 px de comprimento: existe e não se vê.
+
+     O ambiente é aplicado SÓ NO MATERIAL DA ARMA, não em `scene.environment`. O
+     canarinho é desenhado por um shader próprio (`characters.js`, piso de albedo
+     regional do BUG-24) e o dono já aprovou como ele está no header: mudar a luz da CENA
+     mudaria o passarinho junto, que não é o que foi pedido. Material é clonado antes,
+     senão o envMap vazaria para o cache compartilhado de `weapons.js` e para qualquer
+     outra arma montada na mesma página.
+
+     GEOMETRIA NÃO MUDA — nenhum vértice, nenhum osso, nenhuma escala. É a garantia de
+     que a caixa única do giro (e portanto os 604×240 e o recorte x 288-586 / y 0-236 que
+     o `.brand-bird` de Layout.astro assume) continua idêntica. A execução IMPRIME essa
+     caixa: se o número mudar, o recorte do header quebrou e tem que ser avisado.
+
+     Kill-switch: `--armaenv=0` volta ao estado anterior — é assim que o antes/depois da
+     `--medir-arma` é medido no mesmo binário. */
+  P.iluminaArma = (mount) => {
+    const env = P.ambienteArma();
+    mount.traverse((o) => {
+      if (!o.isMesh || !o.material) return;
+      const mats = Array.isArray(o.material) ? o.material : [o.material];
+      const novos = mats.map((m) => {
+        const c = m.clone();
+        if ('envMap' in c) { c.envMap = env; c.envMapIntensity = P.armaEnv; }
+        c.needsUpdate = true;
+        return c;
+      });
+      o.material = Array.isArray(o.material) ? novos : novos[0];
+    });
+  };
+
+  /* Softbox alto + dois refletores, em FLOAT, pelo mesmo PMREMGenerator que o
+     `_buildEnv()` do jogo usa. Pequeno de propósito (128×64): o alvo tem 8 px na tela,
+     e mip de PMREM acima disso é byte gasto sem diferença medível. */
+  P.ambienteArma = () => {
+    if (P._envArma) return P._envArma;
+    const W = 128, H = 64;
+    const d = new Float32Array(W * H * 4);
+    for (let j = 0; j < H; j++) {
+      const v = (j + 0.5) / H, phi = (v - 0.5) * Math.PI;
+      const sy = Math.sin(phi), cy = Math.cos(phi);
+      for (let i = 0; i < W; i++) {
+        const u = (i + 0.5) / W, th = (u - 0.5) * Math.PI * 2;
+        const dx = cy * Math.cos(th), dz = cy * Math.sin(th);
+        let r, g, b;
+        if (sy >= 0) {
+          const t = Math.pow(1 - sy, 3);
+          r = 0.9 + (0.26 - 0.9) * t; g = 0.95 + (0.29 - 0.95) * t; b = 1.06 + (0.36 - 1.06) * t;
+          const sb = Math.pow(Math.max(sy, 0), 2.2);
+          r += 10 * sb; g += 10.2 * sb; b += 10.6 * sb;
+          const lq = Math.pow(Math.max(-dx * 0.85 + dz * 0.5, 0), 5);
+          const lf = Math.pow(Math.max(dx * 0.85 + dz * 0.4, 0), 5);
+          r += 3.0 * lq + 0.8 * lf; g += 2.7 * lq + 1.0 * lf; b += 2.1 * lq + 1.5 * lf;
+        } else {
+          const t = Math.pow(1 + sy, 6);
+          r = 0.20 * (1 + 2.2 * t); g = 0.205 * (1 + 2.2 * t); b = 0.215 * (1 + 2.0 * t);
+        }
+        const o = (j * W + i) * 4;
+        d[o] = r; d[o + 1] = g; d[o + 2] = b; d[o + 3] = 1;
+      }
+    }
+    const tex = new THREE.DataTexture(d, W, H, THREE.RGBAFormat, THREE.FloatType);
+    tex.mapping = THREE.EquirectangularReflectionMapping;
+    tex.colorSpace = THREE.LinearSRGBColorSpace;
+    tex.minFilter = THREE.LinearFilter; tex.magFilter = THREE.LinearFilter;
+    tex.needsUpdate = true;
+    const pm = new THREE.PMREMGenerator(P.rend(64, 64)); pm.compileEquirectangularShader();
+    P._envArma = pm.fromEquirectangular(tex).texture;
+    tex.dispose(); pm.dispose();
+    return P._envArma;
+  };
+
   /* Monta o canarinho posado, com a pistola do jogo na mão. Ver docstring: dois modelos,
      porque o caminho com arma do `buildCharacterModel` assenta o mount rodando o mixer
      (= sai da bind), e o mount é local ao osso da mão (= vale em qualquer pose). */
@@ -306,6 +399,7 @@ await page.evaluate(async ({ pose }) => {
       const mount = mA.children.find((k) => !k.isBone);
       if (!mount) throw new Error('mount da arma não encontrado (o motor mudou?)');
       mB.add(mount);                       // reparenta preservando o transform LOCAL
+      if (P.armaEnv) P.iluminaArma(mount);
       alvo.armaOk = true;
     }
     if (!semPose) P.posar(alvo.group);
@@ -387,24 +481,36 @@ await page.evaluate(async ({ pose }) => {
     return P.render(P._cena, px, px, cam);
   };
 
+  /* UM renderer para a execução inteira. Antes era um por quadro, e a primeira tentativa
+     de iluminar a arma FALHOU EM SILÊNCIO por causa disso: o `PMREMGenerator` produz um
+     render target do CONTEXTO WebGL que o criou, então o envMap gerado num renderer
+     descartável não existe para o renderer do quadro seguinte. O sintoma foi bonito de
+     diagnosticar — o `.webp` saiu com **exatamente os mesmos 98.064 bytes** do arquivo
+     commitado, ou seja, nem um pixel mudou. Um renderer só, um ambiente só. */
+  P.rend = (w, h) => {
+    if (!P._r) {
+      P._canvas = document.createElement('canvas');
+      P._r = new THREE.WebGLRenderer({ canvas: P._canvas, antialias: true, alpha: true, preserveDrawingBuffer: true });
+      P._r.outputColorSpace = THREE.SRGBColorSpace;
+      P._r.toneMapping = THREE.ACESFilmicToneMapping;
+    }
+    P._canvas.width = w; P._canvas.height = h;
+    P._r.setSize(w, h, false);
+    return P._r;
+  };
+
   P.render = (scene, w, h, cam) => {
-    const canvas = document.createElement('canvas');
-    canvas.width = w; canvas.height = h;
-    const r = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, preserveDrawingBuffer: true });
-    r.setSize(w, h, false);
+    const r = P.rend(w, h);
+    const canvas = P._canvas;
     r.setClearColor(0x000000, 0);
-    r.outputColorSpace = THREE.SRGBColorSpace;
-    r.toneMapping = THREE.ACESFilmicToneMapping;
     const c = new THREE.OrthographicCamera(-cam.half, cam.half, cam.half, -cam.half, 0.01, 100);
     const cx = cam.x || 0;
     c.position.set(cx, cam.y, cam.z);
     c.lookAt(cx, cam.y, 0);
     r.render(scene, c);
-    const url = canvas.toDataURL('image/png');
-    r.dispose();
-    return url;
+    return canvas.toDataURL('image/png');   // NÃO descarta: o renderer é o da execução inteira
   };
-}, { pose: POSE });
+}, { pose: POSE, armaEnv: ARMA_ENV });
 
 const buf = (u) => Buffer.from(u.split(',')[1], 'base64');
 fs.mkdirSync(TMP, { recursive: true });
@@ -593,7 +699,7 @@ for (const t of [16, 32, 48]) {
   icoPartes.push(f);
 }
 execSync(`magick ${icoPartes.join(' ')} ${path.join(TMP, 'favicon.ico')}`);
-fs.copyFileSync(path.join(TMP, 'favicon.ico'), 'public/favicon.ico');
+fs.copyFileSync(path.join(TMP, 'favicon.ico'), dest('favicon.ico'));
 
 /* apple-touch-icon: 180×180 e SEM transparência de propósito. O iOS compõe o ícone da
    tela de início sobre fundo próprio e recorta em quadrado arredondado; PNG com alfa
@@ -606,11 +712,11 @@ const fundoAT = await sharp({ create: { width: AT, height: AT, channels: 4, back
   .png().toBuffer();
 await sharp(fundoAT)
   .composite([{ input: await png(camDe(CROP[48]), 1024, AT - folga * 2), left: folga, top: folga }])
-  .png({ compressionLevel: 9 }).toFile('public/apple-touch-icon.png');
+  .png({ compressionLevel: 9 }).toFile(dest('apple-touch-icon.png'));
 
 /* Quadro parado do corpo inteiro, transparente — README, card de release, redes. */
 await sharp(buf(await page.evaluate(({ c, p, y }) => window.__ico.quadro(y, c, p), { c: CAM_CORPO, p: 1024, y: YAW_HERO })))
-  .resize(512, 512, { kernel: 'lanczos3' }).png({ compressionLevel: 9 }).toFile('public/img/canarinho-pistola.png');
+  .resize(512, 512, { kernel: 'lanczos3' }).png({ compressionLevel: 9 }).toFile(dest('img/canarinho-pistola.png'));
 
 
 /* ── GIRO ──────────────────────────────────────────────────────────────────────────
@@ -702,8 +808,8 @@ for (let i = 0; i < GIRO_N; i++) {
 console.log('');
 
 const DELAY = Math.round(num('delay', 80));   // ms por quadro -> 24 quadros = 1,92 s de volta
-const gif = 'public/img/canarinho-header.gif';
-const webp = 'public/img/canarinho-header.webp';
+const gif = dest('img/canarinho-header.gif');
+const webp = dest('img/canarinho-header.webp');
 /* Paleta GLOBAL gerada dos 24 quadros (`palettegen` + `paletteuse`) em vez da paleta por
    quadro do codificador padrão: o boneco gira, cada quadro tem amarelos diferentes, e
    paleta por quadro faz a cor da marca PULSAR na volta inteira. */
@@ -713,8 +819,8 @@ execSync(`ffmpeg -y -loglevel error -framerate ${fps} -i ${TMP}/giro-%03d.png -i
 execSync(`img2webp -loop 0 -min_size -d ${DELAY} -lossy -q 72 -m 6 ${frames.join(' ')} -o ${webp}`);
 
 const kb = (f) => (fs.statSync(f).size / 1024).toFixed(0);
-console.log(`\nfavicon.ico                16+32+48    ${kb('public/favicon.ico')} KB`);
-console.log(`apple-touch-icon.png       ${AT}×${AT}     ${kb('public/apple-touch-icon.png')} KB`);
-console.log(`img/canarinho-pistola.png  512×512     ${kb('public/img/canarinho-pistola.png')} KB   (parado, alfa)`);
+console.log(`\nfavicon.ico                16+32+48    ${kb(dest('favicon.ico'))} KB`);
+console.log(`apple-touch-icon.png       ${AT}×${AT}     ${kb(dest('apple-touch-icon.png'))} KB`);
+console.log(`img/canarinho-pistola.png  512×512     ${kb(dest('img/canarinho-pistola.png'))} KB   (parado, alfa)`);
 console.log(`img/canarinho-header.gif   ${HW}×${HH} ${GIRO_N}q ${kb(gif)} KB`);
 console.log(`img/canarinho-header.webp  ${HW}×${HH} ${GIRO_N}q ${kb(webp)} KB   (${(100 - (fs.statSync(webp).size / fs.statSync(gif).size) * 100).toFixed(0)} % menor que o GIF)`);
