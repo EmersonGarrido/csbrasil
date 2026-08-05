@@ -165,6 +165,77 @@ a produção não tem. Os 100 foram versionados (4,5 MB). É o C3 do HANDOFF, ag
 `semfetch` acendem a A3 (que confere que o **jogo consulta** o manifesto antes de pedir —
 sem ela o manifesto podia ficar perfeito e os 88 404 continuarem), `semgit` acende a A4.
 
+### ~~BUG-32 · "o respawn do time dentro da loja, eles começam embaixo do mezanino e do nada sobem"~~ · RESOLVIDO 05/08
+
+**Sintoma (palavras do dono, jogando):** *"o respawn do time dentro da loja, eles começam
+embaixo do mezanino e do nada sobem, isso tá esquisito."*
+
+**Palpite óbvio REFUTADO antes de agir nele.** A hipótese de partida era "os pontos de
+spawn estão sob a pegada do mezanino e o resolvedor multinível devolve a altura errada" —
+ou seja, defeito do `groundHeightAt` recém-mexido (BUG-22, 2ª rodada), com a correção
+sendo mover os spawns. Medido, **não é**: o `map_havan.js/groundHeightAt(x, z, yRef)`
+responde certo nos dois sentidos naquele ponto — `gh(0, −39)` = **3,40** (a laje, que é o
+que o mapa declara como spawn do depósito) e `gh(0, −39, 0)` = **0,00** (o piso da loja,
+para quem já está embaixo). Mover o spawn teria escondido o defeito e ele voltaria no
+próximo mapa com plataforma.
+
+**Causa raiz — confirmada, e são duas caras da mesma.** Os **cinco** lugares que colocam
+alguém num spawn escreviam **`pos.set(s.x, 0, s.z)` — Y ZERO LITERAL**, sem nunca
+perguntar ao mapa qual é o chão daquele (x, z): `_resetPositions`, `_switchTeam` (2×),
+`_respawnPlayer` e o ramo de respawn do `_updateBot`. Enquanto todo mapa foi plano isso
+foi verdade por acidente. O spawn do time da loja da Havan é o **depósito do mezanino**,
+y de projeto **3,40 m** (`map_havan.js:1752`, `z: MZ.z0 + 2.4`), dentro da pegada onde o
+mesmo (x, z) tem piso em 0,00 **e** em 3,40.
+
+**Medido** (`tools/eval/spawn-settle-check.mjs`, `fy_havan`, os 4 slots do time B):
+
+| | y(frame 0) | y(frame 1) | y(frame 30) | o que o jogador vê |
+|---|---:|---:|---:|---|
+| **BOT, antes** | 0,00 | **3,40** | 3,40 | nasce embaixo da laje e **sobe 3,40 m em um quadro** |
+| **JOGADOR, antes** | 0,00 | 0,00 | 0,00 | nasce no **térreo**, embaixo do depósito — andar errado |
+| bot e jogador, depois | 3,40 | 3,40 | 3,40 | nascem no depósito, Δ = 0,00 |
+
+O bot sobe e o jogador não pelo mesmo motivo invertido: o realinhamento do bot
+(`game.js:_updateBot`, `b.pos.y = groundHeightAt(x, z)`) é **sem `yRef` de propósito**
+(o A* não tem camada — está documentado lá, com o botsim que mediu 5× mais bot travado
+com camada), então ele pega a laje; o jogador é resolvido com `yRef` = o próprio y = 0 e
+recebe "seu chão é o de baixo".
+
+**Correção — no chamador, que é onde estava a causa:** `game.js:_spawnY(x, z)` pergunta a
+altura ao mapa, e os cinco `pos.set` passam a usá-la. Sem `yRef` de propósito: o ponto de
+spawn é uma **declaração do mapa** ("nasce aqui"), e a superfície que ele quer dizer é a
+de cima daquele (x, z). No `_resetPositions` a altura é medida **depois** do jitter, e a
+ordem das duas chamadas de `Math.random()` foi preservada (o harness depende dela).
+
+**Régua: `tools/eval/spawn-settle-check.mjs`** (`npm run eval:spawn`, no `check:fast`).
+3 cláusulas, 1 mutação medida. Cobre **80 colocações** — jogador **e** bot, em todo spawn
+dos 5 mapas —, e usa os caminhos REAIS (`_respawnPlayer` e o ramo de respawn do
+`_updateBot`, com `_pickSpawn` fixado em cada ponto), não uma reimplementação da colocação
+dentro da régua. `--mutante=y0` devolve o y literal 0 e acende **13 cláusulas**, entre elas
+os 3,40 m de teleporte dos 4 bots da Havan. Teto: **|y(frame 30) − y(frame 0)| < 0,25 m**,
+que pega o teleporte vertical em qualquer mapa, não só na Havan.
+
+**Custo declarado, medido — e ele existe.** A/B controlado no `botsim` (`node tools/eval/botsim.mjs 60 fy_havan`,
+média das 9 sementes; o "antes" é o próprio `_spawnY` devolvendo 0, aplicado e revertido):
+
+| | latFlips/min | fwdFlips/min | stuck % | eff |
+|---|---:|---:|---:|---:|
+| antes (y literal 0) | 11,778 | 6,744 | **1,678** | 0,206 |
+| depois (`_spawnY`) | 12,633 | 6,700 | **2,100** | 0,202 |
+
+**+0,42 pp de bot travado na Havan, e a explicação é o próprio conserto.** Antes, no primeiro
+quadro depois de renascer, o bot rodava o `_updateBot` inteiro com `pos.y = 0` — e o
+`_collide` filtra colisor por altura (`pos.y + 1.5 > c.minY && pos.y + 0.3 < c.maxY`), então
+naquele quadro ele **atravessava as paredes do depósito** antes de ser puxado para 3,40.
+Agora ele respeita a geometria do depósito desde o primeiro quadro. É o comportamento
+correto custando um pouco de fluidez, e o mesmo ponteiro de sempre: o A\* da Havan não tem
+camada (a segunda metade do BUG-22 continua aberta) — resolvê-lo é o que devolve os 0,42 pp.
+Ordem de grandeza muito abaixo do 5× (1,73 % → 8,98 %) que fez o `yRef` sair do
+realinhamento do bot.
+
+Nos **4 mapas planos** o `_spawnY` devolve 0 e o comportamento é idêntico por construção.
+`eval:pegada`, `eval:ctfhud`, `eval:pause`, `eval:regen` e `ctf-round-check` seguem verdes.
+
 ---
 
 ### ~~BUG-00 · "o jogo reiniciou sozinho e foi pro menu principal"~~ · RESOLVIDO 04/08

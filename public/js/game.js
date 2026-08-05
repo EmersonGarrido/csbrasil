@@ -2170,7 +2170,11 @@ export class Game {
     const place = (ent, team, slot) => {
       const list = this.world.spawns[team];
       const s = list[slot % list.length];
-      ent.pos.set(s.x + (Math.random() - .5), 0, s.z + (Math.random() - .5));
+      // y vem do MAPA (`_spawnY`), medido no ponto JÁ com o jitter — spawn em plataforma
+      // (depósito do mezanino da Havan) nasce em cima dela, não embaixo. Ordem das duas
+      // chamadas de Math.random() preservada: o harness depende dela para ser determinístico.
+      const jx = s.x + (Math.random() - .5), jz = s.z + (Math.random() - .5);
+      ent.pos.set(jx, this._spawnY(jx, jz), jz);
       ent.hp = 100; ent.alive = true; ent.respawnAt = 0; ent.protUntil = 0;
       return s;
     };
@@ -2656,7 +2660,7 @@ export class Game {
       this.scene.add(swapBot.mesh.group);
       swapBot.target = null; swapBot.path = null; swapBot.hp = 100; swapBot.alive = true;
       const s = this.world.spawns[oldTeam][(Math.random() * 4) | 0];
-      swapBot.pos.set(s.x, 0, s.z);
+      swapBot.pos.set(s.x, this._spawnY(s.x, s.z), s.z);
       swapBot.yaw = oldTeam === 'P' ? 0 : Math.PI;
       swapBot.mesh.group.rotation.set(0, swapBot.yaw, 0);
       swapBot.mesh.group.position.copy(swapBot.pos);
@@ -2664,7 +2668,7 @@ export class Game {
     }
     // respawn do jogador no lado novo
     const s = this.world.spawns[newTeam][(Math.random() * 4) | 0];
-    p.pos.set(s.x, 0, s.z); p.vel.set(0, 0, 0);
+    p.pos.set(s.x, this._spawnY(s.x, s.z), s.z); p.vel.set(0, 0, 0);
     p.yaw = newTeam === 'P' ? Math.PI : 0; p.pitch = 0; p.hp = 100;
     this._scope(false, true);
     this._banner(`VOCÊ AGORA É ${this._teamName(newTeam)}`, 'trocou de lado na treta — sem penalty, só julgamento');
@@ -5164,6 +5168,31 @@ export class Game {
      do inimigo vivo mais próximo E sem linha de visão pra ele. O sorteio puro colocava o
      jogador na frente de quem estava empurrando o spawn — morrer duas vezes seguidas sem
      encostar no gatilho era rotina. Usado pelo jogador e pelos bots. */
+  /* ALTURA DO PONTO DE SPAWN — pergunta ao MAPA, não assume zero.
+     ═══════════════════════════════════════════════════════════════════════════════════
+     DEFEITO DO DONO: *"o respawn do time dentro da loja, eles começam embaixo do mezanino
+     e do nada sobem, isso tá esquisito."*
+
+     Os cinco lugares que colocam alguém num spawn escreviam `pos.set(s.x, 0, s.z)` — Y
+     ZERO LITERAL. Enquanto todo mapa foi plano isso foi verdade por acidente. A Havan tem
+     chão MULTINÍVEL (`map_havan.js/groundHeightAt(x, z, yRef)`) e o spawn do time da loja
+     é o DEPÓSITO DO MEZANINO, y de projeto 3,40 m, dentro da pegada onde o mesmo (x, z)
+     tem piso em 0,00 e em 3,40. Medido em `tools/eval/spawn-settle-check.mjs`:
+       BOT    y(frame 0) = 0,00 -> y(frame 1) = 3,40   — 3,40 m de teleporte em um quadro,
+              porque o realinhamento do bot (`_updateBot`) usa a camada de CIMA;
+       JOGADOR y(frame 0) = 0,00 -> y(frame 30) = 0,00 — ele fica no TÉRREO, embaixo da
+              laje, porque o resolvedor recebe yRef = 0 e responde "seu chão é o de baixo".
+     São a mesma causa vista de dois lados, e ela não está no mapa nem no resolvedor: está
+     em quem chama. Consertar aqui (perguntar a altura) e não mudando os pontos de spawn é
+     o que impede o defeito de renascer em qualquer outro mapa com plataforma.
+
+     SEM yRef de propósito: o ponto de spawn é uma DECLARAÇÃO do mapa ("nasce aqui"), e a
+     superfície que ele quer dizer é a de cima daquele (x, z) — é o que `groundHeightAt`
+     devolve quando ninguém informa um corpo. Passar yRef = 0 aqui traria de volta
+     exatamente o jogador nascendo embaixo da laje. */
+  _spawnY(x, z) {
+    return this.world && this.world.groundHeightAt ? this.world.groundHeightAt(x, z) : 0;
+  }
   _pickSpawn(team) {
     const list = this.world.spawns[team] || [];
     if (!list.length) return { x: 0, z: 0 };
@@ -5190,7 +5219,7 @@ export class Game {
   _respawnPlayer() {
     const p = this.player;
     const s = this._pickSpawn(p.team);
-    p.pos.set(s.x, 0, s.z); p.vel.set(0, 0, 0);
+    p.pos.set(s.x, this._spawnY(s.x, s.z), s.z); p.vel.set(0, 0, 0);
     p.hp = 100; p.alive = true; p.crouchF = 0;
     p._lifeDmg = 0;
     if (this._deathPanel) this._deathPanel.innerHTML = '';   // painel de morte não vaza pra vida nova
@@ -5347,7 +5376,7 @@ export class Game {
       }
       if (this.time >= b.respawnAt && (this.state === 'live')) {
         const s = this._pickSpawn(b.team);   // mesmo critério de segurança do jogador
-        b.pos.set(s.x, 0, s.z); b.hp = 100; b.alive = true;
+        b.pos.set(s.x, this._spawnY(s.x, s.z), s.z); b.hp = 100; b.alive = true;
         /* RENASCER NO MESMO PIXEL: o _pickSpawn devolve o ponto MAIS SEGURO, e ele é o mesmo
            pra todo mundo que morreu junto — 3 bots renascem exatamente sobrepostos. Tentei
            afastar com um jitter de 0,6-1,4 m e o harness reprovou pelo mesmo motivo do
