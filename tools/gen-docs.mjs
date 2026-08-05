@@ -415,7 +415,13 @@ const BLOCOS = {
     `| Mapas no menu | ${f.mapas.total} — ${f.mapas.emRodadas} abrem em rodadas, **${f.mapas.emCaptura} em captura** | \`MAPS\` / \`ctfMode\` |`,
     `| Respawn | ${String(f.regras.respawn).replace('.', ',')} s | \`RESPAWN_DELAY\` |`,
     `| Round | ${f.regras.roundTime} s, ${f.regras.roundsToWin} vitórias | \`ROUND_TIME\` / \`ROUNDS_TO_WIN\` |`,
-    `| Captura | alvo de ${f.regras.ctfCaps} bandeiras, ${f.regras.ctfRounds} rodadas (rede de segurança ${f.regras.ctfMatchTime} s) | \`CTF_CAPS_TO_WIN\` / \`CTF_ROUNDS_TO_WIN\` |`,
+    /* O alvo da rodada de captura NÃO é mais derivável de uma constante: desde 05/08 ele é
+       `this.ctfPts.length` — TODAS as bandeiras do mapa, que hoje são 3 ou 4 conforme o mapa
+       (pedido literal do dono: "tem que ser todas sempre"). Escrever "alvo de 3" aqui era
+       justamente o tipo de número certo-em-um-lugar-e-errado-no-jogo que este gerador existe
+       para impedir. `CTF_CAPS_TO_WIN` sobrou como fallback do layout padrão e por isso saiu
+       da frase. */
+    `| Captura | alvo = **todas as bandeiras do mapa**, ${f.regras.ctfRounds} rodadas (rede de segurança ${f.regras.ctfMatchTime} s) | \`capsToWin = ctfPts.length\` / \`CTF_ROUNDS_TO_WIN\` |`,
     `| Regeneração de vida | **${f.regras.regenLigado === false ? 'DESLIGADA — `?regen=1` religa' : 'LIGADA por padrão'}** | \`REGEN\` |`,
     `| Ranking / páginas \`/u/\` | **${f.regras.rankingOn ? 'LIGADOS' : 'DESLIGADOS — é uma flag, volta numa linha'}** | \`RANKING_ON\` em \`src/lib/site.ts\` |`,
     rodape(f.regras.cmd),

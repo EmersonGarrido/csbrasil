@@ -89,8 +89,9 @@ const ROUNDS_MAX = ROUNDS_TO_WIN * 2 - 1;
    consertei do jeito errado — dei ao modo o MESMO relógio de 99 s dos rounds de abate.
    Isso fechou a partida e quebrou o modo: em CTF o round acaba por OBJETIVO, não por
    tempo. As duas verdades têm que valer juntas, e a UI4 agora cobra as duas:
-     · a RODADA fecha por ALVO DE CAPTURAS (CTF_CAPS_TO_WIN) ou por dominação das
-       bandeiras (_ctfWin) — nunca por tempo;
+     · a RODADA fecha por ALVO DE CAPTURAS (= TODAS as bandeiras do mapa, ver
+       `capsToWin` em `_initCTF`) ou por dominação das bandeiras (_ctfWin) — nunca
+       por tempo;
      · a PARTIDA fecha por vitórias de rodada (CTF_ROUNDS_TO_WIN), por teto de rodadas
        (CTF_ROUNDS_MAX) ou, como REDE DE SEGURANÇA, por um teto de tempo DE PARTIDA
        (CTF_MATCH_TIME) que só aparece no HUD nos últimos CTF_CLOCK_SHOW segundos.
@@ -103,6 +104,11 @@ const ROUNDS_MAX = ROUNDS_TO_WIN * 2 - 1;
    de tempo de PARTIDA — sem ele o modo voltaria a não fechar. Melhor de 3 (e não de 5)
    porque a rodada de captura é 2-3× mais longa que a de abate: 5 rodadas de captura não
    cabem em partida nenhuma. */
+/* FALLBACK, não regra: o alvo REAL da rodada é `this.ctfPts.length` — TODAS as bandeiras
+   que o mapa tem —, derivado em `_initCTF` (ver o bloco ALVO DA RODADA lá). Este 3 só vale
+   para o layout padrão (mapa que não declara `world.ctfPoints`), que tem exatamente 3
+   bandeiras. Ele era a regra até 05/08 e é o defeito que o dono viu: com 4 bandeiras na
+   Loja H a rodada fechava na 3ª captura. Régua: `tools/eval/ctf-win-check.mjs`. */
 const CTF_CAPS_TO_WIN = 3;
 const CTF_ROUNDS_TO_WIN = 2, CTF_ROUNDS_MAX = CTF_ROUNDS_TO_WIN * 2 - 1;
 const CTF_MATCH_TIME = 480;
@@ -1176,7 +1182,9 @@ export class Game {
        rodada (é o que o diferencia do `timeLeft`) e só aparece no HUD nos últimos
        CTF_CLOCK_SHOW segundos — ver `_updateHud`. */
     this.ctfMatchLeft = this.ctf ? CTF_MATCH_TIME : Infinity;
-    // alvo de capturas que fecha a RODADA no CTF (o equivalente do killsToWin do abate)
+    // alvo de capturas que fecha a RODADA no CTF (o equivalente do killsToWin do abate).
+    // Valor PROVISÓRIO: o alvo de verdade é o nº de bandeiras do mapa e só pode ser sabido
+    // depois que elas existem — `_initCTF` o sobrescreve com `ctfPts.length` a cada rodada.
     this.capsToWin = this.ctf ? CTF_CAPS_TO_WIN : Infinity;
     this.stateUntil = 0;
 
@@ -4004,6 +4012,8 @@ export class Game {
     if (this.world.ctfPoints && this.world.ctfPoints.length) {
       this.ctfPts = this.world.ctfPoints.map(p => mk(p.id, p.label, p.x, p.z));
     } else {
+      /* (o `else` abaixo é o layout padrão de 3 bandeiras; o alvo da rodada é derivado
+         da contagem DEPOIS deste if/else — ver o bloco ALVO logo após.) */
       /* 0,82 -> 0,42 do vetor spawn->centro. Com 0,82 a bandeira nascia a 18% do caminho, ou
          seja COLADA no respawn: medido em tools/eval/map-check.mjs, 11,3 m no awp_map, 7,7 m
          na praça e 3,9 m no piscinão — MENOS que o raio de captura (4,5 m) no piscinão, isto
@@ -4016,6 +4026,24 @@ export class Game {
         mk('B', 'CATEDRAL', sB.x * 0.42, sB.z * 0.42),
       ];
     }
+    /* ALVO DA RODADA = TODAS AS BANDEIRAS DO MAPA, SEMPRE.
+       ─────────────────────────────────────────────────────────────────────────────
+       Defeito do dono, jogando: *"no capture the flag na loja H está com 3 capturas
+       quando a vitória tem que ser as 4. tem que ser todas sempre."*
+
+       O alvo era a CONSTANTE `CTF_CAPS_TO_WIN = 3`, escrita quando todo mapa tinha três
+       bandeiras. Havan, ferro velho e quebrada passaram a declarar `world.ctfPoints` com
+       QUATRO e o alvo não acompanhou: a rodada fechava com 3 de 4, com uma bandeira
+       inteira do mapa fora da condição de vitória. Medido em
+       `tools/eval/ctf-win-check.mjs` antes do conserto — alvo 3 nos 5 mapas, e a rodada
+       fechando na 3ª captura nos três mapas de 4 bandeiras.
+
+       Deriva daqui, e não da constante, porque AQUI é onde as bandeiras existem: o mapa
+       é a fonte da contagem (`world.ctfPoints`) e o layout padrão é o fallback de 3. Um
+       mapa novo com 5 bandeiras passa a exigir 5 sem tocar em nenhuma constante.
+       `_initCTF` roda dentro do `_startRound` ANTES do banner que anuncia o alvo, então
+       o número que o jogador lê é sempre este. */
+    this.capsToWin = this.ctfPts.length || CTF_CAPS_TO_WIN;
     this._updateCtfHud();
   }
 

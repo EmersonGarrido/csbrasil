@@ -558,14 +558,61 @@ tipografia sem olhar overflow já quebrou tela antes). As 9 telas foram capturad
 Chrome headless a 1536×1024 (3:2, o enquadramento do dono) e medidas com o mesmo `ref-ui.py`
 apontado para as capturas.
 
-### BUG-06 · Alvo de capturas do CTF não deriva do número de bandeiras
+### ~~BUG-06 · Alvo de capturas do CTF não deriva do número de bandeiras~~ · RESOLVIDO 05/08
 
-`game.js:1092`: `this.capsToWin = this.ctf ? CTF_CAPS_TO_WIN : Infinity` — constante. O Havan
-tem **4** bandeiras, o ferro velho **4**, e o alvo continua fixo. As strings já usam a variável
-`alvo` (o hardcode "DOMINARAM OS 3 PODERES" não existe mais), então o conserto é só na origem
-do número: `Math.floor(world.ctfPoints.length / 2) + 1`, mantendo **dominação = vitória
-imediata**. A cláusula "ALVO DECLARADO" da `UI4` (`tools/eval/ui-check.mjs`) tem que ser
-atualizada junto, senão passa a mentir.
+**Sintoma (palavras do dono, jogando):** *"no capture the flag na loja H está com 3 capturas
+quando a vitória tem que ser as 4. tem que ser todas sempre."*
+
+**A entrada anterior classificava isto como LATENTE, e a classificação estava errada — pela
+REGRA, não pela conta.** O diagnóstico de 05/08 dizia: os 3 mapas com `ctfMode` têm 4
+bandeiras cada, `Math.floor(4 / 2) + 1 = 3` = `CTF_CAPS_TO_WIN`, logo a correção proposta é
+no-op e "régua escrita hoje fica verde dos dois lados". A aritmética estava certa. O que
+estava errado era a **regra proposta**: maioria (`floor(n/2)+1`) nunca foi o que o modo tem
+que fazer. O dono definiu a regra em uma frase — **todas as bandeiras, sempre** — e com ela o
+defeito deixa de ser latente e passa a ser exatamente o que ele viu: **a rodada fechando em
+3 de 4**, com uma bandeira inteira do mapa fora da condição de vitória. É a lei 1 da casa
+vista de outro ângulo: quando o dono diz que está errado, o defeito é do portão — aqui, da
+regra que o portão ia codificar.
+
+**Medido antes do conserto** (`tools/eval/ctf-win-check.mjs`, os 5 mapas):
+
+| mapa | bandeiras | alvo (antes) | rodada fechava na | alvo (depois) |
+|---|---:|---:|---:|---:|
+| `awp_map` | 3 (layout padrão) | 3 | 3ª | 3 |
+| `fy_pool_day` | 3 (layout padrão) | 3 | 3ª | 3 |
+| **`fy_havan`** | **4** | **3** | **3ª** | **4** |
+| **`fy_ferrovelho`** | **4** | **3** | **3ª** | **4** |
+| **`fy_quebrada`** | **4** | **3** | **3ª** | **4** |
+
+**Cuidado com o histórico, e ele foi conferido:** a condição de vitória do CAPTURA já morou
+dentro do `_checkPace()`, atrás do gate `?pace=1`, e com `PACE` desligado a rodada nunca
+fechava (BUG-29). O caminho consertado aqui é o que roda **hoje**: `_checkCtfAlvo()`, chamado
+sem gate a partir do `_updatePlayer` (`game.js:4636`), e a cláusula CTF-W2 **anda o motor**
+injetando captura por captura para descobrir em qual delas o estado sai de `live` — ela não
+lê declaração nenhuma.
+
+**Correção:** o alvo saiu da constante e passou a ser derivado onde as bandeiras existem —
+`this.capsToWin = this.ctfPts.length` no fim do `_initCTF()`, que roda dentro do
+`_startRound()` **antes** do banner que anuncia o alvo ao jogador. `CTF_CAPS_TO_WIN = 3`
+sobrou como fallback do layout padrão (mapa que não declara `world.ctfPoints`, que tem 3
+bandeiras) e está marcado como tal no código. Um mapa novo com 5 bandeiras passa a exigir 5
+sem tocar em constante nenhuma. **Dominação continua vitória imediata** (`_ctfWin`), como
+pedido na entrada original.
+
+**A `UI4` não precisou de ajuste** (a entrada antiga previa que sim): `tools/eval/ui-check.mjs:831`
+já lê `g.capsToWin` do objeto vivo — nunca teve o 3 escrito à mão.
+
+**Régua: `tools/eval/ctf-win-check.mjs`** (`npm run eval:ctfwin`, no `check:fast`).
+3 cláusulas, 2 mutações medidas: `--mutante=constante` devolve o defeito exato do dono
+(alvo 3 nos mapas de 4, rodada fechando na 3ª — **7 cláusulas vermelhas**) e
+`--mutante=menos1` (alvo = bandeiras − 1) acende **10**, provando que a CTF-W2 mede o fecho
+no motor e não a declaração. A CTF-W3 lê o fonte e reprova se o alvo voltar a ser constante.
+
+**Custo declarado, medido:** a rodada de captura ficou mais longa nos mapas de 4 bandeiras —
+`ctf-round-check.mjs` (`fy_ferrovelho`, semente 4242) mede o 1º fecho de rodada indo de
+**29,1 s → 54,1 s**. É o efeito pretendido (uma bandeira a mais para conquistar) e continua
+muito abaixo da rede de segurança de 480 s do `CTF_MATCH_TIME`; o `eval:ctfround` segue
+verde.
 
 ### ~~BUG-07 · Metade do áudio do repo nunca toca no jogo~~ · RESOLVIDO 04/08 (parcial)
 
