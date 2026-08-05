@@ -15,7 +15,7 @@ PR (`.github/workflows/ci.yml`).
 {/* BEGIN:GERADO:invariantes — não edite à mão, rode `npm run docs` */}
 
 - `tools/eval/invariants.mjs`: **2.187 linhas**, **61 identificadores de invariante declarados** (`put()`), dos quais **27** têm caminho de `skip()` declarado.
-- O arnês inteiro são **144 scripts** em `tools/eval/` (`.mjs` + `.py`), mais **42 scripts** de pipeline em `tools/`.
+- O arnês inteiro são **149 scripts** em `tools/eval/` (`.mjs` + `.py`), mais **43 scripts** de pipeline em `tools/`.
 - Quantas invariantes rodam como **críticas** numa execução **não é derivável do fonte**: depende de qual insumo existe na máquina (o JSON do auditor de viewmodel, um GLB, uma pasta de anims). Esse número só sai rodando o portão — e o lugar dele é o cabeçalho do `KNOWN-BUGS.md`, atualizado com saída real.
 
 Reproduza:
@@ -373,6 +373,14 @@ Checklist, na ordem:
 | Medir o vão contra o chão local errado | pickup dentro da piscina reportava vão **0,0000 — VERDE** (`pickup-check.mjs:20-23`) |
 | "waypoint ≤ 3 m" como proxy de alcance | 74 falsos-positivos e verde em bolsão fechado (`pickup-check.mjs:34-42`) |
 | Piso sem teto | "boca ≥ 0,66" aceita a boca em 0,95 (arma no porão) — foi assim que chegamos a 0,816 (`invariants.mjs:432-434`) |
+
+## Esta página é a doutrina. O passo a passo é uma skill
+
+O que fazer, na ordem, quando alguém reporta um defeito — reproduzir, medir antes de
+consertar, refutar o palpite óbvio, mutar a régua, rodar o portão na ordem certa e reportar
+o que **não** foi verificado — está em `.claude/skills/bug-hunt/SKILL.md`, com o caso real
+que comprou cada regra. Ela é escrita para agente **e** para gente, e aponta de volta para
+esta página em vez de repeti-la.
 
 ## Rodar o portão
 

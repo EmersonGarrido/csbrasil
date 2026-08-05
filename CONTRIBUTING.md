@@ -171,5 +171,25 @@ Abra uma issue com: o que aconteceu, o que você esperava, passos pra reproduzir
 navegador/SO e, se der, print do console (F12). O jogo tem um overlay de crash
 que persiste a exceção na tela justamente pra esse print.
 
+**Descreva com as suas palavras, não com o diagnóstico que você imagina.** Nesta
+base o sintoma quase nunca é o defeito: *"o jogo reiniciou sozinho"* era um botão
+do menu de pausa debaixo da mira, e *"a música não toca"* era um `%2520` numa URL
+codificada duas vezes. A frase literal é o dado; a interpretação a gente mede.
+
 **Vulnerabilidade de segurança não vai em issue pública** — veja
 [`SECURITY.md`](SECURITY.md).
+
+### Vai consertar um bug?
+
+Existe uma skill pra isso, e ela serve pra agente e pra gente:
+[`.claude/skills/bug-hunt/SKILL.md`](.claude/skills/bug-hunt/SKILL.md). Ela codifica o
+método que este repositório pagou caro pra aprender — régua antes do conserto, mutação que prova
+que a régua morde, refutar o palpite óbvio antes de agir nele — cada regra com o
+caso real que a comprou. Traz também o fluxo: onde registrar
+([`KNOWN-BUGS.md`](KNOWN-BUGS.md)), em que ordem rodar o portão, e como reportar
+o que você **não** verificou.
+
+Defeito com evidência (`arquivo:linha`, saída de régua ou passo de reprodução)
+entra no [`KNOWN-BUGS.md`](KNOWN-BUGS.md). Suspeita sem medição vai pro fim do
+arquivo, na seção *Relatados, ainda não reproduzidos* — e não sobe de seção sem
+número.

@@ -6,6 +6,11 @@
 >
 > Regra da casa: bug que o dono reporta vira **invariante permanente** em
 > `tools/eval/invariants.mjs`. Enquanto não virar, fica aqui com o campo `Régua: nenhuma`.
+>
+> **Como investigar e como escrever a entrada:** skill `bug-hunt`
+> ([`.claude/skills/bug-hunt/SKILL.md`](.claude/skills/bug-hunt/SKILL.md)). O gabarito da
+> entrada e o do relatório final estão em
+> `.claude/skills/bug-hunt/references/gabaritos.md`.
 
 **Portão na data deste arquivo** (`node tools/eval/invariants.mjs`, ~10-12 min):
 

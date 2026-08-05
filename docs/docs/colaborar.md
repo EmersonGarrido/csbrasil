@@ -111,6 +111,13 @@ Desfaça a sua própria correção e confira que o portão **fica vermelho**. Se
 o que você mediu não é o que você consertou. É a lição mais cara deste repositório e ela
 tem uma página inteira: [Teste de mutação](./quality-gates.md#teste-de-mutação-da-própria-régua).
 
+### Se o seu PR é um conserto de bug
+
+Use a skill `bug-hunt` (`.claude/skills/bug-hunt/SKILL.md`). Ela é o passo a passo desta
+doutrina aplicado a defeito — com o caso real que comprou cada regra, o gabarito da entrada
+do `KNOWN-BUGS.md` e o do relatório final, incluindo como declarar o que você **não**
+verificou. Serve para agente e para gente.
+
 ## O que um PR precisa
 
 ### 1. Uma invariante nova — ou a razão de não precisar
