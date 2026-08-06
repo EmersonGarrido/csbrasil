@@ -1,0 +1,29 @@
+# Portões de PR para a main (pedido do dono, 06/08):
+#   1. Só entra na main quem BUMPA a versão do jogo (package.json + version.js + import map
+#      andam juntos — a armadilha do ?v= está documentada no version.js).
+#   2. Produção NÃO sai daqui: deploy de prod é SÓ por release (ver deploy-prod.yml).
+name: pr-gates
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  versao-bumpada:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - name: versão do jogo tem que subir
+        run: |
+          BASE=$(git show origin/${{ github.base_ref }}:package.json | node -pe 'JSON.parse(require("fs").readFileSync(0)).version')
+          HEAD=$(node -pe 'require("./package.json").version')
+          echo "main=$BASE  pr=$HEAD"
+          if [ "$BASE" = "$HEAD" ]; then
+            echo "::error::PR para a main sem bump de versão (package.json continua $BASE). Regra do repo: toda entrada na main sobe a versão — ver CONTRIBUTING.md."
+            exit 1
+          fi
+          VJS=$(grep -o "VERSION = '[^']*'" public/js/version.js | cut -d"'" -f2)
+          if [ "$VJS" != "$HEAD" ]; then
+            echo "::error::package.json ($HEAD) e public/js/version.js ($VJS) divergem — o ?v= do import map serve módulo velho quando isso acontece."
+            exit 1
+          fi

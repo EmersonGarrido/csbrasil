@@ -23,11 +23,6 @@ jobs:
       # mão ele desatualiza no primeiro commit, e uma tabela de conflito com
       # linha errada é pior que não ter tabela: dois agentes acham que estão em
       # regiões diferentes e não estão.
-      # continue-on-error POR ENQUANTO: o ARCH.md commitado está atrás do
-      # game.js atual. Rode `npm run arch`, commite, e então TROQUE para
-      # bloqueante (remova a linha abaixo) — aí o gate passa a valer.
-      - name: ARCH.md gerado está atualizado
-        continue-on-error: true
         run: npm run arch:check
 
       # ── PORTÃO DE QUALIDADE ───────────────────────────────────────────────

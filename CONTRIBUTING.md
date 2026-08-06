@@ -21,6 +21,21 @@ critério de aceite.
   identificáveis (nome, rosto, voz imitada). Só arquétipos originais.
 - Contribuições que violem esses princípios serão recusadas.
 
+## Regras de PR (valem para todo mundo, CI cobra)
+
+1. **PR para a `main` só com bump de versão** — `package.json` E `public/js/version.js`
+   E o `?v=` do import map (`src/pages/index.astro`) sobem JUNTOS. O workflow
+   `pr-gates.yml` reprova sem isso. Motivo: sem o bump o navegador serve módulo velho
+   do cache e "a correção não chega" — já custou dias (ver `public/js/version.js`).
+2. **Produção só sai por RELEASE** (tag `v*` publicada → `deploy-prod.yml`). Merge na
+   main NÃO deploya produção; preview de branch continua normal.
+3. **PR de fork ganha preview via bot**: o `cs-brasil-ai-bot` (`preview-bot.yml`) avalia
+   o diff sem executar seu código; PR pequeno e fora de área sensível (workflows, deps,
+   `src/pages/api/`, deploy) recebe `preview-autorizado` e o preview sobe sozinho.
+   Tocou área sensível? Um mantenedor aplica o label na mão depois de revisar.
+4. **Portões locais antes de abrir**: `npm run check:fast` (segundos) e, se mexeu em
+   jogo, `npm run check`. Vermelho novo no portão = PR volta.
+
 ## Rodando localmente
 
 ```bash

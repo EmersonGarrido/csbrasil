@@ -4679,7 +4679,7 @@ export class Game {
     // encolhe a silhueta no pulo e ajuda a subir degrau). Transição ASSIMÉTRICA como no CS2:
     // agacha rápido (7/s ≈ 140ms) e levanta devagar (4.2/s ≈ 240ms), o que tira o
     // crouch-spam de graça e dá peso ao movimento.
-    const wantCrouch = !!(this.keys.ControlLeft || this.keys.ControlRight || this.keys.KeyC);
+    const wantCrouch = !!this.keys.KeyC;
     p.crouchF = Math.max(0, Math.min(1, p.crouchF + (wantCrouch ? dt * 7 : -dt * (MOVE2 ? 4.2 : 7))));
     const walking = MOVE2 && !!(this.keys.ShiftLeft || this.keys.ShiftRight);   // Shift = ANDAR (silencioso)
     const sprint = !MOVE2 && !!(this.keys.ShiftLeft || this.keys.ShiftRight) && p.crouchF < 0.3;

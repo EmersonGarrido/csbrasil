@@ -52,7 +52,7 @@ esta página envelhecia no primeiro commit — ver
 | Scripts do arnês | 150 | `ls tools/eval/*.mjs tools/eval/*.py \| wc -l` |
 | Scripts de pipeline | 43 | `ls tools/*.mjs \| wc -l` |
 | Tarefas de entrada escritas | 15 | `ls docs/issues/[0-9]*.md \| wc -l` |
-| Versão | `2.0.0-alpha.18` | `public/js/version.js` e `package.json` (batem) |
+| Versão | `2.0.0-alpha.19` | `public/js/version.js` e `package.json` (batem) |
 
 > Bloco gerado por `node tools/gen-docs.mjs`. Fonte: `o comando da coluna direita de cada linha`
 
