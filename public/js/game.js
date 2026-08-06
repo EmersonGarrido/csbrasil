@@ -11,6 +11,7 @@ import { GPUParticles } from './gpuparticles.js';
 import { skyRadiance } from './bloom.js';
 import { RecoilAxis, ViewModelRig } from './springs.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { frase, tr } from './i18n.js';   // EN por camada — o crash 'frase is not defined' de 06/08 foi este import faltando
 
 export const WEAPONS = {
   awp:    { name: 'AWP "DELIBERADOR"', short: 'AWP', dmg: 400, mag: 5, reserve: 25, rate: 1.7, reload: 3.1, spreadHip: 0.075, spreadScope: 0.0008, recoil: 0.055, scope: true },

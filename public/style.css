@@ -1584,7 +1584,7 @@ html[data-ui="legacy"] .cs-vignette{
   border:1px solid var(--line-2);color:var(--am)}
 .ms-arrow:hover{background:var(--am);color:#141216}
 /* rodapé do menu: online + links de dev (substitui a frase de sátira) */
-.menu-footer{position:absolute;right:min(4vw,42px);bottom:20px;z-index:3;
+.menu-footer{position:fixed;right:min(4vw,42px);bottom:16px;z-index:60;
   display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;justify-content:flex-end;
   font-size:12px;color:var(--ink-300);text-align:right;max-width:min(70vw,760px)}
 .menu-footer .mf-ver{color:var(--ink-200);font-weight:700;letter-spacing:1px}

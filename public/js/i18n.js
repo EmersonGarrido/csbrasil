@@ -91,6 +91,7 @@ const DICT = {
   'REINICIAR PARTIDA': 'RESTART MATCH', 'SAIR PRO MENU': 'QUIT TO MENU',
   'VOLTAR AO MENU': 'BACK TO MENU', 'JOGAR NOVAMENTE': 'PLAY AGAIN',
   'VITÓRIA': 'VICTORY', 'DERROTA': 'DEFEAT',
+  'ENTRAR NESSE CORO': 'GET THIS BOOT ON',   // tradução DO DONO (06/08) — não 'join this crew'
   'KILLS': 'KILLS', 'MORTES': 'DEATHS', 'JOGADOR': 'PLAYER', 'CAP.': 'CAP.',
   'CORO SOLTO — PLACAR': 'CORO SOLTO — SCOREBOARD',
   'A treta continua sem você. Por enquanto.': 'The fight goes on without you. For now.',
