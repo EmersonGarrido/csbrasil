@@ -29,6 +29,7 @@
 import type { APIRoute } from 'astro';
 import { supabaseAdmin } from '../lib/supabase';
 import { SITE, RANKING_ON } from '../lib/site';
+import { FACCOES } from '../data/jogo';
 
 export const prerender = false;
 
@@ -47,6 +48,10 @@ const STATIC: [string, string, string][] = [
   ...(RANKING_ON ? [['/ranking', '0.9', 'hourly'] as [string, string, string]] : []),
   ['/como-jogar',  '0.8', 'weekly'],
   ['/personagens', '0.8', 'weekly'],
+  /* As 5 facções saem de FACCOES, não de uma lista digitada aqui: facção nova
+     entra no sitemap sozinha. Prioridade abaixo de /personagens porque são
+     recortes dela, e acima de /sobre porque é conteúdo de produto. */
+  ...FACCOES.map((f) => [`/faccoes/${f.id}`, '0.7', 'weekly'] as [string, string, string]),
   ['/mapas',       '0.8', 'weekly'],
   ['/armas',       '0.8', 'weekly'],
   ['/sobre',       '0.7', 'monthly'],

@@ -99,9 +99,17 @@ const jsonld = [
         <div class="fmeta">
           <p class="meta"><b>Facção {String(i + 1).padStart(2, '0')}</b><i>·</i>
             {g.elenco.length} personagens</p>
-          <h2 id={slug(g.nome)} style={`color:${g.cor}`}>{g.nome}</h2>
+          <h2 id={slug(g.nome)} style={`color:${g.cor}`}>
+            {/* Link pra página própria da facção (/faccoes/<id>). O <h2> continua
+                sendo o título da seção aqui — o link é o caminho pro recorte, não
+                uma navegação escondida. */}
+            <a href={`/faccoes/${g.id}`} style={`color:${g.cor};text-decoration:none`}>{g.nome}</a>
+          </h2>
           <p class="fmotto">“{g.lema}”</p>
           <p class="fnota">{g.nota}</p>
+          <p style="margin-top:8px;font-size:12px">
+            <a href={`/faccoes/${g.id}`}>Página da facção {g.nome} →</a>
+          </p>
         </div>
       </header>
       <div class="grid roster">
