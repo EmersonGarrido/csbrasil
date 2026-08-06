@@ -15,7 +15,7 @@ sem cadastro.
 
 | O que | Quanto | Onde confere |
 |---|---:|---|
-| Código do jogo | 25.398 linhas em 28 arquivos | `cat public/js/*.js \| wc -l` |
+| Código do jogo | 25.504 linhas em 28 arquivos | `cat public/js/*.js \| wc -l` |
 | `game.js` | **6.525** linhas | `wc -l public/js/game.js` |
 | `main.js` | 1.604 linhas | `wc -l public/js/main.js` |
 | Armas com GLB | 26 | `ls public/models/weapons/*.glb \| wc -l` |
@@ -26,9 +26,9 @@ sem cadastro.
 | Mapas no registro | 5 | objeto `MAPS` de `maps.js` |
 | Arnêses visuais em HTML | 12 | `ls public/*.html \| wc -l` |
 | Scripts do arnês | 154 | `ls tools/eval/*.mjs tools/eval/*.py \| wc -l` |
-| Scripts de pipeline | 44 | `ls tools/*.mjs \| wc -l` |
+| Scripts de pipeline | 43 | `ls tools/*.mjs \| wc -l` |
 | Tarefas de entrada escritas | 15 | `ls docs/issues/[0-9]*.md \| wc -l` |
-| Versão | `2.0.0-alpha.27` | `public/js/version.js` e `package.json` (batem) |
+| Versão | `2.0.0-alpha.28` | `public/js/version.js` e `package.json` (batem) |
 
 > Bloco gerado por `node tools/gen-docs.mjs`. Fonte: `o comando da coluna direita de cada linha`
 
@@ -259,7 +259,7 @@ Os mapas registrados, e em que modo cada um abre:
 | `fy_pool_day` | Piscina da Treta | rodadas | `—` | — |
 | `fy_havan` | Loja H (Estacionamento) | **captura** | `map_havan.js` | 1.866 |
 | `fy_ferrovelho` | Ferro Velho do Zé | **captura** | `map_ferrovelho.js` | 1.837 |
-| `fy_quebrada` | Quebrada (Rua do Baile) | **captura** | `map_quebrada.js` | 1.370 |
+| `fy_quebrada` | Quebrada (Rua do Baile) | **captura** | `map_quebrada.js` | 1.410 |
 
 **5 mapas registrados** — 2 abrem em rodadas e 3 em captura. `ctfMode` **abre** o mapa em captura, não prende: o jogador troca no menu (é a `MOD1`). Há 6 arquivos `map_*.js` em `public/js/` — arquivo no disco **não** implica mapa jogável.
 
