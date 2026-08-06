@@ -157,6 +157,20 @@ const NAV: [string, string][] = [
 <title>{title}</title>
 <meta name="description" content={description}>
 <link rel="canonical" href={canonical}>
+{/* HREFLANG. Declara explicitamente que o site é pt-BR e só. `x-default` aponta
+    pro mesmo destino: é o alvo pra quem não casa com nenhum idioma declarado, e
+    sem ele o buscador escolhe sozinho qual versão mostrar a esse público.
+    As duas linhas apontam pro canonical, ou seja, sempre o host com `www` e sem
+    barra final — mesmo motivo do canonical acima: apex e www são a MESMA página,
+    e emitir hreflang com host divergente reintroduz a diluição que o canonical
+    acabou de resolver.
+    Auto-referência é obrigatória pelo protocolo: toda página do conjunto tem que
+    listar a si mesma, senão o Google ignora o grupo inteiro. Como aqui o
+    conjunto é de um idioma só, a auto-referência é o conjunto completo.
+    Quando as páginas EN entrarem, isto vira um map de idioma -> href e cada
+    página passa a listar as duas. */}
+<link rel="alternate" hreflang="pt-BR" href={canonical}>
+<link rel="alternate" hreflang="x-default" href={canonical}>
 {noindex && <meta name="robots" content="noindex, follow">}
 <meta name="theme-color" content="#0a0a08">
 <meta property="og:type" content={ogType}>
