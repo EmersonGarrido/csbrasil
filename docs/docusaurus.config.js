@@ -17,7 +17,7 @@ const config = {
   // o mesmo produto é o tipo de detalhe que faz a doc parecer de outro projeto.
   favicon: 'img/favicon.ico',
 
-  url: 'https://csbrasil.online',
+  url: 'https://www.csbrasil.online',   // www: o astro.config canonicaliza com www — divergir aqui quebrava canonicals do /docs
   baseUrl: '/docs/',
 
   organizationName: 'rubenmarcus',
