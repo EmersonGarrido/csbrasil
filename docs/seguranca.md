@@ -323,7 +323,66 @@ e é por isso que `/ranking` e `/u/*` já estavam corretos.
 
 ---
 
-## 7. Ofuscação de schema — **entregue pronta, NÃO aplicada**
+## 7. Charset do nick — **API fechada, banco pendente**
+
+**Onde:** `register_player` valida **só o comprimento**
+(`check (char_length(nick) between 2 and 14)`). Caractere nenhum é filtrado.
+
+O que passa hoje, e o que faz:
+
+| entrada | efeito |
+|---|---|
+| `Аdmin` com `А` cirílico (U+0410) | pixel-a-pixel igual a `Admin` e passa no `unique`. Nick squatting invisível. |
+| `U+202E` (RTL override) | inverte a ordem visual do texto e embaralha ranking e badge |
+| `U+200B` (zero-width) | dois nicks visualmente idênticos, distintos pro banco |
+| `U+0000`–`U+001F` | quebra o render de SVG da badge |
+| `<`, `>`, `"` | é por isso que os popups de `/mapa` precisam de `esc()` à mão (§6) |
+
+**O que já está fechado.** `src/pages/api/register.ts` recusa antes de chamar o
+RPC, com `400 nick_invalid` e mensagem legível. A regex mora em
+`src/lib/nick.ts` (`NICK_RE`).
+
+**O que falta, e só o dono pode aplicar** — `/supabase/` está no `.gitignore`,
+o schema é privado. Este é o SQL, na ordem segura:
+
+```sql
+-- 1. NOT VALID: passa a valer pra escrita NOVA sem varrer a tabela nem
+--    quebrar deploy por causa de linha antiga.
+alter table public.players
+  add constraint players_nick_charset
+  check (nick ~ '^[A-Za-z0-9_.\-]{2,14}$') not valid;
+
+-- 2. Relatório: quem já está fora da regra?
+select id, nick, char_length(nick) as chars
+from public.players
+where nick !~ '^[A-Za-z0-9_.\-]{2,14}$'
+order by nick;
+
+-- 2b. Se precisar ver QUAL caractere ofende — homoglifo cirílico e zero-width
+--     não aparecem a olho no resultado acima:
+select nick, string_agg(to_hex(ascii(c)), ' ' order by i) as codepoints_hex
+from public.players,
+     unnest(regexp_split_to_array(nick, '')) with ordinality as t(c, i)
+where nick !~ '^[A-Za-z0-9_.\-]{2,14}$'
+group by nick;
+
+-- 3. Só depois de decidir o que fazer com os inválidos (renomear? esconder
+--    com players.hidden? deixar?), valide o constraint:
+alter table public.players validate constraint players_nick_charset;
+```
+
+**Decisão que sobra pro dono:** o que fazer com nick já registrado que viola.
+Renomear muda a URL pública `/u/<id>/<nick>` de alguém; deixar significa
+conviver com o constraint `not valid` pra sempre. Nenhuma das duas é chamada de
+quem manda a PR.
+
+**Custo conhecido do charset:** rejeita acento. `José` não registra, `Jose` sim.
+É decisão de produto, não de segurança — a issue #40 propôs este charset. Se
+mudar de ideia, `src/lib/nick.ts` e o check do banco mudam **juntos**, sempre.
+
+---
+
+## 8. Ofuscação de schema — **entregue pronta, NÃO aplicada**
 
 `supabase/opcional/` contém o SQL de renomeação de tabelas/colunas/views/RPCs,
 o rollback e o patch das rotas. **Nada foi aplicado.**
