@@ -480,6 +480,38 @@ medidos e ficaram como estão (caixa ≈ corpo). **Régua nova: `npm run eval:pe
 deriva da tabela; mutação de +0,17 numa fração acende. `botsim 60 awp_map` depois do
 conserto: stuck 1,57 %, eff 0,246 — sem regressão de rota.
 
+**4ª RODADA — 06/08: "um problemão esta acontecendo no jogo no mapa brasilia o box do
+onibus esta protegendo um espaco que devia ser vazio e esta pegando tiros"** (com print:
+fumaça de impacto no AR, na frente do ônibus). Desta vez o defeito era **a bala**, não o
+andar — e tanto o colisor de andar quanto o occluder de bala estavam errados do mesmo
+jeito.
+
+**Causa raiz.** O GLB do ônibus (Mint) é **torto dentro da própria caixa**: o corpo sai a
+**-18,7° do eixo x do arquivo** (PCA dos triângulos da faixa 0,25–2,05 m, ponderado por
+área). Tudo que derivava da caixa — a pegada da 3ª rodada inclusa — ficava ~20° fora da
+lataria: parede fantasma de **3,77 m** na ponta sudoeste (medido por raycast no browser,
+sonda de 32 direções × 4 alturas) e lataria descoberta na nordeste. Só apareceu pra bala
+porque o jogador atravessa o mapa atirando, não abraçando o ônibus.
+
+**Correção.** `PEGADA_BUS = { hx: 4.6, hz: 1.0, ryCorr: 0.3263 }` — o corpo medido no eixo
+principal (9,2 × 2,0 m) e o delta de ângulo sobre o ry de placement. Occluder e `colRot`
+passam a seguir o eixo DO CORPO (`map_brasilia.js`).
+
+**Medido (mesma sonda, antes × depois):**
+
+| | antes | depois |
+|---|---|---|
+| pior parede fantasma (bala) | **3,77 m** | **1,24 m** (só na linha do teto; na altura do corpo ≤ 0,56 m, típica ≤ 0,35) |
+| lataria FURADA (bala atravessa metal visível) | 0 raios | **0 raios** (mantido) |
+| residual declarado | — | faixa de vidro (janelas abertas do modelo) e a aba do teto: a caixa é sólida ali, é o "vidro não-quebrável" do CS 1.6 |
+
+**Réguas:** `eval:pegada` agora recomputa o OBB por PCA (θ, hx, hz) — mutação de +0,1 rad
+no `ryCorr` acende (medido: dθ 0,1000 VERMELHA). `obb-check` tinha o ry **0,55 grampeado
+no inventário** e foi atualizado para 0,8763 (= 0,55 + 0,3263) — não é afrouxar teto, é o
+inventário cobrar o colisor no eixo do corpo. `botsim 60 awp_map`: stuck 1,39 % (era
+1,57 % na 3ª rodada) — o colisor mais estreito abriu o passeio em volta do ônibus.
+`check:fast` sai 0.
+
 ### ~~BUG-22 · Não dá para andar debaixo da escada (Havan)~~ · RESOLVIDO 04/08 (metade do jogador)
 
 **Correção: chão multinível no motor.** `groundHeightAt(x, z)` virou

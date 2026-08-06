@@ -48,7 +48,10 @@ const TETO_BURACO = 0.20;    // m² de lataria sem colisão
 /* Props que TÊM que ter colisor girado. Sem esta lista a régua fica cega quando o
    conserto é desfeito — ver o cabeçalho. */
 const OBRIGATORIOS = {
-  awp_map: [{ nome: 'ônibus', cx: 2.5, cz: -4, ry: 0.55 }],
+  // ry efetivo do ônibus = placement (0,55) + correção do corpo torto (PEGADA_BUS.ryCorr,
+  // 0,3263). A 4ª passada do BUG-21 (06/08) mediu o corpo ~20° fora da caixa do GLB —
+  // o inventário tem que cobrar o colisor NO EIXO DO CORPO, não no da caixa.
+  awp_map: [{ nome: 'ônibus', cx: 2.5, cz: -4, ry: 0.8763 }],
 };
 
 const T = initTextures();

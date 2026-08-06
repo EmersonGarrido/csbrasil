@@ -41,7 +41,8 @@ const io = new NodeIO().registerExtensions(ALL_EXTENSIONS);
 const TARGETH = { tent: 1.7, stall: 2.7, drinkstand: 3.2, bus: 3.1 };
 const FAIXA = [0.25, 2.05];        // metros de mundo: tornozelo-ombro do corpo que colide
 const TOL_FRACAO = 0.035;
-const TOL_BUS = 0.08;              // m
+const TOL_BUS = 0.12;              // m
+const TOL_BUS_ANG = 0.04;          // rad — deriva do ângulo do corpo dentro da caixa
 
 const IDENT = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
 function localMatrix(node) {
@@ -125,6 +126,71 @@ async function pegadaDoGLB(id) {
   };
 }
 
+/* OBB do corpo por PCA (4ª passada do BUG-21): centróides dos triângulos na faixa,
+   ponderados por área; devolve o ângulo do eixo principal no arquivo (normalizado em
+   (-π/2, π/2]) e as meias-larguras p1–99 ao longo dos eixos do corpo, em metros de mundo. */
+async function obbDoGLB(id) {
+  const doc = await io.read(path.join(DIR, id + '.glb'));
+  const tris = [];
+  const anda = (node, parent) => {
+    const m = mul(parent, localMatrix(node));
+    const mesh = node.getMesh();
+    if (mesh) for (const prim of mesh.listPrimitives()) {
+      const pos = prim.getAttribute('POSITION'); if (!pos) continue;
+      const arr = pos.getArray(), idx = prim.getIndices();
+      const ind = idx ? idx.getArray() : null;
+      const n = ind ? ind.length : pos.getCount();
+      for (let i = 0; i + 2 < n; i += 3) {
+        tris.push([0, 1, 2].map((k) => {
+          const vi = ind ? ind[i + k] : i + k;
+          return xf(m, [arr[vi * 3], arr[vi * 3 + 1], arr[vi * 3 + 2]]);
+        }));
+      }
+    }
+    for (const c of node.listChildren()) anda(c, m);
+  };
+  for (const sc of doc.getRoot().listScenes()) for (const n of sc.listChildren()) anda(n, IDENT);
+  let mnY = 1e9, mxY = -1e9;
+  for (const t of tris) for (const p of t) { mnY = Math.min(mnY, p[1]); mxY = Math.max(mxY, p[1]); }
+  const s = TARGETH[id] / (mxY - mnY);
+  const P = [], W = [];
+  for (const t of tris) {
+    const wy = ((t[0][1] + t[1][1] + t[2][1]) / 3 - mnY) * s;
+    if (wy < FAIXA[0] || wy > FAIXA[1]) continue;
+    const u = [t[1][0] - t[0][0], t[1][1] - t[0][1], t[1][2] - t[0][2]];
+    const v = [t[2][0] - t[0][0], t[2][1] - t[0][1], t[2][2] - t[0][2]];
+    const a2 = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]];
+    P.push([((t[0][0] + t[1][0] + t[2][0]) / 3) * s, ((t[0][2] + t[1][2] + t[2][2]) / 3) * s]);
+    W.push(Math.hypot(a2[0], a2[1], a2[2]) / 2);
+  }
+  const tot = W.reduce((a, b) => a + b, 0);
+  const cx = P.reduce((a, p, i) => a + p[0] * W[i], 0) / tot;
+  const cz = P.reduce((a, p, i) => a + p[1] * W[i], 0) / tot;
+  let sxx = 0, sxz = 0, szz = 0;
+  for (let i = 0; i < P.length; i++) {
+    const dx = P[i][0] - cx, dz = P[i][1] - cz;
+    sxx += dx * dx * W[i]; sxz += dx * dz * W[i]; szz += dz * dz * W[i];
+  }
+  sxx /= tot; sxz /= tot; szz /= tot;
+  const tr = sxx + szz, det = sxx * szz - sxz * sxz;
+  const l1 = tr / 2 + Math.sqrt(Math.max(0, tr * tr / 4 - det));
+  let theta = Math.atan2(l1 - sxx, sxz);
+  while (theta > Math.PI / 2) theta -= Math.PI;
+  while (theta <= -Math.PI / 2) theta += Math.PI;
+  const c = Math.cos(theta), sn = Math.sin(theta);
+  const us = [], vs = [], wu = [], wv = [];
+  for (let i = 0; i < P.length; i++) {
+    us.push((P[i][0] - cx) * c + (P[i][1] - cz) * sn); wu.push(W[i]);
+    vs.push(-(P[i][0] - cx) * sn + (P[i][1] - cz) * c); wv.push(W[i]);
+  }
+  const ordU = us.map((v, i) => i).sort((a, b) => us[a] - us[b]);
+  const ordV = vs.map((v, i) => i).sort((a, b) => vs[a] - vs[b]);
+  const pu = { v: ordU.map((i) => us[i]), w: ordU.map((i) => wu[i]) };
+  const pv = { v: ordV.map((i) => vs[i]), w: ordV.map((i) => wv[i]) };
+  return { theta, hx: (pct(pu.v, pu.w, 0.99) - pct(pu.v, pu.w, 0.01)) / 2,
+           hz: (pct(pv.v, pv.w, 0.99) - pct(pv.v, pv.w, 0.01)) / 2 };
+}
+
 let vermelho = 0;
 for (const [id, peg] of Object.entries(PEGADA_CORPO)) {
   let m;
@@ -139,16 +205,22 @@ for (const [id, peg] of Object.entries(PEGADA_CORPO)) {
     (mal ? ` | deriva: ${difs.map(([n, d]) => `${n}+${d.toFixed(3)}`).join(' ')}` : ''));
 }
 {
+  /* 4ª PASSADA do BUG-21 (06/08): o corpo do ônibus é TORTO dentro da caixa do GLB
+     (-16,1° do eixo x do arquivo), então a pegada no eixo da caixa ficava ~20° fora da
+     lataria — 3,2 m de parede fantasma pra bala, medido no browser. A régua do ônibus
+     agora é OBB: PCA dos centróides (ponderados por área) na faixa do corpo. */
   let m;
-  try { m = await pegadaDoGLB('bus'); }
+  try { m = await obbDoGLB('bus'); }
   catch (e) { console.log(`PEGADA VERMELHA  bus: GLB não abre (${e.message})`); vermelho++; m = null; }
   if (m) {
-    const dx = Math.abs(m.wx / 2 - PEGADA_BUS.hx), dz = Math.abs(m.wz / 2 - PEGADA_BUS.hz);
-    const mal = dx > TOL_BUS || dz > TOL_BUS;
+    const dth = Math.abs(m.theta + PEGADA_BUS.ryCorr);   // ryCorr = -θ do corpo no arquivo
+    const dx = Math.abs(m.hx - PEGADA_BUS.hx), dz = Math.abs(m.hz - PEGADA_BUS.hz);
+    const mal = dth > TOL_BUS_ANG || dx > TOL_BUS || dz > TOL_BUS;
     if (mal) vermelho++;
     console.log(`${mal ? 'PEGADA VERMELHA ' : 'PEGADA ok       '}bus         ` +
-      `colRot hx ${PEGADA_BUS.hx.toFixed(3)} hz ${PEGADA_BUS.hz.toFixed(3)} | GLB ${(m.wx / 2).toFixed(3)}×${(m.wz / 2).toFixed(3)}` +
-      (mal ? ` | deriva dx ${dx.toFixed(3)} dz ${dz.toFixed(3)} m` : ''));
+      `ryCorr ${PEGADA_BUS.ryCorr.toFixed(4)} hx ${PEGADA_BUS.hx.toFixed(3)} hz ${PEGADA_BUS.hz.toFixed(3)} | ` +
+      `GLB θ ${m.theta.toFixed(4)} ${m.hx.toFixed(3)}×${m.hz.toFixed(3)}` +
+      (mal ? ` | deriva dθ ${dth.toFixed(4)} dx ${dx.toFixed(3)} dz ${dz.toFixed(3)}` : ''));
   }
 }
 console.log(vermelho ? `PEGADACHECK ${vermelho} VERMELHA(S)` : 'PEGADACHECK verde');

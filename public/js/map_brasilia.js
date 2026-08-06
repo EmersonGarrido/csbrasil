@@ -25,9 +25,16 @@ export const PEGADA_CORPO = {
   stall:      { x0: 0.021, x1: 0.959, z0: 0.217, z1: 0.759 },  // 2,44×2,12 -> 2,29×1,15 m
   drinkstand: { x0: 0.115, x1: 0.913, z0: 0.088, z1: 0.912 },  // 2,86×3,06 -> 2,28×2,52 m
 };
-/* Meias-larguras (m de mundo) do CORPO do ônibus na mesma faixa — usadas no colRot do
-   ônibus lá embaixo e conferidas pela mesma régua contra bus.glb (targetH 3,1). */
-export const PEGADA_BUS = { hx: 8.85 / 2, hz: 4.21 / 2 };
+/* Meias-larguras e CORREÇÃO DE ÂNGULO do corpo do ônibus — 4ª passada do BUG-21 (06/08,
+   "o box do onibus esta protegendo um espaco que devia ser vazio e esta pegando tiros").
+   A 3ª passada mediu a pegada no eixo DA CAIXA do GLB — mas o modelo do Mint é torto
+   DENTRO da própria caixa: o corpo sai a **-18,7° do eixo x do arquivo** (PCA dos
+   triângulos da faixa 0,25–2,05 m, ponderado por área; `tools/eval/pegada-check.mjs`
+   recomputa). Colisor e occluder no eixo da caixa ficavam ~20° fora do corpo visível:
+   3,77 m de parede fantasma pra bala na ponta sudoeste, lataria descoberta na nordeste.
+   Medido (arquivo, targetH 3,1): corpo 9,2 × 2,0 m ao longo do eixo principal,
+   centro ≈ origem do arquivo. ryCorr é o delta SOBRE o ry de placement (0,55). */
+export const PEGADA_BUS = { hx: 4.6, hz: 1.0, ryCorr: 0.3263 };
 
 export function buildBrasilia(scene, T) {
   const colliders = [];   // {minX,minY,minZ,maxX,maxY,maxZ}
@@ -1308,16 +1315,18 @@ export function buildBrasilia(scene, T) {
   // e mais gorda (o Box3 inteiro conta retrovisor e saia do para-choque).
   putBuilding('bus', { x: 2.5, z: -4, targetH: 3.1, ry: 0.55, occ: false, solid: false });   // já tem caixa-occluder própria (medida) logo abaixo
   // ônibus: caixa-occluder invisível — o GLB é Group e o raycast de bala é NÃO-recursivo,
-  // então a bala atravessava. Dimensões CASADAS ao mesh real (medido: 9.26 × 3.1 × 4.48):
-  // a box antiga (9 × 3.2 × 3) era 1.5m estreita (tiros passavam na lateral) e 0.1m alta
-  // demais (teto invisível ACIMA do real → "tiros num layer acima").
+  // então a bala atravessava. Dimensões e ÂNGULO casados ao CORPO visível (PEGADA_BUS):
+  // a box antiga (9,3 × 4,5 no ry de placement) seguia a CAIXA do GLB, que é ~20° mais
+  // larga que o corpo torto do modelo — a bala morria a 3,77 m da lataria (medido por
+  // raycast no browser, 06/08: 31-32 de 32 raios paravam no ar em toda faixa de altura).
   {
-    const bx = new THREE.Mesh(new THREE.BoxGeometry(9.3, 3.1, 4.5), new THREE.MeshBasicMaterial({ visible: false }));
+    const RY_BUS = 0.55 + PEGADA_BUS.ryCorr;   // placement + correção do corpo torto
+    const bx = new THREE.Mesh(new THREE.BoxGeometry(PEGADA_BUS.hx * 2, 3.1, PEGADA_BUS.hz * 2), new THREE.MeshBasicMaterial({ visible: false }));
     // PROCURAÇÃO LEGÍTIMA (invariante MAP4): as medidas acima são as do MESH do GLB, medidas
     // no browser. Em node o GLB não carrega, então a régua PULA esta caixa em vez de acusá-la
     // de parede invisível — é o limite declarado da MAP4, não uma isenção de conveniência.
     bx.userData.proxyGLB = 'bus';
-    bx.position.set(2.5, 3.1 / 2, -4); bx.rotation.y = 0.55; root.add(bx); occluders.push(bx);
+    bx.position.set(2.5, 3.1 / 2, -4); bx.rotation.y = RY_BUS; root.add(bx); occluders.push(bx);
 
     /* COLISÃO DO ÔNIBUS — defeito reportado pelo dono com print: "o mapa não deixa eu andar
        perto do ônibus".
@@ -1361,7 +1370,12 @@ export function buildBrasilia(scene, T) {
        altura do peito. Medido por vértice (faixa y 0,25–2,05 m, percentil 1–99 por área):
        o corpo tocável é 8,85×4,21 m, com centro deslocado (+0,025, −0,095) no espaço local.
        Centro abaixo já está no MUNDO (mesma transformação do putBuilding, cos/sin de 0,55). */
-    colRot(2.472, -4.094, PEGADA_BUS.hx, PEGADA_BUS.hz, 0, 3.1, 0.55);
+    /* 4ª PASSADA (06/08, "o box do onibus esta protegendo um espaco que devia ser vazio e
+       esta pegando tiros"): a pegada da 3ª passada estava no eixo DA CAIXA do GLB, e o
+       corpo do modelo é TORTO dentro dela (-18,7° — PCA ponderado por área; ver PEGADA_BUS).
+       Colisor e occluder ficavam ~20° fora da lataria: fantasma de 3,77 m numa ponta,
+       lataria descoberta na outra. Agora os dois seguem o eixo DO CORPO. */
+    colRot(2.5, -4, PEGADA_BUS.hx, PEGADA_BUS.hz, 0, 3.1, 0.55 + PEGADA_BUS.ryCorr);
   }
 
   /* ---------------- urna eletrônica (Sketchfab — monumento no MEIO do mapa) ---------------- */
