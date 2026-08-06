@@ -37,7 +37,7 @@ for (const qs of ['', '?beco=0']) {
       return seen;
     };
     const out = { nodes: nodes.length, flags: [] };
-    for (const team of ['P', 'B']) {
+    for (const team of ['E', 'B']) {
       const s = w.spawns[team][0];
       const seen = reach(nearest(s.x, s.z));
       for (const f of w.ctfPoints) {
@@ -47,7 +47,7 @@ for (const qs of ['', '?beco=0']) {
     }
     // LOS spawn↔spawn: raio do 1º spawn P ao 1º spawn B contra os occluders
     const THREE_R = window.__scene.children[0].constructor;   // hack p/ não importar three
-    const a = w.spawns.P[0], b = w.spawns.B[0];
+    const a = w.spawns.E[0], b = w.spawns.B[0];
     const rc = new (Object.getPrototypeOf(window.__scene).constructor)();   // não usado
     // raycast manual: usa THREE exposto pelo módulo? — faz pelo renderer scene: cria via world
     out.losBlocked = (() => {

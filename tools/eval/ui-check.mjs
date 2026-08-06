@@ -701,19 +701,19 @@ async function fragmentosDoHud(H) {
   const g = new H.Game({
     renderer: H.renderer, textures: H.textures, sfx: H.sfx,
     settings: { bots: 4, quality: 'low', difficulty: 'normal', sens: 1 },
-    playerCharId: H.PCHAR, playerTeam: 'P', playerFaction: 'P', enemyFaction: 'B',
+    playerCharId: H.PCHAR, playerTeam: 'E', playerFaction: 'E', enemyFaction: 'B',
     nickname: 'SIM', mapId: 'fy_havan', ctf: true, testMode: true, onQuit() {}, onMatchEnd() {},
   });
   g._ensureDolly = () => {};
   g.start ? g.start() : g._startRound();
-  g.ctfPts.forEach((p, i) => { p.owner = [null, 'P', 'B'][i % 3]; p.prog = 0.5; p.capTeam = i % 2 ? 'P' : 'B'; });
+  g.ctfPts.forEach((p, i) => { p.owner = [null, 'E', 'B'][i % 3]; p.prog = 0.5; p.capTeam = i % 2 ? 'E' : 'B'; });
   g.ctfCaps = { P: 2, B: 1 };
   g._updateCtfHud();
   const fr = [['ctf-hud', g.el.ctfHud.innerHTML, `public/js/game.js:${'_updateCtfHud'} (innerHTML medido)`]];
   // killfeed: as 3 variantes de linha (neutra, VOCÊ matou, VOCÊ morreu) + headshot
   g.el.killfeed.children.length = 0;
   const bots = g.bots;
-  const alvoP = bots.find(b => b.team === 'P') || g.player, alvoB = bots.find(b => b.team === 'B') || g.player;
+  const alvoP = bots.find(b => b.team === 'E') || g.player, alvoB = bots.find(b => b.team === 'B') || g.player;
   g._feed(alvoB, alvoP, 'ak', true);            // linha neutra com caveira
   g._feed(g.player, alvoB, 'awp', true);        // VOCÊ matou
   g._feed(alvoB, g.player, 'ak', false);        // VOCÊ morreu
@@ -729,7 +729,7 @@ async function fragmentosDoHud(H) {
   const g2 = new H.Game({
     renderer: H.renderer, textures: H.textures, sfx: H.sfx,
     settings: { bots: 4, quality: 'low', difficulty: 'normal', sens: 1 },
-    playerCharId: H.PCHAR, playerTeam: 'P', playerFaction: 'P', enemyFaction: 'B',
+    playerCharId: H.PCHAR, playerTeam: 'E', playerFaction: 'E', enemyFaction: 'B',
     nickname: 'SIM', mapId: 'fy_pool_day', ctf: false, testMode: true, onQuit() {}, onMatchEnd() {},
   });
   g2._ensureDolly = () => {};
@@ -810,13 +810,13 @@ async function simula(H, mapId, { ctf = false, cenario = 'patrulha', secs = 90, 
   const g = new H.Game({
     renderer: H.renderer, textures: H.textures, sfx: H.sfx,
     settings: { bots, quality: 'low', difficulty: 'normal', sens: 1 },
-    playerCharId: H.PCHAR, playerTeam: 'P', playerFaction: 'P', enemyFaction: 'B',
+    playerCharId: H.PCHAR, playerTeam: 'E', playerFaction: 'E', enemyFaction: 'B',
     nickname: 'SIM', mapId, ctf, testMode: true, onQuit() {}, onMatchEnd() {},
   });
   g._ensureDolly = () => {};
   if (MUT_SIM) MUT_SIM(g);          // mutação que mora no game.js: aplicada no objeto bootado
   g.start ? g.start() : g._startRound();
-  const anfitriao = cenario === 'patrulha' ? (g.bots.find(b => b.team === 'P') || g.bots[0]) : null;
+  const anfitriao = cenario === 'patrulha' ? (g.bots.find(b => b.team === 'E') || g.bots[0]) : null;
   const P = g.player;
   P.hp = 1e9;                       // a UI2 mede a UI, não o duelo: jogador imortal
   const p0 = { x: P.pos.x, y: P.pos.y, z: P.pos.z };

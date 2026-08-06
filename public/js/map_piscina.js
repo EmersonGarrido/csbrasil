@@ -173,7 +173,7 @@ export function buildPoolDay(scene, T) {
     for (const sx of [1, -1]) {
       const lx = POOL.cx + sx * (OUTX - 0.1);
       // z = sx*3: as duas escadas ficam simétricas pela ROTAÇÃO DE 180° em torno do centro,
-      // que é a simetria real do mapa (PET em -z, BOL em +z). Antes as duas estavam em z=+3,
+      // que é a simetria real do mapa (TIME E em -z, BOL em +z). Antes as duas estavam em z=+3,
       // ou seja, o lado do BOL tinha as duas saídas da piscina mais perto.
       for (let i = 0; i < 4; i++) { const r = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.7, 8), MAT.white); r.rotation.z = Math.PI / 2; r.position.set(lx, -0.15 - i * 0.28, POOL.cz + sx * 3); root.add(r); }
       for (const dz of [-0.35, 0.35]) { const r = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1.4, 8), MAT.white); r.position.set(lx, -0.05, POOL.cz + sx * 3 + dz); root.add(r); }
@@ -685,7 +685,7 @@ export function buildPoolDay(scene, T) {
      O bloco de obstáculos que ficava AQUI (pilares, bancos, chuveiros, lixeiras) subiu para
      antes da geração de waypoints — ver o comentário "COBERTURA" lá em cima. */
   const mk = s => [-9, -3, 3, 9].map(x => ({ x, z: (HALF_Z - 4) * s, yaw: s < 0 ? 0 : Math.PI }));
-  const spawns = { P: mk(-1), B: mk(1) };
+  const spawns = { E: mk(-1), B: mk(1) };
 
   // slowAt: contrato novo do game.js (andar dentro d'água custa velocidade e troca o
   // som do passo). Aqui a piscina é FUNDA e intransponível — ninguém vadeia nela —,
@@ -705,7 +705,7 @@ export function buildPoolDay(scene, T) {
        · TRAMPOLIM (0, 14): a prancha do lado norte (pés em z 11,2).
        Triângulo com altura 12 m (CTF1 folgada) e nenhuma bandeira a <4,5 m de spawn. */
     ctfPoints: [
-      { id: 'P', label: 'PARTIDA', x: 0, z: -13 },
+      { id: 'E', label: 'PARTIDA', x: 0, z: -13 },
       { id: 'MID', label: 'ARMÁRIOS', x: 12, z: 0 },
       { id: 'B', label: 'TRAMPOLIM', x: 0, z: 14 },
     ],

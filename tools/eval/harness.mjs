@@ -110,7 +110,7 @@ export const { MAPS } = await import(`${JS}/maps.js`);
 export const { initTextures } = await import(`${JS}/textures.js`);
 export const { Game, confirmGate, CONFIRM_MIN_MS, CONFIRM_MAX_MS } = await import(`${JS}/game.js`);
 export const { CHARACTERS } = await import(`${JS}/characters.js`);
-export const PCHAR = (CHARACTERS.find(c => c.team === 'P') || CHARACTERS[0]).id;   // o scoreboard lê player.def.name
+export const PCHAR = (CHARACTERS.find(c => c.team === 'E') || CHARACTERS[0]).id;   // o scoreboard lê player.def.name
 export { mkEl };
 
 /* sfx mudo: qualquer método vira no-op (o Game chama uns 20 diferentes) */
@@ -139,7 +139,7 @@ export function bootGame(mapId, { textures, ctf = false, seed = 12345, bots = 4 
   seedRandom(seed);
   const g = new Game({
     renderer, textures, sfx, settings: { bots, quality: 'low', difficulty: 'normal', sens: 1 },
-    playerCharId: PCHAR, playerTeam: 'P', playerFaction: 'P', enemyFaction: 'B',
+    playerCharId: PCHAR, playerTeam: 'E', playerFaction: 'E', enemyFaction: 'B',
     nickname: 'SIM', mapId, ctf, testMode: true, onQuit() {}, onMatchEnd() {},
   });
   g._ensureDolly = () => {};        // a câmera de fim de round cria um WebGLRenderer — não existe aqui

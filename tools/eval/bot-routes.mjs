@@ -25,7 +25,7 @@ const browser = await chromium.launch({
 });
 const page = await browser.newPage({ viewport: { width: 760, height: 1080 } });
 page.on('pageerror', e => console.error('[pageerror]', e.message));
-await page.goto(`${BASE}/?debug=1&auto=P,mst`, { waitUntil: 'load' });
+await page.goto(`${BASE}/?debug=1&auto=E,mst`, { waitUntil: 'load' });
 await page.addStyleTag({ content: 'astro-dev-toolbar,#hud,.screen{display:none!important}' });
 await page.waitForFunction(() => window.__game && window.__game.state === 'live', null, { timeout: 60000 });
 await page.evaluate(() => {
@@ -40,7 +40,7 @@ const world = await page.evaluate(() => {
   return {
     bounds: W.bounds,
     nodes: W.waypoints.nodes,
-    spawns: { P: W.spawns.P, B: W.spawns.B },
+    spawns: { P: W.spawns.E, B: W.spawns.B },
   };
 });
 
@@ -74,17 +74,17 @@ let svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" st
 svg += `<rect x="${X(bx.minX)}" y="${Z(bx.minZ)}" width="${(bx.maxX - bx.minX) * sx}" height="${(bx.maxZ - bx.minZ) * sz}" fill="#1a1f1a" stroke="#444"/>`;
 for (const n of world.nodes) svg += `<circle cx="${X(n.x)}" cy="${Z(n.z)}" r="1" fill="#333"/>`;
 for (const [team, arr] of Object.entries(world.spawns)) for (const s of arr)
-  svg += `<rect x="${X(s.x) - 3}" y="${Z(s.z) - 3}" width="6" height="6" fill="${team === 'P' ? '#f66' : '#6af'}"/>`;
+  svg += `<rect x="${X(s.x) - 3}" y="${Z(s.z) - 3}" width="6" height="6" fill="${team === 'E' ? '#f66' : '#6af'}"/>`;
 const NBOTS = trails.length ? trails[trails.length - 1].bots.length : 0;
 for (let bi = 0; bi < NBOTS; bi++) {
   const pts = [];
-  let team = 'P', tgt = false;
+  let team = 'E', tgt = false;
   for (const s of trails) {
     const b = s.bots.find(o => o.bi === bi);
     if (b && b.alive) { pts.push(`${X(b.x).toFixed(1)},${Z(b.z).toFixed(1)}`); team = b.team; tgt ||= b.tgt; }
   }
   if (pts.length < 2) continue;
-  const hue = team === 'P' ? 10 + bi * 14 : 180 + bi * 14;
+  const hue = team === 'E' ? 10 + bi * 14 : 180 + bi * 14;
   svg += `<polyline points="${pts.join(' ')}" fill="none" stroke="hsl(${hue},85%,60%)" stroke-width="2" stroke-opacity="0.9"/>`;
   svg += `<circle cx="${pts[0].split(',')[0]}" cy="${pts[0].split(',')[1]}" r="3.5" fill="hsl(${hue},85%,60%)"/>`;
   const last = pts[pts.length - 1].split(',');

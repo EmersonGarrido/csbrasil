@@ -377,7 +377,7 @@ function pvThumb(def) {
 }
 
 /* ---------------- game lifecycle ---------------- */
-let game = null, currentTeam = 'P', currentFaction = 'P', currentChar = CHARACTERS[0].id, selChar = null;
+let game = null, currentTeam = 'E', currentFaction = 'E', currentChar = CHARACTERS[0].id, selChar = null;
 let pickingEnemy = false, currentEnemyFaction = null;   // 2º passo do team-select: escolher o adversário
 let submitted = true;   // stats da partida atual já enviados?
 
@@ -413,7 +413,7 @@ function sendTelemetry() {
     map: currentMap,
     mode: matchMode,
     seconds: Math.round(g.time || 0),
-    rounds: (g.roundsWon?.P || 0) + (g.roundsWon?.B || 0),
+    rounds: (g.roundsWon?.E || 0) + (g.roundsWon?.B || 0),
     nick: registeredNick || null,
   };
   try {
@@ -423,16 +423,31 @@ function sendTelemetry() {
 }
 let registeredNick = ''; // nick usado no registro da sessão (token está atrelado a ele)
 let heartbeatOff = false;
+
+/* CONTADOR "N ONLINE" do rodapé do menu (pedido do dono, 06/08). GET /api/online lê a
+   view online_now (heartbeat < 2 min). `hidden` até ter número: rodapé nunca mostra
+   zero mentiroso quando o backend está fora/local. Atualiza a cada 60 s só no menu. */
+async function _refreshOnline() {
+  try {
+    const r = await fetch('/api/online');
+    const { online } = await r.json();
+    const box = document.getElementById('mf-online'), n = document.getElementById('mf-online-n');
+    if (box && n && typeof online === 'number' && online > 0) { n.textContent = online; box.hidden = false; }
+    else if (box) box.hidden = true;
+  } catch { /* rodapé segue sem contador */ }
+}
+_refreshOnline();
+setInterval(_refreshOnline, 60000);
 const params = new URLSearchParams(location.search);
 const testMode = params.get('debug') === '1';
 
 async function startGame(team, charId, enemyFaction) {
   if (isMobile && !testMode) { show('mobile-warning'); return; }
-  // facção = time do personagem ('P'/'B'/'U'). O jogador ESCOLHE o adversário (enemyFaction);
+  // facção = time do personagem ('E'/'B'/'U'). O jogador ESCOLHE o adversário (enemyFaction);
   // default = oposto político. Mesma facção dos dois lados = mirror (inimigo roxo no HUD).
-  const faction = (CHARACTERS.find(c => c.id === charId) || {}).team || team || 'P';
-  const side = faction === 'B' ? 'B' : 'P';
-  const enemyFac = enemyFaction || currentEnemyFaction || (side === 'B' ? 'P' : 'B');
+  const faction = (CHARACTERS.find(c => c.id === charId) || {}).team || team || 'E';
+  const side = faction === 'B' ? 'B' : 'E';
+  const enemyFac = enemyFaction || currentEnemyFaction || (side === 'B' ? 'E' : 'B');
   currentFaction = faction; currentTeam = side; currentChar = charId; currentEnemyFaction = enemyFac;
   stopMenuMusic();   // música é só do menu — some (fade) quando a partida começa
   if (game) game.dispose();
@@ -895,7 +910,7 @@ const stripStep = (dir) => {
 $('strip-up').onclick = () => { ui.click(); stripStep(-1); };
 $('strip-down').onclick = () => { ui.click(); stripStep(1); };
 // Contador de elenco nos cards de facção ("8 PERSONAGENS" — referência telas/02)
-for (const f of ['p', 'b', 'u', 'c', 'f']) {
+for (const f of ['e', 'b', 'u', 'c', 'f']) {
   const n = CHARACTERS.filter(c => c.team === f.toUpperCase()).length;
   const card = $('btn-team-' + f);
   if (!card) continue;
@@ -904,7 +919,7 @@ for (const f of ['p', 'b', 'u', 'c', 'f']) {
   chip.textContent = `${n} PERSONAGENS`;
   card.appendChild(chip);
 }
-$('btn-team-p').onclick = () => { sfx.uiClick(); pickTeam('P'); };
+$('btn-team-e').onclick = () => { sfx.uiClick(); pickTeam('E'); };
 $('btn-team-b').onclick = () => { sfx.uiClick(); pickTeam('B'); };
 $('btn-team-u') && ($('btn-team-u').onclick = () => { sfx.uiClick(); pickTeam('U'); });
 $('btn-team-c') && ($('btn-team-c').onclick = () => { sfx.uiClick(); pickTeam('C'); });
@@ -999,9 +1014,9 @@ $('char-confirm').onclick = () => {
   }
 };
 
-// Esconde/mostra o card da sua facção na tela de adversário (btn-team-p/b/u).
+// Esconde/mostra o card da sua facção na tela de adversário (btn-team-e/b/u).
 function setEnemyPickMode(on, myFaction) {
-  for (const f of ['p', 'b', 'u', 'c', 'f']) {
+  for (const f of ['e', 'b', 'u', 'c', 'f']) {
     const b = $('btn-team-' + f);
     if (b) b.classList.toggle('hidden', !!(on && f.toUpperCase() === myFaction));
   }
@@ -1011,7 +1026,7 @@ function setEnemyPickMode(on, myFaction) {
    ficava com cara de formulário ("escolha o adversário" e três caixas iguais).
    Agora o passo é um estado (data-step) que a tela inteira lê: eyebrow, título, dica
    e o texto da barra de ação de cada placa (ver .team-cta no style.css). */
-const FACTION_NAME = { P: 'PETISTAS', B: 'BOLSONARISTAS', U: 'TRIBOS URBANAS', C: 'PALHAÇOS', F: 'FUNKEIROS' };
+const FACTION_NAME = { P: 'TIME E', B: 'TIME B', U: 'TRIBOS URBANAS', C: 'PALHAÇOS', F: 'FUNKEIROS' };
 function setTeamStep(step, myFaction) {
   const ts = $('team-select'); if (ts) ts.dataset.step = step;
   const st = $('team-step'), tt = $('team-title'), hint = $('team-hint');
@@ -1116,7 +1131,7 @@ function partialPayload() {
   if (!game || submitted || testMode) return null;
   if (!['live', 'roundEnd', 'countdown'].includes(game.state)) return null;
   const g = game, p = g.player;
-  const rounds = g.roundsWon.P + g.roundsWon.B;
+  const rounds = g.roundsWon.E + g.roundsWon.B;
   if (!p.kills && !p.deaths && !rounds && g.time < 30) return null;
   const nick = registeredNick || (nickEl.value || '').trim();
   if (!nick) return null;
@@ -1264,7 +1279,7 @@ let teamPreviewsDone = false;
 function ensureTeamPreviews() {
   if (teamPreviewsDone) return;
   teamPreviewsDone = true;
-  for (const [btn, fac] of [['btn-team-p', 'P'], ['btn-team-b', 'B'], ['btn-team-u', 'U'], ['btn-team-c', 'C'], ['btn-team-f', 'F']]) {
+  for (const [btn, fac] of [['btn-team-e', 'E'], ['btn-team-b', 'B'], ['btn-team-u', 'U'], ['btn-team-c', 'C'], ['btn-team-f', 'F']]) {
     const box = document.querySelector(`#${btn} .team-chars`);
     if (!box) continue;
     const chars = CHARACTERS.filter(c => c.team === fac && GLB_CHARS.has(c.id)).slice(0, 4);
@@ -1291,9 +1306,9 @@ function pickTeam(faction) {
   }
   // faction = FACÇÃO escolhida (P/B/U). O LADO físico é P (petista/tribos) ou B (bolsonarista).
   currentFaction = faction;
-  currentTeam = faction === 'B' ? 'B' : 'P';
+  currentTeam = faction === 'B' ? 'B' : 'E';
   // estado de seleção persistente nos cards: ao voltar do personagem, a tela diz qual é o SEU lado
-  for (const f of ['p', 'b', 'u', 'c', 'f']) {
+  for (const f of ['e', 'b', 'u', 'c', 'f']) {
     const b = $('btn-team-' + f);
     if (b) b.setAttribute('aria-pressed', String(f.toUpperCase() === faction));
   }
@@ -1545,5 +1560,5 @@ document.querySelector('.footnote').textContent =
 show(isMobile && !testMode ? 'mobile-warning' : 'main-menu');
 if (testMode && params.get('auto')) {
   const [team, char] = params.get('auto').split(',');
-  startGame(team || 'P', char || CHARACTERS[0].id);
+  startGame(team || 'E', char || CHARACTERS[0].id);
 }

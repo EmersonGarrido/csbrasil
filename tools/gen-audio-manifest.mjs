@@ -41,7 +41,7 @@ const MANIFEST = join(AUDIO, 'manifest.json');
 const CHECK = process.argv.includes('--check');
 
 // facção em disco -> letra de time usada pelo jogo (game.js/characters.js)
-const FACTIONS = { petista: 'P', bolsonaro: 'B', tribos: 'U', palhacos: 'C', funkeiros: 'F' };
+const FACTIONS = { 'time-e': 'E', 'time-b': 'B', tribos: 'U', palhacos: 'C', funkeiros: 'F' };
 const AUDIO_EXT = /\.(mp3|wav|ogg|m4a|webm)$/i;
 
 // Preservados do manifest atual: cada entrada aqui é uma escolha (qual tiro é da AWP),

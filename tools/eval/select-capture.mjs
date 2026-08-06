@@ -8,7 +8,7 @@ import { pathToFileURL } from 'node:url';
 
 const OUT = process.argv[2] || '/tmp/selectframes';
 const LIST = (process.argv[3] || 'esquerdomacho,mst').split(',');
-const TEAM = process.argv[4] || 'P';
+const TEAM = process.argv[4] || 'E';
 const BASE = process.env.BASE || 'http://localhost:8123';
 const gRoot = execSync('npm root -g').toString().trim();
 const _pw = await import(pathToFileURL(`${gRoot}/playwright/index.js`).href);

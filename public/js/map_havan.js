@@ -1,7 +1,7 @@
 // Havan (fy_havan) — CTF, v2: estacionamento MAIOR (76×116, 40+ vagas, 34 modelos de carro)
 // e texturas ricas (asfalto c/ óleo+rachadura, azul Havan c/ sujeira). G2-R3: fachada
 // GRECO-ROMANA (frontão c/ logo, colunata, cornija, banners) como skin sobre a estrutura.
-// Bolsonaristas spawnam
+// Time B spawnam
 // DENTRO da loja (gôndolas, caixas, mezanino-sniper, porta com sensor); o outro time spawna
 // no ESTACIONAMENTO (carros GLB texturizados + Estátua da Liberdade). 3 bandeiras:
 // estacionamento, estátua, gôndolas. Contrato buildWorld + A*. Props de /Users/ruben/glb.
@@ -1730,7 +1730,7 @@ export function buildHavan(scene, T) {
     return [fromIdx];
   }
 
-  // spawns: Bolsonaristas (B) DENTRO da loja ATRÁS da última gôndola (cover da fileira);
+  // spawns: Time B (B) DENTRO da loja ATRÁS da última gôndola (cover da fileira);
   // o outro time (P) no estacionamento, flanqueado por carros (cover dos veículos).
   const spawns = {
     /* B NASCE NO ANDAR DE CIMA, DENTRO DO DEPÓSITO (pedido literal do dono). Era z=-31 no
@@ -1750,7 +1750,7 @@ export function buildHavan(scene, T) {
        2,2 m. Continua simétrico e continua com o slot 0 em x = 0, que é onde o armário das 25
        armas se ancora (game.js `_resetPositions`, `cx = spawns[0].x`). */
     B: [0, -6, 6, 3].map(x => ({ x, z: MZ.z0 + 2.4, yaw: 0 })),        // depósito do mezanino
-    P: [-8, -3, 3, 8].map(x => ({ x, z: HALF_Z - 3, yaw: Math.PI })), // fundo do estacionamento
+    E: [-8, -3, 3, 8].map(x => ({ x, z: HALF_Z - 3, yaw: Math.PI })), // fundo do estacionamento
   };
   // carros de proteção do spawn P (flanqueiam a bandeira ESTACIONAMENTO, fora do anel).
   // G2-R6B: linha alargada (±13) + carro de frente (0, 44.5) — o respawn do estacionamento

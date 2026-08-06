@@ -46,7 +46,7 @@ const val = (k, d) => { const v = (args.find((a) => a.startsWith(`--${k}=`)) || 
 const MUTAR = val('mutar', '');
 const OUT = val('out', 'tools/eval/out');
 
-const FACS = ['P', 'B', 'U', 'C', 'F'];
+const FACS = ['E', 'B', 'U', 'C', 'F'];
 const NOME = { P: 'PETISTAS', B: 'BOLSONARISTAS', U: 'TRIBOS URBANAS', C: 'PALHAÇOS', F: 'FUNKEIROS' };
 const WEBER_MIN = 0.25;      // mesmo teto do canarinho
 const DIST_MIN = 14;         // distância média por pixel entre duas bandeiras a 64 px

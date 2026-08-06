@@ -20,7 +20,7 @@ const page = await browser.newPage({ viewport: { width: 960, height: 600 } });
 let errors = 0;
 page.on('console', m => { if (m.type() === 'error') { errors++; console.error('[page-err]', m.text()); } });
 page.on('pageerror', e => { errors++; console.error('[pageerror]', e.message); });
-await page.goto(`${BASE}/?debug=1&map=${MAP}&auto=P,mst`, { waitUntil: 'domcontentloaded', timeout: 90000 });
+await page.goto(`${BASE}/?debug=1&map=${MAP}&auto=E,mst`, { waitUntil: 'domcontentloaded', timeout: 90000 });
 await page.waitForFunction(() => window.__game && window.__game.state === 'live', null, { timeout: 150000 });
 await page.waitForFunction(() => {
   const g = window.__game, m = g.vm.staticVms && g.vm.staticVms.rifle;
@@ -97,7 +97,7 @@ await page.evaluate(() => {
   }
   p.yaw = bestYaw; p.pitch = 0;
   const b = g.bots.find(b => b.team !== g.playerTeam && b.alive) || g.bots[0];
-  b.team = g.playerTeam === 'P' ? 'B' : 'P';
+  b.team = g.playerTeam === 'E' ? 'B' : 'E';
   const fx = -Math.sin(p.yaw), fz = -Math.cos(p.yaw);
   b.pos.set(p.pos.x + fx * 4, p.pos.y, p.pos.z + fz * 4);
   b.hp = 20; b.alive = true; b.protUntil = g.time + 60;   // protege dos OUTROS bots no settle

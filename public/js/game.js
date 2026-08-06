@@ -307,7 +307,7 @@ const RACK_RETA = QS.get('rackreta') === '1';
    A simetria é parte do desenho: vale pra jogador E bots — meia regeneração faria o bot
    virar esponja. Régua: invariante REGEN de `tools/eval/regen-check.mjs`. */
 const REGEN = QS.get('regen') === '1', REGEN_DELAY = 6, REGEN_RATE = 22;
-const TEAM_LABEL = { P: 'PETISTAS', B: 'BOLSONARISTAS' };
+const TEAM_LABEL = { E: 'TIME E', B: 'TIME B' };
 const RADIO = {
   z: { title: 'COMANDOS', items: ['Bora, bora, bora!', 'Cobre eu!', 'Recua, recua!'] },
   x: { title: 'RESPOSTAS', items: ['Recebido!', 'Negativo!', 'Bonito tiro!'] },
@@ -735,12 +735,12 @@ export class Game {
     }
 
     // teams & rosters. playerTeam = LADO físico (P/B) — dirige tudo (spawns/placar/killfeed/CTF/
-    // cores/yaw). playerFaction = de qual ROSTER vêm os personagens do jogador ('P'/'B'/'U' Tribos
+    // cores/yaw). playerFaction = de qual ROSTER vêm os personagens do jogador ('E'/'B'/'U' Tribos
     // Urbanas). Assim o 3º time entra sem tocar em nenhum sistema P/B: ele joga no lado P vs o
     // inimigo político do lado B. enemyFaction = enemyTeam (o inimigo é sempre político).
     this.playerTeam = playerTeam;
     this.playerFaction = playerFaction || playerTeam;
-    this.enemyTeam = playerTeam === 'B' ? 'P' : 'B';
+    this.enemyTeam = playerTeam === 'B' ? 'E' : 'B';
     // facção do INIMIGO (o jogador escolhe o adversário: P/B/U). Default = lado político oposto.
     // Se == playerFaction é um MIRROR (mesmo time dos dois lados) -> o inimigo fica ROXO no HUD.
     this.enemyFaction = enemyFaction || this.enemyTeam;
@@ -1163,7 +1163,7 @@ export class Game {
     // os 3 ao mesmo tempo. Rounds SEM FIM (sem _endMatch). Captura = ~3s na zona sem inimigo.
     this.ctf = !!this._ctfOpt || (new URLSearchParams(location.search).get('ctf') === '1');   // menu (Capture the Flag) ou ?ctf=1
     this.ctfPts = [];
-    this.ctfCaps = { P: 0, B: 0 };   // total de capturas de bandeira por time (cumulativo na partida)
+    this.ctfCaps = { E: 0, B: 0 };   // total de capturas de bandeira por time (cumulativo na partida)
     this._ctfRingGeo = new THREE.TorusGeometry(1, 0.045, 8, 48);   // anel FINO de contorno (era disco gordo)
     this._ctfZoneGeo = new THREE.CircleGeometry(1, 40);
     this._ctfZoneTex = this._makeCtfZoneTex();
@@ -1172,10 +1172,10 @@ export class Game {
 
     // ---- round state ----
     this.roundNum = 0;
-    this.roundsWon = { P: 0, B: 0 };
-    this.roundKills = { P: 0, B: 0 };
-    this.roundCaps = { P: 0, B: 0 };    // capturas DESTA rodada (o ctfCaps é da partida toda)
-    this.matchKills = { P: 0, B: 0 };   // abates das rodadas JÁ FECHADAS (desempate do _endMatch)
+    this.roundsWon = { E: 0, B: 0 };
+    this.roundKills = { E: 0, B: 0 };
+    this.roundCaps = { E: 0, B: 0 };    // capturas DESTA rodada (o ctfCaps é da partida toda)
+    this.matchKills = { E: 0, B: 0 };   // abates das rodadas JÁ FECHADAS (desempate do _endMatch)
     this.timeLeft = ROUND_TIME;
     /* game.js:944 — RELÓGIO DE PARTIDA DO CAPTURA (não é relógio de round). Só o modo
        CTF usa; no modo de abate fica Infinity e nada o lê. Ele NÃO reinicia a cada
@@ -1210,7 +1210,7 @@ export class Game {
       hpFill: $('hp-fill'), hpNum: $('hp-num'), weaponName: $('weapon-name'),
       ammoMag: $('ammo-mag'), ammoRes: $('ammo-reserve'), reloadNote: $('reload-note'), smokeCount: $('smoke-count'),
       roundTime: $('round-time'), roundsRow: $('rounds-row'),
-      scoreP: $('score-p'), scoreB: $('score-b'), killfeed: $('killfeed'), ctfHud: $('ctf-hud'),
+      scoreP: $('score-e'), scoreB: $('score-b'), killfeed: $('killfeed'), ctfHud: $('ctf-hud'),
       banner: $('round-banner'), bannerTitle: $('banner-title'), bannerSub: $('banner-sub'),
       respawn: $('respawn-overlay'), respawnCount: $('respawn-count'),
       prot: $('prot-badge'), protCount: $('prot-count'),
@@ -1299,7 +1299,7 @@ export class Game {
     const pal = (pdef && pdef.pal) || { skin: 0xd9a066, shirt: 0x3a4a5a };
     // LUVA POR TIME no fallback procedural também (mãos genéricas por time — pedido do dono):
     // P vermelho, B verde, U roxo; blend 55% (igual ao fparms) pra não virar luva plástica.
-    const GLOVE = { P: 0xd83232, B: 0x28c858, U: 0x8a3ffc };
+    const GLOVE = { E: 0xd83232, B: 0x28c858, U: 0x8a3ffc };
     const skinMat = dark(pal.skin);
     if (GLOVE[this.playerFaction]) skinMat.color.lerp(new THREE.Color(GLOVE[this.playerFaction]), 0.85);
     const sleeveMat = dark(pal.shirt);
@@ -2127,9 +2127,9 @@ export class Game {
     try { this.sfx.stopRound(); } catch {}
     this.roundNum++;
     // o placar do round zera aqui; o acumulado da partida sobrevive pro desempate
-    this.matchKills.P += this.roundKills.P; this.matchKills.B += this.roundKills.B;
-    this.roundKills = { P: 0, B: 0 };
-    this.roundCaps = { P: 0, B: 0 };
+    this.matchKills.E += this.roundKills.E; this.matchKills.B += this.roundKills.B;
+    this.roundKills = { E: 0, B: 0 };
+    this.roundCaps = { E: 0, B: 0 };
     this.timeLeft = ROUND_TIME;
     this._matchPoint = false;    // banner de MATCH POINT dispara uma vez por round
     this._resultado = null;      // o título do placar é da RODADA que acabou, não da que começa
@@ -2179,7 +2179,7 @@ export class Game {
       return s;
     };
     place(this.player, this.playerTeam, 0);
-    this.player.yaw = this.playerTeam === 'P' ? Math.PI : 0;
+    this.player.yaw = this.playerTeam === 'E' ? Math.PI : 0;
     this.player.pitch = 0; this.player.vel.set(0, 0, 0); this.player.crouchF = 0;
     this.player.ammo.awp = { mag: WEAPONS.awp.mag, res: WEAPONS.awp.reserve };
     this.player.ammo.pistol = { mag: WEAPONS.pistol.mag, res: WEAPONS.pistol.reserve };
@@ -2230,10 +2230,10 @@ export class Game {
 
        (1) A fileira 1 nascia a `sz + back*3,25` — 3,25 m ATRÁS do spawn — sem ninguém
            perguntar se existe 3,25 m de chão ali. Não existe:
-             fy_ferrovelho, time P: spawn z=33, limite andável z=35,12 (bounds 35,5 menos
+             fy_ferrovelho, time E: spawn z=33, limite andável z=35,12 (bounds 35,5 menos
                o raio 0,38 do jogador). Fileira 0 em z=35,00 → 0,12 m dentro do alcance.
                Fileira 1 em z=36,25 → 1,13 m FORA do mundo, atrás da cerca.
-             fy_havan, time P: spawn z=55, limite 57,12. Fileira 0 em 57,00, fileira 1 em
+             fy_havan, time E: spawn z=55, limite 57,12. Fileira 0 em 57,00, fileira 1 em
                58,25 — as 12 armas DENTRO da parede do fundo do estacionamento.
            Como o prompt só considerava a arma MAIS PRÓXIMA, do ponto mais colado possível
            (z=35,12) a fileira 0 estava a 0,12 m e a 1 a 1,13 m: a fileira 0 ganhava SEMPRE.
@@ -2255,7 +2255,7 @@ export class Game {
            _collide), então nenhuma arma fica dentro de parede/carro/gôndola;
        (d) passo de 1,15 m entre armas (era 0,92) + anti-empilhamento depois do empurrão.
        Kill-switch: ?rack=old volta ao layout antigo (e à seleção antiga em _updatePickups). */
-    for (const team of ['P', 'B']) {
+    for (const team of ['E', 'B']) {
       const spawns = this.world.spawns[team] || [];
       const sz = spawns.length ? spawns[0].z : 0;
       const back = sz > 0 ? 1 : -1;                            // pra FORA do mapa, atrás de quem nasce
@@ -2309,7 +2309,7 @@ export class Game {
                • fy_havan, time B, fileira 1 (12 armas): abriu um vão de 7,53 m entre
                  vizinhas (era 1,15 m, o STEP) e esticou a fileira de 12,65 m para 17,88 m —
                  deixou de ser fileira;
-               • awp_map, time P: o centroide do armário afastou-se do spawn slot 0 de
+               • awp_map, time E: o centroide do armário afastou-se do spawn slot 0 de
                  2,89 m para 4,46 m, quebrando o objetivo declarado logo acima ("o jogador
                  nasce NO MEIO do armário");
                • só 4 armas eram problema real (fy_ferrovelho B: lmg 4,18/22,25 m,
@@ -2360,10 +2360,10 @@ export class Game {
     // reaparecer no meio de uma recarga interrompida pela morte.
     this.vm.rig.reset(); this.vm.rig.startDraw();
     this.el.weaponName.textContent = WEAPONS[this.player.weapon].name;
-    const slots = { P: 1, B: 0 };
+    const slots = { E: 1, B: 0 };
     for (const b of this.bots) {
       place(b, b.team, slots[b.team]++);
-      b.yaw = b.team === 'P' ? 0 : Math.PI;   // mesh forward is +Z
+      b.yaw = b.team === 'E' ? 0 : Math.PI;   // mesh forward is +Z
       b.target = null; b.path = null; b.repathAt = 0;
       b.mesh.group.rotation.set(0, b.yaw, 0);
       b.mesh.group.position.copy(b.pos);
@@ -2404,12 +2404,12 @@ export class Game {
      combatentes. Régua: `tools/eval/ctf-round-check.mjs`. */
   _checkCtfAlvo() {
     if (!this.ctf || this.state !== 'live') return;
-    const cp = this.roundCaps.P, cb = this.roundCaps.B, alvo = this.capsToWin;
+    const cp = this.roundCaps.E, cb = this.roundCaps.B, alvo = this.capsToWin;
     if (!Number.isFinite(alvo)) return;
     const lider = Math.max(cp, cb);
     if (!this._matchPoint && alvo > 1 && lider >= alvo - 1) {
       this._matchPoint = true;
-      const lado = cp > cb ? 'P' : 'B';
+      const lado = cp > cb ? 'E' : 'B';
       this._banner('BANDEIRA DECISIVA', `${this._teamName(lado)} a ${alvo - lider} de levar a rodada`);
       try { this.sfx.vuvuzela(0.9); } catch {}
     }
@@ -2418,28 +2418,28 @@ export class Game {
   _checkPace() {
     if (!PACE || this.state !== 'live') return;
     if (this.ctf) return;   // o CAPTURA fecha pelo _checkCtfAlvo, que roda SEMPRE
-    const p = this.roundKills.P, b = this.roundKills.B, tgt = this.killsToWin;
+    const p = this.roundKills.E, b = this.roundKills.B, tgt = this.killsToWin;
     const lead = Math.max(p, b);
     if (!this._matchPoint && lead >= tgt - 2) {
       this._matchPoint = true;
-      const side = p > b ? 'P' : 'B';
+      const side = p > b ? 'E' : 'B';
       this._banner('MATCH POINT', `${this._teamName(side)} a ${tgt - lead} da vitória`);
       try { this.sfx.vuvuzela(0.9); } catch {}
     }
     if (lead >= tgt) this.timeLeft = 0;   // update() enxerga timeLeft<=0 e chama _endRound
   }
   _endRound() {
-    const p = this.roundKills.P, b = this.roundKills.B;
+    const p = this.roundKills.E, b = this.roundKills.B;
     let winner = null;
     /* NO CAPTURA quem leva o round é quem CAPTUROU MAIS naquele round — abate só desempata.
        Antes o modo não tinha `_endRound` nenhum (o relógio nem corria): o único jeito de um
        round acabar era dominar as 3 bandeiras ao mesmo tempo, e é por isso que o placar de
        abates do topo ia a 65 × 53 (defeito 3 do dono) — ele NUNCA era zerado. */
     if (this.ctf) {
-      const cp = this.roundCaps.P, cb = this.roundCaps.B;
-      if (cp > cb) winner = 'P'; else if (cb > cp) winner = 'B';
-      else if (p > b) winner = 'P'; else if (b > p) winner = 'B';
-    } else if (p > b) winner = 'P'; else if (b > p) winner = 'B';
+      const cp = this.roundCaps.E, cb = this.roundCaps.B;
+      if (cp > cb) winner = 'E'; else if (cb > cp) winner = 'B';
+      else if (p > b) winner = 'E'; else if (b > p) winner = 'B';
+    } else if (p > b) winner = 'E'; else if (b > p) winner = 'B';
     if (winner) this.roundsWon[winner]++;
     this.state = 'roundEnd';
     this.stateUntil = this.time + 4;
@@ -2447,7 +2447,7 @@ export class Game {
     this.radioOpen = null; this._radioUi();
     this._showScoreboard(true);   // CS-style: scoreboard pops at round end
     this._ensureDolly();          // dollynho comemora dançando no placar
-    const placar = this.ctf ? `${this.roundCaps.P} × ${this.roundCaps.B} bandeiras` : `${p} × ${b}`;
+    const placar = this.ctf ? `${this.roundCaps.E} × ${this.roundCaps.B} bandeiras` : `${p} × ${b}`;
     if (!winner) {
       this._resultadoDaRodada('EMPATE NA TRETA', `${placar} — ninguém convenceu ninguém`);
       this.sfx.roundLose();
@@ -2472,9 +2472,9 @@ export class Game {
        que garante a invariante UI4 "a partida FECHA" sem devolver cronômetro de round
        pra cara do jogador. */
     if (this.ctf)
-      return this.roundsWon.P >= CTF_ROUNDS_TO_WIN || this.roundsWon.B >= CTF_ROUNDS_TO_WIN
+      return this.roundsWon.E >= CTF_ROUNDS_TO_WIN || this.roundsWon.B >= CTF_ROUNDS_TO_WIN
         || this.roundNum >= CTF_ROUNDS_MAX || this.ctfMatchLeft <= 0;
-    return this.roundsWon.P >= ROUNDS_TO_WIN || this.roundsWon.B >= ROUNDS_TO_WIN || this.roundNum >= ROUNDS_MAX;
+    return this.roundsWon.E >= ROUNDS_TO_WIN || this.roundsWon.B >= ROUNDS_TO_WIN || this.roundNum >= ROUNDS_MAX;
   }
   // teto de rodadas do modo em jogo — o HUD conta "RODADA n/N" com este número
   get roundsMax() { return this.ctf ? CTF_ROUNDS_MAX : ROUNDS_MAX; }
@@ -2482,12 +2482,12 @@ export class Game {
   _endMatch() {
     this.state = 'matchEnd';
     /* DESEMPATE: com o teto de 5 rodadas a partida pode fechar 2 × 2 (dois empates pelo
-       caminho). `roundsWon.P > roundsWon.B ? 'P' : 'B'` dava a vitória ao lado B por
+       caminho). `roundsWon.E > roundsWon.B ? 'E' : 'B'` dava a vitória ao lado B por
        omissão — um vencedor sorteado pela ordem do ternário. Agora empate de rodadas vai
        pros abates da partida INTEIRA (matchKills, somado a cada _startRound). */
-    const winner = this.roundsWon.P !== this.roundsWon.B
-      ? (this.roundsWon.P > this.roundsWon.B ? 'P' : 'B')
-      : ((this.matchKills.P + this.roundKills.P) >= (this.matchKills.B + this.roundKills.B) ? 'P' : 'B');
+    const winner = this.roundsWon.E !== this.roundsWon.B
+      ? (this.roundsWon.E > this.roundsWon.B ? 'E' : 'B')
+      : ((this.matchKills.E + this.roundKills.E) >= (this.matchKills.B + this.roundKills.B) ? 'E' : 'B');
     const mine = winner === this.playerTeam;
     // Tela de fim estilo CoD/Valorant: VITÓRIA/DERROTA gigante, time vencedor no sub.
     this.el.matchEnd.classList.toggle('win', mine);
@@ -2497,18 +2497,18 @@ export class Game {
       ? `${this._teamName(winner)} venceram a treta — a praça é sua. O pastel da vitória está pago.`
       : `${this._teamName(winner)} levaram a melhor — já pediram CPI da partida.`;
     this.el.matchStats.innerHTML =
-      `<div><b>${this.roundsWon.P} × ${this.roundsWon.B}</b>rounds</div>` +
+      `<div><b>${this.roundsWon.E} × ${this.roundsWon.B}</b>rounds</div>` +
       `<div><b>${this.player.kills}</b>kills de ${this.player.name}</div>` +
       `<div><b>${this.player.deaths}</b>suas mortes</div>`;
     this.el.matchEnd.classList.remove('hidden');
     if (document.pointerLockElement) document.exitPointerLock();
-    try { window.va?.('event', { name: 'match_end', data: { winner, roundsP: this.roundsWon.P, roundsB: this.roundsWon.B } }); } catch {}
+    try { window.va?.('event', { name: 'match_end', data: { winner, roundsP: this.roundsWon.E, roundsB: this.roundsWon.B } }); } catch {}
     try {
       this.onMatchEnd?.({
         won: mine, team: this.playerTeam, character: this.playerDef.id,
         kills: this.player.kills, deaths: this.player.deaths,
         headshots: this.player.headshots || 0, bestStreak: this.mk.best || 0,
-        roundsP: this.roundsWon.P, roundsB: this.roundsWon.B,
+        roundsP: this.roundsWon.E, roundsB: this.roundsWon.B,
         seconds: Math.round(this.time),
       });
     } catch {}
@@ -2641,7 +2641,7 @@ export class Game {
     const p = this.player;
     if (charId) { this.playerDef = byId(charId); p.def = this.playerDef; }   // personagem do novo lado
     const oldTeam = this.playerTeam;
-    const newTeam = oldTeam === 'P' ? 'B' : 'P';
+    const newTeam = oldTeam === 'E' ? 'B' : 'E';
     this.playerTeam = newTeam; this.enemyTeam = oldTeam;
     p.team = newTeam;
     // rebalanceia 4×4: um bot do time novo deserta pro time velho
@@ -2661,7 +2661,7 @@ export class Game {
       swapBot.target = null; swapBot.path = null; swapBot.hp = 100; swapBot.alive = true;
       const s = this.world.spawns[oldTeam][(Math.random() * 4) | 0];
       swapBot.pos.set(s.x, this._spawnY(s.x, s.z), s.z);
-      swapBot.yaw = oldTeam === 'P' ? 0 : Math.PI;
+      swapBot.yaw = oldTeam === 'E' ? 0 : Math.PI;
       swapBot.mesh.group.rotation.set(0, swapBot.yaw, 0);
       swapBot.mesh.group.position.copy(swapBot.pos);
       swapBot.mesh.group.visible = true;
@@ -2669,7 +2669,7 @@ export class Game {
     // respawn do jogador no lado novo
     const s = this.world.spawns[newTeam][(Math.random() * 4) | 0];
     p.pos.set(s.x, this._spawnY(s.x, s.z), s.z); p.vel.set(0, 0, 0);
-    p.yaw = newTeam === 'P' ? Math.PI : 0; p.pitch = 0; p.hp = 100;
+    p.yaw = newTeam === 'E' ? Math.PI : 0; p.pitch = 0; p.hp = 100;
     this._scope(false, true);
     this._banner(`VOCÊ AGORA É ${this._teamName(newTeam)}`, 'trocou de lado na treta — sem penalty, só julgamento');
     this.sfx.uiClick();
@@ -3699,7 +3699,7 @@ export class Game {
       let tex = null;
       /* `fac` É LETRA DE FACÇÃO, não lado da partida — vem sempre de `_factionOf(side)`
          (ver `_updateCTF`). A diferença morde no 'B': como LADO quer dizer "time B", como
-         FACÇÃO quer dizer Bolsonaristas, e os dois só coincidem por acidente. Passar o lado
+         FACÇÃO quer dizer Time Bs, e os dois só coincidem por acidente. Passar o lado
          cru aqui entrega a bandeira do time errado SEM erro nenhum no console. */
       if (fac && this._bandeiraTextura) { try { tex = this._bandeiraTextura(fac); } catch { tex = null; } }
       if (!tex) this._legadoSimbolo(fac);
@@ -3921,8 +3921,8 @@ export class Game {
     if (this._mirror(side)) return dark ? '#6a2fb5' : '#a05cff';   // MIRROR (mesma facção) -> inimigo roxo
     const f = this._factionOf(side);
     if (f === 'U') return dark ? '#2f7fe0' : '#4aa3ff';            // Tribos azul
-    if (f === 'P') return dark ? '#e03232' : '#ff5555';            // Petista vermelho
-    if (f === 'B') return dark ? '#1faa4d' : '#55dd66';            // Bolsonarista verde
+    if (f === 'E') return dark ? '#e03232' : '#ff5555';            // Time E vermelho
+    if (f === 'B') return dark ? '#1faa4d' : '#55dd66';            // Time B verde
     if (f === 'C') return dark ? '#c23a86' : '#ff6ec7';            // Palhaços rosa-circo
     if (f === 'F') return dark ? '#c79a12' : '#ffc233';            // Funkeiros ouro
     return dark ? '#aaaaaa' : '#999999';
@@ -3934,19 +3934,19 @@ export class Game {
      linha que o jogador mais precisa ler. A saída não é abandonar a cor do time: é a mesma
      que o topo do HUD já usa há tempos (.ts-p{color:#ff9a9a} / .ts-b{color:#a9f0b6},
      style.css:521-522) — a versão PÁLIDA da cor. Aqui ela ganha nome e vale pras 6 facções.
-     Mantém a leitura "vermelho = petista / verde = bolsonarista" e passa a 5,9-9,1:1. */
+     Mantém a leitura "vermelho = time-e / verde = time-b" e passa a 5,9-9,1:1. */
   _teamInk(side) {
     if (this._mirror(side)) return '#cbaaff';
     const f = this._factionOf(side);
-    return ({ U: '#a8cdff', P: '#ff9a9a', B: '#a9f0b6', C: '#ffb3e0', F: '#ffd98a' })[f] || '#d6d6d6';
+    return ({ U: '#a8cdff', E: '#ff9a9a', B: '#a9f0b6', C: '#ffb3e0', F: '#ffd98a' })[f] || '#d6d6d6';
   }
   // Pack de vozes/round por FACÇÃO: o lado do jogador usa 'U' (Tribos) quando a facção é Tribos
-  // Urbanas; senão o lado (P/B). O inimigo é sempre político. Corrige "Tribos usa voz de Petista".
+  // Urbanas; senão o lado (P/B). O inimigo é sempre político. Corrige "Tribos usa voz de Time E".
   // Facção que ocupa um LADO físico (P/B): lado do jogador = playerFaction, o outro = enemyFaction.
   _factionOf(side) { return side === this.playerTeam ? this.playerFaction : this.enemyFaction; }
   _voiceKey(side) { return this._factionOf(side); }   // pack de vozes/round por facção (P/B/U)
   _teamName(side) { const f = this._factionOf(side); return f === 'U' ? 'TRIBOS URBANAS' : f === 'C' ? 'PALHAÇOS' : f === 'F' ? 'FUNKEIROS' : (TEAM_LABEL[f] || f); }
-  _teamTag(side) { const f = this._factionOf(side); return f === 'U' ? 'TRB' : f === 'C' ? 'PLH' : f === 'F' ? 'FNK' : f === 'P' ? 'PET' : 'BOL'; }
+  _teamTag(side) { const f = this._factionOf(side); return f === 'U' ? 'TRB' : f === 'C' ? 'PLH' : f === 'F' ? 'FNK' : f === 'E' ? 'TME' : 'TMB'; }
   _mirror(side) { return side === this.enemyTeam && this.enemyFaction === this.playerFaction; }   // inimigo = mesma facção
   // Separação (boids): empurra o bot pra longe de colegas do mesmo time num raio curto, pra eles
   // NÃO andarem colados em fila indiana sobre o mesmo path. Peso ~inverso à distância.
@@ -4009,7 +4009,7 @@ export class Game {
   _initCTF() {
     this._loadCtfSymbols();   // emblemas das facções (estampam a bandeira do dono)
     for (const p of this.ctfPts) for (const m of [p.ring, p.zone, p.pole, p.flag]) if (m) this.scene.remove(m);
-    const sP = this.world.spawns.P[0], sB = this.world.spawns.B[0];
+    const sP = this.world.spawns.E[0], sB = this.world.spawns.B[0];
     const mk = (id, label, x, z) => {
       /* ALTURA DA ZONA: era y ABSOLUTO (0,06 / 0,12) e não o chão LOCAL. Em mapa plano dá na
          mesma; em mapa com relevo o anel ATRAVESSA a geometria — foi o "anel rosa cortando o
@@ -4064,7 +4064,7 @@ export class Game {
          jogando na piscina. Nome de monumento agora mora no mapa (world.ctfPoints);
          mapa novo sem declaração ganha rótulo genérico, nunca o monumento alheio. */
       this.ctfPts = [
-        mk('P', 'BASE A', sP.x * 0.42, sP.z * 0.42),
+        mk('E', 'BASE A', sP.x * 0.42, sP.z * 0.42),
         mk('MID', 'CENTRO', 2.5, 2.5),
         mk('B', 'BASE B', sB.x * 0.42, sB.z * 0.42),
       ];
@@ -4101,13 +4101,13 @@ export class Game {
       for (const c of this.combatants) {
         if (!c.alive) continue;
         const dx = c.pos.x - pt.x, dz = c.pos.z - pt.z;
-        if (dx * dx + dz * dz <= pt.r * pt.r) { if (c.team === 'P') np++; else nb++; }
+        if (dx * dx + dz * dz <= pt.r * pt.r) { if (c.team === 'E') np++; else nb++; }
       }
-      const solo = np > 0 && nb === 0 ? 'P' : (nb > 0 && np === 0 ? 'B' : null);
+      const solo = np > 0 && nb === 0 ? 'E' : (nb > 0 && np === 0 ? 'B' : null);
       pt.capTeam = solo;   // time que está capturando agora (pra cor da barra no HUD)
       pt.contested = np > 0 && nb > 0;
       if (solo && solo !== pt.owner) {
-        const crew = Math.min(2, 1 + 0.35 * ((solo === 'P' ? np : nb) - 1));   // 2º e 3º corpo aceleram
+        const crew = Math.min(2, 1 + 0.35 * ((solo === 'E' ? np : nb) - 1));   // 2º e 3º corpo aceleram
         pt.prog += (dt * crew) / (pt.owner ? CAP_STEAL : CAP_NEUTRAL);
         if (pt.prog >= 1) {
           pt.owner = solo; pt.prog = 0;
@@ -4142,7 +4142,7 @@ export class Game {
     }
     this._updateCtfHud();   // atualiza a barra de progresso de captura a cada frame
     const owners = this.ctfPts.map(p => p.owner);
-    if (owners.length && owners.every(o => o === 'P')) this._ctfWin('P');   // vale p/ 3 ou 4 bandeiras (por-mapa)
+    if (owners.length && owners.every(o => o === 'E')) this._ctfWin('E');   // vale p/ 3 ou 4 bandeiras (por-mapa)
     else if (owners.length && owners.every(o => o === 'B')) this._ctfWin('B');
   }
 
@@ -4463,7 +4463,7 @@ export class Game {
       const bar = `<span style="display:inline-block;width:64px;height:8px;margin-left:6px;background:rgba(0,0,0,.80);border:1px solid rgba(233,241,243,.55);border-radius:2px;vertical-align:middle;overflow:hidden"><span style="display:block;height:100%;width:${(prog * 100) | 0}%;background:${barCol};transition:width .1s"></span></span>`;
       return `<span style="color:${col}">● ${p.label}</span>${bar}`;
     }).join(sep('·'))
-      + sep('—') + `<span style="color:${this._teamColor('P')}">🚩 ${this.ctfCaps.P || 0}</span>`
+      + sep('—') + `<span style="color:${this._teamColor('E')}">🚩 ${this.ctfCaps.E || 0}</span>`
       + sep('·') + `<span style="color:${this._teamColor('B')}">🚩 ${this.ctfCaps.B || 0}</span>`;
   }
 
@@ -5266,7 +5266,7 @@ export class Game {
     p._lifeDmg = 0;
     if (this._deathPanel) this._deathPanel.innerHTML = '';   // painel de morte não vaza pra vida nova
     p.protUntil = this.time + SPAWN_PROT;
-    p.yaw = p.team === 'P' ? Math.PI : 0; p.pitch = 0;
+    p.yaw = p.team === 'E' ? Math.PI : 0; p.pitch = 0;
     // top off the CURRENT loadout's mags (primary could be any weapon now, not just AWP)
     if (p.primary && p.ammo[p.primary]) p.ammo[p.primary] = { mag: WEAPONS[p.primary].mag, res: WEAPONS[p.primary].reserve };
     if (p.secondary && p.ammo[p.secondary]) p.ammo[p.secondary] = { mag: WEAPONS[p.secondary].mag, res: WEAPONS[p.secondary].reserve };
@@ -5316,7 +5316,7 @@ export class Game {
   }
   /* ===================== MARCADOR DE TIME (halo + chevron) =====================
      Dono: "ia ser legal se tivesse um halo no chão, ou uma seta em cima deles mostrando que
-     time eram, caso um mapa tenha 2 times com o mesmo time (bolsonaristas x bolsonaristas)".
+     time eram, caso um mapa tenha 2 times com o mesmo time (time-bs x time-bs)".
      Isso não é enfeite: o rim por time que já existe (characters.js, TEAM_RIM) é colorido por
      `def.team` — a FACÇÃO do personagem, não o LADO da partida. Num espelho (mesma facção nos
      dois lados) os dois times ganham o MESMO rim verde e viram indistinguíveis. O `_teamColor`
@@ -5430,7 +5430,7 @@ export class Game {
         b.mag = (WEAPONS[b.weapon] && WEAPONS[b.weapon].mag) || 30;
         b.aimErr = 0.2; b.burst = 0; b.alertUntil = 0; b._hurtAt = 0; b.reloadUntil = 0;
         b.focusUntil = 0; b._spinAcc = 0; b._spinAt = 0; b._sideUntil = 0;   // estado de mira/anti-pirueta da vida anterior
-        b.target = null; b.path = null; b.yaw = b.team === 'P' ? 0 : Math.PI;
+        b.target = null; b.path = null; b.yaw = b.team === 'E' ? 0 : Math.PI;
         b.laneX = undefined; b.roamUntil = 0;   // re-sorteia a coluna A CADA VIDA -> rotas variam (não "sempre a mesma")
         b._banNodes = null; b._unreach = null; b._escapeUntil = 0; b._jukeAt = 0;   // limpa estado de rota/juke da vida anterior (G2-R6A)
         // rumo suavizado e turno de duelo também são estado de vida: nascer com o _hdg da
@@ -5898,9 +5898,9 @@ export class Game {
         if (!pocket && (this.time > (b.roamUntil || 0) || b.roamIdx === undefined)) {
           // Enemy direction derived from the spawn LAYOUT (not hardcoded — the spawn
           // swap P<->B would otherwise silently flip the roam side and keep bots home).
-          const sP = this.world.spawns.P[0], sB = this.world.spawns.B[0];
+          const sP = this.world.spawns.E[0], sB = this.world.spawns.B[0];
           const enemyDir = sB && sP ? Math.sign(sB.z - sP.z) || 1 : 1;
-          const sign = b.team === 'P' ? enemyDir : -enemyDir;
+          const sign = b.team === 'E' ? enemyDir : -enemyDir;
           // Lane DETERMINÍSTICA por ordinal no time: o ônibus central + a cobertura à
           // esquerda funilavam TODOS pra esquerda (medido: L61/C35/R3) mesmo com alvo à
           // direita. Agora cada bot recebe uma coluna x fixa e espalhada por toda a largura,
@@ -6321,7 +6321,7 @@ export class Game {
     this._bannerT2 = setTimeout(() => b.classList.add('hidden'), 3000);   // espera o fade-out
   }
   /* game.js:5941 — O RESULTADO DA RODADA É O TÍTULO DO PLACAR, NÃO UM BANNER SOLTO.
-     Defeito do print do dono: "BOLSONARISTAS LEVARAM O ROUND" atravessando o painel do
+     Defeito do print do dono: "TIME B LEVARAM O ROUND" atravessando o painel do
      placar. Causa exata: `_endRound` acendia o #round-banner (top:30%, título de 52 px,
      linha mais LARGA que o painel) e o #scoreboard (centrado) NO MESMO QUADRO — as duas
      caixas se cruzam por construção, e o texto sai pelos dois lados do painel.
@@ -6345,20 +6345,20 @@ export class Game {
       document.querySelector('#scoreboard h3').innerHTML =
         (r ? `<span class="sb-result">${r.titulo}</span><span class="sb-result-sub">${r.sub}</span>` : '') +
         `<span class="sb-label">PLACAR · ROUND ${this.roundNum}</span>` +
-        `<span class="sb-score"><b class="tp">${this._teamTag('P')} ${this.roundsWon.P}</b>` +
+        `<span class="sb-score"><b class="tp">${this._teamTag('E')} ${this.roundsWon.E}</b>` +
         `<i>×</i><b class="tb">${this.roundsWon.B} ${this._teamTag('B')}</b></span>`;
       const capH = document.getElementById('sb-cap-h');
       if (capH) capH.classList.toggle('hidden', !this.ctf);
       // no CTF ordena por capturas (depois kills); senão por kills
       const rank = this.ctf ? (a, b) => (b.captures || 0) - (a.captures || 0) || b.kills - a.kills : (a, b) => b.kills - a.kills;
       const rows = [...this.combatants].sort(rank).map(c =>
-        `<tr class="${c.team === 'P' ? 'tp' : 'tb'}${c.isPlayer ? ' me' : ''}">
+        `<tr class="${c.team === 'E' ? 'tp' : 'tb'}${c.isPlayer ? ' me' : ''}">
           <td>${c.name}${c.isPlayer ? ' ★' : ''}</td><td>${c.def.name}</td>
           <td>${c.kills}</td><td>${c.deaths}</td>${this.ctf ? `<td>${c.captures || 0}</td>` : ''}</tr>`).join('');
       this.el.sbBody.innerHTML = rows;
     }
     this.el.scoreboard.classList.toggle('hidden', !v);
-    /* game.js:5933 — DEFEITO DO PRINT: "BOLSONARISTAS LEVARAM O ROUND" atravessando POR
+    /* game.js:5933 — DEFEITO DO PRINT: "TIME B LEVARAM O ROUND" atravessando POR
        TRÁS do painel do placar. Os dois nascem no MESMO instante (`_endRound` chama
        `_banner()` e `_showScoreboard(true)`) e as duas caixas se cruzam por construção:
        o #round-banner mora em top:30% (em 655 px de altura = 196 px, bloco de ~100 px) e
@@ -6397,7 +6397,7 @@ export class Game {
          CTF_CLOCK_SHOW segundos — e quando materializa vem rotulado 'FIM DA PARTIDA',
          justamente pra ninguém confundir com contagem de round. Fora desses 60 s o
          jogador não vê cronômetro nenhum, que é o comportamento de CTF que ele descreve. */
-      const cp = (this.roundCaps && this.roundCaps.P) || 0, cb = (this.roundCaps && this.roundCaps.B) || 0;
+      const cp = (this.roundCaps && this.roundCaps.E) || 0, cb = (this.roundCaps && this.roundCaps.B) || 0;
       const alvo = Number.isFinite(this.capsToWin) ? this.capsToWin : CTF_CAPS_TO_WIN;
       this.el.roundTime.textContent = `${cp} × ${cb}`;
       this.el.roundTime.classList.remove('ctf');
@@ -6405,7 +6405,7 @@ export class Game {
       const fimProximo = restante <= CTF_CLOCK_SHOW;
       this.el.roundTime.classList.toggle('urgente', fimProximo);
       this.el.roundsRow.textContent =
-        `RODADA ${this.roundNum}/${CTF_ROUNDS_MAX} · BANDEIRAS (ALVO ${alvo}) · ${this._teamTag('P')} ${this.roundsWon.P} × ${this.roundsWon.B} ${this._teamTag('B')}`
+        `RODADA ${this.roundNum}/${CTF_ROUNDS_MAX} · BANDEIRAS (ALVO ${alvo}) · ${this._teamTag('E')} ${this.roundsWon.E} × ${this.roundsWon.B} ${this._teamTag('B')}`
         + (fimProximo ? ` · FIM DA PARTIDA EM ${Math.floor(restante / 60)}:${String(restante % 60).padStart(2, '0')}` : '');
     } else {
       this.el.roundTime.classList.remove('ctf');
@@ -6415,11 +6415,11 @@ export class Game {
       // "RODADA 2/5" em vez de "RODADA 2": o formato (melhor de 5) agora é garantido pelo
       // ROUNDS_MAX, e um formato garantido que o HUD não conta é um formato que não existe.
       this.el.roundsRow.textContent =
-        `RODADA ${this.roundNum}/${ROUNDS_MAX} · ${this._teamTag('P')} ${this.roundsWon.P} × ${this.roundsWon.B} ${this._teamTag('B')}`;
+        `RODADA ${this.roundNum}/${ROUNDS_MAX} · ${this._teamTag('E')} ${this.roundsWon.E} × ${this.roundsWon.B} ${this._teamTag('B')}`;
     }
-    this.el.scoreP.innerHTML = `${this._teamTag('P')} <b>${this.roundKills.P}</b>`;
+    this.el.scoreP.innerHTML = `${this._teamTag('E')} <b>${this.roundKills.E}</b>`;
     this.el.scoreB.innerHTML = `${this._teamTag('B')} <b>${this.roundKills.B}</b>`;
-    this.el.scoreP.style.color = this._teamColor('P');   // lado do jogador Tribos fica AZUL
+    this.el.scoreP.style.color = this._teamColor('E');   // lado do jogador Tribos fica AZUL
     this.el.scoreB.style.color = this._teamColor('B');
     // badge de spawn protection (issue #24)
     const protLeft = p.protUntil - this.time;

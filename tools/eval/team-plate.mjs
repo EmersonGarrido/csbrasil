@@ -6,7 +6,7 @@
    (`tools/gen-image.mjs`, OpenRouter). O resultado era bonito e ERRADO: os personagens
    eram INVENTADOS. Palavras do dono: *"a qualidade visual ficou muito boa, mas não usou
    os models reais que temos, tem que usar, tem personagens aí que não existem"*. Ele está
-   certo — na placa dos petistas havia um velho de chapéu de palha e alguém de jaleco; nos
+   certo — na placa dos time-es havia um velho de chapéu de palha e alguém de jaleco; nos
    palhaços, um de cartola e paletó vermelho. Nenhum dos quatro existe em
    `public/models/characters/`.
 
@@ -136,7 +136,7 @@ const TETO = JSON.parse(fs.readFileSync('tools/eval/select_inflate.json', 'utf8'
 /* ── CAMPO DE COR POR FACÇÃO ────────────────────────────────────────────────────────
    6×15 pixels RGB, EXTRAÍDOS das placas que o dono aprovou como cor (`--campo` reimprime
    a extração). Ele reprovou os PERSONAGENS daquelas placas, não a paleta: vermelho no
-   petista, verde no bolsonarista, roxo na tribo, rosa no palhaço, dourado no funkeiro.
+   time-e, verde no bolsonarista, roxo na tribo, rosa no palhaço, dourado no funkeiro.
    Guardar os 90 pixels aqui, e não reler o arquivo de saída, é o que torna a geração
    IDEMPOTENTE: reler `public/img/team-*.webp` faria cada execução derivar o fundo da
    execução anterior, e a cor iria embora aos poucos, sem ninguém perceber.
@@ -243,7 +243,7 @@ const CAMPO = {
    o que se perde é o ombro externo dos dois das pontas, que o quadro já cortaria. */
 const ELENCO = {
   P: {
-    arquivo: 'team-petistas',
+    arquivo: 'team-time-es',
     chars: [
       { id: 'mst',      x: -0.340, z: 0.34, ry: 22 },
       { id: 'gotinha',  x: -0.095, z: -0.16, ry: 10 },
@@ -614,7 +614,7 @@ if (MEDIR) {
 
 // ── MODO --sheet: um retrato por personagem, lado a lado, por facção ────────────────
 if (SHEET) {
-  const times = (SO ? SO.split(',') : ['P', 'B', 'U', 'C', 'F']);
+  const times = (SO ? SO.split(',') : ['E', 'B', 'U', 'C', 'F']);
   for (const t of times) {
     const ids = await page.evaluate(async (fac) => {
       const C = await import('./js/characters.js');
@@ -656,7 +656,7 @@ if (SHEET) {
 /* FUNDO — o campo de cor da placa anterior, sem figura nenhuma.
    Reduzir a 6×15 e reampliar mata qualquer forma reconhecível (um rosto de 130 px vira
    meio pixel) e preserva exatamente a paleta por facção que o dono aprovou: vermelho no
-   petista, verde no bolsonarista, roxo na tribo, rosa no palhaço, dourado no funkeiro. */
+   time-e, verde no bolsonarista, roxo na tribo, rosa no palhaço, dourado no funkeiro. */
 async function fundo(time) {
   const cru = Buffer.from(CAMPO[time]);   // 6×15 RGB, uma linha de 18 bytes por linha do arquivo
   const campo = await sharp(cru, { raw: { width: 6, height: 15, channels: 3 } })

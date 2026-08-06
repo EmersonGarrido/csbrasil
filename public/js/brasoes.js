@@ -48,7 +48,8 @@ const COR_TIME = { P: '#ff5555', B: '#55dd66', U: '#4aa3ff', C: '#ff6ec7', F: '#
 
 /* Só estas cinco têm brasão. Facção fora da lista devolve `null` de propósito: é o sinal
    combinado com o chamador para ele manter o pano que já desenhava. */
-const BRASAO = { P: 'p', B: 'b', U: 'u', C: 'c', F: 'f' };
+// E: arquivo renomeado p.png->e.png no rename Time E (06/08)
+const BRASAO = { E: 'e', B: 'b', U: 'u', C: 'c', F: 'f' };
 
 const W = 512, H = 320;          // 1,6:1 — a mesma proporção do pano que o jogo já usava
 const EMB = 0.74;                // altura do brasão como fração da altura do pano

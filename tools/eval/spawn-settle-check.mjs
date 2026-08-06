@@ -51,7 +51,7 @@ for (const id of Object.keys(MAPS)) {
   const gh = g.world.groundHeightAt ? (x, z, y) => g.world.groundHeightAt(x, z, y) : () => 0;
   g.state = 'live';
 
-  for (const team of ['P', 'B']) {
+  for (const team of ['E', 'B']) {
     const list = g.world.spawns[team] || [];
     list.forEach((s, i) => {
       const rot = `${id} ${team}${i}`;

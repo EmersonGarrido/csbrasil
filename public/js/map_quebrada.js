@@ -1267,7 +1267,7 @@ export function buildQuebrada(scene, T) {
        ficava a 2,0 m do muro de fundo da vila e o disco de 5 m em volta dele batia na parede
        oeste: 40,2 m² de chão contíguo, contra um piso de 40 m². Dois metros a leste e o pior
        slot vai pra ~50 m² sem mexer em nenhuma parede. */
-    P: [-22, -19.5, -17, -14.5].map(x => ({ x, z: -42.5, yaw: Math.PI / 2 })),
+    E: [-22, -19.5, -17, -14.5].map(x => ({ x, z: -42.5, yaw: Math.PI / 2 })),
     /* z 41,5 -> 40,5: o armário do spawn (game.js `_resetPositions`) monta duas fileiras
        ATRÁS de quem nasce, a 1,6 m e 3,6 m. Com o slot em 41,5 a fileira de trás caía em
        44,1 e o `_freeSpot` empurrava uma arma até z = 46, a 0,94 m do chão alcançável mais
@@ -1291,7 +1291,7 @@ export function buildQuebrada(scene, T) {
          A do campinho é a crítica: fica a 11,6 m do slot B mais próximo, com o gol entre elas. */
   const ctfPoints = [
     { id: 'R', label: 'BAILE', x: 5, z: -30.5 },
-    { id: 'P', label: 'PONTO DE ÔNIBUS', x: -10, z: -6 },
+    { id: 'E', label: 'PONTO DE ÔNIBUS', x: -10, z: -6 },
     { id: 'B', label: 'BAR DA ESQUINA', x: 9.5, z: 6 },
     { id: 'C', label: 'CAMPINHO', x: -6, z: 30 },
   ];

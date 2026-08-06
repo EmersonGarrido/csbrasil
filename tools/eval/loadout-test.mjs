@@ -21,7 +21,7 @@ const page = await browser.newPage({ viewport: { width: 1000, height: 620 } });
 let errors = 0;
 page.on('console', m => { if (m.type() === 'error') { errors++; console.error('[page-err]', m.text()); } });
 page.on('pageerror', e => { errors++; console.error('[pageerror]', e.message); });
-await page.goto(`${BASE}/?debug=1&auto=P,${CHAR}`, { waitUntil: 'load' });
+await page.goto(`${BASE}/?debug=1&auto=E,${CHAR}`, { waitUntil: 'load' });
 await page.waitForFunction(() => window.__game && window.__game.state === 'live', null, { timeout: 60000 });
 
 const r = await page.evaluate(() => {
@@ -47,7 +47,7 @@ const slot = await page.evaluate(() => {
 console.log('slot memory:', JSON.stringify(slot));
 
 // screenshot the spawn area (should show the weapon rack)
-await page.evaluate(() => { const g = window.__game, p = g.player; const s = g.world.spawns[p.team][0]; p.pos.set(s.x, 0, s.z); p.pitch = -0.1; p.yaw = p.team === 'P' ? Math.PI : 0; });
+await page.evaluate(() => { const g = window.__game, p = g.player; const s = g.world.spawns[p.team][0]; p.pos.set(s.x, 0, s.z); p.pitch = -0.1; p.yaw = p.team === 'E' ? Math.PI : 0; });
 await page.waitForTimeout(150);
 await page.screenshot({ path: '/tmp/spawn-rack.png' });
 console.log('shot -> /tmp/spawn-rack.png | console errors:', errors);

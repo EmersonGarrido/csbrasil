@@ -115,7 +115,7 @@ const { MAPS } = await import(`${JS}/maps.js`);
 const { initTextures } = await import(`${JS}/textures.js`);
 const { Game, WEAPONS } = await import(`${JS}/game.js`);
 const { CHARACTERS } = await import(`${JS}/characters.js`);
-const PCHAR = (CHARACTERS.find(c => c.team === 'P') || CHARACTERS[0]).id;   // o scoreboard lê player.def.name
+const PCHAR = (CHARACTERS.find(c => c.team === 'E') || CHARACTERS[0]).id;   // o scoreboard lê player.def.name
 
 /* sfx mudo: qualquer método vira no-op (o Game chama uns 20 diferentes) */
 const sfx = new Proxy({}, { get: () => () => {} });
@@ -164,7 +164,7 @@ function runMap(mapId, textures, seed) {
   seedRandom(seed);
   const g = new Game({
     renderer, textures, sfx, settings: { bots: 4, quality: 'low', difficulty: 'normal', sens: 1 },
-    playerCharId: PCHAR, playerTeam: 'P', playerFaction: 'P', enemyFaction: 'B',
+    playerCharId: PCHAR, playerTeam: 'E', playerFaction: 'E', enemyFaction: 'B',
     nickname: 'SIM', mapId, ctf: process.env.SIM_CTF === '1', testMode: true, onQuit() {}, onMatchEnd() {},
   });
   g._ensureDolly = () => {};        // a câmera de fim de round cria um WebGLRenderer — não existe aqui
@@ -272,7 +272,7 @@ function runMap(mapId, textures, seed) {
          no centro fixo ele caía dentro de geometria e ninguém tinha linha de visão. Andando
          ele encontra os bots o tempo todo, que é a situação que o dono descreve. */
       const P = g.player, sp = g.world.spawns;
-      const a = sp[P.team][0], bsp = sp[P.team === 'P' ? 'B' : 'P'][0];
+      const a = sp[P.team][0], bsp = sp[P.team === 'E' ? 'B' : 'E'][0];
       if (!P._simTgt) P._simTgt = bsp;
       const tx = P._simTgt.x - P.pos.x, tz = P._simTgt.z - P.pos.z, td = Math.hypot(tx, tz) || 1;
       if (td < 4) P._simTgt = P._simTgt === bsp ? a : bsp;

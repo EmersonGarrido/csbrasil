@@ -33,8 +33,8 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
   // cascata de compatibilidade: se a função do banco está desatualizada
   // (sem p_character/p_seconds/p_rounds/p_team), grava o núcleo dos stats mesmo assim
   const attempts = [
-    { p_nick: n, p_token: token, p_won: !!won, p_kills: kills | 0, p_deaths: deaths | 0, p_headshots: headshots | 0, p_best_streak: bestStreak | 0, p_rounds: rounds | 0, p_team: team === 'P' || team === 'B' ? team : null, p_seconds: seconds | 0, p_character: typeof character === 'string' ? character.slice(0, 20) : null, p_ip: ip },
-    { p_nick: n, p_token: token, p_won: !!won, p_kills: kills | 0, p_deaths: deaths | 0, p_headshots: headshots | 0, p_best_streak: bestStreak | 0, p_rounds: rounds | 0, p_team: team === 'P' || team === 'B' ? team : null },
+    { p_nick: n, p_token: token, p_won: !!won, p_kills: kills | 0, p_deaths: deaths | 0, p_headshots: headshots | 0, p_best_streak: bestStreak | 0, p_rounds: rounds | 0, p_team: team === 'E' || team === 'P' ? 'P' : team === 'B' ? 'B' : null, p_seconds: seconds | 0, p_character: typeof character === 'string' ? character.slice(0, 20) : null, p_ip: ip },
+    { p_nick: n, p_token: token, p_won: !!won, p_kills: kills | 0, p_deaths: deaths | 0, p_headshots: headshots | 0, p_best_streak: bestStreak | 0, p_rounds: rounds | 0, p_team: team === 'E' || team === 'P' ? 'P' : team === 'B' ? 'B' : null },
     { p_nick: n, p_token: token, p_won: !!won, p_kills: kills | 0, p_deaths: deaths | 0, p_headshots: headshots | 0, p_best_streak: bestStreak | 0 },
   ];
   let error: any = null, degraded = false;

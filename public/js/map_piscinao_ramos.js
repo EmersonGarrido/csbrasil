@@ -2107,7 +2107,7 @@ export function buildPoolDay(scene, T) {
   // spawns nos dois extremos, dentro do corredor de cover (x alinhado com as jardineiras).
   // forward = (-sin yaw, -cos yaw): P (sul, z-) olha +z → yaw π; B (norte) olha -z → yaw 0.
   const mk = s => [-5, -2, 1, 4].map(x => ({ x, z: (HALF_Z - 4) * s, yaw: s < 0 ? Math.PI : 0 }));
-  const spawns = { P: mk(-1), B: mk(1) };
+  const spawns = { E: mk(-1), B: mk(1) };
 
   /* ---------------- arsenal no deck (fileiras) ---------------- */
   const GM = { black: lam({ color: 0x1b1d21 }), steel: lam({ color: 0x9aa0a6 }), wood: lam({ color: 0x7a5326 }), tan: lam({ color: 0xb39a63 }), green: lam({ color: 0x16432a }) };

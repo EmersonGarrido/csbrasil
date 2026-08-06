@@ -1796,14 +1796,14 @@ export function buildFerroVelho(scene, T) {
        folha recolhida — o corpo tem 0,38 m de raio, então dois dos quatro jogadores nasciam
        praticamente encostados na chapa de zinco. Dentro do vão a folga vira 1,50 m e os 4
        slots ficam a 2,4 m um do outro. */
-    P: [-3.6, -1.2, 1.2, 3.6].map(x => ({ x, z: HALF_Z - 3, yaw: 0 })),
+    E: [-3.6, -1.2, 1.2, 3.6].map(x => ({ x, z: HALF_Z - 3, yaw: 0 })),
     B: [-14, -9, -4, 1].map(x => ({ x, z: -25, yaw: Math.PI })),
   };
   // 4 bandeiras (dono): 1 CENTRAL + as outras ESPAÇADAS, e NENHUMA no respawn (a antiga
   // 'PORTÃO' 0,31 nascia colada no spawn P z33; a 'GALPÃO' -16,-31 atrás do spawn B z-25).
   // Agora: centro + sudoeste (13 m à frente do spawn P) + leste + norte (11 m à frente do B).
   const ctfPoints = [
-    { id: 'P', label: 'CENTRO', x: 0, z: 2 },
+    { id: 'E', label: 'CENTRO', x: 0, z: 2 },
     { id: 'W', label: BECO ? 'BECO OESTE' : 'BECO SUL', x: BECO ? -23 : -20, z: BECO ? 4 : 20 },
     /* PÁTIO LESTE saiu de (24, 0) para (26, -16). Motivo MEDIDO (tools/eval/map-check.mjs,
        invariante CTF1): com CENTRO (0,2), BECO OESTE (-23,4) e PÁTIO LESTE (24,0) as três

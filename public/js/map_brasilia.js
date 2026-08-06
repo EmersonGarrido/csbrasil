@@ -1283,7 +1283,7 @@ export function buildBrasilia(scene, T) {
   // Barraquinhas de camelô (vendor stalls)
   putBuilding('stall', { x: -13, z: -8, targetH: 2.7, ry: Math.PI / 2 });
   putBuilding('stall', { x: 13, z: 8, targetH: 2.7, ry: -Math.PI / 2 });
-  // +2 barraquinhas no lado bolsonarista, mais pro meio da praça (pedido do usuário)
+  // +2 barraquinhas no lado time-b, mais pro meio da praça (pedido do usuário)
   putBuilding('stall', { x: -10, z: -23, targetH: 2.7, ry: Math.PI / 2 });
   putBuilding('stall', { x: 9, z: -21, targetH: 2.7, ry: -Math.PI / 2 });
   // Mini-acampamento de barracas (protest camp) junto aos ministérios oeste
@@ -1291,7 +1291,7 @@ export function buildBrasilia(scene, T) {
   for (const [tx, tz, ry] of [[-15, -30, 0.2], [-17, -35, 1.1], [-13, -36, -0.5], [16, 20, 0.6],
     [-6, -27, 0.9], [7, -25, -0.4]])
     putBuilding('tent', { x: tx, z: tz, targetH: 1.7, ry });
-  // Acampamento (barracas em 2 fileiras) emoldurando a ponta da CATEDRAL (lado bolsonarista),
+  // Acampamento (barracas em 2 fileiras) emoldurando a ponta da CATEDRAL (lado time-b),
   // simétrico ao jardim+espelho da ponta do Congresso — backdrop temático atrás do spawn B.
   for (const [tx, tz, ry] of [[-12, -66, 0.15], [-4, -67, -0.2], [4, -66, 0.25], [12, -67, -0.15],
     [-8, -70.5, 0.5], [8, -70.5, -0.5]])
@@ -1369,7 +1369,7 @@ export function buildBrasilia(scene, T) {
   putBuilding('urna', { x: 0, z: 0, targetH: 1.2, ry: -0.4 });
 
   /* ---------------- Towner do hotdog (Sketchfab — carrinho de hotdog) ---------------- */
-  // Asia Towner/Daihatsu Hijet virou o carrinho de hotdog da praça, no lado bolsonarista.
+  // Asia Towner/Daihatsu Hijet virou o carrinho de hotdog da praça, no lado time-b.
   putBuilding('towner', { x: 12, z: -15, targetH: 2.0, ry: -0.9 });
 
   /* ---------------- barraquinha de bebida (Mint GLB — mini-bar c/ guarda-sol) -------------- */
@@ -1709,7 +1709,7 @@ export function buildBrasilia(scene, T) {
   // A* com custo EUCLIDIANO. Antes era BFS por nº de saltos: com arestas diagonais, o
   // "menor nº de saltos" preferia passos diagonais e escolhia um caminho ERRANTE — uma viagem
   // reta pela direita (x=9, z 59->-29) voltava zigue-zagueando até x=-13 e voltava, funilando
-  // TODOS os bots pelo centro-esquerda (a dor "petista esquerda / bolsonarista direita"). A*
+  // TODOS os bots pelo centro-esquerda (a dor "time-e esquerda / time-b direita"). A*
   // por distância devolve o caminho geometricamente mais curto -> desce reto pela coluna.
   const D = (a, b) => { const dx = nodes[a].x - nodes[b].x, dz = nodes[a].z - nodes[b].z; return Math.sqrt(dx * dx + dz * dz); };
   function findPath(fromIdx, toIdx) {
@@ -1741,9 +1741,9 @@ export function buildBrasilia(scene, T) {
 
   /* ---------------- spawns ---------------- */
   const mk = s => [-9, -3, 3, 9].map(x => ({ x, z: 62 * s, yaw: s < 0 ? Math.PI : 0 }));   // spawns recuados (43->62) p/ longe da 1ª área
-  // Bolsonaristas start at the Cathedral (south) end, Petistas at the Congresso (north)
+  // Time B start at the Cathedral (south) end, Time E at the Congresso (north)
   // end — swapped per request.
-  const spawns = { B: mk(-1), P: mk(1) };
+  const spawns = { B: mk(-1), E: mk(1) };
 
   // saia de contato: TODAS as bases registradas viram UMA malha mesclada = 1 draw call
   SKIRT.build(root);
@@ -1756,7 +1756,7 @@ export function buildBrasilia(scene, T) {
        Posições = as mesmas do fallback antigo (spawn×0,42 e o ônibus): zero mudança de
        gameplay. P nasce no norte (Congresso), B no sul (Catedral) — ver spawns acima. */
     ctfPoints: [
-      { id: 'P', label: 'CONGRESSO', x: -3.78, z: 26.04 },
+      { id: 'E', label: 'CONGRESSO', x: -3.78, z: 26.04 },
       { id: 'MID', label: 'ÔNIBUS', x: 2.5, z: 2.5 },
       { id: 'B', label: 'CATEDRAL', x: -3.78, z: -26.04 },
     ],
