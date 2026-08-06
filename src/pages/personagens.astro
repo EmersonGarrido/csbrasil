@@ -60,6 +60,10 @@ const jsonld = [
 ];
 ---
 <Layout
+  {/* og:image própria, gerada em runtime por /api/og/personagens.png (issue #33) —
+      antes caía na og-image.png genérica, igual pra todo o site. */}
+  ogImage={abs('/api/og/personagens.png')}
+  ogImageAlt={`Card com o elenco do ${BRAND_FULL}`}
   title={`Personagens — os ${total} do elenco | ${BRAND_FULL}`}
   description={`Os ${total} personagens jogáveis do ${BRAND_FULL} em ${FACCOES.length} facções: Petistas, Bolsonaristas, Tribos Urbanas, Palhaços e Funkeiros. Arquétipos 100% fictícios, sem pessoas reais.`}
   jsonld={jsonld}

@@ -67,6 +67,10 @@ const jsonld = [
 ];
 ---
 <Layout
+  {/* og:image própria, gerada em runtime por /api/og/armas.png (issue #33) —
+      antes caía na og-image.png genérica, igual pra todo o site. */}
+  ogImage={abs('/api/og/armas.png')}
+  ogImageAlt={`Card com o arsenal do ${BRAND_FULL}`}
   title={`Armas — as ${ARMAS.length} do arsenal | ${BRAND_FULL}`}
   description={`Todas as ${ARMAS.length} armas do ${BRAND_FULL}: AWP, AK-47, M4A1, MD97, Mosin, escopeta, SMGs e faca — com imagem, dano, pente, reserva e cadência de cada uma, mais as ${ARREMESSO.length} granadas.`}
   jsonld={jsonld}
