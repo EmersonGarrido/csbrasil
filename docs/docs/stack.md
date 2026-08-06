@@ -92,9 +92,13 @@ O ranking e a telemetria vivem num Postgres gerenciado. Schema e migrations são
 privados (fora do repo — decisão de segurança); o runtime só usa as envs.
 ofuscação opcional que foi entregue pronta e **deliberadamente não aplicada**.
 
-A segurança não vem de esconder a `anon` key — ela é pública por design e vai ao browser
-por `GET /api/config`. Vem das *policies*, dos grants por coluna e do rate limit contado
-no Postgres (`src/lib/ratelimit.ts` + RPC `rl_take`), não em memória de lambda.
+A segurança não vem de esconder a `anon` key — ela é pública por design. Vem das
+*policies*, dos grants por coluna e do rate limit contado no Postgres
+(`src/lib/ratelimit.ts` + RPC `rl_take`), não em memória de lambda.
+
+Hoje a `anon` key **não sai do servidor**: existia um `GET /api/config` que a entregava
+ao browser "pro client ligar OAuth/storage", mas nenhum cliente chegou a usar, e a rota
+foi removida (issue #41). Se OAuth entrar na mesa, ela volta — com rate limit.
 
 **O ranking está desligado hoje** (`RANKING_ON` em `src/lib/site.ts`) e foi trocado por
 telemetria anônima. É flag, não remoção — detalhes em [Estado medido](./estado.md).
