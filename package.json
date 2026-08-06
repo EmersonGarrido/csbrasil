@@ -22,6 +22,8 @@
     "eval:vm": "node tools/eval/vm-mint-audit.mjs",
     "eval:kick": "node tools/eval/vm-kick-sim.mjs",
     "eval:bots": "node tools/eval/botsim.mjs 60 all",
+  "//eval:sitemap": "Prova o fatiamento do sitemap com totais falsos (0, 5000, 5001, 12000). O modo índice é código que NINGUÉM alcança pedindo a URL — perfis só entram com RANKING_ON e precisariam de 5000+ jogadores. Checa páginas contíguas sem buraco, teto por página, XML bem formado nos dois modos e escape de & no nick.",
+  "eval:sitemap": "node --experimental-strip-types tools/eval/sitemap-check.mjs",
     "eval:ctfhud": "node tools/eval/ctfhud-check.mjs",
     "eval:mat": "node tools/eval/mat-check.mjs",
     "//eval:seo": "LÊ dist/client/ — o HTML publicado, não o .astro. Rode `npm run build` antes, ou use `npm run check:seo`, que já faz os dois. `--mutate` prova que a régua morde.",
