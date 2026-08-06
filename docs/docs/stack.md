@@ -239,7 +239,7 @@ de trabalhar. Elas vivem em `.agents/skills/`, e `.claude/skills/` são symlinks
 |---|---:|---|
 | Declaradas no `skills-lock.json` | 31 | com `source`, `skillPath` e `computedHash` — skill de terceiro que mudar de conteúdo é detectável |
 | Pastas em `.agents/skills/` no disco | 31 | o que existe **nesta máquina** |
-| …dessas, com `SKILL.md` presente | 0 | o resto é pasta vazia: a skill está no lock e o conteúdo não foi baixado |
+| …dessas, com `SKILL.md` presente | 10 | o resto é pasta vazia: a skill está no lock e o conteúdo não foi baixado |
 | Versionadas (chegam em quem clona) | 10 | `git ls-files .agents/skills` |
 | …dessas, com `SKILL.md` no git | 10 | é o que um clone limpo consegue ler |
 
