@@ -22,6 +22,8 @@
     "eval:vm": "node tools/eval/vm-mint-audit.mjs",
     "eval:kick": "node tools/eval/vm-kick-sim.mjs",
     "eval:bots": "node tools/eval/botsim.mjs 60 all",
+  "//eval:site": "Contrato das 13 rotas do site SEM Supabase (o estado do CI): status, corpo, XML do sitemap e JSON-LD parseável. `astro build` verde não prova nada disso — /ranking pode dar 500 e o build passa. Sobe o astro dev sozinho; SITE_URL aponta pra um alvo externo. --mutante=jsonld prova que morde.",
+  "eval:site": "node tools/eval/site-smoke.mjs",
     "eval:ctfhud": "node tools/eval/ctfhud-check.mjs",
     "eval:mat": "node tools/eval/mat-check.mjs",
     "//eval:seo": "LÊ dist/client/ — o HTML publicado, não o .astro. Rode `npm run build` antes, ou use `npm run check:seo`, que já faz os dois. `--mutate` prova que a régua morde.",
