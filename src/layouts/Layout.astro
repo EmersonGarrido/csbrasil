@@ -592,5 +592,49 @@ body>footer a:hover{color:var(--amber)}
   </div>
   <div style="color:#5f5a48">Paródia independente, sem afiliação com a Valve. Counter-Strike é marca da Valve Corporation.</div>
 </footer>
+<script>
+  /* NAV + RODAPÉ em EN (mesma régua de idioma das páginas gêmeas e do jogo:
+     ?lang= > localStorage cs_lang > navigator.language). As gêmeas EN existem
+     para personagens/mapas/armas/como-jogar/sobre — rótulo e href trocam juntos.
+     /mapa e /changelog continuam só PT (issue #54) e ficam com o rótulo em PT
+     DE PROPÓSITO: avisa que a página de destino é PT antes do clique. */
+  try {
+    const q = new URLSearchParams(location.search).get('lang');
+    const ls = localStorage.getItem('cs_lang');
+    const lang = (q === 'pt' || q === 'en') ? q : (ls === 'pt' || ls === 'en') ? ls
+      : (/^pt/i.test(navigator.language || '') ? 'pt' : 'en');
+    if (lang === 'en') {
+      document.documentElement.lang = 'en';
+      // [href PT] -> [href EN, rótulo no nav (caps), rótulo no rodapé]
+      const GEMEA = {
+        '/personagens': ['/characters', 'CHARACTERS', 'Characters'],
+        '/mapas': ['/maps', 'MAPS', 'Maps'],
+        '/armas': ['/weapons', 'WEAPONS', 'Weapons'],
+        '/como-jogar': ['/how-to-play', 'HOW TO PLAY', 'How to play'],
+        '/sobre': ['/about', 'ABOUT', 'About'],
+      };
+      document.querySelectorAll('header nav a').forEach((a) => {
+        const g = GEMEA[a.getAttribute('href')];
+        if (g) { a.setAttribute('href', g[0]); a.textContent = g[1]; }
+      });
+      document.querySelectorAll('footer a').forEach((a) => {
+        const g = GEMEA[a.getAttribute('href')];
+        if (g) { a.setAttribute('href', g[0]); a.textContent = g[2]; }
+      });
+      const jogar = document.querySelector('.btn-play');
+      if (jogar) { jogar.setAttribute('href', '/?lang=en'); jogar.textContent = '▶ PLAY'; }
+      // as 3 linhas de prosa do rodapé: troca o texto inteiro quando acha o marcador PT
+      document.querySelectorAll('footer div').forEach((d) => {
+        const t = d.textContent;
+        if (t.includes('FPS de navegador, grátis e sem instalação'))
+          d.textContent = t.replace('FPS de navegador, grátis e sem instalação', 'Browser FPS, free, no install');
+        else if (t.includes('Sátira política fictícia'))
+          d.textContent = 'Fictional political satire, no sides and no hate — a celebration of Brazilian culture 🇧🇷';
+        else if (t.includes('Paródia independente'))
+          d.textContent = 'Independent parody, not affiliated with Valve. Counter-Strike is a Valve Corporation trademark.';
+      });
+    }
+  } catch { /* storage bloqueado: fica PT */ }
+</script>
 </body>
 </html>

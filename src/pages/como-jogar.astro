@@ -176,3 +176,14 @@ const jsonld = [
     <a class="btn-cta btn-2" href="/mapas">Ver as arenas</a>
   </div>
 </Layout>
+
+<script>
+  // espelho do /how-to-play: usuário em EN cai na gêmea (mesmas regras do i18n.js)
+  try {
+    const q = new URLSearchParams(location.search).get('lang');
+    const ls = localStorage.getItem('cs_lang');
+    const lang = (q === 'pt' || q === 'en') ? q : (ls === 'pt' || ls === 'en') ? ls
+      : (/^pt/i.test(navigator.language || '') ? 'pt' : 'en');
+    if (lang === 'en') location.replace('/how-to-play');
+  } catch { /* fica */ }
+</script>

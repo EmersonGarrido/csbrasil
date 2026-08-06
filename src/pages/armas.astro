@@ -196,6 +196,17 @@ const jsonld = [
   </div>
 </Layout>
 
+<script>
+  // espelho do /weapons: usuário em EN cai na gêmea (mesmas regras do i18n.js)
+  try {
+    const q = new URLSearchParams(location.search).get('lang');
+    const ls = localStorage.getItem('cs_lang');
+    const lang = (q === 'pt' || q === 'en') ? q : (ls === 'pt' || ls === 'en') ? ls
+      : (/^pt/i.test(navigator.language || '') ? 'pt' : 'en');
+    if (lang === 'en') location.replace('/weapons');
+  } catch { /* fica */ }
+</script>
+
 <style>
   /* A miniatura vive na PRIMEIRA coluna, acima do nome, e não numa coluna própria:
      `.tw table` já tem `min-width:640px` (Layout.astro:418), então uma sexta coluna

@@ -433,11 +433,12 @@ let heartbeatOff = false;
 { const v = document.getElementById('mf-ver'); if (v) v.textContent = `CORO SOLTO v${VERSION}`; }
 // EN por camada: varre o menu estático UMA vez (PT é a fonte; i18n.js explica o desenho)
 translateDom(document.body);
-// links do rodapé por idioma: EN vai pras gêmeas que EXISTEM (characters, docs/en);
-// as demais páginas estáticas ainda são só PT (issue #54)
+// links do rodapé por idioma: EN vai pras gêmeas que EXISTEM (characters, how-to-play,
+// weapons, maps, about, docs/en); /changelog e /mapa continuam só PT (issue #54)
 if (LANG === 'en') for (const a of document.querySelectorAll('.menu-footer a')) {
-  if (a.getAttribute('href') === '/personagens') a.setAttribute('href', '/characters');
-  if (a.getAttribute('href') === '/docs/') a.setAttribute('href', '/docs/en/');
+  const GEMEA = { '/personagens': '/characters', '/como-jogar': '/how-to-play', '/armas': '/weapons', '/mapas': '/maps', '/sobre': '/about', '/docs/': '/docs/en/' };
+  const h = a.getAttribute('href');
+  if (GEMEA[h]) a.setAttribute('href', GEMEA[h]);
 }
 // seletor de idioma em CONFIGURAÇÕES: grava e recarrega (o dicionário aplica no boot)
 { const sel = document.getElementById('set-lang');
