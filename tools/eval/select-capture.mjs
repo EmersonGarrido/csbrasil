@@ -26,7 +26,9 @@ await page.addStyleTag({ content: 'astro-dev-toolbar{display:none!important}' })
 await page.waitForSelector('#nick-input', { timeout: 30000 });
 await page.fill('#nick-input', 'EVAL');
 await page.click('#btn-jogar');
-await page.click(TEAM === 'B' ? '#btn-team-b' : '#btn-team-p');
+// 5 facções hoje (P/B/U/C/F) — o ternário antigo só sabia P e B, então capturar
+// palhaço ou funkeiro clicava no time errado e a lista vinha vazia.
+await page.click(`#btn-team-${TEAM.toLowerCase()}`);
 await page.waitForSelector('#char-select:not(.hidden)', { timeout: 15000 });
 // espera os GLBs carregarem e os thumbs trocarem
 await page.waitForTimeout(5000);

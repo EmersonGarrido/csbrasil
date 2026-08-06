@@ -157,7 +157,19 @@ for (const state of STATES) {
     for (const tg of mappedTgt) {
       const sg = SG.get(tg.name); if (!sg) continue;
       const srcW = srcWorldQ(sg, localById);
-      const desiredW = srcW.clone().multiply(srcRestW.get(tg.name).clone().invert()).multiply(restWorldQ(tg));
+      /* BRAÇOS EM ROTAÇÃO ABSOLUTA (05/08). O delta (linha abaixo) PRESERVA o offset do
+         rest do alvo — correto para comprimento de osso, desastroso quando o BIND do alvo
+         não é T-pose: coach (mão/cabeça 0,60), dollynho (0,70), trapfunk (0,70) e jozo
+         (0,71) têm bind em A-pose, e todo clipe saía com o braço 30–40° fora do lugar —
+         era o "posturas bizarras" que sobreviveu a re-rig, porte e clamp, porque morava
+         nos CLIPES gerados aqui. Nos braços, o mundo que o clipe fonte pede é o mundo que
+         o alvo deve ter (mesma família Meshy, mesmos eixos de osso). Para os 40 rigs em T,
+         srcRest ≈ tgtRest e delta ≡ absoluto — mudança é no-op neles (conferido na razão
+         mão/cabeça: todos ≥ 0,83). Perna/coluna seguem no delta, que é o que consertou
+         "doutora agachada" e "dollynho dobrado". */
+      const desiredW = /Shoulder|Arm|Hand/.test(tg.name)
+        ? srcW.clone()
+        : srcW.clone().multiply(srcRestW.get(tg.name).clone().invert()).multiply(restWorldQ(tg));
       const parentW = tg.parent && parentComputed.has(tg.parent.name) ? parentComputed.get(tg.parent.name) : (tg.parent ? restWorldQ(tg.parent) : new THREE.Quaternion());
       const local = parentW.clone().invert().multiply(desiredW);
       parentComputed.set(tg.name, desiredW.clone());

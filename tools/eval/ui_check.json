@@ -1,0 +1,1877 @@
+{
+ "gerado": "2026-08-03T23:07:13.344Z",
+ "zonaMira": {
+  "x0": 0.47023809523809523,
+  "y0": 0.44868633948874237,
+  "x1": 0.5297619047619048,
+  "y1": 0.5513136605112576
+ },
+ "zonaArma": {
+  "x0": 0.525,
+  "y0": 0.455,
+  "x1": 1,
+  "y1": 1
+ },
+ "cenaPior": [
+  214,
+  196,
+  164
+ ],
+ "res": [
+  {
+   "nome": "UI1",
+   "titulo": "CONTRASTE — texto do HUD >= 4,5:1 (3:1 se grande) e objeto gráfico essencial >= 3:1",
+   "ok": true,
+   "achados": [
+    {
+     "tipo": "texto",
+     "alvo": "#hud-speech",
+     "fonte": "src/pages/index.astro:516",
+     "amostra": "🔊",
+     "razao": 6.16,
+     "min": 4.5,
+     "ok": true
+    },
+    {
+     "tipo": "texto",
+     "alvo": ".svg",
+     "fonte": "src/pages/index.astro:518",
+     "amostra": "▪",
+     "razao": 6.16,
+     "min": 4.5,
+     "ok": true
+    },
+    {
+     "tipo": "texto",
+     "alvo": "#prot-badge",
+     "fonte": "src/pages/index.astro:534",
+     "amostra": "PROTEGIDO s",
+     "razao": 11.51,
+     "min": 4.5,
+     "ok": true
+    },
+    {
+     "tipo": "texto",
+     "alvo": ".svg",
+     "fonte": "src/pages/index.astro:534",
+     "amostra": "▪",
+     "razao": 11.51,
+     "min": 4.5,
+     "ok": true
+    },
+    {
+     "tipo": "texto",
+     "alvo": "#prot-count",
+     "fonte": "src/pages/index.astro:534",
+     "amostra": "3",
+     "razao": 11.51,
+     "min": 4.5,
+     "ok": true
+    },
+    {
+     "tipo": "texto",
+     "alvo": "#score-p",
+     "fonte": "src/pages/index.astro:536",
+     "amostra": "PET",
+     "razao": 10.15,
+     "min": 4.5,
+     "ok": true
+    },
+    {
+     "tipo": "texto",
+     "alvo": ".b",
+     "fonte": "src/pages/index.astro:536",
+     "amostra": "0",
+     "razao": 10.15,
+     "min": 4.5,
+     "ok": true
+    },
+    {
+     "tipo": "texto",
+     "alvo": "#round-time",
+     "fonte": "src/pages/index.astro:538",
+     "amostra": "1:39",
+     "razao": 18.06,
+     "min": 3,
+     "ok": true
+    },
+    {
+     "tipo": "texto",
+     "alvo": "#rounds-row",
+     "fonte": "src/pages/index.astro:539",
+     "amostra": "RODADA 1 · PET 0 × 0 BOL",
+     "razao": 13.75,
+     "min": 4.5,
+     "ok": true
+    },
+    {
+     "tipo": "texto",
+     "alvo": "#score-b",
+     "fonte": "src/pages/index.astro:541",
+     "amostra": "BOL",
+     "razao": 15.54,
+     "min": 4.5,
+     "ok": true
+    },
+    {
+     "tipo": "texto",
+     "alvo": ".b",
+     "fonte": "src/pages/index.astro:541",
+     "amostra": "0",
+     "razao": 15.54,
+     "min": 4.5,
+     "ok": true
+    },
+    {
+     "tipo": "texto",
+     "alvo": "#hp-num",
+     "fonte": "src/pages/index.astro:546",
+     "amostra": "100",
+     "razao": 18.07,
+     "min": 3,
+     "ok": true
+    },
+    {
+     "tipo": "texto",
+     "alvo": "#weapon-name",
+     "fonte": "src/pages/index.astro:550",
+     "amostra": "AWP \"DELIBERADOR\"",
+     "razao": 13.76,
+     "min": 4.5,
+     "ok": true
+    },
+    {
+     "tipo": "texto",
+     "alvo": "#ammo-mag",
+     "fonte": "src/pages/index.astro:551",
+     "amostra": "5",
+     "razao": 18.06,
+     "min": 3,
+     "ok": true
+    },
+    {
+     "tipo": "texto",
+     "alvo": ".ammo-sep",
+     "fonte": "src/pages/index.astro:551",
+     "amostra": "|",
+     "razao": 4.47,
+     "min": 3,
+     "ok": true
+    },
+    {
+     "tipo": "texto",
+     "alvo": "#ammo-reserve",
+     "fonte": "src/pages/index.astro:551",
+     "amostra": "25",
+     "razao": 13.76,
+     "min": 3,
+     "ok": true
+    },
+    {
+     "tipo": "texto",
+     "alvo": "#smoke-count",
+     "fonte": "src/pages/index.astro:552",
+     "amostra": "💨 5 🧨 1",
+     "razao": 13.76,
+     "min": 4.5,
+     "ok": true
+    },
+    {
+     "tipo": "texto",
+     "alvo": "#reload-note",
+     "fonte": "src/pages/index.astro:553",
+     "amostra": "RECARREGANDO…",
+     "razao": 6.27,
+     "min": 4.5,
+     "ok": true
+    },
+    {
+     "tipo": "texto",
+     "alvo": ".lh-title",
+     "fonte": "src/pages/index.astro:557",
+     "amostra": "CLIQUE PARA ATIVAR A MIRA",
+     "razao": 11.2,
+     "min": 3,
+     "ok": true
+    },
+    {
+     "tipo": "texto",
+     "alvo": ".svg",
+     "fonte": "src/pages/index.astro:557",
+     "amostra": "▪",
+     "razao": 11.2,
+     "min": 3,
+     "ok": true
+    },
+    {
+     "tipo": "texto",
+     "alvo": ".lh-sub",
+     "fonte": "src/pages/index.astro:558",
+     "amostra": "Se o navegador bloquear, clique de",
+     "razao": 13.22,
+     "min": 4.5,
+     "ok": true
+    },
+    {
+     "tipo": "texto",
+     "alvo": ".rip",
+     "fonte": "src/pages/index.astro:562",
+     "amostra": "ELIMINADO",
+     "razao": 11.12,
+     "min": 3,
+     "ok": true
+    },
+    {
+     "tipo": "texto",
+     "alvo": ".svg",
+     "fonte": "src/pages/index.astro:562",
+     "amostra": "▪",
+     "razao": 11.12,
+     "min": 3,
+     "ok": true
+    },
+    {
+     "tipo": "texto",
+     "alvo": ".div",
+     "fonte": "src/pages/index.astro:563",
+     "amostra": "Respawn em s…",
+     "razao": 11.12,
+     "min": 4.5,
+     "ok": true
+    },
+    {
+     "tipo": "texto",
+     "alvo": "#respawn-count",
+     "fonte": "src/pages/index.astro:563",
+     "amostra": "3",
+     "razao": 11.12,
+     "min": 4.5,
+     "ok": true
+    },
+    {
+     "tipo": "texto",
+     "alvo": ".rip-sub",
+     "fonte": "src/pages/index.astro:564",
+     "amostra": "A treta continua sem você. Por enq",
+     "razao": 6.65,
+     "min": 4.5,
+     "ok": true
+    },
+    {
+     "tipo": "texto",
+     "alvo": ".h3",
+     "fonte": "src/pages/index.astro:567",
+     "amostra": "CS BRASIL — PLACAR",
+     "razao": 15.11,
+     "min": 4.5,
+     "ok": true
+    },
+    {
+     "tipo": "texto",
+     "alvo": ".th",
+     "fonte": "src/pages/index.astro:568",
+     "amostra": "JOGADOR",
+     "razao": 6.99,
+     "min": 4.5,
+     "ok": true
+    },
+    {
+     "tipo": "texto",
+     "alvo": ".th",
+     "fonte": "src/pages/index.astro:568",
+     "amostra": "PERSONAGEM",
+     "razao": 6.99,
+     "min": 4.5,
+     "ok": true
+    },
+    {
+     "tipo": "texto",
+     "alvo": ".th",
+     "fonte": "src/pages/index.astro:568",
+     "amostra": "KILLS",
+     "razao": 6.99,
+     "min": 4.5,
+     "ok": true
+    },
+    {
+     "tipo": "texto",
+     "alvo": ".th",
+     "fonte": "src/pages/index.astro:568",
+     "amostra": "MORTES",
+     "razao": 6.99,
+     "min": 4.5,
+     "ok": true
+    },
+    {
+     "tipo": "texto",
+     "alvo": "#sb-cap-h",
+     "fonte": "src/pages/index.astro:568",
+     "amostra": "CAP.",
+     "razao": 6.99,
+     "min": 4.5,
+     "ok": true
+    },
+    {
+     "tipo": "texto",
+     "alvo": "#ctf-hud > span",
+     "fonte": "public/js/game.js:_updateCtfHud (innerHTML medido)",
+     "amostra": "\"● ESTACIONAMENTO\" #f0f0ed",
+     "razao": 18.27,
+     "min": 4.5,
+     "ok": true
+    },
+    {
+     "tipo": "texto",
+     "alvo": "#ctf-hud > span",
+     "fonte": "public/js/game.js:_updateCtfHud (innerHTML medido)",
+     "amostra": "\"·\" #a5a5a3",
+     "razao": 8.45,
+     "min": 4.5,
+     "ok": true
+    },
+    {
+     "tipo": "texto",
+     "alvo": "#ctf-hud > span",
+     "fonte": "public/js/game.js:_updateCtfHud (innerHTML medido)",
+     "amostra": "\"● ESTÁTUA\" #ff5555",
+     "razao": 6.64,
+     "min": 4.5,
+     "ok": true
+    },
+    {
+     "tipo": "texto",
+     "alvo": "#ctf-hud > span",
+     "fonte": "public/js/game.js:_updateCtfHud (innerHTML medido)",
+     "amostra": "\"·\" #a5a5a3",
+     "razao": 8.45,
+     "min": 4.5,
+     "ok": true
+    },
+    {
+     "tipo": "texto",
+     "alvo": "#ctf-hud > span",
+     "fonte": "public/js/game.js:_updateCtfHud (innerHTML medido)",
+     "amostra": "\"● GÔNDOLAS\" #55dd66",
+     "razao": 11.84,
+     "min": 4.5,
+     "ok": true
+    },
+    {
+     "tipo": "texto",
+     "alvo": "#ctf-hud > span",
+     "fonte": "public/js/game.js:_updateCtfHud (innerHTML medido)",
+     "amostra": "\"—\" #a5a5a3",
+     "razao": 8.45,
+     "min": 4.5,
+     "ok": true
+    },
+    {
+     "tipo": "texto",
+     "alvo": "#ctf-hud > span",
+     "fonte": "public/js/game.js:_updateCtfHud (innerHTML medido)",
+     "amostra": "\"🚩 2\" #ff5555",
+     "razao": 6.64,
+     "min": 4.5,
+     "ok": true
+    },
+    {
+     "tipo": "texto",
+     "alvo": "#ctf-hud > span",
+     "fonte": "public/js/game.js:_updateCtfHud (innerHTML medido)",
+     "amostra": "\"·\" #a5a5a3",
+     "razao": 8.45,
+     "min": 4.5,
+     "ok": true
+    },
+    {
+     "tipo": "texto",
+     "alvo": "#ctf-hud > span",
+     "fonte": "public/js/game.js:_updateCtfHud (innerHTML medido)",
+     "amostra": "\"🚩 1\" #55dd66",
+     "razao": 11.84,
+     "min": 4.5,
+     "ok": true
+    },
+    {
+     "tipo": "grafico",
+     "alvo": "#ctf-hud > barra: #55dd66 × rgba(0,0,0,.55)",
+     "fonte": "public/js/game.js:_updateCtfHud (innerHTML medido)",
+     "amostra": "preenchimento × trilho",
+     "razao": 11.22,
+     "min": 3,
+     "ok": true
+    },
+    {
+     "tipo": "grafico",
+     "alvo": "#ctf-hud > barra: limite (trilho 1.10 / fio 5.48) × painel",
+     "fonte": "public/js/game.js:_updateCtfHud (innerHTML medido)",
+     "amostra": "trilho rgba(0,0,0,.55) + borda 1px solid rgba(233,241,243,.55)",
+     "razao": 5.48,
+     "min": 3,
+     "ok": true
+    },
+    {
+     "tipo": "grafico",
+     "alvo": "#ctf-hud > barra: #ff5555 × rgba(0,0,0,.55)",
+     "fonte": "public/js/game.js:_updateCtfHud (innerHTML medido)",
+     "amostra": "preenchimento × trilho",
+     "razao": 6.29,
+     "min": 3,
+     "ok": true
+    },
+    {
+     "tipo": "grafico",
+     "alvo": "#ctf-hud > barra: limite (trilho 1.10 / fio 5.48) × painel",
+     "fonte": "public/js/game.js:_updateCtfHud (innerHTML medido)",
+     "amostra": "trilho rgba(0,0,0,.55) + borda 1px solid rgba(233,241,243,.55)",
+     "razao": 5.48,
+     "min": 3,
+     "ok": true
+    },
+    {
+     "tipo": "grafico",
+     "alvo": "#ctf-hud > barra: #55dd66 × rgba(0,0,0,.55)",
+     "fonte": "public/js/game.js:_updateCtfHud (innerHTML medido)",
+     "amostra": "preenchimento × trilho",
+     "razao": 11.22,
+     "min": 3,
+     "ok": true
+    },
+    {
+     "tipo": "grafico",
+     "alvo": "#ctf-hud > barra: limite (trilho 1.10 / fio 5.48) × painel",
+     "fonte": "public/js/game.js:_updateCtfHud (innerHTML medido)",
+     "amostra": "trilho rgba(0,0,0,.55) + borda 1px solid rgba(233,241,243,.55)",
+     "razao": 5.48,
+     "min": 3,
+     "ok": true
+    },
+    {
+     "tipo": "texto",
+     "alvo": "#killfeed > .kf-n",
+     "fonte": "public/js/game.js:_feed (innerHTML medido)",
+     "amostra": "\"Caminhoneiro\" #a9f0b6",
+     "razao": 8.39,
+     "min": 4.5,
+     "ok": true
+    },
+    {
+     "tipo": "texto",
+     "alvo": "#killfeed > .kf-ic",
+     "fonte": "public/js/game.js:_feed (innerHTML medido)",
+     "amostra": "\"▪\" #f0f0ed",
+     "razao": 13.86,
+     "min": 4.5,
+     "ok": true
+    },
+    {
+     "tipo": "texto",
+     "alvo": "#killfeed > .kf-n",
+     "fonte": "public/js/game.js:_feed (innerHTML medido)",
+     "amostra": "\"VOCÊ\" #ff9a9a",
+     "razao": 5.95,
+     "min": 4.5,
+     "ok": true
+    },
+    {
+     "tipo": "texto",
+     "alvo": "#killfeed > .kf-n",
+     "fonte": "public/js/game.js:_feed (innerHTML medido)",
+     "amostra": "\"VOCÊ\" #ff9a9a",
+     "razao": 5.5,
+     "min": 4.5,
+     "ok": true
+    },
+    {
+     "tipo": "texto",
+     "alvo": "#killfeed > .kf-ic.kf-skull",
+     "fonte": "public/js/game.js:_feed (innerHTML medido)",
+     "amostra": "\"▪\" #f3b958",
+     "razao": 7.63,
+     "min": 4.5,
+     "ok": true
+    },
+    {
+     "tipo": "texto",
+     "alvo": "#killfeed > .kf-ic",
+     "fonte": "public/js/game.js:_feed (innerHTML medido)",
+     "amostra": "\"▪\" #f0f0ed",
+     "razao": 11.8,
+     "min": 4.5,
+     "ok": true
+    },
+    {
+     "tipo": "texto",
+     "alvo": "#killfeed > .kf-n",
+     "fonte": "public/js/game.js:_feed (innerHTML medido)",
+     "amostra": "\"Caminhoneiro\" #a9f0b6",
+     "razao": 6.79,
+     "min": 4.5,
+     "ok": true
+    },
+    {
+     "tipo": "texto",
+     "alvo": "#killfeed > .kf-n",
+     "fonte": "public/js/game.js:_feed (innerHTML medido)",
+     "amostra": "\"Caminhoneiro\" #a9f0b6",
+     "razao": 7.3,
+     "min": 4.5,
+     "ok": true
+    },
+    {
+     "tipo": "texto",
+     "alvo": "#killfeed > .kf-ic.kf-skull",
+     "fonte": "public/js/game.js:_feed (innerHTML medido)",
+     "amostra": "\"▪\" #f3b958",
+     "razao": 8.15,
+     "min": 4.5,
+     "ok": true
+    },
+    {
+     "tipo": "texto",
+     "alvo": "#killfeed > .kf-ic",
+     "fonte": "public/js/game.js:_feed (innerHTML medido)",
+     "amostra": "\"▪\" #f0f0ed",
+     "razao": 12.61,
+     "min": 4.5,
+     "ok": true
+    },
+    {
+     "tipo": "texto",
+     "alvo": "#killfeed > .kf-n",
+     "fonte": "public/js/game.js:_feed (innerHTML medido)",
+     "amostra": "\"Líder do MST\" #ff9a9a",
+     "razao": 5.62,
+     "min": 4.5,
+     "ok": true
+    },
+    {
+     "tipo": "grafico",
+     "alvo": "barra de vida: preenchimento × trilho",
+     "fonte": "public/style.css (#hp-fill × #hp-bar)",
+     "amostra": "#f0f0ed sobre rgba(5,8,11,.8)",
+     "razao": 11.96,
+     "min": 3,
+     "ok": true
+    }
+   ],
+   "falhas": []
+  },
+  {
+   "nome": "UI3",
+   "titulo": "ÁREA MORTA — nada do HUD sobre a mira (x 0.470-0.530 / y 0.449-0.551) nem, se for flutuante, sobre o viewmodel (x>=0.525 / y>=0.455)",
+   "ok": true,
+   "achados": [
+    {
+     "alvo": "#hud",
+     "isento": "sem âncora vertical resolvível (container)",
+     "ok": true
+    },
+    {
+     "alvo": "#hud-actions",
+     "fonte": "public/style.css",
+     "ancorado": true,
+     "centrado": false,
+     "caixa": [
+      0.986,
+      0.021,
+      0.986,
+      0.051
+     ],
+     "largPx": 0,
+     "largMinPx": 0,
+     "limiarArmaPx": 50,
+     "limiarMiraPx": 60,
+     "invade": null,
+     "ok": true
+    },
+    {
+     "alvo": "#radar",
+     "fonte": "public/style.css",
+     "ancorado": true,
+     "centrado": false,
+     "caixa": [
+      0.014,
+      0.021,
+      0.014,
+      0.051
+     ],
+     "largPx": 0,
+     "largMinPx": 0,
+     "limiarArmaPx": 50,
+     "limiarMiraPx": 60,
+     "invade": null,
+     "ok": true
+    },
+    {
+     "alvo": "#radio-log",
+     "fonte": "public/style.css",
+     "ancorado": true,
+     "centrado": false,
+     "caixa": [
+      0.014,
+      0.263,
+      0.014,
+      0.286
+     ],
+     "largPx": 0,
+     "largMinPx": 0,
+     "limiarArmaPx": 50,
+     "limiarMiraPx": 60,
+     "invade": null,
+     "ok": true
+    },
+    {
+     "alvo": "#radio-menu",
+     "isento": "invocado pelo jogador (Z/X/V).",
+     "ok": true
+    },
+    {
+     "alvo": "#crosshair",
+     "isento": "É A MIRA.",
+     "ok": true
+    },
+    {
+     "alvo": "#hitmarker",
+     "isento": "marca de acerto: pertence à camada de mira.",
+     "ok": true
+    },
+    {
+     "alvo": "#dmg-numbers",
+     "isento": "números de dano: camada de mira (posição vem do mundo, não do CSS).",
+     "ok": true
+    },
+    {
+     "alvo": "#scope-overlay",
+     "isento": "luneta: SUBSTITUI a cena, não é overlay de HUD.",
+     "ok": true
+    },
+    {
+     "alvo": "#damage-vignette",
+     "isento": "vinheta de dano: tela inteira, sem opacidade em repouso.",
+     "ok": true
+    },
+    {
+     "alvo": "#dmg-dir",
+     "isento": "indicador direcional de dano: camada de mira.",
+     "ok": true
+    },
+    {
+     "alvo": "#mk-banner",
+     "isento": "anúncio de multi-kill: é a recompensa, dura 0,16 s de transição.",
+     "ok": true
+    },
+    {
+     "alvo": "#prot-badge",
+     "fonte": "public/style.css",
+     "ancorado": true,
+     "centrado": false,
+     "caixa": [
+      0.022,
+      0.836,
+      0.109,
+      0.86
+     ],
+     "largPx": 88,
+     "largMinPx": 0,
+     "limiarArmaPx": 50,
+     "limiarMiraPx": 60,
+     "invade": null,
+     "ok": true
+    },
+    {
+     "alvo": "#hud-top",
+     "fonte": "public/style.css",
+     "ancorado": false,
+     "centrado": true,
+     "caixa": [
+      0.5,
+      0.021,
+      0.5,
+      0.051
+     ],
+     "largPx": 0,
+     "largMinPx": 0,
+     "limiarArmaPx": 50,
+     "limiarMiraPx": 60,
+     "invade": null,
+     "ok": true
+    },
+    {
+     "alvo": "#ctf-hud",
+     "fonte": "public/style.css",
+     "ancorado": false,
+     "centrado": true,
+     "caixa": [
+      0.19,
+      0.116,
+      0.81,
+      0.15
+     ],
+     "largPx": 625,
+     "largMinPx": 24,
+     "limiarArmaPx": 50,
+     "limiarMiraPx": 60,
+     "invade": null,
+     "ok": true
+    },
+    {
+     "alvo": "#killfeed",
+     "fonte": "public/style.css",
+     "ancorado": true,
+     "centrado": false,
+     "caixa": [
+      0.562,
+      0.116,
+      0.982,
+      0.14
+     ],
+     "largPx": 423,
+     "largMinPx": 0,
+     "limiarArmaPx": 50,
+     "limiarMiraPx": 60,
+     "invade": null,
+     "ok": true
+    },
+    {
+     "alvo": "#hud-bottom-left",
+     "fonte": "public/style.css",
+     "ancorado": true,
+     "centrado": false,
+     "caixa": [
+      0.022,
+      0.94,
+      0.022,
+      0.969
+     ],
+     "largPx": 0,
+     "largMinPx": 0,
+     "limiarArmaPx": 50,
+     "limiarMiraPx": 60,
+     "invade": null,
+     "ok": true
+    },
+    {
+     "alvo": "#hud-bottom-right",
+     "fonte": "public/style.css",
+     "ancorado": true,
+     "centrado": false,
+     "caixa": [
+      0.974,
+      0.94,
+      0.974,
+      0.969
+     ],
+     "largPx": 0,
+     "largMinPx": 0,
+     "limiarArmaPx": 50,
+     "limiarMiraPx": 60,
+     "invade": null,
+     "ok": true
+    },
+    {
+     "alvo": "#round-banner",
+     "isento": "anúncio de round: some sozinho e o round nem começou (state=countdown).",
+     "ok": true
+    },
+    {
+     "alvo": "#lock-hint",
+     "isento": "só aparece com o ponteiro DESTRAVADO (game.js:5618) — nesse estado não há mira nem tiro.",
+     "ok": true
+    },
+    {
+     "alvo": "#pickup-hint",
+     "fonte": "public/style.css",
+     "ancorado": true,
+     "centrado": false,
+     "caixa": [
+      0.022,
+      0.765,
+      0.399,
+      0.82
+     ],
+     "largPx": 380,
+     "largMinPx": 30,
+     "limiarArmaPx": 50,
+     "limiarMiraPx": 60,
+     "invade": null,
+     "ok": true
+    },
+    {
+     "alvo": "#respawn-overlay",
+     "isento": "só aparece MORTO: não há viewmodel nem mira pra tapar.",
+     "ok": true
+    },
+    {
+     "alvo": "#scoreboard",
+     "isento": "invocado pelo jogador (TAB) ou no fim de round — tapar a cena é a função dele.",
+     "ok": true
+    }
+   ],
+   "falhas": []
+  },
+  {
+   "nome": "UI5",
+   "titulo": "PALETA — cada papel do jogo dentro de ΔC* <= 4 e Δh <= 25° do MESMO papel medido nas 9 telas (tools/eval/ref_ui.json)",
+   "ok": true,
+   "achados": [
+    {
+     "token": "--ink-100",
+     "papel": "tinta_alta",
+     "uso": "números de HUD e títulos",
+     "cobrado": true,
+     "ok": true,
+     "meuHex": "#f0f0ed",
+     "refHex": "#f6f6f3",
+     "meu": {
+      "L": 94.7,
+      "C": 1.5,
+      "h": 110.1
+     },
+     "ref": {
+      "L": 96.8,
+      "C": 1.5,
+      "h": 110.1
+     },
+     "dC": 0,
+     "dh": null
+    },
+    {
+     "token": "--ink-200",
+     "papel": "tinta_alta",
+     "uso": "corpo de texto",
+     "cobrado": true,
+     "ok": true,
+     "meuHex": "#d3d3d1",
+     "refHex": "#f6f6f3",
+     "meu": {
+      "L": 84.5,
+      "C": 1.1,
+      "h": 110.1
+     },
+     "ref": {
+      "L": 96.8,
+      "C": 1.5,
+      "h": 110.1
+     },
+     "dC": 0.5,
+     "dh": null
+    },
+    {
+     "token": "--ink-300",
+     "papel": "tinta_media",
+     "uso": "rótulos/meta",
+     "cobrado": true,
+     "ok": true,
+     "meuHex": "#a5a5a3",
+     "refHex": "#9a9a98",
+     "meu": {
+      "L": 67.7,
+      "C": 1.1,
+      "h": 110.1
+     },
+     "ref": {
+      "L": 63.5,
+      "C": 1.1,
+      "h": 110.1
+     },
+     "dC": 0,
+     "dh": null
+    },
+    {
+     "token": "--ink-400",
+     "papel": "tinta_media",
+     "uso": "régua/ícone decorativo",
+     "cobrado": true,
+     "ok": true,
+     "meuHex": "#757573",
+     "refHex": "#9a9a98",
+     "meu": {
+      "L": 49.2,
+      "C": 1.2,
+      "h": 110
+     },
+     "ref": {
+      "L": 63.5,
+      "C": 1.1,
+      "h": 110.1
+     },
+     "dC": 0.1,
+     "dh": null
+    },
+    {
+     "token": "--am",
+     "papel": "acento",
+     "uso": "objetivo e conquista",
+     "cobrado": true,
+     "ok": true,
+     "meuHex": "#f3b958",
+     "refHex": "#be9033",
+     "meu": {
+      "L": 78.7,
+      "C": 57.2,
+      "h": 78.9
+     },
+     "ref": {
+      "L": 62.6,
+      "C": 54.3,
+      "h": 81.3
+     },
+     "dC": 2.8,
+     "dh": 2.4
+    },
+    {
+     "token": "--bg-900",
+     "papel": "fundo",
+     "uso": "fundo de tela",
+     "cobrado": false,
+     "ok": true,
+     "meuHex": "#05080b",
+     "refHex": "#141513",
+     "meu": {
+      "L": 2.1,
+      "C": 1.5,
+      "h": 255.6
+     },
+     "ref": {
+      "L": 6.6,
+      "C": 1.4,
+      "h": 129.4
+     },
+     "dC": 0.1,
+     "dh": null
+    },
+    {
+     "token": "--bg-800",
+     "papel": "painel",
+     "uso": "painel",
+     "cobrado": false,
+     "ok": true,
+     "meuHex": "#0a1116",
+     "refHex": "#38342e",
+     "meu": {
+      "L": 4.7,
+      "C": 4,
+      "h": 253.7
+     },
+     "ref": {
+      "L": 21.9,
+      "C": 4.5,
+      "h": 83.5
+     },
+     "dC": 0.5,
+     "dh": null
+    },
+    {
+     "token": "--bg-700",
+     "papel": "painel",
+     "uso": "painel 2",
+     "cobrado": false,
+     "ok": true,
+     "meuHex": "#101a21",
+     "refHex": "#38342e",
+     "meu": {
+      "L": 8.6,
+      "C": 6.6,
+      "h": 251.3
+     },
+     "ref": {
+      "L": 21.9,
+      "C": 4.5,
+      "h": 83.5
+     },
+     "dC": 2.2,
+     "dh": null
+    }
+   ],
+   "falhas": []
+  },
+  {
+   "nome": "UI2",
+   "titulo": "POLUIÇÃO — elemento não-permanente <= 25% do tempo (pior de 5 mapas × 2 modos × 2 cenários, 90 s cada)",
+   "ok": true,
+   "porElemento": {
+    "#pickup-hint": {
+     "pior": 0.134,
+     "onde": "fy_pool_day/ctf/spawn",
+     "cobrado": true,
+     "ok": true
+    },
+    "#prot-badge": {
+     "pior": 0.045,
+     "onde": "praca_old/ctf/spawn",
+     "cobrado": true,
+     "ok": true
+    },
+    "#reload-note": {
+     "pior": 0,
+     "onde": "awp_map/dm/spawn",
+     "cobrado": true,
+     "ok": true
+    },
+    "#respawn-overlay": {
+     "pior": 0.049,
+     "onde": "praca_old/ctf/spawn",
+     "cobrado": true,
+     "ok": true
+    },
+    "#scoreboard": {
+     "pior": 0.045,
+     "onde": "awp_map/ctf/spawn",
+     "cobrado": true,
+     "ok": true
+    },
+    "#radio-menu": {
+     "pior": 0,
+     "onde": "awp_map/dm/spawn",
+     "cobrado": true,
+     "ok": true
+    },
+    "#round-banner": {
+     "pior": 0.173,
+     "onde": "praca_old/ctf/spawn",
+     "cobrado": true,
+     "ok": true
+    },
+    "#mk-banner": {
+     "pior": 0,
+     "onde": "awp_map/dm/spawn",
+     "cobrado": true,
+     "ok": true
+    },
+    "#killfeed": {
+     "pior": 1,
+     "onde": "awp_map/dm/spawn",
+     "cobrado": false,
+     "ok": true
+    }
+   },
+   "falhas": [],
+   "linhas": [
+    {
+     "mapId": "awp_map",
+     "ctf": false,
+     "cenario": "spawn",
+     "alvo": 12,
+     "n": 5400,
+     "fracao": {
+      "pickupHint": 0.04462962962962963,
+      "prot": 0,
+      "reloadNote": 0,
+      "respawn": 0,
+      "scoreboard": 0,
+      "radioMenu": 0,
+      "banner": 0.057777777777777775,
+      "mkBanner": 0,
+      "killfeed": 1
+     },
+     "fim": null,
+     "maxPlacar": 6,
+     "maxCaps": 0,
+     "rounds": 0,
+     "dists": [
+      47.90790456109125,
+      43.707348645830955
+     ],
+     "nLive": 5220
+    },
+    {
+     "mapId": "awp_map",
+     "ctf": false,
+     "cenario": "patrulha",
+     "alvo": 12,
+     "n": 5400,
+     "fracao": {
+      "pickupHint": 0.007592592592592593,
+      "prot": 0,
+      "reloadNote": 0,
+      "respawn": 0,
+      "scoreboard": 0,
+      "radioMenu": 0,
+      "banner": 0.057777777777777775,
+      "mkBanner": 0,
+      "killfeed": 1
+     },
+     "fim": null,
+     "maxPlacar": 7,
+     "maxCaps": 0,
+     "rounds": 0,
+     "dists": [
+      43.72111970235415,
+      55.071818806318284,
+      30.388593676226673,
+      17.143838965223516,
+      18.30211400541294,
+      17.163353268183133,
+      12.92293930020705,
+      12.90226935950588,
+      10.184842253952889,
+      12.34449962002782,
+      16.89857386758048,
+      19.510774872611655,
+      19.826468996483687,
+      28.97064304394895,
+      17.959298419931727
+     ],
+     "nLive": 5220
+    },
+    {
+     "mapId": "awp_map",
+     "ctf": true,
+     "cenario": "spawn",
+     "alvo": 3,
+     "n": 5400,
+     "fracao": {
+      "pickupHint": 0.08925925925925926,
+      "prot": 0,
+      "reloadNote": 0,
+      "respawn": 0,
+      "scoreboard": 0.04462962962962963,
+      "radioMenu": 0,
+      "banner": 0.14444444444444443,
+      "mkBanner": 0,
+      "killfeed": 1
+     },
+     "fim": null,
+     "maxPlacar": 4,
+     "maxCaps": 3,
+     "rounds": 1,
+     "dists": [
+      60.131211236643686
+     ],
+     "nLive": 4798
+    },
+    {
+     "mapId": "awp_map",
+     "ctf": true,
+     "cenario": "patrulha",
+     "alvo": 3,
+     "n": 5400,
+     "fracao": {
+      "pickupHint": 0.0025925925925925925,
+      "prot": 0,
+      "reloadNote": 0,
+      "respawn": 0,
+      "scoreboard": 0.02259259259259259,
+      "radioMenu": 0,
+      "banner": 0.08666666666666667,
+      "mkBanner": 0,
+      "killfeed": 1
+     },
+     "fim": null,
+     "maxPlacar": 10,
+     "maxCaps": 3,
+     "rounds": 0,
+     "dists": [
+      8.332536008705922,
+      8.332536008705922,
+      7.763243750926282,
+      6.667841978564439,
+      27.839485336737887,
+      27.839485336737887,
+      18.820791219451312,
+      10.61056719127056,
+      10.61056719127056
+     ],
+     "nLive": 5098
+    },
+    {
+     "mapId": "praca_old",
+     "ctf": false,
+     "cenario": "spawn",
+     "alvo": 12,
+     "n": 5400,
+     "fracao": {
+      "pickupHint": 0,
+      "prot": 0,
+      "reloadNote": 0,
+      "respawn": 0,
+      "scoreboard": 0,
+      "radioMenu": 0,
+      "banner": 0.08666666666666667,
+      "mkBanner": 0,
+      "killfeed": 1
+     },
+     "fim": null,
+     "maxPlacar": 10,
+     "maxCaps": 0,
+     "rounds": 0,
+     "dists": [
+      80.24210726799073
+     ],
+     "nLive": 5220
+    },
+    {
+     "mapId": "praca_old",
+     "ctf": false,
+     "cenario": "patrulha",
+     "alvo": 12,
+     "n": 5400,
+     "fracao": {
+      "pickupHint": 0,
+      "prot": 0,
+      "reloadNote": 0,
+      "respawn": 0,
+      "scoreboard": 0.04462962962962963,
+      "radioMenu": 0,
+      "banner": 0.14444444444444443,
+      "mkBanner": 0,
+      "killfeed": 1
+     },
+     "fim": null,
+     "maxPlacar": 12,
+     "maxCaps": 0,
+     "rounds": 1,
+     "dists": [
+      7.099001750307251,
+      6.848243628363495,
+      7.447381875901353,
+      18.033886368426817,
+      27.805200825239755,
+      25.338150686266573,
+      20.70037243497064,
+      16.829665015825547
+     ],
+     "nLive": 4798
+    },
+    {
+     "mapId": "praca_old",
+     "ctf": true,
+     "cenario": "spawn",
+     "alvo": 3,
+     "n": 5400,
+     "fracao": {
+      "pickupHint": 0,
+      "prot": 0.044814814814814814,
+      "reloadNote": 0,
+      "respawn": 0.04925925925925926,
+      "scoreboard": 0.04462962962962963,
+      "radioMenu": 0,
+      "banner": 0.17333333333333334,
+      "mkBanner": 0,
+      "killfeed": 1
+     },
+     "fim": null,
+     "maxPlacar": 8,
+     "maxCaps": 3,
+     "rounds": 1,
+     "dists": [
+      35.024365224956334,
+      23.843789922853077,
+      80.75372404518447,
+      27.342778044256686
+     ],
+     "nLive": 4798
+    },
+    {
+     "mapId": "praca_old",
+     "ctf": true,
+     "cenario": "patrulha",
+     "alvo": 3,
+     "n": 5400,
+     "fracao": {
+      "pickupHint": 0,
+      "prot": 0.022407407407407407,
+      "reloadNote": 0,
+      "respawn": 0.02462962962962963,
+      "scoreboard": 0.04462962962962963,
+      "radioMenu": 0,
+      "banner": 0.14444444444444443,
+      "mkBanner": 0,
+      "killfeed": 1
+     },
+     "fim": null,
+     "maxPlacar": 3,
+     "maxCaps": 3,
+     "rounds": 1,
+     "dists": [
+      7.424818173874378,
+      6.565624073010006,
+      11.825501464795016,
+      8.336025191702907,
+      6.984972643967866
+     ],
+     "nLive": 4798
+    },
+    {
+     "mapId": "fy_pool_day",
+     "ctf": false,
+     "cenario": "spawn",
+     "alvo": 12,
+     "n": 5400,
+     "fracao": {
+      "pickupHint": 0.022037037037037036,
+      "prot": 0,
+      "reloadNote": 0,
+      "respawn": 0,
+      "scoreboard": 0,
+      "radioMenu": 0,
+      "banner": 0.057777777777777775,
+      "mkBanner": 0,
+      "killfeed": 1
+     },
+     "fim": null,
+     "maxPlacar": 8,
+     "maxCaps": 0,
+     "rounds": 0,
+     "dists": [
+      19.774478305515498,
+      18.61693427849166,
+      13.831277637777037,
+      12.804006743903404,
+      17.642033459060908,
+      21.350808059465635,
+      19.405264146931497
+     ],
+     "nLive": 5220
+    },
+    {
+     "mapId": "fy_pool_day",
+     "ctf": false,
+     "cenario": "patrulha",
+     "alvo": 12,
+     "n": 5400,
+     "fracao": {
+      "pickupHint": 0.019074074074074073,
+      "prot": 0,
+      "reloadNote": 0,
+      "respawn": 0,
+      "scoreboard": 0,
+      "radioMenu": 0,
+      "banner": 0.057777777777777775,
+      "mkBanner": 0,
+      "killfeed": 1
+     },
+     "fim": null,
+     "maxPlacar": 7,
+     "maxCaps": 0,
+     "rounds": 0,
+     "dists": [
+      10.32423295658733,
+      10.859461598155486,
+      9.633209082597048,
+      9.082456250098303,
+      8.037905651835688
+     ],
+     "nLive": 5220
+    },
+    {
+     "mapId": "fy_pool_day",
+     "ctf": true,
+     "cenario": "spawn",
+     "alvo": 3,
+     "n": 5400,
+     "fracao": {
+      "pickupHint": 0.1338888888888889,
+      "prot": 0,
+      "reloadNote": 0,
+      "respawn": 0,
+      "scoreboard": 0,
+      "radioMenu": 0,
+      "banner": 0.08666666666666667,
+      "mkBanner": 0,
+      "killfeed": 1
+     },
+     "fim": null,
+     "maxPlacar": 6,
+     "maxCaps": 2,
+     "rounds": 0,
+     "dists": [
+      21.493525450881847,
+      20.132544006292,
+      20.132544006292,
+      20.132544006292,
+      20.132544006292,
+      18.808648851662735,
+      16.203073448128062,
+      16.203073448128062,
+      16.203073448128062,
+      16.044823992220497,
+      16.044823992220497,
+      16.354877984652365,
+      16.354877984652365,
+      16.354877984652365,
+      16.354877984652365,
+      15.156136018324592
+     ],
+     "nLive": 5220
+    },
+    {
+     "mapId": "fy_pool_day",
+     "ctf": true,
+     "cenario": "patrulha",
+     "alvo": 3,
+     "n": 5400,
+     "fracao": {
+      "pickupHint": 0.0033333333333333335,
+      "prot": 0,
+      "reloadNote": 0,
+      "respawn": 0,
+      "scoreboard": 0.04462962962962963,
+      "radioMenu": 0,
+      "banner": 0.17333333333333334,
+      "mkBanner": 0,
+      "killfeed": 1
+     },
+     "fim": null,
+     "maxPlacar": 4,
+     "maxCaps": 3,
+     "rounds": 1,
+     "dists": [
+      16.216419212446702
+     ],
+     "nLive": 4798
+    },
+    {
+     "mapId": "fy_havan",
+     "ctf": false,
+     "cenario": "spawn",
+     "alvo": 12,
+     "n": 5400,
+     "fracao": {
+      "pickupHint": 0.04462962962962963,
+      "prot": 0,
+      "reloadNote": 0,
+      "respawn": 0,
+      "scoreboard": 0,
+      "radioMenu": 0,
+      "banner": 0.06222222222222222,
+      "mkBanner": 0,
+      "killfeed": 1
+     },
+     "fim": null,
+     "maxPlacar": 10,
+     "maxCaps": 0,
+     "rounds": 0,
+     "dists": [
+      32.09631801577231,
+      14.437369873733243,
+      16.814443265526887,
+      39.87143360177818,
+      39.18170056213159,
+      17.165838666277576,
+      20.121706215833516,
+      20.933979525268864,
+      19.39224556943069,
+      18.04866904257361,
+      17.84197367525191,
+      22.93631117237556
+     ],
+     "nLive": 5220
+    },
+    {
+     "mapId": "fy_havan",
+     "ctf": false,
+     "cenario": "patrulha",
+     "alvo": 12,
+     "n": 5400,
+     "fracao": {
+      "pickupHint": 0.001851851851851852,
+      "prot": 0,
+      "reloadNote": 0,
+      "respawn": 0,
+      "scoreboard": 0,
+      "radioMenu": 0,
+      "banner": 0.057777777777777775,
+      "mkBanner": 0,
+      "killfeed": 1
+     },
+     "fim": null,
+     "maxPlacar": 3,
+     "maxCaps": 0,
+     "rounds": 0,
+     "dists": [
+      21.858074561000322,
+      17.200173359314846,
+      19.857616290951594,
+      17.32574189119423,
+      17.408545176385847,
+      17.966644828555644,
+      15.610230324286043,
+      15.486209018259519
+     ],
+     "nLive": 5220
+    },
+    {
+     "mapId": "fy_havan",
+     "ctf": true,
+     "cenario": "spawn",
+     "alvo": 3,
+     "n": 5400,
+     "fracao": {
+      "pickupHint": 0.08925925925925926,
+      "prot": 0,
+      "reloadNote": 0,
+      "respawn": 0,
+      "scoreboard": 0.04462962962962963,
+      "radioMenu": 0,
+      "banner": 0.14444444444444443,
+      "mkBanner": 0,
+      "killfeed": 1
+     },
+     "fim": null,
+     "maxPlacar": 2,
+     "maxCaps": 3,
+     "rounds": 1,
+     "dists": [],
+     "nLive": 4798
+    },
+    {
+     "mapId": "fy_havan",
+     "ctf": true,
+     "cenario": "patrulha",
+     "alvo": 3,
+     "n": 5400,
+     "fracao": {
+      "pickupHint": 0.004074074074074074,
+      "prot": 0,
+      "reloadNote": 0,
+      "respawn": 0,
+      "scoreboard": 0.04462962962962963,
+      "radioMenu": 0,
+      "banner": 0.14444444444444443,
+      "mkBanner": 0,
+      "killfeed": 1
+     },
+     "fim": null,
+     "maxPlacar": 3,
+     "maxCaps": 3,
+     "rounds": 1,
+     "dists": [],
+     "nLive": 4798
+    },
+    {
+     "mapId": "fy_ferrovelho",
+     "ctf": false,
+     "cenario": "spawn",
+     "alvo": 12,
+     "n": 5400,
+     "fracao": {
+      "pickupHint": 0.04462962962962963,
+      "prot": 0,
+      "reloadNote": 0,
+      "respawn": 0,
+      "scoreboard": 0,
+      "radioMenu": 0,
+      "banner": 0.057777777777777775,
+      "mkBanner": 0,
+      "killfeed": 1
+     },
+     "fim": null,
+     "maxPlacar": 0,
+     "maxCaps": 0,
+     "rounds": 0,
+     "dists": [
+      24.897791511712708,
+      21.346214626759778,
+      21.1432678644257,
+      5.296069201576544,
+      8.28186580855746,
+      8.19919124100311,
+      6.638003132866079,
+      8.768521716058322,
+      7.143229410508505,
+      6.662630903101244,
+      13.197441963463325,
+      14.851047880771208,
+      6.39888076797804,
+      8.518042761612783,
+      17.558852279617827,
+      8.667248887134235,
+      8.883719350395252,
+      9.883397529618259,
+      9.07729973042615,
+      8.932616746184658,
+      17.558852279617827,
+      7.217129203894192,
+      6.561399760280265,
+      7.773291145462672,
+      7.628612881831016,
+      7.21525029707108,
+      7.070574886432974,
+      6.9259003290761525,
+      9.528262185022133,
+      9.528262185022133,
+      9.528262185022133,
+      9.528262185022133
+     ],
+     "nLive": 5220
+    },
+    {
+     "mapId": "fy_ferrovelho",
+     "ctf": false,
+     "cenario": "patrulha",
+     "alvo": 12,
+     "n": 5400,
+     "fracao": {
+      "pickupHint": 0.02925925925925926,
+      "prot": 0,
+      "reloadNote": 0,
+      "respawn": 0,
+      "scoreboard": 0,
+      "radioMenu": 0,
+      "banner": 0.057777777777777775,
+      "mkBanner": 0,
+      "killfeed": 1
+     },
+     "fim": null,
+     "maxPlacar": 7,
+     "maxCaps": 0,
+     "rounds": 0,
+     "dists": [
+      7.792792510719776
+     ],
+     "nLive": 5220
+    },
+    {
+     "mapId": "fy_ferrovelho",
+     "ctf": true,
+     "cenario": "spawn",
+     "alvo": 3,
+     "n": 5400,
+     "fracao": {
+      "pickupHint": 0.08925925925925926,
+      "prot": 0,
+      "reloadNote": 0,
+      "respawn": 0,
+      "scoreboard": 0.04462962962962963,
+      "radioMenu": 0,
+      "banner": 0.14444444444444443,
+      "mkBanner": 0,
+      "killfeed": 1
+     },
+     "fim": null,
+     "maxPlacar": 1,
+     "maxCaps": 3,
+     "rounds": 1,
+     "dists": [
+      21.56519217797827,
+      20.826531527430504
+     ],
+     "nLive": 4798
+    },
+    {
+     "mapId": "fy_ferrovelho",
+     "ctf": true,
+     "cenario": "patrulha",
+     "alvo": 3,
+     "n": 5400,
+     "fracao": {
+      "pickupHint": 0.0077777777777777776,
+      "prot": 0,
+      "reloadNote": 0,
+      "respawn": 0,
+      "scoreboard": 0.04462962962962963,
+      "radioMenu": 0,
+      "banner": 0.14444444444444443,
+      "mkBanner": 0,
+      "killfeed": 1
+     },
+     "fim": null,
+     "maxPlacar": 2,
+     "maxCaps": 3,
+     "rounds": 1,
+     "dists": [
+      9.014842719533286,
+      8.868136394230069,
+      9.823147238185056,
+      7.35279002185049,
+      15.141990932203347,
+      5.988738113822665,
+      8.609702025192924,
+      12.398827972242854,
+      10.421685092506848,
+      11.728952884060407,
+      9.726017104544251,
+      8.6925634609077,
+      7.328442666496839,
+      16.53801943940982,
+      15.425941262116273,
+      15.095218155261556,
+      10.99084988333598,
+      12.212212494599394
+     ],
+     "nLive": 4798
+    }
+   ]
+  },
+  {
+   "nome": "UI4",
+   "titulo": "RITMO POR MODO — ABATE fecha <= 540s COM cronômetro de round; CAPTURA fecha <= 500s SEM cronômetro de round (relógio de partida <= 20% dos quadros e sempre descendo)",
+   "ok": true,
+   "casos": [
+    {
+     "mapId": "awp_map",
+     "modo": "dm",
+     "seed": 4242,
+     "teto": 540,
+     "fim": 530.7166666665127,
+     "rounds": 4,
+     "placarDoModo": 10,
+     "alvo": 12,
+     "relogio": "round",
+     "relogioFrac": 1,
+     "reinicios": 4,
+     "fecha": true,
+     "dentroDoAlvo": true,
+     "relogioOk": true,
+     "ok": true
+    },
+    {
+     "mapId": "awp_map",
+     "modo": "ctf",
+     "seed": 4242,
+     "teto": 500,
+     "fim": 225.21666666673804,
+     "rounds": 1,
+     "placarDoModo": 3,
+     "alvo": 3,
+     "relogio": "ausente",
+     "relogioFrac": 0,
+     "reinicios": 0,
+     "fecha": true,
+     "dentroDoAlvo": true,
+     "relogioOk": true,
+     "ok": true
+    },
+    {
+     "mapId": "praca_old",
+     "modo": "dm",
+     "seed": 4242,
+     "teto": 540,
+     "fim": 230.08333333340858,
+     "rounds": 2,
+     "placarDoModo": 12,
+     "alvo": 12,
+     "relogio": "round",
+     "relogioFrac": 1,
+     "reinicios": 2,
+     "fecha": true,
+     "dentroDoAlvo": true,
+     "relogioOk": true,
+     "ok": true
+    },
+    {
+     "mapId": "praca_old",
+     "modo": "ctf",
+     "seed": 4242,
+     "teto": 500,
+     "fim": 494.5833333332122,
+     "rounds": 1,
+     "placarDoModo": 3,
+     "alvo": 3,
+     "relogio": "partida",
+     "relogioFrac": 0.125,
+     "reinicios": 0,
+     "fecha": true,
+     "dentroDoAlvo": true,
+     "relogioOk": true,
+     "ok": true
+    },
+    {
+     "mapId": "fy_pool_day",
+     "modo": "dm",
+     "seed": 4242,
+     "teto": 540,
+     "fim": 530.7166666665127,
+     "rounds": 4,
+     "placarDoModo": 8,
+     "alvo": 12,
+     "relogio": "round",
+     "relogioFrac": 1,
+     "reinicios": 4,
+     "fecha": true,
+     "dentroDoAlvo": true,
+     "relogioOk": true,
+     "ok": true
+    },
+    {
+     "mapId": "fy_pool_day",
+     "modo": "ctf",
+     "seed": 4242,
+     "teto": 500,
+     "fim": 113.5666666666615,
+     "rounds": 1,
+     "placarDoModo": 3,
+     "alvo": 3,
+     "relogio": "ausente",
+     "relogioFrac": 0,
+     "reinicios": 0,
+     "fecha": true,
+     "dentroDoAlvo": true,
+     "relogioOk": true,
+     "ok": true
+    },
+    {
+     "mapId": "fy_havan",
+     "modo": "dm",
+     "seed": 4242,
+     "teto": 540,
+     "fim": 318.61666666670556,
+     "rounds": 2,
+     "placarDoModo": 9,
+     "alvo": 12,
+     "relogio": "round",
+     "relogioFrac": 1,
+     "reinicios": 2,
+     "fecha": true,
+     "dentroDoAlvo": true,
+     "relogioOk": true,
+     "ok": true
+    },
+    {
+     "mapId": "fy_havan",
+     "modo": "ctf",
+     "seed": 4242,
+     "teto": 500,
+     "fim": 100.08333333332894,
+     "rounds": 1,
+     "placarDoModo": 3,
+     "alvo": 3,
+     "relogio": "ausente",
+     "relogioFrac": 0,
+     "reinicios": 0,
+     "fecha": true,
+     "dentroDoAlvo": true,
+     "relogioOk": true,
+     "ok": true
+    },
+    {
+     "mapId": "fy_ferrovelho",
+     "modo": "dm",
+     "seed": 4242,
+     "teto": 540,
+     "fim": 530.7166666665127,
+     "rounds": 4,
+     "placarDoModo": 10,
+     "alvo": 12,
+     "relogio": "round",
+     "relogioFrac": 1,
+     "reinicios": 4,
+     "fecha": true,
+     "dentroDoAlvo": true,
+     "relogioOk": true,
+     "ok": true
+    },
+    {
+     "mapId": "fy_ferrovelho",
+     "modo": "ctf",
+     "seed": 4242,
+     "teto": 500,
+     "fim": 494.5833333332122,
+     "rounds": 1,
+     "placarDoModo": 3,
+     "alvo": 3,
+     "relogio": "partida",
+     "relogioFrac": 0.125,
+     "reinicios": 0,
+     "fecha": true,
+     "dentroDoAlvo": true,
+     "relogioOk": true,
+     "ok": true
+    }
+   ],
+   "falhas": []
+  }
+ ]
+}

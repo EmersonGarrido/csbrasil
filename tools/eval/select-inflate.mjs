@@ -99,7 +99,11 @@ const browser = await chromium.launch({
 });
 const page = await browser.newPage({ viewport: { width: 640, height: 640 } });
 page.on('pageerror', (e) => console.error('[pageerror]', e.message));
-await page.goto(`${BASE}/?debug=1`, { waitUntil: 'load' });
+// 120 s e não os 30 s padrão: o `load` espera a playlist inteira de audio/menu-music/
+// (só existe completa nesta máquina, BUG-19) e passa de 30 s com a máquina carregada
+// (astro dev do dono + Chrome + retarget rodando junto). Medido em 04/08: o único
+// request pendente no estouro era menu-music/m20.mp3. Timeout de harness, não teto.
+await page.goto(`${BASE}/?debug=1`, { waitUntil: 'load', timeout: 120000 });
 await page.waitForTimeout(1500);
 
 const alvos = IDS.length ? IDS : await page.evaluate(async () => {

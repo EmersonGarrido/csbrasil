@@ -258,7 +258,21 @@ function runMap(mapId, textures, seed) {
 
 const textures = initTextures();
 const ids = ONLY === 'all' ? ['awp_map', 'fy_pool_day', 'fy_havan', 'fy_ferrovelho'] : [ONLY];
-const SEEDS = [12345, 777, 4242];
+/* 9 SEMENTES, NÃO 3 — e o motivo é medido, não estético.
+   `THREE.generateUUID` consome 4 `Math.random()` por Texture criada (three.module.js:318).
+   Como o botsim monkeypatcha `Math.random` com um xorshift semeado pra ser determinístico,
+   **o NÚMERO de texturas da cena faz parte do fluxo aleatório**: criar uma textura a mais,
+   mesmo INVISÍVEL, desloca todos os sorteios seguintes. A rodada do PBR mediu isso com um
+   controle de N texturas invisíveis na árvore base — BOT4 (janela entre o 1º tiro e a morte,
+   teto 3 s) foi para 2,39 s com N=53, 5,14 s com N=17 e 9,13 s com N=40, com ZERO mudança de
+   comportamento de bot. Ou seja: com 3 sementes o BOT4 é ruído de estimador, e ficava
+   vermelho/verde conforme quantas texturas o mapa tivesse.
+   Com 9 sementes a mesma comparação deu base 3,82 s × entrega 3,46 s (as duas passam), acerto
+   0,069→0,066 e mortes/min 0,944→0,861. O custo é ~3× de tempo de execução do botsim, que é o
+   preço de o portão parar de mentir nos dois sentidos. As 3 primeiras são as históricas, para
+   quem quiser reproduzir um A/B antigo com `SIM_SEEDS=12345,777,4242`. */
+const SEEDS = (process.env.SIM_SEEDS || '12345,777,4242,90210,31337,8675309,2718,1618,42')
+  .split(',').map(Number).filter((n) => Number.isFinite(n));
 const out = [];
 for (const id of ids) {
   const runs = [];

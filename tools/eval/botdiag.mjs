@@ -113,7 +113,7 @@ globalThis.Audio = class { play() {} pause() {} };
 const THREE = await import('three');
 const { MAPS } = await import(`${JS}/maps.js`);
 const { initTextures } = await import(`${JS}/textures.js`);
-const { Game } = await import(`${JS}/game.js`);
+const { Game, WEAPONS } = await import(`${JS}/game.js`);
 const { CHARACTERS } = await import(`${JS}/characters.js`);
 const PCHAR = (CHARACTERS.find(c => c.team === 'P') || CHARACTERS[0]).id;   // o scoreboard lê player.def.name
 
@@ -140,6 +140,24 @@ const SECS = parseFloat(process.argv[2] || '60');
 const ONLY = process.argv[3] || 'all';
 const DT = 1 / 60, SAMPLE = 9;
 const DUEL = process.env.SIM_DUEL === '1';   // amostra a cada 9 passos ≈ 150 ms
+/* ===== SIM_SHOOTGATE=1 — "VIU E NAO ATIROU" (metrica que faltava) =====
+   O botsim media tiros/acertos/mortes; nada media o SILENCIO. O gate de fogo do bot
+   (game.js:4661-4662) tem SETE travas em AND — reactAt, focusUntil, nextShotAt,
+   reloadUntil, |dy|<0.3, !_losLost, inRange, hasTurn (token de duelo). Basta uma ficar
+   presa pro bot encarar o jogador a 10 m e nao puxar o gatilho, que e exatamente o
+   "bot burro" que o dono relata e que nenhum numero do repo capturava.
+   O QUE MEDE: por bot, o tempo acumulado em CONDICAO DE TIRO REAL — alvo == jogador,
+   LOS geometrica livre (g._losClear, o mesmo raycast do jogo, NAO o flag _losLost) e
+   dentro do alcance da arma — contra os tiros efetivamente disparados nessa janela
+   (detectados pelo AVANCO de b.nextShotAt, que so o bloco de fogo escreve).
+   EPISODIO MUDO = janela continua > MUDO_S segundos com ZERO tiros.
+   Os motivos sao amostrados por quadro DENTRO dos episodios mudos (um quadro pode ter
+   varios motivos ativos; o "predominante" e o de maior contagem). O token de duelo e
+   lido do mapa _duelTok em vez de chamar _duelToken(), que TEM efeito colateral
+   (distribui token) e mudaria o comportamento sob medicao. */
+const GATE = process.env.SIM_SHOOTGATE === '1';
+const MUDO_S = parseFloat(process.env.SIM_SHOOTGATE_S || '1.5');
+const PLAYER_IN = DUEL || GATE;   // jogador vivo e andando pelo mapa (alvo de verdade)
 
 let D = null;
 function runMap(mapId, textures, seed) {
@@ -181,10 +199,66 @@ function runMap(mapId, textures, seed) {
       }
       return k0(ent, ...a);
     };
-  } else {
+  } else if (!GATE) {
     // tira o jogador do jogo: queremos medir NAVEGAÇÃO, não o duelo com o player parado
     g.player.pos.set(0, -400, 0); g.player.hp = 1e9; g.player.alive = true;
   }
+  /* SHOOTGATE: jogador imortal e ANDANDO (patrulha abaixo). Imortal de propósito — com
+     morte/respawn a janela de condição de tiro é picotada pelo respawn e o "silêncio"
+     ficaria subestimado. Aqui interessa o gate, não a letalidade (isso é o SIM_DUEL). */
+  if (GATE) { g.player.hp = 1e9; }
+  const GS = GATE ? { epi: 0, epiMudos: 0, tCond: 0, tMudo: 0, tiros: 0, mot: {}, maxMudo: 0, botSecs: 0 } : null;
+  const gst = GATE ? new Map() : null;
+  if (GATE) for (const b of g.bots) gst.set(b, { on: false, dur: 0, shots: 0, lastNext: b.nextShotAt || 0, mot: {} });
+  const gateSample = () => {
+    const P = g.player;
+    for (const b of g.bots) {
+      const s = gst.get(b);
+      const alvo = b.alive && P.alive && b.target && b.target.isPlayer;
+      let cond = false, dyAbs = 0;
+      if (alvo) {
+        const W = WEAPONS[b.weapon];
+        const dx = P.pos.x - b.pos.x, dz = P.pos.z - b.pos.z;
+        const dist = Math.hypot(dx, dz);
+        const inRange = !(W && W.range) || dist <= W.range + 0.6;
+        let dy = Math.atan2(dx, dz) - b.yaw;
+        while (dy > Math.PI) dy -= Math.PI * 2; while (dy < -Math.PI) dy += Math.PI * 2;
+        dyAbs = Math.abs(dy);
+        // LOS GEOMÉTRICA (mesmo raycast do jogo). Independe do flag _losLost — é
+        // justamente a divergência entre "dá pra ver" e "o bot acha que perdeu" que
+        // aparece como motivo de bloqueio.
+        const los = inRange && g._losClear(g._botEye(b), g.camera.position);
+        cond = !!(inRange && los);
+      }
+      if (!cond) {
+        if (s.on) {
+          GS.epi++;
+          if (s.dur > MUDO_S && s.shots === 0) {
+            GS.epiMudos++; GS.tMudo += s.dur; GS.maxMudo = Math.max(GS.maxMudo, s.dur);
+            for (const k of Object.keys(s.mot)) GS.mot[k] = (GS.mot[k] || 0) + s.mot[k];
+          }
+          s.on = false; s.dur = 0; s.shots = 0; s.mot = {};
+        }
+        continue;
+      }
+      if (!s.on) { s.on = true; s.dur = 0; s.shots = 0; s.mot = {}; s.lastNext = b.nextShotAt || 0; }
+      s.dur += DT; GS.tCond += DT; GS.botSecs += DT;
+      // TIRO: só o bloco de fogo escreve b.nextShotAt, e sempre pra frente.
+      const nx = b.nextShotAt || 0;
+      const fired = nx > s.lastNext + 1e-9;
+      s.lastNext = nx;
+      if (fired) { s.shots++; GS.tiros++; continue; }
+      const tok = g._duelTok;
+      const add = (k) => { s.mot[k] = (s.mot[k] || 0) + 1; };
+      if (g.time <= b.reactAt) add('reactAt');
+      if (g.time <= (b.focusUntil || 0)) add('focusUntil');
+      if (g.time <= nx) add('nextShotAt');
+      if (g.time <= (b.reloadUntil || 0)) add('reloadUntil');
+      if (dyAbs >= 0.3) add('|dy|>0.3');
+      if (b._losLost) add('_losLost');
+      if (!(tok && tok.has(b) && tok.get(b) > g.time)) add('hasTurn');
+    }
+  };
   const tr = new Map();
   for (const b of g.bots) tr.set(b, { lp: { x: b.pos.x, z: b.pos.z }, ly: b.yaw, lat: 0, fwd: 0, latF: 0, latFc: 0, fwdF: 0, fwdFc: 0, spin: 0, spinR: 0, latAbs: 0, mvAbs: 0, stuck: 0, n: 0, nR: 0, path: 0, x0: b.pos.x, z0: b.pos.z });
   const steps = Math.round(SECS / DT);
@@ -192,7 +266,7 @@ function runMap(mapId, textures, seed) {
     // DUELO: o jogador fica GRUDADO no meio do mapa. Parado no spawn ele às vezes passava a
     // partida inteira sem ser encontrado e a amostra ia a zero; no meio, ele é o alvo mais
     // exposto possível — é o pior caso, que é o que interessa medir.
-    if (DUEL) {
+    if (PLAYER_IN) {
       /* O jogador PATRULHA entre o próprio spawn e o inimigo a 3,5 m/s, como quem avança pra
          briga. Parado no spawn ele às vezes passava a partida sem ser achado (amostra zero);
          no centro fixo ele caía dentro de geometria e ninguém tinha linha de visão. Andando
@@ -207,6 +281,7 @@ function runMap(mapId, textures, seed) {
       P.yaw = Math.atan2(tx, tz);
     }
     g.update(DT);
+    if (GATE) gateSample();
     if (DUEL) { for (const b of g.bots) if (b.alive && b.target && b.target.isPlayer) { D.eng = D.eng || []; D.eng.push(+b.pos.distanceTo(g.player.pos).toFixed(1)); } }
     if (i % SAMPLE) continue;
     const dts = DT * SAMPLE;
@@ -246,6 +321,34 @@ function runMap(mapId, textures, seed) {
     net += Math.hypot(b.pos.x - s.x0, b.pos.z - s.z0);
   }
   const nb = g.bots.length, mins = SECS / 60;
+  if (GATE) {
+    // fecha os episódios abertos no fim da corrida (senão o último some da conta)
+    for (const b of g.bots) {
+      const s = gst.get(b);
+      if (!s.on) continue;
+      GS.epi++;
+      if (s.dur > MUDO_S && s.shots === 0) {
+        GS.epiMudos++; GS.tMudo += s.dur; GS.maxMudo = Math.max(GS.maxMudo, s.dur);
+        for (const k of Object.keys(s.mot)) GS.mot[k] = (GS.mot[k] || 0) + s.mot[k];
+      }
+    }
+    const rank = Object.entries(GS.mot).sort((a, b) => b[1] - a[1]);
+    const totMot = rank.reduce((a, r) => a + r[1], 0) || 1;
+    return {
+      map: mapId, bots: nb,
+      tCondS: +GS.tCond.toFixed(1),          // segundos-bot em condição de tiro real
+      tiros: GS.tiros,
+      tirosPorSegCond: +(GS.tiros / Math.max(0.001, GS.tCond)).toFixed(3),
+      episodios: GS.epi,
+      epiMudos: GS.epiMudos,                 // >MUDO_S s vendo o jogador, ZERO tiros
+      epiMudosPorMin: +(GS.epiMudos / Math.max(0.001, mins)).toFixed(2),
+      pctTempoMudo: +(100 * GS.tMudo / Math.max(0.001, GS.tCond)).toFixed(1),
+      maiorMudoS: +GS.maxMudo.toFixed(2),
+      motivoTop: rank[0] ? `${rank[0][0]} ${Math.round(100 * rank[0][1] / totMot)}%` : '-',
+      motivos: Object.fromEntries(rank.map(([k, v]) => [k, Math.round(100 * v / totMot)])),
+      _mot: GS.mot, _tMudo: GS.tMudo,
+    };
+  }
   if (DUEL && process.env.SIM_ENG === '1') {
     const e = (D.eng || []).sort((a, b) => a - b);
     const q = (f) => e.length ? e[Math.floor(f * (e.length - 1))] : 0;
@@ -283,6 +386,22 @@ for (const id of ids) {
   const ok = runs.filter(r => !r.err);
   if (!ok.length) { out.push(runs[0]); continue; }
   const m = (k) => +(ok.reduce((a, r) => a + r[k], 0) / ok.length).toFixed(3);
+  if (GATE) {
+    const mot = {};
+    for (const r of ok) for (const k of Object.keys(r._mot)) mot[k] = (mot[k] || 0) + r._mot[k];
+    const rank = Object.entries(mot).sort((a, b) => b[1] - a[1]);
+    const tot = rank.reduce((a, x) => a + x[1], 0) || 1;
+    const tCond = ok.reduce((a, r) => a + r.tCondS, 0), tMudo = ok.reduce((a, r) => a + r._tMudo, 0);
+    out.push({
+      map: id, bots: ok[0].bots, tCondS: m('tCondS'), tiros: m('tiros'), tirosPorSegCond: m('tirosPorSegCond'),
+      episodios: m('episodios'), epiMudos: m('epiMudos'), epiMudosPorMin: m('epiMudosPorMin'),
+      pctTempoMudo: +(100 * tMudo / Math.max(0.001, tCond)).toFixed(1), maiorMudoS: Math.max(...ok.map(r => r.maiorMudoS)),
+      motivoTop: rank[0] ? `${rank[0][0]} ${Math.round(100 * rank[0][1] / tot)}%` : '-',
+      motivos: Object.fromEntries(rank.map(([k, v]) => [k, Math.round(100 * v / tot)])),
+      _mot: mot, _tMudo: tMudo,
+    });
+    continue;
+  }
   if (DUEL) { const ts = ok.reduce((a, r) => a + r.ttkSum, 0), tn = ok.reduce((a, r) => a + r.ttkN, 0);
     out.push({ map: id, tirosBot: m('tirosBot'), acertos: m('acertos'), taxaAcerto: m('taxaAcerto'), fracCabeca: m('fracCabeca'), mortesPorMin: m('mortesPorMin'), janelaAteMorrer: +(tn ? ts / tn : 0).toFixed(2), ttkSum: ts, ttkN: tn }); continue; }
   out.push({ map: id, bots: ok[0].bots, latFlips: m('latFlips'), latFlipsCombat: m('latFlipsCombat'), latShare: m('latShare'), fwdFlips: m('fwdFlips'), fwdFlipsCombat: m('fwdFlipsCombat'), spinTurns: m('spinTurns'), spinRoam: m('spinRoam'), stuckPct: m('stuckPct'), eff: m('eff') });
@@ -301,6 +420,24 @@ if (process.env.SIM_STUCK === '1') {
   console.error('STUCK', n, '| sem path', pc(x => x.np) + '%', '| path len<=1', pc(x => x.len <= 1) + '%',
     '| no escape', pc(x => x.esc) + '%', '| no slide', pc(x => x.side) + '%', '| no inalcancavel', pc(x => x.reach === false) + '%',
     '| fora do live', pc(x => !x.live) + '%', '| dn<1.5', pc(x => x.dn >= 0 && x.dn < 1.5) + '%', '| spd<0.1', pc(x => x.spd < 0.1) + '%', '| dn mediana', F.map(x => x.dn).sort((a, b) => a - b)[Math.floor(n / 2)]);
+}
+if (GATE) {
+  const okd = out.filter(o => !o.err);
+  const mot = {};
+  for (const r of okd) for (const k of Object.keys(r._mot || {})) mot[k] = (mot[k] || 0) + r._mot[k];
+  const rank = Object.entries(mot).sort((a, b) => b[1] - a[1]);
+  const tot = rank.reduce((a, x) => a + x[1], 0) || 1;
+  const tCond = okd.reduce((a, r) => a + r.tCondS, 0), tMudo = okd.reduce((a, r) => a + (r._tMudo || 0), 0);
+  const epi = okd.reduce((a, r) => a + r.epiMudos, 0);
+  for (const r of out) { delete r._mot; delete r._tMudo; }
+  console.log(JSON.stringify(out, null, 1));
+  console.log('SHOOTGATE (>' + MUDO_S + 's vendo o jogador SEM atirar) | episodios mudos', +epi.toFixed(1),
+    '| /min/mapa', +(epi / okd.length / (SECS / 60)).toFixed(2),
+    '| tempo em condicao', +tCond.toFixed(0) + 's', '| % do tempo mudo', +(100 * tMudo / Math.max(0.001, tCond)).toFixed(1) + '%',
+    '| maior silencio', Math.max(...okd.map(r => r.maiorMudoS)) + 's',
+    '| tiros/s em condicao', +(okd.reduce((a, r) => a + r.tiros, 0) / Math.max(0.001, tCond)).toFixed(3));
+  console.log('MOTIVOS', rank.map(([k, v]) => `${k} ${Math.round(100 * v / tot)}%`).join(' | '));
+  process.exit(0);
 }
 console.log(JSON.stringify(out, null, 1));
 const avg = (k) => +(out.filter(o => !o.err).reduce((a, o) => a + o[k], 0) / Math.max(1, out.filter(o => !o.err).length)).toFixed(3);
