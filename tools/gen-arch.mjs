@@ -49,7 +49,7 @@ const FRENTES = {
   },
   'MAPAS / MUNDO': {
     arquivos: ['public/js/maps.js', 'public/js/mapprops.js', 'public/js/map_brasilia.js',
-      'public/js/map_havan.js', 'public/js/map_pool_day.js', 'public/js/map_pool_ramos.js', 'public/js/map_ferrovelho.js'],
+      'public/js/map_havan.js', 'public/js/map_piscina.js', 'public/js/map_piscinao_ramos.js', 'public/js/map_ferrovelho.js'],
     simbolos: ['_buildEnv', '_resetPositions', '_initCTF', '_updateCTF', '_updatePickups'],
     consts: [],
   },

@@ -248,8 +248,8 @@ O registro, gerado do `MAPS` de `public/js/maps.js`:
 
 | Id | Nome no menu | Abre em | Arquivo em `public/js/` | Linhas |
 |---|---|---|---|---:|
-| `awp_map` | Praça dos Três Poderes | rodadas | `map_brasilia.js` | 1.765 |
-| `fy_pool_day` | Piscina da Treta | rodadas | `map_pool_day.js` | 701 |
+| `awp_map` | Praça dos Três Poderes | rodadas | `map_brasilia.js` | 1.775 |
+| `fy_pool_day` | Piscina da Treta | rodadas | `—` | — |
 | `fy_havan` | Loja H (Estacionamento) | **captura** | `map_havan.js` | 1.866 |
 | `fy_ferrovelho` | Ferro Velho do Zé | **captura** | `map_ferrovelho.js` | 1.837 |
 | `fy_quebrada` | Quebrada (Rua do Baile) | **captura** | `map_quebrada.js` | 1.319 |
@@ -266,14 +266,14 @@ Dois avisos que custam tempo se você não souber:
   `public/js/map.js` foi apagado junto (pedido literal do dono: *"vamos apagar praça
   clássica"*). Se você encontrar `praca_old` numa saída de régua, essa saída é anterior à
   remoção — é o caso da tabela colada em [Estado medido](./estado.md).
-- **`map_pool_ramos.js` existe no disco e NÃO está no registro** (é a versão "Piscinão",
+- **`map_piscinao_ramos.js` existe no disco e NÃO está no registro** (é a versão "Piscinão",
   fora do menu). Arquivo de mapa em `public/js/` não implica mapa jogável; quem decide é
   o objeto `MAPS`.
 
 Para adicionar um mapa no formato de hoje:
 
 1. **Crie `public/js/map_<nome>.js`** exportando uma função `build<Nome>()`. Use
-   `map_pool_day.js` como referência — é o menor dos registrados (a tabela acima traz o
+   `map_piscina.js` como referência — é o menor dos registrados (a tabela acima traz o
    tamanho de cada um).
 2. **Registre em `public/js/maps.js:8-36`** — nome exibido, `build`, e `ctfMode: true` se
    a geometria foi desenhada em volta de bandeiras. `ctfMode` **abre** o mapa em captura;

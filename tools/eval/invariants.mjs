@@ -1315,7 +1315,7 @@ function runNode(script, env = {}, args = []) {
        Material e Object3D (public/vendor/three.module.js:318-323), então QUALQUER commit
        que crie uma textura a mais desloca o fluxo de RNG semeado do botsim inteiro —
        sem mudar uma linha de IA, de collider ou de arma.
-       CONTROLE: injetando N texturas INVISÍVEIS (nenhum material as usa) no map_pool_day
+       CONTROLE: injetando N texturas INVISÍVEIS (nenhum material as usa) no map_piscina
        da árvore base, o BOT4 anda assim: N=53 → 2,39 s · N=7 → 3,01 s · base → 3,15 s ·
        N=23 → 3,27 s · N=31 → 3,57 s · N=17 → 5,14 s · N=40 → 9,13 s. Quatro vezes de
        amplitude com ZERO mudança de comportamento.
@@ -1379,7 +1379,7 @@ function runNode(script, env = {}, args = []) {
 // A métrica anterior olhava `y − groundHeightAt(x,z)` e reportava vão 0,0000 — VERDE —
 // justamente onde a arma tinha ido parar no fundo da piscina, porque ali groundHeightAt
 // vale −1,5 e a arma estava perfeitamente assentada... no fundo de um buraco de 1,5 m
-// sem um único waypoint (map_pool_day.js:281 só cria nó onde groundHeightAt > −0,35).
+// sem um único waypoint (map_piscina.js:281 só cria nó onde groundHeightAt > −0,35).
 // Medir o vão contra o chão LOCAL certifica "encosta em ALGUMA superfície", nunca "dá
 // pra pegar". Por isso são três critérios independentes e o (a) é o que não se engana.
 // FORMA ATUAL DO (a) (08/2026): "existe waypoint a ≤ 3 m" foi REFUTADO — o grafo é uma

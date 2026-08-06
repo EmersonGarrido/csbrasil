@@ -1047,6 +1047,32 @@ voltou a funcionar — GLB novo 531 KB com texturas restauradas via `rig-tex-res
 **Medido depois:** `select-mount` **0/44**; `select-inflate` nos 4: 0/4, com o trapfunk
 MELHOR que antes (21,4 → 14,6 ruins/1e4). A/B por figura na página da rodada.
 
+### ~~BUG-32 · "mapa ctf na piscina ta com bandeiras com nome do patio brasilia"~~ · RESOLVIDO 06/08
+
+**Sintoma (do dono, com print do preview):** faixa do CTF na Piscina da Treta mostrando
+CONGRESSO · ÔNIBUS · CATEDRAL. Pediu junto: fundo da faixa transparente.
+
+**Causa raiz:** os rótulos de Brasília moravam no FALLBACK do `_initCTF` (game.js) e vazavam
+para qualquer mapa sem `world.ctfPoints` — os mapas de piscina não declaravam. Bônus achado
+na correção: as 3 bandeiras do fallback caíam DENTRO da lâmina d'água da piscina (P em
+−3,78/−8,82 com água até |x|7,5/|z|9,5) — capturável só da beirada, mastro flutuando.
+
+**Correção:** `world.ctfPoints` declarado na Brasília (mesmos nomes/posições) e na piscina
+(PARTIDA/ARMÁRIOS/TRAMPOLIM, as três NO DECK, em marcos reais); fallback com rótulo neutro
+(BASE A/CENTRO/BASE B). Faixa `#ctf-hud` sem painel; o contraste que o painel garantia
+passou pro poço da barra (.55→.80: sobre a areia do Piscinão o vermelho ia a 2,23:1; com
+.80, 4,72:1 — UI1 verde de novo, 4/5 portões de UI; a UI4 vermelha é o alvo do DM, defeito
+antigo e não relacionado). Arquivos renomeados a pedido do dono: `map_pool_day.js` →
+`map_piscina.js`, `map_pool_ramos.js` → `map_piscinao_ramos.js` (IDs de mapa intactos).
+
+**Régua: `npm run eval:ctflabels`** (`tools/eval/ctf-labels-check.mjs`, no `check:fast`):
+CTFL1 todo mapa registrado declara as próprias bandeiras; CTFL2 nome de Brasília só no
+awp_map; CTFL3 rótulos únicos. `--mutante=vaza` (apaga a declaração da piscina) → VERMELHA.
+
+**No mesmo PR:** áudio ingame dos funkeiros mudo no preview era o BUG-19 (pack de julho sem
+a pasta F) — o pack v2 completo já o fecha; verificado no browser contra o preview:
+voice.F (40 faixas) e round.F TOCAM.
+
 ### BUG-11 · VM18 / VM18b — a silhueta é um cano, não uma arma
 
 12 das 26 armas têm espessura perpendicular **abaixo do piso medido no CS 1.6** (shotgun 0,269 ·

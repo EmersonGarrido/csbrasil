@@ -4059,10 +4059,14 @@ export class Game {
          é, dava pra capturar de dentro do próprio spawn e o inimigo que chegasse pra retomar
          caía no meio dos que estavam renascendo. 0,42 põe as três a ≥ 12 m do spawn mais
          próximo nos três mapas (medido: 36,4 / 24,9 / 12,6 m) sem mexer na forma do layout. */
+      /* Rótulos NEUTROS de propósito (06/08): os nomes de Brasília moravam aqui e vazavam
+         pra qualquer mapa sem declaração — o dono viu "CONGRESSO · ÔNIBUS · CATEDRAL"
+         jogando na piscina. Nome de monumento agora mora no mapa (world.ctfPoints);
+         mapa novo sem declaração ganha rótulo genérico, nunca o monumento alheio. */
       this.ctfPts = [
-        mk('P', 'CONGRESSO', sP.x * 0.42, sP.z * 0.42),
-        mk('MID', 'ÔNIBUS', 2.5, 2.5),
-        mk('B', 'CATEDRAL', sB.x * 0.42, sB.z * 0.42),
+        mk('P', 'BASE A', sP.x * 0.42, sP.z * 0.42),
+        mk('MID', 'CENTRO', 2.5, 2.5),
+        mk('B', 'BASE B', sB.x * 0.42, sB.z * 0.42),
       ];
     }
     /* ALVO DA RODADA = TODAS AS BANDEIRAS DO MAPA, SEMPRE.
@@ -4439,7 +4443,10 @@ export class Game {
 
        Correção:
        - separadores: cor explícita (--ink-300, 5,5:1 sobre o painel) em vez de opacity;
-       - barra: poço ESCURO (preto .55) com fio claro de 1 px em volta. O fio resolve o
+       - barra: poço ESCURO (preto .80 — era .55 quando a faixa tinha painel .92 atrás;
+         o painel saiu a pedido do dono em 06/08 e o poço passou a compor direto sobre a
+         cena: sobre a areia do Piscinão .55 dava vermelho×poço 2,23:1, .80 dá 4,72:1,
+         medido na UI1) com fio claro de 1 px em volta. O fio resolve o
          limite do componente (4,97:1 contra o painel) e o poço escuro deixa a cor do time
          saltar (verde 11,2:1, vermelho 6,3:1) — com um trilho cinza-médio seria impossível
          atender aos DOIS limites ao mesmo tempo (fio claro × painel e preenchimento ×
@@ -4453,7 +4460,7 @@ export class Game {
       // barra de captura na COR DO TIME que captura (Tribos=azul, P=vermelho, B=verde); sem
       // ninguém capturando mas já dominado, usa a cor do dono; senão transparente.
       const barCol = p.capTeam ? this._teamColor(p.capTeam) : (prog > 0 && p.owner ? this._teamColor(p.owner) : 'transparent');
-      const bar = `<span style="display:inline-block;width:64px;height:8px;margin-left:6px;background:rgba(0,0,0,.55);border:1px solid rgba(233,241,243,.55);border-radius:2px;vertical-align:middle;overflow:hidden"><span style="display:block;height:100%;width:${(prog * 100) | 0}%;background:${barCol};transition:width .1s"></span></span>`;
+      const bar = `<span style="display:inline-block;width:64px;height:8px;margin-left:6px;background:rgba(0,0,0,.80);border:1px solid rgba(233,241,243,.55);border-radius:2px;vertical-align:middle;overflow:hidden"><span style="display:block;height:100%;width:${(prog * 100) | 0}%;background:${barCol};transition:width .1s"></span></span>`;
       return `<span style="color:${col}">● ${p.label}</span>${bar}`;
     }).join(sep('·'))
       + sep('—') + `<span style="color:${this._teamColor('P')}">🚩 ${this.ctfCaps.P || 0}</span>`
@@ -5168,7 +5175,7 @@ export class Game {
   /* ASSENTA a arma no chão LOCAL — o único jeito que funciona pros 26 GLBs.
      DEFEITO QUE ISTO CONSERTA (game.js:4208 antigo): `mesh.position.set(x, y, z)` usava y
      ABSOLUTO de mundo. Em mapa plano coincide com o chão; em fy_pool_day o fundo da piscina
-     vale −1,5 m (map_pool_day.js:267) e as duas contas divergem 1,6 m — e na praca_old, cujo
+     vale −1,5 m (map_piscina.js:267) e as duas contas divergem 1,6 m — e na praca_old, cujo
      chão vale 1,4 m, a arma nascia 1,3 m ENTERRADA (medido: vão −1,312).
      E "chão local + constante" também não serve: a arma é deitada de lado (roll π/2) e a
      meia-espessura muda de GLB pra GLB — 0,088 m no fallback procedural, outro valor em cada

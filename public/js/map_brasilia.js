@@ -1750,6 +1750,16 @@ export function buildBrasilia(scene, T) {
 
   return {
     root, colliders, occluders, groundHeightAt, spawns, sun, hemi,
+    /* BANDEIRAS DO CTF — DECLARADAS PELO MAPA (06/08). Os nomes CONGRESSO/ÔNIBUS/CATEDRAL
+       moravam no fallback do game.js e vazavam pra QUALQUER mapa sem declaração — o dono
+       viu "CONGRESSO" jogando na piscina. Agora o nome mora onde o monumento mora.
+       Posições = as mesmas do fallback antigo (spawn×0,42 e o ônibus): zero mudança de
+       gameplay. P nasce no norte (Congresso), B no sul (Catedral) — ver spawns acima. */
+    ctfPoints: [
+      { id: 'P', label: 'CONGRESSO', x: -3.78, z: 26.04 },
+      { id: 'MID', label: 'ÔNIBUS', x: 2.5, z: 2.5 },
+      { id: 'B', label: 'CATEDRAL', x: -3.78, z: -26.04 },
+    ],
     /* DECLARAÇÃO PRA RÉGUA (tools/eval/decal-probe.mjs): é a MESMA coisa contra a qual o
        `paredeAtras` validou cada decalque — a malha desenhada. Era `colliders + empenas`,
        e essa lista era justamente a mentira que deixou 16 peças nascerem no vão do piloti. */

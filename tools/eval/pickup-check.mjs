@@ -11,9 +11,9 @@
    `_dropWeapon(x, z, w, true, TOP)` com TOP = 0,12 ABSOLUTO (game.js:1826 e 4336):
    um número de mundo, não `groundHeightAt(x,z) + 0,12`. Em mapa plano os dois são a
    mesma coisa e ninguém nota. Em fy_pool_day o chão da piscina vale −1,5 m
-   (map_pool_day.js:267 -> poolDepth) e as duas contas divergem por 1,6 m.
+   (map_piscina.js:267 -> poolDepth) e as duas contas divergem por 1,6 m.
    Resultado medido: armas do armário caem DENTRO da piscina, e o grafo de navegação
-   daquele mapa nem sequer tem waypoint lá — map_pool_day.js:281 só cria nó onde
+   daquele mapa nem sequer tem waypoint lá — map_piscina.js:281 só cria nó onde
    `groundHeightAt > −0,35`, ou seja, o A* dos bots NÃO CHEGA NA ARMA, e o jogador
    que pular atrás dela cai num buraco de 1,5 m de onde a arma está fora de alcance.
 

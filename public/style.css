@@ -786,13 +786,14 @@ body:has(#pause-menu:not(.hidden)) #hud{opacity:.12;transition:opacity var(--t) 
   font-family:var(--font);font-weight:700;font-size:var(--fs-100);letter-spacing:var(--tr-1);
   text-transform:uppercase;text-shadow:var(--sh-hud);pointer-events:none;white-space:nowrap;
   max-width:min(62vw,720px);overflow:hidden;text-overflow:ellipsis;
-  padding:var(--s-1) var(--s-3);background:rgba(var(--bg-900-rgb),.92);clip-path:var(--cut-sm)}
-/* O scrim era .55 — sobre a areia do Piscinão (RGB 214,196,164, o pior fundo medido desta
-   base, style.css:420) isso dá um painel cinza-claro, e a barra de captura desenhada nele
-   ficava em 1,40:1 (medido em tools/eval/ui-check.mjs, UI1). O scrim de canto do #hud não
-   alcança o topo-centro, e o contorno do --sh-hud não vale pra BACKGROUND — só pra glifo.
-   .92 é o mesmo patamar do chip do killfeed (.82) e da plaquinha de round (.72), levado
-   até onde o objeto gráfico dentro dele consegue atingir os 3:1 da WCAG 1.4.11. */
+  padding:var(--s-1) var(--s-3)}
+/* SEM PAINEL (pedido do dono, 06/08: "tirar o bg e deixar transparente"). A história de
+   contraste que criou o painel .92 não se perde: quem precisava dos 3:1 da WCAG 1.4.11 era
+   a BARRA de captura (1,40:1 sobre a areia do Piscinão, ui-check UI1) — e a barra hoje
+   carrega o PRÓPRIO poço escuro (preto .55 + fio claro de 1 px, montado inline no
+   _updateCtfHud do game.js), então o painel da faixa inteira virou redundância. O texto
+   segue legível pelo contorno do --sh-hud, que vale pra glifo. Se a UI1 reprovar de novo,
+   engrossa o poço da barra — não devolve o painel. */
 /* irmão POSTERIOR no DOM: quando a faixa de CTF existe, o killfeed desce. */
 #ctf-hud:not(.hidden) ~ #killfeed{top:136px}
 #killfeed{position:absolute;top:98px;right:48px;display:flex;flex-direction:column;gap:var(--s-1);

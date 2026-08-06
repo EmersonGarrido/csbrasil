@@ -2,7 +2,7 @@
 // PISCINA DA TRETA — homenagem ao fy_pool_day do CS 1.6.
 //
 // POR QUE ESTE ARQUIVO VOLTOU (31/07)
-// A versão temática "Piscinão de Ramos" (1.887 linhas, agora em map_pool_ramos.js)
+// A versão temática "Piscinão de Ramos" (1.887 linhas, agora em map_piscinao_ramos.js)
 // foi reprovada pelo dono depois de jogar: "é o pior mapa de todos. Muito poluído,
 // não dá pra entender nada, a água está feia, o mapa está feio... tudo em volta e
 // as coisas no meio do mapa estão tudo confuso". Decisão dele: voltar para a
@@ -15,7 +15,7 @@
 // superfície. É exatamente o que a régua nova pede (BAR-CONSISTENCIA §2/§3):
 // consistência e leitura de espaço acima de riqueza visual.
 //
-// A versão do Piscinão NÃO foi apagada — está em map_pool_ramos.js, fora do
+// A versão do Piscinão NÃO foi apagada — está em map_piscinao_ramos.js, fora do
 // registro de mapas. Se um dia for refeita com o espaço de jogo limpo, é só
 // registrar de volta em maps.js.
 // ============================================================================
@@ -255,7 +255,7 @@ export function buildPoolDay(scene, T) {
 
      ── A INVERSÃO DE 04/08, e por que ela vale mais que o comentário que estava aqui ──
      A rodada anterior CONTEVE este mapa de propósito (14 peças) porque a versão temática
-     deste salão ("Piscinão de Ramos", map_pool_ramos.js) tinha sido reprovada pelo dono com
+     deste salão ("Piscinão de Ramos", map_piscinao_ramos.js) tinha sido reprovada pelo dono com
      "é o pior mapa de todos. Muito poluído, não dá pra entender nada". O dono olhou o
      resultado contido e pediu o OPOSTO, explicitamente: "tem que encher de mais grafite,
      especialmente na piscina, em todas as pilastras, armários e paredes". Ele decide. As
@@ -695,6 +695,20 @@ export function buildPoolDay(scene, T) {
   const slowAt = () => false;
   return {
     root, colliders, occluders, decalSolids: [root], groundHeightAt, slowAt, spawns, sun, hemi, pickups,
+    /* BANDEIRAS DO CTF — DECLARADAS (06/08, defeito do dono: "bandeiras com nome do pátio
+       brasília" jogando aqui). O fallback do game.js punha as 3 bandeiras de spawn×0,42 —
+       que NESTE mapa caíam DENTRO da lâmina d'água (|x|<7,5, |z|<9,5; P ficava em
+       −3,78/−8,82): capturável só da beirada, com anel e mastro flutuando na piscina.
+       Agora as três ficam no DECK, em marcos reais do mapa:
+       · PARTIDA   (0, −13): o bloco de partida do lado sul (espelho da prancha);
+       · ARMÁRIOS  (12, 0): pista leste, ao lado dos bancos de armário (x 16,3);
+       · TRAMPOLIM (0, 14): a prancha do lado norte (pés em z 11,2).
+       Triângulo com altura 12 m (CTF1 folgada) e nenhuma bandeira a <4,5 m de spawn. */
+    ctfPoints: [
+      { id: 'P', label: 'PARTIDA', x: 0, z: -13 },
+      { id: 'MID', label: 'ARMÁRIOS', x: 12, z: 0 },
+      { id: 'B', label: 'TRAMPOLIM', x: 0, z: 14 },
+    ],
     waypoints: { nodes, adj }, nearestWaypoint, findPath,
     bounds: { minX: -HALF_X + 0.5, maxX: HALF_X - 0.5, minZ: -HALF_Z + 0.5, maxZ: HALF_Z - 0.5 },
   };

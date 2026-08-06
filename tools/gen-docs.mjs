@@ -128,7 +128,7 @@ function medir() {
   };
 
   /* ---- mapas: o REGISTRO é a verdade. Arquivo map_*.js no disco não implica mapa
-         jogável — o map_pool_ramos.js está no disco e fora do menu de propósito. ---- */
+         jogável — o map_piscinao_ramos.js está no disco e fora do menu de propósito. ---- */
   const msrc = ler('public/js/maps.js');
   const mbloco = msrc.slice(msrc.indexOf('export const MAPS'), msrc.indexOf('\n};', msrc.indexOf('export const MAPS')));
   const mapas = [];
@@ -137,7 +137,7 @@ function medir() {
     if (m) mapas.push({ id: m[1], nome: m[2], ctf: /ctfMode:\s*true/.test(l) });
   }
   /* "Fora do registro" = existe no disco e NINGUÉM o importa em maps.js. É o caso do
-     map_pool_ramos.js (o "Piscinão"), e a distinção importa: arquivo de mapa em
+     map_piscinao_ramos.js (o "Piscinão"), e a distinção importa: arquivo de mapa em
      public/js/ não implica mapa jogável — quem decide é o objeto MAPS. */
   const arquivosMapa = glob('public/js', (x) => /^map_.*\.js$/.test(x) && /export function build/.test(ler(`public/js/${x}`)));
   const importados = new Set([...msrc.matchAll(/from\s+'\.\/(map_[\w]+\.js)'/g)].map((m) => m[1]));

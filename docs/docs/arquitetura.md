@@ -62,7 +62,7 @@ Tamanho dos arquivos que o `gen-arch.mjs` indexa — bloco gerado, regenerado po
 
 | Arquivo | Linhas |
 |---|---:|
-| `public/js/game.js` | 6.519 |
+| `public/js/game.js` | 6.526 |
 | `public/js/main.js` | 1.549 |
 | `public/js/characters.js` | 1.060 |
 | `public/js/glbchars.js` | 811 |
@@ -70,7 +70,7 @@ Tamanho dos arquivos que o `gen-arch.mjs` indexa — bloco gerado, regenerado po
 | `public/js/weapons.js` | 344 |
 | `public/js/springs.js` | 260 |
 
-Total de `public/js/`: **25.035 linhas em 27 arquivos**. O índice símbolo→linha, com a tabela de conflito, é outro bloco gerado: `tools/eval/ARCH.md` (`npm run arch`).
+Total de `public/js/`: **25.066 linhas em 27 arquivos**. O índice símbolo→linha, com a tabela de conflito, é outro bloco gerado: `tools/eval/ARCH.md` (`npm run arch`).
 
 > Bloco gerado por `node tools/gen-docs.mjs`. Fonte: ``wc -l public/js/*.js``
 
@@ -132,7 +132,7 @@ Do `tools/eval/ARCH.md` (bloco gerado — as faixas abaixo são as da geração 
 |---|---|
 | **ARMAS / VIEWMODEL** | `vmattach.js` `springs.js` `weapons.js` `fparms.js` `handik.js` |
 | **BOTS / JOGABILIDADE** | — (só faixas em `game.js`) |
-| **MAPAS / MUNDO** | `maps.js` `mapprops.js` `map_brasilia.js` `map_havan.js` `map_pool_day.js` `map_pool_ramos.js` `map_ferrovelho.js` |
+| **MAPAS / MUNDO** | `maps.js` `mapprops.js` `map_brasilia.js` `map_havan.js` `map_piscina.js` `map_piscinao_ramos.js` `map_ferrovelho.js` |
 | **GRÁFICOS / FX** | `bloom.js` `textures.js` `vao.js` `stylize.js` `gpuparticles.js` |
 | **UI / HUD / MENU** | `main.js` `public/style.css` `src/pages/index.astro` |
 | **ÁUDIO** | `audio.js` |
