@@ -40,6 +40,14 @@
      estava no host sem www e brigava com o canonical das outras páginas
      (que sai de astro.config.mjs) — dois hosts, sinal diluído. -->
 <link rel="canonical" href="https://www.csbrasil.online/">
+<!-- HREFLANG. Repetido aqui porque esta página tem <head> PRÓPRIO e não passa
+     pelo Layout.astro — a home é o jogo, não uma página de conteúdo. Deixar de
+     fora justamente a URL mais importante do site é o tipo de buraco que só
+     aparece quando alguém compara página por página.
+     Mesmo host e mesma forma do canonical acima. Ver Layout.astro pro porquê
+     de `x-default` e da auto-referência. -->
+<link rel="alternate" hreflang="pt-BR" href="https://www.csbrasil.online/">
+<link rel="alternate" hreflang="x-default" href="https://www.csbrasil.online/">
 <!-- Open Graph -->
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="CORO SOLTO: Treta Suprema">
