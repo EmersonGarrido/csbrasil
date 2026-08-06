@@ -15,6 +15,19 @@
   "walkfire"
  ],
  "clipes": {
+  "adjim": [
+   "idle",
+   "walk",
+   "run",
+   "shoot",
+   "death",
+   "crouch",
+   "crouchwalk",
+   "jump",
+   "idle1h",
+   "walk1h",
+   "walkfire"
+  ],
   "ancap": [
    "idle",
    "walk",
@@ -55,6 +68,19 @@
    "walkfire"
   ],
   "bonzo": [
+   "idle",
+   "walk",
+   "run",
+   "shoot",
+   "death",
+   "crouch",
+   "crouchwalk",
+   "jump",
+   "idle1h",
+   "walk1h",
+   "walkfire"
+  ],
+  "cadequinha": [
    "idle",
    "walk",
    "run",
@@ -184,6 +210,19 @@
    "walk1h",
    "walkfire"
   ],
+  "esbirro": [
+   "idle",
+   "walk",
+   "run",
+   "shoot",
+   "death",
+   "crouch",
+   "crouchwalk",
+   "jump",
+   "idle1h",
+   "walk1h",
+   "walkfire"
+  ],
   "esquerdomacho": [
    "idle",
    "walk",
@@ -288,6 +327,19 @@
    "walk1h",
    "walkfire"
   ],
+  "jozo": [
+   "idle",
+   "walk",
+   "run",
+   "shoot",
+   "death",
+   "crouch",
+   "crouchwalk",
+   "jump",
+   "idle1h",
+   "walk1h",
+   "walkfire"
+  ],
   "mandrake": [
    "idle",
    "walk",
@@ -379,7 +431,46 @@
    "walk1h",
    "walkfire"
   ],
+  "padata": [
+   "idle",
+   "walk",
+   "run",
+   "shoot",
+   "death",
+   "crouch",
+   "crouchwalk",
+   "jump",
+   "idle1h",
+   "walk1h",
+   "walkfire"
+  ],
+  "padati": [
+   "idle",
+   "walk",
+   "run",
+   "shoot",
+   "death",
+   "crouch",
+   "crouchwalk",
+   "jump",
+   "idle1h",
+   "walk1h",
+   "walkfire"
+  ],
   "pagodeiro": [
+   "idle",
+   "walk",
+   "run",
+   "shoot",
+   "death",
+   "crouch",
+   "crouchwalk",
+   "jump",
+   "idle1h",
+   "walk1h",
+   "walkfire"
+  ],
+  "palhacomal": [
    "idle",
    "walk",
    "run",
@@ -484,6 +575,19 @@
    "walkfire"
   ],
   "skatista": [
+   "idle",
+   "walk",
+   "run",
+   "shoot",
+   "death",
+   "crouch",
+   "crouchwalk",
+   "jump",
+   "idle1h",
+   "walk1h",
+   "walkfire"
+  ],
+  "titica": [
    "idle",
    "walk",
    "run",
