@@ -10,7 +10,7 @@ import { setHavanCarSeed } from './map_havan.js';
 import { Sfx } from './audio.js';
 import { Game, vmPreloadClasses, confirmGate, CONFIRM_MAX_MS } from './game.js';
 import { VERSION } from './version.js';
-import { LANG, translateDom } from './i18n.js';
+import { LANG, translateDom, tr, frase } from './i18n.js';
 import { enableLightBloom } from './bloom.js';
 import { enableStylize } from './stylize.js';
 
@@ -433,6 +433,12 @@ let heartbeatOff = false;
 { const v = document.getElementById('mf-ver'); if (v) v.textContent = `CORO SOLTO v${VERSION}`; }
 // EN por camada: varre o menu estático UMA vez (PT é a fonte; i18n.js explica o desenho)
 translateDom(document.body);
+// links do rodapé por idioma: EN vai pras gêmeas que EXISTEM (characters, docs/en);
+// as demais páginas estáticas ainda são só PT (issue #54)
+if (LANG === 'en') for (const a of document.querySelectorAll('.menu-footer a')) {
+  if (a.getAttribute('href') === '/personagens') a.setAttribute('href', '/characters');
+  if (a.getAttribute('href') === '/docs/') a.setAttribute('href', '/docs/en/');
+}
 // seletor de idioma em CONFIGURAÇÕES: grava e recarrega (o dicionário aplica no boot)
 { const sel = document.getElementById('set-lang');
   if (sel) {
@@ -487,7 +493,7 @@ async function startGame(team, charId, enemyFaction) {
   const _sp = document.getElementById('boot-splash'); if (_sp) _sp.remove();   // fluxo ?auto= pula a splash
   // LOADING REAL da partida: overlay opaco cobre TUDO enquanto os GLBs entram e o mundo
   // é construído — nada de cena parcial/"minecraft" aparecendo aos poucos
-  showLoading('CARREGANDO — ' + MAPS[currentMap].name.toUpperCase());
+  showLoading(frase('carregando', MAPS[currentMap].name.toUpperCase()));
   await sfxReady;   // make sure voice/CS samples are registered before round 1 sounds
   // Preload real GLB character models + shared animation clips (bots). Falls back to
   // procedural box meshes for any archetype that isn't modeled yet. Map props (statues)
@@ -778,8 +784,8 @@ const WPN_MODE_LABEL = { all: 'TODAS', pistols: 'SÓ PISTOLAS', knife: 'SÓ FACA
 function setMapMeta() {
   const el = $('map-meta'); if (!el) return;
   const n = settings.bots || 4;
-  const modo = matchMode === 'ctf' ? 'CAPTURE THE FLAG' : 'ROUNDS · MELHOR DE 5';
-  el.textContent = `${modo}  ·  ${n} VS ${n}  ·  ARMAS: ${WPN_MODE_LABEL[settings.wpnMode || 'all'] || 'TODAS'}`;
+  const modo = matchMode === 'ctf' ? 'CAPTURE THE FLAG' : frase('melhorDe5');
+  el.textContent = frase('resumoPartida', modo, n, tr(WPN_MODE_LABEL[settings.wpnMode || 'all'] || 'TODAS'));
 }
 function setMapMode() {
   const m = $('map-mode');
@@ -882,10 +888,10 @@ const WPN_MODES = Object.entries(WPN_MODE_LABEL).map(([id, label]) => ({ id, lab
 const wpnDdBtn = $('wpn-dd-btn'), wpnDdList = $('wpn-dd-list'), wpnDdLabel = $('wpn-dd-label');
 function wpnLabel(id) {
   const m = WPN_MODES.find(m => m.id === id);
-  wpnDdLabel.innerHTML = `<span class="dd-cur">${WPN_ICONS[id]}<span>${m ? m.label : id}</span></span>`;
+  wpnDdLabel.innerHTML = `<span class="dd-cur">${WPN_ICONS[id]}<span>${tr(m ? m.label : id)}</span></span>`;
 }
 wpnDdList.innerHTML = WPN_MODES.map(m =>
-  `<button class="dd-item" data-id="${m.id}" type="button">${WPN_ICONS[m.id]}<span>${m.label}</span></button>`).join('');
+  `<button class="dd-item" data-id="${m.id}" type="button">${WPN_ICONS[m.id]}<span>${tr(m.label)}</span></button>`).join('');
 wpnLabel(wpnSel.value);
 wpnDdBtn.onclick = e => { e.stopPropagation(); wpnDdList.classList.toggle('hidden'); wpnDdBtn.classList.toggle('open'); };
 document.addEventListener('click', () => { wpnDdList.classList.add('hidden'); wpnDdBtn.classList.remove('open'); });

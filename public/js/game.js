@@ -754,7 +754,7 @@ export class Game {
     // primary/secondary remember the last weapon of each slot for the 1/2 keys.
     const startWeapon = charWeapon(playerCharId);
     this.player = {
-      isPlayer: true, name: (nickname || '').trim().slice(0, 14) || 'VOCÊ', def: this.playerDef, team: playerTeam,
+      isPlayer: true, name: (nickname || '').trim().slice(0, 14) || tr('VOCÊ'), def: this.playerDef, team: playerTeam,
       pos: new THREE.Vector3(), vel: new THREE.Vector3(),
       yaw: 0, pitch: 0, hp: 100, alive: true, respawnAt: 0, crouchF: 0,
       weapon: startWeapon, scoped: false, reloadUntil: 0, nextShotAt: 0, drawUntil: 0,
@@ -2111,7 +2111,7 @@ export class Game {
     this.sfx.radioVoice(this._voiceKey(this.playerTeam));
     const log = document.createElement('div');
     log.className = 'radio-line';
-    log.textContent = `${this.player.name} (RÁDIO): ${item}`;
+    log.textContent = `${this.player.name} (${tr('RÁDIO')}): ${item}`;
     this.el.radioLog.appendChild(log);
     setTimeout(() => log.remove(), 4200);
     while (this.el.radioLog.children.length > 3) this.el.radioLog.firstChild.remove();
@@ -2495,12 +2495,10 @@ export class Game {
     this.el.matchEnd.classList.toggle('lose', !mine);
     this.el.matchTitle.textContent = mine ? tr('VITÓRIA') : tr('DERROTA');
     this.el.matchSub.textContent = mine
-      ? `${this._teamName(winner)} venceram a treta — a praça é sua. O pastel da vitória está pago.`
-      : `${this._teamName(winner)} levaram a melhor — já pediram CPI da partida.`;
+      ? frase('venceu', this._teamName(winner))
+      : frase('perdeu', this._teamName(winner));
     this.el.matchStats.innerHTML =
-      `<div><b>${this.roundsWon.E} × ${this.roundsWon.B}</b>rounds</div>` +
-      `<div><b>${this.player.kills}</b>kills de ${this.player.name}</div>` +
-      `<div><b>${this.player.deaths}</b>suas mortes</div>`;
+      frase('statsFim', this.roundsWon.E, this.roundsWon.B, this.player.kills, this.player.name, this.player.deaths);
     this.el.matchEnd.classList.remove('hidden');
     if (document.pointerLockElement) document.exitPointerLock();
     try { window.va?.('event', { name: 'match_end', data: { winner, roundsP: this.roundsWon.E, roundsB: this.roundsWon.B } }); } catch {}
@@ -3360,7 +3358,7 @@ export class Game {
       // chip = tint da cor CHEIA do time; texto = tinta PÁLIDA do time (ver _teamInk):
       // texto na cor cheia sobre o próprio tint dava 3,2-3,9:1 (ui-check.mjs, UI1)
       const c = this._teamColor(e.team);
-      return `<span class="kf-n" style="background:${c}2e;color:${this._teamInk(e.team)}">${e.isPlayer ? 'VOCÊ' : e.name}</span>`;
+      return `<span class="kf-n" style="background:${c}2e;color:${this._teamInk(e.team)}">${e.isPlayer ? tr('VOCÊ') : e.name}</span>`;
     };
     row.innerHTML = attacker && attacker !== victim
       ? `${cn(attacker)}${head ? this._skullIcon() : ''}${this._wpnIcon(weap)}${cn(victim)}`
@@ -6406,7 +6404,7 @@ export class Game {
       const fimProximo = restante <= CTF_CLOCK_SHOW;
       this.el.roundTime.classList.toggle('urgente', fimProximo);
       this.el.roundsRow.textContent =
-        `${frase('rodadaDe', this.roundNum, CTF_ROUNDS_MAX)} · BANDEIRAS (ALVO ${alvo}) · ${this._teamTag('E')} ${this.roundsWon.E} × ${this.roundsWon.B} ${this._teamTag('B')}`
+        `${frase('rodadaDe', this.roundNum, CTF_ROUNDS_MAX)} · ${frase('alvoBandeirasHud', alvo)} · ${this._teamTag('E')} ${this.roundsWon.E} × ${this.roundsWon.B} ${this._teamTag('B')}`
         + (fimProximo ? ` · FIM DA PARTIDA EM ${Math.floor(restante / 60)}:${String(restante % 60).padStart(2, '0')}` : '');
     } else {
       this.el.roundTime.classList.remove('ctf');

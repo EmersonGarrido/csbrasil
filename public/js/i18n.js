@@ -91,7 +91,9 @@ const DICT = {
   'REINICIAR PARTIDA': 'RESTART MATCH', 'SAIR PRO MENU': 'QUIT TO MENU',
   'VOLTAR AO MENU': 'BACK TO MENU', 'JOGAR NOVAMENTE': 'PLAY AGAIN',
   'VITÓRIA': 'VICTORY', 'DERROTA': 'DEFEAT',
-  'ENTRAR NESSE CORO': 'GET THIS BOOT ON',   // tradução DO DONO (06/08) — não 'join this crew'
+  'ENTRAR NESSE CORO': 'GET THIS BOOT ON',
+  'SÓ PISTOLAS': 'PISTOLS ONLY', 'SÓ FACA': 'KNIFE ONLY', 'SÓ AWP': 'AWP ONLY',
+  'VOCÊ': 'YOU', 'RÁDIO': 'RADIO', 'Respawn em': 'Respawn in',   // tradução DO DONO (06/08) — não 'join this crew'
   'KILLS': 'KILLS', 'MORTES': 'DEATHS', 'JOGADOR': 'PLAYER', 'CAP.': 'CAP.',
   'CORO SOLTO — PLACAR': 'CORO SOLTO — SCOREBOARD',
   'A treta continua sem você. Por enquanto.': 'The fight goes on without you. For now.',
@@ -122,6 +124,25 @@ const FRASES = {
   voltaTreta: { pt: () => 'De volta pra treta!', en: () => 'Back to the fight!' },
   rodadaDe: { pt: (a, b) => `RODADA ${a}/${b}`, en: (a, b) => `ROUND ${a}/${b}` },
   respawnEm: { pt: (s) => `Respawn em ${s}`, en: (s) => `Respawn in ${s}` },
+  melhorDe5: { pt: () => 'ROUNDS · MELHOR DE 5', en: () => 'ROUNDS · BEST OF 5' },
+  resumoPartida: {
+    pt: (modo, n, armas) => `${modo}  ·  ${n} VS ${n}  ·  ARMAS: ${armas}`,
+    en: (modo, n, armas) => `${modo}  ·  ${n} VS ${n}  ·  WEAPONS: ${armas}`,
+  },
+  carregando: { pt: (o) => `CARREGANDO — ${o}`, en: (o) => `LOADING — ${o}` },
+  alvoBandeirasHud: { pt: (n) => `BANDEIRAS (ALVO ${n})`, en: (n) => `FLAGS (TARGET ${n})` },
+  venceu: {
+    pt: (t) => `${t} venceram a treta — a praça é sua. O pastel da vitória está pago.`,
+    en: (t) => `${t} took the fight — the square is yours. Victory pastel is on the house.`,
+  },
+  perdeu: {
+    pt: (t) => `${t} levaram a melhor — já pediram CPI da partida.`,
+    en: (t) => `${t} got the upper hand — they already demanded an inquiry.`,
+  },
+  statsFim: {
+    pt: (r1, r2, k, nome, d) => `<div><b>${r1} × ${r2}</b>rounds</div><div><b>${k}</b>kills de ${nome}</div><div><b>${d}</b>suas mortes</div>`,
+    en: (r1, r2, k, nome, d) => `<div><b>${r1} × ${r2}</b>rounds</div><div><b>${k}</b>kills by ${nome}</div><div><b>${d}</b>your deaths</div>`,
+  },
 };
 export const frase = (id, ...args) => {
   const f = FRASES[id];

@@ -28,8 +28,12 @@ const config = {
   onBrokenMarkdownLinks: 'warn',
 
   i18n: {
-    defaultLocale: 'pt-BR',
-    locales: ['pt-BR'],
+    defaultLocale: 'pt',
+    locales: ['pt', 'en'],
+    localeConfigs: {
+      pt: { label: 'Português' },
+      en: { label: 'English' },
+    },
   },
 
   presets: [
@@ -56,6 +60,11 @@ const config = {
   themeConfig:
     /** @type {import('@docusaurus/preset-classic').ThemeConfig} */
     ({
+      // Social card (og:image / twitter:image): o MESMO arquivo do site
+      // (`public/og-image.png`, 1200×630), copiado para `static/img/`. O Docusaurus
+      // resolve para URL absoluta com url+baseUrl: https://www.csbrasil.online/docs/img/og-image.png.
+      // Se o do site mudar, rode `cp ../public/og-image.png static/img/og-image.png`.
+      image: 'img/og-image.png',
       colorMode: {
         defaultMode: 'dark',
         respectPrefersColorScheme: true,
@@ -72,21 +81,23 @@ const config = {
         },
         items: [
           { type: 'docSidebar', sidebarId: 'dev', position: 'left', label: 'Documentação' },
+          { type: 'localeDropdown', position: 'right' },
           { href: 'https://csbrasil.online/', label: 'Jogar', position: 'right' },
           { href: 'https://github.com/rubenmarcus/csbrasil', label: 'GitHub', position: 'right' },
         ],
       },
       footer: {
         style: 'dark',
-        // A LOGOMARCA (`public/logo.png` da raiz, recortada e convertida) mora aqui: é o
-        // único lugar da doc com largura sobrando para um letreiro de 4 linhas ser lido.
-        // Até 05/08/2026 esse arquivo não era usado por ninguém, em lugar nenhum.
+        // A LOGOMARCA mora aqui: é o único lugar da doc com largura sobrando para um
+        // letreiro de 4 linhas ser lido. Cópia DIRETA de `public/logo.png` (651×526),
+        // sem recorte — a versão .webp recortada era do branding v1. Se o do site mudar,
+        // rode `cp ../public/logo.png static/img/logo-coro-solto.png`.
         logo: {
           alt: 'CORO SOLTO: Treta Suprema',
-          src: 'img/logo-coro-solto.webp',
+          src: 'img/logo-coro-solto.png',
           href: 'https://csbrasil.online/',
           width: 200,
-          height: 152,
+          height: 162,
         },
         links: [
           {
