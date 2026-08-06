@@ -19,7 +19,8 @@ create policy "players: leitura pública" on public.players
 ```
 
 **O problema.** RLS decide **quais linhas**, nunca **quais colunas**. A anon key
-é pública por design (sai em `GET /api/config`), então qualquer pessoa podia:
+é pública por design (na época saía em `GET /api/config`, rota removida desde
+então — issue #41), então qualquer pessoa podia:
 
 ```
 GET /rest/v1/players?select=nick,token
@@ -60,7 +61,8 @@ curl -s "$SUPABASE_URL/rest/v1/leaderboard?select=nick,kills&limit=3"  -H "apike
 **Efeito colateral conhecido:** `select=*` em `players` com anon key passa a dar
 42501, porque o PostgREST expande `*` pra tabela inteira. Auditamos
 `public/js/` e `src/` em 2026-08-03: **nenhum consumidor de anon key existe
-hoje** — `GET /api/config` emite a chave e ninguém a consome.
+hoje**. O `GET /api/config` emitia a chave e ninguém a consumia; a rota foi
+removida por isso (issue #41).
 
 **O que isso NÃO resolve.** O modelo continua *client-authoritative*: um bot que
 respeita os tetos do `submit_match` farma indefinidamente. A correção definitiva
