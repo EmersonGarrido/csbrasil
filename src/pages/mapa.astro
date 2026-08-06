@@ -64,7 +64,12 @@ const mapData = { online: online.filter(o => o.lat && o.lon), cities: cities.fil
     Onde a treta está acontecendo agora, cidade por cidade. A localização é aproximada e no nível
     de cidade — nenhum IP aparece aqui.
   </Fragment>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" slot="head">
+  <!-- Leaflet 1.9.4 (BSD-2-Clause) vendorizado em public/vendor/leaflet/ — origem:
+       https://unpkg.com/leaflet@1.9.4/dist/ . Vendorizado pelo mesmo motivo do
+       Three.js: era o ÚNICO host externo em script-src/style-src da CSP, e a
+       exceção valia pro site todo, não só pra esta página. Ao atualizar, troque
+       os arquivos e a versão aqui. -->
+  <link rel="stylesheet" href="/vendor/leaflet/leaflet.css" slot="head">
   <style slot="head">
     .map-tip{background:rgba(8,12,8,.88)!important;border:1px solid #4a5a2a!important;color:#d8e0b0!important;
       font:10px Consolas,monospace;padding:1px 6px;box-shadow:none!important}
@@ -105,7 +110,7 @@ const mapData = { online: online.filter(o => o.lat && o.lon), cities: cities.fil
   </p>
   {!configured && <p>Mapa ainda não configurado.</p>}
   <div id="map" style="height:520px;border-radius:10px;border:1px solid #3a3325;background:#10130c"></div>
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" is:inline></script>
+  <script src="/vendor/leaflet/leaflet.js" is:inline></script>
   <script is:inline define:vars={{ mapData }}>
     // ESCAPA antes de montar HTML de popup. `nick` e `city` vêm do banco (o nick
     // é escolhido pelo jogador no registro, sem filtro de caracteres) e caíam

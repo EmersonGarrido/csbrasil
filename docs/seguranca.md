@@ -295,8 +295,9 @@ select jobname, schedule from cron.job;     -- purge_submit_log · 0 4 * * *
    `'self'` quebraria a distribuição que o plano de lançamento pretende. Se
    algum portal novo entrar, ele entra aqui.
 
-`https://unpkg.com` está em `script-src`/`style-src` porque `/mapa` carrega o
-Leaflet de lá. Se o Leaflet virar vendorizado, tire.
+`script-src`/`style-src` não têm mais **nenhum** host externo: o Leaflet foi
+vendorizado em `public/vendor/leaflet/` (issue #38) e o `https://unpkg.com` que
+existia só por causa dele saiu da política.
 
 **Como testar:**
 
@@ -304,8 +305,10 @@ Leaflet de lá. Se o Leaflet virar vendorizado, tire.
 curl -sI https://www.csbrasil.online/ | grep -iE 'content-security|x-content|referrer|permissions|strict-transport'
 ```
 
-E abra `/mapa` com o console aberto: **zero** violação de CSP. É a página mais
-frágil, porque é a única que carrega recurso de terceiro.
+E abra `/mapa` com o console aberto: **zero** violação de CSP. Ela ainda é a
+página mais exposta, mas agora só por `img-src`: as tiles vêm de
+`basemaps.cartocdn.com`. Tile bloqueada degrada pro fundo do container — o
+Leaflet em si é local e o mapa continua funcionando.
 
 ---
 
