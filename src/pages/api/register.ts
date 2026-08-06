@@ -4,6 +4,7 @@ import { supabaseAdmin, NOT_CONFIGURED } from '../../lib/supabase';
 import { buildSocialUrl } from '../../lib/social';
 import { isAllowedAvatarUrl } from '../../lib/safe-url';
 import { rateLimit } from '../../lib/ratelimit';
+import { isValidNick, NICK_HINT } from '../../lib/nick';
 
 export const prerender = false;
 
@@ -27,8 +28,19 @@ export const POST: APIRoute = async ({ request }) => {
   const { nick, token, social, socials, accessToken, avatarUrl } = body ?? {};
   if (typeof nick !== 'string' || typeof token !== 'string' || nick.trim().length < 2)
     return new Response(JSON.stringify({ error: 'missing_fields' }), { status: 400, headers: { 'content-type': 'application/json' } });
+
+  // Charset do nick. O check no banco é a fonte da verdade (players_nick_charset,
+  // docs/seguranca.md §8); isto aqui é o espelho, e existe por dois motivos:
+  // devolver erro legível em vez do 409 genérico de constraint violada, e recusar
+  // ANTES de gastar uma chamada de RPC. Valida o nick já cortado em 14, que é o
+  // que de fato vai pro banco — validar o original e gravar o truncado deixaria
+  // passar lixo depois do 14º caractere.
+  const nickLimpo = nick.trim().slice(0, 14);
+  if (!isValidNick(nickLimpo))
+    return new Response(JSON.stringify({ error: 'nick_invalid', message: NICK_HINT }), { status: 400, headers: { 'content-type': 'application/json' } });
+
   const { error } = await supabaseAdmin.rpc('register_player', {
-    p_nick: nick.trim().slice(0, 14), p_token: token,
+    p_nick: nickLimpo, p_token: token,
     p_social: typeof social === 'string' ? social.slice(0, 60) : null,
   });
   if (error)
@@ -44,7 +56,7 @@ export const POST: APIRoute = async ({ request }) => {
     if (list.length) {
       await supabaseAdmin.from('players')
         .update({ socials: list, social_link: list[0].url.slice(0, 60) })
-        .eq('nick', nick.trim().slice(0, 14)).eq('token', token);
+        .eq('nick', nickLimpo).eq('token', token);
     }
   }
 
@@ -63,11 +75,11 @@ export const POST: APIRoute = async ({ request }) => {
       await supabaseAdmin.from('players').update({
         auth_user: user.id,
         avatar_url: safeAvatar(avatarUrl) ?? safeAvatar(meta.avatar_url) ?? safeAvatar(meta.picture),
-      }).eq('nick', nick.trim().slice(0, 14)).eq('token', token);
+      }).eq('nick', nickLimpo).eq('token', token);
     }
   } else if (safeAvatar(avatarUrl)) {
     await supabaseAdmin.from('players').update({ avatar_url: safeAvatar(avatarUrl) })
-      .eq('nick', nick.trim().slice(0, 14)).eq('token', token);
+      .eq('nick', nickLimpo).eq('token', token);
   }
   return new Response(JSON.stringify({ ok: true }), { headers: { 'content-type': 'application/json' } });
 };
