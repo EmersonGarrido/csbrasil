@@ -55,12 +55,6 @@
       "skillPath": "higgsfield-game-generation/SKILL.md",
       "computedHash": "efa7a444d560a94f924b1d5f8a0e6b8155f1f4ceb314ad626e412798dd0b1014"
     },
-    "img2threejs": {
-      "source": "hoainho/img2threejs",
-      "sourceType": "github",
-      "skillPath": "SKILL.md",
-      "computedHash": "3b26e9c047ac32ef9fccd05cb687abddf10bd1584f0eb68f3a29c68702724ca4"
-    },
     "improve-game": {
       "source": "PlayableIntelligence/game-creator",
       "sourceType": "github",
