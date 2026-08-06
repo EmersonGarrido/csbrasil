@@ -346,6 +346,22 @@ export function buildQuebrada(scene, T) {
     'tag-pingo.png', 'tag-selvagem.png', 'tags-treino-02.png', 'tags-treino-05.png']);
   const D_LAMBE = decalIds(T, ['cartaz-america-latina.png', 'cartaz-medo.png', 'cartaz-neutro.png',
     'dont-overthink.png', 'gratidao-sol.png', 'meio-ano.png', 'pra-gringo.png']);
+  /* LEVA NOVA (06/08, gerada no Mint como folha e recortada pelo gen-graffiti-decals):
+     pixação SP em pé (a escrita da cidade real), throw-ups coloridos, personagens de
+     grafite e a cartazera de lambes. O dono, olhando o mapa: "tem que meter muito mais
+     grafites e posters nos mapas, especialmente o quebrada — todas as casas tem que
+     estar cheias de grafites e os muros de proteção então mete ainda mais". Ele decide:
+     a regra de contenção de 05/08 (§2.1/C23) fica registrada acima e foi SUPERADA por
+     esta. O que se mantém: nada no anel de bandeira nem na boca de beco (§2.4 — ler
+     inimigo continua à frente de parede carregada). */
+  const D_PIXO = decalIds(T, ['folha-pixaca-01.png', 'folha-pixaca-02.png', 'folha-pixaca-03.png',
+    'folha-pixaca-04.png', 'folha-pixaca-05.png', 'folha-pixaca-06.png', 'folha-pixaca-07.png',
+    'folha-pixaca-08.png']);
+  const D_THROW = decalIds(T, ['folha-throwu-01.png', 'folha-throwu-02.png', 'folha-throwu-03.png',
+    'folha-throwu-04.png', 'folha-throwu-05.png', 'folha-throwu-06.png']);
+  const D_PERSO = decalIds(T, ['folha-person-01.png', 'folha-person-02.png', 'folha-person-03.png',
+    'folha-person-04.png', 'folha-person-05.png', 'folha-person-06.png']);
+  const D_CARTAZERA = decalIds(T, ['folha-lambes.png', 'folha-stenci.png']);
   /* PORTA DE AÇO: pool de tinta CLARA (a chapa é 0x2b2926) e SÓ peça em pé (aspecto < 1).
      Porta tem ~1,3-2,3 m de vão: arte deitada encolhe pra caber na largura e sobra uma
      tarja de 1,1 m no meio de uma porta de 2,1 m — pequena e sem intenção. */
@@ -1215,37 +1231,60 @@ export function buildQuebrada(scene, T) {
   }
 
   /* ===================== ONDE OS DECALQUES VÃO =====================
-     A lista é EXPLÍCITA, não sorteada por barraco, e a razão é de leitura: mural em toda casa
-     transforma o quarteirão inteiro em ruído e apaga a diferença entre uma parede e outra —
-     o oposto do que o decalque serve pra fazer (§2.1 e C23 da BAR-CONSISTENCIA: marco de
-     orientação é o que NÃO se repete). A distribuição segue três faixas de densidade:
+     ATUALIZAÇÃO DE 06/08 — O DONO MUDOU A REGRA. A versão de 05/08 era contida de
+     propósito (mural espaçado, "marco de orientação é o que NÃO se repete", §2.1/C23).
+     Ele olhou o resultado e pediu o OPOSTO, em palavras: "tem que meter muito mais
+     grafites e posters nos mapas, especialmente o quebrada — todas as casas tem que
+     estar cheias de grafites e os muros de proteção então mete ainda mais grafites".
+     Ele decide — como no Piscinão, onde a contenção anterior também virou encher.
+     O que SOBREVIVE da regra velha, e é inegociável: NENHUM decalque entra no anel de
+     captura das 4 bandeiras nem na boca de beco — são os pontos onde o jogador precisa
+     ler INIMIGO, e parede carregada atrás de silhueta é o defeito de contraste que a
+     BAR-CONSISTENCIA §2.4 mede. E a anti-repetição de 14 m continua valendo (peça
+     repetida colada lê como falha de asset, não como cidade).
 
-     · RUA (corredor principal, leitura a 15-25 m): mural grande e ESPAÇADO, ~7 m entre peças,
-       nunca dois no mesmo lado seguidos. É onde o tamanho importa — 3,4 m de altura contra os
-       2,2 m dos cartazes do Piscinão.
-     · VIELA (corredor de 4 m, leitura a 2-4 m): DENSO de propósito. Beco pichado de ponta a
-       ponta é o que faz a viela parecer viela, e é o marco que diferencia as duas rotas
-       alternativas do corredor central — quem entra na viela sabe que entrou.
-     · MURO / PORTÃO / ÔNIBUS: tag larga, que é o formato certo pra superfície baixa e comprida.
-
-     NENHUM decalque entra no anel de captura das 4 bandeiras nem na boca de beco: são os
-     pontos onde o jogador precisa ler INIMIGO, e parede carregada atrás de silhueta é
-     exatamente o defeito de contraste que a BAR-CONSISTENCIA §2.4 mede. */
+     A geografia da densidade:
+     · RUA: mural grande na faixa alta (3,4 m) + a faixa BAIXA nova com pixo em pé e
+       throw-up — é assim que uma fachada de periferia se lê: peça grande em cima,
+       escrita embaixo.
+     · VIELA (corredor de 4 m): denso era e ficou mais denso — pixo e personagem
+       intercalados com o que já havia.
+     · MURO / PORTÃO: tag larga + pixo + throw-up, cheio dos dois lados. */
   // --- fachadas da rua (x = ∓12,5): oeste e leste alternando, fora das vagas de comércio ---
   /* Um z só no lote [18,24] do oeste: ele é fatiado em X (o lado comprido é o x), então os
      dois módulos compartilham o MESMO intervalo de z e dois murais pedidos em 20 e 23 caíam
      grampeados a 0,5 m um do outro — arte sobreposta. Módulo curto, mural único. */
   for (const z of [-35, -30, -26, -16, -1, 21]) decalFachada(D_FACHADA, -12.43, z, Math.PI / 2, 5.0);
   for (const z of [-34, -22, -17, -11, 15, 25]) decalFachada(D_FACHADA, 12.43, z, -Math.PI / 2, 5.0);
+  /* DENSIDADE NOVA (dono, 06/08 — "todas as casas cheias de grafites"): a faixa BAIXA
+     das fachadas ganha a escrita da rua de verdade — pixo em pé e throw-up entre os
+     murais grandes, mais a cartazera de lambes. Posições INTERCALADAS às de cima,
+     pra nenhuma peça cair em cima de outra. */
+  for (const z of [-37, -32, -28, -21, -8, 2, 9, 17]) decalFachada(D_PIXO, -12.43, z, Math.PI / 2, 2.4, 0.35, 1.9);
+  for (const z of [-36, -31, -24, -13, -6, 4, 12, 19]) decalFachada(D_PIXO, 12.43, z, -Math.PI / 2, 2.4, 0.35, 1.9);
+  for (const z of [-33, -19, -3, 14]) decalFachada(D_THROW, -12.43, z, Math.PI / 2, 1.9, 0.9, 1.5);
+  for (const z of [-29, -15, 1, 22]) decalFachada(D_THROW, 12.43, z, -Math.PI / 2, 1.9, 0.9, 1.5);
+  decalFachada(D_CARTAZERA, -12.43, -12, Math.PI / 2, 2.6, 0.5, 2.2);
+  decalFachada(D_CARTAZERA, 12.43, 8, -Math.PI / 2, 2.6, 0.5, 2.2);
   // --- vielas (x = ∓23): as duas paredes de cada corredor, longe das caçambas e das pilhas ---
   for (const z of [-35, -25, -14, -7, 12, 21]) decalFachada(D_MURAL, -21.07, z, -Math.PI / 2, 3.4, 0.5, 2.8);
   for (const z of [-38, -27, -15, -2, 15, 25]) decalFachada(D_TAG, -24.93, z, Math.PI / 2, 3.4, 0.8, 2.4);
   for (const z of [-34, -24, -14, 5, 16, 25]) decalFachada(D_MURAL, 21.07, z, Math.PI / 2, 3.4, 0.5, 2.8);
   for (const z of [-40, -30, -20, -8, 8, 14]) decalFachada(D_TAG, 24.93, z, -Math.PI / 2, 3.4, 0.8, 2.4);
-  // --- muro do campinho (2,2 m de alto): tag larga dos dois lados, e o muro da vila do baile ---
+  // viela densa também na leva nova: pixo e personagem nas posições intercaladas
+  for (const z of [-31, -18, -10, 2, 17]) decalFachada(D_PIXO, -21.07, z, -Math.PI / 2, 2.2, 0.35, 1.8);
+  for (const z of [-36, -22, -11, 1, 11, 21]) decalFachada(D_PIXO, 21.07, z, Math.PI / 2, 2.2, 0.35, 1.8);
+  for (const z of [-29, -17, 7, 18]) decalFachada(D_PERSO, -21.07, z, -Math.PI / 2, 1.8, 0.9, 1.5);
+  for (const z of [-27, -13, 3, 19]) decalFachada(D_PERSO, 21.07, z, Math.PI / 2, 1.8, 0.9, 1.5);
+  // --- muro do campinho (2,2 m de alto): o dono mandou ENCHER os muros de proteção ---
   for (const x of [-18.5, 0, 18.5]) decal(D_TAG, x, 0.35, 27.76, Math.PI, 1.5, x === 0 ? 8.0 : 5.6);
   for (const x of [-17, 5]) decal(D_TAG, x, 0.35, 28.24, 0, 1.5, 5.6);
+  for (const x of [-14, -7, 8, 15]) decal(D_PIXO, x, 0.3, 27.74, Math.PI, 1.5, 3.2);
+  for (const x of [-13, -3, 11]) decal(D_THROW, x, 0.35, 28.26, 0, 1.3, 2.6);
+  for (const x of [-11, 2, 14]) decal(D_PERSO, x, 0.35, 27.72, Math.PI, 1.4, 2.4);
   decal(D_MURAL, -18, 0.4, -39.75, 0, 1.7, 4.4);
+  decal(D_PIXO, -12, 0.35, -39.75, 0, 1.5, 3.0);   // muro da vila do baile também entra na leva
+  decal(D_THROW, -23, 0.4, -39.75, 0, 1.2, 2.4);
   /* O ABRIGO DO PONTO DE ÔNIBUS PERDEU OS DOIS LAMBE-LAMBES. Eles estavam colados nas
      COSTAS DE VIDRO do abrigo (`MAT_VIDRO`, x = -11,85, `collide: false`) — ou seja, em
      vidro e sem sólido nenhum atrás. É literalmente a reclamação do dono ("colocaste em
