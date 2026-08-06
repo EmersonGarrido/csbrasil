@@ -1094,6 +1094,50 @@ export function buildQuebrada(scene, T) {
   beco(-20.6, -12.8, -10.5, 0); beco(-20.6, -12.8, 2.5, 2); beco(-20.6, -12.8, 16.5, 4);
   beco(12.8, 20.6, -3.5, 1); beco(12.8, 20.6, 10.5, 3); beco(12.8, 20.6, 20.5, 5);
 
+  /* MURAIS DEDICADOS nos becos (pedido do dono, 06/08): as duas peças grandes fictícias de
+     `textures.js` ("ETERNAMENTE EM NOSSOS CORAÇÕES" e "DA LESTE VIVE"), uma por lado do mapa.
+
+     POR QUE FAIXA ATRAVESSANDO O BECO E NÃO PAREDE: as duas tentativas de colar na parede
+     falharam no navegador, com medida (levantamento por raycast no mapview, 06/08):
+       · a parede do beco é desenhada pelo GLB do barraco, não pela caixa procedural — a
+         primeira versão (z grampeado na face declarada) nasceu ENGOLIDA pelo GLB;
+       · e a face do GLB NÃO É PLANA: na norte do beco oeste 0 ela oscila de z=-11,64 a
+         -12,31 no mesmo trecho; na do leste 5 há um recuo de 4 m (z=21,34 → 25,51). Plano
+         de 4,2 m ali ou flutua 70 cm ou some na parede.
+     A faixa esticada de ponta a ponta do corredor é o formato que a periferia usa de
+     verdade pra memorial ("ETERNAMENTE...") e pra orgulho de quebrada ("DA LESTE VIVE") —
+     e não precisa de parede nenhuma. Precedente no próprio mapa: o varal do beco k=1 e a
+     lona do k=3 já atravessam o corredor assim. Altura: corda a 3,3 m (laje do k=4 está a
+     2,9 e "não estorva ninguém"), borda de baixo a 1,7 m — faixa de beco desce até a
+     cara mesmo, e sem colisor ela não empurra ninguém (é pano, não parede — BUG-21).
+     Leitura: de frente pra boca do beco, que é de onde o jogador vê — uma por lado do mapa. */
+  {
+    const FH = 1.58, FW = FH * 1.8333, FY = 3.3 - FH / 2;   // 1408×768 medido; corda a 3,3 m
+    /* O X E O Z DE CADA FAIXA SAÍRAM DE UM SCAN POR RAYCAST no mapview (06/08), não da
+       planta: o corredor declarado (bz±1,5) não é onde o GLB põe a parede. Medida
+       (distância à parede norte/sul a 1,45 m de altura, a cada 0,6 m):
+         · oeste 0 (escada): paredes a ~1,3/1,3 m no corredor inteiro — faixa no eixo;
+         · leste 3 (lona): só x ≥ 17 tem corredor fechado (~1,5/1,2 m); x < 16,6 tem uma
+           parede a 0,4 m do EIXO. A faixa fica em x=20,1 — x ≥ 17,2 é o trecho bom, e
+           18,7 ficava FURADO pela lona da receita (ela cobre x 13,6–19,8 a 2,7 m de altura,
+           exatamente onde a corda de 3,3 m passaria). O z=10,65 é o centro MEDIDO do
+           corredor naquele x (paredes em z≈9,3 e ≈12,0), não o bz declarado (10,5).
+         · leste 1 e 5 têm um lado ABERTO (recuo de 5-7 m) — faixa ali fica com uma ponta
+           no ar, pendurada em nada. */
+    for (const [texM, nome, fx, fz] of [
+      [T.muralEternamente, 'eternamente', -16.7, -10.5],   // beco oeste 0 (o da escada)
+      [T.muralLesteVive,  'leste-vive',    20.1,  10.65],  // beco leste 3 (o da lona)
+    ]) {
+      if (!texM) continue;
+      addBox(0.025, 0.025, FW + 0.2, MAT_ARAME, fx, 3.3, fz, { collide: false, cast: false });   // a corda
+      const mm = new THREE.Mesh(new THREE.PlaneGeometry(FW, FH), lam({ map: texM, side: THREE.DoubleSide }));
+      mm.position.set(fx, FY, fz); mm.rotation.y = Math.PI / 2; mm.renderOrder = 2;
+      mm.name = 'mural:' + nome;
+      mm.receiveShadow = true;
+      root.add(mm);
+    }
+  }
+
   /* CAMINHÃO BAÚ DE ENTREGA na porta da adega (`vw_9150`, references/favela — é caminhão, não
      ônibus, conferido na imagem). Ele não é enfeite: o ônibus encolheu de 12,4 m para 8,76 m
      ao virar GLB (ver "MEDIDAS DO ÔNIBUS"), e essa diferença abriu 8,4 m de linha de tiro na

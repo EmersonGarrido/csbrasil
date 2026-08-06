@@ -245,6 +245,21 @@ export function buildPoolDay(scene, T) {
     }
   }
 
+  /* ---------------- murais dedicados na parede dos armários (pedido do dono, 06/08) ------
+     As duas peças grandes fictícias de `textures.js` (becos da Quebrada levam as mesmas).
+     ONDE: paredes leste/oeste, centradas em z=6, base a 2,2 m — exatamente ACIMA da parede
+     de armários (topo a 2,1 m, face em ±15,95), que é a vaga que o dono nomeou. O z=6 não
+     é sorteado: fica no vão entre os cartazes de z=-2 e z=14 (cada um com ±0,8 m) e entre
+     os bancos de armário de z=0 e z=11. Topo a 4,5 m, abaixo da faixa navy de leitura.
+     São as únicas peças COLORIDAS grandes do salão — exceção deliberada do dono à regra
+     "só pixação" deste mapa; ficam na lateral, fora do plano de fundo do duelo axial. */
+  {
+    const MH = 2.3, MW = MH * 1.8333, MY = 2.2 + MH / 2, MOFF = 0.06;   // 1408×768 medido
+    // nome = quem é o arquivo: em node a textura nunca carrega e o nome é a única régua
+    if (T.muralEternamente) { const a = addPlane(MW, MH, lam({ map: T.muralEternamente, side: THREE.DoubleSide }), -HALF_X + MOFF, MY, 6, Math.PI / 2); a.name = 'mural:eternamente'; }
+    if (T.muralLesteVive) { const b = addPlane(MW, MH, lam({ map: T.muralLesteVive, side: THREE.DoubleSide }), HALF_X - MOFF, MY, 6, -Math.PI / 2); b.name = 'mural:leste-vive'; }
+  }
+
   /* Segunda leva de decalque (pilastra/armário/guarita). Preenchida pelo bloco abaixo e
      DISPARADA depois que esses volumes existem — ver o comentário dentro do bloco. */
   let pintaCobertura = null;

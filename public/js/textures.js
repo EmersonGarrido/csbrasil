@@ -469,6 +469,7 @@ export function initTextures() {
   const POSTER_FILES = [
     ['ashtar.png', 0.5625, 1.35], ['ashtar.png', 0.5625, 1.35],
     ['ashtar-meme.jpg', 0.98, 1.2],   // o MEME original — o dono mandou voltar ('estava bom tb')
+    ['despisque-leao.jpg', 0.86, 1.2], // o par do meme (leão 'despisque') — voltou junto, pedido de 06/08
     ['DOLLYNHO.png', 0.5625], ['New Project (1).png', 0.5625],
     ['New Project (2).png', 0.5625], ['New Project (3).png', 0.5625],
     ['25c9112229edfcfbb1eae4137ecc151a.jpg', 0.6],
@@ -495,6 +496,23 @@ export function initTextures() {
   });
   T.posterAspects = POSTER_FILES.map(([, a]) => a);
   T.posterEscala = POSTER_FILES.map(([, , e]) => e || 1);   // multiplicador de altura por cartaz
+
+  /* --- murais DEDICADOS (pedido do dono, 06/08) -----------------------------------
+     Não entram no POSTER_FILES: não são cartaz de rotação, são peça com vaga fixa
+     (becos da Quebrada, parede de armários do Piscinão) e tamanho grande (~2,3 × 4,2 m).
+     Personagens FICTÍCIOS gerados por IA no espírito dos murais de muro da periferia —
+     a regra editorial (LICENSE, /sobre) proíbe pessoa real, então o "Zoi de Gato" vira
+     personagem original. O dono pode trocar o ARQUIVO mantendo o nome e a vaga segue.
+     Aspecto medido: 1408×768 = 1,8333. */
+  const _mural = (f) => {
+    const t = _tl.load('posters/' + f);
+    t.colorSpace = THREE.SRGBColorSpace;
+    t.minFilter = THREE.LinearMipmapLinearFilter;
+    return t;
+  };
+  T.muralEternamente = _mural('mural-eternamente.jpg');  // "ETERNAMENTE EM NOSSOS CORAÇÕES"
+  T.muralLesteVive = _mural('mural-leste-vive.jpg');     // "DA LESTE VIVE"
+  // T.muralBilu = _mural('bilu.jpg');  // VHS do Bilu — esperando o arquivo do dono
 
   /* --- graffiti decals (public/img/decals) — elementos recortados com fundo
      transparente por `tools/gen-graffiti-decals.mjs` a partir de `references/graffiti/`.
