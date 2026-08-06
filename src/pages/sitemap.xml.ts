@@ -30,6 +30,10 @@ import type { APIRoute } from 'astro';
 import { supabaseAdmin } from '../lib/supabase';
 import { SITE, RANKING_ON } from '../lib/site';
 import { FACCOES } from '../data/jogo';
+import {
+  POR_PAGINA, numeroDePaginas, offsetDaPagina, xmlUrlset, xmlIndex,
+  type Entrada,
+} from '../lib/sitemap';
 
 export const prerender = false;
 
@@ -43,7 +47,7 @@ export const prerender = false;
 // documentação do Google é explícita: "don't include noindex URLs in your
 // sitemap" — https://developers.google.com/search/docs/crawling-indexing/sitemaps/build-sitemap
 // Quando `RANKING_ON` voltar a true, as duas voltam sozinhas.
-const STATIC: [string, string, string][] = [
+export const STATIC: [string, string, string][] = [
   ['/',            '1.0', 'daily'],
   ...(RANKING_ON ? [['/ranking', '0.9', 'hourly'] as [string, string, string]] : []),
   ['/como-jogar',  '0.8', 'weekly'],
@@ -59,41 +63,67 @@ const STATIC: [string, string, string][] = [
   ['/changelog',   '0.5', 'weekly'],
 ];
 
-const esc = (s: string) =>
-  s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-   .replace(/"/g, '&quot;').replace(/'/g, '&apos;');
-
 export const GET: APIRoute = async () => {
   const today = new Date().toISOString().slice(0, 10);
-  const urls: string[] = STATIC.map(([path, prio, freq]) =>
-    `  <url><loc>${SITE}${path}</loc><lastmod>${today}</lastmod>` +
-    `<changefreq>${freq}</changefreq><priority>${prio}</priority></url>`);
+  const fixas: Entrada[] = STATIC.map(([path, prio, freq]) => ({
+    loc: `${SITE}${path}`, lastmod: today, changefreq: freq, priority: prio,
+  }));
 
+  /* QUANTOS PERFIS EXISTEM. Precisa saber ANTES de decidir entre urlset e
+     índice, e um `count` com `head: true` não traz linha nenhuma — é bem mais
+     barato que puxar 5.000 registros só pra contar. */
+  let totalPerfis = 0;
   if (RANKING_ON && supabaseAdmin) {
-    // Vai em `stats` e não na view `leaderboard` por dois motivos: a view tem
-    // `limit 500` cravado (o sitemap tem que cobrir TODO mundo, não o top 500)
-    // e não expõe `updated_at`, que é o `lastmod` honesto de um perfil.
-    const { data } = await supabaseAdmin
+    const { count } = await supabaseAdmin
       .from('stats')
-      .select('updated_at, players!inner(id, nick, hidden)')
-      .eq('players.hidden', false)
-      .limit(5000);
-    for (const row of (data ?? []) as any[]) {
-      const p = row.players;
-      if (!p?.id || !p?.nick) continue;
-      const loc = `${SITE}/u/${p.id}/${encodeURIComponent(p.nick)}`;
-      const lastmod = row.updated_at ? String(row.updated_at).slice(0, 10) : today;
-      urls.push(
-        `  <url><loc>${esc(loc)}</loc><lastmod>${lastmod}</lastmod>` +
-        `<changefreq>weekly</changefreq><priority>0.6</priority></url>`);
-    }
+      .select('updated_at, players!inner(id, nick, hidden)', { count: 'exact', head: true })
+      .eq('players.hidden', false);
+    totalPerfis = count ?? 0;
   }
 
-  const xml =
-    `<?xml version="1.0" encoding="UTF-8"?>\n` +
-    `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n` +
-    urls.join('\n') + `\n</urlset>\n`;
+  const total = fixas.length + totalPerfis;
 
+  /* MODO ÍNDICE. Só quando o conteúdo passa de uma página — ver o comentário de
+     estratégia em src/lib/sitemap.ts. Abaixo do teto, a resposta é idêntica à
+     de antes desta mudança. */
+  if (total > POR_PAGINA) {
+    const n = numeroDePaginas(total);
+    return xmlResposta(xmlIndex(
+      Array.from({ length: n }, (_, i) => ({ loc: `${SITE}/sitemap-${i + 1}.xml`, lastmod: today })),
+    ));
+  }
+
+  const entradas = fixas.concat(await perfis(0, POR_PAGINA - fixas.length, today));
+  return xmlResposta(xmlUrlset(entradas));
+};
+
+/** Uma fatia dos perfis, já como entradas de sitemap. Usada pelas duas rotas. */
+export async function perfis(offset: number, limite: number, today: string): Promise<Entrada[]> {
+  if (!RANKING_ON || !supabaseAdmin || limite <= 0) return [];
+  // Vai em `stats` e não na view `leaderboard` por dois motivos: a view tem
+  // `limit 500` cravado (o sitemap tem que cobrir TODO mundo, não o top 500) e
+  // não expõe `updated_at`, que é o `lastmod` honesto de um perfil.
+  const { data } = await supabaseAdmin
+    .from('stats')
+    .select('updated_at, players!inner(id, nick, hidden)')
+    .eq('players.hidden', false)
+    .order('updated_at', { ascending: false })
+    .range(offset, offset + limite - 1);
+  const out: Entrada[] = [];
+  for (const row of (data ?? []) as any[]) {
+    const p = row.players;
+    if (!p?.id || !p?.nick) continue;
+    out.push({
+      loc: `${SITE}/u/${p.id}/${encodeURIComponent(p.nick)}`,
+      lastmod: row.updated_at ? String(row.updated_at).slice(0, 10) : today,
+      changefreq: 'weekly',
+      priority: '0.6',
+    });
+  }
+  return out;
+}
+
+export function xmlResposta(xml: string): Response {
   return new Response(xml, {
     headers: {
       'content-type': 'application/xml; charset=utf-8',
@@ -102,4 +132,4 @@ export const GET: APIRoute = async () => {
       'cache-control': 'public, max-age=600, s-maxage=3600, stale-while-revalidate=86400',
     },
   });
-};
+}
