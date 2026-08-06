@@ -117,3 +117,16 @@ tools/eval/.cache/
 
 # Config local do Claude Code (permissões por máquina — não vai pro repo público)
 .claude/settings.local.json
+
+# Material de REFERÊNCIA/instrução de IA — imagens e vídeos de terceiros (CS 1.6,
+# Valorant) e prompts internos. Decisão do dono (05/08): fica FORA do repo público;
+# o que valer a pena vira página em docs/ depois.
+/1st player/
+/scenario-ref/
+/prompts/
+/prev-*.webp
+/audio-pack.zip
+
+# SQL de ofuscação de schema — entregue pronto e NÃO aplicado; publicar o mapa
+# de ofuscação anularia a ofuscação. Fica local até decisão do dono.
+/supabase/opcional/

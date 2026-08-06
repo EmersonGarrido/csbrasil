@@ -459,6 +459,27 @@ towner, drinkstand e as caixas da praça ganharam de graça.
 apagar o `ry` deixaria a régua verde por vacuidade) e 2 mutações medidas: `--mutante=aabb`
 acende com 2,033 m de parede fantasma, `--mutante=semry` acende no inventário.
 
+**3ª RODADA — 05/08: "ainda tem problemas com o box do ônibus e barracas", com o obb-check
+VERDE.** O dono estava certo de novo, e o furo era da RÉGUA: o obb-check compara o `_collide`
+com a **caixa declarada** — ele não enxerga caixa declarada mais gorda que a malha visível. E
+todos esses colisores nasciam do `Box3` do **GLB inteiro, em toda altura**: guarda-sol,
+telhado de barraquinha, saia de lona e retrovisor contavam como parede na altura do peito.
+Medido por vértice (faixa de colisão y 0,25–2,05 m, percentil 1–99 ponderado por área):
+
+| prop | caixa (Box3 cheio) | corpo tocável na faixa | parede fantasma |
+|---|---|---|---|
+| ônibus | 9,26 × 4,48 m | **8,85 × 4,21 m** | retrovisor + aba do teto |
+| tenda (×12) | 3,14 × 3,14 m | **2,06 × 2,22 m** | ~0,5 m de lona/quina por lado |
+| barraquinha (×4) | 2,44 × 2,12 m | **2,29 × 1,15 m** | o TELHADO dobrava a profundidade |
+| drinkstand | 2,86 × 3,06 m | **2,28 × 2,52 m** | o guarda-sol |
+
+**Correção:** tabela `PEGADA_CORPO` (frações medidas do box local) aplicada no colisor do
+`putBuilding` + colRot do ônibus com `PEGADA_BUS` (map_brasilia.js). Urna e towner foram
+medidos e ficaram como estão (caixa ≈ corpo). **Régua nova: `npm run eval:pegada`**
+(`tools/eval/pegada-check.mjs`, no `check:fast`) — recomputa a pegada dos GLBs e acusa
+deriva da tabela; mutação de +0,17 numa fração acende. `botsim 60 awp_map` depois do
+conserto: stuck 1,57 %, eff 0,246 — sem regressão de rota.
+
 ### ~~BUG-22 · Não dá para andar debaixo da escada (Havan)~~ · RESOLVIDO 04/08 (metade do jogador)
 
 **Correção: chão multinível no motor.** `groundHeightAt(x, z)` virou
@@ -966,6 +987,65 @@ projeto já registra que rig de dedo de verdade exige sair do Meshy.
 **Régua:** `tools/eval/select-inflate.mjs` (16/44 vermelhos hoje). Morde:
 `--mutate=skin` devolve o off-by-one do `88144c4` e leva as duas referências ao vermelho
 (mandrake 24,9→97,7; pagodeiro 44,6→111). `--mutate=curl` leva o pagodeiro a 15,52 %>25.
+
+#### BUG-25 (3º ciclo) · "todos estão com posturas bizarras ainda" — RESOLVIDO na parte do PORTE (05/08)
+
+**Sintoma (do dono, 05/08, com 19 prints):** arma "flutuando" na palma aberta, arma sumida
+na mão (coach/trapfunk/mandrake), revólver na ponta dos dedos apontando pro céu
+(bonzo/cadequinha), jozo com a shotgun atrás do corpo.
+
+**Três causas independentes, todas medidas:**
+
+1. **Cache.** O print do jozo (arma atrás do corpo) era o `glbchars.js` VELHO: o clamp de
+   frente via IK (`TP_FRONT_MIN`) já estava na árvore, mas o `?v=` continuava
+   `2.0.0-alpha.13` — a armadilha documentada do import map, de novo. Bump → alpha.14.
+2. **O porte funcional aponta o cano pra CÂMERA do preview.** Doutrina do mount v2: "a arma
+   aponta pra onde o boneco olha" (−6°, 4°) — certo pro bot, mas no preview da seleção o
+   cano vai reto pra lente e a arma vira um toco sem silhueta (capturas sel_now: SCAR do
+   coach/trapfunk = borrão vertical). **Correção: porte de EXIBIÇÃO só no preview**
+   (`opts.preview`, main.js/pvSetChar): 2 mãos atravessada no peito (−14°, 40°); 1 mão
+   compensa a inclinação intrínseca do cano das pistolas (+18–21° medidos por vértice) com
+   (4°, 26°). No jogo, nada muda.
+3. **`GUN_POS z=0,10`**: o grip (origem do weaponModel) nascia 10 cm à frente do centro da
+   palma — o revólver "na ponta dos dedos". Agora 0,04 (grip dentro da mão).
+
+**Régua: `tools/eval/select-mount.mjs` → 0/44** (antes: 4 reprovados, todos falso positivo —
+a v1 media punho→bbox e reprovava mão grande com a palma a 0,001 m do alvo do guarda-mão;
+v2 mede PALMA→alvo quando o IK existe, mascote `IK_L_SKIP` isento, piso de contato 0,02 m).
+Mutação `--mutate=tras` segue vermelha (mandrake MÃO-L 0,349). `select-inflate` no subconjunto:
+0/5, sem regressão de deformação.
+
+**Continua aberto (é o resto do "bizarro", e não é mount):** o clipe `idle1h` põe as duas
+mãos em concha "mirando" — com rig Meshy de 24 ossos SEM dedos, nenhuma orientação faz a
+mão FECHAR no punho. O caminho já decidido na memória do projeto é pose/malha (grip baked
+ou rig com dedos fora do Meshy), não mais parâmetro de mount.
+
+#### BUG-25 (4º ciclo) · "continuam todos errados" — A CAUSA RAIZ ERA NOS CLIPES · RESOLVIDO 05/08
+
+O dono reprovou o 3º ciclo ("todos que você mostrou estão ruins, comparado com todo o
+resto") e estava certo: o porte era band-aid em cima de outro defeito. Comparando o padrão
+BOM (skatista/titica: duas mãos na arma, cotovelos baixos) com os piores, o separador é a
+razão **mão/cabeça no BIND** (medida em todos os 44 GLBs):
+
+```
+coach 0,60 · dollynho 0,70 · trapfunk 0,70 · jozo 0,71   <- BIND EM A-POSE (os 4 piores)
+todos os outros 40: 0,83–1,00                            <- T-pose
+```
+
+**Causa raiz:** o `retarget-glb.mjs` transfere rotação por DELTA
+(`desiredW = srcW ⊗ srcRest⁻¹ ⊗ tgtRest`) — correto para diferença de comprimento de
+osso, mas ele PRESERVA o offset do rest do alvo. Com bind em A-pose, **todo clipe sai com
+o braço 30–40° fora do lugar** — por isso o defeito sobreviveu a re-rig, reskin, porte e
+clamp: morava nos clipes gerados, não no GLB nem no runtime.
+
+**Correção:** braços (`/Shoulder|Arm|Hand/`) em rotação **absoluta** no retarget; perna e
+coluna seguem no delta (que é o que consertou "doutora agachada"). Para rig em T,
+srcRest ≈ tgtRest e delta ≡ absoluto — **no-op medido nos 40 bons**. Clipes regenerados
+para os 4; **trapfunk também foi re-riggado via Mint** (pedido do dono; o pipeline do Mint
+voltou a funcionar — GLB novo 531 KB com texturas restauradas via `rig-tex-restore`).
+
+**Medido depois:** `select-mount` **0/44**; `select-inflate` nos 4: 0/4, com o trapfunk
+MELHOR que antes (21,4 → 14,6 ruins/1e4). A/B por figura na página da rodada.
 
 ### BUG-11 · VM18 / VM18b — a silhueta é um cano, não uma arma
 
