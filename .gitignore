@@ -130,3 +130,9 @@ tools/eval/.cache/
 # SQL de ofuscação de schema — entregue pronto e NÃO aplicado; publicar o mapa
 # de ofuscação anularia a ofuscação. Fica local até decisão do dono.
 /supabase/opcional/
+
+# ── Cliente Godot (veio da main, PR #14) ────────────────────────────────────
+godot/.godot/
+.godot-ci/
+test-results/
+playwright-report/
