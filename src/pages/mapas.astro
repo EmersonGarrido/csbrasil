@@ -78,9 +78,9 @@ const jsonld = [
   <article class="card wide">
     <div class="fig">
       <img src={preview(destaque.id)} width="640" height="640" alt={`Vista aérea da arena ${destaque.nome}`} loading="eager" decoding="async">
-      <span class="fig-tag">{destaque.nome}</span>
     </div>
     <div class="card-body">
+      <h2 class="map-nome">{destaque.nome}</h2>
       <p class="meta">
         <b>4v4</b><i>·</i>{destaque.ctf ? 'CTF' : 'Rounds'}<i>·</i>
         {destaque.ctf ? '4 bandeiras' : '1:39 por round'}<i>·</i><code>{destaque.id}</code>
@@ -95,9 +95,10 @@ const jsonld = [
       <article class="card">
         <div class="fig">
           <img src={preview(m.id)} width="640" height="640" alt={`Vista aérea da arena ${m.nome}`} loading="lazy" decoding="async">
-          <span class="fig-tag">{m.nome}</span>
+
         </div>
         <div class="card-body">
+          <h3 class="map-nome">{m.nome}</h3>
           <p class="meta">
             <b>4v4</b><i>·</i>{m.ctf ? 'CTF' : 'Rounds'}<i>·</i>
             {m.ctf ? '4 bandeiras' : '1:39 por round'}<i>·</i><code>{m.id}</code>

@@ -27,7 +27,6 @@ sem cadastro.
 | Arnêses visuais em HTML | 12 | `ls public/*.html \| wc -l` |
 | Scripts do arnês | 150 | `ls tools/eval/*.mjs tools/eval/*.py \| wc -l` |
 | Scripts de pipeline | 43 | `ls tools/*.mjs \| wc -l` |
-| Migrations do Supabase | 12 | `ls supabase/migrations/*.sql \| wc -l` |
 | Tarefas de entrada escritas | 15 | `ls docs/issues/[0-9]*.md \| wc -l` |
 | Versão | `2.0.0-alpha.18` | `public/js/version.js` e `package.json` (batem) |
 
@@ -74,7 +73,7 @@ arquitetura): `cd docs && npm install && npm start` → <http://localhost:3000/d
 | Jogo | ES modules vanilla, **zero build** | 27 arquivos |
 | Site | **Astro** com SSR | `^7.1.1` |
 | Hospedagem | adapter **Vercel** | `^11.0.3` |
-| Banco | **Supabase** (Postgres + RLS) | `^2.110.7` |
+| Banco | **Postgres gerenciado** (RLS; schema privado, fora do repo) | `^2.110.7` |
 | Browser nas réguas | **Playwright** | `^1.62.1` |
 | Pipeline de GLB | **gltf-transform** | `^4.4.1` |
 | Compressão de malha | **meshoptimizer** | `^1.2.0` |
@@ -82,7 +81,7 @@ arquitetura): `cd docs && npm install && npm start` → <http://localhost:3000/d
 | Esta documentação | **Docusaurus** | `3.6.3` |
 | Runtime de CI | **Node** | `22` |
 
-Three.js sai de `public/vendor/three.module.js` (**sem CDN, sem npm no runtime**). Astro e Vercel de `package.json` + `astro.config.mjs` + `vercel.json`. Supabase tem 12 migrations em `supabase/`. Dos scripts de `tools/`, **94** importam Playwright, **36** importam gltf-transform e **4** importam meshoptimizer.
+Three.js sai de `public/vendor/three.module.js` (**sem CDN, sem npm no runtime**). Astro e Vercel de `package.json` + `astro.config.mjs` + `vercel.json`. Dos scripts de `tools/`, **94** importam Playwright, **36** importam gltf-transform e **4** importam meshoptimizer.
 
 > Bloco gerado por `node tools/gen-docs.mjs`. Fonte: `dependencies/devDependencies do package.json · REVISION de public/vendor/three.module.js`
 
@@ -107,7 +106,7 @@ Um repositório, **duas zonas com regras diferentes**:
   ranking global, perfis públicos, páginas de conteúdo e as rotas `/api/*`. Aqui
   framework é bem-vindo — mas o jogo continua intocado.
 
-O ranking e a telemetria vivem no **Supabase** (`supabase/`) — o ranking está
+O ranking e a telemetria vivem num **Postgres gerenciado** (schema privado, fora do repo) — o ranking está
 **desligado por flag** hoje, a coleta não parou (ver a seção abaixo). A
 `service_role` key fica só no servidor; a `anon` key é pública por design, e a
 segurança vem das policies e dos grants por coluna.
@@ -135,7 +134,6 @@ src/
 public/                O JOGO (vanilla, zero build)
   js/ vendor/ models/ style.css robots.txt llms.txt og-image.png
   audio/                 ⚠ NÃO versionado — ver "Áudio" abaixo
-supabase/              schema, migrations e a ofuscação opcional
 tools/                 pipeline de asset (gen-asset, gen-image, otimização de GLB)
   gen-arch.mjs         GERA tools/eval/ARCH.md (índice + tabela de conflito)
   gen-docs.mjs         GERA os blocos numéricos deste README e de docs/

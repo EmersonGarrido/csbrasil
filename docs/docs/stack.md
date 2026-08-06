@@ -20,7 +20,7 @@ a partir do `package.json`, do `docs/package.json` e do próprio Three.js vendor
 | Jogo | ES modules vanilla, **zero build** | 27 arquivos |
 | Site | **Astro** com SSR | `^7.1.1` |
 | Hospedagem | adapter **Vercel** | `^11.0.3` |
-| Banco | **Supabase** (Postgres + RLS) | `^2.110.7` |
+| Banco | **Postgres gerenciado** (RLS; schema privado, fora do repo) | `^2.110.7` |
 | Browser nas réguas | **Playwright** | `^1.62.1` |
 | Pipeline de GLB | **gltf-transform** | `^4.4.1` |
 | Compressão de malha | **meshoptimizer** | `^1.2.0` |
@@ -28,7 +28,7 @@ a partir do `package.json`, do `docs/package.json` e do próprio Three.js vendor
 | Esta documentação | **Docusaurus** | `3.6.3` |
 | Runtime de CI | **Node** | `22` |
 
-Three.js sai de `public/vendor/three.module.js` (**sem CDN, sem npm no runtime**). Astro e Vercel de `package.json` + `astro.config.mjs` + `vercel.json`. Supabase tem 12 migrations em `supabase/`. Dos scripts de `tools/`, **94** importam Playwright, **36** importam gltf-transform e **4** importam meshoptimizer.
+Three.js sai de `public/vendor/three.module.js` (**sem CDN, sem npm no runtime**). Astro e Vercel de `package.json` + `astro.config.mjs` + `vercel.json`. Dos scripts de `tools/`, **94** importam Playwright, **36** importam gltf-transform e **4** importam meshoptimizer.
 
 > Bloco gerado por `node tools/gen-docs.mjs`. Fonte: `dependencies/devDependencies do package.json · REVISION de public/vendor/three.module.js`
 
@@ -86,9 +86,10 @@ Aqui framework é bem-vindo. As regras que valem:
 E a pegadinha que custa a primeira hora de todo mundo: **`src/pages/index.astro` É o
 jogo**, servido na rota `/`. Não existe `public/index.html`.
 
-### Supabase — Postgres, RLS e telemetria
+### Banco — Postgres gerenciado, RLS e telemetria
 
-O ranking e a telemetria vivem no Supabase (`supabase/`): schema, migrations e a
+O ranking e a telemetria vivem num Postgres gerenciado. Schema e migrations são
+privados (fora do repo — decisão de segurança); o runtime só usa as envs.
 ofuscação opcional que foi entregue pronta e **deliberadamente não aplicada**.
 
 A segurança não vem de esconder a `anon` key — ela é pública por design e vai ao browser

@@ -51,7 +51,6 @@ esta página envelhecia no primeiro commit — ver
 | Arnêses visuais em HTML | 12 | `ls public/*.html \| wc -l` |
 | Scripts do arnês | 150 | `ls tools/eval/*.mjs tools/eval/*.py \| wc -l` |
 | Scripts de pipeline | 43 | `ls tools/*.mjs \| wc -l` |
-| Migrations do Supabase | 12 | `ls supabase/migrations/*.sql \| wc -l` |
 | Tarefas de entrada escritas | 15 | `ls docs/issues/[0-9]*.md \| wc -l` |
 | Versão | `2.0.0-alpha.18` | `public/js/version.js` e `package.json` (batem) |
 
@@ -200,7 +199,7 @@ tools/
   gen-asset.mjs           gera prop 3D por texto (Tripo/Meshy)
   gen-image.mjs           gera arte 2D por texto (OpenRouter)
 
-supabase/               schema + migrations do ranking (DESLIGADO — ver estado.md)
+                        (banco: schema/migrations são PRIVADOS — fora do repo)
 .github/workflows/ci.yml  o portão rodando em CI
 ```
 

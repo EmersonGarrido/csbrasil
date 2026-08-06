@@ -40,9 +40,9 @@ não enumerada à mão:
 | Superfície | Arquivo | Onde diz `MIT` |
 |---|---|---|
 | licença canônica | `LICENSE` | linhas 1, 32  |
-| badge + seção de licenças | `README.md` | linhas 3, 325, 336, 339  |
+| badge + seção de licenças | `README.md` | linhas 3, 323, 334, 337  |
 | termo que o contribuidor aceita | `CONTRIBUTING.md` | linhas 158, 163  |
-| rodapé do site | `src/layouts/Layout.astro` | linha 555  |
+| rodapé do site | `src/layouts/Layout.astro` | linha 557  |
 | JSON-LD do jogo | `src/pages/index.astro` | linha 101  |
 | página `/sobre` | `src/pages/sobre.astro` | linhas 121, 135  |
 | `llms.txt` (resposta para LLM) | `public/llms.txt` | linhas 9, 46, 48  |
@@ -50,7 +50,7 @@ não enumerada à mão:
 
 **16 ocorrências** de `MIT` em **8** das 8 superfícies declaradas. Trocar a licença é mudar **todas elas no mesmo commit**: metade trocada é pior que nenhuma, porque cada arquivo passa a responder uma coisa diferente para quem pergunta.
 
-`AGPL` já aparece em `README.md` (linhas 331, 337), `CONTRIBUTING.md` (linha 162), `src/pages/sobre.astro` (linha 122), `public/llms.txt` (linha 47) — como **aviso de mudança planejada**, não como declaração. A regra é essa: nenhum arquivo pode DECLARAR `AGPL` antes de o `LICENSE` dizer.
+`AGPL` já aparece em `README.md` (linhas 329, 335), `CONTRIBUTING.md` (linha 162), `src/pages/sobre.astro` (linha 122), `public/llms.txt` (linha 47) — como **aviso de mudança planejada**, não como declaração. A regra é essa: nenhum arquivo pode DECLARAR `AGPL` antes de o `LICENSE` dizer.
 
 > Bloco gerado por `node tools/gen-docs.mjs`. Fonte: `grep -n do nome lido do LICENSE, nas superfícies declaradas em tools/gen-docs.mjs`
 

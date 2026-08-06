@@ -137,7 +137,7 @@ Do `tools/eval/ARCH.md` (bloco gerado — as faixas abaixo são as da geração 
 | **UI / HUD / MENU** | `main.js` `public/style.css` `src/pages/index.astro` |
 | **ÁUDIO** | `audio.js` |
 | **PERSONAGENS** | `characters.js` `glbchars.js` |
-| **SITE / BACKEND** | `src/` `supabase/` |
+| **SITE / BACKEND** | `src/` |
 
 :::caution Dois arquivos de mapa NÃO têm dono declarado
 `map_quebrada.js` (1.319 linhas, o mapa mais novo) e `map_decals.js` **não aparecem em

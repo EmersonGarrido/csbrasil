@@ -359,7 +359,6 @@ const BLOCOS = {
     `| Arnêses visuais em HTML | ${f.portao.arnesesHtml} | \`ls public/*.html \\| wc -l\` |`,
     `| Scripts do arnês | ${f.portao.scriptsEval} | \`ls tools/eval/*.mjs tools/eval/*.py \\| wc -l\` |`,
     `| Scripts de pipeline | ${f.portao.scriptsTools} | \`ls tools/*.mjs \\| wc -l\` |`,
-    `| Migrations do Supabase | ${f.supabase.migrations} | \`ls supabase/migrations/*.sql \\| wc -l\` |`,
     `| Tarefas de entrada escritas | ${f.issues.escritas} | \`ls docs/issues/[0-9]*.md \\| wc -l\` |`,
     `| Versão | \`${f.versao.jogo}\` | \`public/js/version.js\`${f.versao.concordam ? ' e `package.json` (batem)' : ' — **DIVERGE do `package.json`: `' + f.versao.pacote + '`**'} |`,
     rodape('o comando da coluna direita de cada linha'),
@@ -470,7 +469,7 @@ const BLOCOS = {
     `| Jogo | ES modules vanilla, **zero build** | ${f.jogo.arquivos} arquivos |`,
     `| Site | **Astro** com SSR | \`${f.stack.astro}\` |`,
     `| Hospedagem | adapter **Vercel** | \`${f.stack.adapter}\` |`,
-    `| Banco | **Supabase** (Postgres + RLS) | \`${f.stack.supabase}\` |`,
+    `| Banco | **Postgres gerenciado** (RLS; schema privado, fora do repo) | \`${f.stack.supabase}\` |`,
     `| Browser nas réguas | **Playwright** | \`${f.stack.playwright}\` |`,
     `| Pipeline de GLB | **gltf-transform** | \`${f.stack.gltfTransform}\` |`,
     `| Compressão de malha | **meshoptimizer** | \`${f.stack.meshopt}\` |`,
@@ -480,8 +479,7 @@ const BLOCOS = {
     '',
     `Three.js sai de \`public/vendor/three.module.js\` (**sem CDN, sem npm no runtime**). ` +
     `Astro e Vercel de \`package.json\` + \`astro.config.mjs\` + \`vercel.json\`. ` +
-    `Supabase tem ${f.supabase.migrations} migrations em \`supabase/\`. ` +
-    `Dos scripts de \`tools/\`, **${f.pipeline.playwright}** importam Playwright, ` +
+        `Dos scripts de \`tools/\`, **${f.pipeline.playwright}** importam Playwright, ` +
     `**${f.pipeline.gltf}** importam gltf-transform e **${f.pipeline.meshopt}** importam meshoptimizer.`,
     rodape(f.stack.cmd),
   ].join('\n'),
