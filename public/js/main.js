@@ -10,6 +10,7 @@ import { setHavanCarSeed } from './map_havan.js';
 import { Sfx } from './audio.js';
 import { Game, vmPreloadClasses, confirmGate, CONFIRM_MAX_MS } from './game.js';
 import { VERSION } from './version.js';
+import { LANG, translateDom } from './i18n.js';
 import { enableLightBloom } from './bloom.js';
 import { enableStylize } from './stylize.js';
 
@@ -428,6 +429,18 @@ let heartbeatOff = false;
    view online_now (heartbeat < 2 min). `hidden` até ter número: rodapé nunca mostra
    zero mentiroso quando o backend está fora/local. Atualiza a cada 60 s só no menu. */
 { const v = document.getElementById('mf-ver'); if (v) v.textContent = `CORO SOLTO v${VERSION}`; }
+// EN por camada: varre o menu estático UMA vez (PT é a fonte; i18n.js explica o desenho)
+translateDom(document.body);
+// seletor de idioma em CONFIGURAÇÕES: grava e recarrega (o dicionário aplica no boot)
+{ const sel = document.getElementById('set-lang');
+  if (sel) {
+    let salvo = null; try { salvo = localStorage.getItem('cs_lang'); } catch {}
+    sel.value = salvo || 'auto';
+    sel.onchange = () => {
+      try { salvo = sel.value === 'auto' ? localStorage.removeItem('cs_lang') : localStorage.setItem('cs_lang', sel.value); } catch {}
+      location.reload();
+    };
+  } }
 async function _refreshOnline() {
   try {
     const r = await fetch('/api/online');

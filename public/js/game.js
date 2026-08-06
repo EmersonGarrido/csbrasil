@@ -2148,10 +2148,10 @@ export class Game {
     /* game.js:1878 — o banner tem que DECLARAR a condição de vitória do modo, senão o
        jogador não sabe pelo que está jogando. No CAPTURA a condição é bandeira, não
        relógio: dizer "primeiro a 2 bandeiras" é o que substitui o cronômetro que saiu. */
-    this._banner(`ROUND ${this.roundNum}`, this.ctf
-      ? `Primeiro time a ${this.capsToWin} bandeiras leva a rodada`
-      : (PACE ? `Primeiro time a ${this.killsToWin} abates leva`
-        : (this.roundNum === 1 ? 'Que comece a treta!' : 'De volta pra treta!')));
+    this._banner(frase('round', this.roundNum), this.ctf
+      ? frase('alvoBandeiras', this.capsToWin)
+      : (PACE ? frase('alvoAbates', this.killsToWin)
+        : (this.roundNum === 1 ? frase('comeceTreta') : frase('voltaTreta'))));
     if (!this.sfx.csSound('roundstart')) this.sfx.vuvuzela(1.4);
   }
   _resetPositions() {
@@ -2410,7 +2410,7 @@ export class Game {
     if (!this._matchPoint && alvo > 1 && lider >= alvo - 1) {
       this._matchPoint = true;
       const lado = cp > cb ? 'E' : 'B';
-      this._banner('BANDEIRA DECISIVA', `${this._teamName(lado)} a ${alvo - lider} de levar a rodada`);
+      this._banner(frase('bandeiraDecisiva'), `${this._teamName(lado)} a ${alvo - lider} de levar a rodada`);
       try { this.sfx.vuvuzela(0.9); } catch {}
     }
     if (lider >= alvo) this._roundOverPedido = true;
@@ -2423,7 +2423,7 @@ export class Game {
     if (!this._matchPoint && lead >= tgt - 2) {
       this._matchPoint = true;
       const side = p > b ? 'E' : 'B';
-      this._banner('MATCH POINT', `${this._teamName(side)} a ${tgt - lead} da vitória`);
+      this._banner(frase('matchPoint'), `${this._teamName(side)} a ${tgt - lead} da vitória`);
       try { this.sfx.vuvuzela(0.9); } catch {}
     }
     if (lead >= tgt) this.timeLeft = 0;   // update() enxerga timeLeft<=0 e chama _endRound
@@ -2492,7 +2492,7 @@ export class Game {
     // Tela de fim estilo CoD/Valorant: VITÓRIA/DERROTA gigante, time vencedor no sub.
     this.el.matchEnd.classList.toggle('win', mine);
     this.el.matchEnd.classList.toggle('lose', !mine);
-    this.el.matchTitle.textContent = mine ? 'VITÓRIA' : 'DERROTA';
+    this.el.matchTitle.textContent = mine ? tr('VITÓRIA') : tr('DERROTA');
     this.el.matchSub.textContent = mine
       ? `${this._teamName(winner)} venceram a treta — a praça é sua. O pastel da vitória está pago.`
       : `${this._teamName(winner)} levaram a melhor — já pediram CPI da partida.`;
@@ -2671,7 +2671,7 @@ export class Game {
     p.pos.set(s.x, this._spawnY(s.x, s.z), s.z); p.vel.set(0, 0, 0);
     p.yaw = newTeam === 'E' ? Math.PI : 0; p.pitch = 0; p.hp = 100;
     this._scope(false, true);
-    this._banner(`VOCÊ AGORA É ${this._teamName(newTeam)}`, 'trocou de lado na treta — sem penalty, só julgamento');
+    this._banner(frase('agoraVoceE', this._teamName(newTeam)), 'trocou de lado na treta — sem penalty, só julgamento');
     this.sfx.uiClick();
   }
 
@@ -6405,7 +6405,7 @@ export class Game {
       const fimProximo = restante <= CTF_CLOCK_SHOW;
       this.el.roundTime.classList.toggle('urgente', fimProximo);
       this.el.roundsRow.textContent =
-        `RODADA ${this.roundNum}/${CTF_ROUNDS_MAX} · BANDEIRAS (ALVO ${alvo}) · ${this._teamTag('E')} ${this.roundsWon.E} × ${this.roundsWon.B} ${this._teamTag('B')}`
+        `${frase('rodadaDe', this.roundNum, CTF_ROUNDS_MAX)} · BANDEIRAS (ALVO ${alvo}) · ${this._teamTag('E')} ${this.roundsWon.E} × ${this.roundsWon.B} ${this._teamTag('B')}`
         + (fimProximo ? ` · FIM DA PARTIDA EM ${Math.floor(restante / 60)}:${String(restante % 60).padStart(2, '0')}` : '');
     } else {
       this.el.roundTime.classList.remove('ctf');
@@ -6415,7 +6415,7 @@ export class Game {
       // "RODADA 2/5" em vez de "RODADA 2": o formato (melhor de 5) agora é garantido pelo
       // ROUNDS_MAX, e um formato garantido que o HUD não conta é um formato que não existe.
       this.el.roundsRow.textContent =
-        `RODADA ${this.roundNum}/${ROUNDS_MAX} · ${this._teamTag('E')} ${this.roundsWon.E} × ${this.roundsWon.B} ${this._teamTag('B')}`;
+        `${frase('rodadaDe', this.roundNum, ROUNDS_MAX)} · ${this._teamTag('E')} ${this.roundsWon.E} × ${this.roundsWon.B} ${this._teamTag('B')}`;
     }
     this.el.scoreP.innerHTML = `${this._teamTag('E')} <b>${this.roundKills.E}</b>`;
     this.el.scoreB.innerHTML = `${this._teamTag('B')} <b>${this.roundKills.B}</b>`;
@@ -6433,7 +6433,7 @@ export class Game {
     this.time += dt;
     if (this.state === 'countdown' && this.time >= this.stateUntil) {
       this.state = 'live';
-      this._banner('VALENDO!', 'A treta está liberada');
+      this._banner(frase('valendo'), 'A treta está liberada');
     } else if (this.state === 'live') {
       /* game.js:5843 — DOIS RITMOS, UM ESTADO 'live'.
          ABATE  : o round é uma janela de tempo (99 s) que o alvo de abates pode encurtar.

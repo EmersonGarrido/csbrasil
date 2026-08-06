@@ -146,31 +146,32 @@
      Gerado por tools/eval/canarinho-icon.mjs a partir do GLB real. -->
 <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-<link rel="stylesheet" href="/style.css?v=2.0.0-alpha.19">
+<link rel="stylesheet" href="/style.css?v=2.0.0-alpha.20">
 <script type="importmap" is:inline>
 { "imports": {
   "three": "./vendor/three.module.js", "three/addons/": "./vendor/addons/",
-  "./js/main.js": "./js/main.js?v=2.0.0-alpha.19",
-  "./js/game.js": "./js/game.js?v=2.0.0-alpha.19",
-  "./js/glbchars.js": "./js/glbchars.js?v=2.0.0-alpha.19",
-  "./js/weapons.js": "./js/weapons.js?v=2.0.0-alpha.19",
-  "./js/characters.js": "./js/characters.js?v=2.0.0-alpha.19",
-  "./js/audio.js": "./js/audio.js?v=2.0.0-alpha.19",
-  "./js/maps.js": "./js/maps.js?v=2.0.0-alpha.19",
-  "./js/map_brasilia.js": "./js/map_brasilia.js?v=2.0.0-alpha.19",
-  "./js/map_piscina.js": "./js/map_piscina.js?v=2.0.0-alpha.19",
-  "./js/map_havan.js": "./js/map_havan.js?v=2.0.0-alpha.19",
-  "./js/map_ferrovelho.js": "./js/map_ferrovelho.js?v=2.0.0-alpha.19",
-  "./js/mapprops.js": "./js/mapprops.js?v=2.0.0-alpha.19",
-  "./js/fparms.js": "./js/fparms.js?v=2.0.0-alpha.19",
-  "./js/vmattach.js": "./js/vmattach.js?v=2.0.0-alpha.19",
-  "./js/stylize.js": "./js/stylize.js?v=2.0.0-alpha.19",
-  "./js/bloom.js": "./js/bloom.js?v=2.0.0-alpha.19",
-  "./js/gpuparticles.js": "./js/gpuparticles.js?v=2.0.0-alpha.19",
-  "./js/textures.js": "./js/textures.js?v=2.0.0-alpha.19",
-  "./js/version.js": "./js/version.js?v=2.0.0-alpha.19",
-  "./js/handik.js": "./js/handik.js?v=2.0.0-alpha.19",
-  "./js/springs.js": "./js/springs.js?v=2.0.0-alpha.19"
+  "./js/main.js": "./js/main.js?v=2.0.0-alpha.20",
+  "./js/game.js": "./js/game.js?v=2.0.0-alpha.20",
+  "./js/glbchars.js": "./js/glbchars.js?v=2.0.0-alpha.20",
+  "./js/weapons.js": "./js/weapons.js?v=2.0.0-alpha.20",
+  "./js/characters.js": "./js/characters.js?v=2.0.0-alpha.20",
+  "./js/audio.js": "./js/audio.js?v=2.0.0-alpha.20",
+  "./js/maps.js": "./js/maps.js?v=2.0.0-alpha.20",
+  "./js/map_brasilia.js": "./js/map_brasilia.js?v=2.0.0-alpha.20",
+  "./js/map_piscina.js": "./js/map_piscina.js?v=2.0.0-alpha.20",
+  "./js/map_havan.js": "./js/map_havan.js?v=2.0.0-alpha.20",
+  "./js/map_ferrovelho.js": "./js/map_ferrovelho.js?v=2.0.0-alpha.20",
+  "./js/mapprops.js": "./js/mapprops.js?v=2.0.0-alpha.20",
+  "./js/fparms.js": "./js/fparms.js?v=2.0.0-alpha.20",
+  "./js/vmattach.js": "./js/vmattach.js?v=2.0.0-alpha.20",
+  "./js/stylize.js": "./js/stylize.js?v=2.0.0-alpha.20",
+  "./js/bloom.js": "./js/bloom.js?v=2.0.0-alpha.20",
+  "./js/gpuparticles.js": "./js/gpuparticles.js?v=2.0.0-alpha.20",
+  "./js/textures.js": "./js/textures.js?v=2.0.0-alpha.20",
+  "./js/version.js": "./js/version.js?v=2.0.0-alpha.20",
+  "./js/i18n.js": "./js/i18n.js?v=2.0.0-alpha.20",
+  "./js/handik.js": "./js/handik.js?v=2.0.0-alpha.20",
+  "./js/springs.js": "./js/springs.js?v=2.0.0-alpha.20"
 } }
 </script>
 </head>
@@ -497,6 +498,13 @@
     <div class="set-cols">
     <div class="set-list">
     <div class="set-pane" data-pane="video" role="tabpanel">
+      <label class="set-row">IDIOMA
+        <select id="set-lang">
+          <option value="auto" selected>Automático (navegador)</option>
+          <option value="pt">Português</option>
+          <option value="en">Inglês</option>
+        </select>
+      </label>
       <label class="set-row">Qualidade gráfica
         <select id="set-quality">
           <option value="low">Batata (rápido)</option>
