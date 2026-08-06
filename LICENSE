@@ -1,6 +1,6 @@
 MIT License
 
-Copyright (c) 2026 CS BRASIL: Treta Suprema contributors
+Copyright (c) 2026 CORO SOLTO: Treta Suprema contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -20,10 +20,18 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
----
+---------------------------------------------------------------------------
+NOTA SOBRE O QUE **NÃO** ESTÁ COBERTO POR ESTA LICENÇA
+---------------------------------------------------------------------------
 
-NOTE: the MIT license above covers the SOURCE CODE only (HTML/CSS/JS).
-Files under `audio/` are user-provided meme clips and are NOT covered by
-this license — verify rights before redistributing them. Three.js
-(vendor/three.module.js) is MIT-licensed by the Three.js authors.
-"Counter-Strike" is a trademark of Valve; this is an unofficial fan satire.
+- `public/audio/` — não é versionada. As faixas de voz e os memes têm direitos
+  incertos e são fornecidos pelo usuário. Verifique os direitos antes de
+  qualquer uso comercial.
+- Samples originais do Counter-Strike 1.6 são propriedade da Valve Corporation
+  e **não** são distribuídos com este projeto.
+- `public/vendor/three.module.js` — Three.js, licença MIT própria
+  (© Three.js authors).
+- `references/` — material de referência visual, uso interno de produção.
+
+Este é um projeto de paródia independente, sem qualquer afiliação com a Valve.
+Counter-Strike é marca registrada da Valve Corporation.

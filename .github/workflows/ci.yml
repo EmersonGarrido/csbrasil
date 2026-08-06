@@ -17,7 +17,37 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Syntax check do jogo (public/js)
-        run: for f in public/js/*.js; do node --input-type=module --check < "$f"; done
+        run: npm run syntax
+
+      # O ARCH.md (índice por linha + tabela de conflito) é GERADO. Escrito à
+      # mão ele desatualiza no primeiro commit, e uma tabela de conflito com
+      # linha errada é pior que não ter tabela: dois agentes acham que estão em
+      # regiões diferentes e não estão.
+      # continue-on-error POR ENQUANTO: o ARCH.md commitado está atrás do
+      # game.js atual. Rode `npm run arch`, commite, e então TROQUE para
+      # bloqueante (remova a linha abaixo) — aí o gate passa a valer.
+      - name: ARCH.md gerado está atualizado
+        continue-on-error: true
+        run: npm run arch:check
+
+      # ── PORTÃO DE QUALIDADE ───────────────────────────────────────────────
+      # Os quatro arneses abaixo rodam em NODE PURO (sem Chrome/SwiftShader) e
+      # terminam em segundos; todos saem com código 1 em falha crítica, então o
+      # `run` já reprova o job sozinho — não precisa de `if`/parser de saída.
+      # DEPENDÊNCIA DE ARTEFATO: invariants.mjs regera vm_kick_sim.json sozinho
+      # (0,08 s) e LÊ tools/eval/vm_mint_audit.json, que precisa estar VERSIONADO —
+      # sem ele VM1..VM6/VM9/VM10 viram PULADAS, que é portão verde por ausência de
+      # dado. `git ls-files tools/eval/vm_mint_audit.json` tem que devolver o arquivo.
+      # A invariante AUD1 cobre o outro lado: o JSON versionado ter ficado velho.
+      - name: Invariantes (portão — falha crítica reprova o PR)
+        run: node tools/eval/invariants.mjs
+      - name: Enquadramento do viewmodel por arma (26 armas, GLB real)
+        run: node tools/eval/vm-mint-audit.mjs
+      - name: Coice do viewmodel (near plane + pitch em rajada)
+        run: node tools/eval/vm-kick-sim.mjs
+      - name: Navegação dos bots (60 s × 5 mapas, sementes fixas)
+        run: node tools/eval/botsim.mjs 60 all
+
       - name: Astro build
         run: npm run build
 
@@ -35,6 +65,6 @@ jobs:
           awk "/^## \\[$TAG\\]/{f=1;next}/^## \\[/{f=0}f" CHANGELOG.md > release-body.md
           [ -s release-body.md ] || echo "Ver commits abaixo." > release-body.md
       - name: Criar GitHub Release
-        run: gh release create "${{ github.ref_name }}" --notes-file release-body.md --title "CS BRASIL ${{ github.ref_name }}"
+        run: gh release create "${{ github.ref_name }}" --notes-file release-body.md --title "CORO SOLTO ${{ github.ref_name }}"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

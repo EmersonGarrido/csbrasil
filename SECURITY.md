@@ -1,4 +1,4 @@
-# Modelo de segurança — CS BRASIL
+# Modelo de segurança — CORO SOLTO: Treta Suprema
 
 ## A verdade técnica primeiro
 
@@ -29,14 +29,29 @@ testemunha as kills. Até lá, as camadas abaixo.
 6. **Registro com rate limit** (10/min por IP) contra nick-farming.
 7. **RLS em todas as tabelas**; escrita só via RPC validado; `service_role`
    key existe apenas nas env vars da Vercel.
-8. **Sem segredos no client** — a anon key é pública por design (a segurança
-   é o RLS, não esconder a chave).
+8. **Sem segredos no client** — a anon key é pública por design. Mas RLS sozinha
+   não bastava: ela filtra LINHAS, não COLUNAS, e não cobre `execute` de função.
+   Ver 9 e 10.
+9. **`players.token` fechado por privilégio de coluna** (migration 011 §1). Até
+   a v2 a anon key lia `select=nick,token` do ranking inteiro — que é
+   exatamente o par que o `submit_match` valida. O ranking era forjável com um
+   `curl`.
+10. **Nenhum RPC é chamável pela anon key** (migration 011 §4). Toda função do
+    Postgres nasce com `execute` pra PUBLIC e o PostgREST publica cada uma em
+    `/rest/v1/rpc/<nome>`: dava pra chamar `_flag` três vezes e esconder
+    qualquer jogador do ranking, sem token nenhum.
+11. **Rate limit durável no Postgres** (migration 011 §3). O limite em `Map` de
+    memória de lambda não sobrevive a cold start — ver `docs/seguranca.md` §3.
+12. **Anti-SSRF** em toda URL que o servidor busca (`src/lib/safe-url.ts`).
+13. **Headers de segurança** no `vercel.json`: CSP, nosniff, Referrer-Policy,
+    Permissions-Policy, HSTS.
 
 ## LGPD / privacidade
 
 - `submit_log` guarda IP + nick + timestamp **apenas** para segurança
-  operacional (anti-abuso), com **retenção máxima de 7 dias** — apague
-  periodicamente: `delete from submit_log where created_at < now() - interval '7 days';`
+  operacional (anti-abuso), com **retenção máxima de 7 dias**. A promessa agora
+  tem job: `public.purge_submit_log(7)`, agendada diariamente no `pg_cron`
+  (migration 011 §2). Até a v2 essa retenção não era aplicada por nada.
 - Geo no mapa é nível cidade (header da Vercel), IP nunca é persistido.
 
 ## Moderação (SQL pronto)
@@ -65,3 +80,20 @@ select * from submit_log where ip = '1.2.3.4' order by created_at desc limit 50;
   o único fix completo contra trainer.
 - Sessões de partida assinadas pelo servidor (partida só conta se iniciada e
   encerrada com o servidor observando).
+
+---
+
+## Detalhamento técnico
+
+`docs/seguranca.md` tem, para cada furo fechado nesta release: onde estava
+(`arquivo:linha`), o que fecha, como testar, e o que **não** foi resolvido.
+
+## Reportando uma vulnerabilidade
+
+**Não abra issue pública.** Mande para o e-mail do mantenedor no perfil do
+GitHub (<https://github.com/rubenmarcus>) com: o que dá pra fazer, o passo a
+passo mínimo pra reproduzir, e o impacto que você enxerga. Sem prazo de
+divulgação combinado, por favor não publique antes da correção.
+
+Este é um projeto de fãs sem programa de bug bounty — mas todo reporte válido
+entra nos créditos, se você quiser.

@@ -114,3 +114,6 @@ Thumbs.db
 # cache do vocabulário schema.org baixado por tools/eval/jsonld-validate.mjs
 # (1,5 MB, reproduzível com --refresh; não é fonte, é cache)
 tools/eval/.cache/
+
+# Config local do Claude Code (permissões por máquina — não vai pro repo público)
+.claude/settings.local.json

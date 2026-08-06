@@ -52,7 +52,18 @@ alter table public.stats add column if not exists matches_p int not null default
 alter table public.stats add column if not exists matches_b int not null default 0;
 alter table public.stats add column if not exists play_seconds bigint not null default 0;
 alter table public.stats add column if not exists last_character text;
-alter table public.city_daily add column if not exists rounds int not null default 0;
+-- city_daily só é CRIADA lá embaixo (bloco de PRESENÇA & MAPA). Num banco novo
+-- este ALTER rodava antes da tabela existir e o schema.sql inteiro morria com
+-- `relation "public.city_daily" does not exist` — ou seja, o arquivo que a
+-- documentação manda "rodar no SQL Editor" só funcionava em banco que JÁ tinha
+-- passado pela migration 005. Guardado, ele é no-op no banco novo e continua
+-- curando o banco antigo. (Verificado em Postgres 16 limpo, 2026-08-03.)
+do $$
+begin
+  if to_regclass('public.city_daily') is not null then
+    alter table public.city_daily add column if not exists rounds int not null default 0;
+  end if;
+end $$;
 
 alter table public.stats   enable row level security;
 
@@ -63,6 +74,27 @@ create policy "players: leitura pública" on public.players
 drop policy if exists "stats: leitura pública" on public.stats;
 create policy "stats: leitura pública" on public.stats
   for select using (true);
+
+-- SEGURANÇA DE COLUNA (migration 011): a RLS acima controla LINHAS, não
+-- COLUNAS — com a policy `using (true)` a anon key lia players.token e podia
+-- forjar submit em nome de qualquer jogador. Privilégio por coluna resolve sem
+-- renomear nada. A superfície pública suportada é a view players_public.
+revoke select on public.players from anon, authenticated;
+grant select (
+  id, nick, social_link, socials, avatar_url, auth_user, hidden,
+  flagged_count, created_at
+) on public.players to anon, authenticated;
+
+create or replace view public.players_public as
+select id, nick, social_link, socials, avatar_url, hidden, created_at
+from public.players;
+do $$
+begin
+  execute 'alter view public.players_public set (security_invoker = on)';
+exception when others then
+  raise notice 'security_invoker indisponível nesta versão do Postgres — seguindo';
+end $$;
+grant select on public.players_public to anon, authenticated;
 
 -- NADA de insert/update/delete direto: só via RPC abaixo (security definer),
 -- que valida o token antes de gravar.
@@ -90,6 +122,62 @@ create table if not exists public.submit_log (
   created_at timestamptz not null default now()
 );
 alter table public.submit_log enable row level security;  -- sem policy pública: só o servidor lê/escreve
+revoke all on public.submit_log from anon, authenticated;
+-- o rate limit por IP do submit_match filtra por (ip, created_at) em TODO
+-- submit; sem índice isso é seq scan na tabela que mais cresce (migration 011)
+create index if not exists submit_log_ip_created_idx
+  on public.submit_log (ip, created_at desc);
+
+-- Retenção real dos 7 dias prometidos acima (migration 011 agenda no pg_cron).
+create or replace function public.purge_submit_log(p_days int default 7)
+returns integer language plpgsql security definer set search_path = public as $$
+declare v_n integer;
+begin
+  delete from submit_log where created_at < now() - make_interval(days => p_days);
+  get diagnostics v_n = row_count;
+  return v_n;
+end $$;
+revoke all on function public.purge_submit_log(int) from anon, authenticated;
+
+-- Rate limit DURÁVEL (migration 011): o Map na memória da lambda some no cold
+-- start; o Postgres é a única memória compartilhada que este projeto já tem.
+create table if not exists public.rate_limit (
+  bucket       text not null,
+  subject      text not null,
+  window_start timestamptz not null,
+  hits         int not null default 0,
+  primary key (bucket, subject)
+);
+alter table public.rate_limit enable row level security;
+revoke all on public.rate_limit from anon, authenticated;
+
+create or replace function public.rl_take(
+  p_bucket text, p_subject text, p_limit int, p_window_secs int
+) returns boolean language plpgsql security definer set search_path = public as $$
+declare v_hits int;
+begin
+  if p_subject is null or p_subject = '' then return true; end if;
+  insert into rate_limit (bucket, subject, window_start, hits)
+  values (p_bucket, p_subject, now(), 1)
+  on conflict (bucket, subject) do update set
+    window_start = case when rate_limit.window_start < now() - make_interval(secs => p_window_secs)
+                        then now() else rate_limit.window_start end,
+    hits         = case when rate_limit.window_start < now() - make_interval(secs => p_window_secs)
+                        then 1 else rate_limit.hits + 1 end
+  returning hits into v_hits;
+  return v_hits <= p_limit;
+end $$;
+revoke all on function public.rl_take(text, text, int, int) from anon, authenticated;
+
+create or replace function public.purge_rate_limit()
+returns integer language plpgsql security definer set search_path = public as $$
+declare v_n integer;
+begin
+  delete from rate_limit where window_start < now() - interval '1 day';
+  get diagnostics v_n = row_count;
+  return v_n;
+end $$;
+revoke all on function public.purge_rate_limit() from anon, authenticated;
 
 -- Marca um jogador como suspeito; 3+ flags = some do ranking automaticamente.
 create or replace function public._flag(p_nick text)
@@ -263,3 +351,33 @@ alter table public.city_daily enable row level security;
 drop policy if exists "city_daily: leitura pública" on public.city_daily;
 create policy "city_daily: leitura pública" on public.city_daily
   for select using (true);
+
+-- =============================================================================
+-- FECHAMENTO DOS RPC (migration 011 §4) — TEM QUE FICAR NO FIM DO ARQUIVO
+-- =============================================================================
+-- No Postgres, toda função nasce com `execute` concedido ao pseudo-papel
+-- PUBLIC, e o PostgREST publica toda função executável como
+-- POST /rest/v1/rpc/<nome>. Com a anon key isso permitia:
+--   * /rpc/_flag           -> 3 chamadas escondiam QUALQUER jogador do ranking
+--   * /rpc/submit_match    -> submeter sem p_ip, pulando o rate limit por IP e
+--                             o teto diário (que só rodam com p_ip não nulo)
+--   * /rpc/register_player -> nick squatting sem o limite de 10/min por IP
+-- Nenhuma rota do site precisa disso: todas chamam com service_role.
+-- `revoke ... from anon` sozinho NÃO resolve — o privilégio vem por PUBLIC.
+--
+-- Fica no FIM porque revoga por assinatura descoberta no catálogo: precisa que
+-- todas as funções acima já tenham sido criadas.
+do $do$
+declare f record;
+begin
+  for f in
+    select p.oid::regprocedure::text as sig
+    from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public'
+      and p.proname in ('register_player', 'submit_match', '_flag',
+                        'rl_take', 'purge_submit_log', 'purge_rate_limit')
+  loop
+    execute 'revoke all on function ' || f.sig || ' from public, anon, authenticated';
+    execute 'grant execute on function ' || f.sig || ' to service_role';
+  end loop;
+end $do$;
