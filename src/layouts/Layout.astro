@@ -67,7 +67,7 @@ interface Props {
 const {
   title,
   description = DESC_SHORT,
-  ogImage = abs('/og-image.png'),
+  ogImage = abs('/og-image.jpg'),
   ogImageAlt = `${BRAND_FULL} — arena de sniper estilo CS 1.6 numa Brasília fictícia`,
   ogImageWidth = 1200,
   ogImageHeight = 630,
@@ -96,7 +96,7 @@ const baseGraph = [
     alternateName: [BRAND, BRAND_ALT], inLanguage: 'pt-BR',
     publisher: { '@id': ORG_ID } },
   /* `logo` é a MARCA ISOLADA, não o cartão de compartilhamento. Apontava para
-     `og-image.png` — que é paisagem 1200×630 com texto e cena — e schema.org
+     `og-image.jpg` — que é paisagem 1200×630 com texto e cena — e schema.org
      pede a marca (https://schema.org/logo). `/logo.png` é o lockup em PNG com
      alfa, 651×526, e é o mesmo arquivo que o topo do site usa. */
   { '@type': 'Organization', '@id': ORG_ID, name: `${BRAND} contributors`,

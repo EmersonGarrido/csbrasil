@@ -3,6 +3,7 @@ id: instrumentacao-ai
 title: 'AI instrumentation: how the work gets done'
 sidebar_label: AI instrumentation
 sidebar_position: 3
+slug: /ai-instrumentation
 description: How the work gets done here — ruler, builders in disjoint ranges, adversarial critic with clean context, regression hunter. And the rule "whoever builds never grades".
 ---
 
@@ -17,7 +18,7 @@ is organized. This page describes the mechanism, and it is the same if you are h
 The loop is codified in `.claude/skills/gauntlet-fps/SKILL.md` — read the file, not
 the summary.
 
-## The problem the loop solves {#o-problema-que-o-loop-resolve}
+## The problem the loop solves {#the-problem-the-loop-solves}
 
 Quoting the file itself (`.claude/skills/gauntlet-fps/SKILL.md:10`):
 
@@ -29,7 +30,7 @@ A model is great at building and terrible at failing what it built. Not because 
 — because it knows the intention. It reads its own result through the justification. The
 only known fix is structural: separate whoever builds from whoever measures.
 
-## The three rules {#as-três-regras}
+## The three rules {#the-three-rules}
 
 From `.claude/skills/gauntlet-fps/SKILL.md:14-16`:
 
@@ -47,9 +48,9 @@ And the rule worth more than the three (`SKILL.md:18`):
 > noise. One that says "22,7% of the pixels of `game-awp_map-169-a.png` are at L\* < 3 and the
 > cause is `bloom.js:18` `power=1.25`" is work.
 
-## The cycle, in order {#o-ciclo-em-ordem}
+## The cycle, in order {#the-cycle-in-order}
 
-### 1. Ruler {#1-régua}
+### 1. Ruler {#1-ruler}
 
 Before any edit, there is an instrument. Two different things are called
 "ruler" here and it is worth separating them:
@@ -63,9 +64,9 @@ Before any edit, there is an instrument. Two different things are called
 
 The ruler is never written by the same agent that will fix the defect it measures.
 When that happened, the result is documented in the repo — see the section
-[Mutation test](./quality-gates.md#teste-de-mutação-da-própria-régua).
+[Mutation test](./quality-gates.md#mutation-test).
 
-### 2. Measured baseline {#2-baseline-medido}
+### 2. Measured baseline {#2-measured-baseline}
 
 ```bash
 CHROME_BIN=/opt/pw-browsers/chromium-*/chrome-linux/chrome \
@@ -79,7 +80,7 @@ exactly because of that cost that the harness migrated to pure node: `tools/eval
 records that the previous version with Playwright+SwiftShader cost **~10 min per map**
 on a 2-CPU machine.
 
-### 3. Adversarial critics, in parallel, with clean context {#3-críticos-adversariais-em-paralelo-com-contexto-limpo}
+### 3. Adversarial critics, in parallel, with clean context {#3-adversarial-critics}
 
 One critic per front: graphics, maps/fidelity, weapons (visual and feel with separate
 grades), UI (menu and HUD with separate grades), gameplay.
@@ -96,10 +97,10 @@ What makes a critic useful (`SKILL.md:62-66`):
 "Clean context" is literal: the critic does not see the builder's history. If it does, it
 inherits the justification, and the justification is precisely what needs to be tested.
 
-### 4. Builders in parallel, partitioned by line range {#4-construtores-em-paralelo-particionados-por-faixa-de-linha}
+### 4. Builders in parallel, partitioned by line range {#4-parallel-builders}
 
 This is the piece that allows N agents in the same 6.427-line file without conflict. It
-has its own page: [Architecture](./arquitetura.md#faixas-de-linha-disjuntas).
+has its own page: [Architecture](./arquitetura.md#disjoint-line-ranges).
 
 The operational summary:
 
@@ -119,7 +120,7 @@ every risky change (`?ao=0`, `?fxaa=0`, `?water=0`), safe degradation on
 60 fps on a laptop GPU, and a comment **in Portuguese explaining the why** — it is what
 survives the next handoff.
 
-### 5. Capture and metrics: one agent only {#5-captura-e-métricas-um-agente-só}
+### 5. Capture and metrics: one agent only {#5-capture-and-metrics}
 
 **A single agent runs the browser.** Two heavy headless sessions in parallel take down the
 boot and produce a "frozen countdown" that looks like a bug and is load (`SKILL.md:87`). The same
@@ -128,7 +129,7 @@ textures, programs, geometries) and `usedJSHeapSize` after 30 s. The project has
 crash: heap above ~350 MB is an alarm, and a fast-rising texture count is the
 precursor.
 
-### 6. A/B verification + regression hunter {#6-verificação-ab--caçador-de-regressões}
+### 6. A/B verification + regression hunter {#6-ab-verification}
 
 Two new critics, clean context:
 
@@ -147,7 +148,7 @@ left edge, the right edge and the viewmodel's screen area with subpixel precisio
 (`SKILL.md:98`).
 :::
 
-## Why "whoever builds never grades" is not philosophy {#por-que-quem-constrói-nunca-dá-a-nota-não-é-filosofia}
+## Why "whoever builds never grades" is not philosophy {#why-builders-never-grade}
 
 There is a measured case, and it is in the code: a critic that also built raised the gate's score
 **for real, without loosening a single ceiling**, and was still rejected — because
@@ -155,12 +156,12 @@ to close two invariants it silently destroyed an aesthetic decision that no rule
 encoded.
 
 The full account, with the numbers and the law that came out of it, is in
-[Law 1](./quality-gates.md#lei-1--intenção-que-não-vira-invariante-é-otimizada-para-fora).
+[Law 1](./quality-gates.md#law-1).
 What matters here is the mechanism, not the episode: **the agent did not cheat.** It honestly
 optimized the only thing that was measured. The ruler was the problem, and whoever wrote the
 ruler was the one who would be measured by it.
 
-## Expensive traps of this codebase (do not repeat them) {#armadilhas-caras-desta-base-não-repita}
+## Expensive traps of this codebase (do not repeat them) {#expensive-traps}
 
 Table reproduced from `.claude/skills/gauntlet-fps/SKILL.md:111-121`. Two items I
 confirmed in the code: both aspects are measured in the gate (VM4 and VM10 compare 16:9
@@ -178,7 +179,7 @@ memory of the project — treat them as such.
 | `//` in CSS | It is not a comment. The parser swallows the next block. It has already killed an entire `@keyframes` |
 | Two headless captures in parallel | Takes down the boot and falsifies the measurement |
 
-## Where the knowledge lives {#onde-o-conhecimento-mora}
+## Where the knowledge lives {#where-knowledge-lives}
 
 `STUDIO_CONSTITUTION.md:7-8`, principle 2:
 
@@ -193,7 +194,7 @@ PR.
 
 :::warning Not everything that is written is up to date
 `SKILL.md:72` states that `game.js` has 3.234 lines — the file has passed twice that
-(today's number is in the generated block of [Architecture](./arquitetura.md#os-arquivos-indexados),
+(today's number is in the generated block of [Architecture](./arquitetura.md#indexed-files),
 and in `tools/eval/ARCH.md`). That is the exact reason `ARCH.md` and the blocks of this
 documentation are **generated by script**: a hand-written index by number goes stale on the
 first commit, and fixing it by hand lasts exactly one commit too.

@@ -3,6 +3,7 @@ id: quality-gates
 title: 'The gate: invariants, provenance and mutation'
 sidebar_label: The gate (quality gates)
 sidebar_position: 4
+slug: /quality-gates
 description: What an invariant is in this repo, how to write one, the two house laws with the real case behind each, and the mutation test of the ruler itself.
 ---
 
@@ -39,7 +40,7 @@ input is missing (the viewmodel auditor's JSON, a GLB, a folder of anims). `skip
 
 This page is the most useful one on the site. If you only read one, read this one.
 
-## Why it exists {#por-que-ele-existe}
+## Why it exists {#why-it-exists}
 
 From the header of the file itself, `tools/eval/invariants.mjs:5-19`:
 
@@ -66,7 +67,7 @@ And the translation, which is the most important thing in this entire repository
 > **GOLDEN RULE: nothing gets committed with a RED invariant. And every new bug the owner
 > reports becomes an invariant here — that's how it never comes back.**
 
-## What an invariant is here {#o-que-é-uma-invariante-aqui}
+## What an invariant is here {#what-an-invariant-is-here}
 
 An invariant is a **property of the game that can be measured without a human watching**,
 with a ceiling or a range that has provenance. It is not a unit test: almost no invariant
@@ -75,7 +76,8 @@ tests a function. They measure the **state of the game actually running**.
 Three forms, all present in the file:
 
 **1. Read from the source code.** Cheap, runs in milliseconds, catches whole classes of bug.
-Real example, `tools/eval/invariants.mjs:1439-1446`:
+Real example, quoted verbatim from `tools/eval/invariants.mjs:1439-1446` — the file's
+comments are written in Portuguese:
 
 ```js
 // ARM1 — toda arma com luneta precisa de zoom de verdade. "Snipers sem zoom"
@@ -101,7 +103,7 @@ What does **not** belong here: an invariant that requires browser pixels. Those 
 `browser` and are skipped, with the reason stated — SwiftShader costs ~4 min per map load
 on this machine (`tools/eval/invariants.mjs:99`).
 
-### Severity {#severidade}
+### Severity {#severity}
 
 `put(id, desc, ok, evid, sev)` accepts `'crit'` (the default) or `'warn'`
 (`tools/eval/invariants.mjs:81-82`). A red critical fails the PR. Warn is measured noise that
@@ -109,9 +111,9 @@ someone needs to look at but doesn't block — it's where BOT1/BOT2/BOT3/BOT6/BO
 ARM5 live. `skip()` is the third state, and it is **dangerous**: a green gate by absence of
 data. That is why every `skip` carries the reason.
 
-## The two house laws {#as-duas-leis-da-casa}
+## The two house laws {#the-two-house-laws}
 
-### Law 1 — Intention that doesn't become an invariant is optimized away {#lei-1--intenção-que-não-vira-invariante-é-otimizada-para-fora}
+### Law 1 — Intention that doesn't become an invariant is optimized away {#law-1}
 
 **Source: `tools/eval/invariants.mjs:452-461`.** The case, verbatim:
 
@@ -146,7 +148,7 @@ the gate doesn't look at?** If the answer is "the look", "the feel" or "the vibe
 invariant before sending the PR — or explain in the PR why it doesn't fit.
 :::
 
-### Law 2 — A ceiling without provenance is an opinion {#lei-2--teto-sem-procedência-é-opinião}
+### Law 2 — A ceiling without provenance is an opinion {#law-2}
 
 **Source: `tools/eval/ref-measure.py:1-40`.** That docstring is the house doctrine. The case:
 
@@ -238,7 +240,7 @@ needs to run in CI, it reads the JSON, never the PNG. A ruler that opens an imag
 the worst kind: it teaches whoever works here to ignore red.
 :::
 
-## Mutation test of the ruler itself {#teste-de-mutação-da-própria-régua}
+## Mutation test of the ruler itself {#mutation-test}
 
 This is the part almost no project has, and it is where this repository is genuinely
 different.
@@ -249,7 +251,7 @@ The way to find that out is to mutate: take the fixed code, **undo the fix on
 purpose**, run the gate, and see whether it goes red. If it stays green, the gate is not
 measuring what you think it measures.
 
-### The case: 20/22 green with the fix removed {#o-caso-2022-verde-com-a-correção-removida}
+### The case: 20/22 green with the fix removed {#the-case-20-22-green}
 
 **Source: `tools/eval/invariants.mjs:910-920`.**
 
@@ -289,7 +291,7 @@ And it closes the other path along with it (`tools/eval/invariants.mjs:1148-1151
 > The two checks together cover the two ways for the fix to vanish: **deleting the CALL**
 > (mutation measured in 08/2026) or **tampering with the FORMULA**.
 
-### It was not an isolated case — there were three {#não-foi-um-caso-isolado--foram-três}
+### It was not an isolated case — there were three {#not-an-isolated-case}
 
 The same hole showed up in two other places, and each one became a new AUD1 step:
 
@@ -315,7 +317,7 @@ invariant is blind.
 code changes, the ruler changes with it. *"a ruler that carries a COPY of the rule lies on the day
 the rule changes."*
 
-### Mutation as a first-class thing: `ui-check.mjs` {#mutação-como-coisa-de-primeira-classe-ui-checkmjs}
+### Mutation as a first-class thing: `ui-check.mjs` {#mutation-first-class}
 
 The UI harness has a **versioned mutation table**, and each one declares which gate
 has to go red. `tools/eval/ui-check.mjs:1046-1050`:
@@ -327,10 +329,10 @@ has to go red. `tools/eval/ui-check.mjs:1046-1050`:
 Running one:
 
 ```bash
-MUT=ui1_ctf_scrim_fraco node tools/eval/ui-check.mjs   # espera UI1 VERMELHA
-MUT=ui3_prompt_na_mira  node tools/eval/ui-check.mjs   # espera UI3 VERMELHA
-MUT=ui2_prompt_eterno   node tools/eval/ui-check.mjs   # espera UI2 VERMELHA
-MUT=ui4_ctf_sem_relogio node tools/eval/ui-check.mjs   # espera UI4 VERMELHA
+MUT=ui1_ctf_scrim_fraco node tools/eval/ui-check.mjs   # expects UI1 to go RED
+MUT=ui3_prompt_na_mira  node tools/eval/ui-check.mjs   # expects UI3 to go RED
+MUT=ui2_prompt_eterno   node tools/eval/ui-check.mjs   # expects UI2 to go RED
+MUT=ui4_ctf_sem_relogio node tools/eval/ui-check.mjs   # expects UI4 to go RED
 ```
 
 The 7 mutations are in `tools/eval/ui-check.mjs:1051-1134`. Two mechanics: `css` rewrites
@@ -339,7 +341,7 @@ file right now), and `sim` monkey-patches the already-booted `Game` object. If t
 matches nothing, the script exits with code 2 saying *"the CSS changed shape"* — because a
 mutation that doesn't apply is also a false green (`ui-check.mjs:1164`).
 
-## How to write an invariant {#como-escrever-uma-invariante}
+## How to write an invariant {#how-to-write-an-invariant}
 
 Checklist, in order:
 
@@ -365,7 +367,7 @@ Checklist, in order:
    happened when the number was wrong. That comment is what keeps the next round
    from redoing the mistake.
 
-### Anti-patterns that have already cost dearly here {#anti-padrões-que-já-custaram-caro-aqui}
+### Anti-patterns that have already cost dearly here {#anti-patterns}
 
 | Anti-pattern | What it produced |
 |---|---|
@@ -376,7 +378,7 @@ Checklist, in order:
 | "waypoint ≤ 3 m" as a reachability proxy | 74 false positives and green in a closed pocket (`pickup-check.mjs:34-42`) |
 | Floor without ceiling | "muzzle ≥ 0,66" accepts the muzzle at 0,95 (weapon in the basement) — that is how we got to 0,816 (`invariants.mjs:432-434`) |
 
-## This page is the doctrine. The step-by-step is a skill {#esta-página-é-a-doutrina-o-passo-a-passo-é-uma-skill}
+## This page is the doctrine. The step-by-step is a skill {#doctrine-vs-skill}
 
 What to do, in order, when someone reports a defect — reproduce, measure before
 fixing, refute the obvious guess, mutate the ruler, run the gate in the right order and report
@@ -384,12 +386,12 @@ what was **not** verified — is in `.claude/skills/bug-hunt/SKILL.md`, with the
 that paid for each rule. It is written for agents **and** for people, and it points back to
 this page instead of repeating it.
 
-## Running the gate {#rodar-o-portão}
+## Running the gate {#running-the-gate}
 
 ```bash
-node tools/eval/invariants.mjs           # tudo que roda sem browser
-node tools/eval/invariants.mjs --json    # saída pra máquina
-npm run check                            # syntax + portão + vm + coice + bots
+node tools/eval/invariants.mjs           # everything that runs without a browser
+node tools/eval/invariants.mjs --json    # machine-readable output
+npm run check                            # syntax + gate + vm + recoil + bots
 ```
 
 Today's real output, with what is green and what is red: [Measured state](./estado.md).

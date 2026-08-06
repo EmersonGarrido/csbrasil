@@ -3,6 +3,7 @@ id: estado
 title: 'Measured state: what is green and what is red'
 sidebar_label: Measured state
 sidebar_position: 8
+slug: /status
 description: What is green and what is red TODAY, with real gate output, and the project's declared debts.
 ---
 {/* traduzido de docs/docs/estado.md em 06/08/2026 — números refletem essa data; sync automático: issue #54 */}
@@ -13,7 +14,7 @@ This page has **real** gate output, pasted from an actual run. If it diverges fr
 you see on your machine, your machine is right and this page is stale — run it and
 report.
 
-## How to reproduce {#como-reproduzir}
+## How to reproduce {#how-to-reproduce}
 
 ```bash
 node tools/eval/invariants.mjs
@@ -57,7 +58,7 @@ is the file maintained day by day, not this page.
 
 :::caution Wherever `praca_old` appears below, read "a map that no longer exists"
 The Praça (classic) left the registry at the owner's literal request (*"vamos apagar praça
-clássica"*) and `public/js/map.js` was deleted along with it — it was an earlier
+clássica"* — "let's delete classic praça") and `public/js/map.js` was deleted along with it — it was an earlier
 procedural version of the same square that `awp_map` already delivers in faithful
 Brasília form. Measured side effect: the `pickup-check` dropped from 246 to 244 pickups
 (it had 2 weapons on the ground). The map that took its place, and which **appears in no
@@ -65,10 +66,11 @@ line of the 03/08 output**, is `fy_quebrada` — a straight street with a baile 
 roundabout at one end and a dirt football pitch at the other, 4-flag CTF.
 :::
 
-## Scoreboard of the last PASTED run (2026-08-03) {#placar-da-última-execução-colada-2026-08-03}
+## Scoreboard of the last PASTED run (2026-08-03) {#last-pasted-scoreboard}
 
 This is not today's scoreboard — it is the last one that exists pasted in full. Run from
-`2026-08-03`, commit `e332c87`, `public/js/version.js` = `3.3.0`:
+`2026-08-03`, commit `e332c87`, `public/js/version.js` = `3.3.0`.
+Gate output below is quoted verbatim — the tools print in Portuguese:
 
 ```
 CRÍTICAS: 31/42 passam  ← VM1, VM3, VM5, VM12, VM16, VM18, VM18b, VM19, TPM1, BOT8, CHR1 VERMELHAS
@@ -84,7 +86,7 @@ The owner asked for this doc to carry real output. It is here in full, including
 fails. A project that only shows the green cannot receive help on the red.
 :::
 
-## The full output, uncut {#a-saída-completa-sem-cortes}
+## The full output, uncut {#full-output-uncut}
 
 ```text
 =============== INVARIANTES — CORO SOLTO ===============
@@ -214,13 +216,13 @@ PULADAS:  4 (exigem browser ou arnês ausente)
 
 
 
-## Reading the red {#leitura-do-vermelho}
+## Reading the red {#reading-the-red}
 
-### VM1, VM3, VM5, VM12, VM16, VM18, VM18b, VM19 — viewmodel framing {#vm1-vm3-vm5-vm12-vm16-vm18-vm18b-vm19--enquadramento-do-viewmodel}
+### VM1, VM3, VM5, VM12, VM16, VM18, VM18b, VM19 — viewmodel framing {#viewmodel-framing-reds}
 
 Eight of the eleven red criticals are the same front: the **framing of the weapons on
 screen**. It is the most measured front in the repository and the hardest, because the
-invariants intersect (see [The gate](./quality-gates.md#lei-2--teto-sem-procedência-é-opinião)).
+invariants intersect (see [The gate](./quality-gates.md#law-2)).
 
 What the output says, weapon by weapon:
 
@@ -247,7 +249,7 @@ others along with it). Use `node tools/eval/vm-solve.mjs` before tuning by eye: 
 the ceilings from `invariants.mjs` itself and answers whether a feasible point exists —
 previous rounds tuned one invariant at a time and every fix broke another one.
 
-### TPM1 — missing asset, not a code bug (RESOLVED) {#tpm1--asset-ausente-não-bug-de-código-resolvida}
+### TPM1 — missing asset, not a code bug (RESOLVED) {#tpm1-resolved}
 
 ```
 ✗ FALHA   TPM1  sonda de mount 3ª pessoa roda sem erro e sem FAIL
@@ -270,7 +272,7 @@ human looking. *"It is on my disk"* and *"it is in the repository"* are differen
 and only the second one reaches the user.
 :::
 
-### BOT8 — bot with line of sight and not shooting {#bot8--bot-com-linha-de-visão-e-sem-atirar}
+### BOT8 — bot with line of sight and not shooting {#bot8}
 
 ```
 ✗ FALHA   BOT8  2.7 episódios | maior silêncio 3.03 s | 494 s em condição
@@ -290,7 +292,7 @@ the others get `hasTurn === false` and cross the field of view without firing. T
 to move the call inside the `if`. It is the cheapest debt to close in the entire
 repository.
 
-### CHR1 — human proportions {#chr1--proporção-humana}
+### CHR1 — human proportions {#chr1}
 
 ```
 ✗ FALHA   CHR1  44/44 medidos no GLB | mediana: cabeca/H 0.223 (ref 0.13) ...
@@ -309,7 +311,7 @@ The game's style is cartoonish on purpose, so part of that deviation may be inte
 **If it is**, the right answer is to change the ceiling explicitly, with a justification —
 not to ignore the invariant. It is Law 1 applied in reverse.
 
-### Warnings (they do not block) {#avisos-não-bloqueiam}
+### Warnings (they do not block) {#warnings}
 
 | ID | Ceiling | Measured on 03/08 | Today |
 |---|---|---|---|
@@ -326,15 +328,16 @@ finish on the same screen" that the owner described — 27 of the 44 characters 
 surface map at all (normal + roughness + AO) — and today it is 0 of 44. The original
 text's reference ("70 normalMaps in `praca_old`") points to a map that no longer exists.
 
-## What is green, and worth defending {#o-que-está-verde-e-que-vale-defender}
+## What is green, and worth defending {#whats-green}
 
 31 criticals passed on 03/08 (36 today). It is worth naming the ones that cost the most —
 all remain green, except where indicated:
 
 - **AUD1** — the ruler matches the game, including the ADS pose: *"pior Δ(grip,boca) 0.001 m
   · pior Δescala 0.0004 · lente do JSON casa (V0=42°, VM_OFF=[0.03,-0.1,0]) · termo
-  vertical do argumento Y casa (vmOffY(16:9)=-0.1 = VM_OFF[1])"*. It is the META invariant
-  that closes the mutation holes described in [The gate](./quality-gates.md#teste-de-mutação-da-própria-régua).
+  vertical do argumento Y casa (vmOffY(16:9)=-0.1 = VM_OFF[1])"* (verbatim gate evidence,
+  printed in Portuguese). It is the META invariant
+  that closes the mutation holes described in [The gate](./quality-gates.md#mutation-test).
 - **VM14** — 246 pickups across 5 maps, **0** unreachable, **0** below the floor, **0**
   floating, with a real connectivity flood-fill (215.758 cells in the `awp_map`). *There
   are **244** since `praca_old` left, which had 2 weapons on the ground — and that is the
@@ -355,7 +358,7 @@ all remain green, except where indicated:
   surfaces of `fy_quebrada` — the map that came in after this measurement and is still
   under construction. It is a new-map regression, not a character one.
 
-## The 4 skipped {#as-4-puladas}
+## The 4 skipped {#the-4-skipped}
 
 ```
 ·· PULADO PX1   no ADS o jogador vê a arma E a mira        — exige browser
@@ -377,7 +380,7 @@ message to point to the right script) is a high-value contribution — see
 [How to contribute](./colaborar.md).
 :::
 
-## Declared debts {#dívidas-declaradas}
+## Declared debts {#declared-debts}
 
 None of these is a surprise: all of them are written down in the repo, and they are
 gathered here.
@@ -394,7 +397,7 @@ gathered here.
 | `setTimeout`s not cleared in `dispose()` | `RELATORIO-ANALISE.md:134` — **the `game.js:NNN` references there are stale**, the file has shifted ~1.000 lines; use `grep -n setTimeout` | leak between matches |
 | Missing character references | `tools/eval/char-probe.mjs:28-42` | CHR1's ceiling is a published fallback, not a measurement |
 
-## Where the project is going {#para-onde-o-projeto-vai}
+## Where the project is going {#where-the-project-is-going}
 
 **Not on this page, on purpose.** State and direction age at different rates: the gate
 scoreboard changes with every round, the direction changes with every owner decision.
@@ -423,7 +426,7 @@ living in the `submit_match` RPC. **A P2P match cannot submit to `submit_match`*
 rethinking the anti-cheat — it is the central contradiction of `plans/08 §2`.
 :::
 
-## How to keep this page honest {#como-manter-esta-página-honesta}
+## How to keep this page honest {#keeping-this-page-honest}
 
 It ages. When you go to update it:
 

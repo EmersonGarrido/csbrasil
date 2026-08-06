@@ -512,6 +512,22 @@ inventário cobrar o colisor no eixo do corpo. `botsim 60 awp_map`: stuck 1,39 %
 1,57 % na 3ª rodada) — o colisor mais estreito abriu o passeio em volta do ônibus.
 `check:fast` sai 0.
 
+**5ª RODADA — ainda 06/08, mesmo defeito nos outros props:** *"alguns objetos voce atira
+e ele faz bala em volta ou no meio do objeto quando devia ser aberto"* (prints: fumaça de
+impacto no ar ao lado da barraca verde e em cima do drinkstand). A caixa-occluder da AABB
+inteira solidificava o que é ABERTO: o vão debaixo do toldo da barraquinha, o ar sob o
+guarda-sol do drinkstand e a margem das estacas da barraca.
+
+**Medido no browser (sonda de raios por prop):** a bala morria **0,94 m antes da lona**
+da barraca e **1,89 m antes** da malha do drinkstand. A correção não foi afinar caixa —
+foi aposentar a caixa nesses props: `putBuilding(..., occ: 'mesh')` registra a **malha
+real** como alvo (o `occMesh` que o Panteão já usava), e a bala para no tecido e atravessa
+o vão, como o olho promete. Aplicado em `tent` (×12), `stall` (×4), `drinkstand` e `tires`
+(×8 — a AABB da pilha de pneus é bloco cheio e a pilha é piramidal; as quinas de cima
+comiam tiro). **Depois: 0 raios mortos em proxy invisível** em 684 raios de teste; MAP4
+inalterada (0 occluder sem malha); nada muda em node (lá nenhum GLB carrega, e nenhum
+proxy existia nesses props mesmo).
+
 ### ~~BUG-22 · Não dá para andar debaixo da escada (Havan)~~ · RESOLVIDO 04/08 (metade do jogador)
 
 **Correção: chão multinível no motor.** `groundHeightAt(x, z)` virou

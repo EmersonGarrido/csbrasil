@@ -7,6 +7,28 @@
 // pasta `public/docs/` é servida em `https://.../docs/`. Se você for publicar em
 // outro host (GitHub Pages num repo próprio, Netlify, etc), troque baseUrl para '/'.
 
+// Links INTERNOS do footer por locale: o Docusaurus 3.6 não traduz `to:` — o theme JSON
+// (i18n/en/docusaurus-theme-classic/footer.json) só traduz label/título/copyright. Como os
+// slugs EN diferem dos ids PT (/colaborar -> /contributing etc), o `to` certo depende da
+// locale do build. Sem isto, o footer do /en apontava para /docs/en/colaborar — 404 e
+// build vermelho (onBrokenLinks: 'throw' valida os links do footer).
+//
+// POR QUE UMA FUNÇÃO: o build seta DOCUSAURUS_CURRENT_LOCALE antes de CADA locale
+// (core/lib/commands/build/buildLocale.js), mas o jiti cacheia o MÓDULO na primeira
+// avaliação — um `const` no top-level congela no valor da 1ª locale (medido: o log só
+// imprimia uma vez, com a env undefined). Exportando uma função (config creator), o
+// Docusaurus CHAMA a função a cada locale (core/lib/server/config.js), e a env é lida
+// no momento certo. Sem a env (dev, ou a leitura inicial de i18n) vale o caminho PT.
+function createConfig() {
+const EN = process.env.DOCUSAURUS_CURRENT_LOCALE === 'en';
+const L = {
+  comecando: '/',
+  colaborar: EN ? '/contributing' : '/colaborar',
+  instrumentacao: EN ? '/ai-instrumentation' : '/instrumentacao-ai',
+  qualityGates: '/quality-gates',
+  licenca: EN ? '/license' : '/licenca',
+};
+
 /** @type {import('@docusaurus/types').Config} */
 const config = {
   // NOTA i18n: `title`/`tagline` não passam pelos JSONs de i18n do tema no 3.6.3 —
@@ -64,10 +86,11 @@ const config = {
     /** @type {import('@docusaurus/preset-classic').ThemeConfig} */
     ({
       // Social card (og:image / twitter:image): o MESMO arquivo do site
-      // (`public/og-image.png`, 1200×630), copiado para `static/img/`. O Docusaurus
-      // resolve para URL absoluta com url+baseUrl: https://www.csbrasil.online/docs/img/og-image.png.
-      // Se o do site mudar, rode `cp ../public/og-image.png static/img/og-image.png`.
-      image: 'img/og-image.png',
+      // (`public/og-image.jpg`, 1200×630, gerado por tools/gen-og-image.mjs),
+      // copiado para `static/img/`. O Docusaurus resolve para URL absoluta com
+      // url+baseUrl: https://www.csbrasil.online/docs/img/og-image.jpg.
+      // Se o do site mudar, rode `cp ../public/og-image.jpg static/img/og-image.jpg`.
+      image: 'img/og-image.jpg',
       colorMode: {
         defaultMode: 'dark',
         respectPrefersColorScheme: true,
@@ -106,21 +129,21 @@ const config = {
           {
             title: 'Comece por aqui',
             items: [
-              { label: 'Começando', to: '/' },
-              { label: 'Como colaborar', to: '/colaborar' },
+              { label: 'Começando', to: L.comecando },
+              { label: 'Como colaborar', to: L.colaborar },
             ],
           },
           {
             title: 'A régua',
             items: [
-              { label: 'Instrumentação de IA', to: '/instrumentacao-ai' },
-              { label: 'O portão (quality gates)', to: '/quality-gates' },
+              { label: 'Instrumentação de IA', to: L.instrumentacao },
+              { label: 'O portão (quality gates)', to: L.qualityGates },
             ],
           },
           {
             title: 'Projeto',
             items: [
-              { label: 'Licença, arte e marca', to: '/licenca' },
+              { label: 'Licença, arte e marca', to: L.licenca },
               { label: 'GitHub', href: 'https://github.com/rubenmarcus/csbrasil' },
               { label: 'Issues', href: 'https://github.com/rubenmarcus/csbrasil/issues' },
             ],
@@ -139,4 +162,7 @@ const config = {
     }),
 };
 
-module.exports = config;
+return config;
+}
+
+module.exports = createConfig;

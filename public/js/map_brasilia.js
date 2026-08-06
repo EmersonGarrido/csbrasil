@@ -591,7 +591,7 @@ export function buildBrasilia(scene, T) {
      procedural montado em grupo) como alvo de bala/LOS. É a alternativa certa ao occBox
      quando a geometria existe e é desenhada: a bala passa a bater na forma real — entre as
      duas asas do Panteão, por exemplo, ela ATRAVESSA, que é o que os olhos prometem. */
-  const occMesh = (o) => { o.traverse((m) => { if (m.isMesh) occluders.push(m); }); return o; };
+  const occMesh = (o) => { if (!o) return o; o.traverse((m) => { if (m.isMesh) occluders.push(m); }); return o; };
 
   // Place a Mint building GLB, normalized to targetH metres, and derive a footprint
   // collider from its real placed bounds. Returns the object (or null if not loaded).
@@ -643,7 +643,12 @@ export function buildBrasilia(scene, T) {
     // Sem isso não existe "cobertura" nenhuma nos ângulos longos da Esplanada.
     // proxyGLB: caixa DERIVADA da bounding box do próprio GLB — procuração legítima da
     // MAP4 (o GLB não carrega em node, então a régua a pula em vez de acusar).
-    if (occ) occBox(bb.max.x - bb.min.x, Math.max(0.4, bb.max.y - bb.min.y),
+    // occ:'mesh' (5ª rodada do BUG-21, 06/08): prop ABERTO (barraca, barraquinha,
+    // drinkstand) NÃO pode ter a caixa da AABB — ela solidifica o vão debaixo do toldo e
+    // a margem das estacas, e a bala morria a 1,9 m da lona (medido no browser). A malha
+    // real vira o alvo: a bala para no tecido e atravessa o vão, como o olho promete.
+    if (occ === 'mesh') occMesh(o);
+    else if (occ) occBox(bb.max.x - bb.min.x, Math.max(0.4, bb.max.y - bb.min.y),
       bb.max.z - bb.min.z, (bb.min.x + bb.max.x) / 2, bb.min.y, (bb.min.z + bb.max.z) / 2, 0, id);
     return o;
   }
@@ -1284,25 +1289,24 @@ export function buildBrasilia(scene, T) {
 
   /* ---------------- gameplay cover: props do 8 de janeiro ---------------- */
   // Tire-pile barricades (Mint) as the main lane cover — the protest look.
+  // occ:'mesh' também aqui: a AABB da pilha é um bloco cheio e a pilha é piramidal —
+  // as quinas de cima comiam tiro no ar (mesma classe do toldo da barraquinha).
   for (const [tx, tz, ry] of [[-6, -14, 0.3], [7, 12, -0.4], [-8, 26, 0.8], [9, -26, 0.2],
     [10, 3, 0], [-10, -3, 1.1], [4, 34, 0.5], [-4, -34, -0.3]])
-    putBuilding('tires', { x: tx, z: tz, targetH: 1.6, ry, skirt: false });
-  // Barraquinhas de camelô (vendor stalls)
-  putBuilding('stall', { x: -13, z: -8, targetH: 2.7, ry: Math.PI / 2 });
-  putBuilding('stall', { x: 13, z: 8, targetH: 2.7, ry: -Math.PI / 2 });
-  // +2 barraquinhas no lado time-b, mais pro meio da praça (pedido do usuário)
-  putBuilding('stall', { x: -10, z: -23, targetH: 2.7, ry: Math.PI / 2 });
-  putBuilding('stall', { x: 9, z: -21, targetH: 2.7, ry: -Math.PI / 2 });
+    putBuilding('tires', { x: tx, z: tz, targetH: 1.6, ry, skirt: false, occ: 'mesh' });
+  // Barraquinhas de camelô (vendor stalls) — occ:'mesh': o vão debaixo do toldo é ABERTO
+  for (const [sx, sz, sry] of [[-13, -8, Math.PI / 2], [13, 8, -Math.PI / 2], [-10, -23, Math.PI / 2], [9, -21, -Math.PI / 2]])
+    putBuilding('stall', { x: sx, z: sz, targetH: 2.7, ry: sry, occ: 'mesh' });
   // Mini-acampamento de barracas (protest camp) junto aos ministérios oeste
   // (+2 barracas avançadas em direção ao centro: cobertura extra saindo do spawn B)
   for (const [tx, tz, ry] of [[-15, -30, 0.2], [-17, -35, 1.1], [-13, -36, -0.5], [16, 20, 0.6],
     [-6, -27, 0.9], [7, -25, -0.4]])
-    putBuilding('tent', { x: tx, z: tz, targetH: 1.7, ry });
+    putBuilding('tent', { x: tx, z: tz, targetH: 1.7, ry, occ: 'mesh' });
   // Acampamento (barracas em 2 fileiras) emoldurando a ponta da CATEDRAL (lado time-b),
   // simétrico ao jardim+espelho da ponta do Congresso — backdrop temático atrás do spawn B.
   for (const [tx, tz, ry] of [[-12, -66, 0.15], [-4, -67, -0.2], [4, -66, 0.25], [12, -67, -0.15],
     [-8, -70.5, 0.5], [8, -70.5, -0.5]])
-    putBuilding('tent', { x: tx, z: tz, targetH: 1.7, ry });
+    putBuilding('tent', { x: tx, z: tz, targetH: 1.7, ry, occ: 'mesh' });
   // a few Correios/SEDEX parcels still around for variety (Brazilian postal boxes)
   const crateMats = [lam({ map: T.crate }), lam({ map: T.crate2 || T.crate })];
   for (const [i, [cx, cz, lv]] of [[11, 2, 0], [-11, 0, 0], [11, 3.6, 1], [-5, 18, 0]].entries())
@@ -1388,7 +1392,7 @@ export function buildBrasilia(scene, T) {
 
   /* ---------------- barraquinha de bebida (Mint GLB — mini-bar c/ guarda-sol) -------------- */
   // Drink stand com cadeiras de plástico e guarda-sol grande, junto às barraquinhas.
-  putBuilding('drinkstand', { x: -14, z: -17, targetH: 3.2, ry: 0.5 });
+  putBuilding('drinkstand', { x: -14, z: -17, targetH: 3.2, ry: 0.5, occ: 'mesh' });   // guarda-sol é ABERTO embaixo — bala atravessa e para só no balcão/mastro
 
   /* ---------------- barricada improvisada (bloco + chapa + tábuas) ---------------- */
   { // protest barricade near the west tents: concrete block, corrugated sheet, planks.

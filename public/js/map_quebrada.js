@@ -1130,11 +1130,18 @@ export function buildQuebrada(scene, T) {
     ]) {
       if (!texM) continue;
       addBox(0.025, 0.025, FW + 0.2, MAT_ARAME, fx, 3.3, fz, { collide: false, cast: false });   // a corda
-      const mm = new THREE.Mesh(new THREE.PlaneGeometry(FW, FH), lam({ map: texM, side: THREE.DoubleSide }));
-      mm.position.set(fx, FY, fz); mm.rotation.y = Math.PI / 2; mm.renderOrder = 2;
-      mm.name = 'mural:' + nome;
-      mm.receiveShadow = true;
-      root.add(mm);
+      /* DUAS FACES, cada uma lendo certo (reprovação do dono, 06/08: de um lado o texto
+         saía ESPELHADO — "ƎTƎRNAMƎNTƎ" — e faixa de memorial ao contrário lê quebrado,
+         não lê pano). Um plano DoubleSide mostra o verso espelhado por construção; a
+         solução é a do lambe-lambe real: dois planos FrontSide colados, um por lado.
+         Mesma posição — o culling garante que só uma face aparece de cada lado. */
+      for (const ry of [Math.PI / 2, -Math.PI / 2]) {
+        const mm = new THREE.Mesh(new THREE.PlaneGeometry(FW, FH), lam({ map: texM }));
+        mm.position.set(fx, FY, fz); mm.rotation.y = ry; mm.renderOrder = 2;
+        mm.name = 'mural:' + nome;
+        mm.receiveShadow = true;
+        root.add(mm);
+      }
     }
   }
 

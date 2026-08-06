@@ -46,7 +46,7 @@ não enumerada à mão:
 | JSON-LD do jogo | `src/pages/index.astro` | linha 109  |
 | página `/sobre` | `src/pages/sobre.astro` | linhas 121, 135  |
 | `llms.txt` (resposta para LLM) | `public/llms.txt` | linhas 9, 46, 48  |
-| rodapé desta documentação | `docs/docusaurus.config.js` | linha 129  |
+| rodapé desta documentação | `docs/docusaurus.config.js` | linha 152  |
 
 **16 ocorrências** de `MIT` em **8** das 8 superfícies declaradas. Trocar a licença é mudar **todas elas no mesmo commit**: metade trocada é pior que nenhuma, porque cada arquivo passa a responder uma coisa diferente para quem pergunta.
 
