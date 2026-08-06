@@ -18,7 +18,7 @@
 // Contrato buildWorld idêntico ao map_ferrovelho.js / map_havan.js.
 import * as THREE from 'three';
 import { placeProp, hasProp, PropBatch } from './mapprops.js';
-import { decalIds, paredeAtras } from './map_decals.js';   // pool por NOME + raycast de parede
+import { decalIds, paredeAtras, medirParede } from './map_decals.js';   // pool por NOME + medição de parede
 import { VAO_BANDS, aoBoxGeo, aoMatFactory, ContactSkirt, BASE_FLOATING, onGround } from './vao.js';
 import { makeAerialFog } from './bloom.js';
 import { detailFor } from './textures.js';
@@ -402,15 +402,16 @@ export function buildQuebrada(scene, T) {
     const a = T.decalAspects[i] || 1;
     let h = alt, w = alt * a;
     if (w > larg) { w = larg; h = larg / a; }
-    /* PAREDE ATRÁS ANTES DE DESENHAR (map_decals.js): 25 raios pra trás, e se algum não
-       achar sólido em 0,80 m a peça não nasce. É o conserto ESTRUTURAL do "colocaste em
-       lugares que não são parede" — mata peça no ar, peça passando do topo do muro e peça
-       cruzando a divisa de dois volumes, em vez de consertar os que aparecem na captura.
+    /* PAREDE MEDIDA, NÃO DECLARADA (06/08). Com os barracos GLB no mapa, o paredeAtras
+       (25 raios, plano de 25 cm) reprovava ~80% das peças NO NAVEGADOR — o GLB desenha a
+       parede centímetros fora do plano procedural e com micro-recuos. O dono via parede
+       pelada: 15 peças na tela de 75 colocadas. `medirParede` acha a face VISÍVEL e a peça
+       recua/avança até 3 cm dela; sem face visível em 1,2 m, ou degrau > 0,6 m entre
+       colunas, a peça morre como antes (peça no ar continua proibida).
        Vem antes do `_usados` de propósito: peça reprovada não gasta vaga da anti-repetição. */
-    /* `[root]` e não `colliders` (05/08): medido no navegador, 22 das 47 peças deste mapa
-       não tinham MALHA nenhuma atrás e 8 nasciam TAPADAS (parede a 1-5 cm na FRENTE, peça
-       que ninguém veria) — todas com a régua de caixas VERDE. Ver map_decals.js. */
-    if (!paredeAtras([root], x, y + h / 2, z, ry, w, h)) return null;
+    const recuo = medirParede([root], x, y + h / 2, z, ry, w, h);
+    if (recuo === null) return null;
+    x -= Math.sin(ry) * recuo; z -= Math.cos(ry) * recuo;   // cola na face que o jogador vê
     _usados.push({ i, x, z });
     const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), decalMat(i));
     m.position.set(x, y + h / 2, z); m.rotation.y = ry; m.renderOrder = 2;

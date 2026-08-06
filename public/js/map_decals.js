@@ -241,3 +241,47 @@ function _paredeMalha(raizes, x, y, z, ry, w, h, alcance) {
     for (const g of limpar) g.boundingSphere = null;       // devolve o mapa ao estado de antes
   }
 }
+
+/* ── MEDIR A FACE VISÍVEL E PUXAR A PEÇA PRA ELA (06/08) ─────────────────────
+   Por que existe: com os barracos GLB no mapa, o `paredeAtras` matava ~80% dos
+   decalques da Quebrada NO NAVEGADOR (em node, com a caixa procedural, passava
+   tudo) — o GLB desenha a parede alguns centímetros fora do plano declarado e
+   com micro-recuos que estouram o PLANO de 25 cm. O dono via parede pelada:
+   15 decalques na tela de 75 colocados.
+   A régua certa não é rejeitar a peça: é achar a face que o jogador VÊ e colar
+   nela. Devolve quanto a peça deve RECUAR ao longo da normal (negativo = avança)
+   pra ficar 3 cm à frente do ponto mais orgulhoso da parede — ou null se não há
+   parede visível na faixa [-0,5 m à frente … +1,2 m atrás] (aí é peça no ar e
+   morre mesmo). Varredura: 3 colunas × 3 alturas; variação > 0,6 m entre colunas
+   é degrau de verdade (duas paredes), não jag — também null. */
+export function medirParede(raizes, x, y, z, ry, w, h) {
+  const limpar = new Set();
+  for (const r of raizes) r.updateMatrixWorld(true);
+  try {
+    const alvos = _alvos(raizes, x, y, z, Math.hypot(w, h) / 2 + 2.0, limpar);
+    if (!alvos.length) return null;
+    const nx = Math.sin(ry), nz = Math.cos(ry);
+    const ux = Math.cos(ry), uz = -Math.sin(ry);
+    let orgulhoso = Infinity, recuado = -Infinity;
+    for (const su of [-0.4, 0, 0.4]) {
+      for (const sv of [-0.35, 0, 0.35]) {
+        // o raio sai de 1,5 m À FRENTE do plano nominal, pra trás — cobre face
+        // orgulhosa (GLB à frente do declarado) e recuada
+        _o.set(x + ux * su * w + nx * 1.5, y + sv * h, z + uz * su * w + nz * 1.5);
+        _rc.far = 2.7;                                     // 1,5 pra frente + 1,2 pra trás
+        _rc.set(_o, _d.set(-nx, 0, -nz).normalize());
+        const t = _tiro(alvos);
+        if (t == null) continue;                           // esta coluna não tem parede — tolera
+        const recuo = 1.5 - t;                             // >0: parede atrás do plano nominal
+        if (recuo < orgulhoso) orgulhoso = recuo;
+        if (recuo > recuado) recuado = recuo;
+      }
+    }
+    if (orgulhoso === Infinity) return null;               // nenhuma coluna achou parede
+    if (recuado - orgulhoso > 0.6) return null;            // degrau: duas paredes, não uma
+    if (orgulhoso > 1.2) return null;                      // parede longe demais: peça flutuaria
+    return orgulhoso - 0.03;                               // 3 cm à frente da face mais orgulhosa
+  } finally {
+    for (const g of limpar) g.boundingSphere = null;
+  }
+}
