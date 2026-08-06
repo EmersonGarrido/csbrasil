@@ -9,7 +9,7 @@ cd "$(dirname "$0")/.."
 # v2 (06/08): pacote COMPLETO — vozes/rounds/SFX/menu/ingame, 193 MB — com nomes
 # hasheados (decisão do dono: nenhum título legível em URL/zip). Fecha o BUG-19
 # (produção servia o pack de julho e todo som novo dava 404).
-URL="${AUDIO_PACK_URL:-https://github.com/rubenmarcus/csbrasil/releases/download/audio-pack-v3/audio-pack.zip}"
+URL="${AUDIO_PACK_URL:-https://github.com/rubenmarcus/csbrasil/releases/download/audio-pack-v4/audio-pack.zip}"
 DEST="public/audio"
 
 if [ -f "$DEST/manifest.json" ]; then

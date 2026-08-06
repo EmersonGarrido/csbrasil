@@ -427,6 +427,7 @@ let heartbeatOff = false;
 /* CONTADOR "N ONLINE" do rodapé do menu (pedido do dono, 06/08). GET /api/online lê a
    view online_now (heartbeat < 2 min). `hidden` até ter número: rodapé nunca mostra
    zero mentiroso quando o backend está fora/local. Atualiza a cada 60 s só no menu. */
+{ const v = document.getElementById('mf-ver'); if (v) v.textContent = `CORO SOLTO v${VERSION}`; }
 async function _refreshOnline() {
   try {
     const r = await fetch('/api/online');

@@ -28,7 +28,7 @@ algo está errado e o portão está verde, o defeito é do portão.
 
 | Zona | O que é | Tamanho medido | Regra |
 |---|---|---|---|
-| `public/` | o **jogo** | 27 arquivos `.js`, 25.082 linhas · Three.js `r160` vendorizado | ES modules servidos crus, **zero build**, sem dependência de runtime |
+| `public/` | o **jogo** | 27 arquivos `.js`, 25.083 linhas · Three.js `r160` vendorizado | ES modules servidos crus, **zero build**, sem dependência de runtime |
 | `src/` | o **site** | 10 páginas `.astro`, 9 rotas `/api` · Astro `^7.1.1` | framework é bem-vindo; `service_role` só no servidor |
 | `tools/` | o **arnês** | 150 scripts em `tools/eval/`, 43 em `tools/` | node puro: sobe o jogo real sem browser |
 
