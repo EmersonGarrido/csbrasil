@@ -23,6 +23,7 @@ jobs:
       # mão ele desatualiza no primeiro commit, e uma tabela de conflito com
       # linha errada é pior que não ter tabela: dois agentes acham que estão em
       # regiões diferentes e não estão.
+      - name: ARCH.md gerado está em dia
         run: npm run arch:check
 
       # ── PORTÃO DE QUALIDADE ───────────────────────────────────────────────
@@ -45,6 +46,14 @@ jobs:
 
       - name: Astro build
         run: npm run build
+
+      # PORTÃO DO SITE. `astro build` verde não prova nada sobre as rotas:
+      # /ranking pode dar 500, /sitemap.xml pode sair vazio e o build passa em
+      # todos os casos. Roda DEPOIS do build porque o arnês sobe o `astro dev`,
+      # que precisa das deps instaladas — e checa o caminho de degradação SEM
+      # Supabase, que é exatamente o estado do CI.
+      - name: Smoke do site (13 rotas, contrato + JSON-LD)
+        run: node tools/eval/site-smoke.mjs
 
   release:
     if: startsWith(github.ref, 'refs/tags/v')
