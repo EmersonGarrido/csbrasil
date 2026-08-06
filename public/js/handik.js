@@ -22,6 +22,7 @@ const _q = new THREE.Quaternion();
 const _wq = new THREE.Quaternion();
 const _pwq = new THREE.Quaternion();
 const _off = new THREE.Vector3();
+const _tgt = new THREE.Vector3();   // alvo já recortado pelo alcance (NÃO reusar _v1: ele é escrito dentro do laço do CCD)
 
 // chain: [rootBone, ...midBones]  (end effector bone passed separately)
 // end: the end bone; its effector point = end origin + endOffset (in end-local space)
@@ -38,6 +39,46 @@ export function solveCCDIK(chain, end, targetWorld, opts = {}) {
     if (endOffset) { _off.copy(endOffset); return end.localToWorld(_off); }
     return end.getWorldPosition(_pe);
   };
+
+  /* ── ALCANCE: o CCD não pode perseguir um alvo que o braço não atinge ──────────
+     PORQUÊ (rodada da RÉGUA): este solver não tinha NENHUM teste de alcance. Quando o
+     guarda-mão da arma cai fora do alcance do braço de apoio — e cai, porque o alvo vem
+     de `gripPoints(arma)` (weapons.js:121-126), que é função da ARMA, enquanto o alcance
+     é função do PERSONAGEM — o CCD faz a única coisa que pode: gira TODAS as juntas na
+     direção do alvo, iteração após iteração, até o braço ficar reto apontando pra lá. Como
+     a primeira junta da cadeia é o ombro (LeftArm), o resultado visual é o ombro arrancado
+     do tronco e o braço esticado atravessando o peito — e ele NUNCA converge, então gasta
+     as 8 iterações inteiras todo quadro, em todo bot, pra chegar num lugar impossível.
+     Uma AWP de 1,15 m num personagem de braço curto é exatamente esse caso.
+     Conserto: o alvo é PROJETADO na esfera de alcance da cadeia antes de resolver. O braço
+     estica na direção certa e para — que é o que um braço faz. O comprimento é medido no
+     próprio esqueleto (soma dos segmentos + a palma), então vale pra qualquer rig sem
+     tabela por personagem. `opts.reach = false` desliga.                              */
+  let alcanceUsado = null;
+  if (opts.reach !== false) {
+    root.getWorldPosition(_pj);
+    let alcance = 0;
+    for (let i = 1; i < chain.length; i++) {
+      chain[i].getWorldPosition(_pe);
+      chain[i - 1].getWorldPosition(_v1);
+      alcance += _pe.distanceTo(_v1);
+    }
+    end.getWorldPosition(_pe);
+    chain[chain.length - 1].getWorldPosition(_v1);
+    alcance += _pe.distanceTo(_v1);
+    if (endOffset) alcance += endOffset.length();
+    // 0,98: encostar no limite exato deixa a cadeia perfeitamente reta, e cadeia reta é
+    // singular pro CCD (o eixo do produto vetorial vira ruído). 2% de folga mantém um
+    // resíduo de flexão no cotovelo e a solução estável.
+    alcance *= 0.98;
+    _v2.subVectors(targetWorld, _pj);
+    const d = _v2.length();
+    if (d > alcance && alcance > 1e-5) {
+      _v2.multiplyScalar(alcance / d);
+      targetWorld = _tgt.copy(_pj).add(_v2);
+      alcanceUsado = { pedido: d, alcance };
+    }
+  }
 
   for (let it = 0; it < iterations; it++) {
     for (let i = chain.length - 1; i >= 0; i--) {
@@ -69,4 +110,7 @@ export function solveCCDIK(chain, end, targetWorld, opts = {}) {
     }
     if (effWorld().distanceToSquared(targetWorld) < 1e-6) break;
   }
+  // devolve o recorte para quem quiser MEDIR (invariante C4/CHR4): `null` = alvo estava
+  // ao alcance; objeto = quanto o alvo excedia o braço.
+  return alcanceUsado;
 }

@@ -352,7 +352,11 @@ function pvSetChar(def) {
     // blocky placeholder for a character that has a real model (the pop-in bug).
     preloadCharacterAssets([def.id]).then(() => {
       if (my !== pvToken) return;
-      const m = hasModel(def.id) ? buildCharacterModel(def, { weaponId: charWeapon(def.id) }) : null;
+      // preview: porte de EXIBIÇÃO — arma atravessada no peito (estilo vitrine do CS) em
+      // vez do porte funcional que aponta o cano pra câmera e esconde a silhueta da arma
+      // (era o "posturas bizarras" de 05/08). Ângulos por classe em glbchars.js. No jogo,
+      // nada muda.
+      const m = hasModel(def.id) ? buildCharacterModel(def, { weaponId: charWeapon(def.id), preview: true }) : null;
       if (!m) { showBox(); return; }
       if (p.model) p.scene.remove(p.model);
       m.group.rotation.y = 0.4;

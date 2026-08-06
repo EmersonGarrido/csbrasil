@@ -10,6 +10,25 @@ import { makeAerialFog } from './bloom.js';   // névoa exponencial + cor por di
 import { detailFor, registerDetail } from './textures.js';   // normal+rough por Sobel (ver lam)
 import { decalIds, paredeAtras } from './map_decals.js';   // pool por NOME + raycast na MALHA
 
+/* PEGADA NA ALTURA DO CORPO (reprovação do dono, 05/08: "problemas com o box do ônibus
+   e barracas"). O colisor derivado do Box3 do GLB INTEIRO conta como parede coisas que só
+   existem ACIMA da cabeça ou como pano solto: o guarda-sol do drinkstand (+0,5 m de raio),
+   o telhado da barraquinha de camelô (dobra a profundidade: 2,12 m de caixa para um balcão
+   de 1,16 m) e a saia da lona da tenda (3,14 m de quadrado para um domo de ~2,1 m onde o
+   peito encosta). O jogador esbarrava em ar.
+   Números MEDIDOS por vértice (percentil 1–99 ponderado por área de triângulo, faixa de
+   colisão y 0,25–2,05 m com o targetH usado neste mapa) — frações do box local SEM rotação,
+   por eixo. Régua: `node tools/eval/pegada-check.mjs` recomputa dos GLBs e acusa deriva.
+   Regra: mudou o GLB, re-mede — número velho aqui é parede fantasma nova. */
+export const PEGADA_CORPO = {
+  tent:       { x0: 0.127, x1: 0.783, z0: 0.124, z1: 0.831 },  // 3,14×3,14 -> 2,06×2,22 m
+  stall:      { x0: 0.021, x1: 0.959, z0: 0.217, z1: 0.759 },  // 2,44×2,12 -> 2,29×1,15 m
+  drinkstand: { x0: 0.115, x1: 0.913, z0: 0.088, z1: 0.912 },  // 2,86×3,06 -> 2,28×2,52 m
+};
+/* Meias-larguras (m de mundo) do CORPO do ônibus na mesma faixa — usadas no colRot do
+   ônibus lá embaixo e conferidas pela mesma régua contra bus.glb (targetH 3,1). */
+export const PEGADA_BUS = { hx: 8.85 / 2, hz: 4.21 / 2 };
+
 export function buildBrasilia(scene, T) {
   const colliders = [];   // {minX,minY,minZ,maxX,maxY,maxZ}
   const occluders = [];   // meshes for LOS / bullet raycasts
@@ -584,12 +603,20 @@ export function buildBrasilia(scene, T) {
        parede invisível. Medimos com `rotation.y = 0` e devolvemos a rotação: a caixa passa a
        ser a do modelo, e `colRot` cuida do resto. Múltiplo de 90° cai no caminho barato. */
     if (solid) {
-      if (ry && !alinhado(ry)) {
+      const peg = PEGADA_CORPO[id];
+      if (peg || (ry && !alinhado(ry))) {
         o.rotation.y = 0; o.updateMatrixWorld(true);
         const b0 = new THREE.Box3().setFromObject(o);
         o.rotation.y = ry; o.updateMatrixWorld(true);
-        const hx = (b0.max.x - b0.min.x) / 2, hz = (b0.max.z - b0.min.z) / 2;
-        const lx = (b0.min.x + b0.max.x) / 2 - x, lz = (b0.min.z + b0.max.z) / 2 - z;
+        let x0 = b0.min.x, x1 = b0.max.x, z0 = b0.min.z, z1 = b0.max.z;
+        if (peg) {
+          // frações do box local — a caixa vira a pegada NA ALTURA DO CORPO (tabela acima)
+          const W = x1 - x0, D = z1 - z0;
+          x1 = x0 + W * peg.x1; x0 += W * peg.x0;
+          z1 = z0 + D * peg.z1; z0 += D * peg.z0;
+        }
+        const hx = (x1 - x0) / 2, hz = (z1 - z0) / 2;
+        const lx = (x0 + x1) / 2 - x, lz = (z0 + z1) / 2 - z;
         const cs = Math.cos(ry), sn = Math.sin(ry);
         colRot(x + lx * cs + lz * sn, z - lx * sn + lz * cs, hx, hz, y, Math.max(1, bb.max.y), ry);
       } else col(bb.min.x, bb.max.x, y, Math.max(1, bb.max.y), bb.min.z, bb.max.z);
@@ -1276,7 +1303,10 @@ export function buildBrasilia(scene, T) {
 
   /* ---------------- ônibus quebrado do DF (Mint GLB — cover grande, CENTRAL) ---------------- */
   // "Amarelinho" gerado no Mint, atravessado no meio da Esplanada (quebrado, encostado).
-  putBuilding('bus', { x: 2.5, z: -4, targetH: 3.1, ry: 0.55, occ: false });   // já tem caixa-occluder própria (medida) logo abaixo
+  // solid:false — o colisor do ônibus é o colRot MEDIDO logo abaixo (único, igual em
+  // browser e em node); deixar o putBuilding derivar outro do Box3 criava caixa DUPLICADA
+  // e mais gorda (o Box3 inteiro conta retrovisor e saia do para-choque).
+  putBuilding('bus', { x: 2.5, z: -4, targetH: 3.1, ry: 0.55, occ: false, solid: false });   // já tem caixa-occluder própria (medida) logo abaixo
   // ônibus: caixa-occluder invisível — o GLB é Group e o raycast de bala é NÃO-recursivo,
   // então a bala atravessava. Dimensões CASADAS ao mesh real (medido: 9.26 × 3.1 × 4.48):
   // a box antiga (9 × 3.2 × 3) era 1.5m estreita (tiros passavam na lateral) e 0.1m alta
@@ -1326,7 +1356,12 @@ export function buildBrasilia(scene, T) {
          colisores do ônibus ........ 18 -> 1
        Régua: `node tools/eval/obb-check.mjs` — anda com o `_collide` DO JOGO numa grade de
        5 cm em volta do prop e mede a maior distância entre a lataria e o ponto bloqueado. */
-    colRot(2.5, -4, 9.26 / 2, 4.48 / 2, 0, 3.1, 0.55);
+    /* 3ª PASSADA (05/08, "ainda tem problemas com o box do ônibus"): a caixa 9,26×4,48 era
+       o Box3 do GLB INTEIRO — retrovisores e a aba do teto contam largura que não existe na
+       altura do peito. Medido por vértice (faixa y 0,25–2,05 m, percentil 1–99 por área):
+       o corpo tocável é 8,85×4,21 m, com centro deslocado (+0,025, −0,095) no espaço local.
+       Centro abaixo já está no MUNDO (mesma transformação do putBuilding, cos/sin de 0,55). */
+    colRot(2.472, -4.094, PEGADA_BUS.hx, PEGADA_BUS.hz, 0, 3.1, 0.55);
   }
 
   /* ---------------- urna eletrônica (Sketchfab — monumento no MEIO do mapa) ---------------- */

@@ -43,7 +43,8 @@ export const GLB_CHARS = new Set([
 
 // Mascotes de braços-toco: a mão de apoio via IK vira uma mão gigante flutuando
 // (caso do Dollynho na tela de seleção). Neles, a mão L segue a pose do clipe.
-const IK_L_SKIP = new Set(['dollynho', 'gotinha', 'et', 'canarinho']);
+// Exportado para a select-mount.mjs: nesses, MÃO-L não se aplica (é decisão, não defeito).
+export const IK_L_SKIP = new Set(['dollynho', 'gotinha', 'et', 'canarinho']);
 
 const STATES = ['idle', 'walk', 'run', 'shoot', 'death', 'crouch', 'crouchwalk', 'jump'];
 // Clipes OPCIONAIS: 1 mão (pistolas) + andando atirando. Se o arquivo não existir,
@@ -103,10 +104,19 @@ const AIM_CORR_CLAMP = 0.5;
 // Rifle mounted in the right hand (bone-local meters via a scale-compensated mount).
 // Tunable live with ?gunpos=x,y,z ?gunrot=xdeg,ydeg,zdeg ?guns=scale.
 const _num3 = (s, d) => { const p = (s || '').split(',').map(Number); return p.length === 3 && p.every((n) => !isNaN(n)) ? p : d; };
-const GUN_POS = _num3(qp.get('gunpos'), [0.02, 0.02, 0.10]);
+// z era 0,10: o grip (origem do weaponModel) nascia 10 cm À FRENTE do centro da palma —
+// era o revólver "na ponta dos dedos" do bonzo/cadequinha e a arma apoiada na palma aberta
+// em vez de dentro dela (reprovação de 05/08). 0,04 deixa o grip DENTRO da mão com os
+// dedos por cima do corpo da arma. A/B por figura: scratchpad sel_now × sel_fix (05/08).
+const GUN_POS = _num3(qp.get('gunpos'), [0.02, 0.02, 0.04]);
 const GUN_ROT = _num3(qp.get('gunrot'), [90, 0, 0]).map((d) => d * Math.PI / 180);
 const GUN_SCALE = parseFloat(qp.get('guns')) || 1.0;
-const TP_FLIP_Y = new Set(['p90']);   // armas que precisam de +180° só na 3ª pessoa (mount)
+// Armas que precisam de +180° só na 3ª pessoa (mount). VAZIO desde 04/08: o flip da p90
+// era da época de outro GLB; o modelo atual já nasce com o cano em +Z e o flip a deixava
+// de coronha pra frente (visto pelo dono na tela de seleção; A/B por figura no scratchpad
+// v2-padata.png × v2-padata-semflip.png). Mutação que prova: readicionar 'p90' aqui
+// reproduz a inversão na hora.
+const TP_FLIP_Y = new Set([]);
 
 // ── MOUNT V2 (rodada de CONSISTÊNCIA) ───────────────────────────────────────
 // O mount antigo tirava a direção do cano da linha ANTEBRAÇO->MÃO. Medido rig a rig
@@ -133,6 +143,15 @@ const TP_CLEAR = parseFloat(qp.get('tpclear')) || 0.06;   // folga mínima entre
 // propósito: arma longe da mão é mão solta (C7), que é pior que um encosto na roupa.
 const TP_BURIED_TOL = 0.10;
 const TP_CLEAR_MAX = 0.20;
+/* CLAMP DE FRENTE (04-05/08, BUG do dono: "arma por trás do corpo" — jozo, trapfunk,
+   coach). O clipe assentado da seleção deixa a mão direita de alguns rigs ATRÁS do plano
+   do corpo (select-mount.mjs: coach frenteZ -0,052 m, esbirro -0,065) e a arma, que é
+   filha do osso da mão, vai junto. Nenhum porte real carrega arma atrás do quadril.
+   Correção por-quadro (a de build não segura: a mão MUDA de lugar quando o idle assenta):
+   a âncora da palma é reprojetada no espaço do modelo e o Z é clampado a um mínimo à
+   frente. Procedência do 0,15: pior elogiado da select-mount (mandrake 0,187) ÷ 1,25.
+   Kill-switch ?tpfz=0; valor tunável ?tpfz=0.2. */
+const TP_FRONT_MIN = qp.get('tpfz') === '0' ? -Infinity : (parseFloat(qp.get('tpfz')) || 0.15);
 // Guarda de palma (ver measurePalmLocal): teto de alavanca do mount, em antebraços.
 const PALM_GUARD = qp.get('palmguard') !== '0';
 const PALM_MAX_LEVER = parseFloat(qp.get('palmlever')) || 0.9;
@@ -470,8 +489,20 @@ export function buildCharacterModel(def, opts = {}) {
     const curlRs = comPeso(curlsR), curlLs = comPeso(curlsL);
     if (TP_MOUNT_V2 && mount) {
       // 1) ORIENTAÇÃO: cano na direção do CORPO + ângulo de porte fixo (igual pra todos).
+      // `opts.preview` liga o porte de EXIBIÇÃO, usado SÓ pela tela de seleção
+      // (main.js/pvSetChar): com o porte funcional (−6°, 4°) o cano aponta pra CÂMERA do
+      // preview e a arma vira um toco sem silhueta — era o "posturas bizarras" do dono em
+      // 05/08 (coach/trapfunk/mandrake com a arma "sumida" na mão). Arma de 2 mãos fica
+      // atravessada no peito (−14° = cano ~14° pra cima, yaw 40°, estilo vitrine de CS);
+      // arma de 1 mão compensa a inclinação intrínseca do cano das pistolas (+18°..21°
+      // medidos por vértice, probe-muzzle 05/08) com pitch pra baixo — sem isso o revólver
+      // do bonzo aponta ~35° pro céu. No jogo o porte funcional fica intocado: bot mira
+      // pra onde olha (funcional > identidade). A/B: scratchpad sel_now × sel_fix.
+      const cd = opts.preview ? (ONE_HANDED.has(opts.weaponId) ? [4, 26] : [-14, 40]) : null;
+      const carry = new THREE.Quaternion().setFromEuler(cd
+        ? new THREE.Euler(cd[0] * Math.PI / 180, cd[1] * Math.PI / 180, 0, 'YXZ')
+        : new THREE.Euler(TP_CARRY_PITCH, TP_CARRY_YAW, 0, 'YXZ'));
       const bodyQ = model.getWorldQuaternion(new THREE.Quaternion());
-      const carry = new THREE.Quaternion().setFromEuler(new THREE.Euler(TP_CARRY_PITCH, TP_CARRY_YAW, 0, 'YXZ'));
       const desired = bodyQ.multiply(carry);
       const handQ = handBone.getWorldQuaternion(new THREE.Quaternion());
       mount.quaternion.copy(handQ.invert().multiply(desired));
@@ -490,7 +521,9 @@ export function buildCharacterModel(def, opts = {}) {
          rígida em relação a ele (measurePalmLocal mede em bind), então ela acompanha o
          osso sozinha e recalcular seria custo sem efeito.
          Kill-switch: ?tpmountlive=0 volta ao comportamento congelado. */
-      if (TP_MOUNT_LIVE) ctrl.tpMount = { mount, handBone, model, carry };
+      let rArmBone = null;
+      model.traverse((o) => { if (o.isBone && !rArmBone && o.name === 'RightArm') rArmBone = o; });
+      if (TP_MOUNT_LIVE) ctrl.tpMount = { mount, handBone, model, carry, palmLocal: null, rArm: rArmBone, rFore: rforeBone };
       // 2) POSIÇÃO: no centro medido da PALMA, não na origem do osso (que é o PULSO).
       // É a diferença entre "a mão segura a arma" e "a arma flutua perto da mão" (C7).
       const palmLocal = measurePalmLocal(model, handBone, curlRs);
@@ -508,6 +541,9 @@ export function buildCharacterModel(def, opts = {}) {
         if (qp.get('chartune')) console.log(`[glbchars] ${def.id}: arma empurrada ${need.toFixed(3)} m pra fora do corpo`);
       }
       mount.position.copy(handBone.worldToLocal(model.localToWorld(palmM)));
+      // A âncora da palma em espaço do OSSO: é o que o clamp de frente por-quadro
+      // (CharController.update) reprojeta no espaço do modelo a cada frame.
+      if (ctrl.tpMount) ctrl.tpMount.palmLocal = mount.position.clone();
     } else if (mount) {
       // --- caminho antigo (?tpmount=0): direção do cano pela linha antebraço->mão ---
       const dirAvg = new THREE.Vector3();
@@ -597,6 +633,7 @@ class CharController {
     a.enabled = true; a.fadeIn(FADE); a.play();
     if (this.cur) this.cur.fadeOut(FADE);
     this.cur = a;
+    this.curName = name;   // nome do estado atual — o clamp de frente do mount lê daqui
     // pé no chão: o offset do clipe que ENTRA (ver footOffset)
     if (this.model) this.model.position.y = this._footBase + footOffset(this.charId, name);
   }
@@ -735,6 +772,31 @@ class CharController {
       _wq.copy(_gq).multiply(t.carry);                  // orientação desejada do cano (mundo)
       t.handBone.getWorldQuaternion(_pq);
       t.mount.quaternion.copy(_pq.invert().multiply(_wq));
+      // CLAMP DE FRENTE via IK DO BRAÇO DIREITO (ver TP_FRONT_MIN): o clipe assentado
+      // deixa a palma de alguns rigs atrás do plano do corpo e a arma vai junto
+      // ("arma por trás" — jozo/trapfunk/coach). Empurrar só o MOUNT foi tentado e
+      // reprovado no olho: a arma descolava da mão (esbirro: 11 cm). Aqui a MÃO inteira
+      // vem pra frente (CCD em Arm→ForeArm, o mesmo solver da mão de apoio) e a arma,
+      // filha do osso, vem colada. SÓ em porte parado (idle/idle1h/crouch): no walk/run
+      // a mão balança pra trás por natureza. Nota de ordem: este bloco roda ANTES da
+      // orientação do cano (acima), então na 1ª chamada a orientação usa a mão pré-IK e
+      // converge no quadro seguinte — o assentamento da seleção roda 60 quadros.
+      if (t.palmLocal && t.rArm && t.rFore && TP_FRONT_MIN > -Infinity
+          && /^(idle|idle1h|crouch)$/.test(this.curName || '')) {
+        _v.copy(t.palmLocal);
+        t.handBone.localToWorld(_v);
+        t.model.worldToLocal(_v);
+        if (_v.z < TP_FRONT_MIN) {
+          _v.z = TP_FRONT_MIN;
+          t.model.localToWorld(_v);
+          solveCCDIK([t.rArm, t.rFore], t.handBone, _v, { iterations: 6, endOffset: t.palmLocal });
+          t.handBone.updateWorldMatrix(true, false);
+          t.model.getWorldQuaternion(_gq);
+          _wq.copy(_gq).multiply(t.carry);
+          t.handBone.getWorldQuaternion(_pq);
+          t.mount.quaternion.copy(_pq.invert().multiply(_wq));   // reorienta o cano pós-IK
+        }
+      }
     }
     // IK da mão de apoio (FASE 2): palma L no guarda-mão da arma montada (só 2 mãos).
     // Roda depois do mixer/pose — corrige o contato por arma sem tocar na orientação.

@@ -66,7 +66,6 @@ const QP = () => new URLSearchParams(location.search);
 // 2,26 % -> 0,00 % e p1 2,6 -> 4,0.
 const LOOKS = {
   awp_map:       { exposure: 2.40, floor: 0.0042, expAces: 2.61 },   // Brasília, meio-dia seco
-  praca_old:     { exposure: 2.40, floor: 0.0042, expAces: 2.61 },
   fy_pool_day:   { exposure: 1.92, floor: 0.0039, expAces: 1.91 },   // Piscinão: TEM que ser o mais claro
   fy_havan:      { exposure: 1.50, floor: 0.0060, expAces: 1.59 },
   fy_ferrovelho: { exposure: 1.66, floor: 0.0041, expAces: 1.76 },
@@ -146,7 +145,6 @@ const AERIAL = {
   //                 densidade   cor-base medida do céu    direção do sol (posição da
   //                             logo acima da silhueta     DirectionalLight do mapa)
   awp_map:       { d: 0.0066, color: 0x7d9cbb, sun: [90, 62, -40], dir: 0.90 },
-  praca_old:     { d: 0.0066, color: 0x7d9cbb, sun: [38, 58, -14], dir: 0.90 },
   fy_pool_day:   { d: 0.0078, color: 0x93b9df, sun: [14, 76, -9],  dir: 0.85 },
   fy_havan:      { d: 0.0088, color: 0xa3c4e5, sun: [18, 55, 20],  dir: 0.80 },
   fy_ferrovelho: { d: 0.0112, color: 0xa5c5e5, sun: [-46, 20, 32], dir: 1.00 },
@@ -222,6 +220,19 @@ function patchFogChunks() {
 // roda no import do bloom.js — ANTES de qualquer material compilar (main.js importa este
 // módulo no topo). Assim não existe programa em cache com o chunk antigo.
 patchFogChunks();
+
+/* RADIÂNCIA DO CÉU DE CADA MAPA, em espaço LINEAR de trabalho.
+   É a MESMA cor-base da névoa da tabela AERIAL acima — e ela não foi escolhida no olho: o
+   `tools/eval/r3_fog.py` recorta, nos 8 frames de cada mapa, as 14 linhas de céu logo acima
+   da silhueta, inverte o composite (AgX + piso + vinheta + exposição) e devolve a radiância
+   linear MEDIDA. Fica exportada porque mais de um efeito precisa saber "qual é o brilho do
+   céu deste mapa" e não só a névoa: hoje a fumaça de granada (game.js `_corDaFumaca`), que
+   estava com radiância 0,64 contra 0,32 do céu do awp_map — 2× mais clara que a luz que a
+   ilumina, que é o "a tela lava pra branco" do dono. Uma fonte só, medida, para os dois.
+   `new THREE.Color(hex)` converte sRGB -> linear de trabalho, então o retorno já é radiância. */
+export function skyRadiance(mapId) {
+  return new THREE.Color((AERIAL[mapId] || AERIAL_DEFAULT).color);
+}
 
 /* Névoa de um mapa. Os map_*.js chamam isto no lugar de `new THREE.Fog(...)`. */
 export function makeAerialFog(mapId) {
@@ -373,11 +384,16 @@ const SSAO_APPLY_FRAG = /* glsl */`
   uniform vec2 uApply;   // x força, y rolloff no highlight
   varying vec2 vUv;
   void main() {
-    vec3 c = texture2D( tDiffuse, vUv ).rgb;
+    // ALFA PASSA DIRETO (era 1.0 fixo). Desde o BUG-09 o canal alfa deste buffer não é
+    // "opacidade" — é a MÁSCARA de quem pode gerar bloom (ver CharNoBloomPass). Este passe
+    // roda ENTRE a máscara e o bloom, então cravar 1.0 aqui apagava a máscara em silêncio
+    // e o personagem voltava a brilhar em quality med/high (justo onde o AO está ligado).
+    vec4 t = texture2D( tDiffuse, vUv );
+    vec3 c = t.rgb;
     float ao = texture2D( tAO, vUv ).r;
     float l = dot( c, vec3( 0.2126, 0.7152, 0.0722 ) );
     float k = uApply.x * ( 1.0 - uApply.y * smoothstep( 0.20, 1.40, l ) );
-    gl_FragColor = vec4( c * mix( 1.0, ao, clamp( k, 0.0, 1.0 ) ), 1.0 );
+    gl_FragColor = vec4( c * mix( 1.0, ao, clamp( k, 0.0, 1.0 ) ), t.a );
   }
 `;
 
@@ -789,6 +805,140 @@ export function applyNoPostTone(renderer) {
   renderer.toneMappingExposure = look.exposure;
 }
 
+/* ================================================================
+   BLOOM SELETIVO — o mundo brilha, o PERSONAGEM não  (BUG-09)
+   ================================================================
+   O DEFEITO (relatado pelo dono, 04/08): "os personagens no jogo estão com bloom, na tela
+   de seleção também; o oakley que é preto em umas partes está cinza". Ele está certo, e a
+   causa não é o brilho — é o PRETO.
+
+   O UnrealBloomPass não é um efeito de objeto, é um efeito de QUADRO: ele extrai tudo
+   acima do threshold (0.85), borra em 5 mips e SOMA de volta por cima da imagem inteira.
+   Soma é aditiva, então o pixel que mais denuncia o efeito é o mais escuro: pele/jaleco/
+   dente/olho especular de um personagem ficam a poucos pixels da lente preta do óculos, e
+   o borrão do mip 4-5 tem raio de dezenas de pixels — a lente recebe a energia dos vizinhos
+   claros do MESMO personagem e sai de preto para cinza. Num rosto (contraste alto em área
+   pequena) isso acontece o tempo todo; numa parede de mapa, quase nunca. Por isso o defeito
+   parece "personagem lavado" e não "cena lavada": é a mesma matemática em conteúdo diferente.
+
+   COMO SE CORRIGE, E POR QUE NÃO É O CAMINHO DO EXEMPLO OFICIAL
+   O `webgl_postprocessing_unreal_bloom_selective` do three resolve isso renderizando a cena
+   DUAS VEZES (uma com os objetos não-bloom pintados de preto, pro bloom; outra normal, pra
+   imagem). Segunda passada de geometria inteira é justamente o que não cabe: máquina fraca
+   é requisito do dono, e o mapa tem ordem de milhares de draws contra ~9 personagens.
+
+   Aqui o mundo é renderizado UMA vez só. O que separa personagem de mundo é uma MÁSCARA no
+   canal alfa do próprio buffer do composer:
+     1. um quad fullscreen escreve alfa = 1 no quadro inteiro (RGB intacto: blendSrc ZERO /
+        blendDst ONE — a imagem não muda um bit, só o alfa);
+     2. os personagens são redesenhados escrevendo alfa = 0, com TESTE DE PROFUNDIDADE
+        contra o depth que o RenderPass acabou de deixar no mesmo alvo — então personagem
+        atrás de parede não fura o bloom da parede (era o efeito colateral que uma máscara
+        em render target separado, sem depth, teria trazido: fantasma humano na parede);
+     3. o high-pass do bloom multiplica por esse alfa. Zero amostra de textura a mais: o
+        `texel` já era lido, só o `.a` que era ignorado.
+   Custo: 1 quad fullscreen sem leitura de textura + a geometria SÓ dos personagens com
+   fragment trivial. Nada de render target novo, nada de segunda passada do mapa.
+
+   "Por layer" é como os personagens são selecionados: canal NO_BLOOM_LAYER, ligado por
+   varredura periódica em quem é `isSkinnedMesh`. Skinned == personagem neste jogo (o mundo
+   é geometria procedural e prop estático), e o discriminador é exato sem depender de nome,
+   userData ou de arquivo que outro agente esteja editando. Fica de FORA de propósito a arma
+   na mão do bot e o clarão do disparo (filhos do osso, não skinned): eles são fonte de luz
+   real e o dono pediu personagem sem bloom, não jogo sem bloom.
+
+   O QUE ESTE CAMINHO **NÃO** TOCA (as três restrições que reprovariam o conserto):
+   • vmPass — o RenderPass do viewmodel roda DEPOIS desta máscara e desenha opaco, ou seja,
+     reescreve alfa = 1 em cima de si mesmo. A arma em primeira pessoa continua recebendo
+     bloom/AgX exatamente como antes, e isso é consequência da ordem, não de um remendo.
+   • quality 'low' / ?bloom=0 — não passam por aqui: main.js nem chama enableLightBloom.
+   • ?charbloom=1 — mata o passe E o patch do shader, devolvendo o comportamento de hoje
+     byte a byte, pra comparação lado a lado.
+   Degradação segura: se o vendor mudar e o high-pass não bater com a string esperada, o
+   patch não acontece, o passe não é instalado e o bloom volta a ser global — o jogo nunca
+   perde o efeito por causa desta correção.
+   ================================================================ */
+const NO_BLOOM_LAYER = 11;   // canal livre: `grep -rn "layers\." public/js` não devolvia nenhum uso
+
+// Material que escreve SÓ no canal alfa. O truque é o blend separado: RGB entra com fator
+// ZERO e o destino com fator UM (a imagem não muda), enquanto o alfa recebe o fator do
+// fragmento (1) ou ZERO (0). Sem mexer no colorMask do GL e sem tocar no depth.
+const _alphaWriteMat = (one, depthTest) => new THREE.MeshBasicMaterial({
+  color: 0x000000, fog: false, toneMapped: false,
+  depthTest, depthWrite: false,
+  blending: THREE.CustomBlending,
+  blendEquation: THREE.AddEquation, blendSrc: THREE.ZeroFactor, blendDst: THREE.OneFactor,
+  blendEquationAlpha: THREE.AddEquation,
+  blendSrcAlpha: one ? THREE.OneFactor : THREE.ZeroFactor, blendDstAlpha: THREE.ZeroFactor,
+});
+
+const HP_OUT = 'gl_FragColor = mix( outputColor, texel, alpha );';
+// Liga o high-pass do UnrealBloomPass na máscara. Devolve o uniforme de chave (0 = bloom
+// global, como sempre foi) ou null se o shader do vendor não for o esperado.
+function patchHighPassForCharMask(bloom) {
+  const m = bloom && bloom.materialHighPassFilter;
+  if (!m || typeof m.fragmentShader !== 'string' || m.fragmentShader.indexOf(HP_OUT) < 0) return null;
+  const u = { value: 0 };
+  bloom.highPassUniforms.uCharMask = u;
+  m.uniforms = bloom.highPassUniforms;
+  m.fragmentShader = m.fragmentShader
+    .replace('uniform float smoothWidth;', 'uniform float smoothWidth;\n\t\tuniform float uCharMask;')
+    // clamp porque o alvo é HalfFloat e blend aditivo de partícula pode empurrar alfa > 1
+    .replace(HP_OUT, 'gl_FragColor = mix( outputColor, texel, alpha * mix( 1.0, clamp( texel.a, 0.0, 1.0 ), uCharMask ) );');
+  m.needsUpdate = true;
+  return u;
+}
+
+class CharNoBloomPass extends Pass {
+  constructor(scene, camera, rawRender, uCharMask) {
+    super();
+    this.needsSwap = false;          // escreve no próprio readBuffer; não consome o par de RTs
+    this.scene = scene; this.camera = camera;
+    this._raw = rawRender;           // render CRU: chamar renderer.render aqui recursaria no composer
+    this.u = uCharMask;
+    this.prime = _alphaWriteMat(true, false);
+    this.mask = _alphaWriteMat(false, true);
+    this.fq = new FullScreenQuad(this.prime);
+    this._f = 0; this._n = 0;
+  }
+  // Varredura a cada 30 quadros (~0,5 s), não todo quadro: `traverse` de mapa inteiro é
+  // custo de CPU proporcional ao mapa, e personagem que acabou de nascer esperar meio
+  // segundo pela máscara é invisível. Reentrar no layer é idempotente.
+  _scan() {
+    let n = 0;
+    this.scene.traverse((o) => { if (o.isSkinnedMesh) { o.layers.enable(NO_BLOOM_LAYER); n++; } });
+    this._n = n;
+  }
+  render(renderer, writeBuffer, readBuffer) {
+    if ((this._f++ % 30) === 0) this._scan();
+    this.u.value = 0;
+    // Cena sem personagem (backdrop do menu, mapa vazio): não escreve máscara nenhuma e
+    // deixa o bloom global — custo zero e à prova de falha (alfa nunca lido sem ser escrito).
+    if (!this._n) return;
+    const sc = this.scene, cam = this.camera, sm = renderer.shadowMap;
+    const oAuto = renderer.autoClear, oBg = sc.background, oOv = sc.overrideMaterial;
+    const oSmAuto = sm.autoUpdate, oSmNeeds = sm.needsUpdate, oLayers = cam.layers.mask;
+    renderer.setRenderTarget(readBuffer);
+    renderer.autoClear = false;      // o RenderPass já desenhou aqui: limpar seria apagar o quadro
+    this.fq.material = this.prime; this.fq.render(renderer);
+    // 2ª passada só dos personagens. shadowMap desligado à mão: `renderer.render` reentra no
+    // shadow map toda vez, e re-renderizar o mapa de sombra do sol dobraria o custo do quadro
+    // pra desenhar uma máscara que não usa sombra nenhuma.
+    sm.autoUpdate = false; sm.needsUpdate = false;
+    sc.background = null;            // senão o background pinta a máscara / força clear
+    sc.overrideMaterial = this.mask;
+    cam.layers.set(NO_BLOOM_LAYER);
+    this._raw(sc, cam);
+    cam.layers.mask = oLayers;
+    sc.overrideMaterial = oOv; sc.background = oBg;
+    sm.autoUpdate = oSmAuto; sm.needsUpdate = oSmNeeds;
+    renderer.autoClear = oAuto;
+    renderer.setRenderTarget(readBuffer);
+    this.u.value = 1;
+  }
+  dispose() { this.prime.dispose(); this.mask.dispose(); this.fq.dispose(); }
+}
+
 /* ================================================================ */
 export function enableLightBloom(renderer, opts = {}) {
   const composers = new Map();
@@ -802,6 +952,9 @@ export function enableLightBloom(renderer, opts = {}) {
   // (a placa "SAUNA") e pesava no tempo até jogar — agora é exclusivo de 'high'. ?fxaa=1 força.
   const aaOn = qp.get('fxaa') === '1' || (qp.get('fxaa') !== '0' && quality === 'high');
   const useComposite = qp.get('post') !== 'output';
+  // BUG-09: bloom seletivo ligado por padrão. ?charbloom=1 volta o bloom global de antes
+  // (nem passe, nem patch de shader) — é o A/B lado a lado.
+  const charMaskOn = qp.get('charbloom') !== '1';
 
   const patched = (scene, camera) => {
     const cp = forScene(scene, camera);
@@ -839,6 +992,14 @@ export function enableLightBloom(renderer, opts = {}) {
       cp.setSize(innerWidth, innerHeight);
       cp._w = innerWidth; cp._h = innerHeight;
       cp.addPass(new RenderPass(scene, camera));
+      // threshold alto (0.85): só picos de brilho (sol, flash de tiro, speculars) — "bloom leve"
+      const bloomPass = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.25, 0.45, 0.85);
+      // A máscara de personagem tem que vir AQUI, colada no RenderPass: é o único ponto da
+      // corrente onde o readBuffer ainda tem o DEPTH do mundo (o SSAO troca de buffer e o
+      // vmPass limpa a profundidade). Sem esse depth a máscara não sabe quem está atrás de
+      // parede. O bloom em si só entra lá embaixo — ele é o consumidor, não o produtor.
+      const uCharMask = charMaskOn ? patchHighPassForCharMask(bloomPass) : null;
+      if (uCharMask) cp.addPass(new CharNoBloomPass(scene, camera, rawRender, uCharMask));
       // SSAO só na cena de JOGO (a que tem vmPass). O backdrop do menu é um mapa orbitando
       // ao longe — ninguém lê contato de prop ali, e o passe custava mais um programa +
       // 2 render targets compilados ANTES de a partida começar (o harness estourou 300 s
@@ -864,8 +1025,7 @@ export function enableLightBloom(renderer, opts = {}) {
         vmp.clear = false; vmp.clearDepth = true;
         cp.addPass(vmp);
       }
-      // threshold alto (0.85): só picos de brilho (sol, flash de tiro, speculars) — "bloom leve"
-      cp.addPass(new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.25, 0.45, 0.85));
+      cp.addPass(bloomPass);
       // A/B: ?post=output usa o OutputPass clássico (ACES), default = composite AgX
       if (!useComposite) cp.addPass(new OutputPass());
       else {

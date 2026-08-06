@@ -24,6 +24,8 @@ function tex(c, repeat = 1, ry = null) {
    ================================================================ */
 const NORMALS = new WeakMap();
 const ROUGHS = new WeakMap();
+// indexado pelo `source` da textura (o que o `clone()` compartilha) — ver detailFor
+const BY_SOURCE = new WeakMap();
 const MAX_DETAIL = 512;
 
 function normalFromCanvas(src, strength) {
@@ -76,14 +78,56 @@ function withDetail(t, src, strength = 2.2, lo = 0.55, hi = 0.98) {
       n.minFilter = THREE.LinearMipmapLinearFilter; n.magFilter = THREE.LinearFilter;
       return n;
     };
-    NORMALS.set(t, mk(normalFromCanvas(src, strength)));
-    ROUGHS.set(t, mk(roughFromCanvas(src, lo, hi)));
+    const n = mk(normalFromCanvas(src, strength)), r = mk(roughFromCanvas(src, lo, hi));
+    NORMALS.set(t, n); ROUGHS.set(t, r);
+    // ...e também pela FONTE, para os clones (ver detailFor). O `source` é o objeto que o
+    // three usa como identidade de imagem na GPU, e é o que `Texture.clone()` compartilha.
+    BY_SOURCE.set(t.source, { normalMap: n, roughnessMap: r });
   } catch (e) { /* canvas tainted / sem 2d: segue sem detalhe */ }
   return t;
 }
+/* REGISTRO DE DETALHE PARA TEXTURAS DE FORA DESTE ARQUIVO.
+   MEDIDO (tools/eval/mat-check.mjs, varrendo os 5 mapas reais): 877 materiais, e só o
+   praca_old (map.js:20-28) tinha normal+roughness — 70 e 70. Os outros quatro tinham ZERO,
+   e ligar o `detailFor` no `lam()` deles não resolvia: as texturas deles não passam por
+   AQUI, são canvas LOCAIS de cada map_*.js (muroTex, acmTex, noiseTex...), então não estão
+   nos WeakMaps e o `detailFor` devolvia null para 100% delas (medido: awp_map 41 materiais
+   com map e 0 candidatos, fy_havan 47 e 0).
+   Ou seja o caminho certo existia mas terminava numa parede. Esta função é a porta: quem
+   gera um canvas fora daqui registra o par normal+roughness derivado dele e passa a ser
+   atendido pelo MESMO `detailFor`. Um caminho só, um kill-switch só (?detail=0), um gate de
+   qualidade só ('low' pula) — que é o ponto: máquina fraca não paga por isto em lugar
+   nenhum, e não em quatro lugares diferentes que alguém tem que lembrar de sincronizar. */
+export function registerDetail(t, canvas, strength = 2.2, lo = 0.55, hi = 0.98) {
+  return withDetail(t, canvas, strength, lo, hi);
+}
+
+/* DETALHE PARA CLONES DE TEXTURA — sem isto, metade do ganho não acontecia.
+   Os mapas seguem a regra "UM canvas por imagem; variação de escala vem de `clone()`"
+   (map_havan.js:341), então a MAIORIA dos materiais recebe um CLONE da textura registrada,
+   com outro `repeat`. O WeakMap é indexado pela textura, e o clone é outro objeto: medido,
+   o fy_havan ficou com 5 normalMaps de 47 materiais com albedo — o resto caía aqui e saía
+   null. A busca por `source` fecha esse buraco.
+   E o clone do DERIVADO não é opcional: o normal/roughness precisa do MESMO `repeat` do
+   albedo, senão o relevo tila numa escala diferente da textura e fica pior do que não ter.
+   `Texture.clone()` compartilha `source`, então é ZERO upload novo pra GPU — o custo é um
+   objeto JS e um binding de sampler, e ele é pago UMA vez por textura (fica cacheado nos
+   mesmos WeakMaps). */
 export function detailFor(t) {
   if (!t) return null;
-  const n = NORMALS.get(t), r = ROUGHS.get(t);
+  let n = NORMALS.get(t), r = ROUGHS.get(t);
+  if (!n && !r && t.source && BY_SOURCE.has(t.source)) {
+    const d = BY_SOURCE.get(t.source);
+    const mk = (x) => {
+      if (!x) return null;
+      const c = x.clone();
+      c.wrapS = t.wrapS; c.wrapT = t.wrapT; c.repeat.copy(t.repeat); c.offset.copy(t.offset);
+      c.needsUpdate = true;
+      return c;
+    };
+    n = mk(d.normalMap); r = mk(d.roughnessMap);
+    NORMALS.set(t, n); ROUGHS.set(t, r);
+  }
   return (n || r) ? { normalMap: n || null, roughnessMap: r || null } : null;
 }
 
@@ -140,6 +184,101 @@ export const GRAFFITI = [
   'SNIPER SEM CAUSA', 'O MURO É FAKE NEWS', 'BORA PRO CLÁSSICO', 'MIOJO 3 ESTRELAS'
 ];
 const GCOLORS = ['#ff3b3b', '#ffd23f', '#3bd1ff', '#ff7ad9', '#7dff9a', '#ff8a3b'];
+
+/* ============================================================================
+   PIXAÇÃO PAULISTANA — alfabeto PROCEDURAL (pedido do dono, 04/08)
+   ----------------------------------------------------------------------------
+   POR QUE DESENHADO E NÃO BAIXADO
+   O pedido foi "pesquisar na internet e baixar". Não dá, e o motivo é o mesmo que já
+   apareceu no `soundtrack/`: foto de muro tem dois donos — o fotógrafo (direito de imagem
+   da foto) e o pixador (a assinatura é a obra dele, e no Brasil pixação tem autoria
+   reconhecida). Num jogo AGPL, monetizado e indo pra portal, baixar isso é o mesmo risco
+   das faixas do Sepultura, com o agravante de o repo ser público.
+
+   Desenhar é melhor por dois motivos, não só por licença:
+     · o traço vira NOSSO, e vem em variação infinita (semente por parede, sem repetir);
+     · fica mais FIEL. Foto de muro traz perspectiva, sombra e reboco de outro lugar
+       coladas junto; o que a gente quer é a LETRA.
+
+   O QUE DEFINE A LETRA DE SP (e por que o T.graffiti que já existia não é pixação)
+   O `T.graffiti` daqui usa Arial Black — isso é grafite genérico de jogo. Pixação paulistana
+   é outra coisa, e é um tipo reconhecível:
+     · deriva de logotipo de banda de rock/metal dos anos 80, não de bolha nova-iorquina;
+     · letra ALTA E ESTREITA (aqui: 2,4× mais alta que larga), traço reto de espessura
+       constante, quase sem curva;
+     · haste vertical dominante, barra horizontal curta, corte na diagonal;
+     · ganchos que viram pra DENTRO em ângulo agudo;
+     · monocromática (rolo preto ou branco), pichada de baixo pra cima e apertada, sem
+       espaço entre letras.
+   O alfabeto abaixo é isso em polilinhas normalizadas [0..1]²: cada glifo é uma lista de
+   traços, e o desenho é `stroke` com ponta reta. Sem fonte externa, sem download. */
+const PIXO_GLYPHS = {
+  A: [[[0, 1], [.5, 0], [1, 1]], [[.2, .62], [.8, .62]]],
+  B: [[[0, 0], [0, 1]], [[0, 0], [.85, .12], [.85, .38], [0, .5]], [[0, .5], [.9, .62], [.9, .88], [0, 1]]],
+  C: [[[1, 0], [.2, 0], [0, .22], [0, 1], [1, 1]]],
+  D: [[[0, 0], [0, 1]], [[0, 0], [.9, .2], [.9, .8], [0, 1]]],
+  E: [[[1, 0], [0, 0], [0, 1], [1, 1]], [[0, .5], [.7, .5]]],
+  F: [[[1, 0], [0, 0], [0, 1]], [[0, .5], [.7, .5]]],
+  G: [[[1, 0], [.2, 0], [0, .22], [0, 1], [1, 1], [1, .52], [.45, .52]]],
+  H: [[[0, 0], [0, 1]], [[1, 0], [1, 1]], [[0, .5], [1, .5]]],
+  I: [[[.5, 0], [.5, 1]], [[.1, 0], [.9, 0]], [[.1, 1], [.9, 1]]],
+  J: [[[1, 0], [1, .82], [.55, 1], [.05, .82], [.05, .66]]],
+  K: [[[0, 0], [0, 1]], [[1, 0], [0, .5], [1, 1]]],
+  L: [[[0, 0], [0, 1], [1, 1]]],
+  M: [[[0, 1], [0, 0], [.5, .55], [1, 0], [1, 1]]],
+  N: [[[0, 1], [0, 0], [1, 1], [1, 0]]],
+  O: [[[.25, 0], [1, 0], [1, .75], [.75, 1], [0, 1], [0, .25], [.25, 0]]],
+  P: [[[0, 1], [0, 0], [.9, .15], [.9, .45], [0, .58]]],
+  Q: [[[.25, 0], [1, 0], [1, .75], [.75, 1], [0, 1], [0, .25], [.25, 0]], [[.55, .62], [1, 1]]],
+  R: [[[0, 1], [0, 0], [.9, .15], [.9, .45], [0, .58]], [[.35, .58], [1, 1]]],
+  S: [[[1, .05], [0, .05], [0, .42], [1, .55], [1, .95], [0, .95]]],
+  T: [[[0, 0], [1, 0]], [[.5, 0], [.5, 1]]],
+  U: [[[0, 0], [0, .78], [.2, 1], [.8, 1], [1, .78], [1, 0]]],
+  V: [[[0, 0], [.5, 1], [1, 0]]],
+  X: [[[0, 0], [1, 1]], [[1, 0], [0, 1]]],
+  Y: [[[0, 0], [.5, .5], [1, 0]], [[.5, .5], [.5, 1]]],
+  Z: [[[0, 0], [1, 0], [0, 1], [1, 1]]],
+  '2': [[[0, .15], [.5, 0], [1, .2], [0, 1], [1, 1]]],
+  '3': [[[0, .05], [.9, .1], [.3, .5], [.9, .6], [0, .95]]],
+  '5': [[[1, 0], [0, 0], [0, .45], [.85, .5], [1, .75], [.75, .97], [0, .9]]],
+  '7': [[[0, 0], [1, 0], [.35, 1]]],
+  '9': [[[.9, .55], [.1, .5], [0, .25], [.15, .05], [.85, .08], [.95, .3], [.6, 1]]],
+  ' ': [],
+};
+/* Frases curtas, no registro do jogo. Pixo real é assinatura de grupo — inventar as nossas
+   evita colar a marca de alguém numa parede que a gente monetiza. */
+const PIXO_WORDS = ['CORO SOLTO', 'TRETA', 'ZONA LESTE', 'CAPIVARA', 'PIXELANDIA',
+  'BONDE DO PASTEL', 'SP 011', 'FIM DE FEIRA', 'GERAL NA ATIVA', 'VAI TER TRETA'];
+
+/* Desenha uma pichação numa faixa da parede. `seed` faz cada parede ser diferente e
+   REPRODUTÍVEL (mesmo mapa, mesmo muro, mesmo pixo — nada de tremer entre recargas). */
+function pixoLine(x, texto, x0, y0, alturaLetra, cor = '#111', seed = 1) {
+  const rnd = (() => { let s = seed * 9301 + 49297; return () => ((s = (s * 9301 + 49297) % 233280) / 233280); })();
+  const larg = alturaLetra / 3.1;          // a proporção alta-e-estreita é a assinatura do estilo
+  const passo = larg * 1.02;               // letras APERTADAS, quase encostando (traço grosso já fecha o vão)
+  x.save();
+  x.strokeStyle = cor;
+  x.lineWidth = Math.max(2, alturaLetra * 0.085);
+  x.lineCap = 'butt'; x.lineJoin = 'miter'; x.miterLimit = 8;
+  let cx = x0;
+  for (const ch of texto.toUpperCase()) {
+    const g = PIXO_GLYPHS[ch];
+    if (!g) { cx += passo * 0.55; continue; }   // espaço curto: pixo aperta palavra também
+    const lean = (rnd() - 0.5) * 0.10;     // cada letra torta pro seu lado: mão humana, não fonte
+    const jy = (rnd() - 0.5) * alturaLetra * 0.06;
+    for (const traco of g) {
+      x.beginPath();
+      traco.forEach(([px, py], i) => {
+        const gx = cx + (px + lean * (1 - py)) * larg, gy = y0 + jy + py * alturaLetra;
+        if (i === 0) x.moveTo(gx, gy); else x.lineTo(gx, gy);
+      });
+      x.stroke();
+    }
+    cx += passo;
+  }
+  x.restore();
+  return cx - x0;   // largura ocupada, pra quem quiser encadear
+}
 
 function concreteBase(w = 256, h = 256, base = '#9a938a', dark = '#7d766d') {
   const c = canvas(w, h), x = c.getContext('2d');
@@ -246,6 +385,28 @@ export function initTextures() {
     T.crate = correiosBox('SEDEX', 'ENCOMENDA · ENTREGA RÁPIDA');
     T.crate2 = correiosBox('CORREIOS', 'SEDEX 10 · CUIDADO COM A TRETA');
   }
+
+  /* --- PIXAÇÃO: 4 faixas transparentes pra colar em qualquer parede ---------------
+     Textura com fundo TRANSPARENTE de propósito: vai como plano por cima do muro que já
+     existe, então serve pro azulejo do Piscinão e pra chapa do Ferro Velho sem precisar de
+     variante de material por mapa. Preto de rolo é o padrão (é o que se vê em SP); a
+     variante 3 é branca, pra parede escura. */
+  T.pixo = [0, 1, 2, 3].map(v => {
+    const W = 512, H = 128;
+    const c = canvas(W, H), x = c.getContext('2d');
+    const cor = v === 3 ? 'rgba(238,238,238,0.92)' : 'rgba(17,17,17,0.9)';
+    // 1-2 frases por faixa, alturas diferentes: pixo real não vem alinhado
+    const n = 1 + (v % 2);
+    for (let i = 0; i < n; i++) {
+      const palavra = PIXO_WORDS[(v * 3 + i * 5) % PIXO_WORDS.length];
+      const alt = H * (0.5 - i * 0.12);
+      pixoLine(x, palavra, 12 + i * 40, H * 0.18 + i * H * 0.34, alt, cor, v * 17 + i * 7 + 1);
+    }
+    const t = new THREE.CanvasTexture(c);
+    t.colorSpace = THREE.SRGBColorSpace;
+    t.minFilter = THREE.LinearMipmapLinearFilter;
+    return t;
+  });
 
   // --- graffiti walls (3 variants) ---
   T.graffiti = [0, 1, 2].map(v => {
