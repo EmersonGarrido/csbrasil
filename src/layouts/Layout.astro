@@ -217,8 +217,25 @@ body{background:transparent;color:var(--bone);font-family:var(--mono);line-heigh
   -webkit-font-smoothing:antialiased}
 a{color:var(--amber)}
 img{max-width:100%}
-:where(a,button,summary,input,select):focus-visible{outline:2px solid var(--amber-hi);
-  outline-offset:2px}
+/* FOCO. A regra anterior era `:where(a,button,summary,input,select)`, que tem
+   duas limitações: `:where()` zera a especificidade (qualquer regra com peso
+   sobrescreve) e a lista deixa de fora textarea, [tabindex], [contenteditable]
+   e o <main> que o skip link foca. O seletor universal cobre tudo o que o
+   navegador considerar focável, agora e depois. */
+:focus-visible{outline:2px solid var(--amber-hi);outline-offset:2px}
+/* O <main> recebe foco por programa (skip link) e o anel nele não informa nada
+   — o que o leitor precisa é que o cursor foi pro conteúdo, e isso o
+   tabindex="-1" já resolve. */
+main:focus-visible{outline:none}
+
+/* SKIP LINK. Primeiro focável da página: o <header> sticky tem 8 links de
+   navegação antes do conteúdo, e sem isto quem usa teclado ou leitor de tela
+   atravessa os 8 em TODA página. Fora da tela até receber foco — nunca
+   `display:none`, que o tiraria da ordem de tabulação e o tornaria inútil. */
+.skip{position:absolute;left:-9999px;top:0;z-index:100;
+  background:var(--amber);color:#141008;font-weight:bold;letter-spacing:1px;
+  padding:10px 18px;text-decoration:none;border:1px solid var(--amber-hi)}
+.skip:focus{left:8px;top:8px}
 
 /* ---- fundo 3D + vinheta (mesma composição do menu principal) ----
    A vinheta abriu de .72 para .60 no centro: com .72 o mundo 3D que o
@@ -233,6 +250,8 @@ img{max-width:100%}
 #bg-scan{position:fixed;inset:0;z-index:1;pointer-events:none;opacity:.085;
   background:repeating-linear-gradient(0deg,transparent 0 2px,rgba(0,0,0,.8) 2px 4px)}
 body>header,main,body>footer{position:relative;z-index:2}
+/* o topo fixo cobriria o começo do conteúdo depois do salto do skip link */
+main{scroll-margin-top:var(--topo)}
 
 /* ============================ TOPO ============================
    Marca = logo.png + canarinho. O canarinho é RECORTADO do banner de header por
@@ -495,6 +514,7 @@ body>footer a:hover{color:var(--amber)}
 </style>
 </head>
 <body>
+<a class="skip" href="#conteudo">Pular para o conteúdo</a>
 <canvas id="bg-canvas" aria-hidden="true"></canvas>
 <div id="bg-overlay"></div>
 <div id="bg-scan"></div>
@@ -528,7 +548,7 @@ body>footer a:hover{color:var(--amber)}
       um item de texto igual aos outros. É a hierarquia da referência. */}
   <a class="btn-play" href="/">▶ JOGAR</a>
 </header>
-<main>
+<main id="conteudo" tabindex="-1">
   {h1 && (
     <section class:list={['phead', { semarte: !heroImg }]}>
       {heroImg && <div class="phead-art" style={`--hero:url('${heroImg}');--heropos:${heroPos}`}></div>}
