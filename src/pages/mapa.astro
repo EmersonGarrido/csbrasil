@@ -81,10 +81,10 @@ const mapData = { online: online.filter(o => o.lat && o.lon), cities: cities.fil
       {/* ESTA BARRA MEDE 2 DAS 5 FACÇÕES. A tabela `stats` só tem `matches_p` e
           `matches_b`; Tribos Urbanas, Palhaços e Funkeiros não têm coluna e caem em
           nulo (o `submit_match` aceita `p_team` só como 'P'|'B'). Enquanto isso não
-          for corrigido no RPC, a barra é uma proporção ENTRE petistas e bolsonaristas,
+          for corrigido no RPC, a barra é uma proporção ENTRE os dois times,
           não uma divisão do total — e é isso que o rótulo agora diz. */}
       <span style="flex:1;min-width:220px">
-        <span style="color:#ff6b6b">{pctP}% petistas</span> × <span style="color:#7de08f">{pctB}% bolsonaristas</span>
+        <span style="color:#ff6b6b">{pctP}% Time E</span> × <span style="color:#7de08f">{pctB}% Time B</span>
         <span style="display:block;font-size:11px;color:var(--bone-dim);margin-top:2px">
           só entre estas duas facções — Tribos Urbanas, Palhaços e Funkeiros ainda não são contados
         </span>

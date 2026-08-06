@@ -28,10 +28,11 @@ const total = PERSONAGENS.length;
    O mapa fica explícito aqui para que uma facção nova sem arte apareça como
    ausente — e não como a arte errada de outro time. */
 const PLACA: Record<string, string> = {
-  P: 'petistas', B: 'bolsonaristas', urbanas: 'tribos',
+  E: 'time-e', B: 'time-b', urbanas: 'tribos',
   palhacos: 'palhacos', funkeiros: 'funkeiros',
 };
-const placa = (id: string) => (PLACA[id] ? `/img/team-${PLACA[id]}.webp` : null);
+/* /img/faccoes/: a key-art nova (06/08) gerada fiel aos GLBs — substitui as placas team-*. */
+const placa = (id: string) => (PLACA[id] ? `/img/faccoes/${PLACA[id]}.webp` : null);
 const slug = (nome: string) =>
   nome.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
     .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
@@ -61,7 +62,7 @@ const jsonld = [
 ---
 <Layout
   title={`Personagens — os ${total} do elenco | ${BRAND_FULL}`}
-  description={`Os ${total} personagens jogáveis do ${BRAND_FULL} em ${FACCOES.length} facções: Petistas, Bolsonaristas, Tribos Urbanas, Palhaços e Funkeiros. Arquétipos 100% fictícios, sem pessoas reais.`}
+  description={`Os ${total} personagens jogáveis do ${BRAND_FULL} em ${FACCOES.length} facções: Time E, Time B, Tribos Urbanas, Palhaços e Funkeiros. Arquétipos 100% fictícios, sem pessoas reais.`}
   jsonld={jsonld}
   h1="Personagens"
   kicker={`${total} personagens · ${FACCOES.length} facções`}
@@ -107,6 +108,8 @@ const jsonld = [
       <div class="grid roster">
         {g.elenco.map(p => (
           <article class="pcard">
+            {p.id && <img class="pfoto" src={`/img/chars/${p.id}.webp`} width="180" height="231"
+              loading="lazy" decoding="async" alt={`${p.nome} — personagem do ${BRAND_FULL}`} />}
             <strong>{p.nome}</strong>
             <p>{p.blurb}</p>
           </article>
@@ -171,4 +174,8 @@ const jsonld = [
     .fmeta h2{font-size:17px;letter-spacing:2px}
     .grid.roster{grid-template-columns:1fr}
   }
+  .pcard{text-align:center}
+  .pfoto{width:100%;max-width:180px;aspect-ratio:7/9;object-fit:cover;object-position:top;
+    border-radius:6px;border:1px solid var(--line-2,#333);margin:0 auto 8px;display:block;
+    background:#1c1a20}
 </style>

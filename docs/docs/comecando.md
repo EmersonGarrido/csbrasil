@@ -39,9 +39,9 @@ esta página envelhecia no primeiro commit — ver
 
 | O que | Quanto | Onde confere |
 |---|---:|---|
-| Código do jogo | 25.246 linhas em 28 arquivos | `cat public/js/*.js \| wc -l` |
-| `game.js` | **6.526** linhas | `wc -l public/js/game.js` |
-| `main.js` | 1.578 linhas | `wc -l public/js/main.js` |
+| Código do jogo | 25.269 linhas em 28 arquivos | `cat public/js/*.js \| wc -l` |
+| `game.js` | **6.527** linhas | `wc -l public/js/game.js` |
+| `main.js` | 1.597 linhas | `wc -l public/js/main.js` |
 | Armas com GLB | 26 | `ls public/models/weapons/*.glb \| wc -l` |
 | GLBs de personagem | 45 | `ls public/models/characters/*.glb \| wc -l` |
 | Props em GLB | 108 | `ls public/models/props/*.glb \| wc -l` |
@@ -52,7 +52,7 @@ esta página envelhecia no primeiro commit — ver
 | Scripts do arnês | 150 | `ls tools/eval/*.mjs tools/eval/*.py \| wc -l` |
 | Scripts de pipeline | 43 | `ls tools/*.mjs \| wc -l` |
 | Tarefas de entrada escritas | 15 | `ls docs/issues/[0-9]*.md \| wc -l` |
-| Versão | `2.0.0-alpha.20` | `public/js/version.js` e `package.json` (batem) |
+| Versão | `2.0.0-alpha.22` | `public/js/version.js` e `package.json` (batem) |
 
 > Bloco gerado por `node tools/gen-docs.mjs`. Fonte: `o comando da coluna direita de cada linha`
 

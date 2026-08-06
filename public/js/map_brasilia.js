@@ -1164,7 +1164,7 @@ export function buildBrasilia(scene, T) {
       const lane = cx > 0 ? -1 : 1;
       const fx = (lane > 0 ? bb.max.x : bb.min.x) + lane * 0.3;   // 0.3 (era 0.06): não briga em z com o vidro fumê
       const ti = idx % imgs.length;
-      const H = 5.6, A = aspects[ti] || 0.7;             // big posters on the lane facades
+      const H = 5.6 * ((T.posterEscala || [])[ti] || 1), A = aspects[ti] || 0.7;             // big posters on the lane facades
       // Com os pilotis o térreo ficou vazado; os cartazes sobem pra primeira laje cheia.
       const fy = BIG ? PILOTI + H / 2 + 0.8 : Math.min(bb.max.y - H / 2 - 0.4, 3.5);
       addPlane(H * A, H, lam({ map: imgs[ti], side: THREE.DoubleSide }), fx, fy, cz, lane > 0 ? Math.PI / 2 : -Math.PI / 2);

@@ -1593,3 +1593,137 @@ html[data-ui="legacy"] .cs-vignette{
 .menu-footer a{color:var(--ink-200);text-decoration:none;border-bottom:1px dotted var(--line-2)}
 .menu-footer a:hover{color:var(--am)}
 .menu-footer .mf-online{color:var(--verde,#7dc98f);font-weight:700}
+
+/* =========================================================================
+   PASSO 1 — CARTAZ DO MAPA + DROPDOWN DE ARMAS (reprova do dono, com print)
+   =========================================================================
+   Contexto de por que este bloco existe DE NOVO: o ajuste de 06/08 (linha ~1571)
+   dizia "setas do seletor de mapa mais ÓBVIAS" mas mexeu na `.ms-arrow` — as setas
+   da tela CHEIA de mapa. As que o dono vê primeiro, e as do print, são as do CARTAZ
+   do passo 1 (`.map-arrows .map-arrow`), que continuaram 28×42 com fundo
+   `rgba(bg-900,.7)` boiando em `top:44%`. Ou seja: o pedido foi atendido no
+   elemento errado, e por isso ele pediu duas vezes. Aqui é o elemento certo.
+
+   Todo comentário aqui é de bloco: barra-barra NÃO é comentário em CSS e neste
+   arquivo já matou um @keyframes inteiro.
+   ========================================================================= */
+
+/* ---- 1) AS SETAS: alvo grande, NA BORDA da foto, com chapa opaca ----
+   Três defeitos no print, três correções:
+   (a) "escondidas" -> a chapa era translúcida (.7) sobre foto clara. Agora é .92 +
+       borda amarela + contorno escuro: o glifo tem fundo próprio, então lê sobre
+       areia do Piscinão, céu do awp_map ou concreto do Havan igualmente.
+   (b) "no meio da moldura" -> ficavam em top:44% DENTRO da arte, disputando com a
+       imagem. Agora cavalgam a borda (metade fora, metade dentro) na altura média.
+   (c) alvo pequeno -> 28×42 (1176px²) vira 48×66 (3168px²), ~2,7× a área de clique.
+   O deslocamento pra fora vive num token local porque a `.map-picker` tem que abrir
+   a mesma margem: a `.cs-setup` é `overflow-y:auto`, e overflow-x vira `auto` junto,
+   então vazar pra fora do padding do painel criaria BARRA HORIZONTAL. Nada sai da
+   caixa: a margem cede exatamente o espaço que a seta ocupa. */
+.map-picker{--ma-out:24px;--ma-w:48px;margin-inline:var(--ma-out)}
+/* Quem carrega o `transform` de centralização é o CONTAINER, nunca o botão: o
+   `.map-arrow:active{transform:translateY(1px)}` genérico sobrescreveria um
+   translateY(-50%) posto no botão e o clique cairia fora do alvo (armadilha já
+   documentada na .ms-arrow, linha ~1499). */
+.map-arrows{position:absolute;top:50%;left:calc(-1 * var(--ma-out));right:calc(-1 * var(--ma-out));
+  z-index:4;transform:translateY(-50%);display:flex;align-items:center;
+  justify-content:space-between;padding:0;pointer-events:none}
+.map-arrows .map-arrow{width:var(--ma-w);height:66px;flex:0 0 auto;pointer-events:auto;
+  font-size:32px;line-height:1;color:var(--br-faixa);
+  background:rgba(var(--bg-900-rgb),.92);border:1px solid var(--br-faixa);
+  box-shadow:0 2px 12px rgba(0,0,0,.7);clip-path:var(--cut-sm)}
+/* hover/foco INVERTE a chapa (amarelo cheio, glifo escuro) — mesmo idioma do
+   `.btn-big`/`.btn-cta` e da `.ms-arrow`: amarelo preenchido = "pode clicar aqui". */
+.map-arrows .map-arrow:hover,
+.map-arrows .map-arrow:focus-visible{background:var(--br-faixa);border-color:var(--br-faixa);
+  color:var(--bg-900);box-shadow:0 2px 16px rgba(0,0,0,.75)}
+.map-arrows .map-arrow:focus-visible{outline:2px solid var(--sys);outline-offset:2px}
+/* telas estreitas: a seta encolhe junto com o cartaz, mas continua alvo de dedo (44px) */
+@media(max-width:900px){
+  .map-picker{--ma-out:16px;--ma-w:40px}
+  .map-arrows .map-arrow{height:56px;font-size:26px}
+}
+
+/* ---- 2) A MOLDURA: vinheta que ANCORA o nome + friso amarelo ----
+   O nome do mapa flutuava sobre a foto com só um text-shadow. Sobre céu claro do
+   awp_map isso é cinza-sobre-branco. A vinheta agora fecha quase opaca na base (a
+   faixa onde o nome mora) e abre no meio (onde a arte tem que aparecer). */
+.pane-match .map-picker::after{
+  background:linear-gradient(0deg,
+    rgba(var(--bg-900-rgb),.96) 0%,
+    rgba(var(--bg-900-rgb),.80) 16%,
+    rgba(var(--bg-900-rgb),.10) 46%,
+    rgba(var(--bg-900-rgb),.46) 100%);
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.10)}
+/* moldura um degrau mais visível que `--line` (o cartaz é o protagonista do passo) */
+.pane-match #map-thumb{border-color:var(--line-2)}
+/* friso amarelo à esquerda do bloco do nome: é a "faixa" do sistema (sinaleiro/lambe)
+   e dá um começo de linha pro olho, em vez de texto começando no nada. */
+.pane-match .map-side{border-left:3px solid var(--br-faixa);padding-left:var(--s-3)}
+
+/* ---- 3) INDICADOR DE POSIÇÃO: 5 quadradinhos de 6px eram invisíveis ----
+   Vira uma régua de traços sobre chapa própria (o mesmo remédio das setas: sobre
+   foto, contraste só existe se o elemento trouxer o próprio fundo). O traço ativo é
+   mais LARGO além de amarelo — posição fica legível mesmo sem distinguir a cor. */
+#map-dots{position:absolute;top:var(--s-2);right:var(--s-2);z-index:3;display:flex;gap:4px;
+  align-items:center;padding:5px 7px;background:rgba(var(--bg-900-rgb),.78);
+  border:1px solid rgba(255,255,255,.10);clip-path:var(--cut-sm)}
+#map-dots i{width:12px;height:4px;display:block;background:rgba(255,255,255,.38);
+  transition:background var(--t) var(--ease),width var(--t) var(--ease)}
+#map-dots i.on{width:22px;background:var(--br-faixa)}
+
+/* ---- 4) ÍCONES DO DROPDOWN DE ARMAS: render real no lugar do glifo vetorial ----
+   O dono chamou de "glifos pixelados brancos toscos" — são os SVGs de 20×14 do
+   WPN_ICONS (main.js): silhuetas de 4 retângulos que, no tamanho servido, viram
+   borrão. Os renders de verdade já existem em /img/weapons/ (360×138, com alpha),
+   os mesmos usados na página de armas.
+
+   POR QUE ISTO É FEITO EM CSS E NÃO NA MARCAÇÃO: o main.js escreve o innerHTML da
+   `.dd-list` e do `#wpn-dd-label`, e main.js está fora do escopo desta mudança.
+   Então o <svg> vira apenas a CAIXA do ícone: os filhos somem e a arte entra como
+   background. Largura/altura em CSS ganham dos atributos `width`/`height` do SVG.
+   Consertar na fonte é trocar WPN_ICONS por <img> — 4 linhas em main.js. */
+#wpn-dd .dd-item > svg,
+#wpn-dd .dd-cur > svg{width:48px;height:22px;
+  background-repeat:no-repeat;background-position:center;background-size:contain;
+  background-image:url('/img/weapons/ak.webp');
+  /* os renders são pretos/oliva sobre alpha; sobre `--bg-700` a silhueta sumiria.
+     O brilho abre o metal e o halo branco de 1px devolve a borda do cano. */
+  filter:brightness(1.5) contrast(.95)
+         drop-shadow(0 0 1px rgba(255,255,255,.5)) drop-shadow(0 1px 2px rgba(0,0,0,.9));
+  transition:filter var(--t) var(--ease)}
+#wpn-dd .dd-item > svg > *,
+#wpn-dd .dd-cur > svg > *{display:none}
+#wpn-dd .dd-item:hover > svg,
+#wpn-dd .dd-item:focus-visible > svg{filter:brightness(1.85) contrast(.95)
+  drop-shadow(0 0 1px rgba(255,255,255,.65)) drop-shadow(0 1px 2px rgba(0,0,0,.9))}
+
+/* itens da lista: o `data-id` do main.js é o mapeamento estável arma -> render */
+#wpn-dd .dd-item[data-id="pistols"] > svg{background-image:url('/img/weapons/pistol.webp')}
+#wpn-dd .dd-item[data-id="knife"] > svg{background-image:url('/img/weapons/knife.webp')}
+#wpn-dd .dd-item[data-id="awp"] > svg{background-image:url('/img/weapons/awp.webp')}
+/* TODAS = duas armas empilhadas (fuzil por cima, pistola por baixo à direita).
+   Duas camadas de background no MESMO elemento: mantém a caixa de 48×22 e a altura
+   da linha igual à dos outros itens. */
+#wpn-dd .dd-item[data-id="all"] > svg,
+#wpn-dd .dd-cur > svg[width="22"]{
+  background-image:url('/img/weapons/ak.webp'),url('/img/weapons/pistol.webp');
+  background-size:42px auto,23px auto;
+  background-position:left top,right bottom}
+/* Botão FECHADO: o main.js não carimba `data-id` no rótulo atual, só o SVG. O
+   discriminador possível é o próprio SVG — `width` separa TODAS(22)/AWP(26) e o
+   `:has()` separa PISTOLA de FACA (as duas têm width 20). Se o WPN_ICONS mudar, o
+   pior caso é o botão cair no ícone padrão (TODAS): degrada, não quebra. */
+#wpn-dd .dd-cur > svg[width="26"]{background-image:url('/img/weapons/awp.webp');
+  background-size:contain;background-position:center}
+#wpn-dd .dd-cur > svg[width="20"]:has(rect[y="1"]){background-image:url('/img/weapons/pistol.webp')}
+#wpn-dd .dd-cur > svg[width="20"]:has(rect[y="10"]){background-image:url('/img/weapons/knife.webp')}
+/* o ícone cresceu de 20px pra 48px: a linha precisa de ar pra não virar aperto */
+#wpn-dd .dd-item{gap:12px;padding:9px 12px}
+#wpn-dd .dd-cur{gap:12px}
+
+/* Ícones do dropdown de armas agora são <img> reais (main.js WPN_ICONS) — o hack de
+   background por seletor de SVG do polish anterior fica inerte e pode sair depois. */
+.dd-ico{width:44px;height:17px;object-fit:contain;vertical-align:middle;margin-right:8px}
+.dd-ico-all{display:inline-flex;flex-direction:column;gap:1px;margin-right:8px}
+.dd-ico-all .dd-ico{width:38px;height:13px;margin:0}

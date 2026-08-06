@@ -31,7 +31,7 @@ export const DESC_SHORT =
 
 export const DESC_LONG =
   'Jogo FPS gratuito de navegador: arena de sniper estilo awp_map do CS 1.6 numa Brasília ' +
-  'fictícia e satírica. Petistas, Bolsonaristas, Tribos Urbanas, Palhaços e Funkeiros, ' +
+  'fictícia e satírica. Time E, Time B, Tribos Urbanas, Palhaços e Funkeiros, ' +
   '5 mapas, 26 armas, bots, rounds, CTF, placar e rádio de voz. Sem instalação, sem cadastro.';
 
 // @id estável do nó VideoGame. É o que evita que o mesmo jogo apareça como

@@ -188,7 +188,9 @@ const MENU_TRACKS = Array.from({ length: 26 }, (_, i) => `/audio/menu-music/m${S
 let menuMusic = null, musicArmed = false, musicFade = null;
 function _ensureMusic() {
   if (menuMusic) return menuMusic;
-  menuMusic = new Audio(MENU_TRACKS[(Math.random() * MENU_TRACKS.length) | 0]);
+  { const _mi = (Math.random() * MENU_TRACKS.length) | 0;
+    menuMusic = new Audio(MENU_TRACKS[_mi]);
+    _pick('musica', `m${String(_mi + 1).padStart(2, '0')}`); }
   menuMusic.loop = true; menuMusic.volume = MENU_MUSIC_VOL;
   window.__mm = menuMusic;   // hook de debug/teste (estado da música do menu)
   return menuMusic;
@@ -441,6 +443,14 @@ translateDom(document.body);
       location.reload();
     };
   } }
+/* PICKS — "o que as pessoas escolhem" (dono, 06/08). sendBeacon: nunca atrasa nem
+   quebra o jogo; o servidor conta por (kind, key) na picks_daily (migration 013). */
+function _pick(kind, key) {
+  try { navigator.sendBeacon('/api/pick', new Blob([JSON.stringify({ kind, key })], { type: 'application/json' })); } catch { /* sem beacon: paciência */ }
+}
+function _picks(lote) {
+  try { navigator.sendBeacon('/api/pick', new Blob([JSON.stringify({ picks: lote })], { type: 'application/json' })); } catch { /* idem */ }
+}
 async function _refreshOnline() {
   try {
     const r = await fetch('/api/online');
@@ -463,6 +473,14 @@ async function startGame(team, charId, enemyFaction) {
   const side = faction === 'B' ? 'B' : 'E';
   const enemyFac = enemyFaction || currentEnemyFaction || (side === 'B' ? 'E' : 'B');
   currentFaction = faction; currentTeam = side; currentChar = charId; currentEnemyFaction = enemyFac;
+  // o lote de escolha da partida — 5 contadores numa chamada (ver /api/pick)
+  _picks([
+    { kind: 'mapa', key: currentMap },
+    { kind: 'modo', key: matchMode === 'ctf' ? 'ctf' : 'rounds' },
+    { kind: 'faccao', key: faction },
+    { kind: 'personagem', key: charId || 'aleatorio' },
+    { kind: 'arma', key: settings.wpnMode || 'all' },
+  ]);
   stopMenuMusic();   // música é só do menu — some (fade) quando a partida começa
   if (game) game.dispose();
   show(null);
@@ -852,12 +870,13 @@ addEventListener('keydown', (e) => {
   else if (e.key === 'ArrowRight') { e.preventDefault(); stepMap(1); }
 });
 const wpnSel = { value: settings.wpnMode || 'all' };
-// dropdown custom de modo de armas (com ícones SVG originais)
+// dropdown de modo de armas: renders REAIS de /img/weapons (o dono reprovou os glifos)
+const _wpnImg = (id) => `<img class="dd-ico" src="/img/weapons/${id}.webp" alt="" width="44" height="17" loading="lazy">`;
 const WPN_ICONS = {
-  all: `<svg width="22" height="14" viewBox="0 0 22 14" fill="none"><path d="M1 9l8-6 1 1-8 6-1-1zm20-2L13 1l-1 1 8 6 1-1z" fill="currentColor"/><rect x="9" y="6" width="4" height="7" fill="currentColor"/></svg>`,
-  pistols: `<svg width="20" height="14" viewBox="0 0 20 14" fill="none"><path d="M1 2h12v4H9v6H5V6H1V2z" fill="currentColor"/><rect x="9" y="1" width="4" height="3" fill="currentColor"/></svg>`,
-  knife: `<svg width="20" height="14" viewBox="0 0 20 14" fill="none"><path d="M1 12L14 1l4 1-3 11-8 2-6-3z" fill="currentColor"/><rect x="1" y="10" width="5" height="3" fill="currentColor"/></svg>`,
-  awp: `<svg width="26" height="12" viewBox="0 0 26 12" fill="none"><rect x="0" y="4" width="26" height="3" fill="currentColor"/><rect x="7" y="0" width="8" height="4" fill="currentColor"/><rect x="2" y="7" width="6" height="4" fill="currentColor"/></svg>`,
+  all: `<span class="dd-ico-all">${_wpnImg('ak')}${_wpnImg('pistol')}</span>`,
+  pistols: _wpnImg('pistol'),
+  knife: _wpnImg('knife'),
+  awp: _wpnImg('awp'),
 };
 const WPN_MODES = Object.entries(WPN_MODE_LABEL).map(([id, label]) => ({ id, label }));
 const wpnDdBtn = $('wpn-dd-btn'), wpnDdList = $('wpn-dd-list'), wpnDdLabel = $('wpn-dd-label');

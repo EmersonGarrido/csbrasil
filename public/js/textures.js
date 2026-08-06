@@ -467,6 +467,7 @@ export function initTextures() {
   // --- real poster art (public/posters) — curated satirical posters for the map walls.
   // [file, aspect w/h]. Priority first (DOLLYNHO + New Project), then the rest.
   const POSTER_FILES = [
+    ['ashtar.png', 0.5625, 1.35], ['ashtar.png', 0.5625, 1.35],
     ['DOLLYNHO.png', 0.5625], ['New Project (1).png', 0.5625],
     ['New Project (2).png', 0.5625], ['New Project (3).png', 0.5625],
     ['25c9112229edfcfbb1eae4137ecc151a.jpg', 0.6],
@@ -492,6 +493,7 @@ export function initTextures() {
     return t;
   });
   T.posterAspects = POSTER_FILES.map(([, a]) => a);
+  T.posterEscala = POSTER_FILES.map(([, , e]) => e || 1);   // multiplicador de altura por cartaz
 
   /* --- graffiti decals (public/img/decals) — elementos recortados com fundo
      transparente por `tools/gen-graffiti-decals.mjs` a partir de `references/graffiti/`.

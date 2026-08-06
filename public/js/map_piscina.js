@@ -230,7 +230,7 @@ export function buildPoolDay(scene, T) {
   {
     const imgs = T.posterImgs || [], asp = T.posterAspects || [];
     if (imgs.length) {
-      const H = 2.2, Y = 2.6, OFF = 0.06;
+      const HBASE = 2.2, Y = 2.6, OFF = 0.06;
       // [x, z, ry] de cada cartaz, já virado pra dentro do salão
       const vagas = [
         [-13, HALF_Z - OFF, Math.PI], [-3, HALF_Z - OFF, Math.PI], [11, HALF_Z - OFF, Math.PI],
@@ -239,8 +239,8 @@ export function buildPoolDay(scene, T) {
         [HALF_X - OFF, -16, -Math.PI / 2], [HALF_X - OFF, -2, -Math.PI / 2], [HALF_X - OFF, 14, -Math.PI / 2],
       ];
       vagas.forEach(([px, pz, ry], i) => {
-        const ti = i % imgs.length, A = asp[ti] || 0.72;
-        addPlane(H * A, H, lam({ map: imgs[ti], side: THREE.DoubleSide }), px, Y, pz, ry);
+        const ti = i % imgs.length, A = asp[ti] || 0.72, escP = (T.posterEscala || [])[ti] || 1;
+        addPlane(HBASE * escP * A, HBASE * escP, lam({ map: imgs[ti], side: THREE.DoubleSide }), px, Y, pz, ry);
       });
     }
   }
