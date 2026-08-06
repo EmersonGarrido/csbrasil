@@ -25,7 +25,7 @@ sem cadastro.
 | Personagens jogáveis | 44, em 5 facções | array `CHARACTERS` de `characters.js` |
 | Mapas no registro | 5 | objeto `MAPS` de `maps.js` |
 | Arnêses visuais em HTML | 12 | `ls public/*.html \| wc -l` |
-| Scripts do arnês | 150 | `ls tools/eval/*.mjs tools/eval/*.py \| wc -l` |
+| Scripts do arnês | 154 | `ls tools/eval/*.mjs tools/eval/*.py \| wc -l` |
 | Scripts de pipeline | 43 | `ls tools/*.mjs \| wc -l` |
 | Tarefas de entrada escritas | 15 | `ls docs/issues/[0-9]*.md \| wc -l` |
 | Versão | `2.0.0-alpha.25` | `public/js/version.js` e `package.json` (batem) |
@@ -180,7 +180,7 @@ npm run check        # npm run syntax && npm run audio:check && npm run eval:ctf
 npm run check:fast   # npm run syntax && npm run docs:check && npm run arch:check && npm run audio:check && npm run feet:check && npm run eval:ctfhud && npm run eval:pause && npm run eval:ctfround && npm run eval:ctfwin && npm run eval:spawn && npm run eval:regen && npm run eval:pegada && npm run eval:ctflabels && npm run anims:check
 ```
 
-`package.json` tem **38 scripts**. Vários trazem uma chave `//nome` logo acima com o motivo de existirem — é onde mora o porquê.
+`package.json` tem **41 scripts**. Vários trazem uma chave `//nome` logo acima com o motivo de existirem — é onde mora o porquê.
 
 > Bloco gerado por `node tools/gen-docs.mjs`. Fonte: `node -p "Object.keys(require('./package.json').scripts)"`
 

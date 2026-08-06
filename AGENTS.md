@@ -29,8 +29,8 @@ algo está errado e o portão está verde, o defeito é do portão.
 | Zona | O que é | Tamanho medido | Regra |
 |---|---|---|---|
 | `public/` | o **jogo** | 28 arquivos `.js`, 25.386 linhas · Three.js `r160` vendorizado | ES modules servidos crus, **zero build**, sem dependência de runtime |
-| `src/` | o **site** | 11 páginas `.astro`, 10 rotas `/api` · Astro `^7.1.1` | framework é bem-vindo; `service_role` só no servidor |
-| `tools/` | o **arnês** | 150 scripts em `tools/eval/`, 43 em `tools/` | node puro: sobe o jogo real sem browser |
+| `src/` | o **site** | 13 páginas `.astro`, 10 rotas `/api` · Astro `^7.1.1` | framework é bem-vindo; `service_role` só no servidor |
+| `tools/` | o **arnês** | 154 scripts em `tools/eval/`, 43 em `tools/` | node puro: sobe o jogo real sem browser |
 
 **Não existe `public/index.html`.** O HTML do jogo é `src/pages/index.astro`, servido na rota `/`. Servir `public/` estaticamente entrega os arnêses visuais, **não o jogo** — é a pegadinha que custa a primeira hora de todo mundo.
 
@@ -126,7 +126,7 @@ npm run check        # npm run syntax && npm run audio:check && npm run eval:ctf
 npm run check:fast   # npm run syntax && npm run docs:check && npm run arch:check && npm run audio:check && npm run feet:check && npm run eval:ctfhud && npm run eval:pause && npm run eval:ctfround && npm run eval:ctfwin && npm run eval:spawn && npm run eval:regen && npm run eval:pegada && npm run eval:ctflabels && npm run anims:check
 ```
 
-`package.json` tem **38 scripts**. Vários trazem uma chave `//nome` logo acima com o motivo de existirem — é onde mora o porquê.
+`package.json` tem **41 scripts**. Vários trazem uma chave `//nome` logo acima com o motivo de existirem — é onde mora o porquê.
 
 > Bloco gerado por `node tools/gen-docs.mjs`. Fonte: `node -p "Object.keys(require('./package.json').scripts)"`
 
