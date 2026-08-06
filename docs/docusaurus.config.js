@@ -9,6 +9,9 @@
 
 /** @type {import('@docusaurus/types').Config} */
 const config = {
+  // NOTA i18n: `title`/`tagline` não passam pelos JSONs de i18n do tema no 3.6.3 —
+  // o sufixo "Docs do Dev" da aba fica em PT também no /en. Consertar exige
+  // upgrade do Docusaurus ou build por locale (que hoje quebra no onBrokenLinks).
   title: 'CORO SOLTO — Docs do Dev',
   tagline: 'Instrumentação de IA, quality gates e como colaborar',
   // Favicon = o MESMO arquivo do site (`public/favicon.ico`, 16/32/48), que é o canarinho.
