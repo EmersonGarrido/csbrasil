@@ -636,7 +636,8 @@ export function buildFerroVelho(scene, T) {
   const D_MURAL = decalIds(T, ['personagem-muro.png', 'personagens-graffiti-01.png',
     'personagens-graffiti-02.png', 'personagens-graffiti-03.png', 'personagens-graffiti-04.png',
     'personagens-graffiti-05.png', 'personagens-graffiti-06.png', 'personagens-graffiti-07.png',
-    'peca-bolha.png', 'or-graf-treta.png', 'or-graf-coro.png']);   // originais versionados
+    'peca-bolha.png', 'or-graf-treta.png', 'or-graf-coro.png',     // originais versionados
+    'or-hom-chorao.png', 'or-hom-tim-maia.png', 'or-hom-raul.png', 'or-hom-sabotage.png']);
   const D_TAG = decalIds(T, ['tag-fina.png', 'tag-flop.png', 'tag-larga.png', 'tag-money.png',
     'tag-pingo.png', 'tag-selvagem.png', 'tags-treino-02.png', 'tags-treino-05.png',
     'or-stencil-capivara.png', 'or-stencil-pomba.png']);           // originais versionados

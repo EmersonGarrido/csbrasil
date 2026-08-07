@@ -1167,6 +1167,34 @@ export function buildQuebrada(scene, T) {
         root.add(mm);
       }
     }
+
+    /* GALERIA DE HOMENAGENS PÓSTUMAS (dono, 07/08): Chorão, Champignon, Tim Maia,
+       Rita Lee, Raul Seixas, Sabotage, Marcelo Yuka e Chico Science, pintados em
+       murais de tijolo (or-mural-*.jpg, gerados via OpenRouter — obra própria,
+       VERSIONADOS, os únicos que existem em prod). Os dois muros compridos do mapa
+       viram a galeria: 3 na face da travessa do campinho, 3 na face do campo
+       (respawn olha direto pra elas) e 2 no muro do baile. Plano 2 cm à frente da
+       face do muro (sem z-fight), sem colisor — muro continua sendo o colisor. */
+    if (T.muraisHom && T.muraisHom.length >= 8) {
+      const GW = 3.9, GH = 2.0, GY = 1.12;   // muro tem 2,2 m; mural de 2,0 encosta no chão visual
+      const vagas = [
+        [0, -12, GY, 27.72, Math.PI],  // campinho, face da travessa (z<28)
+        [1, 0, GY, 27.72, Math.PI],
+        [2, 12, GY, 27.72, Math.PI],
+        [3, -12, GY, 28.28, 0],        // campinho, face do campo (z>28)
+        [4, 0, GY, 28.28, 0],
+        [5, 12, GY, 28.28, 0],
+        [6, -24, GY, -39.72, 0],       // muro do baile, face da rua
+        [7, -10, GY, -39.72, 0],
+      ];
+      for (const [i, gx, gy, gz, ry] of vagas) {
+        const g = new THREE.Mesh(new THREE.PlaneGeometry(GW, GH), lam({ map: T.muraisHom[i] }));
+        g.position.set(gx, gy, gz); g.rotation.y = ry; g.renderOrder = 2;
+        g.name = 'mural:homenagem-' + i;
+        g.receiveShadow = true;
+        root.add(g);
+      }
+    }
   }
 
   /* CAMINHÃO BAÚ DE ENTREGA na porta da adega (`vw_9150`, references/favela — é caminhão, não

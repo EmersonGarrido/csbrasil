@@ -552,7 +552,9 @@ export function buildHavan(scene, T) {
     'personagens-graffiti-02.png', 'personagens-graffiti-03.png', 'personagens-graffiti-04.png',
     'personagens-graffiti-05.png', 'personagens-graffiti-06.png', 'personagens-graffiti-07.png',
     'peca-bolha.png', 'or-graf-treta.png', 'or-graf-coro.png',          // originais versionados
-    'or-stencil-capivara.png', 'or-stencil-pomba.png']);                // (únicos vivos em prod)
+    'or-stencil-capivara.png', 'or-stencil-pomba.png',                  // (únicos vivos em prod)
+    'or-hom-chorao.png', 'or-hom-champignon.png', 'or-hom-tim-maia.png', 'or-hom-rita-lee.png',
+    'or-hom-raul.png', 'or-hom-sabotage.png', 'or-hom-yuka.png', 'or-hom-chico.png']);
   const _dmix = (n) => { let v = (n * 2654435761) >>> 0; v ^= v >>> 15; v = Math.imul(v, 2246822519) >>> 0; v ^= v >>> 13; v = Math.imul(v, 3266489917) >>> 0; return (v ^ (v >>> 16)) >>> 0; };
   const _dmat = new Map(), _usados = [];
   function decal(pool, x, y, z, ry, alt, larg = 99) {

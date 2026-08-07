@@ -331,7 +331,9 @@ export function buildPoolDay(scene, T) {
        a contenção que reprovou o pool_ramos continua valendo (BAR-CONSISTENCIA §2.4). */
     const D_BOMBA = decalIds(T, ['peca-bolha.png', 'alfabeto-bolha.png', 'alfabeto-bolha2.png',
       'alfabeto-grosso-01.png', 'tag-flop.png', 'tags-treino-04.png',
-      'or-graf-treta.png', 'or-graf-coro.png']);   // originais versionados
+      'or-graf-treta.png', 'or-graf-coro.png',     // originais versionados
+      'or-hom-chorao.png', 'or-hom-champignon.png', 'or-hom-tim-maia.png', 'or-hom-rita-lee.png',
+      'or-hom-raul.png', 'or-hom-sabotage.png', 'or-hom-yuka.png', 'or-hom-chico.png']);
     // adesivo de armário: peça pequena e fechada, que aguenta 1 m sem virar borrão
     const D_ADESIVO = decalIds(T, ['tags-treino-02.png', 'tags-treino-03.png', 'tags-treino-05.png',
       'tags-treino-06.png', 'tag-money.png', 'tag-selvagem.png', 'alfabeto-reto-05.png',

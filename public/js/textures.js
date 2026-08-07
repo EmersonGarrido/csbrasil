@@ -744,7 +744,33 @@ export function initTextures() {
     ['or-graf-coro.png', 2.163, 'peca', 0],
     ['or-stencil-capivara.png', 1.0, 'ilustracao', 0],
     ['or-stencil-pomba.png', 1.181, 'ilustracao', 0],
+    // homenagens póstumas a ídolos da música BR (07/08) — versão SOLTA (alpha) pros
+    // mapas que não são o quebrada; a versão de tijolo vira mural em or-mural-*.jpg
+    ['or-hom-chorao.png', 1.49, 'peca', 0],
+    ['or-hom-champignon.png', 1.49, 'peca', 0],
+    ['or-hom-tim-maia.png', 1.411, 'peca', 0],
+    ['or-hom-rita-lee.png', 1.49, 'peca', 0],
+    ['or-hom-raul.png', 1.63, 'peca', 0],
+    ['or-hom-sabotage.png', 1.123, 'peca', 0],
+    ['or-hom-yuka.png', 1.449, 'peca', 0],
+    ['or-hom-chico.png', 1.49, 'peca', 0],
   );
+  /* GALERIA DE HOMENAGENS do quebrada (versão tijolo, opaca) — lazy igual aos decals:
+     8 jpg de 1408×768 só devem baixar quando o quebrada monta a galeria. */
+  const MURAIS_HOM = ['chorao', 'champignon', 'tim-maia', 'rita-lee', 'raul', 'sabotage', 'yuka', 'chico'];
+  T.muraisHom = [];
+  MURAIS_HOM.forEach((n, i) => {
+    Object.defineProperty(T.muraisHom, i, {
+      enumerable: true, configurable: true,
+      get() {
+        const t = _tl.load('posters/or-mural-' + n + '.jpg');
+        t.colorSpace = THREE.SRGBColorSpace;
+        t.minFilter = THREE.LinearMipmapLinearFilter;
+        Object.defineProperty(T.muraisHom, i, { value: t, enumerable: true, configurable: true, writable: true });
+        return t;
+      },
+    });
+  });
   T.decals = [];
   DECAL_FILES.forEach(([f], i) => {
     Object.defineProperty(T.decals, i, {

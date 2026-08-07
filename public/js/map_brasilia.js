@@ -1227,7 +1227,8 @@ export function buildBrasilia(scene, T) {
       'personagens-graffiti-02.png', 'personagens-graffiti-03.png', 'personagens-graffiti-04.png',
       'personagens-graffiti-05.png', 'personagens-graffiti-06.png', 'personagens-graffiti-07.png',
       'peca-bolha.png', 'or-graf-treta.png', 'or-graf-coro.png',
-      'or-stencil-capivara.png', 'or-stencil-pomba.png']);   // originais versionados (vivos em prod)
+      'or-stencil-capivara.png', 'or-stencil-pomba.png',     // originais versionados (vivos em prod)
+      'or-hom-rita-lee.png', 'or-hom-chico.png', 'or-hom-yuka.png', 'or-hom-champignon.png']);
     /* SÓLIDOS DE DECALQUE. O bloco do ministério é GLB e, com `bigscale`, entra com
        `solid: false` — a colisão fica só nos pilares do piloti, então `colliders` NÃO tem a
        empena e o `paredeAtras` reprovaria as 16 peças certas. A empena entra aqui, medida do

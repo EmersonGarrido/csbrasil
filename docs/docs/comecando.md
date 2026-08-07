@@ -39,7 +39,7 @@ esta página envelhecia no primeiro commit — ver
 
 | O que | Quanto | Onde confere |
 |---|---:|---|
-| Código do jogo | 25.630 linhas em 28 arquivos | `cat public/js/*.js \| wc -l` |
+| Código do jogo | 25.690 linhas em 28 arquivos | `cat public/js/*.js \| wc -l` |
 | `game.js` | **6.543** linhas | `wc -l public/js/game.js` |
 | `main.js` | 1.639 linhas | `wc -l public/js/main.js` |
 | Armas com GLB | 26 | `ls public/models/weapons/*.glb \| wc -l` |
@@ -52,7 +52,7 @@ esta página envelhecia no primeiro commit — ver
 | Scripts do arnês | 154 | `ls tools/eval/*.mjs tools/eval/*.py \| wc -l` |
 | Scripts de pipeline | 43 | `ls tools/*.mjs \| wc -l` |
 | Tarefas de entrada escritas | 15 | `ls docs/issues/[0-9]*.md \| wc -l` |
-| Versão | `2.0.0-alpha.30` | `public/js/version.js` e `package.json` (batem) |
+| Versão | `2.0.0-alpha.31` | `public/js/version.js` e `package.json` (batem) |
 
 > Bloco gerado por `node tools/gen-docs.mjs`. Fonte: `o comando da coluna direita de cada linha`
 
@@ -209,11 +209,11 @@ Os mapas registrados hoje, e em que modo cada um abre:
 
 | Id | Nome no menu | Abre em | Arquivo em `public/js/` | Linhas |
 |---|---|---|---|---:|
-| `awp_map` | Praça dos Três Poderes | rodadas | `map_brasilia.js` | 1.794 |
+| `awp_map` | Praça dos Três Poderes | rodadas | `map_brasilia.js` | 1.795 |
 | `fy_pool_day` | Piscina da Treta | rodadas | `—` | — |
-| `fy_havan` | Loja H (Estacionamento) | **captura** | `map_havan.js` | 1.867 |
-| `fy_ferrovelho` | Ferro Velho do Zé | **captura** | `map_ferrovelho.js` | 1.838 |
-| `fy_quebrada` | Quebrada (Rua do Baile) | **captura** | `map_quebrada.js` | 1.439 |
+| `fy_havan` | Loja H (Estacionamento) | **captura** | `map_havan.js` | 1.869 |
+| `fy_ferrovelho` | Ferro Velho do Zé | **captura** | `map_ferrovelho.js` | 1.839 |
+| `fy_quebrada` | Quebrada (Rua do Baile) | **captura** | `map_quebrada.js` | 1.467 |
 
 **5 mapas registrados** — 2 abrem em rodadas e 3 em captura. `ctfMode` **abre** o mapa em captura, não prende: o jogador troca no menu (é a `MOD1`). Há 6 arquivos `map_*.js` em `public/js/` — arquivo no disco **não** implica mapa jogável.
 
