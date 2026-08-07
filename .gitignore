@@ -100,7 +100,12 @@ references/
 # que também mantém a lista `DECAL_FILES` dentro do `public/js/textures.js`.
 # CONSEQUÊNCIA A NÃO ESQUECER: quem clonar não tem os PNGs, e `T.decals` vira 179 caminhos
 # que dão 404. Quem for usar decalque em mapa precisa tolerar textura ausente.
-public/img/decals/
+# (conteúdo com `/*` e não o diretório: diretório ignorado não aceita exceção `!`)
+public/img/decals/*
+# EXCEÇÃO (07/08): decalques `or-*` são OBRA PRÓPRIA, gerados via OpenRouter
+# (tools/gen-image.mjs) — sem problema de procedência, então versionam e chegam
+# ao deploy de produção (que builda do git puro e não tem o acervo de references/).
+!public/img/decals/or-*.png
 
 # ── Sistema operacional e editor ────────────────────────────────────────────
 .DS_Store

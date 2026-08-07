@@ -332,7 +332,9 @@ export function buildQuebrada(scene, T) {
   const D_MURAL = decalIds(T, ['personagem-muro.png', 'personagens-graffiti-01.png',
     'personagens-graffiti-02.png', 'personagens-graffiti-03.png', 'personagens-graffiti-04.png',
     'personagens-graffiti-05.png', 'personagens-graffiti-06.png', 'personagens-graffiti-07.png',
-    'peca-bolha.png', 'bandeira-vira-lata.png']);   // personagens/peças
+    'peca-bolha.png', 'bandeira-vira-lata.png',
+    'or-graf-treta.png', 'or-graf-coro.png',                // originais OpenRouter versionados
+    'or-stencil-capivara.png', 'or-stencil-pomba.png']);    // (únicos vivos em prod)
   /* CARAS: só as folhas que têm OLHOS + BOCA na mesma peça. O pacote tem ~50 recortes de
      olho ou boca SOLTOS ('olhos-bocas-*', e 'caras-cartoon-14'/'caras-vintage-04' são um
      olho só): ampliados a 3 m viram uma mancha preta abstrata na parede — foi o que

@@ -1,5 +1,5 @@
 {
- "gerado": "2026-08-07T01:50:47.722Z",
+ "gerado": "2026-08-07T02:28:02.812Z",
  "renderer": {
   "toneMappingInicial": "ACESFilmicToneMapping",
   "toneMappingExposureInicial": 1.25,
@@ -815,14 +815,14 @@
     "raio": 4,
     "duracao": 13,
     "corSprite": "#81a3c4",
-    "opacidadeSprite": 0.983,
+    "opacidadeSprite": 0.994,
     "escalaSprite": [
-     3,
-     5.1
+     3.16,
+     5.14
     ],
-    "spritesCobrindoCentro": 11,
-    "alfaAcumuladoCentro": 0.9968,
-    "maiorAlfaSprite": 0.644,
+    "spritesCobrindoCentro": 12,
+    "alfaAcumuladoCentro": 0.9984,
+    "maiorAlfaSprite": 0.611,
     "radianciaFumaca": 0.3467,
     "radianciaCeu": 0.4623,
     "razaoFumacaCeu": 0.75,
@@ -1039,14 +1039,14 @@
     "raio": 4,
     "duracao": 13,
     "corSprite": "#8facca",
-    "opacidadeSprite": 0.968,
+    "opacidadeSprite": 0.988,
     "escalaSprite": [
-     3.16,
-     4.96
+     3.02,
+     5.1
     ],
-    "spritesCobrindoCentro": 10,
-    "alfaAcumuladoCentro": 0.9978,
-    "maiorAlfaSprite": 0.839,
+    "spritesCobrindoCentro": 13,
+    "alfaAcumuladoCentro": 0.9906,
+    "maiorAlfaSprite": 0.637,
     "radianciaFumaca": 0.3969,
     "radianciaCeu": 0.5292,
     "razaoFumacaCeu": 0.75,
@@ -1200,14 +1200,14 @@
     "raio": 4,
     "duracao": 13,
     "corSprite": "#91adca",
-    "opacidadeSprite": 0.991,
+    "opacidadeSprite": 0.996,
     "escalaSprite": [
-     3.28,
-     5.1
+     3.14,
+     5.02
     ],
     "spritesCobrindoCentro": 12,
     "alfaAcumuladoCentro": 0.9987,
-    "maiorAlfaSprite": 0.775,
+    "maiorAlfaSprite": 0.742,
     "radianciaFumaca": 0.4019,
     "radianciaCeu": 0.5359,
     "razaoFumacaCeu": 0.75,
@@ -1388,14 +1388,14 @@
     "raio": 4,
     "duracao": 13,
     "corSprite": "#6d89a4",
-    "opacidadeSprite": 0.992,
+    "opacidadeSprite": 0.959,
     "escalaSprite": [
-     3.1,
-     5.12
+     3.02,
+     5.18
     ],
     "spritesCobrindoCentro": 13,
-    "alfaAcumuladoCentro": 0.9992,
-    "maiorAlfaSprite": 0.74,
+    "alfaAcumuladoCentro": 0.9979,
+    "maiorAlfaSprite": 0.82,
     "radianciaFumaca": 0.2379,
     "radianciaCeu": 0.3172,
     "razaoFumacaCeu": 0.75,
@@ -1415,7 +1415,7 @@
   }
  ],
  "shade": {
-  "gerado": "2026-08-07T01:50:47.722Z",
+  "gerado": "2026-08-07T02:28:02.812Z",
   "armas": [
    {
     "arma": "ak",

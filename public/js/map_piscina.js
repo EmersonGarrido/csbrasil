@@ -307,7 +307,8 @@ export function buildPoolDay(scene, T) {
      determinística por posição, porque o `botsim` é determinístico. */
   {
     const D_TAG = decalIds(T, ['tag-fina.png', 'tag-flop.png', 'tag-larga.png', 'tag-money.png',
-      'tag-pingo.png', 'tag-selvagem.png', 'tags-treino-02.png', 'tags-treino-05.png', 'peca-bolha.png']);
+      'tag-pingo.png', 'tag-selvagem.png', 'tags-treino-02.png', 'tags-treino-05.png', 'peca-bolha.png',
+      'or-stencil-capivara.png', 'or-stencil-pomba.png']);   // originais versionados
     /* LETRA DE PILASTRA — e a RESOLUÇÃO é o critério, não o estilo. A 1ª captura desta
        rodada colocou `alfabeto-reto`/`alfabeto-gotico` na pilastra e a peça saiu como um
        borrão embaçado com franja clara: MEDIDO, esses recortes têm 22 a 47 px de lado (as
@@ -329,7 +330,8 @@ export function buildPoolDay(scene, T) {
        (acima de 3,90 m), onde não briga com a silhueta do inimigo no plano do duelo —
        a contenção que reprovou o pool_ramos continua valendo (BAR-CONSISTENCIA §2.4). */
     const D_BOMBA = decalIds(T, ['peca-bolha.png', 'alfabeto-bolha.png', 'alfabeto-bolha2.png',
-      'alfabeto-grosso-01.png', 'tag-flop.png', 'tags-treino-04.png']);
+      'alfabeto-grosso-01.png', 'tag-flop.png', 'tags-treino-04.png',
+      'or-graf-treta.png', 'or-graf-coro.png']);   // originais versionados
     // adesivo de armário: peça pequena e fechada, que aguenta 1 m sem virar borrão
     const D_ADESIVO = decalIds(T, ['tags-treino-02.png', 'tags-treino-03.png', 'tags-treino-05.png',
       'tags-treino-06.png', 'tag-money.png', 'tag-selvagem.png', 'alfabeto-reto-05.png',

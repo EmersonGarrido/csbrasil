@@ -486,6 +486,9 @@ export function initTextures() {
     ['eabfe479653f0e9c94a618858e8667bc.jpg', 0.72],
     ['f0deec032dd1777bc681179fb74a29b0.jpg', 0.72],
     ['images.png', 0.9],
+    // originais OpenRouter 07/08 (obra própria, versionados — ver bloco or-* dos decals)
+    ['or-baile.jpg', 0.605], ['or-compro-ouro.jpg', 0.423],
+    ['or-quebrada-vive.jpg', 0.522], ['or-show-funk.jpg', 0.644],
   ];
   const _tl = new THREE.TextureLoader();
   T.posterImgs = POSTER_FILES.map(([f]) => {
@@ -731,6 +734,17 @@ export function initTextures() {
     ['tags-treino-06.png', 0.375, 'tag', 1],
   ];
   /* DECALS:GERADO-FIM */
+  /* ORIGINAIS `or-*` (07/08): gerados via OpenRouter (tools/gen-image.mjs), obra própria —
+     por isso são os ÚNICOS decals VERSIONADOS (exceção no .gitignore) e os únicos que
+     existem no deploy de produção, que builda do git puro e não tem os recortes de
+     references/. Bloco separado do gerado de propósito: o gen-graffiti-decals reescreve
+     a lista acima e não pode engolir estes. */
+  DECAL_FILES.push(
+    ['or-graf-treta.png', 1.99, 'peca', 0],
+    ['or-graf-coro.png', 2.163, 'peca', 0],
+    ['or-stencil-capivara.png', 1.0, 'ilustracao', 0],
+    ['or-stencil-pomba.png', 1.181, 'ilustracao', 0],
+  );
   T.decals = [];
   DECAL_FILES.forEach(([f], i) => {
     Object.defineProperty(T.decals, i, {

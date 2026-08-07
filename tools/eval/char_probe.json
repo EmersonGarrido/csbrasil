@@ -1,5 +1,5 @@
 {
- "gerado": "2026-08-07T01:49:54.209Z",
+ "gerado": "2026-08-07T02:26:44.968Z",
  "protocolo": "node puro; DOM stubado + three vendorizado (mesmo protocolo de botsim.mjs/pickup-check.mjs); GLB lido por tp-mount-probe.mjs",
  "fontes": {
   "glb": 44,
@@ -81,8 +81,8 @@
    },
    {
     "mapa": "fy_pool_day",
-    "materiais": 64,
-    "map": 43,
+    "materiais": 68,
+    "map": 47,
     "normalMap": 0,
     "roughnessMap": 0,
     "aoMap": 0,
@@ -91,8 +91,8 @@
    },
    {
     "mapa": "fy_havan",
-    "materiais": 211,
-    "map": 44,
+    "materiais": 210,
+    "map": 43,
     "normalMap": 18,
     "roughnessMap": 18,
     "aoMap": 0,
@@ -101,8 +101,8 @@
    },
    {
     "mapa": "fy_ferrovelho",
-    "materiais": 224,
-    "map": 186,
+    "materiais": 226,
+    "map": 188,
     "normalMap": 9,
     "roughnessMap": 9,
     "aoMap": 0,
@@ -116,13 +116,13 @@
     "normalMap": 10,
     "roughnessMap": 10,
     "aoMap": 0,
-    "meshes": 1300,
-    "triangulos": 23608
+    "meshes": 1299,
+    "triangulos": 23606
    }
   ],
   "total": {
-   "materiais": 751,
-   "map": 385,
+   "materiais": 756,
+   "map": 390,
    "normalMap": 53,
    "roughnessMap": 53,
    "aoMap": 0
