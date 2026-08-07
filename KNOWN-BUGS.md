@@ -112,13 +112,19 @@ fina: sem ela dava pra "consertar" o #87 deixando no defeito quem está com JS e
 `~/db-privado/` (`.gitignore:145-148`), e sem esse insumo a régua fica VERMELHA em vez de
 passar calada.
 
-**NÃO VERIFICADO:**
-- **A migration não foi aplicada** — migration deste projeto é manual (`~/db-privado/COMO-MIGRAR.md`).
-  Até rodar, produção continua com o piso de 80 e continua escondendo gente.
-- **Quantos jogadores estão escondidos hoje.** O `raise notice` da anistia imprime o número
-  ao aplicar; é ele que vai no comentário de fechamento da issue.
-- A partida de captura curta de verdade, no navegador, com nick registrado, contra o banco
-  já migrado. A régua mede o motor e o SQL, não o caminho HTTP inteiro.
+**Migration aplicada em 07/08** pelo dono, à mão no SQL Editor (`~/db-privado/COMO-MIGRAR.md`).
+A rota mantém a cascata de compatibilidade, então cliente com JS velho continua gravando.
+
+**NÃO VERIFICADO — e nada disto foi conferido por quem escreveu o conserto:**
+- **O estado do banco DEPOIS da migration.** Não há credencial na worktree; a régua lê os
+  ARQUIVOS SQL, não a função implantada. Falta o smoke escrito no rodapé da 015:
+  `select proname, pronargs from pg_proc where proname='submit_match'` tem que devolver
+  UMA linha com `pronargs = 13` (mais de uma = sobrecarga viva), e
+  `select count(*) from players where hidden` tem que dar 0.
+- **Quantos jogadores estavam escondidos.** O `raise notice` da anistia imprimiu o número
+  ao aplicar; é ele que vai no comentário de fechamento da issue #87.
+- A partida de captura curta de verdade, no navegador, com nick registrado. A régua mede o
+  motor e o SQL, não o caminho HTTP inteiro.
 
 ### BUG-36 · Ctrl+W fecha a aba no meio da partida (Windows/Linux)
 
