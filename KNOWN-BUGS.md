@@ -44,6 +44,158 @@ lista de "balão" do CHR1 tem os mesmos 13 antes e depois).
 
 ## P0 — quebram o jogo ou mentem para quem mede
 
+### ~~BUG-35 · "partida rápida demais pra ser verdade" numa partida legítima~~ · RESOLVIDO 07/08 (issue #87)
+
+**Palavras de quem reportou** (maurodesouza, issue #87): *"Durante uma partida no modo
+Captura de Bandeira, recebi a mensagem `stats não enviados: partida rápida demais pra ser
+verdade`. A partida foi totalmente legítima. Eu estava jogando no mapa Quebrada (8x8) e
+fiquei de AWP cobrindo a viela. O time inimigo acabou avançando praticamente inteiro por
+esse mesmo corredor, então foi uma sequência de eliminações relativamente fácil."*
+
+**Causa raiz.** A cláusula (b) do `submit_match` (`~/db-privado/supabase/schema.sql:252`)
+exigia 80 s por rodada. O objetivo escrito no comentário estava certo — *"speed hack não
+produz partida instantânea"* — mas o NÚMERO veio do modo ABATE, onde a rodada É uma janela
+de tempo (`ROUND_TIME = 99`, `public/js/game.js:77`). **No CAPTURA a rodada não tem janela
+de tempo nenhuma**: fecha por alvo de bandeiras ou por dominação (`_ctfWin`,
+`game.js:4150`), e bastam 2 rodadas pra partida (`CTF_ROUNDS_TO_WIN`, `game.js:114`). O
+modo herdou uma premissa que nunca foi dele.
+
+**A parte que a issue não viu, e é a grave.** Antes do `raise`, a cláusula chamava
+`_flag(p_nick)` (`schema.sql:183-188`), que faz `flagged_count + 1` e, em
+`flagged_count >= 3`, `hidden = true`. A view `leaderboard` filtra por `not p.hidden`.
+**Três partidas rápidas legítimas escondiam o jogador do ranking, em silêncio.**
+
+**Medido antes × depois** (`node tools/eval/submit-guard-check.mjs --amostra`, 5 mapas ×
+10 sementes de CAPTURA jogadas até `matchEnd` no motor real, 07/08):
+
+| | piso 80 (antes) | piso por modo (depois) |
+|---|---|---|
+| partidas legítimas recusadas (SG2) | **6 de 50** | 0 de 50 |
+| abandonos legítimos recusados (SG3) | 4 de 50 | 0 de 50 |
+| mapas onde o piso recusa o fisicamente possível (SG1) | **5 de 5** | 0 de 5 |
+| a cláusula dá strike (SG4) | sim | não |
+
+Menor s/rodada de partida inteira: 48,0 s (awp_map, semente 64). Menor rodada individual:
+31,1 s (fy_pool_day, semente 99). Abandono mais curto que o jogo produz: `rounds 1,
+seconds 33`. **E o simulador é o caso LENTO — o jogador dele é passivo.**
+
+**O palpite óbvio, medido e morto.** *"É só baixar 80 para 40."* Rodado
+(`--piso=40 --amostra`): a **amostra passaria** (0/50 em SG2), e mesmo assim 40 reprova
+SG1 nos 5 mapas e recusa 4 de 50 abandonos. É por isso que a régua tem cláusula de FÍSICA
+além da de amostra — sozinha, a amostra teria aprovado o palpite errado.
+
+**De onde vem o número novo.** Tempo físico mínimo de uma rodada de captura: caminho ótimo
+em linha reta do spawn por todas as bandeiras (força bruta sobre as permutações), a
+`PLAYER_SPEED = 5,35 m/s`, mais permanência no anel com esquadrão cheio
+(`CAP_NEUTRAL/2`, `game.js:4099-4112`). Ignora parede, desvio e combate — tudo que a
+realidade cobra a mais. awp_map 20,1 s · fy_pool_day 12,3 s · fy_havan 35,6 s ·
+fy_ferrovelho 24,6 s · fy_quebrada 24,9 s. O piso do CAPTURA ficou em **6 s/rodada**,
+metade do mais apertado. O do ABATE continua 80 (lá a rodada não desce de ~99 s).
+
+**Conserto.** `p_mode` novo no RPC (`~/db-privado/supabase/migrations/015_submit_guard_modo.sql`),
+`mode: matchMode` nos dois payloads do `public/js/main.js` (fim de partida e abandono),
+`p_mode` na cascata de compatibilidade de `src/pages/api/submit-match.ts`. Modo
+desconhecido cai no piso BAIXO de propósito — cliente com JS em cache não pode ser punido.
+Espelho `opcional/012_ofuscacao_schema.sql` atualizado junto: ele é cópia byte-a-byte, e se
+ficasse pra trás, aplicar a ofuscação um dia reintroduziria este defeito.
+
+**Anistia.** A migration zera `flagged_count`/`hidden` de todo mundo, e o motivo está
+escrito nela: **não existe coluna de auditoria dizendo qual cláusula gerou cada strike**, e
+punição não atribuível vinda de regra defeituosa se desfaz inteira.
+
+**Régua nova:** `tools/eval/submit-guard-check.mjs` (`npm run eval:submitguard`). SG1
+física · SG2 amostra · SG3 abandono · SG4 sem strike · SG5 o ramo default é o brando.
+Mutações executadas: `--mutante=piso80` (SG1 vermelha nos 5 mapas), `--mutante=comflag`
+(SG4 vermelha nos 3 arquivos), `--mutante=defaultduro` (SG5 vermelha nos 3 — é a mais
+fina: sem ela dava pra "consertar" o #87 deixando no defeito quem está com JS em cache).
+**Fica fora do `check`**, como o `eval:boot`: o piso é LIDO do SQL, que mora em
+`~/db-privado/` (`.gitignore:145-148`), e sem esse insumo a régua fica VERMELHA em vez de
+passar calada.
+
+**NÃO VERIFICADO:**
+- **A migration não foi aplicada** — migration deste projeto é manual (`~/db-privado/COMO-MIGRAR.md`).
+  Até rodar, produção continua com o piso de 80 e continua escondendo gente.
+- **Quantos jogadores estão escondidos hoje.** O `raise notice` da anistia imprime o número
+  ao aplicar; é ele que vai no comentário de fechamento da issue.
+- A partida de captura curta de verdade, no navegador, com nick registrado, contra o banco
+  já migrado. A régua mede o motor e o SQL, não o caminho HTTP inteiro.
+
+### BUG-36 · Ctrl+W fecha a aba no meio da partida (Windows/Linux)
+
+**Palavras de quem reportou** (Daniel Diniz, 07/08, LinkedIn): *"quando fica muito tempo
+com a tecla Control pressionada a página fecha"* · *"Testei no Windows, mas posso ver no
+Mac"* · *"Não acontece no Mac 🤔, mas pode ser o chrome desatualizado!"* · *"testei em
+outros Browser e tem o mesmo problema. É alguma treta do Windows mesmo"*.
+
+**Não é treta do Windows, e não é o Control sozinho.** Agachar é
+`ControlLeft`/`ControlRight` e andar pra frente é `W` (`game.js`, `wantCrouch`). **Agachar
+andando pra frente É Ctrl+W**, que no Windows e no Linux fecha a aba. No Mac o atalho é
+Cmd+W — por isso o dono, que joga no Mac, nunca reproduziu. Mesma família: Ctrl+1/2/3 troca
+de aba do navegador, e 1/2/3 é a troca de arma.
+
+**Por que o código já sabia e não resolvia.** O `_kd` (`game.js:1969`) engolia
+`ctrlKey`/`metaKey` em pointer lock, e o comentário dele registrava a derrota: *"Ctrl+W o
+Chrome não deixa prevenir, use C pra agachar"*. Ctrl+W é atalho RESERVADO — `preventDefault`
+não alcança. Dizer ao jogador pra não usar a tecla padrão de FPS não é conserto, é aviso.
+
+**Conserto, duas camadas porque nenhuma sozinha cobre todo mundo.**
+1. `_travaAtalhos()` (`game.js`, dentro do `_requestLock`): `navigator.keyboard.lock()` com
+   `KeyW`/`KeyT`/`KeyN`/`KeyR`/`Digit1-3`. É a única API que captura Ctrl+W — e **só
+   funciona em tela cheia**, por isso a tela cheia entra junto, pedida cedo no `startGame`
+   (`main.js`), enquanto o clique ainda vale como gesto do usuário: depois do
+   `await sfxReady` e do `Promise.all` dos GLBs a ativação transiente já queimou. Escape
+   fica fora da lista de propósito (travado, exigiria toque longo, e Escape é o menu de
+   pausa). Solta no `dispose()` e no `setPaused(true)` — segurar o navegador de quem está
+   tentando sair seria hostil. Chromium só.
+2. O `beforeunload` do `main.js` passa a pedir confirmação **enquanto a partida está viva**.
+   Cobre Firefox, Safari e todo caso em que a tela cheia não pegou.
+
+**De quebra:** o `requestPointerLock` estava duplicado (`main.js:596` e o `_requestLock` do
+`game.js`), e era a duplicata que deixava a trava sem lugar pra morar no COMEÇO da partida
+— o RETOMAR passava pelo funil, o COMEÇAR não. Agora é um funil só.
+
+**Régua nova:** `tools/eval/ctrlw-check.mjs` (`npm run eval:ctrlw`), quatro cláusulas:
+
+| | o que mede | estado em 07/08 | mutação |
+|---|---|---|---|
+| CW4 | `_travaAtalhos` chama `keyboard.lock` com as teclas certas (node puro) | **VERDE** — pediu `KeyW,KeyT,KeyN,KeyR,Digit1-3` | `semtravar` → `[]`, FALHA ✓ |
+| CW3 | no MENU o `beforeunload` fica calado | **VERDE** | `promptsempre` → FALHA ✓ |
+| CW2 | com partida viva o `beforeunload` confirma | verde numa corrida, **não reproduzido** | `semprompt` (não executada) |
+| CW1 | tela cheia + trava ao ENTRAR na partida | **não medida** | `semlock` (não executada) |
+
+A CW3 é a que protege o conserto de si mesmo: confirmação que aparece sempre vira praga, e
+praga alguém arranca inteira em duas semanas, levando o conserto junto. A CW4 nasceu porque
+o caminho de navegador não fechava nesta máquina e a pergunta mais direta — *a trava chama
+mesmo a API, e com quais teclas?* — não podia ficar sem resposta esperando por ele. As
+mutações de arquivo servido morrem se não casarem o texto (`MUTANTE NÃO APLICOU`): mutação
+que passa de largo devolve verde, e esse verde é lido como "o guarda funciona".
+
+**O arnês fornece o ambiente, e isso está às claras no cabeçalho da régua:** Chrome
+headless não concede tela cheia de verdade nem expõe `navigator.keyboard`, então a régua
+planta os dois e mede o CÓDIGO DO JOGO. Ela não prova nada sobre o navegador hospedeiro.
+
+**QUATRO DEFEITOS DE INSTRUMENTO pagos escrevendo esta régua** (lei 7 da `bug-hunt`, e os
+quatro acusaram código inocente):
+1. media no `state` do jogo em vez do fim do `startGame` — `game.start()` põe `countdown`
+   ~20 linhas ANTES do `_requestLock`, então CW1 reprovava algo que ainda não tinha sido
+   tentado;
+2. `getElementById('loading')` quando o overlay é `load-overlay` — o `?.` devolvia
+   `undefined` e a condição nunca fechava;
+3. `waitForFunction` polla em `requestAnimationFrame` por padrão, e o rAF fica estrangulado
+   justamente durante o preload pesado que se está esperando (`polling: 250` resolve);
+4. `.catch(() => false)` cego no `waitForFunction`, que transformou exceção do Playwright
+   em "não ficou pronto" e escondeu (3) por três corridas.
+
+**NÃO VERIFICADO — e o primeiro item é o que fecha o defeito, não a régua:**
+- **Windows + Chrome com Ctrl+W de verdade.** Só quem tem Windows fecha isto: entrar na
+  partida, segurar Ctrl e andar com W por vários segundos, e a aba não pode fechar. **Pedir
+  ao Daniel Diniz**, que reportou.
+- Firefox e Safari: espera-se o diálogo de confirmação, não o fechamento seco. Não testado.
+- CW1 e CW2 não fecharam nesta máquina: o `/` em dev leva minutos pra compilar e o preload
+  do elenco derruba o renderer headless. A régua reprova por isso e **diz que reprovou** —
+  não conta como aprovação. Rodar em máquina mais folgada, ou com `BASE=` apontando pra um
+  preview já construído.
+
 ### ~~BUG-29 · "o jogo tá reiniciando do nada, estava num CTF no ferro velho do Zé"~~ · RESOLVIDO 05/08
 
 **NÃO era o BUG-00 de volta.** O menu de pausa continua consertado: `pause-check.mjs`
@@ -1412,6 +1564,41 @@ publicação em potencial, e o `.gitignore` não protege de um deploy local.
 ---
 
 ## Relatados, ainda não reproduzidos
+
+- **BUG-37 · Tarja vermelha de CRASH por um erro que não é crash.** Print do dono, 07/08,
+  com o menu de pausa aberto (`RESUME ▶` no canto):
+  *"⚠ CRASH (promise): The fetching process for the media resource was aborted by the user
+  agent at the user's request."*
+  **Régua: nenhuma.**
+  Essa mensagem é o `AbortError` padrão de um `<audio>` cujo `play()` estava pendente
+  quando alguém chamou `pause()` ou trocou o `src` — acontece em toda troca de faixa e em
+  todo fade de saída. **O defeito não é o áudio: é o overlay de crash tratar isso como
+  crash.** O handler está em `src/pages/index.astro:27` e mostra QUALQUER
+  `unhandledrejection` numa tarja vermelha pedindo print. Um jogador levando "CRASH" na
+  cara por causa de música que trocou é ruído que ainda por cima treina todo mundo a
+  ignorar a tarja — inclusive quando ela for de verdade.
+  **O que já foi conferido e NÃO é a origem:** os `play()` do `startMenuMusic`
+  (`main.js:206-216`) têm todos tratamento de rejeição, e o `_sample` do `audio.js:46`
+  também (`.catch(() => off())`). Falta achar quem produz a promessa solta — o
+  `stopMenuMusic` pausa por fade (`main.js:222-228`) e é candidato, mas não foi medido.
+  **Próximo passo:** régua que abra a rota, force troca de faixa/pausa e exija zero
+  `unhandledrejection`; depois filtrar `AbortError` de mídia no overlay, mantendo tudo o
+  mais visível.
+
+- **BUG-38 · "Andando não consigo mexer a mira, só quando para" — touchpad de notebook.**
+  Palavras de quem reportou (Matheus Paz, 07/08): *"Andando não consigo mexer a mira, só
+  quando para. Isso usando touchpad do notebook!"*
+  **Régua: nenhuma. NÃO REPRODUZIDO** — quem investigar precisa de um notebook com
+  touchpad; no mouse do dono isso não aparece.
+  **Palpite óbvio, e ele precisa ser REFUTADO antes de virar conserto:** "é a supressão de
+  toque enquanto digita" (Windows Precision Touchpad e macOS ignoram o trackpad enquanto
+  há tecla pressionada, pra o cursor não pular no meio da digitação). Se for isso, é do
+  sistema e não do jogo — mas *isso não fecha o item*, porque o jogo pode mitigar. E se
+  NÃO for, o suspeito seguinte é o `_mm` (`game.js:2049`), que lê `e.movementX/Y` e só
+  roda atrás de `_acceptInput()`.
+  **O que NÃO foi verificado:** o sistema operacional dele, se estava em pointer lock, e
+  se a mira trava com QUALQUER tecla de movimento ou só com W. Perguntar antes de medir —
+  sem isso a régua nasce medindo a coisa errada.
 
 - **"E vice-versa" do BUG-01** — partida de CTF *sem* a faixa de bandeiras no HUD. O caminho
   `this.ctf → _initCTF → _updateCtfHud` sempre desconde, então o mecanismo não é o mesmo do
