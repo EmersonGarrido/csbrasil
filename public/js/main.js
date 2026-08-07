@@ -547,6 +547,15 @@ async function startGame(team, charId, enemyFaction) {
   stopMenuMusic();   // música é só do menu — some (fade) quando a partida começa
   if (game) game.dispose();
   show(null);
+  /* TELA CHEIA PEDIDA AQUI, E O LUGAR É O QUE IMPORTA. Ela é pré-requisito da Keyboard
+     Lock API, que é a única coisa que impede Ctrl+W de fechar a aba no meio da partida
+     (ver `_travaAtalhos` no game.js). `requestFullscreen` exige gesto do usuário, e o
+     gesto é o clique que chamou este `startGame` — mas logo abaixo vem `await sfxReady` e
+     o `Promise.all` dos GLBs, que levam segundos e queimam a ativação transiente. Pedir
+     depois dos awaits falha calado. Aqui em cima o clique ainda vale.
+     Falhar é ACEITÁVEL: sem tela cheia não há trava de atalho, e a confirmação de saída
+     do `beforeunload` cobre o caso. Por isso nada de await e nada de erro na tela. */
+  if (!testMode) { try { document.documentElement.requestFullscreen?.()?.catch?.(() => {}); } catch {} }
   const _sp = document.getElementById('boot-splash'); if (_sp) _sp.remove();   // fluxo ?auto= pula a splash
   // LOADING REAL da partida: overlay opaco cobre TUDO enquanto os GLBs entram e o mundo
   // é construído — nada de cena parcial/"minecraft" aparecendo aos poucos
@@ -610,7 +619,10 @@ async function startGame(team, charId, enemyFaction) {
      as pessoas escolhem, não SE escolhem captura ou rodadas. O `match_end` manda os quatro
      com os mesmos nomes — é o que permite comparar quem começa com quem termina. */
   try { window.va?.('event', { name: 'game_start', data: { team, character: charId, map: currentMap, mode: matchMode === 'ctf' ? 'ctf' : 'rounds' } }); } catch {}
-  if (!testMode) { try { renderer.domElement.requestPointerLock()?.catch?.(() => {}); } catch {} }
+  /* UM FUNIL SÓ pra "assumir o input". Isto era um `requestPointerLock` duplicado do que
+     o `game._requestLock()` já fazia — e a duplicata é que deixava a trava de atalhos sem
+     lugar pra morar no começo da partida (o RETOMAR passava pelo funil, o COMEÇAR não). */
+  if (!testMode) game._requestLock();
 }
 function quitToMenu() {
   // corta a vinheta de round ao sair da partida (pedido do dono): o teto de 25 s do
@@ -638,6 +650,9 @@ function quitToMenu() {
   try { if (game) game.dispose(); } catch (e) { console.error('dispose falhou ao sair pro menu', e); }
   game = null; window.__game = null;
   if (document.pointerLockElement) document.exitPointerLock();
+  // a tela cheia era da PARTIDA (pré-requisito da trava de Ctrl+W); no menu ela não serve
+  // pra nada e prender o jogador nela é rude. O `dispose()` acima já soltou os atalhos.
+  try { if (document.fullscreenElement) document.exitFullscreen?.()?.catch?.(() => {}); } catch {}
   show('main-menu');
 }
 
@@ -1270,24 +1285,45 @@ function traduErroSubmit(msg) {
 }
 
 // stats parciais quando o jogador abandona a partida (sair pro menu / fechar aba)
+/* "Tem partida viva agora?" — uma definição só, usada pelo payload de abandono E pela
+   confirmação de saída. Eram a mesma condição escrita duas vezes, e duas cópias de uma
+   condição é como uma delas fica pra trás. */
+function emPartida() {
+  return !!game && !testMode && ['live', 'roundEnd', 'countdown'].includes(game.state);
+}
 function partialPayload() {
-  if (!game || submitted || testMode) return null;
-  if (!['live', 'roundEnd', 'countdown'].includes(game.state)) return null;
+  if (!emPartida() || submitted) return null;
   const g = game, p = g.player;
   const rounds = g.roundsWon.E + g.roundsWon.B;
   if (!p.kills && !p.deaths && !rounds && g.time < 30) return null;
   const nick = registeredNick || (nickEl.value || '').trim();
   if (!nick) return null;
+  /* `mode` VAI TAMBÉM NO ABANDONO, e é aqui que ele mais importa (issue #87): este
+     payload é o mais CURTO que o jogo produz — vencer a 1ª rodada de captura por
+     dominação e fechar a aba manda `rounds: 1` com `seconds` de poucas dezenas. Sem o
+     modo, o servidor aplicava o piso do ABATE (80 s/rodada) e recusava. */
   return {
     nick, token: getToken(), won: false, kills: p.kills, deaths: p.deaths,
     headshots: p.headshots || 0, bestStreak: g.mk.best || 0, rounds, team: g.playerTeam,
-    seconds: Math.round(g.time), character: currentChar,
+    seconds: Math.round(g.time), character: currentChar, mode: matchMode,
   };
 }
-addEventListener('beforeunload', () => {
+addEventListener('beforeunload', (e) => {
   sendTelemetry();   // aba fechando no meio da partida ainda conta como tempo jogado
   const pl = partialPayload();
   if (pl) navigator.sendBeacon('/api/submit-match', new Blob([JSON.stringify(pl)], { type: 'application/json' }));
+  /* SEGUNDA CAMADA CONTRA O CTRL+W (relato do Daniel Diniz: *"quando fica muito tempo com
+     a tecla Control pressionada a página fecha"* — é agachar + andar pra frente formando
+     Ctrl+W no Windows). A trava de atalho do game.js resolve de verdade, mas é Chromium e
+     exige tela cheia; no Firefox, no Safari e quando a tela cheia não pega, o que sobra é
+     o navegador PERGUNTAR antes de fechar. Perder a partida com um diálogo é chato;
+     perder sem aviso é o defeito.
+
+     `emPartida()` é o gate, e ele é a metade que importa: no menu nada disso arma, então
+     quem quer só fechar a aba fecha a aba. Uma confirmação que aparece sempre vira praga e
+     em duas semanas alguém arranca ela inteira — e leva o conserto junto. Cláusula CW3 da
+     `tools/eval/ctrlw-check.mjs` existe pra cobrar exatamente esse silêncio no menu. */
+  if (emPartida()) { e.preventDefault(); e.returnValue = ''; }
 });
 
 /* ---------------- fila de reenvio (rate limit do servidor) ---------------- */
@@ -1331,7 +1367,7 @@ async function recordMatchStats(s) {
       nick, token: getToken(), won: s.won, kills: s.kills, deaths: s.deaths,
       headshots: s.headshots, bestStreak: s.bestStreak,
       rounds: s.roundsP + s.roundsB, team: s.team, seconds: s.seconds || 0,
-      character: s.character,
+      character: s.character, mode: matchMode,
     });
     if (!res) submitNote('ranking global indisponível');
     else if (res.error) submitNote(traduErroSubmit(res.error));

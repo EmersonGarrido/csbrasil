@@ -25,14 +25,21 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
   try { body = await request.json(); } catch {
     return new Response(JSON.stringify({ error: 'bad_json' }), { status: 400, headers: { 'content-type': 'application/json' } });
   }
-  const { nick, token, won, kills, deaths, headshots, bestStreak, rounds, team, seconds, character } = body ?? {};
+  const { nick, token, won, kills, deaths, headshots, bestStreak, rounds, team, seconds, character, mode } = body ?? {};
   if (typeof nick !== 'string' || typeof token !== 'string')
     return new Response(JSON.stringify({ error: 'missing_fields' }), { status: 400, headers: { 'content-type': 'application/json' } });
 
   const n = nick.slice(0, 14);
+  /* MODO DA PARTIDA (issue #87). A trava de tempo do RPC aplica um piso de segundos por
+     rodada, e o piso do ABATE (80 s, rodada de 99 s) não vale pro CAPTURA, onde a rodada
+     não tem janela de tempo — era isso que recusava partida legítima e ainda marcava o
+     jogador. Só 'rounds' e 'ctf' passam; qualquer outra coisa vira null, e null cai no
+     piso BAIXO do lado do banco (cliente com JS em cache não pode ser punido). */
+  const m = mode === 'rounds' || mode === 'ctf' ? mode : null;
   // cascata de compatibilidade: se a função do banco está desatualizada
-  // (sem p_character/p_seconds/p_rounds/p_team), grava o núcleo dos stats mesmo assim
+  // (sem p_mode/p_character/p_seconds/p_rounds/p_team), grava o núcleo dos stats mesmo assim
   const attempts = [
+    { p_nick: n, p_token: token, p_won: !!won, p_kills: kills | 0, p_deaths: deaths | 0, p_headshots: headshots | 0, p_best_streak: bestStreak | 0, p_rounds: rounds | 0, p_team: team === 'E' || team === 'P' ? 'P' : team === 'B' ? 'B' : null, p_seconds: seconds | 0, p_character: typeof character === 'string' ? character.slice(0, 20) : null, p_ip: ip, p_mode: m },
     { p_nick: n, p_token: token, p_won: !!won, p_kills: kills | 0, p_deaths: deaths | 0, p_headshots: headshots | 0, p_best_streak: bestStreak | 0, p_rounds: rounds | 0, p_team: team === 'E' || team === 'P' ? 'P' : team === 'B' ? 'B' : null, p_seconds: seconds | 0, p_character: typeof character === 'string' ? character.slice(0, 20) : null, p_ip: ip },
     { p_nick: n, p_token: token, p_won: !!won, p_kills: kills | 0, p_deaths: deaths | 0, p_headshots: headshots | 0, p_best_streak: bestStreak | 0, p_rounds: rounds | 0, p_team: team === 'E' || team === 'P' ? 'P' : team === 'B' ? 'B' : null },
     { p_nick: n, p_token: token, p_won: !!won, p_kills: kills | 0, p_deaths: deaths | 0, p_headshots: headshots | 0, p_best_streak: bestStreak | 0 },
