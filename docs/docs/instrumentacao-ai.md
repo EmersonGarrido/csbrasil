@@ -57,7 +57,7 @@ Antes de qualquer edição, existe um instrumento. Duas coisas diferentes se cha
   verdade?"). Um mapa pode passar num e falhar no outro; a régua separa de propósito.
 - **`tools/eval/invariants.mjs`** — o PORTÃO: roda em node puro e sai com código 1 se
   qualquer invariante crítica falhar. Quantas existem e quantas são avaliadas está no bloco
-  gerado de [O portão](./quality-gates.md) — não é número para repetir aqui.
+  gerado de [O quality gate](./quality-gates.md) — não é número para repetir aqui.
 
 A régua nunca é escrita pelo mesmo agente que vai consertar o defeito que ela mede.
 Quando isso aconteceu, o resultado está documentado no repo — ver a seção
@@ -148,7 +148,7 @@ esquerda, borda direita e área de tela do viewmodel com precisão de subpixel
 ## Por que "quem constrói nunca dá a nota" não é filosofia
 
 Tem caso medido, e ele está no código: um crítico que também construía subiu o placar do
-portão **de verdade, sem afrouxar um teto sequer**, e mesmo assim foi reprovado — porque
+quality gate **de verdade, sem afrouxar um teto sequer**, e mesmo assim foi reprovado — porque
 para fechar duas invariantes destruiu em silêncio uma decisão estética que nenhuma régua
 codificava.
 
@@ -161,13 +161,13 @@ régua era quem ia ser medido por ela.
 ## Armadilhas caras desta base (não repita)
 
 Tabela reproduzida de `.claude/skills/gauntlet-fps/SKILL.md:111-121`. Dois itens eu
-confirmei no código: os dois aspectos estão medidos no portão (VM4 e VM10 comparam 16:9
+confirmei no código: os dois aspectos estão medidos no quality gate (VM4 e VM10 comparam 16:9
 com 3:2) e o aviso do `?v=` está em `public/js/version.js:2-4`. Os outros são memória
 declarada do projeto — trate como tal.
 
 | Armadilha | O que acontece |
 |---|---|
-| Validar enquadramento de arma só em 16:9 | O dono joga em **3:2**. Já custou uma rodada inteira. O portão mede os dois aspectos (VM4, VM10) |
+| Validar enquadramento de arma só em 16:9 | O dono joga em **3:2**. Já custou uma rodada inteira. O quality gate mede os dois aspectos (VM4, VM10) |
 | Girar a arma pra "expor identidade" | Causa raiz do "mira num lugar, a arma aponta pro outro". Direção do dono: **funcional > identidade por ângulo** |
 | Orientação de arma medida no olho | Sempre medição objetiva (`weapontest.html`, `weapon-capture.mjs`) |
 | Preload de todas as viewmodels | Foi o crash "Aw Snap" (OOM). Hoje é lazy-load. Não desfaça |

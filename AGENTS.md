@@ -20,7 +20,7 @@ A v1 chegou a mil jogadores por dia com gráfico nível Minecraft. A v2 persegue
 **jogabilidade, a uniformidade e a animação do CS 1.6** — o alvo é **consistência**, não
 fidelidade de CoD. O dono se chama Ruben, responde em português, joga em **3:2** e revisa
 olhando screenshot. **Ele acerta com mais frequência do que a métrica:** quando ele diz que
-algo está errado e o portão está verde, o defeito é do portão.
+algo está errado e o quality gate está verde, o defeito é do quality gate.
 
 ## As duas zonas
 
@@ -28,9 +28,9 @@ algo está errado e o portão está verde, o defeito é do portão.
 
 | Zona | O que é | Tamanho medido | Regra |
 |---|---|---|---|
-| `public/` | o **jogo** | 30 arquivos `.js`, 27.020 linhas · Three.js `r160` vendorizado | ES modules servidos crus, **zero build**, sem dependência de runtime |
+| `public/` | o **jogo** | 30 arquivos `.js`, 27.089 linhas · Three.js `r160` vendorizado | ES modules servidos crus, **zero build**, sem dependência de runtime |
 | `src/` | o **site** | 17 páginas `.astro`, 12 rotas `/api` · Astro `^7.1.1` | framework é bem-vindo; `service_role` só no servidor |
-| `tools/` | o **arnês** | 158 scripts em `tools/eval/`, 44 em `tools/` | node puro: sobe o jogo real sem browser |
+| `tools/` | o **arnês** | 159 scripts em `tools/eval/`, 44 em `tools/` | node puro: sobe o jogo real sem browser |
 
 **Não existe `public/index.html`.** O HTML do jogo é `src/pages/index.astro`, servido na rota `/`. Servir `public/` estaticamente entrega os arnêses visuais, **não o jogo** — é a pegadinha que custa a primeira hora de todo mundo.
 
@@ -40,7 +40,7 @@ algo está errado e o portão está verde, o defeito é do portão.
 
 **`public/` não pode ganhar dependência de runtime nem passo de build.** Isso não é
 conservadorismo: é o que permite `tools/eval/harness.mjs` subir a classe `Game` real em node
-puro em segundos — que é o que faz o portão existir. Um bundler no meio quebraria a régua
+puro em segundos — que é o que faz o quality gate existir. Um bundler no meio quebraria a régua
 junto com a portabilidade. Three.js é vendorizado em `public/vendor/`; não adicione CDN.
 
 **Mexeu em `public/js/*.js`? Bump o `?v=` nos dois lados** — `public/js/version.js` e o
@@ -60,7 +60,7 @@ que a gerou — os casos completos estão em
 
 **1 · Régua antes do conserto.** Escreva a medição, prove que ela **reprova** o estado atual,
 só então conserte. Intenção que não vira invariante é otimizada para fora: uma rodada levou o
-portão de 16/21 para 19/21 sem afrouxar um teto sequer e foi reprovada, porque para fechar
+quality gate de 16/21 para 19/21 sem afrouxar um teto sequer e foi reprovada, porque para fechar
 duas invariantes destruiu em silêncio uma decisão estética que nenhuma régua codificava.
 
 **2 · Teto sem procedência é opinião.** Todo número novo cita **arquivo de referência +
@@ -68,7 +68,7 @@ pixel medido + o script que reproduz**. Três dias foram gastos perseguindo dois
 asseridos que a referência contradizia. O padrão de qualidade desta base é a docstring de
 `tools/eval/ref-measure.py` — leia antes de propor qualquer teto.
 
-**3 · Toda invariante vem com a mutação que a faz ficar vermelha.** Um portão que não se mexe
+**3 · Toda invariante vem com a mutação que a faz ficar vermelha.** Um quality gate que não se mexe
 quando você quebra o código de propósito está cego. Caso real: um mutante que desfazia
 inteiramente a correção do enquadramento passava **20/22 VERDE**, porque a invariante lia a
 *declaração* de uma constante e não o *uso*. Outros três buracos iguais foram achados depois.
@@ -86,7 +86,7 @@ uma frente pronta, rode um crítico adversarial com contexto limpo. O ciclo inte
 
 **Vai consertar um defeito? As quatro leis acima viram passo a passo na skill `bug-hunt`**
 (`.claude/skills/bug-hunt/SKILL.md`), com o caso real de cada uma e o fluxo operacional —
-onde registrar, em que ordem rodar o portão, e como reportar o que **não** foi verificado.
+onde registrar, em que ordem rodar o quality gate, e como reportar o que **não** foi verificado.
 Ela vale para agente e para gente. Como a `gauntlet-fps`, ela nasceu aqui e vive em
 `.claude/skills/` porque `.agents/skills/` é gitignored (skill de terceiro, fixada por hash).
 
@@ -100,7 +100,7 @@ Um assunto, um arquivo. Se você precisa da informação, é daqui que você sai
 |---|---|---|
 | o estado de hoje, em ≤100 linhas | [`STATUS.md`](STATUS.md) | comece por aqui |
 | contexto, leis e o que fazer em ordem | [`HANDOFF.md`](HANDOFF.md) | auto-contido, assume que você não viu nada |
-| **defeitos com evidência** | [`KNOWN-BUGS.md`](KNOWN-BUGS.md) | `arquivo:linha`, régua e reprodução por bug — **e o placar real do portão** |
+| **defeitos com evidência** | [`KNOWN-BUGS.md`](KNOWN-BUGS.md) | `arquivo:linha`, régua e reprodução por bug — **e o placar real do quality gate** |
 | a ordem de trabalho de uma sessão | [`PROMPT.md`](PROMPT.md) | o que atacar primeiro, e por quê |
 | **índice símbolo→linha do `game.js`** e a tabela de conflito | [`tools/eval/ARCH.md`](tools/eval/ARCH.md) | **GERADO** (`npm run arch`) — leia **antes** de tocar em `game.js` |
 | o que cada script do arnês mede | [`tools/eval/README.md`](tools/eval/README.md) | inclui quais estão obsoletos |
@@ -117,16 +117,16 @@ Um assunto, um arquivo. Se você precisa da informação, é daqui que você sai
 
 ---
 
-## O portão, e a ordem que importa
+## O quality gate, e a ordem que importa
 
 <!-- BEGIN:GERADO:scripts — não edite à mão, rode `npm run docs` -->
 
 ```bash
 npm run check        # npm run syntax && npm run audio:check && npm run eval:ctfhud && npm run eval:vm && npm run eval:invariants && npm run eval:kick && npm run eval:bots
-npm run check:fast   # npm run syntax && npm run docs:check && npm run arch:check && npm run audio:check && npm run feet:check && npm run eval:ctfhud && npm run eval:pause && npm run eval:ctfround && npm run eval:ctfwin && npm run eval:spawn && npm run eval:regen && npm run eval:pegada && npm run eval:ctflabels && npm run anims:check
+npm run check:fast   # npm run syntax && npm run docs:check && npm run arch:check && npm run audio:check && npm run feet:check && npm run eval:ctfhud && npm run eval:pause && npm run eval:ctfround && npm run eval:ctfwin && npm run eval:spawn && npm run eval:regen && npm run eval:pegada && npm run eval:ctflabels && npm run eval:faccao && npm run anims:check
 ```
 
-`package.json` tem **45 scripts**. Vários trazem uma chave `//nome` logo acima com o motivo de existirem — é onde mora o porquê.
+`package.json` tem **47 scripts**. Vários trazem uma chave `//nome` logo acima com o motivo de existirem — é onde mora o porquê.
 
 > Bloco gerado por `node tools/gen-docs.mjs`. Fonte: `node -p "Object.keys(require('./package.json').scripts)"`
 
@@ -141,12 +141,12 @@ npm run check:fast   # npm run syntax && npm run docs:check && npm run arch:chec
 > corrigida — o cuidado é para quando você chamar `node tools/eval/invariants.mjs` na mão.
 > É o **BUG-02** do [`KNOWN-BUGS.md`](KNOWN-BUGS.md).
 
-A mesma armadilha tem uma segunda forma, e ela morde quem adiciona portão: **`check:fast` é
-uma corrente de `&&`, e o primeiro erro corta o resto.** Portão colocado depois de um passo
+A mesma armadilha tem uma segunda forma, e ela morde quem adiciona quality gate: **`check:fast` é
+uma corrente de `&&`, e o primeiro erro corta o resto.** Quality gate colocado depois de um passo
 que já está vermelho nasce morto — roda zero vezes e ninguém percebe. Leia a chave
 `//check:fast` do `package.json` antes de acrescentar um passo.
 
-**O placar do portão não mora neste arquivo, e não deve morar em nenhum outro além de um.**
+**O placar do quality gate não mora neste arquivo, e não deve morar em nenhum outro além de um.**
 Quantas invariantes passam **não é derivável do fonte** — depende de qual insumo existe na
 máquina. O número vive colado de uma execução real no cabeçalho do
 [`KNOWN-BUGS.md`](KNOWN-BUGS.md).
@@ -186,7 +186,7 @@ contorne.
 - **Não afrouxe teto de invariante para fechar placar.** Se achar que um teto está errado,
   meça na referência e **mostre o pixel**.
 - **`AUD1` tem que ficar verde.** É a invariante que garante que o auditor mede o que o jogo
-  desenha. Foi ela que pegou o portão mentindo. Se você mexer no caminho do viewmodel,
+  desenha. Foi ela que pegou o quality gate mentindo. Se você mexer no caminho do viewmodel,
   **estenda a `AUD1` junto e prove com mutação**.
 - **Nada de asset com copyright, nada de pessoa real, nada de gore.** É linha editorial e é
   proteção contra takedown — ver [`CONTRIBUTING.md`](CONTRIBUTING.md).
@@ -202,7 +202,7 @@ vira bloco gerado por `node tools/gen-docs.mjs`, entre marcadores, e `npm run do
 
 ```bash
 npm run docs          # regenera todos os blocos
-npm run docs:check    # sai 1 se algum estiver velho — é o que roda no portão
+npm run docs:check    # sai 1 se algum estiver velho — é o que roda no quality gate
 npm run arch          # regenera o índice e a tabela de conflito do game.js
 ```
 

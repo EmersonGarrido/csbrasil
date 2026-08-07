@@ -52,7 +52,7 @@ Isso é **decisão de projeto, não preguiça**, e ela paga em três lugares:
    portal (CrazyGames, itch) sem reescrever nada.
 2. **O arnês consegue subir a classe `Game` em node puro.** `tools/eval/harness.mjs`
    importa o **código de produção** com DOM e canvas stubados, e mede o jogo real em
-   segundos. Um bundler no meio quebraria isso — e sem isso não existe portão.
+   segundos. Um bundler no meio quebraria isso — e sem isso não existe quality gate.
 3. **`node --check` em cada arquivo é um teste de sintaxe completo** (`npm run syntax`),
    porque o arquivo que o node parseia é byte a byte o que o browser executa.
 
@@ -225,7 +225,7 @@ Régua que depende de **pixel** roda em Chromium via Playwright. É o caso de
 Duas coisas que você precisa saber antes de rodar qualquer um:
 
 - **Custa caro.** Render por software (SwiftShader) roda o jogo a ~0,3 FPS; uma captura
-  in-game custa minutos por mapa/aspecto. Foi exatamente esse custo que empurrou o portão
+  in-game custa minutos por mapa/aspecto. Foi exatamente esse custo que empurrou o quality gate
   para node puro — e é por isso que as invariantes de pixel (`PX1`–`PX4`) estão
   **puladas**, com o motivo dito.
 - **Uma sessão por vez.** Duas capturas headless em paralelo derrubam o boot e produzem

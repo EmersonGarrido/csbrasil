@@ -28,7 +28,7 @@ Decisão do dono depois de 3 dias jogando: melhoria visual que quebra o jogo é
 regressão. A ordem é: **sem bug perceptível > flow > legibilidade > identidade >
 beleza.**
 
-## Portão de qualidade
+## Quality gate de qualidade
 
 ```bash
 npm run check     # sintaxe de public/js + invariants + vm + kick + botsim

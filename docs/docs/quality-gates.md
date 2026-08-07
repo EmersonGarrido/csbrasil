@@ -1,22 +1,22 @@
 ---
 id: quality-gates
-title: 'O portão: invariantes, procedência e mutação'
-sidebar_label: O portão (quality gates)
+title: 'O quality gate: invariantes, procedência e mutação'
+sidebar_label: Quality gates
 sidebar_position: 4
 description: O que é uma invariante neste repo, como se escreve uma, as duas leis da casa com o caso real de cada uma, e o teste de mutação da própria régua.
 ---
 
-# O portão: invariantes, procedência e mutação
+# O quality gate: invariantes, procedência e mutação
 
-O portão deste repositório é um arquivo: `tools/eval/invariants.mjs`. Ele roda em node puro
+O quality gate deste repositório é um arquivo: `tools/eval/invariants.mjs`. Ele roda em node puro
 e sai com código 1 se qualquer invariante **crítica** falhar. É o que o CI executa em todo
 PR (`.github/workflows/ci.yml`).
 
 {/* BEGIN:GERADO:invariantes — não edite à mão, rode `npm run docs` */}
 
 - `tools/eval/invariants.mjs`: **2.194 linhas**, **61 identificadores de invariante declarados** (`put()`), dos quais **27** têm caminho de `skip()` declarado.
-- O arnês inteiro são **158 scripts** em `tools/eval/` (`.mjs` + `.py`), mais **44 scripts** de pipeline em `tools/`.
-- Quantas invariantes rodam como **críticas** numa execução **não é derivável do fonte**: depende de qual insumo existe na máquina (o JSON do auditor de viewmodel, um GLB, uma pasta de anims). Esse número só sai rodando o portão — e o lugar dele é o cabeçalho do `KNOWN-BUGS.md`, atualizado com saída real.
+- O arnês inteiro são **159 scripts** em `tools/eval/` (`.mjs` + `.py`), mais **44 scripts** de pipeline em `tools/`.
+- Quantas invariantes rodam como **críticas** numa execução **não é derivável do fonte**: depende de qual insumo existe na máquina (o JSON do auditor de viewmodel, um GLB, uma pasta de anims). Esse número só sai rodando o quality gate — e o lugar dele é o cabeçalho do `KNOWN-BUGS.md`, atualizado com saída real.
 
 Reproduza:
 
@@ -32,7 +32,7 @@ grep -o "skip('[A-Z0-9_]*'" tools/eval/invariants.mjs | sort -u | wc -l
 O terceiro item acima é a distinção que mais confunde quem chega: **identificador
 declarado ≠ invariante avaliada.** Várias viram `skip` em vez de `put` quando falta o
 insumo delas (o JSON do auditor de viewmodel, um GLB, uma pasta de anims). `skip` é
-**portão verde por ausência de dado**, e é por isso que ele sempre carrega o motivo. Ver
+**quality gate verde por ausência de dado**, e é por isso que ele sempre carrega o motivo. Ver
 "Severidade", abaixo.
 
 Esta página é a mais útil do site. Se você só for ler uma, leia esta.
@@ -104,7 +104,7 @@ nesta máquina (`tools/eval/invariants.mjs:99`).
 `put(id, desc, ok, evid, sev)` aceita `'crit'` (padrão) ou `'warn'`
 (`tools/eval/invariants.mjs:81-82`). Crítica vermelha reprova o PR. Warn é ruído medido que
 alguém precisa olhar mas não bloqueia — é onde vivem BOT1/BOT2/BOT3/BOT6/BOT7, ARM4 e
-ARM5. `skip()` é o terceiro estado, e ele é **perigoso**: portão verde por ausência de
+ARM5. `skip()` é o terceiro estado, e ele é **perigoso**: quality gate verde por ausência de
 dado. Por isso todo `skip` carrega o motivo.
 
 ## As duas leis da casa
@@ -113,7 +113,7 @@ dado. Por isso todo `skip` carrega o motivo.
 
 **Fonte: `tools/eval/invariants.mjs:452-461`.** O caso, literal:
 
-> a rodada anterior levou o portão de **16/21 para 19/21 sem afrouxar um teto sequer** e
+> a rodada anterior levou o quality gate de **16/21 para 19/21 sem afrouxar um teto sequer** e
 > mesmo assim foi **REPROVADA** pelo dono, porque para fechar VM5/VM10 ela **ZEROU o
 > `VM_OFF` y** e mudou o look em silêncio. Nenhuma invariante codificava "onde fica a
 > boca do cano", então a métrica foi otimizada e a INTENÇÃO foi destruída. Lei de
@@ -139,8 +139,8 @@ E a consequência operacional, do mesmo comentário:
 > dono vê, em vez de mexer no `VM_OFF` e reportar "+3 invariantes".
 
 :::tip O que isso significa pro seu PR
-Se a sua mudança melhora o placar do portão, a primeira pergunta é: **o que eu mudei que
-o portão não olha?** Se a resposta for "o look", "o feel" ou "a sensação", escreva a
+Se a sua mudança melhora o placar do quality gate, a primeira pergunta é: **o que eu mudei que
+o quality gate não olha?** Se a resposta for "o look", "o feel" ou "a sensação", escreva a
 invariante antes de mandar o PR — ou explique no PR por que ela não cabe.
 :::
 
@@ -148,14 +148,14 @@ invariante antes de mandar o PR — ou explique no PR por que ela não cabe.
 
 **Fonte: `tools/eval/ref-measure.py:1-40`.** Essa docstring é a doutrina da casa. O caso:
 
-Durante **três dias** o portão de armas foi resolvido contra números **asseridos**:
+Durante **três dias** o quality gate de armas foi resolvido contra números **asseridos**:
 
 - A VM12 exigia *"boca do cano em y ≥ 0,66"*.
 - O doc do `vmattach.js` dizia *"coronha INTEIRA no canto"*.
 
 Nenhum dos dois foi medido em imagem nenhuma. Segundo `tools/eval/invariants.mjs:461-463`,
 o piso 0,66 veio de um comentário do `public/js/vmattach.js` — *"a boca fica a ~0,66H"* —
-que por sua vez veio de um vídeo assistido. (O comentário do portão aponta para
+que por sua vez veio de um vídeo assistido. (O comentário do quality gate aponta para
 `vmattach.js:387-392`; hoje o texto está em `vmattach.js:395`, porque o arquivo andou. É
 exatamente o motivo de o `ARCH.md` ser gerado — ver [Arquitetura](./arquitetura.md).)
 
@@ -240,10 +240,10 @@ ambiente é a pior espécie: ensina quem trabalha aqui a ignorar vermelho.
 Esta é a parte que quase nenhum projeto tem, e é onde este repositório é genuinamente
 diferente.
 
-**Um portão que não se mexe quando você quebra o código de propósito está cego.**
+**Um quality gate que não se mexe quando você quebra o código de propósito está cego.**
 
 O jeito de descobrir isso é mutar: pegue o código corrigido, **desfaça a correção de
-propósito**, rode o portão, e veja se ele fica vermelho. Se ficar verde, o portão não
+propósito**, rode o quality gate, e veja se ele fica vermelho. Se ficar verde, o quality gate não
 está medindo o que você acha que ele mede.
 
 ### O caso: 20/22 verde com a correção removida
@@ -269,13 +269,13 @@ O buraco, medido em 08/2026:
 >
 > Resultado: trocando no `game.js` a chamada `vmOffY(...)` por `VM_OFF[1]` no argumento Y
 > — isto é, **removendo por inteiro a correção de enquadramento vertical por aspecto** — o
-> portão inteiro seguia **VERDE (20/22, com VM9, VM10, VM12 e VM15 todas verdes)**. Um
-> portão que não distingue o build corrigido do build sem a correção não está medindo
+> quality gate inteiro seguia **VERDE (20/22, com VM9, VM10, VM12 e VM15 todas verdes)**. Um
+> quality gate que não distingue o build corrigido do build sem a correção não está medindo
 > nada.
 
 Repare no mecanismo do erro, porque ele se repete em qualquer linguagem: **a invariante
 lia a *declaração* de uma constante, e não o *uso*.** Declarar e não chamar é o jeito mais
-barato de uma correção sumir com o portão verde.
+barato de uma correção sumir com o quality gate verde.
 
 O conserto foi cirúrgico e vale copiar. A AUD1 hoje separa os três argumentos do
 `position.set(...)` com um **varredor de parênteses** — não `split(',')`, que cortaria
@@ -314,11 +314,11 @@ em que a regra muda."*
 
 ### Mutação como coisa de primeira classe: `ui-check.mjs`
 
-O arnês de UI tem uma **tabela de mutações versionada**, e cada uma declara qual portão
+O arnês de UI tem uma **tabela de mutações versionada**, e cada uma declara qual quality gate
 tem que ficar vermelho. `tools/eval/ui-check.mjs:1046-1050`:
 
-> Cada mutação DESFAZ um dos consertos desta rodada (ou fura um portão de propósito) e diz
-> qual portão TEM que ficar vermelho. **Uma régua que não reprova a versão anterior do
+> Cada mutação DESFAZ um dos consertos desta rodada (ou fura um quality gate de propósito) e diz
+> qual quality gate TEM que ficar vermelho. **Uma régua que não reprova a versão anterior do
 > próprio arquivo não é régua, é decoração.**
 
 Rodar uma:
@@ -354,7 +354,7 @@ Checklist, na ordem:
 4. **Meça o código de produção, não uma cópia dele.** Importe o módulo real, recorte a
    função do arquivo e execute, ou exija nominalmente a chamada no texto do fonte.
 5. **Mute e confirme que fica vermelha.** Desfaça a correção que você acabou de fazer e
-   rode o portão. Se ficar verde, sua invariante está cega — volte pro passo 4. Se der pra
+   rode o quality gate. Se ficar verde, sua invariante está cega — volte pro passo 4. Se der pra
    automatizar, registre a mutação numa tabela, como o `ui-check.mjs` faz.
 6. **Escreva a evidência, não só o booleano.** O quarto argumento do `put()` é o que
    alguém vai ler daqui a três meses: `"0,504 a 0,619 da altura em 52 medidas | 0 fora da
@@ -377,17 +377,17 @@ Checklist, na ordem:
 ## Esta página é a doutrina. O passo a passo é uma skill
 
 O que fazer, na ordem, quando alguém reporta um defeito — reproduzir, medir antes de
-consertar, refutar o palpite óbvio, mutar a régua, rodar o portão na ordem certa e reportar
+consertar, refutar o palpite óbvio, mutar a régua, rodar o quality gate na ordem certa e reportar
 o que **não** foi verificado — está em `.claude/skills/bug-hunt/SKILL.md`, com o caso real
 que comprou cada regra. Ela é escrita para agente **e** para gente, e aponta de volta para
 esta página em vez de repeti-la.
 
-## Rodar o portão
+## Rodar o quality gate
 
 ```bash
 node tools/eval/invariants.mjs           # tudo que roda sem browser
 node tools/eval/invariants.mjs --json    # saída pra máquina
-npm run check                            # syntax + portão + vm + coice + bots
+npm run check                            # syntax + quality gate + vm + coice + bots
 ```
 
 Saída real de hoje, com o que está verde e o que está vermelho: [Estado medido](./estado.md).

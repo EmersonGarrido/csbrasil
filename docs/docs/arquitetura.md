@@ -49,7 +49,7 @@ a mesma vermelha. Um comando resolve.
 
 Cuidado que continua valendo: no CI o passo está com `continue-on-error: true`, então o
 cheque roda mas **não bloqueia** — foi exatamente por isso que ele conseguiu ficar
-vermelho sem que ninguém percebesse. Tirar essa linha é o que o transforma em portão de
+vermelho sem que ninguém percebesse. Tirar essa linha é o que o transforma em quality gate de
 verdade.
 :::
 
@@ -64,13 +64,13 @@ Tamanho dos arquivos que o `gen-arch.mjs` indexa — bloco gerado, regenerado po
 |---|---:|
 | `public/js/game.js` | 6.543 |
 | `public/js/main.js` | 1.675 |
-| `public/js/characters.js` | 1.060 |
+| `public/js/characters.js` | 1.066 |
 | `public/js/glbchars.js` | 811 |
 | `public/js/vmattach.js` | 627 |
 | `public/js/weapons.js` | 344 |
 | `public/js/springs.js` | 260 |
 
-Total de `public/js/`: **27.020 linhas em 30 arquivos**. O índice símbolo→linha, com a tabela de conflito, é outro bloco gerado: `tools/eval/ARCH.md` (`npm run arch`).
+Total de `public/js/`: **27.089 linhas em 30 arquivos**. O índice símbolo→linha, com a tabela de conflito, é outro bloco gerado: `tools/eval/ARCH.md` (`npm run arch`).
 
 > Bloco gerado por `node tools/gen-docs.mjs`. Fonte: ``wc -l public/js/*.js``
 
@@ -184,7 +184,7 @@ vai colidir com três frentes diferentes. Um PR por frente entra rápido.
 ```
 public/     jogo      vanilla ES modules, zero build, Three.js vendorizado
 src/        site      Astro + adapter Vercel, API routes SSR
-tools/      arnês     scripts .mjs/.py — a régua, o portão e as sondas
+tools/      arnês     scripts .mjs/.py — a régua, o quality gate e as sondas
 ```
 
 Versões, contagens e o que cada ferramenta faz estão em
@@ -195,7 +195,7 @@ O acoplamento entre elas é deliberadamente fino e vale entender:
 - **O site carrega o jogo por import map**, em `src/pages/index.astro:97-123`. É o único
   ponto onde o Astro sabe da existência dos módulos do jogo.
 - **O arnês carrega o jogo direto do disco**, sem browser: `tools/eval/harness.mjs` stuba
-  DOM/canvas/`fetch` e importa `public/js/game.js` como módulo. Por isso o portão mede o
+  DOM/canvas/`fetch` e importa `public/js/game.js` como módulo. Por isso o quality gate mede o
   código de produção, e não uma reimplementação.
 - **`tools/eval/serve.mjs:15`** faz a ponte pro caso de teste: serve `public/` e mapeia
   `/` para o fonte do `index.astro`, sem Astro no caminho.
@@ -204,7 +204,7 @@ O acoplamento entre elas é deliberadamente fino e vale entender:
 
 O jogo **não pode** ganhar dependência de runtime nem passo de build. Isso não é
 conservadorismo: é o que faz `harness.mjs` conseguir subir a classe `Game` em node puro
-em segundos, que é o que faz o portão existir. Um bundler no meio quebraria a régua junto
+em segundos, que é o que faz o quality gate existir. Um bundler no meio quebraria a régua junto
 com a portabilidade.
 
 ## Sistema de dados de conteúdo
@@ -223,31 +223,31 @@ Se você quer o trabalho de maior alavancagem no projeto inteiro, é esse. Ver
 
 Duas coisas neste repositório são geradas por script, e pela mesma razão:
 
-| Gerado | Script | Portão |
+| Gerado | Script | Quality gate |
 |---|---|---|
 | `tools/eval/ARCH.md` — índice símbolo→linha e tabela de conflito | `tools/gen-arch.mjs` | `npm run arch:check` |
 | Os blocos numéricos de `README.md` e desta documentação | `tools/gen-docs.mjs` | `npm run docs:check` (no `check:fast`) |
 
 A regra que separa o que entra e o que fica:
 
-- **Derivável do código?** Vira bloco gerado, entre marcadores, com `--check` no portão.
+- **Derivável do código?** Vira bloco gerado, entre marcadores, com `--check` no quality gate.
   Contagem de linhas, de personagens, de armas, de mapas, de scripts, de invariantes,
   versão, lista de scripts do `package.json`, versão de dependência.
 - **Não derivável?** Então é decisão ou explicação — e **não deve conter número que
-  envelhece**. Escreva sem o número, ou cite o comando que o produz. O placar do portão,
+  envelhece**. Escreva sem o número, ou cite o comando que o produz. O placar do quality gate,
   por exemplo, depende de qual insumo existe na máquina: ele mora colado de uma execução
   real no `KNOWN-BUGS.md`, não repetido em cinco páginas.
 
-E o motivo de o `--check` estar no portão, não só disponível: **o que não vira régua é
+E o motivo de o `--check` estar no quality gate, não só disponível: **o que não vira régua é
 otimizado para fora.** Um gerador que ninguém é obrigado a rodar desatualiza em uma semana,
 e aí a documentação volta a mentir com a aparência de rigor — que é pior do que mentir sem
 ela.
 
-:::danger Onde você põe o portão novo na corrente importa
+:::danger Onde você põe o quality gate novo na corrente importa
 O `check:fast` é uma corrente de `&&`: o primeiro erro corta o resto. O `arch:check` está
-vermelho há dias, então **todo portão colocado depois dele nasce morto** — roda zero vezes
+vermelho há dias, então **todo quality gate colocado depois dele nasce morto** — roda zero vezes
 e ninguém percebe, porque a saída para antes. Foi exatamente o que aconteceu na primeira
-versão do `docs:check`, e é o mesmo modo de falha do BUG-02 (o portão medindo o viewmodel
+versão do `docs:check`, e é o mesmo modo de falha do BUG-02 (o quality gate medindo o viewmodel
 de ontem porque o `&&` cortava antes de o JSON ser regenerado).
 
 Por isso o `docs:check` vem **antes** do `arch:check` no `package.json`, com o motivo

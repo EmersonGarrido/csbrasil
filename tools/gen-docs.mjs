@@ -613,7 +613,7 @@ const BLOCOS = {
   invariantes: (f) => [
     `- \`tools/eval/invariants.mjs\`: **${num(f.portao.linhas)} linhas**, **${f.portao.ids} identificadores de invariante declarados** (\`put()\`), dos quais **${f.portao.comSkip}** têm caminho de \`skip()\` declarado.`,
     `- O arnês inteiro são **${f.portao.scriptsEval} scripts** em \`tools/eval/\` (\`.mjs\` + \`.py\`), mais **${f.portao.scriptsTools} scripts** de pipeline em \`tools/\`.`,
-    `- Quantas invariantes rodam como **críticas** numa execução **não é derivável do fonte**: depende de qual insumo existe na máquina (o JSON do auditor de viewmodel, um GLB, uma pasta de anims). Esse número só sai rodando o portão — e o lugar dele é o cabeçalho do \`KNOWN-BUGS.md\`, atualizado com saída real.`,
+    `- Quantas invariantes rodam como **críticas** numa execução **não é derivável do fonte**: depende de qual insumo existe na máquina (o JSON do auditor de viewmodel, um GLB, uma pasta de anims). Esse número só sai rodando o quality gate — e o lugar dele é o cabeçalho do \`KNOWN-BUGS.md\`, atualizado com saída real.`,
     '',
     'Reproduza:',
     '',

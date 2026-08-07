@@ -3,12 +3,12 @@ id: estado
 title: 'Estado medido: o que está verde e o que está vermelho'
 sidebar_label: Estado medido
 sidebar_position: 8
-description: O que está verde e o que está vermelho HOJE, com a saída real do portão, e as dívidas declaradas do projeto.
+description: O que está verde e o que está vermelho HOJE, com a saída real do quality gate, e as dívidas declaradas do projeto.
 ---
 
 # Estado medido: o que está verde e o que está vermelho
 
-Esta página tem a saída **real** do portão, colada de uma execução de verdade. Se ela
+Esta página tem a saída **real** do quality gate, colada de uma execução de verdade. Se ela
 divergir do que você vê na sua máquina, a sua máquina está certa e esta página está
 velha — rode e reporte.
 
@@ -24,7 +24,7 @@ concorrendo), a execução levou cerca de **10 minutos**. Ela sobe o jogo real c
 
 :::danger LEIA ISTO ANTES DA SAÍDA COLADA: ela é de 2026-08-03 e o jogo andou muito
 A saída lá embaixo continua palavra por palavra como saiu de uma execução real — reescrever
-número de portão à mão é exatamente o que esta página existe para impedir. Mas o que ela
+número de quality gate à mão é exatamente o que esta página existe para impedir. Mas o que ela
 fotografou **não é o jogo de hoje**, e ler aquele bloco como se fosse manda o contribuidor
 consertar o que já foi consertado.
 
@@ -43,7 +43,7 @@ O que mudou, item a item:
 | `version.js` = `3.3.0` | `2.0.0-alpha.12` | `public/js/version.js:5` |
 
 E duas mudanças de **regra de jogo** que a saída não tem como mostrar, porque não são
-invariantes de portão:
+invariantes de quality gate:
 
 - **Regeneração de vida DESLIGADA** (`game.js:303`). `?regen=1` religa.
 - **Ranking DESLIGADO** (`RANKING_ON = false`, `src/lib/site.ts:68`), trocado por
@@ -75,7 +75,7 @@ AVISOS:   BOT1, BOT2, CHR5B fora do alvo
 PULADAS:  4 (exigem browser ou arnês ausente)
 ```
 
-Código de saída: **1**. O portão está **vermelho**, e por consequência o CI também está —
+Código de saída: **1**. O quality gate está **vermelho**, e por consequência o CI também está —
 `.github/workflows/ci.yml:31-32` roda exatamente este comando e não tem `continue-on-error`.
 
 :::warning Isso é o estado real, não uma vitrine
@@ -218,7 +218,7 @@ PULADAS:  4 (exigem browser ou arnês ausente)
 
 Oito das onze críticas vermelhas são a mesma frente: o **enquadramento das armas na
 tela**. É a frente mais medida do repositório e a mais difícil, porque as invariantes se
-cruzam (ver [O portão](./quality-gates.md#lei-2--teto-sem-procedência-é-opinião)).
+cruzam (ver [O quality gate](./quality-gates.md#lei-2--teto-sem-procedência-é-opinião)).
 
 O que a saída diz, arma a arma:
 
@@ -330,7 +330,7 @@ continuam verdes, exceto onde indicado:
 - **AUD1** — a régua bate com o jogo, incluindo a pose de ADS: *"pior Δ(grip,boca) 0.001 m
   · pior Δescala 0.0004 · lente do JSON casa (V0=42°, VM_OFF=[0.03,-0.1,0]) · termo
   vertical do argumento Y casa (vmOffY(16:9)=-0.1 = VM_OFF[1])"*. É a invariante META que
-  fecha os buracos de mutação descritos em [O portão](./quality-gates.md#teste-de-mutação-da-própria-régua).
+  fecha os buracos de mutação descritos em [O quality gate](./quality-gates.md#teste-de-mutação-da-própria-régua).
 - **VM14** — 246 pickups em 5 mapas, **0** sem alcance, **0** abaixo do piso, **0**
   flutuando, com flood-fill de conectividade real (215.758 células no `awp_map`). *São
   **244** desde a saída do `praca_old`, que tinha 2 armas no chão — e essa é a única
@@ -359,14 +359,14 @@ continuam verdes, exceto onde indicado:
 ·· PULADO PX4   aliado × inimigo distinguíveis a 5/20/40 m — exige browser
 ```
 
-Pulada é **portão verde por ausência de dado**, e por isso cada uma diz o motivo. As
+Pulada é **quality gate verde por ausência de dado**, e por isso cada uma diz o motivo. As
 quatro dependem de pixel real, sob SwiftShader, ao custo de minutos por carga de mapa.
 
 :::warning A mensagem das PX aponta pra um arquivo que não existe
 As quatro mandam "use `tools/eval/motion.mjs`" — e `ls tools/eval/motion.mjs` devolve
 erro. Ou o arnês foi renomeado e a mensagem ficou para trás, ou ele nunca existiu. De
 qualquer forma: **quatro invariantes puladas apontando para um arquivo inexistente é o
-mesmo modo de falha que o portão inteiro existe para impedir.** Escrever esse arnês (ou
+mesmo modo de falha que o quality gate inteiro existe para impedir.** Escrever esse arnês (ou
 corrigir a mensagem para o script certo) é contribuição de alto valor — ver
 [Como colaborar](./colaborar.md).
 :::
@@ -390,7 +390,7 @@ Nenhuma destas é surpresa: todas estão escritas no repo, e estão aqui reunida
 ## Para onde o projeto vai
 
 **Não está nesta página, de propósito.** Estado e direção envelhecem em ritmos diferentes:
-o placar do portão muda a cada rodada, o rumo muda a cada decisão do dono. Mantê-los no
+o placar do quality gate muda a cada rodada, o rumo muda a cada decisão do dono. Mantê-los no
 mesmo arquivo garante que um dos dois esteja velho.
 
 | Você quer | Vá para |

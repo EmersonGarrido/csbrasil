@@ -18,7 +18,7 @@ adiantaria de nada"*.
 
 O dono se chama Ruben. Ele responde em português, joga em **3:2**, e revisa olhando screenshot.
 **Ele está certo com muito mais frequência do que a métrica.** Quando ele diz que algo está
-errado e o portão está verde, o defeito é do portão.
+errado e o quality gate está verde, o defeito é do quality gate.
 
 ---
 
@@ -27,7 +27,7 @@ errado e o portão está verde, o defeito é do portão.
 Elas não são estilo. Cada uma custou dias e está documentada no código com o caso real.
 
 ### Lei 1 — Intenção que não vira invariante é otimizada para fora
-Uma rodada levou o portão de **16/21 para 19/21 sem afrouxar um único teto** e mesmo assim foi
+Uma rodada levou o quality gate de **16/21 para 19/21 sem afrouxar um único teto** e mesmo assim foi
 reprovada pelo dono: para fechar duas invariantes, ela zerou em silêncio o `VM_OFF` e destruiu o
 look que ele havia escolhido e comparado lado a lado. Ver `tools/eval/invariants.mjs` (bloco da
 VM12), que nasceu exatamente disso.
@@ -45,7 +45,7 @@ reproduz o número.** Leia a docstring de `tools/eval/ref-measure.py` — ela é
 qualidade desta base.
 
 ### Corolário — teste de mutação da própria régua
-Um portão que não se mexe quando você quebra o código de propósito está **cego**. Caso real: um
+Um quality gate que não se mexe quando você quebra o código de propósito está **cego**. Caso real: um
 mutante que desfazia inteiramente a correção do enquadramento passava **20/22 VERDE**, porque a
 invariante lia a *declaração* de uma constante e não o *uso*. Outros três buracos iguais foram
 achados depois (rotação da faca, pose de ADS, escala por arma).
@@ -345,7 +345,7 @@ A config é mínima e defensiva de propósito; se quebrar, será nela, não no c
   **meça na referência e mostre o pixel**.
 - **AUD1 tem que ficar verde.** Ela é a invariante que garante que o auditor mede o que o jogo
   desenha (`vmOffY(` chamado, `vmPitch`/`vmYaw` presentes, `vmAdsRot` chamado, `_adsPose` lida e
-  conferida numericamente, escala por arma lida do `game.js`). Foi ela que pegou o portão
+  conferida numericamente, escala por arma lida do `game.js`). Foi ela que pegou o quality gate
   mentindo. Se você mexer no caminho do viewmodel, **estenda a AUD1 junto e prove com mutação**.
 
 ---

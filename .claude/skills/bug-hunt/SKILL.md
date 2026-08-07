@@ -1,6 +1,6 @@
 ---
 name: bug-hunt
-description: Investiga e conserta defeito no CS BRASIL / CORO SOLTO com o método que esta base pagou caro para aprender — régua antes do conserto, mutação que prova a régua, figura no tamanho em que ela é servida, e refutação do palpite óbvio antes de agir nele. Use SEMPRE que alguém reportar que algo está quebrado, errado, sumido, travando, não aparece, não toca, reinicia sozinho, "tá bugado", "não funciona", "voltou a acontecer"; quando for reproduzir, isolar, medir ou consertar um defeito; quando for escrever régua nova para um bug; e quando for abrir, atualizar ou fechar item do `KNOWN-BUGS.md`. Use também quando o portão estiver VERDE e a pessoa insistir que está errado — esse caso é o mais importante e o mais mal resolvido. NÃO use para melhorar o que já funciona (isso é a `gauntlet-fps`), nem para feature nova, nem para pergunta conceitual que não mexe no jogo.
+description: Investiga e conserta defeito no CS BRASIL / CORO SOLTO com o método que esta base pagou caro para aprender — régua antes do conserto, mutação que prova a régua, figura no tamanho em que ela é servida, e refutação do palpite óbvio antes de agir nele. Use SEMPRE que alguém reportar que algo está quebrado, errado, sumido, travando, não aparece, não toca, reinicia sozinho, "tá bugado", "não funciona", "voltou a acontecer"; quando for reproduzir, isolar, medir ou consertar um defeito; quando for escrever régua nova para um bug; e quando for abrir, atualizar ou fechar item do `KNOWN-BUGS.md`. Use também quando o quality gate estiver VERDE e a pessoa insistir que está errado — esse caso é o mais importante e o mais mal resolvido. NÃO use para melhorar o que já funciona (isso é a `gauntlet-fps`), nem para feature nova, nem para pergunta conceitual que não mexe no jogo.
 ---
 
 # Caça ao defeito — CS BRASIL / CORO SOLTO
@@ -19,7 +19,7 @@ Se você seguir só uma linha deste arquivo, que seja esta:
 Leia, nesta ordem, e não pule:
 
 1. **[`KNOWN-BUGS.md`](../../../KNOWN-BUGS.md)** — o defeito já pode estar lá, com causa raiz,
-   `arquivo:linha` e o que já foi refutado. O cabeçalho tem o placar real do portão, colado de
+   `arquivo:linha` e o que já foi refutado. O cabeçalho tem o placar real do quality gate, colado de
    uma execução de verdade.
 2. **`docs/docs/quality-gates.md`** — as duas leis da casa e o teste de mutação. É a página
    mais útil do site. Não repito o conteúdo dela aqui; eu aponto.
@@ -50,8 +50,8 @@ de antes você não tem A/B, e sem A/B a correção é fé.
 > a régua andando (`tools/eval/obb-check.mjs`, grade de 5 cm chamando o `_collide` **de
 > produção**) o número virou 0,000 m. 0,68 m é meio passo, e meio passo se sente.
 
-Corolário que vale mais que a lei: **quando o dono diz que está errado e o portão está verde, o
-defeito é do portão** ([`AGENTS.md`](../../../AGENTS.md), seção "O que é este projeto"). Na 3ª
+Corolário que vale mais que a lei: **quando o dono diz que está errado e o quality gate está verde, o
+defeito é do quality gate** ([`AGENTS.md`](../../../AGENTS.md), seção "O que é este projeto"). Na 3ª
 rodada do mesmo ônibus o `obb-check` estava VERDE e ele continuava certo: a régua comparava o
 colisor com a **caixa declarada**, e a caixa declarada nascia do `Box3` do GLB inteiro, em toda
 altura — guarda-sol, telhado de barraca e retrovisor contavam como parede na altura do peito.
@@ -249,7 +249,7 @@ o número medido — é o padrão desta base e é o que sobrevive ao próximo ha
 **5 · Mute a régua.** Reintroduza o defeito e exija vermelho na cláusula certa. Sem isso o passo
 2 não vale.
 
-**6 · Rode o portão, na ordem.** Detalhe abaixo.
+**6 · Rode o quality gate, na ordem.** Detalhe abaixo.
 
 **7 · Feche a entrada com o antes × depois medido**, o nome da régua nova, o comando que a roda,
 e as mutações com o número de cada uma. E anote o **custo declarado**: o que piorou junto.
@@ -259,11 +259,11 @@ e as mutações com o número de cada uma. E anote o **custo declarado**: o que 
 
 ---
 
-## O portão, e a ordem que importa
+## O quality gate, e a ordem que importa
 
 ```bash
 npm run check:fast   # segundos — rode este primeiro, sempre
-npm run check        # o portão completo (o de invariantes leva ~10-12 min)
+npm run check        # o quality gate completo (o de invariantes leva ~10-12 min)
 npm run build        # o site tem que buildar
 npm run check:seo    # se mexeu em src/ ou em public/llms.txt
 ```
@@ -272,7 +272,7 @@ A composição exata de cada um sai do `package.json` (que também guarda a chav
 `//check:fast` com o **porquê** de cada passo) e está publicada como bloco gerado em
 [`AGENTS.md`](../../../AGENTS.md). Não copie a lista para lugar nenhum — ela muda.
 
-Três armadilhas de portão, todas já pagas:
+Três armadilhas de quality gate, todas já pagas:
 
 - **`eval:vm` roda ANTES de `eval:invariants`.** As invariantes de viewmodel leem um JSON que o
   `eval:vm` gera. Com o JSON congelado, VM5 acusava 26/26 armas fora; regenerado, 3/26. O
@@ -281,7 +281,7 @@ Três armadilhas de portão, todas já pagas:
 - **`check:fast` é uma corrente de `&&`.** Passo novo colocado depois de um passo que já está
   vermelho **nasce morto**: roda zero vezes e ninguém percebe. Caso real de 05/08: com o
   `anims:check` vermelho no meio da corrente (BUG-15, `public/models/anims/` não versionado),
-  **sete portões atrás dele rodavam zero vezes**. Ele foi para o fim da corrente — sem afrouxar
+  **sete quality gates atrás dele rodavam zero vezes**. Ele foi para o fim da corrente — sem afrouxar
   nada, e continuando vermelho. Leia a chave `//check:fast` do `package.json` antes de
   acrescentar um passo.
 - **Vermelho que não corresponde a defeito ensina a ignorar vermelho.** Se uma régua fica
@@ -311,7 +311,7 @@ A distinção que resolve a dúvida na hora de escrever:
 |---|---|---|
 | Número de **estado** (o repo tem N disso hoje) | linhas de `game.js`, quantidade de armas, mapas, personagens, invariantes | bloco gerado, ou aponte para onde ele já é gerado |
 | Número de **evento** (isto foi medido nesta execução, nesta data) | "2,33 m → 0,68 m", "98.064 bytes", "23 das 26 daquela rodada" | escreva, **com data e com o comando que reproduz** |
-| Placar do portão | quantas invariantes passam | **não é derivável**: depende de qual insumo existe na máquina. Vive colado no cabeçalho do `KNOWN-BUGS.md`, de execução real |
+| Placar do quality gate | quantas invariantes passam | **não é derivável**: depende de qual insumo existe na máquina. Vive colado no cabeçalho do `KNOWN-BUGS.md`, de execução real |
 
 **Duas coisas que este arquivo não tem, e é melhor você saber:** ele **não recebe bloco gerado**
 (a tabela `COLOCACAO` de `tools/gen-docs.mjs` declara em quais arquivos cada bloco aparece, e não
@@ -328,7 +328,7 @@ aponta-se; e os `arquivo:linha` desta skill são conferidos à mão. Se você me
 | Armadilha | O que acontece |
 |---|---|
 | Servir `public/` estático para testar | Você recebe os arnêses visuais, **não o jogo**. O jogo é a rota `/`, e o HTML dele é `src/pages/index.astro`. |
-| Adicionar dependência ou passo de build em `public/` | Quebra o `tools/eval/harness.mjs`, que sobe a classe `Game` real em node puro — é ele que faz o portão existir. |
+| Adicionar dependência ou passo de build em `public/` | Quebra o `tools/eval/harness.mjs`, que sobe a classe `Game` real em node puro — é ele que faz o quality gate existir. |
 | Validar enquadramento de arma só em 16:9 | O dono joga em **3:2**. Já custou uma rodada inteira. |
 | `//` em CSS | Não é comentário. O parser engole o bloco seguinte — já matou um `@keyframes` inteiro. |
 | Duas capturas headless em paralelo | Derruba o boot e falsifica a medição. Um agente só roda browser. |

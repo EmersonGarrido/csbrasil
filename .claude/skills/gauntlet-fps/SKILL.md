@@ -25,7 +25,7 @@ Leia, nesta ordem:
 2. `tools/eval/BAR-CONSISTENCIA.md` — **a régua vigente**, com precedência sobre a `BAR.md`: 25 critérios de consistência e flow. Melhoria visual que quebra o jogo é regressão.
 2b. `tools/eval/BAR.md` — a régua de fidelidade. Look técnico do CS2/Valorant, o que é alcançável em Three.js r160, como os lugares brasileiros retratados realmente são, e o checklist de 25 critérios A1–D4 mensuráveis num frame.
 3. `tools/eval/ARCH.md` — índice do `game.js` por linha, os levers de cada frente, e a **tabela de conflito** (quem pode editar qual arquivo/range). É **gerado**: rode `npm run arch` antes de ler, ou você lê o índice de ontem.
-4. `KNOWN-BUGS.md` — os defeitos abertos, com `arquivo:linha`, causa raiz e passo de reprodução. É onde mora o placar real do portão, colado de execução de verdade.
+4. `KNOWN-BUGS.md` — os defeitos abertos, com `arquivo:linha`, causa raiz e passo de reprodução. É onde mora o placar real do quality gate, colado de execução de verdade.
 5. `docs/docs/stack.md` — com o que o jogo é feito (Three.js/WebGL sem build, Astro/Vercel, Supabase) e como o asset é gerado (mint.gg, Tripo3D, Meshy, OpenRouter). Os números dessa página são **gerados** por `npm run docs`.
 6. `git status` — o dono revisa antes de commitar. **Não commite sem autorização explícita.**
 

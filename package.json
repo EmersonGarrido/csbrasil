@@ -1,12 +1,14 @@
 {
   "name": "coro-solto",
-  "version": "2.0.0-alpha.33",
+  "version": "2.0.0-alpha.34",
   "license": "AGPL-3.0-only",
   "description": "CORO SOLTO: Treta Suprema (ex-CS BRASIL) — FPS de navegador estilo CS 1.6 (site Astro + jogo vanilla em Three.js)",
   "scripts": {
     "dev": "npm run copy-wasm && astro dev",
     "build": "npm run copy-wasm && astro build && node scripts/prune-dist.mjs",
     "//prune-dist": "T2. Roda no fim do build e tira models/fpvm (159 MB) do publicado. Os dois consumidores estão atrás de flag de depuração (?tripovm=1 em fparms.js:107 e ?tvm=1 em game.js:1902), então nenhum jogador baixa isso. Poda o dist E o espelho .vercel/output/static — sem o espelho o deploy sobe igual. KEEP_FPVM=1 desliga.",
+    "//setup": "T26. UM comando do `git clone` ao jogo inteiro: deps, wasm, pacote de áudio, acervo de decalques, e a asserção do T1 por cima. NÃO é cadeia de && — cada passo roda, o estado de todos é impresso junto, e a mensagem final diz o que fazer. Existe porque quem clona pega jogo mudo e com parede pelada (public/audio, public/img/decals e references ficam fora do git por procedência), e quem a gente quer atrair não debuga setup: fecha a aba.",
+    "setup": "node scripts/setup.mjs",
     "copy-wasm": "node scripts/copy-wasm.mjs",
     "preview": "python3 -m http.server 4321 -d dist/client",
     "fetch-audio": "bash scripts/fetch-audio.sh",
@@ -21,6 +23,8 @@
     "eval:pegada": "node tools/eval/pegada-check.mjs",
     "//eval:ctflabels": "Bandeira com nome do PRÓPRIO mapa, declarada pelo mapa (defeito de 06/08: 'CONGRESSO' jogando na piscina — o fallback do game.js vazava os nomes de Brasília). --mutante=vaza prova que morde.",
     "eval:ctflabels": "node tools/eval/ctf-labels-check.mjs",
+    "//eval:faccao": "Toda tabela de cor indexada por facção cobre toda facção do elenco. Nasceu do dono jogando em 07/08: 'quando captura bandeira não pinta de vermelho e nem põe o brasão' — o rename Time E (06/08) trocou a letra em BRASAO e no arquivo e esqueceu COR_TIME, então bandeiraTextura('E') devolvia null e o pano saía sem cor e sem brasão. O mesmo rename passou batido em TEAM_RIM (contorno branco) e na faixa do peito (braçadeira azul). Nenhum dos três dá erro no console. `--mutar=sem-e|cor-errada` prova que morde.",
+    "eval:faccao": "node tools/eval/faccao-paleta-check.mjs",
     "//eval:boot": "O JOGO ABRE? Sobe o astro dev, abre a rota `/` num Chrome de verdade e exige zero pageerror MAIS o `onclick` do #btn-jogar ligado (prova de que o main.js avaliou até o fim). Nasceu de 07/08: `_pingPresenca()` rodava no escopo do módulo antes do `const testMode`, o TDZ matava a avaliação de main.js na linha 483 e o botão JOGAR ficava INERTE — em produção, com o site respondendo 200 e o check:fast inteiro verde. EXIGE BROWSER: fica fora do `check` (que roda sem browser) e é o passo obrigatório antes de deploy. `--mutante=tdz` reproduz o defeito interceptando o main.js servido.",
     "eval:boot": "node tools/eval/boot-check.mjs",
     "eval:vm": "node tools/eval/vm-mint-audit.mjs",
@@ -67,7 +71,7 @@
     "//eval:spawn": "Ninguém nasce no ar nem no andar errado: |y(frame 30) − y(frame 0)| < 0,25 m em TODO spawn de TODO mapa, jogador e bot, pelo caminho real de respawn. Nasceu do dono jogando: 'o respawn do time dentro da loja, eles começam embaixo do mezanino e do nada sobem'. `--mutante=y0` devolve o y literal 0 e acende os 3,40 m de teleporte da Havan.",
     "eval:spawn": "node tools/eval/spawn-settle-check.mjs",
     "//check:fast": "docs:check vem ANTES do arch:check DE PROPÓSITO. O arch:check já ficou vermelho por dias (o ARCH.md commitado atrás do game.js) e o `&&` corta a corrente no primeiro erro — atrás dele, todo portão novo nasce morto sem ninguém perceber. É o mesmo modo de falha do BUG-02, que fazia o portão medir o viewmodel de ontem. Em 05/08 o ARCH.md foi regenerado e o arch:check voltou a VERDE; se ele reprovar de novo, rode `npm run arch` ANTES de acrescentar qualquer passo. MESMO MOTIVO, outro passo: o anims:check foi para o FIM da corrente em 05/08. Ele está vermelho de verdade (BUG-15, `public/models/anims/` não versionado — 88 clipes que existem nesta máquina e dão 404 no deploy) e, no meio da corrente, os SETE portões atrás dele rodavam ZERO vezes: eval:ctfhud, eval:pause, eval:ctfround, eval:ctfwin, eval:spawn, eval:regen e eval:pegada. Nada foi afrouxado — o anims:check continua reprovando e o check:fast continua saindo != 0; só parou de esconder o resto.",
-    "check:fast": "npm run syntax && npm run docs:check && npm run arch:check && npm run audio:check && npm run feet:check && npm run eval:ctfhud && npm run eval:pause && npm run eval:ctfround && npm run eval:ctfwin && npm run eval:spawn && npm run eval:regen && npm run eval:pegada && npm run eval:ctflabels && npm run anims:check",
+    "check:fast": "npm run syntax && npm run docs:check && npm run arch:check && npm run audio:check && npm run feet:check && npm run eval:ctfhud && npm run eval:pause && npm run eval:ctfround && npm run eval:ctfwin && npm run eval:spawn && npm run eval:regen && npm run eval:pegada && npm run eval:ctflabels && npm run eval:faccao && npm run anims:check",
     "//check": "eval:vm ANTES de eval:invariants: as invariantes de VM LEEM o vm_mint_audit.json que o eval:vm ESCREVE. Na ordem antiga o && cortava no primeiro vermelho e o JSON nunca era regenerado — o portão media o viewmodel de ontem e inventava vermelha (26/26 armas 'fora' que viraram 3/26 depois de regenerar). Ver KNOWN-BUGS.md BUG-02.",
     "check": "npm run syntax && npm run audio:check && npm run eval:ctfhud && npm run eval:vm && npm run eval:invariants && npm run eval:kick && npm run eval:bots"
   },

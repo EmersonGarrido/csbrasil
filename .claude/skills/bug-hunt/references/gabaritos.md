@@ -20,7 +20,7 @@ desatualizados.
   foi refutado. Diagnóstico longo que já não descreve o estado atual vai para dentro de
   `<details><summary>…</summary>`, não para o lixo.
 
-O placar do portão no cabeçalho é **colado de uma execução real**. Não o derive, não o estime.
+O placar do quality gate no cabeçalho é **colado de uma execução real**. Não o derive, não o estime.
 
 ---
 

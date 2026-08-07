@@ -12,7 +12,7 @@
 > entrada e o do relatório final estão em
 > `.claude/skills/bug-hunt/references/gabaritos.md`.
 
-**Portão na data deste arquivo** (`node tools/eval/invariants.mjs`, ~10-12 min):
+**Quality gate na data deste arquivo** (`node tools/eval/invariants.mjs`, ~10-12 min):
 
 ```
 CRÍTICAS: 39/52 passam  ← VM1, VM3, VM9, VM12, VM20, VM16, VM18, VM19,
@@ -306,10 +306,10 @@ sempre em 5 rodadas / 530,7 s, sem transição espúria. `dispose()` só é cham
   60 ms no mesmo pixel** (o que a mão do jogador faz quando a arma "para de atirar"), que
   confirmou sozinha e saiu pro menu. Clique cedo demais agora **re-arma** o relógio.
 
-**Régua: `tools/eval/pause-check.mjs`** (node puro, ~5 s, no `check:fast` e no portão como
+**Régua: `tools/eval/pause-check.mjs`** (node puro, ~5 s, no `check:fast` e no quality gate como
 invariante `PAUSA`). 6 cláusulas, **7 mutações medidas, todas fazem a cláusula certa ficar
 vermelha** — inclusive `PAUSA5`, que reprova qualquer caminho automático novo (um
-`setTimeout(quitToMenu, 1000)` deixa o portão vermelho). Duas armadilhas achadas escrevendo
+`setTimeout(quitToMenu, 1000)` deixa o quality gate vermelho). Duas armadilhas achadas escrevendo
 a própria régua e consertadas: a isenção do corpo de `quitToMenu` era por "tem `function
 quitToMenu` por perto" (passava verde com a mutação colada logo abaixo da função) e a busca
 era por `quitToMenu(` (não pegava `setTimeout(quitToMenu, …)`, que é justamente como se
@@ -343,7 +343,7 @@ modo jogado*, não *modo jogado × HUD desenhado*. Precisa de cláusula nova (`U
 
 ---
 
-### ~~BUG-02 · O portão se auto-sabota~~ · RESOLVIDO 04/08
+### ~~BUG-02 · O quality gate se auto-sabota~~ · RESOLVIDO 04/08
 
 `package.json` passou a rodar **`eval:vm` antes de `eval:invariants`** (e ganhou
 `audio:check`). O diagnóstico abaixo fica porque explica por que a ordem importa e por que
@@ -431,10 +431,10 @@ depois da linha 483 nunca acontece, inclusive o `onclick` do `#btn-jogar` (linha
 | `#btn-jogar` existe | sim | sim |
 | `onclick` do JOGAR ligado | **não** | sim |
 
-**Por que TODO portão desta casa passou verde com o jogo morto** — e esta é a parte que vale
+**Por que TODO quality gate desta casa passou verde com o jogo morto** — e esta é a parte que vale
 guardar:
 
-| portão | por que não viu |
+| quality gate | por que não viu |
 |---|---|
 | `npm run syntax` | TDZ é erro de **runtime**; o módulo parseia perfeitamente |
 | `eval:site` | mede status HTTP e JSON-LD; a `/` respondia **200** com o HTML inteiro |
@@ -454,6 +454,58 @@ antes de deploy.
 
 **Não verificado:** por quanto tempo ficou assim em produção. O `_pingPresenca()` está no
 `HEAD` publicado; datar isso pede `git log -S` no bloco e cruzar com o deploy, e não foi feito.
+
+### ~~BUG-33 · "o time é quando captura bandeira não pinta de vermelho e nem põe o brasão"~~ · RESOLVIDO 07/08
+
+**Sintoma (palavras do dono):** *"OUTRO BUG O TIME E QUANDO CAPTURA BANDEIRA NAO PINTA DE
+VERMELHO E NEM POE O BRASAO"*.
+
+**Causa raiz — uma linha, dois sintomas.** O rename **Time E** (06/08) trocou a letra da
+facção do jogador de `P` para `E` no dicionário `BRASAO` de `public/js/brasoes.js` e no
+arquivo em disco (`img/brasoes/p.png` → `e.png`), e **não trocou na linha de cima**:
+
+```js
+const COR_TIME = { P: '#ff5555', ... };   // ← ficou em P
+...
+if (!cor || !BRASAO[fac]) return null;    // brasoes.js:126 — sai por !cor
+```
+
+Com `COR_TIME['E']` indefinido, `bandeiraTextura('E')` devolvia `null` na primeira linha, o
+`_flagTexFor` caía no pano procedural (`public/js/game.js:3705-3707`) e a bandeira do time do
+jogador ficava **sem cor e sem brasão ao mesmo tempo** — que é exatamente como o defeito foi
+descrito. Nada disso emite erro no console: `null` é retorno previsto pelo contrato do módulo.
+
+**O mesmo rename passou batido em mais dois espelhos**, cada um com sintoma próprio e igualmente
+silencioso, achados pela régua e corrigidos no mesmo commit:
+
+| Espelho | Sintoma | Por que não dá erro |
+|---|---|---|
+| `TEAM_RIM` (`characters.js`) | contorno **branco** nos 8 do elenco E, e nos 9 palhaços | `TEAM_RIM[t] \|\| 0xffffff` |
+| faixa do peito (`characters.js`) | braçadeira **azul** (a de Tribos Urbanas) no time E e nos palhaços | o `else` do ternário |
+
+**Medido** (`node tools/eval/faccao-paleta-check.mjs`):
+
+| | antes | depois |
+|---|---|---|
+| espelhos de paleta cobrindo as 5 facções | 0 de 3 | 3 de 3 |
+| facções faltando em `COR_TIME` / `TEAM_RIM` / faixa | `E` / `C,E` / `C,E` | nenhuma |
+| `COR_TIME` × `_teamColor` (game.js) | `E` DIVERGE | 5 de 5 ok |
+
+**Por que a régua que já existia não pegou.** O C3 do `tools/eval/brasao-check.mjs` compara
+essas duas paletas e teria acusado — mas (a) ele exige Playwright, Chrome e servidor no ar, e
+por isso não está no `check:fast`, e (b) ele tinha cegueira própria: o regex que extrai a
+paleta do `game.js` era `f === '([PBUCF])'`, **lista de letras escrita à mão dentro de um
+regex**, que deixou de casar a facção do jogador no dia do rename. Corrigido para `[A-Z]`.
+
+**Régua nova:** `tools/eval/faccao-paleta-check.mjs` (`npm run eval:faccao`, node puro, no
+`check:fast` **antes** do `anims:check` para não nascer atrás de um `&&` vermelho).
+Mutações executadas: `--mutar=sem-e` (F1 e F2 vermelhas) e `--mutar=cor-errada` (F2 vermelha).
+
+**Custo declarado.** Os palhaços ganharam contorno e braçadeira rosa que **nunca tiveram** —
+é a cor deles em `_teamColor`, mas é mudança visual que ninguém pediu e que aparece na tela de
+seleção. Se a intenção era palhaço sem cor de time, é reverter os dois `C` e declarar isso na
+régua. **Não verificado em partida:** a correção foi medida no fonte, não capturada no
+navegador — falta print do pano vermelho com brasão in-game.
 
 ### ~~BUG-21 · Parede invisível a 2,3 m do ônibus (Brasília)~~ · RESOLVIDO 05/08 (2ª rodada)
 
@@ -676,7 +728,7 @@ As 8 da Quebrada nasciam do lado de dentro da parede: existem, são desenhadas, 
 bala (`material.visible = false`) e vidro/água deixam de contar; (2) nada nos **25 cm à
 frente**; (3) profundidade dos 25 acertos varia no máximo 25 cm (é UM plano). Os 5 mapas passam
 `[root]`. O caminho antigo de caixas continua para quem não tem malha própria (as folhas
-giradas do portão do Ferro Velho).
+giradas do quality gate do Ferro Velho).
 
 | | antes | depois |
 |---|---|---|
@@ -772,8 +824,8 @@ estava errado era a **regra proposta**: maioria (`floor(n/2)+1`) nunca foi o que
 que fazer. O dono definiu a regra em uma frase — **todas as bandeiras, sempre** — e com ela o
 defeito deixa de ser latente e passa a ser exatamente o que ele viu: **a rodada fechando em
 3 de 4**, com uma bandeira inteira do mapa fora da condição de vitória. É a lei 1 da casa
-vista de outro ângulo: quando o dono diz que está errado, o defeito é do portão — aqui, da
-regra que o portão ia codificar.
+vista de outro ângulo: quando o dono diz que está errado, o defeito é do quality gate — aqui, da
+regra que o quality gate ia codificar.
 
 **Medido antes do conserto** (`tools/eval/ctf-win-check.mjs`, os 5 mapas):
 
@@ -828,7 +880,7 @@ verde.
 ### ~~BUG-07 · Metade do áudio do repo nunca toca no jogo~~ · RESOLVIDO 04/08 (parcial)
 
 O manifest passou a ser **gerado do disco** por `tools/gen-audio-manifest.mjs`
-(`npm run audio`), com `npm run audio:check` no portão. A pasta virou a verdade: som novo
+(`npm run audio`), com `npm run audio:check` no quality gate. A pasta virou a verdade: som novo
 na pasta + um comando = som tocando. Ganho medido no mesmo dia:
 
 | | antes | depois |
@@ -951,7 +1003,7 @@ e desbotava o iluminante na sombra: agora o fill herda a crominância do própri
 **mesma luminância** (`dot(fill*csAdd, LUMA) == csAdd`), então é impossível estourar por causa
 dele. No Ferro Velho isso sozinho deu **C\* 7,2 → 7,6 com L\* byte a byte igual**.
 
-**Régua: `tools/eval/char-floor.mjs`** (C10, node+magick, ~40 s), no portão como **CHR8**, com o
+**Régua: `tools/eval/char-floor.mjs`** (C10, node+magick, ~40 s), no quality gate como **CHR8**, com o
 modo julgado LIDO DO FONTE (devolver o piso ao degrau acende a invariante sozinho) e 2 mutações
 medidas (`--mutante=bloco1`, `--mutante=pisozero`), cada uma acendendo a cláusula certa.
 Kill-switches: `?charalbreg=0` (volta ao degrau) e `?charambchroma=0` (volta ao fill branco).
@@ -1152,7 +1204,7 @@ na correção: as 3 bandeiras do fallback caíam DENTRO da lâmina d'água da pi
 (PARTIDA/ARMÁRIOS/TRAMPOLIM, as três NO DECK, em marcos reais); fallback com rótulo neutro
 (BASE A/CENTRO/BASE B). Faixa `#ctf-hud` sem painel; o contraste que o painel garantia
 passou pro poço da barra (.55→.80: sobre a areia do Piscinão o vermelho ia a 2,23:1; com
-.80, 4,72:1 — UI1 verde de novo, 4/5 portões de UI; a UI4 vermelha é o alvo do DM, defeito
+.80, 4,72:1 — UI1 verde de novo, 4/5 quality gates de UI; a UI4 vermelha é o alvo do DM, defeito
 antigo e não relacionado). Arquivos renomeados a pedido do dono: `map_pool_day.js` →
 `map_piscina.js`, `map_pool_ramos.js` → `map_piscinao_ramos.js` (IDs de mapa intactos).
 
@@ -1178,7 +1230,7 @@ parâmetro.
 
 **Sintoma (do dono):** *"o ângulo das armas está muito bom, mas a escala está grande ainda —
 digamos que estão 1,5x do tamanho que deveriam. Eu vejo isso pq o cano da arma pra mira no
-centro da tela a distância é minúscula."* Reportado com o portão **VERDE** em VM5/VM9/VM10/VM15.
+centro da tela a distância é minúscula."* Reportado com o quality gate **VERDE** em VM5/VM9/VM10/VM15.
 
 **Causa raiz — confirmada, e NÃO era área.** Medido no render (diff on/off do
 `vm-quake-capture`, 1200×800 = 3:2) contra a referência (`ref_viewmodel.json`):

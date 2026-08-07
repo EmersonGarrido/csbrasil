@@ -3,7 +3,7 @@ id: colaborar
 title: Como colaborar
 sidebar_label: Como colaborar
 sidebar_position: 6
-description: Setup, como rodar o portão, o que um PR precisa, como adicionar arma / personagem / mapa, e as boas primeiras tarefas.
+description: Setup, como rodar o quality gate, o que um PR precisa, como adicionar arma / personagem / mapa, e as boas primeiras tarefas.
 ---
 
 # Como colaborar
@@ -21,7 +21,7 @@ O número abaixo não é retórica, e não é escrito à mão: sai de `git short
 {/* END:GERADO:pessoas */}
 
 Não existe time, não existe comunidade, não existe fila de revisores — existem essas
-pessoas e um portão automatizado.
+pessoas e um quality gate automatizado.
 
 :::note O bloco acima conta a BRANCH, e o projeto é maior que ela
 A `main` tem um quarto contribuidor que esta branch de trabalho não contém — 13 commits
@@ -62,13 +62,13 @@ Use `npm run dev`. Detalhes e prova em
 [Começando](./comecando.md#a-pegadinha-que-custa-a-primeira-hora-de-todo-mundo).
 :::
 
-## Rodar o portão
+## Rodar o quality gate
 
 ```bash
 npm run eval:vm                          # OBRIGATÓRIO ANTES — ver o aviso abaixo
-node tools/eval/invariants.mjs           # o portão inteiro
+node tools/eval/invariants.mjs           # o quality gate inteiro
 node tools/eval/invariants.mjs --json    # saída pra máquina
-npm run check                            # syntax + vm + portão + coice + bots
+npm run check                            # syntax + vm + quality gate + coice + bots
 ```
 
 :::danger `eval:vm` roda ANTES de `invariants.mjs`. Sempre.
@@ -107,7 +107,7 @@ node tools/eval/ui-check.mjs           # UI1 contraste · UI2 poluição · UI3 
 MUT=ui1_ctf_scrim_fraco node tools/eval/ui-check.mjs   # espera UI1 VERMELHA
 ```
 
-Desfaça a sua própria correção e confira que o portão **fica vermelho**. Se ficar verde,
+Desfaça a sua própria correção e confira que o quality gate **fica vermelho**. Se ficar verde,
 o que você mediu não é o que você consertou. É a lição mais cara deste repositório e ela
 tem uma página inteira: [Teste de mutação](./quality-gates.md#teste-de-mutação-da-própria-régua).
 
@@ -129,22 +129,22 @@ uma das duas coisas:
   (arquivo de referência + pixel medido + script que reproduz), ou
 - **Uma frase na descrição do PR** dizendo por que não precisa. Razões válidas: "já é
   coberto pela invariante X" (diga qual), "é refatoração sem mudança observável — o
-  portão dá o mesmo placar antes e depois" (cole os dois), "é conteúdo puro (texto,
+  quality gate dá o mesmo placar antes e depois" (cole os dois), "é conteúdo puro (texto,
   asset) sem regra de jogo associada".
 
 Razão inválida: "testei manualmente e ficou bom".
 
 Por quê: **intenção que não vira invariante é otimizada para fora**. Uma rodada levou o
-portão de 16/21 para 19/21 sem afrouxar um teto sequer, e foi reprovada, porque destruiu
+quality gate de 16/21 para 19/21 sem afrouxar um teto sequer, e foi reprovada, porque destruiu
 em silêncio uma decisão estética que nenhuma invariante codificava. Caso completo em
-[O portão](./quality-gates.md#lei-1--intenção-que-não-vira-invariante-é-otimizada-para-fora).
+[O quality gate](./quality-gates.md#lei-1--intenção-que-não-vira-invariante-é-otimizada-para-fora).
 
-### 2. O portão não pode piorar
+### 2. O quality gate não pode piorar
 
 Cole a saída de `node tools/eval/invariants.mjs` antes e depois. Se alguma crítica ficou
 vermelha, o PR não entra. Se você **consertou** uma vermelha, diga qual e mostre.
 
-O portão está vermelho hoje ([veja quais](./estado.md), e a lista viva com causa raiz está
+O quality gate está vermelho hoje ([veja quais](./estado.md), e a lista viva com causa raiz está
 no `KNOWN-BUGS.md`). Isso não é licença para piorar: o compromisso é *"a sua mudança não
 acrescenta vermelho"*.
 
@@ -193,7 +193,7 @@ O pipeline é data-driven a partir do GLB. Os GLBs de arma vivem em `public/mode
 1. **Coloque o GLB** em `public/models/weapons/<id>.glb`. Só geometria — o material vem
    do pipeline (`MAT1` exige `metallicFactor 1 / roughnessFactor 1` com mapa
    metallicRoughness, que é o padrão de todas as atuais).
-2. **Declare a arma** em `public/js/weapons.js`. Os campos que o portão lê:
+2. **Declare a arma** em `public/js/weapons.js`. Os campos que o quality gate lê:
    - `len` — comprimento em metros. **`ARM4` reprova acima de 1,25 m** fora de sniper de
      ferrolho. É o campo que normaliza a escala; não é decoração.
    - `gripZ` — fração do comprimento, contada **a partir da boca**, onde fica o grip
@@ -204,9 +204,9 @@ O pipeline é data-driven a partir do GLB. Os GLBs de arma vivem em `public/mode
      do "sniper sem zoom".
 3. **Rode o auditor:** `node tools/eval/vm-mint-audit.mjs`. Ele abre o GLB com parser
    próprio, projeta o viewmodel nos dois aspectos e escreve `tools/eval/vm_mint_audit.json`.
-   **Esse JSON é versionado** — sem ele, VM1–VM6/VM9/VM10 viram PULADAS, que é portão
+   **Esse JSON é versionado** — sem ele, VM1–VM6/VM9/VM10 viram PULADAS, que é quality gate
    verde por ausência de dado (`.github/workflows/ci.yml:24-27`).
-4. **Rode o portão.** Você vai enfrentar VM1, VM3, VM5, VM9, VM12, VM16, VM18, VM18b,
+4. **Rode o quality gate.** Você vai enfrentar VM1, VM3, VM5, VM9, VM12, VM16, VM18, VM18b,
    VM19 — nove invariantes de enquadramento, todas com faixa medida em frame de
    referência. Se não fechar, use `node tools/eval/vm-solve.mjs` em vez de tunar no olho:
    ele lê os tetos do próprio `invariants.mjs` e diz se existe ponto viável, ou **qual par
@@ -292,7 +292,7 @@ Para adicionar um mapa no formato de hoje:
 4. **Rode `node tools/eval/pickup-check.mjs`** (alimenta a `VM14`): todo pickup precisa
    ser alcançável **a pé**, por flood-fill de conectividade real em grade de 0,25 m
    semeado nos spawns dos dois times. Já aconteceu de armas caírem dentro da piscina do
-   `fy_pool_day` com o portão marcando vão **0,0000 — VERDE**.
+   `fy_pool_day` com o quality gate marcando vão **0,0000 — VERDE**.
 5. **Rode `node tools/eval/botsim.mjs 60 <mapId>`**: os bots precisam navegar o seu mapa
    sem travar (`BOT3` stuck ≤ 4%), sem andar de lado (`BOT1`) e sem girar parados (`BOT2`).
    Waypoint desconexo é o defeito mais comum de mapa novo, e já quebrou PRs antes

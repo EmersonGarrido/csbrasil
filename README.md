@@ -30,7 +30,7 @@ sem cadastro.
 
 | O que | Quanto | Onde confere |
 |---|---:|---|
-| Código do jogo | 27.020 linhas em 30 arquivos | `cat public/js/*.js \| wc -l` |
+| Código do jogo | 27.089 linhas em 30 arquivos | `cat public/js/*.js \| wc -l` |
 | `game.js` | **6.543** linhas | `wc -l public/js/game.js` |
 | `main.js` | 1.675 linhas | `wc -l public/js/main.js` |
 | Armas com GLB | 26 | `ls public/models/weapons/*.glb \| wc -l` |
@@ -40,10 +40,10 @@ sem cadastro.
 | Personagens jogáveis | 44, em 5 facções | array `CHARACTERS` de `characters.js` |
 | Mapas no registro | 5 | objeto `MAPS` de `maps.js` |
 | Arnêses visuais em HTML | 12 | `ls public/*.html \| wc -l` |
-| Scripts do arnês | 158 | `ls tools/eval/*.mjs tools/eval/*.py \| wc -l` |
+| Scripts do arnês | 159 | `ls tools/eval/*.mjs tools/eval/*.py \| wc -l` |
 | Scripts de pipeline | 44 | `ls tools/*.mjs \| wc -l` |
 | Tarefas de entrada escritas | 26 | `ls docs/issues/[0-9]*.md \| wc -l` |
-| Versão | `2.0.0-alpha.33` | `public/js/version.js` e `package.json` (batem) |
+| Versão | `2.0.0-alpha.34` | `public/js/version.js` e `package.json` (batem) |
 
 > Bloco gerado por `node tools/gen-docs.mjs`. Fonte: `o comando da coluna direita de cada linha`
 
@@ -152,7 +152,7 @@ public/                O JOGO (vanilla, zero build)
 tools/                 pipeline de asset (gen-asset, gen-image, otimização de GLB)
   gen-arch.mjs         GERA tools/eval/ARCH.md (índice + tabela de conflito)
   gen-docs.mjs         GERA os blocos numéricos deste README e de docs/
-tools/eval/            o arnês de medição e os portões de qualidade
+tools/eval/            o arnês de medição e os quality gates de qualidade
 docs/                  documentação para devs (Docusaurus) + as issues de entrada
 .agents/skills/        skills de agente (.claude/skills/ são symlinks pra cá)
 ```
@@ -186,16 +186,16 @@ npm run preview           # serve dist/client estaticamente
 `python3 -m http.server -d public` serve **só os assets** do jogo — o HTML não
 está lá. Use `npm run dev`.
 
-## Portão de qualidade
+## Quality gate de qualidade
 
 <!-- BEGIN:GERADO:scripts — não edite à mão, rode `npm run docs` -->
 
 ```bash
 npm run check        # npm run syntax && npm run audio:check && npm run eval:ctfhud && npm run eval:vm && npm run eval:invariants && npm run eval:kick && npm run eval:bots
-npm run check:fast   # npm run syntax && npm run docs:check && npm run arch:check && npm run audio:check && npm run feet:check && npm run eval:ctfhud && npm run eval:pause && npm run eval:ctfround && npm run eval:ctfwin && npm run eval:spawn && npm run eval:regen && npm run eval:pegada && npm run eval:ctflabels && npm run anims:check
+npm run check:fast   # npm run syntax && npm run docs:check && npm run arch:check && npm run audio:check && npm run feet:check && npm run eval:ctfhud && npm run eval:pause && npm run eval:ctfround && npm run eval:ctfwin && npm run eval:spawn && npm run eval:regen && npm run eval:pegada && npm run eval:ctflabels && npm run eval:faccao && npm run anims:check
 ```
 
-`package.json` tem **45 scripts**. Vários trazem uma chave `//nome` logo acima com o motivo de existirem — é onde mora o porquê.
+`package.json` tem **47 scripts**. Vários trazem uma chave `//nome` logo acima com o motivo de existirem — é onde mora o porquê.
 
 > Bloco gerado por `node tools/gen-docs.mjs`. Fonte: `node -p "Object.keys(require('./package.json').scripts)"`
 

@@ -31,7 +31,7 @@ bots, AWP, placar por Tab, rádio de voz. Roda num link, sem instalar nada.
 
 Os números abaixo **não são escritos à mão**: eles são regerados por
 `node tools/gen-docs.mjs` a partir do código, e `npm run docs:check` (dentro do
-`check:fast`) reprova o portão quando qualquer um deles diverge da árvore. Antes disso
+`check:fast`) reprova o quality gate quando qualquer um deles diverge da árvore. Antes disso
 esta página envelhecia no primeiro commit — ver
 [o que é gerado, e o que não é](./arquitetura.md#o-que-é-gerado-e-o-que-não-é).
 
@@ -39,7 +39,7 @@ esta página envelhecia no primeiro commit — ver
 
 | O que | Quanto | Onde confere |
 |---|---:|---|
-| Código do jogo | 27.020 linhas em 30 arquivos | `cat public/js/*.js \| wc -l` |
+| Código do jogo | 27.089 linhas em 30 arquivos | `cat public/js/*.js \| wc -l` |
 | `game.js` | **6.543** linhas | `wc -l public/js/game.js` |
 | `main.js` | 1.675 linhas | `wc -l public/js/main.js` |
 | Armas com GLB | 26 | `ls public/models/weapons/*.glb \| wc -l` |
@@ -49,10 +49,10 @@ esta página envelhecia no primeiro commit — ver
 | Personagens jogáveis | 44, em 5 facções | array `CHARACTERS` de `characters.js` |
 | Mapas no registro | 5 | objeto `MAPS` de `maps.js` |
 | Arnêses visuais em HTML | 12 | `ls public/*.html \| wc -l` |
-| Scripts do arnês | 158 | `ls tools/eval/*.mjs tools/eval/*.py \| wc -l` |
+| Scripts do arnês | 159 | `ls tools/eval/*.mjs tools/eval/*.py \| wc -l` |
 | Scripts de pipeline | 44 | `ls tools/*.mjs \| wc -l` |
 | Tarefas de entrada escritas | 26 | `ls docs/issues/[0-9]*.md \| wc -l` |
-| Versão | `2.0.0-alpha.33` | `public/js/version.js` e `package.json` (batem) |
+| Versão | `2.0.0-alpha.34` | `public/js/version.js` e `package.json` (batem) |
 
 > Bloco gerado por `node tools/gen-docs.mjs`. Fonte: `o comando da coluna direita de cada linha`
 
@@ -94,7 +94,7 @@ respondem **200 com aviso + `noindex`** (não 404 — as URLs estão indexadas e
 e `/api/leaderboard` responde `{disabled:true}`.
 :::
 
-:::caution O portão NÃO está verde, e isso é declarado
+:::caution O quality gate NÃO está verde, e isso é declarado
 Quantas invariantes passam **não é derivável do código** — é o resultado de uma execução,
 e depende até de qual insumo existe na máquina. Por isso esse placar não é repetido aqui:
 ele mora no cabeçalho de
@@ -109,7 +109,7 @@ npm run eval:vm && node tools/eval/invariants.mjs --json   # 10-12 min
 ```
 
 **A ordem importa**: invariante de viewmodel medida com o JSON de ontem inventa vermelha
-(ver [Como colaborar](./colaborar.md#rodar-o-portão)).
+(ver [Como colaborar](./colaborar.md#rodar-o-quality-gate)).
 :::
 
 ## Rodar em 3 comandos
@@ -189,8 +189,8 @@ src/                    O SITE (Astro + adapter Vercel)
   lib/                    supabase, svg, geo, fmt
 
 tools/
-  eval/                   O ARNÊS — réguas, portão e sondas. Ver "Quality gates"
-    invariants.mjs          o portão
+  eval/                   O ARNÊS — réguas, quality gate e sondas. Ver "Quality gates"
+    invariants.mjs          o quality gate
     ref-measure.py          mede os frames de referência (a doutrina da casa)
     harness.mjs             sobe o Game real em node com DOM stubado
     ARCH.md BAR.md          mapa de conflito (gerado) e a régua visual
@@ -200,7 +200,7 @@ tools/
   gen-image.mjs           gera arte 2D por texto (OpenRouter)
 
                         (banco: schema/migrations são PRIVADOS — fora do repo)
-.github/workflows/ci.yml  o portão rodando em CI
+.github/workflows/ci.yml  o quality gate rodando em CI
 ```
 
 Os mapas registrados hoje, e em que modo cada um abre:
@@ -252,16 +252,16 @@ npm run docs           # regenera os blocos numéricos desta documentação
 node tools/eval/serve.mjs 8123   # servidor estático sem Astro
 ```
 
-E os dois portões, com a lista exata do que cada um roda — direto do `package.json`:
+E os dois quality gates, com a lista exata do que cada um roda — direto do `package.json`:
 
 {/* BEGIN:GERADO:scripts — não edite à mão, rode `npm run docs` */}
 
 ```bash
 npm run check        # npm run syntax && npm run audio:check && npm run eval:ctfhud && npm run eval:vm && npm run eval:invariants && npm run eval:kick && npm run eval:bots
-npm run check:fast   # npm run syntax && npm run docs:check && npm run arch:check && npm run audio:check && npm run feet:check && npm run eval:ctfhud && npm run eval:pause && npm run eval:ctfround && npm run eval:ctfwin && npm run eval:spawn && npm run eval:regen && npm run eval:pegada && npm run eval:ctflabels && npm run anims:check
+npm run check:fast   # npm run syntax && npm run docs:check && npm run arch:check && npm run audio:check && npm run feet:check && npm run eval:ctfhud && npm run eval:pause && npm run eval:ctfround && npm run eval:ctfwin && npm run eval:spawn && npm run eval:regen && npm run eval:pegada && npm run eval:ctflabels && npm run eval:faccao && npm run anims:check
 ```
 
-`package.json` tem **45 scripts**. Vários trazem uma chave `//nome` logo acima com o motivo de existirem — é onde mora o porquê.
+`package.json` tem **47 scripts**. Vários trazem uma chave `//nome` logo acima com o motivo de existirem — é onde mora o porquê.
 
 > Bloco gerado por `node tools/gen-docs.mjs`. Fonte: `node -p "Object.keys(require('./package.json').scripts)"`
 
@@ -283,7 +283,7 @@ A ordem da barra lateral **é** a ordem de leitura, e cada página entrega uma c
    de cada peça. É onde a fronteira `public/` × `src/` está explicada por inteiro.
 2. **[Instrumentação de IA](./instrumentacao-ai.md)** — como o trabalho é feito aqui. Se
    você nunca colaborou com agentes num repositório, comece por essa.
-3. **[O portão](./quality-gates.md)** — o que é uma invariante, como se escreve uma, as
+3. **[O quality gate](./quality-gates.md)** — o que é uma invariante, como se escreve uma, as
    duas leis da casa e o teste de mutação da própria régua. **É a página mais útil do
    site.**
 4. **[Arquitetura](./arquitetura.md)** — como N agentes editam o mesmo arquivo sem

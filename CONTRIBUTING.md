@@ -33,8 +33,8 @@ critério de aceite.
    o diff sem executar seu código; PR pequeno e fora de área sensível (workflows, deps,
    `src/pages/api/`, deploy) recebe `preview-autorizado` e o preview sobe sozinho.
    Tocou área sensível? Um mantenedor aplica o label na mão depois de revisar.
-4. **Portões locais antes de abrir**: `npm run check:fast` (segundos) e, se mexeu em
-   jogo, `npm run check`. Vermelho novo no portão = PR volta.
+4. **Quality gates locais antes de abrir**: `npm run check:fast` (segundos) e, se mexeu em
+   jogo, `npm run check`. Vermelho novo no quality gate = PR volta.
 
 ## Rodando localmente
 
@@ -123,7 +123,7 @@ Espelhe em `src/data/jogo.ts` (`MAPAS`) pro mapa aparecer em `/mapas`.
 ## Antes de abrir o PR
 
 ```bash
-npm run check        # portão completo
+npm run check        # quality gate completo
 npm run arch         # se você mexeu em public/js, o ARCH.md precisa ser regerado
 npm run build        # o site tem que buildar
 npm run check:seo    # se você mexeu em src/ ou em public/llms.txt
@@ -199,7 +199,7 @@ Existe uma skill pra isso, e ela serve pra agente e pra gente:
 método que este repositório pagou caro pra aprender — régua antes do conserto, mutação que prova
 que a régua morde, refutar o palpite óbvio antes de agir nele — cada regra com o
 caso real que a comprou. Traz também o fluxo: onde registrar
-([`KNOWN-BUGS.md`](KNOWN-BUGS.md)), em que ordem rodar o portão, e como reportar
+([`KNOWN-BUGS.md`](KNOWN-BUGS.md)), em que ordem rodar o quality gate, e como reportar
 o que você **não** verificou.
 
 Defeito com evidência (`arquivo:linha`, saída de régua ou passo de reprodução)
