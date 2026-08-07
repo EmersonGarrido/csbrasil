@@ -1966,7 +1966,11 @@ export class Game {
     this.keys = {};
     this._kd = e => {
       if (e.code === 'Tab') { e.preventDefault(); this._showScoreboard(true); }
-      // em pointer lock, engole atalhos do navegador (Ctrl+S/D/A/R…) — Ctrl+W o Chrome não deixa prevenir, use C pra agachar
+      /* Em pointer lock, engole os atalhos do navegador que a página PODE cancelar
+         (Ctrl+S/D/A/R…). Os que ela NÃO pode — Ctrl+W à frente de todos — não passam por
+         aqui: são atalhos reservados e o `preventDefault` é ignorado. Este comentário já
+         registrou a derrota ("use C pra agachar"); quem venceu foi `_travaAtalhos()`, com
+         a Keyboard Lock API em tela cheia, mais a confirmação de saída do main.js. */
       if ((e.ctrlKey || e.metaKey) && document.pointerLockElement) e.preventDefault();
       this.keys[e.code] = true;
       if (this.radioOpen) {
@@ -2074,6 +2078,33 @@ export class Game {
 
   _requestLock() {
     try { this.renderer.domElement.requestPointerLock()?.catch?.(() => {}); } catch {}
+    this._travaAtalhos();
+  }
+
+  /* CTRL+W FECHAVA A ABA NO MEIO DO TIROTEIO (Windows/Linux) — relato do Daniel Diniz:
+     *"quando fica muito tempo com a tecla Control pressionada a página fecha"*. Não era o
+     Control sozinho: agachar é ControlLeft/Right (`_updatePlayer`, `wantCrouch`) e andar
+     pra frente é W. **Agachar andando pra frente É Ctrl+W**, que no Windows/Linux fecha a
+     aba. No Mac o atalho é Cmd+W, e por isso não reproduzia aqui. Mesma família: Ctrl+1/2/3
+     troca de aba, e 1/2/3 é a troca de arma.
+
+     O `preventDefault` do `_kd` NÃO resolve — Ctrl+W é atalho reservado do navegador e a
+     página não consegue cancelar (o comentário lá em cima já registrava a derrota). Quem
+     resolve é a Keyboard Lock API, e ela **só funciona em tela cheia** — por isso a tela
+     cheia entra junto, pedida cedo no `startGame` (main.js), enquanto o clique ainda vale
+     como gesto do usuário.
+
+     Escape fica DE FORA da lista de propósito: travado, ele passaria a exigir toque longo
+     pra sair da tela cheia, e Escape é como se abre o menu de pausa.
+
+     Chromium só. Firefox e Safari caem na segunda camada — a confirmação de saída do
+     `beforeunload` no main.js. Régua: `tools/eval/ctrlw-check.mjs`. */
+  _travaAtalhos() {
+    if (this.testMode || !document.fullscreenElement) return;
+    try { navigator.keyboard?.lock?.(['KeyW', 'KeyT', 'KeyN', 'KeyR', 'Digit1', 'Digit2', 'Digit3'])?.catch?.(() => {}); } catch {}
+  }
+  _soltaAtalhos() {
+    try { navigator.keyboard?.unlock?.(); } catch {}
   }
   _acceptInput() {
     if (this.paused || this.state !== 'live' && this.state !== 'countdown') return false;
@@ -2589,6 +2620,11 @@ export class Game {
     if (v) this.keys = {};
     this.el.pause.classList.toggle('hidden', !v);
     if (v && document.pointerLockElement) document.exitPointerLock();
+    /* PAUSADO OS ATALHOS VOLTAM A SER DO NAVEGADOR. A trava de Ctrl+W existe pra proteger
+       quem está no tiroteio; segurar ela com o menu de pausa aberto seria sequestrar o
+       navegador de quem está justamente tentando sair. O `_requestLock` do RETOMAR
+       rearma. */
+    if (v) this._soltaAtalhos();
     // JANELA DE GUARDA (ver PAUSE_ARM_MS): o menu acabou de cair debaixo da mira, então
     // por PAUSE_ARM_MS ele não aceita clique — o tiro em voo cai no fundo e RETOMA.
     if (entrou) this.pauseArmAt = this._now() + PAUSE_ARM_MS;
@@ -6518,6 +6554,7 @@ export class Game {
     document.removeEventListener('contextmenu', this._cc);
     document.removeEventListener('pointerlockchange', this._plc);
     window.removeEventListener('blur', this._blur);
+    this._soltaAtalhos();   // fora da partida os atalhos do navegador voltam a ser do navegador
     this.el.hud.classList.add('hidden');
     this.el.pause.classList.add('hidden');
     // timer da janela de guarda: sem isso ele acorda depois da partida morta e mexe no DOM

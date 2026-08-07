@@ -28,7 +28,7 @@ a partir do `package.json`, do `docs/package.json` e do próprio Three.js vendor
 | Esta documentação | **Docusaurus** | `3.6.3` |
 | Runtime de CI | **Node** | `22` |
 
-Three.js sai de `public/vendor/three.module.js` (**sem CDN, sem npm no runtime**). Astro e Vercel de `package.json` + `astro.config.mjs` + `vercel.json`. Dos scripts de `tools/`, **98** importam Playwright, **36** importam gltf-transform e **4** importam meshoptimizer.
+Three.js sai de `public/vendor/three.module.js` (**sem CDN, sem npm no runtime**). Astro e Vercel de `package.json` + `astro.config.mjs` + `vercel.json`. Dos scripts de `tools/`, **99** importam Playwright, **36** importam gltf-transform e **4** importam meshoptimizer.
 
 > Bloco gerado por `node tools/gen-docs.mjs`. Fonte: `dependencies/devDependencies do package.json · REVISION de public/vendor/three.module.js`
 
@@ -243,7 +243,7 @@ de trabalhar. Elas vivem em `.agents/skills/`, e `.claude/skills/` são symlinks
 | Contagem | Quanto | O que significa |
 |---|---:|---|
 | Declaradas no `skills-lock.json` | 30 | com `source`, `skillPath` e `computedHash` — skill de terceiro que mudar de conteúdo é detectável |
-| Pastas em `.agents/skills/` no disco | 30 | o que existe **nesta máquina** |
+| Pastas em `.agents/skills/` no disco | 9 | o que existe **nesta máquina** |
 | …dessas, com `SKILL.md` presente | 9 | o resto é pasta vazia: a skill está no lock e o conteúdo não foi baixado |
 | Versionadas (chegam em quem clona) | 9 | `git ls-files .agents/skills` |
 | …dessas, com `SKILL.md` no git | 9 | é o que um clone limpo consegue ler |
