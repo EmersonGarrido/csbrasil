@@ -134,7 +134,7 @@ function rebuildMenuBackdrop() {
 preloadMapProps(MAP_PROPS).then(() => { rebuildMenuBackdrop(); _splashSetReady(); }).catch(() => _splashSetReady());
 
 /* ---------------- screens ---------------- */
-const screens = ['mobile-warning', 'main-menu', 'map-screen', 'team-select', 'char-select', 'settings-panel', 'howto-panel', 'ranking-panel', 'pause-menu', 'match-end'];
+const screens = ['mobile-warning', 'main-menu', 'map-screen', 'team-select', 'char-select', 'settings-panel', 'howto-panel', 'ranking-panel', 'feedback-panel', 'pause-menu', 'match-end'];
 function show(id) {
   for (const s of screens) document.getElementById(s).classList.toggle('hidden', s !== id);
   if (!id) for (const s of screens) document.getElementById(s).classList.add('hidden');
@@ -671,7 +671,8 @@ csItems.forEach((it) => {
     switch (it.dataset.act) {
       case 'sp':    openSetup('rounds', 'SINGLE PLAYER', 'sp'); break;
       case 'ctf':   openSetup('ctf', 'CAPTURE THE FLAG', 'ctf'); break;
-      case 'mapa':  openSetup(null, 'ESCOLHER MAPA', 'mapa'); break;
+      /* MAPA saiu (mapa se escolhe no fluxo de partida); FEEDBACK entrou (07/08) */
+      case 'feedback': markCurrent('feedback'); show('feedback-panel'); break;
       case 'config': markCurrent('config'); show('settings-panel'); break;
       case 'ranking': markCurrent('ranking'); showRanking(); break;
       case 'sobre': markCurrent('sobre'); howtoReturn = 'main-menu'; show('howto-panel'); break;
@@ -768,6 +769,25 @@ $('btn-jogar').onclick = () => {
 };
 $('btn-ranking').onclick = () => { sfx.uiClick(); showRanking(); };
 $('ranking-back').onclick = () => { ui.back(); markCurrent(null); show('main-menu'); };
+/* FEEDBACK: email + consentimento obrigatórios ANTES de enviar — a tabela é a
+   semente da newsletter (migration 013), então não entra linha sem os dois. */
+$('fb-back').onclick = () => { ui.back(); markCurrent(null); show('main-menu'); };
+$('fb-send').onclick = async () => {
+  ui.click();
+  const msg = $('fb-msg').value.trim(), email = $('fb-email').value.trim();
+  const news = $('fb-news').checked, st = $('fb-status');
+  const falha = (t, campo) => { st.textContent = t; st.classList.add('erro'); campo?.classList.add('invalid');
+    setTimeout(() => campo?.classList.remove('invalid'), 600); };
+  st.classList.remove('erro');
+  if (msg.length < 3) return falha(tr('escreve o feedback primeiro'), $('fb-msg'));
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return falha(tr('preenche um email válido'), $('fb-email'));
+  if (!news) return falha(tr('marca o aceite da newsletter pra enviar'), null);
+  $('fb-send').disabled = true; st.textContent = tr('enviando…');
+  const res = await api('/api/feedback', { email, newsletter: news, message: msg, map: currentMap, version: VERSION });
+  $('fb-send').disabled = false;
+  if (res && res.ok) { st.textContent = tr('valeu! feedback enviado.'); $('fb-msg').value = ''; }
+  else falha(res?.error === 'rate_limited' ? tr('calma — muitos envios, tenta daqui a pouco') : tr('não deu pra enviar agora, tenta de novo mais tarde'), null);
+};
 // carrossel de mapas: setas ‹ › trocam o mapa E o fundo 3D do menu + thumbnail real do mapa
 const mapNameEl = $('map-name');
 const mapThumb = $('map-thumb');
