@@ -292,6 +292,27 @@ está errado, meça na referência e mostre o pixel.
 
 ---
 
+## Sessões longas: sanduíche de raciocínio e detector de loop
+
+Dois padrões que esta base já praticava informalmente e agora nomeia — a fonte é o caso da
+LangChain em que mudanças **só de harness** tiraram um agente do rank 30 para o top 5 sem
+trocar o modelo ([write-up](https://blog.langchain.com/improving-deep-agents-with-harness-engineering/)).
+
+**Sanduíche de raciocínio.** Delibere fundo em dois pontos, e só neles: o **planejamento**
+(antes de tocar no código — qual régua, qual hipótese, qual faixa do `game.js`) e a
+**verificação** (antes de declarar pronto — mutação vermelha, figura olhada, o que não foi
+verificado). No meio, execute enxuto. Quem delibera no meio da execução é o drive-by
+refactor. Esta skill já é o sanduíche: os passos 0-3 são o planejamento, os 5-8 são a
+verificação; o nome existe para você perceber quando saiu dele.
+
+**Detector de loop.** Se a mesma ação falhou três vezes com a mesma assinatura — mesmo
+erro, mesma saída, mesmo vermelho — você não está investigando, está girando. Pare e mude
+de estratégia: troque de instrumento (navegador ↔ harness em node), suba um nível de
+abstração, ou escale para o dono com o que você já mediu. A lei 6 é o antídoto: quem
+procura a assinatura da falha não repete a execução que já falhou.
+
+---
+
 ## Números: um lugar só, e gerado
 
 Número **derivável do código** não se escreve à mão em nenhum arquivo deste repositório — vira

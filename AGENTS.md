@@ -122,6 +122,7 @@ Um assunto, um arquivo. Se você precisa da informação, é daqui que você sai
 | o plano de release, degrau a degrau | [`plans/08-RELEASE-PROFISSIONAL.md`](plans/08-RELEASE-PROFISSIONAL.md) | com o corte defendido |
 | como abrir um PR que passa | [`CONTRIBUTING.md`](CONTRIBUTING.md) | linha editorial, higiene, processo |
 | investigar e consertar um defeito | [`.claude/skills/bug-hunt/SKILL.md`](.claude/skills/bug-hunt/SKILL.md) | as leis viram passo a passo, com o caso real de cada uma |
+| podar over-engineering de um diff; entrevistar antes de codar | `.agents/skills/` (`ponytail-review`, `grill-me`, `handoff`, `to-spec`) | terceiras, gitignored, fixadas por hash — fontes em `.agents/skills/THIRD-PARTY.md` |
 | a documentação de dev inteira | [`docs/docs/`](docs/docs/) | site Docusaurus; `docs/INDICE.md` indexa os `.md` soltos |
 | licença, arte paga e marca | [`docs/docs/licenca.md`](docs/docs/licenca.md) | **o que vale hoje** e o que está decidido e pendente |
 | fronteira de segurança do backend | [`docs/seguranca.md`](docs/seguranca.md) | leia antes de mexer em `/api/*` ou `supabase/` |

@@ -151,3 +151,5 @@ playwright-report/
 # nossa db tão fácil"). Fonte da verdade: ~/db-privado/ na máquina dele (schema,
 # migrations e runbook COMO-MIGRAR.md). O runtime só precisa das envs da Vercel.
 /supabase/
+.vercel
+.env*
