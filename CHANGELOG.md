@@ -1,5 +1,240 @@
 # Changelog
 
+> ## Como este projeto versiona (decidido em 04/08/2026)
+>
+> ```
+> 2.0.0-alpha.N   bug conhecido em aberto; o portão de qualidade pode estar vermelho
+> 2.0.0-beta.N    zero P0 no KNOWN-BUGS.md E `node tools/eval/invariants.mjs` saindo 0
+> 2.0.0           beta rodando em produção sem P0 novo
+> ```
+>
+> **O jogo está em `2.0.0-alpha.4`.** Prerelease do semver ordena sozinho
+> (`alpha` < `beta` < release), então `npm version prerelease` cuida do bump.
+>
+> **Renumeração:** as entradas abaixo marcadas `[3.x]` foram publicadas como `2.0.0-alpha.N`
+> — o contador tinha saltado de `1.15.0` para `3.1.0` sem nenhum release no meio, e **nenhuma
+> das três tem tag git** (a última tag é `v1.12.4`). "v3" nunca existiu como coisa publicada.
+> O conteúdo e as datas das entradas continuam intactos; só o rótulo mudou, porque chamar de
+> 3.3.0 um build com P0 em aberto promete ao jogador uma estabilidade que ele não tem.
+
+## [2.0.0-alpha.4] — 2026-08-04
+### Mudado — ranking DESLIGADO, medição LIGADA
+- **`RANKING_ON = false`** (`src/lib/site.ts`, fonte única). `/ranking` e `/u/*` respondem
+  **200 com aviso + `noindex`** — não 404, porque as URLs estão indexadas, são o que a badge
+  PNG referencia nas redes, e vão voltar. O link sai do nav e do rodapé;
+  `/api/leaderboard` responde `{disabled:true}` e o painel do jogo mostra "desligado" em vez
+  de "indisponível" (escolha ≠ defeito, e o jogador lê a diferença). O FAQ e o JSON-LD da home
+  pararam de prometer ranking global. **Religar é uma linha.**
+- **Telemetria anônima** (`supabase/migrations/012` + `POST /api/telemetry`): quanto tempo se
+  joga e em que mapa/modo, agregado por dia em `map_daily` e `player_daily`. `anonId` é UUID
+  no `localStorage` — identifica navegador, não pessoa; nenhum IP é gravado. **Não passa pelo
+  rate limit do `submit_match`** (1 partida/90 s por nick), que existe contra ranking forjado
+  e aqui só apagaria dado real. Cobre também quem **não digita nick** — que era invisível para
+  o banco e é o caminho de menor atrito, logo o mais comum.
+
+### Adicionado — chão multinível no motor
+- `groundHeightAt(x, z)` virou `groundHeightAt(x, z, yRef)`: o mapa responde *"qual superfície
+  é o chão de quem está nesse Y"* em vez de "a de cima, sempre". **Dá pra andar debaixo da
+  escada da Havan** — antes o vão era visível e o motor tratava a escada como o chão dali,
+  então a boca da escada era uma parede invisível. Pé-direito é parte da regra
+  (`ALTURA_LIVRE = 1,95 m`): só abre embaixo onde cabe gente em pé. Sem `yRef` devolve o topo,
+  o comportamento antigo — nenhuma régua mudou. **Falta a metade dos bots:** o A* é grafo de
+  `(x,z)` sem camada, então o bot ainda não planeja rota por baixo.
+- **Cartazes no Piscinão** (12, das 4 paredes): os 18 arquivos de `public/posters/` já eram
+  carregados e só a Brasília usava. O Piscinão era azulejo branco de parede a parede, sem
+  referência de direção.
+
+### Mudado — jogo
+- **Round de single player não tem mais teto de abates.** Fechava no alvo (4v4 → 12 abates),
+  cortando a rodada quando ela estava boa, sem o jogador ter escolhido isso em lugar nenhum
+  do menu. Agora termina por relógio ou eliminação, como no CS. `?pace=1` devolve o alvo.
+  O CTF não muda: lá o alvo é de bandeiras, é a mecânica do modo.
+- **Tiro 4,2 dB mais baixo** (`GUN_VOL = 0.62`, `?gunvol=N`). Baixar o master abafaria voz,
+  passo e rádio junto — e passo é informação de jogo. O desequilíbrio era da arma contra o
+  resto, então o fator mexe só no tiro e preserva a hierarquia de calibre.
+- **Fala in-game tem teto de 8 s.** O "coe rapaziada" dos funkeiros tinha **28 s** (o segundo
+  mais longo da facção tem 5,8 s) e ficava na frente do tiroteio inteiro. Cortado com
+  fade-out e renomeado. `npm run audio` agora reporta toda fala de `ingame/` acima do teto —
+  sobraram 3 (bolsonaro 13,0 s, petista 12,5 s e 8,2 s).
+
+### Corrigido — áudio: a pasta virou a verdade
+- **O manifest de áudio agora é GERADO do disco** (`tools/gen-audio-manifest.mjs`,
+  `npm run audio`, com `npm run audio:check` no portão). Era escrito à mão, então toda leva de
+  som novo dependia de alguém lembrar — e não lembrava. **Os funkeiros ganharam a própria voz
+  (40 ingame + 20 round; usavam a dos Tribos)**, petista foi de 11+7 para 17+14, bolsonaro de
+  13+6 para 16+14. Os 289 caminhos foram conferidos contra o disco: 0 quebrados, e os nomes com
+  espaço e parêntese saem codificados (sem isso o som simplesmente não toca).
+- **Ordem do portão** (`npm run check`): `eval:vm` roda **antes** de `eval:invariants`. Na
+  ordem antiga o `&&` cortava no primeiro vermelho e o JSON do viewmodel nunca era regenerado —
+  o portão media o dia anterior e inventava vermelha.
+- **Removidos três PDFs pessoais de dentro de `public/`** — tudo ali é servido pelo site.
+  Não chegaram a ficar expostos em produção; um `vercel deploy` local os publicaria.
+
+### Corrigido
+- **O build estava quebrado e ninguém sabia**, porque `npm run build` nunca havia rodado nesta
+  árvore. `changelog.astro` lia o `CHANGELOG.md` por caminho relativo a `import.meta.url`, que
+  no bundle aponta para `dist/server/` — ENOENT derrubando o prerender inteiro. Agora usa
+  `?raw` (Vite embute no bundle). No mesmo build nasceu **`public/wasm/resvg.wasm`**, que
+  faltava para o og:image das páginas de jogador.
+- **`/mapa`:** o nome da cidade era etiqueta permanente — 40+ rótulos amarelos empilhados
+  sobre o Sudeste, escondendo os próprios círculos que rotulavam. Agora a cidade aparece no
+  **clique**, e no hover.
+- **Arte nova não aparecia.** `wall-9.png` e `loading-6.png` estavam no disco e eram
+  ignorados em silêncio: as listas de `main.js` paravam em `wall-8` e `loading-5`. Os dois
+  entraram; o conserto de fundo (manifesto gerado em build) está em KNOWN-BUGS.md BUG-08.
+
+### Mudado
+- **Versionamento** passa a distinguir alpha/beta/release (bloco acima).
+- **`references/` e `issues/` saíram do git** — a construção é local. Os 2,5 GB de captura de
+  rodada e as telas-alvo da UI ficam na máquina; o que sobrevive ao clone são os números
+  medidos, em `tools/eval/ref_ui.json`.
+
+### Documentação
+- **`KNOWN-BUGS.md`** (novo): 17 defeitos com `arquivo:linha`, causa raiz e reprodução.
+- `HANDOFF.md` e `PROMPT.md` atualizados: estado do portão, ordem de trabalho e a armadilha
+  do `npm run check`, que media o viewmodel com JSON de ontem e inventava vermelha.
+
+## [3.3.0] — 2026-08-02 *(publicada como `2.0.0-alpha.3`)*
+### Adicionado — Funkeiros: 5ª facção jogável (9 personagens GLB da Mint)
+- **Roster** (`characters.js`, `team:'F'` + `tribe:'funkeiros'`): Mandrake, Raul da
+  Franja, Oakley, Cria RJ, Chave SP, Funk Raiz, Trap Funk, Fluxo, Ostentação.
+  Selecionável no menu (card novo `btn-team-f`, dourado) em qualquer lado — joga no
+  lado P, como Tribos e Palhaços. Rim dourado (`TEAM_RIM.F`), cor/nome/tag no HUD e
+  CTF (`game.js`), armas próprias no `CHAR_WEAPON`.
+- **Mandrake é o antigo "funkeiro" dos Tribos** — o visual (boné + Juliet vermelho)
+  sempre foi de mandrake; só estava na facção errada. `funkeiro.glb`/`anims/funkeiro/`
+  viraram `mandrake.glb`/`anims/mandrake/` (originais mantidos no disco, fora do registry).
+- **Pagodeiro** (GLB novo, roupa branca + platinado) cobre o slot dele nos Tribos Urbanas.
+- **Pipeline**: Raul/Oakley/Cria RJ/Chave regerados na Mint com as referências de
+  `references/funkeiros/` (o Raul agora tem franja açucarada + cordões; o Oakley tem o
+  chapéu Medusa; o Cria RJ tem o cabelo zebrado platinado); Pagodeiro é novo; os 4
+  restantes vieram do pack original. Nenhum GLB da Mint veio riggado — todos passaram
+  por `tools/rig-from-donor.mjs` (esqueleto do mst + auto-skin), `optimize-tribos.mjs`
+  e `retarget-glb.mjs` (11 clipes por personagem em `models/anims/<id>/`, validados com
+  `check-clip.mjs`: 0 ossos faltantes, durações e root motion idênticos ao pack mixamo).
+- Voz/round da facção: `manifest.json` local ganha chave `F` espelhando a dos Tribos
+  (pack próprio de funk fica como follow-up; sem a chave o fallback já é gracioso).
+- Bump de cache: `VERSION` 3.3.0 + import map do `index.astro`.
+
+## [3.2.0] — 2026-08-02 *(publicada como `2.0.0-alpha.2`)*
+### Mudado — viewmodel: o look final é CS 1.6 (escolha do dono)
+- Medido frame a frame no vídeo de referência (aim_ak-colt): arma BAIXA (boca do cano a
+  ~0,66H, abaixo da mira), flanco aparecendo, coronha inteira no canto inferior-direito.
+  `VM_FOV_DEFAULT` 92→80, `recuoZ` 0,75→1,10, `nearX` 1,35→1,05, `tanH` 0,80→0,67,
+  `VM_OFF` y −0,10→−0,23. O look Quake 4 (3.1.0) fica reproduzível por querystring —
+  ver o bloco de comentário no `VM_FRAME` (vmattach.js). Cano continua exatamente
+  paralelo à mira (`rotation.set(0,0,roll)`, checado em runtime nas 6 classes).
+
+### Adicionado — Ferro Velho: cânion BECO OESTE (imagem-conceito do dono)
+- O flanco oeste vira um cânion reto de z=+32 a z=-24: muros DUPLOS de carros (~5,6 m)
+  contínuos, duas saídas laterais de 5,6 m pro miolo, placa suspensa "BECO OESTE" na
+  boca sul e a bandeira W (agora 'BECO OESTE') no miolo do beco. Kill-switch `?beco=0`
+  restaura o layout antigo. A*/waypoints e LOS spawn↔spawn verificados
+  (`tools/eval/fv-verify.mjs`: 4 bandeiras alcançáveis dos 2 spawns nos dois modos).
+- **Clima de fim de tarde**: sol mais baixo e quente (sombras longas), silhueta de
+  FAVELA nova nos cartões de skyline do fundo norte, chão de barro úmido com poças de
+  chuva espelhadas no vão do beco, e o capim alto sai do vão (barro limpo como na
+  referência — o verde×ferrugem do BAR segue no resto do pátio).
+- Harness novo: `public/fveval.html` + `tools/eval/fv-capture.mjs` (7 ângulos do mapa)
+  e `tools/eval/fv-verify.mjs` (A*/LOS).
+
+## [3.1.0] — 2026-08-01 *(publicada como `2.0.0-alpha.1`)*
+### Corrigido — enquadramento do viewmodel no nível Quake 4 / UT / Halo
+- **Look refeito** (refs do dono: Quake 4, Halo Infinite, UT): lente do VM 64°→92°,
+  arma mais perto do olho (`recuoZ` 1,35→0,75), coronha CORTADA pela borda direita
+  (`nearX` 0,80→1,35), `tanH` 0,46→0,80 (compensa a lente aberta puxando a arma pro
+  centro), cano 12,5°→16,7° abaixo do eixo, e arma 10 cm mais alta (`VM_OFF` y
+  −0,20→−0,10) pra coronha cruzar a borda direita dentro do quadro em vez de sumir
+  por baixo. Cano continua exatamente paralelo à mira (`rotation.set(0,0,roll)`).
+- **Bug do re-frame**: o `_vmFrame` rodava uma única vez ANTES da `vmCamera` existir —
+  a trava de borda calculava com o fallback de 62° pra sempre e a lente real (e o
+  `?vmfov=`) nunca afetavam o enquadramento. Agora há re-frame forçado após a criação
+  da `vmCamera`.
+- **Código morto removido**: `?vmlook=quake|halo|cs` (tunava o pipeline Tripo, inativo
+  desde que o padrão é MINT_VM — os presets renderizavam idênticos).
+- **5 knobs ao vivo** por querystring: `?vmfov= ?vmzmul= ?vmnearx= ?vmtanh= ?vmtanb=`
+  (mais o `?vmoff=` que já existia).
+- Harness novo: `tools/eval/vm-quake-capture.mjs` (máscara exata do VM via on/off da
+  vmScene), `tools/eval/vm_quake_measure.py` (6 métricas do look) e
+  `tools/eval/vm-quake-scen.mjs` (regressão: flash na boca, ADS, reload, look-down).
+
+## [1.15.0] — 2026-07-20 (branch feat/evio-feel)
+### Adicionado — feel ev.io
+- **Movimento crocante**: aceleração 55/12 (era 42/8), atrito contínuo com parada
+  suave, air control real no ar, landing dip proporcional ao impacto, bob de
+  câmera escalonado pela velocidade
+- **Recoil com retorno**: acumula por tiro e recupera suave (padrão por arma),
+  em vez da subida permanente
+- **Sway do viewmodel**: a arma fica defasada ao mouse (ev.io feel)
+- **Indicador direcional de dano**: cunha vermelha na tela apontando a origem do
+  tiro (ângulo relativo à câmera)
+- **Contraste ACES**: hemi 1.05→0.82, sol 1.5→1.65 (mais estrutura sem perder o
+  claro de Brasília)
+
+### Infra
+- `STUDIO_CONSTITUTION.md` (10 princípios) e `QUALITY.md` (barra ev.io mensurável)
+- `studio benchmark` (FPS/p95/draw calls/tris numa partida real) e `studio validate`
+
+## [1.14.0] — 2026-07-20
+### Corrigido
+- **Bots empunham de verdade**: idle agora é pose de empunhadura (frame de passagem do
+  clipe de andar, pés juntos no chão — sem perna levantada "flutuando") e a cabeça
+  sobe 2° em runtime (adeus "cabeça baixa")
+- **Bots exploram o mapa todo**: direção de roam derivada do layout dos spawns (a troca
+  P<->B tinha invertido o lado), 40% dos alvos são distantes, repick ao CHEGAR ao nó
+  (não por tempo), e lane preferida por bot — o time se espalha
+- **Strafe deslizante em combate**: juke lateral menor + bot fica em idle quando está
+  quase parado (sem "andar no lugar")
+- **Estátua A Justiça**: grafite "PERDEU, MANÉ" agora NO PEITO da estátua (medido por
+  raycast), não flutuando ao lado
+- **Palácio do Planalto**: assentado NO TOPO do plinto (antes afundava no chão)
+- **Posters**: nas pontas cinzas dos Ministérios, grandes (DOLLYNHO, ET, Chupacabra,
+  Saci e os demais memes da pasta public/posters)
+- **Armas só no respawn**: fileira alinhada de 8 por spawn (snipers primeiro), sem
+  scatter pelo mapa; bots não devoram a rack
+- **Viewmodel 1ª pessoa**: mãos com dedos de 2 segmentos e palma mais fina
+- **Cache de assets**: GLBs carregam com ?v=VERSION (sem versão velha presa no cache)
+
+### Adicionado
+- **Ônibus do DF gerado no Mint** (amarelinho de verdade, não caixas) atravessado no
+  CENTRO da Esplanada como cover
+- **Barraquinha de bebida gerada no Mint**: quiosque + guarda-sol grande + cadeiras de
+  plástico + engradados (mini-bar de rua)
+- **Zastava M92 e HK G3 gerados no Mint**: a M92 (AK curto iugoslavo, madeira +
+  receiver preto) substitui a Type 56, e a G3 (battle rifle alemã, coronha oliva)
+  entra no arsenal — ambas com sons próprios (takes PD do AK-47 e do 50 Cal)
+- **Caixas Correios/SEDEX** no lugar das caixas "FRÁGIL TRETA" (que eram do outro mapa)
+
+## [1.13.0] — 2026-07-20
+### Corrigido
+- **Bots "de skate/moonwalk"**: cadência das pernas agora segue a velocidade real do
+  chão por clipe (refs medidos no harness: walk 0.79, run 1.92, crouch 0.83 m/s),
+  escolha walk↔run por velocidade com histerese, e backpedal toca o clipe de andar
+  revertido (recuar não é mais moonwalk)
+- **Congresso invertido**: torres gêmeas agora atrás, cúpula do Senado à esquerda e
+  tigela da Câmara à direita (vista cartão-postal a partir da Esplanada)
+- **Palácio do Planalto "flutuando"**: plinto de pedra medido do footprint real do
+  prédio, aterrando os pilotis
+- **Vidros da Catedral**: vitral azul entre as costelas (perfil medido do modelo),
+  em vez do cilindro atravessado na coroa
+- **Posters flutuando**: colados na face real de cada Ministério (medida por bbox)
+- **Mãos em 1ª pessoa**: mão do gatilho no cabo real da arma e mão de apoio no
+  guarda-mão (derivado de len/gripZ de cada arma) — pistola não fica mais sem mão
+- **Pop-in no seletor**: não aparece mais o personagem em blocos antes do GLB —
+  o modelo anterior fica na tela até o novo chegar
+
+### Adicionado
+- **Ônibus quebrado do DF** ("amarelinho", pneu murcho, caído pro lado) como cover
+  grande no meio da Esplanada + **barricada improvisada** (bloco, chapa, tábuas)
+- **Estátua A Justiça v2**: bandeira do Brasil como faixa no peito (mesh) +
+  grafite "PERDEU, MANÉ" pequeno no peito, como na referência do 8/1
+- **Sons reais de armas em produção**: pack CC0/domínio público (gravações reais,
+  qubodup/Freesound) commitado — AWP/snipers, AK, M16, LMG, escopeta, pistola, SMG
+  e reload tocam de verdade no ar; o manifest local com sons do CS segue tendo
+  prioridade em dev
+- **Harness de eval** (tools/eval + public/*eval.html): captura headless de mapa,
+  personagem, viewmodel e gameplay com telemetria — verificação local antes de mostrar
+
 ## [1.12.3] — 2026-07-18
 ### Corrigido
 - **Modo de armas também filtra o mapa**: em SÓ PISTOLAS/FACA/AWP os pickups

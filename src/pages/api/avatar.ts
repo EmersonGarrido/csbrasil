@@ -3,12 +3,21 @@
 import type { APIRoute } from 'astro';
 import sharp from 'sharp';
 import { supabaseAdmin, NOT_CONFIGURED } from '../../lib/supabase';
+import { rateLimit } from '../../lib/ratelimit';
 
 export const prerender = false;
 
 export const POST: APIRoute = async ({ request }) => {
   if (!supabaseAdmin)
     return new Response(NOT_CONFIGURED, { status: 503, headers: { 'content-type': 'application/json' } });
+
+  // Rota SEM limite que aceitava ~3 MB de base64 e rodava `sharp` — o vetor de
+  // custo/DoS mais caro do backend (CPU + memória + upload no Storage por
+  // request). 5 uploads/10 min por IP: ninguém troca de foto mais que isso.
+  const ip = request.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'unknown';
+  if (!(await rateLimit(supabaseAdmin, 'avatar', ip, 5, 600)))
+    return new Response(JSON.stringify({ error: 'rate_limited' }), { status: 429, headers: { 'content-type': 'application/json' } });
+
   let body: any;
   try { body = await request.json(); } catch {
     return new Response(JSON.stringify({ error: 'bad_json' }), { status: 400, headers: { 'content-type': 'application/json' } });
@@ -22,13 +31,21 @@ export const POST: APIRoute = async ({ request }) => {
   if (!player)
     return new Response(JSON.stringify({ error: 'token inválido' }), { status: 403, headers: { 'content-type': 'application/json' } });
 
+  // teto ANTES de decodificar: 3 MB de imagem ≈ 4 MB de base64. Checar só
+  // depois do Buffer.from significava alocar o payload inteiro (e um atacante
+  // podia mandar 50 MB de string) antes de recusar.
+  if (image.length > 4_200_000)
+    return new Response(JSON.stringify({ error: 'imagem muito grande (máx ~3MB)' }), { status: 400, headers: { 'content-type': 'application/json' } });
+
   const b64 = image.replace(/^data:image\/[a-zA-Z0-9.+-]+;base64,/, '');
   let png: Buffer;
   try {
     const buf = Buffer.from(b64, 'base64');
     if (buf.length > 3_000_000)
       return new Response(JSON.stringify({ error: 'imagem muito grande (máx ~3MB)' }), { status: 400, headers: { 'content-type': 'application/json' } });
-    png = await sharp(buf).resize(128, 128, { fit: 'cover' }).png().toBuffer();
+    // limitInputPixels barra bomba de descompressão (PNG de 40 KB que expande
+    // pra 40 000 × 40 000 px e come toda a memória da lambda). 40 MP = folgado.
+    png = await sharp(buf, { limitInputPixels: 40_000_000 }).resize(128, 128, { fit: 'cover' }).png().toBuffer();
   } catch {
     return new Response(JSON.stringify({ error: 'imagem inválida' }), { status: 400, headers: { 'content-type': 'application/json' } });
   }

@@ -1,0 +1,1335 @@
+# BUGS CONHECIDOS — CORO SOLTO: Treta Suprema
+
+> Estado: **2026-08-04**. Só entra aqui defeito com **evidência**: `arquivo:linha`, saída de
+> régua ou passo de reprodução. Suspeita sem medição vai para o fim, na seção
+> *Relatados, ainda não reproduzidos*.
+>
+> Regra da casa: bug que o dono reporta vira **invariante permanente** em
+> `tools/eval/invariants.mjs`. Enquanto não virar, fica aqui com o campo `Régua: nenhuma`.
+>
+> **Como investigar e como escrever a entrada:** skill `bug-hunt`
+> ([`.claude/skills/bug-hunt/SKILL.md`](.claude/skills/bug-hunt/SKILL.md)). O gabarito da
+> entrada e o do relatório final estão em
+> `.claude/skills/bug-hunt/references/gabaritos.md`.
+
+**Portão na data deste arquivo** (`node tools/eval/invariants.mjs`, ~10-12 min):
+
+```
+CRÍTICAS: 39/52 passam  ← VM1, VM3, VM9, VM12, VM20, VM16, VM18, VM19,
+                          BOT8, CHR1, CHR3, CHR4, TEX1 VERMELHAS
+AVISOS:   VM15 fora do alvo
+PULADAS:  4 (exigem browser ou arnês ausente)
+```
+
+Colado de uma execução real de **05/08** (`npm run check`, que roda `eval:vm` antes das
+invariantes — ver BUG-02). **Continuam 13 vermelhas**, e continuam todas de viewmodel,
+personagem e textura: o total foi de 49 para 52 porque entraram invariantes novas, e os
+nomes mudaram (VM5/VM18b viraram VM9/VM20). Nada da rodada de captura/spawn de 05/08
+(BUG-06, BUG-32) aparece aqui — as duas réguas novas moram no `check:fast`.
+
+Duas reprovações do `check:fast` que **não são defeito de código de jogo** e que cortam a
+corrente de `&&` se ficarem no meio dela: `anims:check` (BUG-15, `public/models/anims/`
+não versionado) — por isso ele foi para o FIM do `check:fast` em 05/08 — e `feet:check`,
+que reprova enquanto houver mudança de personagem não regenerada na árvore
+(`npm run feet`).
+
+Mudou em 04/08: **CHR5B saiu do aviso e ficou VERDE** (27/44 personagens sem mapa de
+superfície → 0/44) e entrou a **CHR7** (convenção de skin), verde — daí 49 e não 48.
+**TEX1 ficou vermelha** por 10 superfícies grandes e claras sem albedo, **todas no
+`fy_quebrada`**, que é mapa em obra — não é regressão de personagem.
+CHR1/CHR3/CHR4 seguem exatamente como estavam (conferido personagem a personagem: a
+lista de "balão" do CHR1 tem os mesmos 13 antes e depois).
+
+---
+
+## P0 — quebram o jogo ou mentem para quem mede
+
+### ~~BUG-29 · "o jogo tá reiniciando do nada, estava num CTF no ferro velho do Zé"~~ · RESOLVIDO 05/08
+
+**NÃO era o BUG-00 de volta.** O menu de pausa continua consertado: `pause-check.mjs`
+passa 6/6 e a `PAUSA5` (nenhum caminho automático pro menu) segue verde. É defeito novo,
+e é **do modo CAPTURA**.
+
+**Causa raiz — confirmada.** O bloco de doutrina do modo (`game.js:84-104`) declara que
+*"a RODADA fecha por ALVO DE CAPTURAS (`CTF_CAPS_TO_WIN`) ou por dominação — **nunca por
+tempo**"*, e chama `CTF_MATCH_TIME` (480 s) de **rede de segurança**. Mas quem implementava
+"fecha por alvo de capturas" morava dentro do `_checkPace()`, que abre com
+`if (!PACE || …) return` — e `PACE = QS.get('pace') === '1'`, **desligado por padrão**.
+O `_updatePlayer` ainda o chamava sob `if (PACE)`.
+
+Ou seja: **numa partida normal de CAPTURA a condição de vitória declarada nunca era
+avaliada.** A rodada 1 não fechava nunca, e a partida inteira morria de uma vez quando
+`ctfMatchLeft` zerava — `_endRound()` e `_endMatch()` no mesmo frame, sem cronômetro na
+tela (o relógio só materializa nos últimos `CTF_CLOCK_SHOW` = 60 s). Do lado do jogador:
+você está no meio do tiroteio e a partida evapora.
+
+**Medido no navegador antes do conserto** (`tools/eval/crash-watch.mjs`, CTF
+`fy_ferrovelho`): o time B chegou a **3 capturas — o alvo** — e a rodada 1 seguiu correndo.
+
+**Medido no motor** (`tools/eval/ctf-round-check.mjs`, semente 4242, `fy_ferrovelho`):
+
+| | 1º fecho de rodada | fim da partida |
+|---|---|---|
+| **antes** (`--mutante=pace`) | **NUNCA** (488 s com capturas chegando) | 487,5 s, tudo de uma vez |
+| depois | **29,1 s**, por objetivo | 79,6 s, por vitórias de rodada |
+
+**Correção:** o alvo de bandeiras saiu do `_checkPace()` e virou `_checkCtfAlvo()`,
+chamado **sem gate**. O modo de ABATE continua sob `PACE` de propósito — lá o alvo por
+abates é experimento e o round já fecha pelo relógio de 99 s; no CAPTURA não existe
+relógio de round, então o alvo não é ritmo, é a **única** condição de vitória.
+
+**Régua: `tools/eval/ctf-round-check.mjs`** (`npm run eval:ctfround`, no `check:fast`).
+3 cláusulas, 2 mutações medidas: `--mutante=pace` reproduz o defeito exato do dono
+(1º fecho NUNCA / partida evapora aos 487 s) e `--mutante=semteto` acende a CTF-R3.
+A CTF-R2 **anda o motor** em vez de ler a declaração — a UI4 não pegava isto porque ela
+cobra que a *partida* feche, e ela fechava, pela rede de segurança.
+
+### ~~BUG-30 · "a vida do 1st player volta a 100, não sei porque, isso não pode"~~ · RESOLVIDO 05/08
+
+**NÃO É BUG, e não é regra mal aplicada ao modo** — é a regra `REGEN` (`game.js`)
+funcionando como escrita, e ela dispara **igual** em rodadas e em CAPTURA. Não vem do
+`_resetPositions`, nem do respawn, nem do fim de rodada do CTF: é regeneração fora de
+combate, estilo CoD, **6 s sem tomar dano e 22 HP/s**, ligada por padrão desde 31/07 (num
+commit grande, sem entrada no CHANGELOG).
+
+**Reproduzida no navegador** (`tools/eval/crash-watch.mjs`, CTF `fy_ferrovelho`, amostra
+de 2 em 2 s), com o jogador **vivo**, sem respawn e sem rodada nova:
+
+```
+t 25,7 s   hp  68   (hurtAt 22,1)
+t 30,3 s   hp 100   (hurtAt 22,1)
+```
+
+**O defeito de verdade é que ela é invisível.** O dono disse *"não sei porque"* — não há
+ícone, som, vinheta nem linha nas configurações. Regra que o jogador não percebe é
+indistinguível de defeito.
+
+**Decisão:** o padrão **inverteu** (`REGEN = QS.get('regen') === '1'`). O veto do dono
+manda, e a regra continua religável por `?regen=1` — inteira, com a simetria
+jogador↔bot que o desenho exige.
+
+**Custo declarado, medido** (`botsim 300 all`, os 5 mapas): sem regeneração o bot morre
+antes, então a simulação anda. latFlips/min 9,647 → 10,014 · fwdFlips/min 7,353 → 7,081 ·
+stuck% 2,100 → 2,155 · eff 0,041 → 0,036.
+
+**O que volta a doer, e quem religar tem que resolver junto:** sem cura, kit ou colete,
+cada vida depois do primeiro contato já estava perdida (um tiro de bot deixa em ~40 e o
+próximo mata). Foi esse problema real que a `REGEN` veio resolver. Religar por padrão sem
+entregar o feedback que falta é repetir o mesmo erro.
+
+**Régua: `tools/eval/regen-check.mjs`** (`npm run eval:regen`, no `check:fast`).
+3 cláusulas, 2 mutações medidas: `--mutante=ligado` devolve **40 → 100 hp** (o número que
+o dono reportou) e `--mutante=semkill` acende a REGEN3. A REGEN2 **anda o motor** — 20 s
+parado com o `_damage` congelado — em vez de ler a constante.
+
+### ~~BUG-31 · 88 requisições 404 por partida escondendo qualquer erro de verdade~~ · RESOLVIDO 05/08
+
+**Sintoma (do dono):** *"vários erros no console"*, junto com o BUG-29.
+
+**Medido** (`tools/eval/crash-watch.mjs`, CTF `fy_ferrovelho`, 420 s): **88 `error` de
+console, todos 404**, e **zero** `pageerror` / `unhandledrejection`. Todos em
+`models/anims/<id>/<clipe>.glb`, dos **8 palhaços** (`adjim, cadequinha, esbirro, jozo,
+padata, padati, palhacomal, titica`) — os únicos 8 dos 44 sem pasta de clipe. 8 × 11 = 88.
+O `catch` vazio de `glbchars.js` engolia tudo, então o jogo funcionava e o console mentia.
+
+**Duas saídas; a primeira foi MEDIDA E DESCARTADA.** `plans/02-BOTS-E-MODELS.md:285`
+previa "B7: rodar `retarget-glb.mjs` para os Palhaços". Rodado — e o retarget é um
+**no-op** para essa família:
+
+| desvio angular do clipe retargetado × pack compartilhado (walk, máx por osso) | |
+|---|---|
+| palhacomal / raul / mst (rig do doador `mst`) | **0,13°** · médio **0,03°** |
+| doutora / ancap (rig Meshy próprio) | 170,89° / 168,01° · médio 37,42° / 40,76° |
+
+E `pose-inflate.mjs palhacomal` dá **0,689 / 17,4 %** com pasta e **0,689 / 17,4 %** sem
+pasta. Os 8 palhaços foram auto-skinnados a partir do esqueleto do `mst`
+(`tools/rig-from-donor.mjs`), que é o mesmo contra o qual o pack compartilhado foi assado:
+re-assar não move um vértice. Gerar 88 GLB (~3,6 MB) para não mudar nada é peso morto
+contra o teto de 250 MB da CrazyGames. **O "palhaço esquisito" é a qualidade do auto-skin
+(BUG-10/BUG-25, exige rig novo), não a origem do clipe.**
+
+**Correção — manifesto:** `public/models/anims/index.json`, gerado por
+`tools/gen-anim-manifest.mjs` (`npm run anims`), lido pelo `glbchars.js` **antes** de
+pedir o clipe. Mesmo desenho do `audio/manifest.json` e do `foot-offsets.json`; página
+estática não lista diretório, quem sabe o que existe é o build. Manifesto ausente ou
+fetch falhando = comportamento antigo (pede tudo): nunca quebra.
+
+**Medido depois:** 420 s → 120 s de CTF no mesmo mapa, **88 erros de console → 0**
+(sobram 4 avisos benignos: 2 de perf do WebGL e 2 de extensão glTF desconhecida).
+
+**E o tool `retarget-glb.mjs` estava quebrado — foi por isso que os palhaços nunca tiveram
+clipe.** `[...TG.values()].filter(x => !x.parent)[0]` pegava a **primeira** raiz do glTF.
+Nos 8 GLB de palhaço existem **duas** raízes e o nó da malha (`"Spiked Ringmaster Clown"`,
+0 filhos) vem antes de `"Armature"`: a varredura andava só pelo nó da malha, `mappedTgt`
+saía com **0 ossos**, e o tool gravava 11 clipes **sem uma única track** imprimindo
+"RETARGET-GLB COMPLETO". Nos 36 personagens de raiz única o acaso acertava. Corrigido: a
+raiz passou a ser o ancestral do `Hips`, e menos de 8 ossos mapeados agora **falha alto**.
+
+**E 100 clipes estavam no disco mas não no git.** Achado pela cláusula A4 da régua nova:
+10 personagens (`chave, criarj, fluxo, funkraiz, mandrake, oakley, ostentacao, pagodeiro,
+raul, trapfunk`) tinham **1 de 11** clipes versionados — só o `idle1h.glb`. Num clone
+limpo ou no deploy isso são **mais 100 requisições 404** e 10 personagens caindo no pack
+compartilhado sem ninguém saber; o manifesto gerado do disco local prometeria arquivos que
+a produção não tem. Os 100 foram versionados (4,5 MB). É o C3 do HANDOFF, agora com número.
+
+**Régua: `tools/gen-anim-manifest.mjs --check`** (`npm run anims:check`, no `check:fast`).
+4 cláusulas, **5 mutações medidas**: `sobrando` e `faltando` acendem A1/A2, `semguarda` e
+`semfetch` acendem a A3 (que confere que o **jogo consulta** o manifesto antes de pedir —
+sem ela o manifesto podia ficar perfeito e os 88 404 continuarem), `semgit` acende a A4.
+
+### ~~BUG-32 · "o respawn do time dentro da loja, eles começam embaixo do mezanino e do nada sobem"~~ · RESOLVIDO 05/08
+
+**Sintoma (palavras do dono, jogando):** *"o respawn do time dentro da loja, eles começam
+embaixo do mezanino e do nada sobem, isso tá esquisito."*
+
+**Palpite óbvio REFUTADO antes de agir nele.** A hipótese de partida era "os pontos de
+spawn estão sob a pegada do mezanino e o resolvedor multinível devolve a altura errada" —
+ou seja, defeito do `groundHeightAt` recém-mexido (BUG-22, 2ª rodada), com a correção
+sendo mover os spawns. Medido, **não é**: o `map_havan.js/groundHeightAt(x, z, yRef)`
+responde certo nos dois sentidos naquele ponto — `gh(0, −39)` = **3,40** (a laje, que é o
+que o mapa declara como spawn do depósito) e `gh(0, −39, 0)` = **0,00** (o piso da loja,
+para quem já está embaixo). Mover o spawn teria escondido o defeito e ele voltaria no
+próximo mapa com plataforma.
+
+**Causa raiz — confirmada, e são duas caras da mesma.** Os **cinco** lugares que colocam
+alguém num spawn escreviam **`pos.set(s.x, 0, s.z)` — Y ZERO LITERAL**, sem nunca
+perguntar ao mapa qual é o chão daquele (x, z): `_resetPositions`, `_switchTeam` (2×),
+`_respawnPlayer` e o ramo de respawn do `_updateBot`. Enquanto todo mapa foi plano isso
+foi verdade por acidente. O spawn do time da loja da Havan é o **depósito do mezanino**,
+y de projeto **3,40 m** (`map_havan.js:1752`, `z: MZ.z0 + 2.4`), dentro da pegada onde o
+mesmo (x, z) tem piso em 0,00 **e** em 3,40.
+
+**Medido** (`tools/eval/spawn-settle-check.mjs`, `fy_havan`, os 4 slots do time B):
+
+| | y(frame 0) | y(frame 1) | y(frame 30) | o que o jogador vê |
+|---|---:|---:|---:|---|
+| **BOT, antes** | 0,00 | **3,40** | 3,40 | nasce embaixo da laje e **sobe 3,40 m em um quadro** |
+| **JOGADOR, antes** | 0,00 | 0,00 | 0,00 | nasce no **térreo**, embaixo do depósito — andar errado |
+| bot e jogador, depois | 3,40 | 3,40 | 3,40 | nascem no depósito, Δ = 0,00 |
+
+O bot sobe e o jogador não pelo mesmo motivo invertido: o realinhamento do bot
+(`game.js:_updateBot`, `b.pos.y = groundHeightAt(x, z)`) é **sem `yRef` de propósito**
+(o A* não tem camada — está documentado lá, com o botsim que mediu 5× mais bot travado
+com camada), então ele pega a laje; o jogador é resolvido com `yRef` = o próprio y = 0 e
+recebe "seu chão é o de baixo".
+
+**Correção — no chamador, que é onde estava a causa:** `game.js:_spawnY(x, z)` pergunta a
+altura ao mapa, e os cinco `pos.set` passam a usá-la. Sem `yRef` de propósito: o ponto de
+spawn é uma **declaração do mapa** ("nasce aqui"), e a superfície que ele quer dizer é a
+de cima daquele (x, z). No `_resetPositions` a altura é medida **depois** do jitter, e a
+ordem das duas chamadas de `Math.random()` foi preservada (o harness depende dela).
+
+**Régua: `tools/eval/spawn-settle-check.mjs`** (`npm run eval:spawn`, no `check:fast`).
+3 cláusulas, 1 mutação medida. Cobre **80 colocações** — jogador **e** bot, em todo spawn
+dos 5 mapas —, e usa os caminhos REAIS (`_respawnPlayer` e o ramo de respawn do
+`_updateBot`, com `_pickSpawn` fixado em cada ponto), não uma reimplementação da colocação
+dentro da régua. `--mutante=y0` devolve o y literal 0 e acende **13 cláusulas**, entre elas
+os 3,40 m de teleporte dos 4 bots da Havan. Teto: **|y(frame 30) − y(frame 0)| < 0,25 m**,
+que pega o teleporte vertical em qualquer mapa, não só na Havan.
+
+**Verificado NO NAVEGADOR** (Playwright, `fy_havan`, jogando do lado da loja): **20 respawns
+seguidos pelo `_respawnPlayer()` de verdade**, olhando o `y` quadro a quadro por 30 quadros
+em cada um. Os 20 nasceram em **y = 3,40** e ficaram em 3,40; **pior Δ = 0,00 m**. E a
+figura: o screenshot do spawn mostra o jogador DENTRO do depósito — piso sob os pés, rack de
+armas no mesmo nível, parede do fundo à frente —, não embaixo de uma laje.
+
+**Custo declarado, medido — e ele existe.** A/B controlado no `botsim` (`node tools/eval/botsim.mjs 60 fy_havan`,
+média das 9 sementes; o "antes" é o próprio `_spawnY` devolvendo 0, aplicado e revertido):
+
+| | latFlips/min | fwdFlips/min | stuck % | eff |
+|---|---:|---:|---:|---:|
+| antes (y literal 0) | 11,778 | 6,744 | **1,678** | 0,206 |
+| depois (`_spawnY`) | 12,633 | 6,700 | **2,100** | 0,202 |
+
+**+0,42 pp de bot travado na Havan, e a explicação é o próprio conserto.** Antes, no primeiro
+quadro depois de renascer, o bot rodava o `_updateBot` inteiro com `pos.y = 0` — e o
+`_collide` filtra colisor por altura (`pos.y + 1.5 > c.minY && pos.y + 0.3 < c.maxY`), então
+naquele quadro ele **atravessava as paredes do depósito** antes de ser puxado para 3,40.
+Agora ele respeita a geometria do depósito desde o primeiro quadro. É o comportamento
+correto custando um pouco de fluidez, e o mesmo ponteiro de sempre: o A\* da Havan não tem
+camada (a segunda metade do BUG-22 continua aberta) — resolvê-lo é o que devolve os 0,42 pp.
+Ordem de grandeza muito abaixo do 5× (1,73 % → 8,98 %) que fez o `yRef` sair do
+realinhamento do bot.
+
+Nos **4 mapas planos** o `_spawnY` devolve 0 e o comportamento é idêntico por construção.
+`eval:pegada`, `eval:ctfhud`, `eval:pause`, `eval:regen` e `ctf-round-check` seguem verdes.
+
+---
+
+### ~~BUG-00 · "o jogo reiniciou sozinho e foi pro menu principal"~~ · RESOLVIDO 04/08
+
+**Sintoma (do dono, cinco ocorrências):** *"pela quinta vez o jogo reiniciou sozinho, eu
+estava no meio de uma partida e ele foi pro menu principal sozinho"*.
+
+**Causa raiz — confirmada, e NÃO era caminho automático.** `quitToMenu()` tem exatamente
+dois chamadores (`public/js/main.js`, `#btn-quit` e `#btn-menu`) e os dois são `onclick`;
+`show('main-menu')` só aparece em handlers de clique e no ESC do próprio menu (guardado por
+`#map-screen` visível, impossível em partida porque `startGame` chama `show(null)`). Não há
+`location.reload`, `history`, nem um `<a href>` na página do jogo. **O clique era real.** O
+defeito é que o jogo põe os botões que destroem a partida debaixo da mira, sozinho:
+
+1. `game.js:_plc` pausa a **qualquer** perda de pointer lock — alt-tab, ESC, notificação do
+   SO, o Chrome tirando o foco. O jogador não pediu pausa nenhuma.
+2. O menu de pausa nasce clicável no mesmo frame, centrado.
+3. **Medido** (`node tools/eval/pause-check.mjs --geo`, Chromium 1536×1024, o enquadramento
+   3:2 do dono, com o pause aberto):
+
+   | sob o cursor | % da tela |
+   |---|---|
+   | canvas (o "clique pra voltar") | **0,00 %** |
+   | `#pause-menu` (fundo) | 95,59 % |
+   | os 5 botões | 4,42 % — `REINICIAR`+`SAIR` somam 1,66 % |
+
+   E na coluna vertical do **centro da tela**, que é onde mora a mira:
+   centro → `CONFIGURAÇÕES`; centro **+100 px** → `REINICIAR PARTIDA` (*"reiniciou
+   sozinho"*); centro **+150 px** → `SAIR PRO MENU` (*"foi pro menu principal sozinho"*).
+4. O escape hatch estava **morto**: `_md` só retomava com
+   `e.target === renderer.domElement`, e com 0,00 % de canvas exposto isso nunca acontece
+   pausado. O gate nasceu no G2-R2 pra consertar o inverso (*"clico em SAIR PRO MENU e não
+   acontece nada"*) e, ao consertar aquilo, entregou **todo** clique pausado pros botões.
+
+**O que foi descartado com medição, não com palpite:** o fim de partida (`_endMatch`) não
+dispara cedo — `killsToWin`/`capsToWin` são `Infinity` e só são lidos sob `PACE`
+(`QS.get('pace')==='1'`, desligado); 900 s headless em 5 mapas (harness `bootGame`) fecham
+sempre em 5 rodadas / 530,7 s, sem transição espúria. `dispose()` só é chamado por
+`startGame` e `quitToMenu`. `beforeunload`/`sendBeacon` não navegam.
+
+**Correção** (`game.js` + `main.js`):
+- `PAUSE_ARM_MS = 600` — o painel de ações nasce com `pointer-events:none`, então o tiro
+  em voo não alcança botão nenhum;
+- clique no **fundo** do menu (95,59 % da tela) retoma a partida — o escape hatch de volta,
+  agora num alvo que existe;
+- passada a guarda o painel volta a aceitar clique (senão o G2-R2 ressuscita);
+- `confirmGate` (game.js) — `SAIR PRO MENU` e `REINICIAR` exigem dois toques com
+  **CONFIRM_MIN_MS = 350 ms de silêncio** entre eles. Não é "clique de novo" ingênuo: a
+  primeira versão desta trava foi **reprovada em Chromium por uma rajada de 8 cliques a
+  60 ms no mesmo pixel** (o que a mão do jogador faz quando a arma "para de atirar"), que
+  confirmou sozinha e saiu pro menu. Clique cedo demais agora **re-arma** o relógio.
+
+**Régua: `tools/eval/pause-check.mjs`** (node puro, ~5 s, no `check:fast` e no portão como
+invariante `PAUSA`). 6 cláusulas, **7 mutações medidas, todas fazem a cláusula certa ficar
+vermelha** — inclusive `PAUSA5`, que reprova qualquer caminho automático novo (um
+`setTimeout(quitToMenu, 1000)` deixa o portão vermelho). Duas armadilhas achadas escrevendo
+a própria régua e consertadas: a isenção do corpo de `quitToMenu` era por "tem `function
+quitToMenu` por perto" (passava verde com a mutação colada logo abaixo da função) e a busca
+era por `quitToMenu(` (não pegava `setTimeout(quitToMenu, …)`, que é justamente como se
+cria um caminho automático sem escrever parênteses).
+
+---
+
+### BUG-01 · Bandeiras de CTF aparecem no HUD em partida de rodadas
+
+**Sintoma (do dono):** mapas em modo *rounds* mostram a faixa de bandeiras no HUD, sem existir
+captura nenhuma.
+
+**Causa raiz — confirmada.** `#ctf-hud` nasce escondido (`src/pages/index.astro:589`,
+`class="hidden"`) e `_updateCtfHud()` faz `classList.remove('hidden')`
+(`public/js/game.js:4161`) **sem nenhuma guarda**. Não existe, em lugar nenhum do repo,
+um `add('hidden')` para esse elemento — `grep -rn "ctfHud\|ctf-hud" public/ src/` devolve 5
+ocorrências e nenhuma esconde. O `if (this.ctf)` de `game.js:2011` protege só a *criação* das
+bandeiras (`_initCTF`), não a visibilidade do HUD.
+
+**Reprodução:** jogar uma partida de CTF → voltar ao menu → iniciar partida de *rounds*
+**sem recarregar a página**. A faixa continua visível, com o HTML da partida anterior.
+Efeito colateral visível: `public/style.css:578` (`#ctf-hud:not(.hidden) ~ #killfeed{top:114px}`)
+empurra o killfeed 38 px para baixo no modo errado.
+
+**Correção:** guardar a exibição por modo em `_updateCtfHud()` e esconder + limpar o
+`innerHTML` na saída de partida (junto do bloco `game.js:6112-6124`, que já esconde 12 outros
+elementos e esqueceu este).
+
+**Régua:** nenhuma. `tools/eval/mode-check.mjs` passa 16/16 porque compara *modo escolhido ×
+modo jogado*, não *modo jogado × HUD desenhado*. Precisa de cláusula nova (`UI`), com mutação.
+
+---
+
+### ~~BUG-02 · O portão se auto-sabota~~ · RESOLVIDO 04/08
+
+`package.json` passou a rodar **`eval:vm` antes de `eval:invariants`** (e ganhou
+`audio:check`). O diagnóstico abaixo fica porque explica por que a ordem importa e por que
+nenhuma vermelha de VM vale sem regenerar o JSON antes.
+
+**Causa raiz — confirmada.** `package.json` define
+`check = syntax && eval:invariants && eval:vm && ...`. As invariantes de viewmodel leem
+`tools/eval/vm_mint_audit.json`, que é **gerado pelo `eval:vm` — que roda depois**. Como
+`eval:invariants` sai 1, o `&&` corta e o JSON nunca é regenerado. Ele congela.
+
+**Impacto medido (04/08):** o JSON no repo era de 03/08 07:39, com `V0=80°` e
+`vmOff=[0.03,-0.23,0]`; o `game.js` está em `V0=42°` e `VM_OFF=[0.03,-0.10,0]`
+(`game.js:436` e `game.js:480`). Resultado — antes × depois de `npm run eval:vm`:
+
+| Invariante | com JSON velho | com JSON regenerado |
+|---|---|---|
+| VM5 área da arma na tela | 1,1–4,5% · **26/26 fora** | 6,3–12,8% · 3/26 fora |
+| VM1 borda esquerda | **26/26 fora** | 2/26 fora |
+| VM9 grip | **26/26 fora** | ✓ passa |
+| AUD1 (meta-invariante) | ✗ "lente do JSON DIVERGE" | ✓ passa |
+
+A `AUD1` — que o `HANDOFF.md` manda manter verde — detectou o problema corretamente. Ela é a
+única razão de isso não ter virado três dias perseguindo um defeito que não existe.
+
+**Correção:** inverter a ordem (`eval:vm` antes de `eval:invariants`) **ou** fazer
+`invariants.mjs` recusar-se a rodar quando `vm_mint_audit.json` for mais antigo que `game.js`
+(falha explícita vale mais que vermelho falso).
+
+---
+
+### BUG-03 · BOT8 — bot com linha de visão no jogador por segundos, sem atirar
+
+**Medido:** `4 episódios | maior silêncio 4,23 s | 690 s em condição`. Vermelha desde o
+baseline, nunca atacada (era C9 no handoff anterior, com 2,7 episódios / 3,03 s — **piorou**).
+
+**Causa raiz — confirmada.** `public/js/game.js:5361`:
+
+```js
+const hasTurn = !(BOT_FAIR && e.isPlayer) || this._duelToken(b);
+```
+
+Essa `const` é avaliada **todo frame, para todo bot cujo alvo é o jogador**, antes de qualquer
+gate de "pode atirar" (o `if` só vem em `game.js:5363`). E `_duelToken` não consulta: ele
+**reserva** o token por `BOT_TOKEN_HOLD`. Um bot em atraso de reação, recarregando, ou sem
+linha de tiro, rouba um dos 2 tokens e o segura. Os outros recebem `hasTurn === false`,
+continuam avançando e **atravessam o campo de visão sem disparar**.
+
+**Correção:** mover a chamada para dentro do `if`, depois dos gates de munição/LOS/mira.
+
+**Régua:** BOT8 já existe e morde. Basta rodar depois.
+
+---
+
+### BUG-04 · `ViewModelRig` está escrito, testado — e nunca foi importado
+
+`public/js/springs.js:94` exporta uma máquina de estados completa de viewmodel: idle com
+respiração, sway com mola, bob, **reload em 5 fases com queda de carregador**, holster+draw com
+troca de malha no ponto baixo do arco, ADS. Tem teste dedicado (`tools/eval/vmrig-test.mjs`).
+
+`public/js/game.js:11` importa **só** `RecoilAxis` de `springs.js`. O `vmrig-test.mjs` valida
+código que **não roda no jogo**. Consequência de produto: o reload não tem fase visível nem
+carregador caindo — o critério V5 do plano de release é impossível de atender enquanto isso não
+mudar.
+
+---
+
+## P1 — o jogador vê
+
+### ~~BUG-21 · Parede invisível a 2,3 m do ônibus (Brasília)~~ · RESOLVIDO 05/08 (2ª rodada)
+
+**Sintoma (do dono, com print):** *"o mapa não deixa eu andar perto do ônibus"*.
+
+**Causa raiz.** O ônibus está girado **0,55 rad (31,5°)**. O occluder respeita a rotação
+(`bx.rotation.y`), mas `col()` empurra `{minX,maxX,minY,maxY,minZ,maxZ}` e **o motor não tem
+collider rotacionado em lugar nenhum** — nem `_collide`, nem o A* dos bots. A caixa única de
+9,0 × 5,2 alinhada aos eixos é o retângulo girado achatado: sobra nas quinas, falta nas
+laterais.
+
+**Medido** (planta, amostragem de 2 cm):
+
+| | antes | depois |
+|---|---|---|
+| bloqueio onde não há ônibus | 12,9 m² | 9,3 m² |
+| **parede invisível mais distante da lataria** | **2,33 m** | **0,68 m** |
+| ônibus **sem** colisão (dava pra entrar pelas quinas) | 7,6 m² | **0 m²** |
+
+**Correção:** decompor o retângulo girado numa grade 6×3 no espaço local do ônibus e empurrar
+a AABB exata de cada célula — uma escada de 18 caixas seguindo a diagonal. 0,68 m já é menor
+que o raio do jogador (0,38 m) mais o passo.
+
+**E VOLTOU A INCOMODAR — 05/08.** Palavras do dono: *"o box do ônibus não deixa você andar
+perto e é como se fosse um quadrado, mas o ônibus está em diagonal. devia ser possível andar"*.
+0,68 m é meio passo de parede fantasma, e meio passo se sente.
+
+**CORREÇÃO DEFINITIVA: COLLIDER COM ROTAÇÃO NO MOTOR.** `game.js/_collideRot` testa no espaço
+local do prop; o colisor leva a AABB conservadora do mundo (rejeição barata + todo consumidor
+antigo continua válido) MAIS `ry/cx/cz/hx/hz/cos/sin`. Colisor sem `ry` não paga nada — o
+caminho girado é um RAMO, não o caso geral.
+
+| | 1ª rodada (18 AABBs) | agora (1 OBB) |
+|---|---|---|
+| parede fantasma ALÉM do raio do corpo | 2,033 m | **0,000 m** |
+| lataria sem colisão | 9,08 m² | **0,00 m²** |
+| colisores do ônibus | 18 | **1** |
+| `_collide` (awp_map, 400 k chamadas) | 238 ns | 287 ns (+49 ns; mapa sem prop girado: sem custo) |
+
+O mesmo conserto vale para `addBox({ry})` (era o QUADRADO circunscrito, `max(w,d)/2` nos dois
+eixos) e para `putBuilding` de GLB girado (era `Box3.setFromObject` do prédio JÁ GIRADO): urna,
+towner, drinkstand e as caixas da praça ganharam de graça.
+
+**Régua: `tools/eval/obb-check.mjs`** — não confere declaração, ela ANDA: grade de 5 cm com o
+`_collide` DE PRODUÇÃO e compara com a caixa real do prop. Tem inventário declarado (sem ele,
+apagar o `ry` deixaria a régua verde por vacuidade) e 2 mutações medidas: `--mutante=aabb`
+acende com 2,033 m de parede fantasma, `--mutante=semry` acende no inventário.
+
+**3ª RODADA — 05/08: "ainda tem problemas com o box do ônibus e barracas", com o obb-check
+VERDE.** O dono estava certo de novo, e o furo era da RÉGUA: o obb-check compara o `_collide`
+com a **caixa declarada** — ele não enxerga caixa declarada mais gorda que a malha visível. E
+todos esses colisores nasciam do `Box3` do **GLB inteiro, em toda altura**: guarda-sol,
+telhado de barraquinha, saia de lona e retrovisor contavam como parede na altura do peito.
+Medido por vértice (faixa de colisão y 0,25–2,05 m, percentil 1–99 ponderado por área):
+
+| prop | caixa (Box3 cheio) | corpo tocável na faixa | parede fantasma |
+|---|---|---|---|
+| ônibus | 9,26 × 4,48 m | **8,85 × 4,21 m** | retrovisor + aba do teto |
+| tenda (×12) | 3,14 × 3,14 m | **2,06 × 2,22 m** | ~0,5 m de lona/quina por lado |
+| barraquinha (×4) | 2,44 × 2,12 m | **2,29 × 1,15 m** | o TELHADO dobrava a profundidade |
+| drinkstand | 2,86 × 3,06 m | **2,28 × 2,52 m** | o guarda-sol |
+
+**Correção:** tabela `PEGADA_CORPO` (frações medidas do box local) aplicada no colisor do
+`putBuilding` + colRot do ônibus com `PEGADA_BUS` (map_brasilia.js). Urna e towner foram
+medidos e ficaram como estão (caixa ≈ corpo). **Régua nova: `npm run eval:pegada`**
+(`tools/eval/pegada-check.mjs`, no `check:fast`) — recomputa a pegada dos GLBs e acusa
+deriva da tabela; mutação de +0,17 numa fração acende. `botsim 60 awp_map` depois do
+conserto: stuck 1,57 %, eff 0,246 — sem regressão de rota.
+
+**4ª RODADA — 06/08: "um problemão esta acontecendo no jogo no mapa brasilia o box do
+onibus esta protegendo um espaco que devia ser vazio e esta pegando tiros"** (com print:
+fumaça de impacto no AR, na frente do ônibus). Desta vez o defeito era **a bala**, não o
+andar — e tanto o colisor de andar quanto o occluder de bala estavam errados do mesmo
+jeito.
+
+**Causa raiz.** O GLB do ônibus (Mint) é **torto dentro da própria caixa**: o corpo sai a
+**-18,7° do eixo x do arquivo** (PCA dos triângulos da faixa 0,25–2,05 m, ponderado por
+área). Tudo que derivava da caixa — a pegada da 3ª rodada inclusa — ficava ~20° fora da
+lataria: parede fantasma de **3,77 m** na ponta sudoeste (medido por raycast no browser,
+sonda de 32 direções × 4 alturas) e lataria descoberta na nordeste. Só apareceu pra bala
+porque o jogador atravessa o mapa atirando, não abraçando o ônibus.
+
+**Correção.** `PEGADA_BUS = { hx: 4.6, hz: 1.0, ryCorr: 0.3263 }` — o corpo medido no eixo
+principal (9,2 × 2,0 m) e o delta de ângulo sobre o ry de placement. Occluder e `colRot`
+passam a seguir o eixo DO CORPO (`map_brasilia.js`).
+
+**Medido (mesma sonda, antes × depois):**
+
+| | antes | depois |
+|---|---|---|
+| pior parede fantasma (bala) | **3,77 m** | **1,24 m** (só na linha do teto; na altura do corpo ≤ 0,56 m, típica ≤ 0,35) |
+| lataria FURADA (bala atravessa metal visível) | 0 raios | **0 raios** (mantido) |
+| residual declarado | — | faixa de vidro (janelas abertas do modelo) e a aba do teto: a caixa é sólida ali, é o "vidro não-quebrável" do CS 1.6 |
+
+**Réguas:** `eval:pegada` agora recomputa o OBB por PCA (θ, hx, hz) — mutação de +0,1 rad
+no `ryCorr` acende (medido: dθ 0,1000 VERMELHA). `obb-check` tinha o ry **0,55 grampeado
+no inventário** e foi atualizado para 0,8763 (= 0,55 + 0,3263) — não é afrouxar teto, é o
+inventário cobrar o colisor no eixo do corpo. `botsim 60 awp_map`: stuck 1,39 % (era
+1,57 % na 3ª rodada) — o colisor mais estreito abriu o passeio em volta do ônibus.
+`check:fast` sai 0.
+
+**5ª RODADA — ainda 06/08, mesmo defeito nos outros props:** *"alguns objetos voce atira
+e ele faz bala em volta ou no meio do objeto quando devia ser aberto"* (prints: fumaça de
+impacto no ar ao lado da barraca verde e em cima do drinkstand). A caixa-occluder da AABB
+inteira solidificava o que é ABERTO: o vão debaixo do toldo da barraquinha, o ar sob o
+guarda-sol do drinkstand e a margem das estacas da barraca.
+
+**Medido no browser (sonda de raios por prop):** a bala morria **0,94 m antes da lona**
+da barraca e **1,89 m antes** da malha do drinkstand. A correção não foi afinar caixa —
+foi aposentar a caixa nesses props: `putBuilding(..., occ: 'mesh')` registra a **malha
+real** como alvo (o `occMesh` que o Panteão já usava), e a bala para no tecido e atravessa
+o vão, como o olho promete. Aplicado em `tent` (×12), `stall` (×4), `drinkstand` e `tires`
+(×8 — a AABB da pilha de pneus é bloco cheio e a pilha é piramidal; as quinas de cima
+comiam tiro). **Depois: 0 raios mortos em proxy invisível** em 684 raios de teste; MAP4
+inalterada (0 occluder sem malha); nada muda em node (lá nenhum GLB carrega, e nenhum
+proxy existia nesses props mesmo).
+
+### ~~BUG-22 · Não dá para andar debaixo da escada (Havan)~~ · RESOLVIDO 04/08 (metade do jogador)
+
+**Correção: chão multinível no motor.** `groundHeightAt(x, z)` virou
+`groundHeightAt(x, z, yRef)` — o mapa passou a responder *"qual superfície é o chão de quem
+está nesse Y"* em vez de "a de cima, sempre". Sem `yRef` devolve o topo, que é o
+comportamento antigo: nenhuma régua e nenhum chamador que ainda não passa o Y mudou.
+
+**Pé-direito faz parte da regra** (`ALTURA_LIVRE = 1,95 m`): só abre a camada de baixo onde
+cabe gente em pé. Medido na escada da Havan:
+
+| altura da escada no ponto | jogador em y=0 | jogador em y=3,4 |
+|---|---|---|
+| 3,40 m · 2,98 m · 2,46 m · 1,96 m | **passa por baixo (chão 0)** | desce pela escada |
+| 1,45 m · 0,77 m · 0,09 m | sobe a escada (não cabe embaixo) | desce pela escada |
+
+Sem o pé-direito o jogador entraria embaixo do primeiro degrau — 17 cm de vão — com a cabeça
+dentro da geometria.
+
+### ~~BUG-22 (2ª rodada) · "continua impossível passar por baixo da escada"~~ · RESOLVIDO 05/08
+
+O dono jogou de novo e reprovou, com o teste numérico VERDE. Ele estava certo, e **não era
+nenhum dos quatro suspeitos**: não era colisor (o contrapiso mora em y 3,28-3,40 e o
+`_collide` não morde quem anda em y=0), não era o `yRef` faltando (o `_updatePlayer` passa nos
+três lugares), não era o step-up. **Era a PEGADA.**
+
+Reproduzido andando com o `_updatePlayer` DE VERDADE (harness, não fórmula): o único acesso ao
+vão da escada é POR BAIXO DO MEZANINO — e a pegada do mezanino não tinha camada nenhuma.
+`groundHeightAt` devolvia 3,40 para todo mundo dentro de (x −14..14, z −41,4..−31), inclusive
+para quem anda no piso da loja em y=0. O bolsão que a 1ª rodada abriu era **um quarto lacrado**,
+e havia uma parede invisível de **28 m de largura** na linha z = −31, cortando a loja em duas.
+
+| medido no harness | antes | depois |
+|---|---|---|
+| piso de loja sob a laje, inalcançável | **294,0 m²** | 0 m² |
+| gôndolas (colisores y 0-1,80) desenhadas nesse piso | 18, nunca alcançadas | alcançáveis |
+| vão sob as 2 escadas, aberto e **sem entrada** | 16,3 m² | com entrada |
+| colunas de entrada que atravessam z = −31 (x −13..13) | 0 de 27 | **26 de 27** (a 27ª é o pilar em x=9) |
+
+Andando de verdade: sob a laje → vão da escada, o corpo entra e para em z = −28,39, que é
+exatamente onde o pé-direito da escada cai abaixo de ALTURA_LIVRE. Capturado no navegador
+(`havan_sob_escada.png`): o jogador embaixo dos degraus, olhando o espelho por baixo.
+
+**OS BOTS FICAM NA CAMADA DE CIMA, DE PROPÓSITO, E O PREÇO ESTÁ MEDIDO.** O `yRef` do snap de
+chão do bot (`game.js`) foi retirado. Com ele o bot desce pro piso sob a laje sem plano nenhum,
+porque o A* é grafo de `(x, z)` SEM CAMADA — o nó de baixo e o de cima são o mesmo ponto:
+
+| `botsim 60 fy_havan` | latFlips | fwdFlips | stuck | eff |
+|---|---|---|---|---|
+| bot COM camada | 13,88 | 6,58 | **8,98 %** | 0,241 |
+| bot SEM camada | 11,10 | 7,23 | **1,73 %** | 0,226 |
+
+5× mais bot travado é regressão que o dono vê; o jogador não perde nada, porque quem usa o vão
+é ele. **Grafo com camada continua sendo a segunda metade desta frente** — e é exatamente o que
+falta para devolver o `yRef` ao bot.
+
+<details><summary>Diagnóstico original, mantido porque explica por que não era collider</summary>
+
+**Sintoma (do dono):** *"não dá pra andar debaixo das escadas do respawn da loja, de dentro"*.
+
+**Causa raiz.** A escada **não tem collider**: os degraus são `addBox(..., { collide: false })`
+e a subida é feita por `groundHeightAt(x, z)` (`map_havan.js:1507`), que devolve a altura da
+rampa para todo o retângulo `RAMP`. E aí está o problema: `groundHeightAt` é um **heightfield
+escalar — um único Y por (x, z)**. Não existe "embaixo" para o motor: dentro daquela pegada, o
+chão *é* a escada, na altura da escada.
+
+Visualmente, porém, os degraus são caixas finas (0,06 m) com espelho, então **o vão embaixo é
+visível** — o jogador vê espaço, anda até lá e é levado pro topo da rampa. Ver espaço e não
+poder usar é pior que não ter espaço.
+
+**Duas saídas, e a escolha é de design:**
+- **Fechar o vão** (saia sólida sob a escada). É o padrão da era CS — escada é bloco maciço.
+  Barato, honesto, e o mapa deixa de prometer o que não entrega. **Mas você perde o espaço.**
+- **Chão multinível no motor** (`groundHeightAt` devolvendo camadas, com o A* ciente delas).
+  É o que dá o "embaixo da escada" de verdade, e destrava mezanino, ponte e viaduto em todos
+  os mapas. É mudança estrutural e mexe no pathfinding.
+
+</details>
+
+### ~~BUG-27 · "grafite ainda em estrutura que não é parede"~~ · RESOLVIDO 05/08
+
+**Sintoma (do dono, 2ª reprovação):** com o `decal-probe` dizendo **"0 sem parede atrás"** nos
+5 mapas, ele continuou vendo peça em lugar errado.
+
+**Causa raiz — a régua media contra a LISTA ERRADA DE SÓLIDOS.** `paredeAtras` recebia
+`colliders` (e, na Brasília, `caixaDeBox3` da bounding box do GLB). Caixa DECLARADA mente, e
+mente exatamente onde o jogador olha. Medido no navegador, contra a MALHA desenhada:
+
+| mapa | peças | sem malha atrás | tapadas (sólido a <25 cm NA FRENTE) |
+|---|---|---|---|
+| **awp_map** | 16 | **16** | 0 |
+| **fy_quebrada** | 47 | **22** | **8** |
+| fy_pool_day · fy_havan · fy_ferrovelho | 103 | 0 | 0 |
+
+As 16 da Brasília estavam **no ar**: o ministério é um GLB sobre PILOTIS, o térreo é vazado, e
+a caixa do prédio inteiro conta o vão aberto como parede. Capturado: dá para ver o gramado
+através da peça (`scratchpad/shots/awp_map_01_25de25_*.png`). A única malha perto delas é
+`Pilotis_Glass_Ministry_1` — **vidro**, que a docstring da régua já admitia não saber rejeitar.
+As 8 da Quebrada nasciam do lado de dentro da parede: existem, são desenhadas, ninguém vê.
+
+**Correção — o critério passou a ser a MALHA QUE O JOGADOR VÊ.** `paredeAtras` aceita
+`Object3D` no lugar de caixa e mede com raycast na geometria desenhada, com três cláusulas:
+(1) os 25 raios atrás batem em malha **visível e opaca** dentro do alcance — caixa-occluder de
+bala (`material.visible = false`) e vidro/água deixam de contar; (2) nada nos **25 cm à
+frente**; (3) profundidade dos 25 acertos varia no máximo 25 cm (é UM plano). Os 5 mapas passam
+`[root]`. O caminho antigo de caixas continua para quem não tem malha própria (as folhas
+giradas do portão do Ferro Velho).
+
+| | antes | depois |
+|---|---|---|
+| awp_map | 16 (16 erradas) | **0** — o mapa não tem parede cega na altura do olho |
+| fy_quebrada | 47 (30 erradas) | **11** (0 erradas) |
+| fy_pool_day | 72 (0 erradas) | **117** (0 erradas — ver BUG-28) |
+| fy_havan · fy_ferrovelho | 31 (0 erradas) | 31 (0 erradas) |
+
+Que pool_day e havan não percam **uma** peça é a prova de que o critério novo não é só mais
+apertado: ele reprova o que estava errado e aprova o que estava certo.
+
+**Fica aberto (não é meu arquivo):** das 47 da Quebrada, 17 passariam no critério novo mas só
+11 nascem — as outras 6 são reprovadas porque o `decal()` roda ANTES de a parede delas existir.
+É o mesmo defeito de ordem que o pool_day já resolveu adiando para `pintaCobertura()`. Uma
+linha em `map_quebrada.js` devolve as 6.
+
+### BUG-28 · O harness headless faz raycast de occluder NA ORIGEM
+
+**Medido:** ao fim do build do `fy_pool_day`, **92 dos 92 occluders** estão com `matrixWorld`
+DESATUALIZADA (identidade). No navegador isso nunca aparece, porque `WebGLRenderer.render()`
+chama `scene.updateMatrixWorld()` todo quadro; no `botsim`/`harness` **não há renderer**, e
+ninguém atualiza. Ou seja: a LOS dos bots na régua headless mira caixas empilhadas na origem.
+
+Foi assim que se descobriu: o critério novo de decalque faz raycast na malha durante o build e,
+de quebra, atualiza 78 dessas 92 matrizes — e o `botsim` do Piscinão mudou (latFlips 15,92 →
+13,04, fwdFlips 13,98 → 10,26, stuck 1,62 → 2,96, eff 0,120 → 0,161) **com os mesmos 72
+decalques, conferidos peça a peça, e com mundo idêntico** (92 colisores, 92 occluders, 22
+pickups, 371 malhas, 11.460 triângulos, mesma soma de colisores, mesmos spawns de bot).
+
+**Consequência:** toda métrica de bot que dependa de linha de visão no headless está medida
+contra geometria na origem. **Correção:** `scene.updateMatrixWorld(true)` depois do build, em
+`harness.mjs/bootGame` e no stub do `botsim.mjs`. Não foi feito aqui de propósito — `botsim.mjs`
+é o baseline determinístico desta rodada e mexer nele no meio de um A/B é o erro clássico.
+
+**Segundo efeito do mesmo tipo, também medido:** dentro de um `botsim ... all` os mapas
+compartilham o cursor do `Math.random` através do cache preguiçoso de texturas (`T.decals[i]`
+gera na primeira leitura e memoiza). Pool_day passou a usar 24 arquivos em vez de 16, e o
+`fy_ferrovelho` — que **não foi tocado** — se moveu 0,2 no `all`. Rodado sozinho ele é
+**byte a byte idêntico** antes e depois (13,811 · 8,544 · 1,056 · 0,227). Comparação de
+`botsim all` só vale como sequência inteira.
+
+### BUG-05 · A UI não bate com as telas de referência (`references/telas/`) — PARCIALMENTE FECHADO
+
+Nove telas de referência medidas em `tools/eval/ref_ui.json`. Dois desvios sistemáticos, ambos
+medidos:
+
+- **Cor — FECHADO.** `--bg-900/800/700` eram azuis (h ≈ 253°) contra o marrom-neutro medido
+  (h 84-129°). O que travava era o literal: **79 ocorrências de `rgba(5,8,11,…)` no CSS, nenhuma
+  via token**. Consertado na causa — o token virou DERIVADO de `--bg-900-rgb` e todo scrim
+  consome `rgba(var(--bg-900-rgb),α)`, então token e literal não podem mais divergir. Medido
+  depois: o fundo do jogo saiu de h 260,7° para **h 81,0°** e o painel ficou em
+  `#3c372f` L\* 23,2 · C\* 5,4 · h 85,1 contra `#38342e` L\* 22,0 · C\* 4,3 · h 85,5 da
+  referência. Virou invariante na **UI5** (cláusula `b* >= 0`, com a mutação `ui5_fundo_azul`).
+- **Escala — MARGENS FECHADAS, TIPOGRAFIA PARCIAL.** As margens do HUD saíram de 1,17% / 0,98%
+  para **4,49% / 2,73%** (referência 4,69% / 7,03%) — trilho esquerdo de 68 px, direito de 48 px,
+  topo/base de 36 px em 1536×1024. A tipografia subiu os três degraus de título
+  (fs-700/800/900 = 40/56/76 px) e a razão título/corpo foi de 1,80-2,20 para 2,20-3,00 contra
+  3,33-5,00 da referência.
+
+**O QUE FICA ABERTO, e por quê:**
+
+1. **A razão título/corpo não fechou.** Falta ~35%. Subir mais em px cria o problema oposto em
+   tela baixa: a referência é uma FRAÇÃO da altura e o jogo é PX FIXO, então a proporção só bate
+   numa resolução. A correção certa é escala fluida (`clamp()`/`vh`), e ela **está bloqueada pela
+   régua**: `caixaDe()` (`tools/eval/ui-check.mjs:563`) lê `font-size` com `parseFloat`, e a UI3
+   só isenta elemento de canto ancorado em PX (`emPx`, mesma linha de raciocínio em :637).
+   Com `vh`/`clamp()` a UI3 mede caixa de 3,9 px e fica **cega**. **Ordem correta: ensinar
+   `px()`/`caixaDe()` a resolver `clamp()/min()/max()/vh` — com mutação — e só depois tornar a
+   escala fluida.**
+2. **`corpoFracMediana` (o -20% do menor corpo) não foi perseguido de propósito.** O piso de
+   11 px está documentado como "legível em 1280×720" e o desvio repousa numa banda que o próprio
+   `ref-ui.py` admite medir com ±12% de erro a 512 px (docstring). Encolher legibilidade por
+   ruído de instrumento seria o inverso da regra da casa.
+3. **`margens.baseFrac` da tela 05 continua medindo 0,0000.** Não é o CSS (a base do HUD está em
+   36 px = 3,5%): é o instrumento — `margens()` conta tinta de contraste alto, e o **viewmodel**
+   encosta na borda inferior. Medir margem de HUD sobre uma tela com arma exige máscara.
+
+**Verificação exige browser** (`#btn-jogar` é sticky, `.cs-setup` tem largura fixa — mudar
+tipografia sem olhar overflow já quebrou tela antes). As 9 telas foram capturadas em
+Chrome headless a 1536×1024 (3:2, o enquadramento do dono) e medidas com o mesmo `ref-ui.py`
+apontado para as capturas.
+
+### ~~BUG-06 · Alvo de capturas do CTF não deriva do número de bandeiras~~ · RESOLVIDO 05/08
+
+**Sintoma (palavras do dono, jogando):** *"no capture the flag na loja H está com 3 capturas
+quando a vitória tem que ser as 4. tem que ser todas sempre."*
+
+**A entrada anterior classificava isto como LATENTE, e a classificação estava errada — pela
+REGRA, não pela conta.** O diagnóstico de 05/08 dizia: os 3 mapas com `ctfMode` têm 4
+bandeiras cada, `Math.floor(4 / 2) + 1 = 3` = `CTF_CAPS_TO_WIN`, logo a correção proposta é
+no-op e "régua escrita hoje fica verde dos dois lados". A aritmética estava certa. O que
+estava errado era a **regra proposta**: maioria (`floor(n/2)+1`) nunca foi o que o modo tem
+que fazer. O dono definiu a regra em uma frase — **todas as bandeiras, sempre** — e com ela o
+defeito deixa de ser latente e passa a ser exatamente o que ele viu: **a rodada fechando em
+3 de 4**, com uma bandeira inteira do mapa fora da condição de vitória. É a lei 1 da casa
+vista de outro ângulo: quando o dono diz que está errado, o defeito é do portão — aqui, da
+regra que o portão ia codificar.
+
+**Medido antes do conserto** (`tools/eval/ctf-win-check.mjs`, os 5 mapas):
+
+| mapa | bandeiras | alvo (antes) | rodada fechava na | alvo (depois) |
+|---|---:|---:|---:|---:|
+| `awp_map` | 3 (layout padrão) | 3 | 3ª | 3 |
+| `fy_pool_day` | 3 (layout padrão) | 3 | 3ª | 3 |
+| **`fy_havan`** | **4** | **3** | **3ª** | **4** |
+| **`fy_ferrovelho`** | **4** | **3** | **3ª** | **4** |
+| **`fy_quebrada`** | **4** | **3** | **3ª** | **4** |
+
+**Cuidado com o histórico, e ele foi conferido:** a condição de vitória do CAPTURA já morou
+dentro do `_checkPace()`, atrás do gate `?pace=1`, e com `PACE` desligado a rodada nunca
+fechava (BUG-29). O caminho consertado aqui é o que roda **hoje**: `_checkCtfAlvo()`, chamado
+sem gate a partir do `_updatePlayer` (`game.js:4636`), e a cláusula CTF-W2 **anda o motor**
+injetando captura por captura para descobrir em qual delas o estado sai de `live` — ela não
+lê declaração nenhuma.
+
+**Correção:** o alvo saiu da constante e passou a ser derivado onde as bandeiras existem —
+`this.capsToWin = this.ctfPts.length` no fim do `_initCTF()`, que roda dentro do
+`_startRound()` **antes** do banner que anuncia o alvo ao jogador. `CTF_CAPS_TO_WIN = 3`
+sobrou como fallback do layout padrão (mapa que não declara `world.ctfPoints`, que tem 3
+bandeiras) e está marcado como tal no código. Um mapa novo com 5 bandeiras passa a exigir 5
+sem tocar em constante nenhuma. **Dominação continua vitória imediata** (`_ctfWin`), como
+pedido na entrada original.
+
+**A `UI4` não precisou de ajuste** (a entrada antiga previa que sim): `tools/eval/ui-check.mjs:831`
+já lê `g.capsToWin` do objeto vivo — nunca teve o 3 escrito à mão.
+
+**Régua: `tools/eval/ctf-win-check.mjs`** (`npm run eval:ctfwin`, no `check:fast`).
+3 cláusulas, 2 mutações medidas: `--mutante=constante` devolve o defeito exato do dono
+(alvo 3 nos mapas de 4, rodada fechando na 3ª — **7 cláusulas vermelhas**) e
+`--mutante=menos1` (alvo = bandeiras − 1) acende **10**, provando que a CTF-W2 mede o fecho
+no motor e não a declaração. A CTF-W3 lê o fonte e reprova se o alvo voltar a ser constante.
+
+**Verificado NO NAVEGADOR** (Playwright, `fy_havan` em CTF, jogando do lado da loja, com o
+renderer encolhido para 32×32 porque o que está sob julgamento é a lógica e o swiftshader
+gasta ~1 s por quadro desenhando a Havan). O HUD escreve `RODADA 1/3 · BANDEIRAS (ALVO 4)`
+e lista as quatro, e a rodada:
+
+```
+PÁTIO O  -> capturas 3/4 · donos "BPBB" · state=live       <- ANTES fechava AQUI
+PÁTIO L  -> capturas 4/4 · donos "BBBB" · state=roundEnd    <- fecha na 4ª, com o placar 0 × 1
+```
+
+**Custo declarado, medido:** a rodada de captura ficou mais longa nos mapas de 4 bandeiras —
+`ctf-round-check.mjs` (`fy_ferrovelho`, semente 4242) mede o 1º fecho de rodada indo de
+**29,1 s → 54,1 s**. É o efeito pretendido (uma bandeira a mais para conquistar) e continua
+muito abaixo da rede de segurança de 480 s do `CTF_MATCH_TIME`; o `eval:ctfround` segue
+verde.
+
+### ~~BUG-07 · Metade do áudio do repo nunca toca no jogo~~ · RESOLVIDO 04/08 (parcial)
+
+O manifest passou a ser **gerado do disco** por `tools/gen-audio-manifest.mjs`
+(`npm run audio`), com `npm run audio:check` no portão. A pasta virou a verdade: som novo
+na pasta + um comando = som tocando. Ganho medido no mesmo dia:
+
+| | antes | depois |
+|---|---|---|
+| voz dos **funkeiros** | 0 (usava a dos Tribos) | **40 ingame + 20 round** |
+| voz do petista | 11 + 7 | **17 + 14** |
+| voz do bolsonaro | 13 + 6 | **16 + 14** |
+| capture | 5 | 6 |
+| `soundtrack/` | invisível | 30 listadas (falta o player) |
+
+Os 289 caminhos do manifest foram verificados um a um contra o disco: **0 quebrados**. Os
+nomes com espaço e parêntese (`…olodum (1).mp3`) agora saem codificados — sem isso o
+arquivo existe, o manifest aponta e o som não toca, que é o pior tipo de defeito. Servido
+e conferido em `npm run dev` (HTTP 200 no arquivo com parêntese).
+
+**O que continua aberto** está no BUG-19 (chegar em produção) e nos 176 órfãos que sobram:
+132 em `weapons/` (variantes `.wav` do pack antigo; a chave `weapons` é curada 1-para-1 de
+propósito), 26 em `menu-music/` (entram por `MENU_TRACKS` no código, não pelo manifest) e
+**16 em `cc0/`** — sons de arma CC0 com procedência documentada em `cc0/SOURCES.md`,
+comprados e nunca ligados. Esses últimos entram sem risco nenhum e ninguém ligou.
+
+<details><summary>Diagnóstico original (04/08), mantido porque explica o desenho</summary>
+
+**Medido em 04/08:** `find public/audio -name '*.mp3'` → **295 arquivos**. Referenciados pelo
+`manifest.json` → **136**. O resto é ou som que deveria estar no jogo e não está, ou peso morto
+no bundle — e hoje não dá para saber qual é qual olhando o repo.
+
+| Pasta | Em disco | Fora do manifest | O que é |
+|---|---|---|---|
+| `funkeiros/` | 60 | **60** | facção inteira sem voz própria: a chave `F` aponta para `audio/tribos/…` |
+| `soundtrack/` | 30 | **30** | **nenhum código referencia** — nem manifest, nem `grep` em `public/js` |
+| `cc0/` | 16 | **16** | **nenhum código referencia** |
+| `petista/` | 31 | 13 | manifest defasado |
+| `bolsonaro/` | 30 | 12 | manifest defasado |
+| `tribos/` | 27 | 1 | ok |
+| `palhacos/` | 46 | 0 | **é a referência de como deve ficar** |
+| `capture/`, `game/` | 29 | 2 | ok |
+| `menu-music/` | 26 | 26 | esperado — entra por `MENU_TRACKS` no código, não pelo manifest |
+
+Três defeitos diferentes escondidos num número só:
+
+1. **Facção sem voz** (funkeiros) — é o mais visível para o jogador: 9 personagens novos
+   falando com a voz de outra tribo. Cuidado ao apontar: há `.DS_Store` nas pastas e nomes com
+   espaço e parêntese (`…olodum (1).mp3`), então o caminho tem que funcionar **como URL**.
+2. **Manifest defasado** (petista, bolsonaro) — som gravado, pago e commitado que nunca toca.
+3. **Pastas órfãs** (`soundtrack/`, `cc0/`) — 46 arquivos que nenhuma linha de código menciona.
+   Ou entram (trilha in-game é decisão de design, não de bug), ou saem do bundle. Hoje são
+   **peso morto que conta contra o teto de 250 MB da CrazyGames**.
+
+</details>
+
+### BUG-08 · Mídia nova na pasta é ignorada em silêncio (música, wallpaper, splash)
+
+Três listas hardcoded em `public/js/main.js`, todas com o mesmo defeito: **o arquivo entra na
+pasta e nada acontece, sem erro no console.**
+
+| Lista | Código | Em disco | Ignorado |
+|---|---|---|---|
+| Wallpaper (`wall-*`) | array de 8 | 9 png | `wall-9.png` |
+| Splash (`loading-*`) | array de 5 | 6 png | `loading-6.png` |
+| Música de menu | `Array.from({ length: 26 }, …)` | 26 mp3 | nada **hoje** |
+
+Confirmado em 04/08: o dono adicionou `wall-9.png` e `loading-6.png` e **nenhum dos dois
+aparecia**. Os dois arrays foram estendidos à mão no mesmo dia (paliativo, com comentário no
+código).
+
+*Correção de um número que o handoff anterior trazia errado:* `menu-music/` tem **26** mp3 e o
+array tem 26 — a lista está certa **por enquanto**. Ela é a mesma armadilha, só que ainda não
+disparou: a 27ª faixa some no dia em que entrar.
+
+**Correção de verdade:** página estática não lista diretório pelo browser, então o caminho é um
+**manifesto gerado em build** (`tools/` → `public/img/walls.json`, `public/audio/menu-tracks.json`)
+lido com fallback para a lista atual. Aí jogar arquivo na pasta vira um comando, não uma edição
+de código — e deixa de depender de alguém lembrar.
+
+### BUG-09 · Bloom global lava os personagens
+
+`public/js/bloom.js:879` — `new UnrealBloomPass(…, 0.25, 0.45, 0.85)` aplicado à cena inteira.
+Precisa virar bloom **seletivo por layer**, com kill-switch (`?charbloom=1` volta), **sem**
+quebrar o `vmPass` (o viewmodel recebe bloom/AgX de propósito, `bloom.js:872`) nem o caminho
+`quality:'low'` / `?bloom=0`, que não tem pós-processamento. Medir o custo: máquina fraca é
+requisito do dono.
+
+### ~~BUG-24 · "todos os personagens depois desses também tão ruim na cor e iluminação"~~ · RESOLVIDO 04/08
+
+**Causa raiz — medida, e não era a textura.** O C9 (`char-color.mjs`) já tinha provado que a
+diferença ENTRE personagens nasce no GLB (saturação mediana 0,390, mas gotinha 0,031 contra
+canarinho 0,689 — spread de 22×) e tinha refutado resolução de textura como explicação. O que
+faltava era o que o SHADER faz com essa textura. `characters.js` aplicava o piso de albedo como
+um **DEGRAU por texel**: `diffuseColor.rgb *= max(1.0, csAlbMin / csMx)`, com `csAlbMin = 0,09`.
+
+**0,09 é LINEAR — vale sRGB 0,332 = byte 85 = L\* 36.** Não é "levantar o preto": é um **cinza
+médio**. Medido nas texturas reais dos 45 GLB (`tools/eval/char-floor.mjs`, C10):
+
+| | % do albedo abaixo do piso | contraste interno perdido |
+|---|---|---|
+| trapfunk | **94,1 %** | **61 %** |
+| palhaço mal | 90,4 % | 33 % |
+| oakley | 86,6 % | 46 % |
+| emo · punk | 79,2 % | 46 % · 43 % |
+| coach | 74,7 % | 43 % |
+| black metal | 67,3 % | 45 % |
+| **padata · canarinho** | **8,4 % · 8,8 %** | 10 % · 13 % |
+
+Ou seja: o personagem escuro inteiro colapsava num único valor (era isso o "liso, cor chapada,
+parece manequim") enquanto o claro não era tocado. **Mediana do elenco: 21 % do contraste
+interno comido pelo próprio piso.**
+
+**Correção.** O piso passou a olhar o nível **REGIONAL** do albedo (`textureLod(map, vMapUv, 6)`)
+e a multiplicar o texel por esse ganho. O ganho é constante dentro da região, então toda razão
+entre texels sobrevive por construção — o piso levanta o NÍVEL sem tocar no contraste — e acima
+do piso o ganho é 1,0 exato (personagem claro não muda um pixel). Perda mediana **21 % → 0,2 %**;
+pior caso 60,9 % (trapfunk) → 7,5 %. Medido no jogo (`char-shade.mjs`, C11, Havan + Ferro Velho):
+contraste interno **+19 % a +41 %** nos escuros, croma **+8 %**, e **padata/canarinho idênticos**.
+Preço: os dois mais escuros ficam 4-6 L\* mais escuros — o que na Havan **melhorou** a separação
+do C1 (ΔL\* mediano 7,8 → 10,6). Imagem: `tools/eval/char_piso_antes_depois.png`.
+
+Junto foi corrigido o fill do piso de irradiância, que somava **branco** (`irradiance += vec3(csAdd)`)
+e desbotava o iluminante na sombra: agora o fill herda a crominância do próprio ambiente com a
+**mesma luminância** (`dot(fill*csAdd, LUMA) == csAdd`), então é impossível estourar por causa
+dele. No Ferro Velho isso sozinho deu **C\* 7,2 → 7,6 com L\* byte a byte igual**.
+
+**Régua: `tools/eval/char-floor.mjs`** (C10, node+magick, ~40 s), no portão como **CHR8**, com o
+modo julgado LIDO DO FONTE (devolver o piso ao degrau acende a invariante sozinho) e 2 mutações
+medidas (`--mutante=bloco1`, `--mutante=pisozero`), cada uma acendendo a cláusula certa.
+Kill-switches: `?charalbreg=0` (volta ao degrau) e `?charambchroma=0` (volta ao fill branco).
+
+### BUG-10 · Elenco: proporção, pés no chão e palma enterrada
+
+Três invariantes vermelhas, todas medidas no GLB, 44/44 personagens:
+
+- **CHR1** — mediana fora da antropometria em 3 índices (cabeça/altura 0,223 vs 0,13;
+  cintura/ombro 1,081 vs 0,74; braço/altura 0,278 vs 0,44). "Balão": ancap 1,93×,
+  caminhoneiro 1,58×, sindicato 1,56× (+7).
+- **CHR3** — pés fora do chão: 24 afundando, 32 flutuando.
+- **CHR4** — 3 personagens com a palma nascendo **dentro** da silhueta do corpo.
+
+A causa de fundo é o re-rig (C1 do handoff): 18 modelos compartilham **um único esqueleto**
+(o do `mst`, transplantado por auto-skin), com raio de skin 1,55×–1,97× maior que o normal.
+**Não tem conserto em runtime.**
+
+#### O "BALÃO" — CAUSA RAIZ ACHADA E CORRIGIDA (04/08)
+
+Não era proporção, não era `MAX_R` e não era o `raioSkin`. Era a **convenção de segmento**
+do auto-skin: `rig-from-donor.mjs` montava o osso como `[junta → PAI]`, e num rig Meshy o
+osso aponta pro filho (`LeftArm` = OMBRO, `LeftForeArm` = COTOVELO, `LeftHand` = PUNHO).
+Resultado: **todo membro pintado com a junta DISTAL** — a carne do braço obedecendo ao
+cotovelo, a da coxa ao joelho. Dobrar uma junta girava o membro inteiro.
+
+Medido por `tools/eval/skin-offbyone.mjs`: **raul 15×0** para o pai, **mandrake 0×17** para
+o filho. 17 dos 44 estavam invertidos (8 palhaços + 9 funkeiros).
+
+Duas coisas que a régua antiga dizia e que são **falso positivo**, com número:
+
+- `raioSkin` do C7 — 60% dos vértices caem no `head_end`, uma FOLHA rígida 29,5 cm acima do
+  `Head`, e o C7 mede folha como PONTO. Deformação de folha rígida é idêntica à do pai
+  (M_f·IBM_f = M_p·L·L⁻¹·IBM_p) e as tracks de `head_end` nos clipes são constantes
+  (conferido). Remapear folha→pai leva raul de 0,171 pra 0,074 **sem mover um vértice**.
+- `MAX_R` — o sweep 0,22→0,09 já tinha sido refutado, e continua irrelevante.
+
+**Régua que enxerga o defeito:** `tools/eval/pose-inflate.mjs` — LBS na unha com os clipes
+reais, esticamento de aresta em razão **simétrica** `max(L/L0, L0/L) − 1`. A primeira versão
+usava `|L/L0 − 1|`, que satura em 1,0 no colapso e **premiava malha rasgada** (o jozo
+marcava melhor com o tronco aberto num talho). Corrigida antes de valer nota.
+
+Consertado por `tools/reskin-glb.mjs`, que repinta só `JOINTS_0`/`WEIGHTS_0` do GLB pronto
+(malha, textura, esqueleto, IBM e clipes intactos) — **custo em disco: ZERO byte**.
+Mediana do lote **1,152 → 0,535**; oakley 1,835 → 0,591; raul 1,131 → 0,424.
+Referência: mandrake 0,402 (rigado no Mint), mst 0,312 (doador). `raioSkinP50` da família
+transplantada: 0,150 → 0,078 (critério era ≤ 0,10). Guarda: **invariante CHR7**, teto zero.
+
+**Continua aberto:** a POSTURA encurvada (o personagem anda dobrado pra frente) é outro
+defeito, do retarget de clipe (C2 do handoff), e aparece igual antes e depois do reskin.
+
+#### BUG-25 · O balão CONTINUA na tela de seleção, e a régua do reskin é cega para ele
+
+**Sintoma (do dono, 04/08, depois do reskin):** *"os personagens dos funkeiros ainda estão
+balãozados na tela de seleção, alguns palhaços estão esquisitos ainda também. basicamente o
+mesmo erro de personagens"*.
+
+**O conserto CHEGOU.** Descartado com hash, não com fé:
+
+| verificação | resultado |
+|---|---|
+| último commit a tocar cada GLB dos 17 | `88144c4` (o próprio reskin) — nada sobrescreveu |
+| `git status public/models/characters/` | limpo |
+| `pose-inflate.mjs` rodado hoje | mediana dos 17 = **0,535**, idêntica à do commit |
+| disco × servido × `dist/` (md5, 7 arquivos) | **iguais nos três** |
+
+**A causa é outra, e está medida.** O que ele vê na tela de seleção NÃO é o que a
+`pose-inflate.mjs` mede, por três motivos independentes:
+
+1. **Clipe errado.** Ela roda `['walk','run','idle','crouchwalk']`. Quem carrega arma de uma
+   mão (deagle/pistol/revolver38 — `raul`, `padati`, `ostentacao`, `palhacomal`,
+   `cadequinha`…) usa **`idle1h`** na tela de seleção (`ctrl.oneHanded`,
+   `glbchars.js:404`), que a régua nunca abriu.
+2. **Pose que só existe em runtime.** Metade da deformação da tela é escrita **depois** do
+   mixer, em JS, e não está em clipe nenhum: o `solveCCDIK` da mão de apoio
+   (`glbchars.js:539` → `handik.js:30`, 8 iterações, **sem limite de junta**) e o
+   `rotation.x += curl` dos ossos de dedo (`glbchars.js:529-531`). O GLB no disco não
+   contém nada disso, então a régua do GLB não podia ver.
+3. **Percentil cego.** `ostentacao` em `idle` marca `esticP95 = 0,163` — o **5º melhor de
+   44** — e a imagem mostra os dois braços virados em asa de morcego. Só 2,9% das arestas
+   passam de 25%: um defeito que mora acima do P97 é invisível para um P95 **por
+   construção**. Prova de que é deformação e não malha: a mesma imagem em bind pose está
+   limpa (`ikab3/ostentacao-Z.png` × `-C.png`).
+
+**Régua nova: `tools/eval/select-inflate.mjs`.** Abre o jogo no Chromium, chama o MESMO
+`buildCharacterModel(def, { weaponId: charWeapon(id) })` da tela de seleção, assenta com o
+MESMO `ctrl.update(dt, 0, false, 0)` do loop do preview (`main.js:1527`) e mede a pele com
+`applyBoneTransform` — o que a GPU desenha. Percentis altos (P99/P99,9/máx) e um contador
+`ruins/1e4` (arestas que **dobraram** de tamanho por 10 mil), porque é lá que o defeito mora.
+
+Teto com procedência: o pior dos DOIS personagens que o dono elogia, medidos pela mesma
+régua no mesmo caminho, com 25% de folga — `pagodeiro` p99 0,609 / ruins 44,6 e `mandrake`
+0,540 / 24,9 → **p99 ≤ 0,761 e ruins/1e4 ≤ 55,8**.
+
+**Resultado — separação limpa, 16 × 0:**
+
+```
+REPROVADOS: 16/44   e são exatamente os 16 rigs transplantados (os 17 do reskin menos
+                    o pagodeiro, que é referência e passa)
+pior reprovado  padati     ruins/1e4 254,9   (4,6× o pagodeiro)
+melhor reprovado funkraiz  ruins/1e4  81,0
+pior aprovado   pagodeiro  ruins/1e4  44,6   <- folga de 1,8× entre os dois grupos
+0 dos 27 personagens rigados no Mint reprovam
+```
+
+**O que a régua nova REFUTOU, com número:**
+
+- **Não é o CCD IK.** `--mutate=semik` desliga o solver: os 11 transplantados com IK caem só
+  5-20% (`chave` 160→158, `oakley` 142,3→133,6, `adjim` 132,7→106,2) e **todos continuam
+  reprovados**. O CCD agrava, não causa. (Visualmente ele é escandaloso — o braço de apoio do
+  `fluxo` vira uma folha chata — mas na malha inteira ele é minoria.)
+- **Não é parâmetro do reskin.** Sweep medido pela régua nova em 4 personagens:
+  `SUAVIZA=8` tira 4-23%, `LOCAL=2` **piora** o `fluxo` (152→219), `MAX_R=0,14` não fecha.
+  Nada chega perto de 55,8. A pintura automática do transplante é o teto, não o ajuste.
+- **ARMADILHA: reskin NÃO é idempotente.** Repintar com os mesmos parâmetros piora o
+  `padati` de 254,9 para 286 (+12%). **Não rode `reskin-glb.mjs` de novo nos arquivos
+  commitados** achando que é inócuo.
+
+**Conclusão:** o que sobra é a qualidade do auto-skin do transplante
+(`tools/rig-from-donor.mjs`), que é 2-6× pior que um rig do Mint na malha inteira. Fechar
+isso é rig novo (Mint/Mixamo) para os 16, não mais um passe de parâmetro — e a memória do
+projeto já registra que rig de dedo de verdade exige sair do Meshy.
+
+**Régua:** `tools/eval/select-inflate.mjs` (16/44 vermelhos hoje). Morde:
+`--mutate=skin` devolve o off-by-one do `88144c4` e leva as duas referências ao vermelho
+(mandrake 24,9→97,7; pagodeiro 44,6→111). `--mutate=curl` leva o pagodeiro a 15,52 %>25.
+
+#### BUG-25 (3º ciclo) · "todos estão com posturas bizarras ainda" — RESOLVIDO na parte do PORTE (05/08)
+
+**Sintoma (do dono, 05/08, com 19 prints):** arma "flutuando" na palma aberta, arma sumida
+na mão (coach/trapfunk/mandrake), revólver na ponta dos dedos apontando pro céu
+(bonzo/cadequinha), jozo com a shotgun atrás do corpo.
+
+**Três causas independentes, todas medidas:**
+
+1. **Cache.** O print do jozo (arma atrás do corpo) era o `glbchars.js` VELHO: o clamp de
+   frente via IK (`TP_FRONT_MIN`) já estava na árvore, mas o `?v=` continuava
+   `2.0.0-alpha.13` — a armadilha documentada do import map, de novo. Bump → alpha.14.
+2. **O porte funcional aponta o cano pra CÂMERA do preview.** Doutrina do mount v2: "a arma
+   aponta pra onde o boneco olha" (−6°, 4°) — certo pro bot, mas no preview da seleção o
+   cano vai reto pra lente e a arma vira um toco sem silhueta (capturas sel_now: SCAR do
+   coach/trapfunk = borrão vertical). **Correção: porte de EXIBIÇÃO só no preview**
+   (`opts.preview`, main.js/pvSetChar): 2 mãos atravessada no peito (−14°, 40°); 1 mão
+   compensa a inclinação intrínseca do cano das pistolas (+18–21° medidos por vértice) com
+   (4°, 26°). No jogo, nada muda.
+3. **`GUN_POS z=0,10`**: o grip (origem do weaponModel) nascia 10 cm à frente do centro da
+   palma — o revólver "na ponta dos dedos". Agora 0,04 (grip dentro da mão).
+
+**Régua: `tools/eval/select-mount.mjs` → 0/44** (antes: 4 reprovados, todos falso positivo —
+a v1 media punho→bbox e reprovava mão grande com a palma a 0,001 m do alvo do guarda-mão;
+v2 mede PALMA→alvo quando o IK existe, mascote `IK_L_SKIP` isento, piso de contato 0,02 m).
+Mutação `--mutate=tras` segue vermelha (mandrake MÃO-L 0,349). `select-inflate` no subconjunto:
+0/5, sem regressão de deformação.
+
+**Continua aberto (é o resto do "bizarro", e não é mount):** o clipe `idle1h` põe as duas
+mãos em concha "mirando" — com rig Meshy de 24 ossos SEM dedos, nenhuma orientação faz a
+mão FECHAR no punho. O caminho já decidido na memória do projeto é pose/malha (grip baked
+ou rig com dedos fora do Meshy), não mais parâmetro de mount.
+
+#### BUG-25 (4º ciclo) · "continuam todos errados" — A CAUSA RAIZ ERA NOS CLIPES · RESOLVIDO 05/08
+
+O dono reprovou o 3º ciclo ("todos que você mostrou estão ruins, comparado com todo o
+resto") e estava certo: o porte era band-aid em cima de outro defeito. Comparando o padrão
+BOM (skatista/titica: duas mãos na arma, cotovelos baixos) com os piores, o separador é a
+razão **mão/cabeça no BIND** (medida em todos os 44 GLBs):
+
+```
+coach 0,60 · dollynho 0,70 · trapfunk 0,70 · jozo 0,71   <- BIND EM A-POSE (os 4 piores)
+todos os outros 40: 0,83–1,00                            <- T-pose
+```
+
+**Causa raiz:** o `retarget-glb.mjs` transfere rotação por DELTA
+(`desiredW = srcW ⊗ srcRest⁻¹ ⊗ tgtRest`) — correto para diferença de comprimento de
+osso, mas ele PRESERVA o offset do rest do alvo. Com bind em A-pose, **todo clipe sai com
+o braço 30–40° fora do lugar** — por isso o defeito sobreviveu a re-rig, reskin, porte e
+clamp: morava nos clipes gerados, não no GLB nem no runtime.
+
+**Correção:** braços (`/Shoulder|Arm|Hand/`) em rotação **absoluta** no retarget; perna e
+coluna seguem no delta (que é o que consertou "doutora agachada"). Para rig em T,
+srcRest ≈ tgtRest e delta ≡ absoluto — **no-op medido nos 40 bons**. Clipes regenerados
+para os 4; **trapfunk também foi re-riggado via Mint** (pedido do dono; o pipeline do Mint
+voltou a funcionar — GLB novo 531 KB com texturas restauradas via `rig-tex-restore`).
+
+**Medido depois:** `select-mount` **0/44**; `select-inflate` nos 4: 0/4, com o trapfunk
+MELHOR que antes (21,4 → 14,6 ruins/1e4). A/B por figura na página da rodada.
+
+### ~~BUG-32 · "mapa ctf na piscina ta com bandeiras com nome do patio brasilia"~~ · RESOLVIDO 06/08
+
+**Sintoma (do dono, com print do preview):** faixa do CTF na Piscina da Treta mostrando
+CONGRESSO · ÔNIBUS · CATEDRAL. Pediu junto: fundo da faixa transparente.
+
+**Causa raiz:** os rótulos de Brasília moravam no FALLBACK do `_initCTF` (game.js) e vazavam
+para qualquer mapa sem `world.ctfPoints` — os mapas de piscina não declaravam. Bônus achado
+na correção: as 3 bandeiras do fallback caíam DENTRO da lâmina d'água da piscina (P em
+−3,78/−8,82 com água até |x|7,5/|z|9,5) — capturável só da beirada, mastro flutuando.
+
+**Correção:** `world.ctfPoints` declarado na Brasília (mesmos nomes/posições) e na piscina
+(PARTIDA/ARMÁRIOS/TRAMPOLIM, as três NO DECK, em marcos reais); fallback com rótulo neutro
+(BASE A/CENTRO/BASE B). Faixa `#ctf-hud` sem painel; o contraste que o painel garantia
+passou pro poço da barra (.55→.80: sobre a areia do Piscinão o vermelho ia a 2,23:1; com
+.80, 4,72:1 — UI1 verde de novo, 4/5 portões de UI; a UI4 vermelha é o alvo do DM, defeito
+antigo e não relacionado). Arquivos renomeados a pedido do dono: `map_pool_day.js` →
+`map_piscina.js`, `map_pool_ramos.js` → `map_piscinao_ramos.js` (IDs de mapa intactos).
+
+**Régua: `npm run eval:ctflabels`** (`tools/eval/ctf-labels-check.mjs`, no `check:fast`):
+CTFL1 todo mapa registrado declara as próprias bandeiras; CTFL2 nome de Brasília só no
+awp_map; CTFL3 rótulos únicos. `--mutante=vaza` (apaga a declaração da piscina) → VERMELHA.
+
+**No mesmo PR:** áudio ingame dos funkeiros mudo no preview era o BUG-19 (pack de julho sem
+a pasta F) — o pack v2 completo já o fecha; verificado no browser contra o preview:
+voice.F (40 faixas) e round.F TOCAM.
+
+### BUG-11 · VM18 / VM18b — a silhueta é um cano, não uma arma
+
+12 das 26 armas têm espessura perpendicular **abaixo do piso medido no CS 1.6** (shotgun 0,269 ·
+carbine 0,296 · sks 0,343 contra piso 0,427). Duas buscas em grade (768 e 1.280 pontos) e a
+hipótese de escorço foram **refutadas com número**. Nenhum parâmetro de câmera engorda uma
+malha: o caminho é **malha nova ou outra família de pose**. Não gaste rodada procurando
+parâmetro.
+
+---
+
+### ~~BUG-24 · "as armas estão 1,5x do tamanho que deveriam"~~ · RESOLVIDO 04/08
+
+**Sintoma (do dono):** *"o ângulo das armas está muito bom, mas a escala está grande ainda —
+digamos que estão 1,5x do tamanho que deveriam. Eu vejo isso pq o cano da arma pra mira no
+centro da tela a distância é minúscula."* Reportado com o portão **VERDE** em VM5/VM9/VM10/VM15.
+
+**Causa raiz — confirmada, e NÃO era área.** Medido no render (diff on/off do
+`vm-quake-capture`, 1200×800 = 3:2) contra a referência (`ref_viewmodel.json`):
+
+| | área na tela | boca → mira (altura de tela) |
+|---|---|---|
+| ref CS 1.6 AK / M4 / Vandal | 9,76 · 9,78 · 13,09 % | 0,103 · 0,131 · 0,277 |
+| nós, escala 1,00 | ak 7,95 · m4 8,63 % | **ak 0,073 · m4 0,093** |
+| nós, escala 0,67 | ak 5,44 · m4 6,30 % | ak 0,137 · m4 0,154 |
+
+A arma **nunca** cobriu mais tela que a do CS 1.6 — ela entrava no quadro com **82,2 % da malha
+FORA dele** (`foraPct` da ak, 3:2; mediana do arsenal 84,1 %), então o que aparecia era um
+pedaço **ampliado** de cano e guarda-mão com a boca em cima da mira. `areaPct` não é régua de
+escala quando o recorte muda — e era a única régua de tamanho que existia. A distância
+boca→mira, o número que o dono nomeou, **não era medida por ninguém**: a VM12 olha só o `y` da
+boca. Lei 1 da casa, ao vivo — e a faca é a prova: o `vm: 2.2` dela (`weapons.js`) foi posto
+para satisfazer o piso de 6 % da VM5, e virou uma lâmina atravessando a tela inteira.
+
+**Correção:** `VM_FRAME.recuoZ` 1,00 → **1,50** (`public/js/vmattach.js`) — encolhe o tamanho
+aparente em 1/1,5 em torno do grip, que fica no mesmo pixel. Ângulo, pose, `tanBarrel` e
+`knifeRot` **intocados** (eixo da silhueta no render: ak 34,8° → 33,3°). `foraPct` mediano cai
+de 84,1 % para 49,6 %.
+
+**Réguas:** **VM20** nova (distância boca→mira, faixa **0,100–0,290**, medida dos 3 frames),
+VM5 e VM18b com **piso condicional** (4 % de cobertura para malha mais magra que a referência,
+piso medido para malha gorda; **tetos intocados**). Mutação: com o audit do estado antigo a
+VM20 acusa 14/52 fora. Capturas: `/tmp/vmscale/z{1.0,1.1765,1.3333,1.5}` e o comparativo em
+`/tmp/vmscale/comparativo.png`.
+
+**Custo declarado, medido:** VM9/VM15 ficaram **vermelhas** (grip sobe de 0,959-1,063 para
+0,835-0,902 contra a faixa medida 0,90-1,08 — o `VM_OFF[1]` é deslocamento em METROS e perde
+efeito quando o grip se afasta), VM1 vai de 3 para 10 armas fora e VM3 de 2 para 8. E, com
+`?hands=1`, 15 armas passam a acusar "MÃO SOLTA NO AR" (folga do braço 0,174 → 0,003 m) —
+invisível hoje, porque `WEAPON_ONLY` é o padrão.
+
+---
+
+## P2 — infra, repo e deploy
+
+### BUG-12 · `issues/` tem 2,5 GB fora do git e fora do `.gitignore`
+
+`du -sh issues` → **2,5 GB**; `git ls-files issues | wc -l` → **0**. Não está versionado nem
+ignorado: polui todo `git status` e é um passo em falso de distância de entrar num commit.
+`references/` (9,4 MB) tem 28 arquivos versionados e uma negação explícita
+(`.gitignore:58`, `!references/**/*.png`) — decidir o que fica.
+
+### BUG-13 · `tools/eval/ARCH.md` desatualizado e o CI não reprova
+
+`npm run arch:check` falha, e no workflow o passo está com `continue-on-error: true`. Regenerar
+(`npm run arch`), commitar, e **remover a linha** para virar gate de verdade.
+
+### ~~BUG-14 · O build nunca tinha rodado — e estava quebrado~~ · RESOLVIDO 04/08
+
+`npm run build` rodou pela primeira vez nesta árvore em 04/08 e **falhou**:
+
+```
+[ERROR] ENOENT: no such file or directory, open '.../dist/server/CHANGELOG.md'
+```
+
+`changelog.astro` lia o `CHANGELOG.md` com `readFileSync(new URL('../../CHANGELOG.md',
+import.meta.url))`. Parece build-time, mas não é: no build a página vira um chunk em
+`dist/server/.prerender/chunks/`, `import.meta.url` passa a apontar para lá, e o caminho
+relativo resolve para um arquivo que não existe. **O prerender morria e derrubava o build
+inteiro** — ou seja, o deploy do site estava quebrado e ninguém sabia, porque o build nunca
+tinha sido executado.
+
+Corrigido trocando por `import md from '../../CHANGELOG.md?raw'`, que faz o Vite embutir o
+conteúdo no bundle: não há caminho para resolver em runtime.
+
+No mesmo build, `scripts/copy-wasm.mjs` rodou e gerou **`public/wasm/resvg.wasm`** (2,4 MB) —
+o arquivo que faltava para as páginas `/u/*` terem og:image. Os dois itens B1 do handoff
+fecharam juntos.
+
+### BUG-15 · `public/models/anims/` não é versionado
+
+`git ls-files` devolve vazio para o caminho. `TPM1` falha em qualquer clone limpo e o CI fica
+vermelho por motivo que não é código. **Sem a pasta no deploy, todo personagem congela em
+T-pose** — e `glbchars.js:196-209` engole a falha em silêncio.
+
+### BUG-16 · Migration de segurança pronta e não aplicada
+
+`supabase/migrations/011_*` fecha dois furos reais (`players.token` legível pela anon key; todos
+os RPCs chamáveis pela anon key — um `curl` em `/rest/v1/rpc/_flag` escondia qualquer jogador do
+ranking sem token). **Está no código, não está em produção**, e sequer está commitada.
+
+### BUG-17 · Sem link do GitHub dentro do jogo
+
+`src/layouts/Layout.astro:222` e `src/pages/sobre.astro:99` têm o link — mas são páginas do
+site. `src/pages/index.astro` (a tela do jogo: menu, pausa, fim de partida) não tem nenhum link
+externo. Quem entra pelo link direto do jogo nunca vê o repositório.
+
+---
+
+### BUG-23 · `references/graffiti/` é material de REFERÊNCIA, não pacote de assets
+
+Pedido do dono (04/08): decodificar as imagens da pasta, recortar os elementos com fundo
+transparente e aplicar como decalque em todos os mapas.
+
+**A pasta não pode ser aplicada como está.** 62 arquivos, 118 MB, e a amostra que abri mostra
+o padrão: é acervo de inspiração baixado da web, não biblioteca licenciada.
+
+| arquivo | o que é | pode ir pro jogo? |
+|---|---|---|
+| `beeaea08…jpg` | **pôster do AKIRA**, com crédito impresso na própria arte (Katsuhiro Otomo · 1998 Akira Committee · Streamline Pictures · design de Owen Roe) | **não** |
+| `003de6c0…jpg` | folha de alfabeto da **Bombing Science** (loja), assinada `acmefourtune`, com logo da marca | **não** |
+| `61p6GBWKMKL._AC_UF894…jpg` | peça "KING" — o nome do arquivo é ID de imagem de produto da **Amazon** (print à venda) | **não** |
+| `cco_decal_-_graffiti_textures.glb` | atlas 1024² de peça wildstyle, **rotulado CC0** na origem | **sim**, com a procedência anotada |
+
+É o mesmo padrão do `soundtrack/` (BUG-19) e pelo mesmo motivo: material recolhido para
+olhar, tratado depois como material para embarcar. Aqui é pior em dois aspectos — o repo é
+**público**, então a lista de arquivos é a própria denúncia, e o Akira tem titular ativo.
+
+**O que serve, e é o que a pasta é boa pra fazer:** essas imagens são a REFERÊNCIA de estilo.
+Forma de letra não é protegida — o desenho específico é. O `PIXO_GLYPHS` de `textures.js` já
+nasceu assim (alfabeto próprio, medido contra a letra paulistana) e é 100% nosso. O caminho é
+estender a mesma família com um gerador de *throw-up* (letra bolha com contorno), que é o que
+a folha da Bombing Science ensina, e usar o decalque CC0 como peça grande pontual.
+
+**Não apliquei nada em mapa.** O pedido foi feito com o dono indo dormir e a decisão de
+licença é dele, não minha — e é irreversível na prática, porque asset entra em commit, em
+build e em deploy antes de alguém revisar.
+
+### BUG-18 · O trabalho de duas semanas nunca saiu desta máquina · **o mais grave da lista**
+
+`main` está no commit **`b4ee2b3`, de 18/07** (`v1.12.4`). A branch de trabalho tinha
+**143 commits à frente** e **nenhum upstream** — nunca foi enviada. Verificado de fora:
+
+```
+https://www.csbrasil.online/js/main.js      -> 200
+https://www.csbrasil.online/img/wall-1.png  -> 404   (existe e está commitado — só aqui)
+```
+
+O que **não** está em produção: personagens GLB reais, funkeiros, palhaços, o viewmodel
+refeito, o Ferro Velho, os mapas novos, os wallpapers. O jogo que as pessoas jogam hoje é o
+de 18 de julho.
+
+Contribuiu para isso um `.git/index.lock` **morto desde 02/08 19:36** (0 byte, nenhum
+processo segurando), que fazia qualquer commit falhar. Removido em 04/08.
+
+A branch foi renomeada para **`v2/alpha`** e a regra `v2/<assunto>` está no
+`CONTRIBUTING.md`. **Continua sem upstream de propósito** — a decisão do dono é testar
+local antes de subir.
+
+### BUG-19 · O áudio de produção é um pacote de julho, e o build baixa ele por cima
+
+`vercel.json` roda `bash scripts/fetch-audio.sh && npm run build`. O script baixa
+`audio-pack.zip` de um **release do GitHub** (`audio-pack-v1`, 199 arquivos, 4,3 MB, de
+17-18/07) porque `public/audio/` é gitignored. Em disco hoje há **458 arquivos, 187 MB**.
+
+Consequência: mesmo com o manifest consertado (BUG-07), **produção não tem os arquivos**.
+Medido: `csbrasil.online/audio/manifest.json` responde 200, mas
+`audio/menu-music/m01.mp3` responde **404**.
+
+Dois problemas dentro de um:
+
+1. **O pacote precisa ser regerado** a partir do disco e publicado como `audio-pack-v2`.
+   Sem isso, todo som novo morre no deploy — inclusive os 85 que acabaram de ser ligados.
+2. **187 MB não cabe.** `soundtrack/` sozinha tem **104 MB** (30 faixas inteiras) e
+   `menu-music/` 49 MB, contra o teto de **250 MB da CrazyGames** somando *tudo*, com
+   `public/models/` já pesado. A decisão do dono é cortar e reencodar
+   (*"podemos cortá-los e renomear em outra pasta mas vão"*) — `ffmpeg` está disponível na
+   máquina. Renomear resolve de quebra o outro problema: os nomes de arquivo de
+   `soundtrack/` são de faixas comerciais (Sepultura, Racionais, Charlie Brown Jr, O Rappa,
+   Fatboy Slim, Ramones), e num repo público eles são a própria lista de denúncia.
+
+### ~~BUG-20 · PDFs pessoais dentro de `public/`~~ · RESOLVIDO 04/08
+
+`public/audio/soundtrack/` continha `Numa_Interview_Pack_v1.pdf`,
+`Numa_Interview_Playbook_Ruben.pdf` e `Numa_Interview_Playbook_v2.pdf` — documentos
+pessoais do dono. Tudo em `public/` é servido pelo site: o build de 04/08 copiou os três
+para `dist/client/audio/soundtrack/`, e um `vercel deploy` local os publicaria.
+
+**Não chegaram a ficar expostos** (404 em produção, e não estavam no git — o deploy vem do
+git). Movidos para `~/Documents/numa-interview/` e apagados do `dist/`.
+
+Lição que fica: `public/` não é pasta de trabalho. Qualquer arquivo largado ali é
+publicação em potencial, e o `.gitignore` não protege de um deploy local.
+
+---
+
+## Relatados, ainda não reproduzidos
+
+- **"E vice-versa" do BUG-01** — partida de CTF *sem* a faixa de bandeiras no HUD. O caminho
+  `this.ctf → _initCTF → _updateCtfHud` sempre desconde, então o mecanismo não é o mesmo do
+  BUG-01. Precisa de mapa + modo + se houve recarga de página.
+- **BOT1** (aviso) — bot indo de lado, 12,9 flips/min contra teto de 12/min.
+- ~~**CHR5B** (aviso) — 27 dos 44 personagens com **zero** mapa de superfície~~ · **RESOLVIDO
+  04/08**: `tools/char-surface-maps.mjs` deriva normal+roughness do próprio albedo do GLB
+  com a MESMA fórmula do `textures.js` (Sobel + `hi+(lo−hi)·lum`), 512 px, FORÇA 1,8
+  escolhida comparando imagem a 1,1/1,8/3,0. **27/44 → 0/44**, custo +1,64 MB nos 27
+  arquivos (11.624.996 → 13.347.320 bytes).
+  No caminho apareceu um defeito maior: `upgradeCharMaterial` (characters.js) carregava
+  `map` e `normalMap` e **largava o `roughnessMap`** — os 17 personagens com
+  metallicRoughnessTexture do Mint pagavam o download e a tela desenhava `roughness: 0.86`
+  fixo. O CHR5B contava ARQUIVO, o jogador via CONSTANTE. Corrigido junto.
+- **C10** — `_freeSpot` (`game.js`) ignora colisores com `minY ≥ 1,5`; no mezanino não empurra
+  arma para fora de parede. Não mordeu ainda; é armadilha para o próximo mapa com andar de cima.

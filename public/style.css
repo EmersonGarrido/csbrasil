@@ -1,184 +1,734 @@
-/* ===== CS BRASIL: Treta Suprema ===== */
+/* ===== CORO SOLTO — UI v2 (Valorant-clean: geométrico, cantos cortados, sem glow/blur) ===== */
+@font-face{font-family:'Rajdhani';src:url('/fonts/rajdhani-500.woff2') format('woff2');font-weight:500;font-display:swap}
+@font-face{font-family:'Rajdhani';src:url('/fonts/rajdhani-600.woff2') format('woff2');font-weight:600;font-display:swap}
+@font-face{font-family:'Rajdhani';src:url('/fonts/rajdhani-700.woff2') format('woff2');font-weight:700;font-display:swap}
+@font-face{font-family:'ST Mono';src:url('/fonts/share-tech-mono.woff2') format('woff2');font-display:swap}
+
+/* =========================================================================
+   SISTEMA DE DESIGN — "CORO SOLTO"
+   Por quê: antes cada regra escolhia seu próprio px/hex, então ciano queria
+   dizer 5 coisas e o texto de nav vivia a 58% de opacidade. Aqui a decisão é
+   tomada UMA vez, no token, e as regras só consomem.
+   Identidade BR sem clip-art de bandeira: a referência é sinaleiro de rua,
+   lambe-lambe colado em tapume e pintura de caminhão — faixa amarela+preta,
+   vermelho de placa, branco de cal, asfalto. Verde/amarelo aparecem como
+   ACENTO de time, nunca como moldura de bandeirinha.
+   ========================================================================= */
 :root{
-  --red:#e03232; --red-dark:#8f1d1d;
-  --green:#1faa4d; --yellow:#ffd23f;
-  --dark:#0c0e11; --panel:rgba(14,17,22,.92);
-  --hud:#d8e0b0; --cs:#b8d94a;   /* classic CS olive-green HUD */
+  /* ---- escala tipográfica (razão ~1.22; piso 11px = legível em 1280×720) ---- */
+  --fs-50:11px;  --fs-100:12px; --fs-200:13px; --fs-300:15px; --fs-400:17px;
+  /* OS TRÊS DEGRAUS DE TÍTULO SUBIRAM, e é medição: `ref-ui.py` sobre as 9 telas dá
+     tituloFracMediana 0,0440 e razao (maior/menor por tela) 3,33. A MESMA medição sobre
+     capturas do jogo (3:2, 1536×1024) dava titulo 0,0264-0,0323 e razao 1,8-2,2 — quatro
+     telas de fluxo independentes (01, 02, 04, 05) concordando: a hierarquia estava CHATA,
+     e o defeito não era "corpo grande demais", era TÍTULO PEQUENO DEMAIS.
+        --fs-700 32 -> 40px   (titulo de tela, relogio do HUD)
+        --fs-800 44 -> 56px   (numero-heroi: vida e municao)
+        --fs-900 60 -> 76px
+     Continuam em PX de propósito: `caixaDe()` da UI3 (tools/eval/ui-check.mjs:563) lê
+     font-size com `parseFloat`, então `vh`/`clamp()` fariam a régua medir 3,9 px de caixa
+     e ficar CEGA. Escala fluida exige consertar a régua primeiro — está no relatório. */
+  --fs-500:20px; --fs-600:24px; --fs-700:40px; --fs-800:56px; --fs-900:76px;
+  --lh-tight:1; --lh-snug:1.2; --lh-base:1.45;
+  --tr-tight:.5px; --tr-1:1px; --tr-2:2px; --tr-3:3px; --tr-4:4px; --tr-6:6px;
+
+  /* ---- superfícies ----------------------------------------------------------
+     ERAM AZUIS ("asfalto noturno"), e isso era o desvio nº 1 do BUG-05. Medido, não
+     achado: `python3 tools/eval/ref-ui.py` mede as 9 telas de referência e o consenso
+     dá fundo #141513 (L* 6,6 · C* 1,2 · h 127°) e painel #38342e (L* 22,0 · C* 4,3 ·
+     h 85°). Rodando a MESMA medição sobre capturas do jogo (mesmo recorte 512×341) o
+     fundo saía #131516 — L* 6,5 e C* 1,1 batendo, e h *260,7°*. Ou seja: claridade e
+     saturação já estavam certas, **só o matiz estava do outro lado da roda**.
+     Correção com L* CONSTANTE (contraste é orçamento da UI1, não desta linha) e matiz
+     levado para ~84°, com o croma de cada papel copiado do papel equivalente medido:
+        --bg-900 #05080b L* 2,1 C* 1,5 h 256  ->  #090704 L* 2,0 C* 1,3 h 85
+        --bg-800 #0a1116 L* 4,7 C* 4,0 h 254  ->  #141008 L* 4,8 C* 4,0 h 86
+        --bg-700 #101a21 L* 8,6 C* 6,6 h 251  ->  #1c1812 L* 8,5 C* 4,6 h 81
+        --bg-600 #16242d L*13,4 C* 8,4 h 249  ->  #26221b L*13,4 C* 5,4 h 86
+        --bg-500 #1e323d L*19,6 C*10,4 h 245  ->  #342f27 L*19,7 C* 6,0 h 84
+
+     O `-rgb` NÃO É DUPLICAÇÃO — É A CURA DA CAUSA RAIZ. O motivo de este bug ter
+     sobrevivido tanto tempo está escrito no KNOWN-BUGS.md: "metade dos scrims do HUD é
+     `rgba(5,8,11,…)` LITERAL no CSS" — 79 ocorrências neste arquivo, nenhuma via token.
+     Trocar só o token deixaria a tela BICOLOR. Agora o token é DERIVADO do triplo, e
+     todo scrim consome `rgba(var(--bg-900-rgb),α)`: existe UM lugar onde a cor mora, e
+     divergir de novo exige apagar o var(). */
+  --bg-900-rgb:9,7,4;      --bg-800-rgb:20,16,8;    --bg-700-rgb:28,24,18;
+  --bg-600-rgb:38,34,27;   --bg-500-rgb:52,47,39;
+  --bg-900:rgb(var(--bg-900-rgb)); --bg-800:rgb(var(--bg-800-rgb)); --bg-700:rgb(var(--bg-700-rgb));
+  --bg-600:rgb(var(--bg-600-rgb)); --bg-500:rgb(var(--bg-500-rgb));
+  --line:#34302b; --line-2:#504c44;
+
+  /* ---- tinta: contraste medido sobre --bg-800 (AA = 4.5:1) ----------------------
+     NEUTRALIZADA nesta rodada, e o motivo é MEDIÇÃO, não gosto. As 9 telas de referência
+     do dono foram medidas em CIELAB (tools/eval/ref-ui.py -> tools/eval/ref_ui.json):
+     a tinta delas é NEUTRA — tinta alta C* 1,5 · tinta média C* 1,1. A daqui era ciano:
+       --ink-100 C* 3,0 h 220°   --ink-200 C* 6,1 h 224°
+       --ink-300 C* 8,6 h 230°   --ink-400 C* 8,8 h 227°
+     Um C* de 8,6 numa cor de RÓTULO é o que produz o "tudo azulado" que separa esta UI
+     das telas do dono à primeira vista. Cada valor abaixo mantém o L* ANTIGO com precisão
+     de 0,2 (então TODA razão de contraste da UI1 fica igual — conferido) e leva croma e
+     matiz pro alvo medido. Antes -> depois:
+       --ink-100 #e9f1f3 -> #f0f0ed   L* 94,6->94,7  C* 3,0->1,5  h 220->110
+       --ink-200 #c6d6db -> #d3d3d1   L* 84,6->84,5  C* 6,1->1,1  h 224->110
+       --ink-300 #93a8b0 -> #a5a5a3   L* 67,5->67,7  C* 8,6->1,1  h 230->110
+       --ink-400 #63787f -> #757573   L* 49,0->49,2  C* 8,8->1,2  h 227->110
+       --line    #22333c -> #34302b   L* 20,2->20,1  C* 8,9->3,9  h 242-> 79
+       --line-2  #33505d -> #504c44   L* 32,3->32,5  C*13,0->5,4  h 238-> 89
+     O portão UI5 (tools/eval/ui-check.mjs) cobra isto daqui pra frente. */
+  --ink-100:#f0f0ed;   /* 15.4:1 — números de HUD, títulos */
+  --ink-200:#d3d3d1;   /* 10.8:1 — corpo e idle de navegação */
+  --ink-300:#a5a5a3;   /*  5.5:1 — rótulos/meta (mínimo AA) */
+  --ink-400:#757573;   /*  2.7:1 — SÓ régua/ícone decorativo, nunca texto */
+
+  /* ---- cor = significado (uma função por cor; regra do level design aplicada à UI) ---- */
+  --sys:#39d6e0;       /* SISTEMA: foco, rádio, links, radar */
+  /* ACENTO. Medido nas 9 telas: núcleo #be9033, L* 62,6 · C* 54,3 · h 81,3°. O daqui
+     estava em C* 63,9 · h 73,6° — matiz já batia (Δ 7,7°), croma 18% acima. Ajustado a
+     L* CONSTANTE (78,7): #ffb44d -> #f3b958, C* 57,2 · h 78,9°. L* fica porque o contraste
+     do âmbar sobre cena clara é assunto da UI1, não da paleta. */
+  --am:#f3b958;        /* OBJETIVO e conquista */
+  --crit:#ff4d4d;      /* CRÍTICO: vida baixa, pente vazio, você morreu */
+  --ok:#46e08a;
+
+  /* ---- identidade BR (sinaleiro / lambe-lambe / caminhão) ---- */
+  --br-sinal:#e2402c;  --br-faixa:#ffc93f;  --br-verde:#1faa4d;
+  /* --br-asfalto e a listra escura do sinaleiro entravam na mesma armadilha do BUG-05:
+     eram azuis (#12171a h 245° / #0d1418 h 246°) coladas em cima de superfícies que
+     agora são quentes. Reescritas com o MESMO L* e o matiz da família (#191610 L* 7,4). */
+  --br-cal:#f2efe6;    --br-asfalto:#191610;
+  --hazard:repeating-linear-gradient(135deg,var(--br-faixa) 0 7px,var(--br-asfalto) 7px 14px);
+  /* fundo do CTA: era #141810, o único dark que já nascera quente (h 130°). Mantido o L*
+     e alinhado ao matiz do âmbar que ele carrega em cima. */
+  --cta-bg:#181307;
+  --lambe:repeating-linear-gradient(0deg,rgba(255,255,255,.03) 0 1px,rgba(0,0,0,0) 1px 3px);
+
+  /* ---- times ---- */
+  --team-e:#e03232; --team-b:#1faa4d; --team-u:#7b2ff7; --team-c:#e83aa0;
+
+  /* ---- espaçamento (escala de 4) ---- */
+  --s-1:4px; --s-2:8px; --s-3:12px; --s-4:16px; --s-5:24px; --s-6:32px; --s-7:48px; --s-8:64px;
+
+  /* ---- raios/cortes: a UI é chanfrada, não arredondada ---- */
+  --r-0:0; --r-1:2px; --r-2:4px;
+  --cut:polygon(10px 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%,0 10px);
+  --cut-sm:polygon(6px 0,100% 0,100% calc(100% - 6px),calc(100% - 6px) 100%,0 100%,0 6px);
+
+  /* ---- sombras e legibilidade sobre cena 3D ---- */
+  --sh-1:0 2px 10px rgba(0,0,0,.45);
+  --sh-2:0 10px 34px rgba(0,0,0,.6);
+  --sh-text:0 1px 3px rgba(0,0,0,.85);
+  /* Contorno, não só sombra: um blur de 2px em preto .95 encosta no glifo e vira a
+     "cor de fundo" real do texto. Sobre areia do Piscinão (L*~78) ou parede branca do
+     awp_map a sombra difusa antiga não movia a agulha — o halo colado move. */
+  --sh-hud:0 0 2px rgba(0,0,0,.95),0 1px 3px rgba(0,0,0,.9),0 0 10px rgba(0,0,0,.55);
+  --scrim:rgba(var(--bg-900-rgb),.82);
+
+  /* ---- estados ---- */
+  --focus-ring:2px solid var(--sys); --focus-off:2px;
+  --op-disabled:.38;
+
+  /* ---- movimento: nada acima de 180ms na UI ---- */
+  --t-fast:90ms; --t:140ms; --t-slow:180ms; --ease:cubic-bezier(.2,.8,.2,1);
+
+  /* ---- mira: fora do sistema de cor, configurável em CONFIGURAÇÕES ----
+     PADRÃO = CIANO, não branco. Medição na janela 44×42 px em volta da mira:
+     branco #e9f1f3 no awp_map (parede branca) deu 1,28:1 — a mira SOME. O ciano
+     é o único matiz que nenhuma superfície dos 4 mapas ocupa (concreto, areia,
+     ferrugem, asfalto, céu), então ele não compete com o cenário em NENHUM deles.
+     O contorno preto (abaixo) cobre o caso oposto, fundo escuro. */
+  --xhair:#4fe8e0;
+
+  /* ---- aliases legados (regras antigas e estilos inline do JS ainda consomem) ---- */
+  --vitoria:#49a846;   /* VITÓRIA — pixel medido em references/telas/09_resultado_partida.png */
+  --red:var(--team-e); --red-dark:#8f1d1d; --green:var(--team-b); --yellow:var(--br-faixa);
+  --purple:var(--team-u); --dark:var(--bg-900); --panel:rgba(var(--bg-800-rgb),.94);
+  --hud:var(--ink-100); --cs:var(--sys);
+  --ink1:var(--ink-100); --ink2:var(--ink-200); --ink3:var(--ink-300);
+  --line-hi:var(--sys);
+  --font:'Rajdhani',"Arial Narrow",Arial,sans-serif;
+  --mono:'ST Mono',Consolas,monospace;
 }
 *{margin:0;padding:0;box-sizing:border-box;user-select:none}
 html,body{width:100%;height:100%;overflow:hidden;background:var(--dark)}
-body{font-family:"Arial Black",Impact,Haettenschweiler,"Segoe UI",sans-serif;color:#f2ead8}
+body{font-family:var(--font);font-weight:600;color:var(--ink1)}
 .hidden{display:none!important}
+
+/* ---------- ESTADOS GLOBAIS (antes o jogo inteiro era inoperável no teclado) ----------
+   Um FPS de PC navega 100% no teclado; sem anel de foco não dá pra saber onde se está. */
+:where(button,a,select,input,textarea,[tabindex]):focus-visible{
+  outline:var(--focus-ring);outline-offset:var(--focus-off);border-radius:var(--r-1)}
+:where(button,a,select,input,textarea,[tabindex]):focus:not(:focus-visible){outline:none}
+:where(.btn,.cs-item,.map-arrow,.char-row,.dd-item,.corner-btn):active{transform:translateY(1px)}
+:where(button,.btn)[disabled]{opacity:var(--op-disabled);filter:saturate(.3);cursor:not-allowed;pointer-events:none}
+/* aria-disabled = desabilitado VISUAL mas ainda clicável de propósito: o clique leva o
+   foco pro campo que falta (melhor que um botão morto que não explica nada). */
+:where(button,.btn)[aria-disabled="true"]{opacity:var(--op-disabled);filter:saturate(.3);cursor:not-allowed}
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}
+}
 .sr-only{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
 
 #game-container,#game-container canvas{position:fixed;inset:0;width:100%;height:100%}
 
 /* ---------- screens ---------- */
 .screen{position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;
-  background:radial-gradient(ellipse at 50% 30%,rgba(42,36,22,.78) 0%,rgba(20,18,12,.86) 55%,rgba(12,14,17,.93) 100%)}
-.scanlines{position:absolute;inset:0;pointer-events:none;opacity:.25;
-  background:repeating-linear-gradient(0deg,transparent 0 2px,rgba(0,0,0,.55) 2px 4px)}
-.screen-title{font-size:34px;letter-spacing:4px;color:var(--hud);text-shadow:0 3px 0 #000,0 0 24px rgba(255,180,60,.35)}
-.panel{background:var(--panel);border:2px solid #3a3325;border-radius:10px;padding:36px 44px;box-shadow:0 0 60px #000 inset,0 12px 40px rgba(0,0,0,.7)}
+  background:linear-gradient(180deg,var(--bg-800),var(--bg-900))}
+.scanlines{display:none}   /* morto na v2 */
+.screen-title{font-size:var(--fs-700);font-weight:700;letter-spacing:var(--tr-6);color:var(--ink-100);
+  text-transform:uppercase;position:relative;padding-bottom:var(--s-3)}
+.screen-title::after{content:"";position:absolute;left:50%;bottom:0;transform:translateX(-50%);
+  width:120px;height:3px;background:linear-gradient(90deg,var(--br-sinal),var(--br-faixa))}   /* régua de tinta: assinatura da marca em toda tela de fluxo */
+.panel{background:var(--panel);border:1px solid var(--line);padding:var(--s-6) var(--s-7);clip-path:var(--cut);
+  box-shadow:var(--sh-2);position:relative}
+.panel::before{content:"";position:absolute;left:0;top:14px;width:4px;height:52px;background:var(--hazard)}   /* top:0 caía dentro do canto chanfrado do clip-path */
 .center-panel{display:flex;flex-direction:column;gap:18px;align-items:center;max-width:640px;text-align:center}
 .big{font-size:18px}
-.footnote{position:absolute;bottom:18px;font-size:11px;letter-spacing:1px;color:#8a8064;font-family:Arial,sans-serif}
+.footnote{position:absolute;bottom:18px;font-size:12px;font-weight:600;letter-spacing:2px;color:var(--ink3)}
 
-#logo-canvas{width:min(560px,88vw);height:auto;filter:drop-shadow(0 10px 30px rgba(0,0,0,.8))}
+#logo-canvas{width:min(560px,88vw);height:auto}
 #main-menu{justify-content:flex-start;padding-top:7vh;gap:18px}
 .corner-links{position:absolute;top:18px;right:18px;display:flex;gap:8px;z-index:2}
-.corner-btn{font-family:Consolas,monospace;font-size:11px;letter-spacing:1px;text-decoration:none;
-  color:var(--cs);background:rgba(10,12,8,.75);border:1px solid #4a5a2a;border-radius:4px;padding:6px 10px}
-.corner-btn:hover{border-color:var(--cs);color:#fff}
+.corner-btn{font-family:var(--mono);font-size:11px;letter-spacing:1px;text-decoration:none;
+  color:var(--cs);background:rgba(var(--bg-800-rgb),.8);border:1px solid var(--line);padding:7px 11px;clip-path:var(--cut-sm)}
+.corner-btn:hover,.corner-btn:focus-visible{border-color:var(--cs);color:#fff}
 
 /* ---------- buttons & inputs ---------- */
-.btn{font-family:inherit;font-size:16px;letter-spacing:3px;color:var(--hud);cursor:pointer;
-  background:linear-gradient(180deg,#3b3423,#221e14);border:2px solid #6b5c34;border-radius:6px;
-  padding:12px 34px;transform:skewX(-6deg);transition:all .12s;text-transform:uppercase}
-.btn:hover{background:linear-gradient(180deg,#6b5c34,#3b3423);color:#fff;transform:skewX(-6deg) translateY(-2px);box-shadow:0 6px 18px rgba(255,190,60,.25)}
-.btn-big{font-size:24px;padding:16px 64px;border-color:var(--yellow);color:var(--yellow)}
-.btn-big:hover{background:var(--yellow);color:#221e14}
-.btn-back{position:absolute;top:26px;left:26px;font-size:13px;padding:9px 20px}
-.menu-buttons{display:flex;flex-direction:column;gap:16px;align-items:center;z-index:1;width:min(480px,92vw)}
-.profile-card{width:100%;background:rgba(10,12,8,.72);border:1px solid #3a4028;border-radius:10px;
-  padding:18px 20px;display:flex;flex-direction:column;gap:12px;backdrop-filter:blur(3px)}
-.pc-title{font-size:11px;letter-spacing:3px;color:#6b7b4a;border-bottom:1px solid #2a2e20;padding-bottom:8px}
+.btn{font-family:var(--font);font-weight:700;font-size:var(--fs-400);letter-spacing:var(--tr-3);color:var(--ink-100);cursor:pointer;
+  background:var(--bg-700);border:1px solid var(--line);clip-path:var(--cut);
+  padding:var(--s-3) var(--s-6);transition:background var(--t) var(--ease),border-color var(--t) var(--ease),color var(--t) var(--ease);
+  text-transform:uppercase}
+/* Todo estado de hover ganha o gêmeo :focus-visible. Um anel de foco sozinho diz "estou
+   aqui", mas não repete a MESMA leitura do mouse — quem navega no teclado ficava vendo
+   uma UI diferente da que vê quem usa mouse. */
+.btn:hover,.btn:focus-visible{background:var(--bg-600);border-color:var(--sys);color:#fff}
+/* CTA PREENCHIDO — o desvio que valia pra TODAS as nove telas de referência, e não só
+   pra 09. Medido em `references/telas/`: o botão principal é SÓLIDO em âmbar com texto
+   ESCURO (preenchimento rgb(208,157,27) / texto rgb(46,36,11) em 09_resultado_partida.png),
+   e o mesmo bloco cheio reaparece em JOGAR (01), USAR PERSONAGEM (03), CONTINUAR (04),
+   CONTINUAR (06) e SALVAR (07). Só o SECUNDÁRIO é de contorno.
+   Na rodada passada só a 09 recebeu (via `.btn-cta`); aqui `.btn-big` entra na MESMA regra
+   em vez de ganhar uma cópia — existe UM lugar onde "CTA preenchido" mora, então menu e
+   pausa não podem mais divergir do resultado. As razões de contraste são as que a UI1 já
+   mediu pro `.btn-cta`, porque são literalmente as mesmas duas cores. */
+.btn-big{font-size:var(--fs-600);padding:var(--s-4) var(--s-8)}
+.btn-big,.btn-cta{background:var(--br-faixa);border-color:var(--br-faixa);color:var(--bg-900)}
+.btn-big:hover,.btn-big:focus-visible,
+.btn-cta:hover,.btn-cta:focus-visible{background:var(--am);border-color:var(--am);color:var(--bg-900)}
+.btn-back{position:absolute;top:26px;left:26px;font-size:13px;padding:9px 20px;z-index:5}
+.menu-buttons{display:flex;flex-direction:column;gap:16px;align-items:center;z-index:1;width:min(760px,95vw)}
+.profile-card{width:100%;background:var(--panel);border:1px solid var(--line);clip-path:var(--cut);
+  padding:var(--s-5) var(--s-5);display:flex;flex-direction:column;gap:var(--s-4);position:relative;box-shadow:var(--sh-2)}
+.pc-title{font-family:var(--font);font-weight:700;font-size:var(--fs-100);letter-spacing:var(--tr-3);color:var(--ink-300);
+  border-bottom:1px solid var(--line);padding-bottom:var(--s-2);text-transform:uppercase;
+  display:flex;align-items:center;gap:var(--s-2)}
+.pc-title::before{content:"";width:3px;height:12px;background:var(--am);flex:0 0 auto}   /* marcador em vez do "▚" tipográfico */
 .pc-row{display:grid;grid-template-columns:2fr 4fr;gap:10px}
+/* .pc-cols/.pc-col saíram junto com as duas colunas do setup: perfil e partida agora são
+   PASSOS separados (ver bloco "PASSOS DO SETUP"), não duas metades da mesma tela. */
 #social-list{display:flex;flex-direction:column;gap:10px}
 .social-item{display:grid;grid-template-columns:2fr 3fr auto;gap:8px;align-items:center}
-.social-item select,.social-item input{font-family:Consolas,monospace;font-size:13px;letter-spacing:1px;
-  background:#10130c;border:2px solid #4a5a2a;border-radius:4px;color:var(--cs);padding:9px 10px;outline:none;width:100%}
-.social-item input.invalid{border-color:#e03232!important;animation:shake .3s}
-.social-del{background:transparent;border:1px solid #4a5a2a;border-radius:4px;color:#8a8064;cursor:pointer;
-  width:34px;height:34px;font-size:13px}
-.social-del:hover{border-color:#e03232;color:#e03232}
-#nick-input,#social-input,#social-net{font-family:Consolas,monospace;font-size:15px;letter-spacing:1px;text-align:center;
-  background:#10130c;border:2px solid #4a5a2a;border-radius:4px;color:var(--cs);
-  padding:10px 12px;outline:none;width:100%}
+.social-item select,.social-item input{font-family:var(--mono);font-size:13px;letter-spacing:1px;
+  background:var(--bg-800);border:1px solid var(--line);color:var(--cs);padding:9px 10px;outline:none;width:100%}
+.social-item input.invalid{border-color:var(--red)!important;animation:shake .3s}
+.social-del{background:transparent;border:1px solid var(--line);color:var(--ink3);cursor:pointer;width:34px;height:34px;font-size:13px}
+.social-del:hover,.social-del:focus-visible{border-color:var(--red);color:var(--red)}
+#nick-input,#social-input,#social-net{font-family:var(--mono);font-size:var(--fs-300);letter-spacing:var(--tr-1);text-align:center;
+  background:var(--bg-800);border:1px solid var(--line);color:var(--ink-100);padding:10px 12px;outline:none;width:100%;
+  transition:border-color var(--t) var(--ease)}
+#nick-input:hover,#social-input:hover{border-color:var(--line-2)}
+#nick-input::placeholder{color:var(--ink-400)}
 #social-net{font-size:13px;cursor:pointer}
 #social-input{font-size:13px}
 #social-input:disabled{opacity:.35;cursor:not-allowed}
-#nick-input.invalid,#social-input.invalid{border-color:#e03232!important;animation:shake .3s}
+#nick-input.invalid,#social-input.invalid{border-color:var(--red)!important;animation:shake .3s}
 @keyframes shake{25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
-#social-preview{font-size:11px;color:#5a6b3a;font-family:Consolas,monospace;min-height:14px;text-align:center}
+#social-preview{font-size:11px;color:var(--ink3);font-family:var(--mono);min-height:14px;text-align:center}
 #avatar-row{display:flex;flex-direction:column;gap:6px;align-items:center}
 .side-actions{position:absolute;left:22px;top:38%;display:flex;flex-direction:column;gap:8px;z-index:2}
-.btn-side{font-size:11px;padding:8px 14px;letter-spacing:1px;min-width:120px;text-align:left}
-/* dropdown custom (com ícone) — mesmo visual do select de mapa */
+.btn-side{font-size:12px;padding:8px 14px;letter-spacing:1px;min-width:120px;text-align:left}
+/* dropdown custom */
 .dd{position:relative;width:100%}
 .dd-btn{display:flex;align-items:center;justify-content:space-between;width:100%;cursor:pointer;
-  font-family:Consolas,monospace;font-size:14px;letter-spacing:1px;
-  background:#10130c;border:2px solid #4a5a2a;border-radius:4px;color:var(--cs);padding:10px 12px;outline:none}
-.dd-btn:hover,.dd-btn.open{border-color:var(--cs)}
-.dd-arrow{font-size:12px;opacity:.7}
-.dd-list{position:absolute;left:0;right:0;z-index:30;
-  background:#0d100a;border:2px solid #4a5a2a;border-radius:4px;overflow:hidden;
-  top:calc(100% + 4px)}
+  font-family:var(--mono);font-size:var(--fs-200);letter-spacing:var(--tr-1);
+  background:var(--bg-800);border:1px solid var(--line);color:var(--ink-100);padding:10px 12px;outline:none;
+  transition:border-color var(--t) var(--ease)}
+.dd-btn:hover{border-color:var(--line-2)}
+.dd-btn.open{border-color:var(--sys)}
+.dd-arrow{font-size:var(--fs-100);color:var(--ink-300)}
+.dd-list{position:absolute;left:0;right:0;z-index:30;background:var(--bg-700);border:1px solid var(--line-2);
+  overflow:hidden;top:calc(100% + 4px);box-shadow:var(--sh-1)}
 #wpn-dd .dd-list{top:auto;bottom:calc(100% + 4px)}   /* baixo na tela: abre pra cima */
 .dd-item{display:flex;align-items:center;gap:10px;width:100%;cursor:pointer;text-align:left;
-  font-family:Consolas,monospace;font-size:13px;letter-spacing:1px;color:var(--cs);
-  background:transparent;border:0;padding:10px 12px}
-.dd-item:hover{background:#2a3018}
+  font-family:var(--mono);font-size:var(--fs-200);letter-spacing:var(--tr-1);color:var(--ink-200);
+  background:transparent;border:0;padding:10px 12px;transition:background var(--t) var(--ease),color var(--t) var(--ease)}
+.dd-item:hover,.dd-item:focus-visible{background:var(--bg-600);color:#fff}
 .dd-item svg,.dd-cur svg{flex:0 0 auto}
 .dd-cur{display:flex;align-items:center;gap:10px}
-.map-label{display:flex;flex-direction:column;gap:6px;font-size:11px;letter-spacing:2px;color:#6b7b4a}
-#map-select{font-family:Consolas,monospace;font-size:14px;letter-spacing:1px;text-align:center;
-  background:#10130c;border:2px solid #4a5a2a;border-radius:4px;color:var(--cs);padding:10px 12px;
-  outline:none;cursor:pointer;width:100%}
-.btn-ghost{font-family:Consolas,monospace;font-size:12px;letter-spacing:1px;cursor:pointer;width:100%;
-  background:transparent;border:1px dashed #4a5a2a;border-radius:6px;color:#8a8064;padding:10px}
-.btn-ghost:hover{border-color:var(--cs);color:var(--cs)}
-#avatar-note{font-size:11px;color:var(--cs);font-family:Arial,sans-serif;min-height:13px}
+.map-label{display:flex;flex-direction:column;gap:var(--s-2);font-size:var(--fs-100);font-weight:700;
+  letter-spacing:var(--tr-2);color:var(--ink-300);text-transform:uppercase}
+#map-select{font-family:var(--mono);font-size:14px;letter-spacing:1px;text-align:center;
+  background:var(--bg-800);border:1px solid var(--line);color:var(--cs);padding:10px 12px;outline:none;cursor:pointer;width:100%}
+.btn-ghost{font-family:var(--mono);font-size:12px;letter-spacing:1px;cursor:pointer;width:100%;
+  background:transparent;border:1px dashed var(--line);color:var(--ink3);padding:10px}
+.btn-ghost:hover,.btn-ghost:focus-visible{border-color:var(--cs);color:var(--cs)}
+#avatar-note{font-size:12px;color:var(--cs);min-height:13px}
 .menu-secondary{display:flex;gap:10px;width:100%}
-.menu-secondary .btn{flex:1;padding:10px 8px;font-size:13px;letter-spacing:1.5px}
-#btn-jogar{font-size:20px;padding:15px;letter-spacing:4px;width:100%}
-#hud-actions{position:absolute;top:14px;right:14px;display:flex;gap:8px;z-index:25}
-#hud-actions button{width:34px;height:34px;border-radius:6px;border:1px solid #4a5a2a;cursor:pointer;
-  background:rgba(8,10,6,.8);color:var(--cs);font-size:16px;pointer-events:auto}
-#hud-actions button:hover{border-color:var(--cs)}
+.menu-secondary .btn{flex:1;padding:10px 8px;font-size:14px;letter-spacing:1.5px}
+/* preenchimento/hover vêm do `.btn-big`: aqui fica só a métrica de coluna e o sticky */
+#btn-jogar{font-size:var(--fs-600);padding:15px;letter-spacing:5px;width:100%;position:sticky;bottom:6px;z-index:5;
+  transition:background var(--t) var(--ease),color var(--t) var(--ease),opacity var(--t) var(--ease)}
+/* Sem nick, JOGAR é ESTADO desabilitado — não um shake depois do clique. */
+#btn-jogar[aria-disabled="true"]{opacity:var(--op-disabled);filter:saturate(.25);cursor:not-allowed}
+#btn-jogar[aria-disabled="true"]:hover{background:var(--br-faixa);color:var(--bg-900)}
+#hud-actions{position:absolute;top:36px;right:48px;display:flex;gap:var(--s-2);z-index:25}
+#hud-actions button{width:32px;height:32px;border:1px solid var(--line);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  background:rgba(var(--bg-900-rgb),.72);color:var(--ink-300);font-size:var(--fs-400);pointer-events:auto;clip-path:var(--cut-sm);
+  transition:color var(--t) var(--ease),border-color var(--t) var(--ease)}
+#hud-actions button:hover,#hud-actions button:focus-visible{border-color:var(--sys);color:var(--sys)}
 .set-row input[type=checkbox]{width:18px;height:18px;accent-color:var(--yellow)}
-.rank-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px 26px;font-family:Consolas,monospace;font-size:14px;color:#c9bfa4}
+.rank-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px 26px;font-family:var(--mono);font-size:14px;color:var(--ink2)}
 .rank-stats b{color:var(--yellow);font-size:26px;display:block;text-align:center}
-.rank-note{font-size:12px;font-family:Arial,sans-serif;color:#8a8064;line-height:1.5}
-#rank-global{width:100%;border-top:1px solid #3a3325;padding-top:12px}
-#rank-global h3{font-size:13px;letter-spacing:2px;color:var(--cs);margin-bottom:8px}
-#rank-global table{width:100%;border-collapse:collapse;font-family:Consolas,monospace;font-size:12px;color:#c9bfa4}
+.rank-note{font-size:13px;color:var(--ink3);line-height:1.5}
+/* painel FEEDBACK (substituiu MAPA no menu, 07/08) — mesmos tokens do nick-input */
+.fb-note{font-size:13px;color:var(--ink3);line-height:1.5}
+#fb-msg,#fb-email{font-family:var(--mono);font-size:var(--fs-300);letter-spacing:var(--tr-1);
+  background:var(--bg-800);border:1px solid var(--line);color:var(--ink-100);padding:10px 12px;
+  outline:none;width:100%;transition:border-color var(--t) var(--ease)}
+#fb-msg{resize:vertical;min-height:110px;text-align:left}
+#fb-email{text-align:center}
+#fb-msg:hover,#fb-email:hover{border-color:var(--line-2)}
+#fb-msg::placeholder,#fb-email::placeholder{color:var(--ink-400)}
+#fb-msg.invalid,#fb-email.invalid{border-color:var(--red)!important;animation:shake .3s}
+.fb-consent{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--ink2);
+  cursor:pointer;text-align:left}
+.fb-consent input{width:18px;height:18px;flex:0 0 auto;accent-color:var(--yellow)}
+.fb-status{font-family:var(--mono);font-size:13px;color:var(--ink2);min-height:1.2em}
+.fb-status.erro{color:var(--red)}
+#rank-global{width:100%;border-top:1px solid var(--line);padding-top:12px}
+#rank-global h3{font-size:14px;letter-spacing:2px;color:var(--cs);margin-bottom:8px}
+#rank-global table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:12px;color:var(--ink2)}
 #rank-global td,#rank-global th{padding:3px 6px;text-align:left}
-#rank-global th{color:#5a6b3a;font-size:10px;letter-spacing:1px}
+#rank-global th{color:var(--ink3);font-size:10px;letter-spacing:1px}
 #rank-global tr.me td{color:var(--yellow)}
 #rank-global .rg-links{margin-top:8px;font-size:12px;display:flex;gap:16px;justify-content:center}
-#rank-global .rg-off{color:#5a6b3a;font-size:12px}
+#rank-global .rg-off{color:var(--ink3);font-size:12px}
 #auth-row{grid-column:1/-1;display:flex;gap:8px;justify-content:center;align-items:center;min-height:30px}
-#auth-row .auth-btn{width:34px;height:34px;border-radius:6px;border:1px solid #4a5a2a;background:#10130c;
-  color:var(--cs);font-weight:bold;font-size:14px;cursor:pointer;font-family:Arial,sans-serif}
+#auth-row .auth-btn{width:34px;height:34px;border:1px solid var(--line);background:var(--bg-800);color:var(--cs);font-weight:bold;font-size:14px;cursor:pointer}
 #auth-row .auth-btn:hover{border-color:var(--cs)}
-#auth-row .auth-chip{display:flex;align-items:center;gap:8px;color:#c9bfa4;font-size:12px;font-family:Arial,sans-serif}
-#auth-row .auth-chip img{width:26px;height:26px;border-radius:50%;border:1px solid #4a5a2a}
-#auth-row .auth-chip button{background:none;border:1px solid #4a5a2a;border-radius:4px;color:#8a8064;cursor:pointer;font-size:11px;padding:2px 8px}
-#avatar-note{font-size:11px;color:var(--cs);font-family:Arial,sans-serif}
+#auth-row .auth-chip{display:flex;align-items:center;gap:8px;color:var(--ink2);font-size:12px}
+#auth-row .auth-chip img{width:26px;height:26px;border-radius:50%;border:1px solid var(--line)}
+#auth-row .auth-chip button{background:none;border:1px solid var(--line);color:var(--ink3);cursor:pointer;font-size:11px;padding:2px 8px}
 
-/* ---------- team select ---------- */
-.team-row{display:flex;gap:34px;flex-wrap:wrap;justify-content:center}
-.team-card{width:340px;height:300px;border-radius:12px;cursor:pointer;font-family:inherit;color:#fff;
-  display:flex;flex-direction:column;justify-content:flex-end;gap:10px;padding:26px;text-align:left;
-  border:3px solid transparent;transition:all .15s;position:relative;overflow:hidden}
-.team-card::before{content:"";position:absolute;inset:0;background:repeating-linear-gradient(45deg,transparent 0 14px,rgba(0,0,0,.18) 14px 28px)}
-.team-card:hover{transform:translateY(-6px) scale(1.02)}
-.team-p{background:linear-gradient(160deg,#d63a3a,#7d1717);border-color:#ff6b6b}
-.team-p:hover{box-shadow:0 14px 44px rgba(224,50,50,.5)}
-.team-b{background:linear-gradient(160deg,#25b456 30%,#e8bd25);border-color:#7de08f}
-.team-b:hover{box-shadow:0 14px 44px rgba(31,170,77,.5)}
-.team-name{font-size:32px;letter-spacing:2px;text-shadow:0 3px 0 rgba(0,0,0,.5)}
-.team-slogan{font-size:14px;font-style:italic;font-family:Georgia,serif}
-.team-desc{font-size:11px;letter-spacing:1px;font-family:Arial,sans-serif;opacity:.85}
+/* ---------- cabeçalho comum das telas de fluxo (lado / personagem) ----------
+   Eyebrow + título + dica numa peça só: o jogador tem que saber EM QUE PASSO está sem
+   ler o conteúdo. Mesma família do .cs-setup-head do menu — nenhum estilo novo. */
+.ts-head{display:flex;flex-direction:column;align-items:center;gap:var(--s-1);flex:0 0 auto}
+.ts-head small{font-family:var(--mono);font-size:var(--fs-50);letter-spacing:var(--tr-4);
+  color:var(--am);text-transform:uppercase}
+.ts-hint{font-size:var(--fs-200);font-weight:500;letter-spacing:var(--tr-tight);color:var(--ink-300);
+  max-width:64ch;text-align:center;margin-top:var(--s-1)}
 
-/* ---------- character select (CS 1.6 list + 3D preview) ---------- */
-.char-wrap{display:flex;gap:26px;align-items:stretch}
-.char-list{display:flex;flex-direction:column;gap:6px;width:340px}
-.char-row{display:flex;align-items:center;gap:12px;padding:8px 12px;cursor:pointer;text-align:left;
-  background:rgba(10,12,8,.85);border:1px solid #3a4028;color:var(--hud);
-  font-family:Tahoma,Verdana,sans-serif;font-size:16px;letter-spacing:1px}
-.char-row img{width:52px;height:52px;border:1px solid #2a2e20;background:#161a12;image-rendering:auto}
-.char-row:hover{background:#2a3018;border-color:var(--cs)}
-.char-row.sel{background:#3a4418;border-color:var(--cs);box-shadow:0 0 12px rgba(184,217,74,.25)}
-.char-preview-box{display:flex;flex-direction:column;align-items:center;gap:12px;
-  background:rgba(10,12,8,.85);border:1px solid #3a4028;padding:16px}
-#char-preview{background:radial-gradient(ellipse at 50% 35%,#2a2e1a,#10130c);border:1px solid #2a2e20}
-#char-info{text-align:center;max-width:340px}
-#char-info-name{font-size:18px;letter-spacing:2px;color:var(--yellow);margin-bottom:6px}
-#char-info-blurb{font-size:12px;font-family:Arial,sans-serif;color:#c9bfa4;line-height:1.4;min-height:34px}
-#char-confirm{font-size:17px;padding:12px 34px}
+/* ---------- team select ----------
+   Cada facção é uma PLACA de cartaz, não um cartão de formulário: arte da facção ao
+   fundo, cor própria (--tc) no contorno/rodapé, grito em destaque e o elenco em letra
+   miúda embaixo. Duas faces claras = a cor e o slogan dizem quem é quem antes de ler.  */
+/* CARTAZ EM PÉ, NÃO FAIXA DEITADA (referência 02_escolha_faccao.png).
+   Medido na referência 512×341: cada placa ocupa x≈110px (21,5% da largura) por
+   y 100→337 (69% da ALTURA) — proporção ~47:100, um pôster em pé. O jogo tinha
+   `aspect-ratio:3/2`, ou seja 250×167 numa tela de 1024 de altura: 16% da altura,
+   uma tira deitada. É por isso que a arte entrava cortada — não havia altura pra ela.
+   O header também sobe: `justify-content:center` empurrava o título pra 43% da altura
+   e espremia as placas contra o rodapé; na referência o título mora em 16-22%. */
+#team-select{justify-content:flex-start;gap:var(--s-5);padding:clamp(40px,5vh,68px) var(--s-5) var(--s-5);
+  --team-band-h:28px}
+/* VOLTAR no alto à DIREITA (referência 02 e 03); só o map-screen leva ele pro rodapé */
+#team-select .btn-back,#char-select .btn-back{left:auto;right:26px}
+.team-row{display:flex;gap:var(--s-3);flex-wrap:nowrap;justify-content:center;align-items:center;
+  width:min(1280px,96vw);flex:1 1 auto;min-height:0}
+/* Altura POR TETO, não por aspect-ratio: a proporção 47:100 da referência é de uma tela
+   com QUATRO placas; com cinco a coluna cai pra ~245px e o mesmo aspect esticaria o
+   cartão pra 820px (medido: razão 0,30, um espeto). O teto de 620px dá razão ~0,40 e
+   mantém a placa na mesma fatia de altura da referência (~74% da tela) sem sobrar
+   buraco embaixo. Em 1280×720 o 72vh (518px) é quem manda e ainda cabe. */
+.team-card{flex:1 1 20%;max-width:none;min-width:0;height:min(72vh,620px);
+  cursor:pointer;font-family:inherit;color:#fff;
+  display:flex;flex-direction:column;align-items:stretch;text-align:left;padding:0;
+  position:relative;overflow:hidden;border:1px solid var(--line);clip-path:var(--cut);background:var(--tc-bg);
+  transition:transform var(--t-slow) var(--ease),box-shadow var(--t) var(--ease),border-color var(--t) var(--ease)}
+/* fundo = degradê da facção e não --bg-800. A arte das cinco facções JÁ EXISTE (ver
+   `--art` abaixo), mas o degradê fica: ele é o que pinta a placa enquanto o webp não
+   chegou pela rede, e é o fallback se um arquivo sumir do deploy. Custa zero byte. */
+/* O elenco e a lista de nomes ficam fora: a referência não tem nem um nem outro, e no
+   jogo `.team-chars` desenhava TRÊS caixas 72px vazias por cima da arte (era esse o
+   "conteúdo cortado" da captura — miniatura que nunca chegou, moldura que ficou). */
+.team-chars,.team-desc{display:none}
+/* A arte por time JÁ EXISTE: `/img/team-<facção>.webp`, uma por facção, declarada em
+   `--art` mais abaixo. O caminho `/img/teams/<facção>.jpg` que este comentário reservava
+   nunca foi usado por ninguém. O fallback continua valendo por construção: se o arquivo
+   sumir do deploy, a camada não pinta e o degradê da facção segura a placa — nada de
+   ícone de imagem quebrada, nada de buraco preto. */
+/* O "apagado" do estado ocioso mora AQUI, na camada de arte — nunca num filter no card
+   inteiro. O filter antigo (saturate .86) caía também sobre as miniaturas 3D do elenco e
+   descolorir personagem é justamente a queixa nº 4 do dono. */
+/* `.team-card>.team-art` e não `.team-art`: a regra genérica `.team-card>*` (logo abaixo)
+   empata em especificidade e vem DEPOIS, então ela estava reescrevendo o position pra
+   `relative` e a camada de arte virava um <span> vazio de ALTURA ZERO. Medido no
+   navegador: artBox = [244, 0]. Era essa a causa raiz de "os cards vêm com conteúdo
+   cortado" — a foto da facção nunca chegou a ser desenhada, e o que aparecia era só o
+   degradê de fundo com as molduras vazias por cima. */
+.team-card>.team-art{display:block;position:absolute;inset:0;z-index:0;background:var(--art) center/cover no-repeat;
+  opacity:1;filter:none;transform-origin:center;transition:transform .28s var(--ease)}
+.team-card:hover .team-art,.team-card:focus-visible .team-art,
+.team-card[aria-pressed="true"] .team-art{transform:scale(1.2)}
+/* O `-rgb` de cada facção existe pelo mesmo motivo do --bg-900-rgb documentado no topo:
+   o scrim tingido precisa de ALFA, e alfa não sai de um hex guardado em var(). */
+/* ARTE POR FACÇÃO — RETRATO 640×1601 (2:5), gerada por `node tools/gen-image.mjs`.
+   A placa é uma caixa de ~245×620 (razão 0,39-0,45) e `.team-art` acima usa `cover`. A
+   arte anterior era 1536×1024 PAISAGEM com o logotipo do time pintado no meio: no
+   `cover` só ~26% da largura cabia, então cada placa mostrava UM personagem e meio
+   logotipo em vez do elenco de quatro da referência 02. Por isso o arquivo agora nasce
+   na proporção da CAIXA, não na do gerador.
+   Duas coisas que a arte nova respeita de propósito, e que precisam continuar valendo
+   se alguém regerar: (1) o elenco mora nos 55% de BAIXO — os 45% de cima são só névoa,
+   porque é ali que o `.team-card::before` e a `.team-elate` desenham nome e slogan;
+   (2) NADA de texto dentro da imagem — o nome da facção é HTML, e texto embutido
+   duplicaria o nome na tela. Peso das cinco somadas: 419 KB (eram 12,1 MB em PNG,
+   e a dos funkeiros nem existia). */
+.team-e{--tc:#ff6b6b;--tc-rgb:255,107,107;--art:url('/img/faccoes/time-e.webp');
+  --tc-bg:linear-gradient(165deg,#b52e2e 0%,#7a1a1a 52%,#3d0d0d 100%)}
+.team-b{--tc:#7de08f;--tc-rgb:125,224,143;--art:url('/img/faccoes/time-b.webp');
+  --tc-bg:linear-gradient(165deg,#1d8f45 0%,#2f7a2a 46%,#7a6412 100%)}
+.team-u{--tc:#c79bff;--tc-rgb:199,155,255;--art:url('/img/faccoes/tribos.webp');
+  --tc-bg:linear-gradient(165deg,#5f22c2 0%,#8a1f9c 55%,#3d0f52 100%)}
+.team-c{--tc:#ff8ad1;--tc-rgb:255,138,209;--art:url('/img/faccoes/palhacos.webp');
+  --tc-bg:linear-gradient(165deg,#d81e8c 0%,#7a1fa0 52%,#e0761a 100%)}
+.team-f{--tc:#ffd23f;--tc-rgb:255,210,63;--art:url('/img/faccoes/funkeiros.webp');
+  --tc-bg:linear-gradient(165deg,#c78a12 0%,#8a5a0d 52%,#3d2a05 100%)}
+/* CABEÇALHO TINGIDO NA COR DA FACÇÃO (referência 02): o topo de cada placa lava de
+   vermelho/amarelo/roxo e morre no meio, e é isso que faz "quem é quem" ser legível
+   antes de ler o nome. Sem ele o texto branco caía direto na foto e sumia. */
+.team-card::before{content:"";display:block;position:absolute;left:0;right:0;top:0;height:52%;z-index:1;
+  pointer-events:none;
+  background:
+    linear-gradient(180deg,rgba(var(--tc-rgb),.34) 0%,rgba(var(--tc-rgb),.10) 55%,rgba(var(--tc-rgb),0) 100%),
+    linear-gradient(180deg,rgba(var(--bg-900-rgb),.92) 0%,rgba(var(--bg-900-rgb),.62) 52%,rgba(var(--bg-900-rgb),0) 100%)}
+.team-card>*{position:relative;z-index:2}
+.team-card:hover,.team-card:focus-visible{transform:translateY(-6px);
+  box-shadow:var(--sh-2);border-color:var(--tc);outline:none}
+/* SELECIONADO EM ÂMBAR, não na cor do time: na referência a placa escolhida (PALHAÇOS)
+   tem contorno ÂMBAR, o mesmo de todas as outras telas — seleção é UMA cor no jogo
+   inteiro. A cor da facção continua mandando no cabeçalho e no kicker. */
+.team-card[aria-pressed="true"]{border-color:var(--br-faixa);
+  box-shadow:var(--sh-2),inset 0 0 0 2px var(--br-faixa)}
+.team-card[aria-pressed="true"]::after{content:"SEU LADO";position:absolute;top:0;right:0;z-index:3;
+  font-family:var(--mono);font-size:var(--fs-50);letter-spacing:var(--tr-2);color:var(--bg-900);
+  background:var(--br-faixa);padding:4px var(--s-3)}
+/* Bloco de leitura no ALTO da placa (referência: kicker → nome → grito, tudo no primeiro
+   terço, sobre o degradê tingido; a foto fica com os dois terços de baixo). */
+.team-elate{display:flex;flex-direction:column;gap:3px;padding:var(--s-3) var(--s-3) 0}
+.team-kicker{font-family:var(--mono);font-size:var(--fs-50);letter-spacing:var(--tr-3);color:var(--tc)}
+/* "BOLSONARISTAS" a 32px + tracking 3px estourava a caixa e vazava pro card vizinho —
+   o corpo encolhe com a largura disponível e a linha pode quebrar. Com cinco placas em
+   pé a coluna caiu pra ~236px, então o teto desce junto: 22px cabe "BOLSONARISTAS". */
+.team-name{font-size:clamp(15px,1.45vw,22px);font-weight:700;letter-spacing:var(--tr-1);
+  text-transform:uppercase;line-height:var(--lh-tight);text-shadow:var(--sh-text)}
+.team-slogan{font-size:var(--fs-100);font-style:italic;font-weight:500;color:var(--ink-100);
+  line-height:var(--lh-snug);text-shadow:var(--sh-text)}
+.team-desc{font-size:var(--fs-100);font-weight:600;letter-spacing:var(--tr-tight);color:var(--ink-200);
+  line-height:var(--lh-snug);text-shadow:var(--sh-text)}
+/* CTA da placa: a referência NÃO tem barra de ação no cartão — o rodapé dela é só a
+   tarja escura com o elenco. Mas o texto daqui carrega informação real (diz se você
+   está escolhendo o SEU lado ou o ADVERSÁRIO, via data-step), então em vez de apagar
+   ele some no repouso e aparece no hover/foco: parada igual à referência, affordance
+   preservada. Fica ancorado logo acima da tarja do rodapé. */
+.team-cta{position:absolute;left:0;right:0;bottom:var(--team-band-h);z-index:3;margin:0;
+  padding:7px var(--s-2);text-align:center;
+  font-family:var(--font);font-weight:700;font-size:var(--fs-50);letter-spacing:var(--tr-2);
+  text-transform:uppercase;color:var(--bg-900);background:var(--tc);
+  opacity:0;transition:opacity var(--t) var(--ease)}
+.team-card:hover .team-cta,.team-card:focus-visible .team-cta{opacity:1}
+#team-select[data-step="side"] .team-cta::before{content:"ENTRAR NESSE CORO ▸"}
+#team-select[data-step="enemy"] .team-cta::before{content:"CHAMAR PRO CORO ▸"}
+@media(max-height:820px){
+  .team-name{font-size:clamp(14px,1.3vw,19px)}
+}
+
+/* ---------- character select ----------
+   A tela é uma COLUNA de altura cheia: header em cima, corpo elástico embaixo. A lista
+   ganha a altura que sobra (flex:1 + min-height:0) em vez de um max-height:66vh chutado
+   — era esse 66vh que cortava o último personagem no rodapé em janela 3:2. */
+#char-select{justify-content:flex-start;gap:var(--s-4);padding:clamp(56px,7vh,88px) var(--s-5) var(--s-5)}
+/* Layout da referência (telas/03): filmstrip de avatares | ficha | preview gigante.
+   A grade é elástica (flex:1 + min-height:0) — a lição do bug 3:2 vale pros 3 filhos. */
+.char-stage{display:grid;grid-template-columns:96px minmax(280px,360px) 1fr;gap:var(--s-5);
+  align-items:stretch;flex:1 1 auto;min-height:0;width:min(1280px,95vw)}
+.char-filmstrip{display:flex;flex-direction:column;gap:var(--s-2);min-height:0}
+.char-list{display:flex;flex-direction:column;gap:var(--s-2);min-height:0;overflow-y:auto;
+  overscroll-behavior:contain;padding-right:2px;
+  scrollbar-width:thin;scrollbar-color:var(--line-2) transparent}
+.char-list::-webkit-scrollbar{width:6px}
+.char-list::-webkit-scrollbar-thumb{background:var(--line-2)}
+/* filmstrip: avatar quadrado; o nome fica só pra leitor de tela (a ficha diz quem é).
+   A miniatura continua sendo o retrato 128² do main.js — aqui exibido a 76 px. */
+.char-row{position:relative;display:block;width:76px;height:76px;flex:0 0 76px;padding:0;cursor:pointer;
+  background:rgba(var(--bg-800-rgb),.9);border:1px solid var(--line);clip-path:var(--cut-sm);
+  transition:border-color var(--t) var(--ease),transform var(--t) var(--ease)}
+.char-row img{width:100%;height:100%;display:block}
+.char-row span{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.char-row:hover,.char-row:focus-visible{border-color:var(--line-2);transform:translateX(3px)}
+/* SELECIONADO: amarelo da faixa (era ciano do sistema — ciano é foco, não escolha) */
+.char-row.sel,.char-row[aria-selected="true"]{border-color:var(--br-faixa);box-shadow:inset 3px 0 0 var(--br-faixa)}
+.strip-arrow{background:rgba(var(--bg-800-rgb),.9);border:1px solid var(--line);color:var(--ink-300);cursor:pointer;
+  font-size:14px;line-height:1;padding:6px 0;clip-path:var(--cut-sm);
+  transition:color var(--t) var(--ease),border-color var(--t) var(--ease)}
+.strip-arrow:hover,.strip-arrow:focus-visible{color:var(--br-faixa);border-color:var(--br-faixa)}
+/* A FICHA ABRAÇA O CONTEÚDO (align-self:start) em vez de esticar até o rodapé do palco.
+   Esticada, os quatro blocos terminavam na metade e sobravam ~430px de VAZIO DENTRO do
+   painel antes do botão — buraco emoldurado, que é a pior versão de espaço em branco.
+   Na referência a coluna do meio termina onde o conteúdo termina. O gap sobe pra s-4
+   porque agora ele é o que dá o ritmo entre os blocos. */
+.char-sheet{align-self:start;max-height:100%;
+  display:flex;flex-direction:column;gap:var(--s-4);min-height:0;overflow-y:auto;
+  background:rgba(var(--bg-800-rgb),.9);border:1px solid var(--line);padding:var(--s-5);clip-path:var(--cut);
+  position:relative;text-align:left;scrollbar-width:thin}
+.char-sheet::before{content:"";position:absolute;left:0;top:0;width:4px;height:64px;background:var(--hazard)}
+/* nome e raridade EMPILHADOS: na referência o "ÉPICO" cai numa linha própria embaixo do
+   "PALHAÇO DO MAL" — lado a lado a pastilha disputava a linha do título e apertava o nome */
+.char-info-head{display:flex;flex-direction:column;align-items:flex-start;gap:var(--s-2)}
+#char-info-name{font-size:var(--fs-600);font-weight:700;letter-spacing:var(--tr-2);color:var(--ink-100);
+  text-transform:uppercase;line-height:var(--lh-tight)}
+#char-info-blurb{font-size:var(--fs-200);font-weight:500;color:var(--ink-200);line-height:var(--lh-base)}
+.char-spec small,.char-attrs-block small{display:block;font-family:var(--mono);font-size:var(--fs-50);
+  letter-spacing:var(--tr-3);color:var(--ink-300);text-transform:uppercase;margin-bottom:var(--s-1)}
+.char-spec b{display:block;font-size:var(--fs-300);font-weight:700;letter-spacing:var(--tr-2);
+  color:var(--br-faixa);text-transform:uppercase}
+.char-spec p{font-size:var(--fs-100);font-weight:500;color:var(--ink-200);line-height:var(--lh-base);margin-top:2px}
+/* "USAR PERSONAGEM" quebrava em DUAS LINHAS: a coluna do meio tem 360px de teto e sobra
+   ~280px de conteúdo, e o texto vinha em --fs-600 com tracking de título. Na referência
+   é uma linha só. O `nowrap` é o contrato — se o corpo crescer de novo, estoura visível
+   em vez de dobrar em silêncio. Preenchimento e cor vêm do `.btn-big`. */
+#char-confirm{margin-top:auto;align-self:stretch;white-space:nowrap;
+  font-size:var(--fs-400);letter-spacing:var(--tr-2);padding:var(--s-3) var(--s-4)}
+/* SEM MOLDURA (referência 03): lá o personagem ocupa o terço direito inteiro, sangrando
+   pro fundo da página. No jogo eram DUAS bordas concêntricas — a caixa e o canvas — e o
+   boneco ficava pequeno dentro delas, parecendo item de inventário em vez de o retrato
+   da tela. Tirando as duas o canvas ganha os 58→72vh e o personagem vira o assunto. */
+.char-preview-box{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:var(--s-2);
+  min-width:0;min-height:0;position:relative;background:none;border:0;padding:0}
+/* Canvas fluido: cresce com a janela (a altura aperta primeiro em 3:2). Backing 640². */
+#char-preview{flex:0 1 auto;cursor:grab;touch-action:none;
+  background:
+    radial-gradient(ellipse at 50% 30%,rgba(57,214,224,.10),rgba(0,0,0,0) 62%),
+    radial-gradient(ellipse at 50% 100%,rgba(var(--bg-600-rgb),.55),rgba(var(--bg-900-rgb),0) 72%);
+  border:0;width:min(100%,72vh);height:auto;aspect-ratio:1}
+#char-preview:active{cursor:grabbing}
+.pv-hints{display:flex;gap:var(--s-5);font-family:var(--mono);font-size:var(--fs-50);
+  letter-spacing:var(--tr-2);color:var(--ink-300)}
 
 /* ---------- settings / howto ---------- */
-.set-row{display:flex;align-items:center;gap:14px;width:100%;justify-content:space-between;font-size:14px;letter-spacing:1px}
-.set-row input[type=range]{flex:1;accent-color:var(--yellow)}
-.set-row select{font-family:inherit;background:#221e14;color:var(--hud);border:1px solid #6b5c34;padding:6px 10px;border-radius:4px}
-.howto-grid{display:grid;grid-template-columns:auto auto;gap:8px 26px;font-size:13px;letter-spacing:1px;text-align:left}
-.howto-grid span:nth-child(odd){color:var(--yellow)}
+/* LINHA DE AJUSTE (referência 07_configuracoes.png): rótulo à ESQUERDA em letra miúda
+   espaçada, controle à DIREITA, cada linha numa faixa própria com respiro generoso — não
+   uma lista apertada com um <select> de sistema pendurado no fim. O valor escolhido vem
+   em ÂMBAR, que é o que faz a linha ser lida de relance ("ULTRA", "1920x1080", "LIGADO"). */
+.set-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(150px,auto);align-items:center;
+  gap:var(--s-4);width:100%;
+  font-family:var(--font);font-size:var(--fs-200);font-weight:700;letter-spacing:var(--tr-2);
+  text-transform:uppercase;color:var(--ink-200);
+  padding:var(--s-3) var(--s-3);background:rgba(var(--bg-800-rgb),.55);
+  border-bottom:1px solid rgba(255,255,255,.05)}
+.set-row:hover{color:var(--ink-100);background:rgba(var(--bg-700-rgb),.7)}
+/* linha de deslizador: trilho, botão e o NÚMERO na ponta direita, como na referência */
+.set-row:has(input[type=range]){grid-template-columns:minmax(0,1fr) minmax(120px,180px) 46px}
+.set-row input[type=range]{width:100%;accent-color:var(--br-faixa)}
+.set-row>span{font-family:var(--mono);font-size:var(--fs-100);color:var(--am);text-align:right;letter-spacing:var(--tr-1)}
+/* o <select> perde a cara de controle de sistema e vira valor âmbar + seta, como lá.
+   A seta é um data-URI inline: nada de arquivo novo e nada de requisição extra. */
+.set-row select{appearance:none;-webkit-appearance:none;font-family:var(--mono);
+  font-size:var(--fs-100);letter-spacing:var(--tr-1);text-transform:uppercase;
+  background:rgba(var(--bg-900-rgb),.55) no-repeat right var(--s-3) center/9px 6px;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 9 6'%3E%3Cpath fill='%23ffc93f' d='M0 0h9L4.5 6z'/%3E%3C/svg%3E");
+  color:var(--am);border:1px solid var(--line);width:100%;
+  padding:8px var(--s-6) 8px var(--s-3);cursor:pointer;transition:border-color var(--t) var(--ease)}
+.set-row select:hover,.set-row select:focus-visible{border-color:var(--br-faixa)}
+.set-row select option{background:var(--bg-800);color:var(--ink-100)}
+#set-xhair{font-weight:700}
+/* settings com abas (padrão CS2/Valorant): trilha de tabs em cima, um pane por categoria.
+   Aba ativa = amarelo da faixa, o MESMO acento do CTA — aba e botão contam a mesma história. */
+/* A TELA INTEIRA, não um cartão de 560px boiando no preto (referência 07): lá as abas
+   atravessam a largura, os ajustes ocupam a coluna esquerda e uma amostra do jogo mora
+   na direita. O painel antigo tinha 560px com UMA linha dentro e ~600px de vazio
+   embaixo — a captura mostrava um cartãozinho perdido no meio de uma tela preta. */
+.settings-wrap{display:flex;flex-direction:column;gap:var(--s-5);width:min(1120px,94vw);align-items:stretch;text-align:left}
+.set-cols{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:var(--s-6);align-items:start}
+.set-list{min-width:0}
+/* amostra: captura real de mapa do jogo, do mesmo naipe da imagem da referência */
+/* 240px e não 320: a aba VÍDEO do jogo tem UMA linha de ajuste (a referência desenha
+   sete), então uma amostra alta demais abre um vazio do tamanho dela na coluna da
+   esquerda. Aqui a altura da amostra é o que define o fôlego das duas colunas. */
+.set-preview{min-height:min(34vh,240px);border:1px solid var(--line);clip-path:var(--cut);
+  background:var(--bg-800) url('/img/map-previews/fy_quebrada.jpg') center/cover no-repeat}
+/* barra de ação com fio em cima e o CTA à direita, como o rodapé da referência */
+.set-actions{display:flex;justify-content:flex-end;gap:var(--s-3);
+  padding-top:var(--s-4);border-top:1px solid var(--line)}
+@media(max-width:900px){.set-cols{grid-template-columns:minmax(0,1fr)}.set-preview{display:none}}
+.set-tabs{display:flex;gap:2px;border-bottom:1px solid var(--line)}
+.set-tab{flex:1;font-family:var(--font);font-weight:700;font-size:var(--fs-200);letter-spacing:var(--tr-2);
+  color:var(--ink-300);background:transparent;border:0;border-bottom:2px solid transparent;cursor:pointer;
+  padding:var(--s-2) var(--s-3);text-transform:uppercase;
+  transition:color var(--t) var(--ease),border-color var(--t) var(--ease)}
+.set-tab:hover,.set-tab:focus-visible{color:var(--ink-100)}
+.set-tab.active{color:var(--br-faixa);border-bottom-color:var(--br-faixa)}
+/* gap 2px e não s-4: na referência as faixas de ajuste são vizinhas, quase encostadas —
+   o respiro mora DENTRO da faixa (padding), não entre elas. */
+.set-pane{display:flex;flex-direction:column;gap:2px;min-height:110px}
+.settings-save{align-self:auto}
+/* abas à esquerda e não esticadas: com `flex:1` quatro abas ocupavam 1120px e viravam
+   quatro botões gigantes; a referência tem seis abas juntinhas alinhadas à esquerda */
+.set-tabs{gap:var(--s-2)}
+.set-tab{flex:0 0 auto;padding:var(--s-2) var(--s-4)}
 
-/* ---------- HUD (CS 1.6 flavor) ---------- */
-#hud{position:fixed;inset:0;z-index:20;pointer-events:none;font-family:Tahoma,Verdana,sans-serif}
-#radar{position:absolute;top:14px;left:14px;opacity:.9}
-#radio-log{position:absolute;top:172px;left:14px;font-size:12px;color:var(--cs);text-shadow:0 1px 0 #000}
+/* ---------- pause ---------- */
+/* Fundo translúcido em vez do gradiente opaco de .screen: a partida pausada continua
+   visível atrás (o canvas segue renderizando congelado) — o jogador não perde o contexto. */
+/* ---------- 06 menu de pausa (referência 06_menu_pausa.png) ----------
+   Lá: título ÂMBAR solto sobre o cenário borrado, e embaixo um painel fechado com CINCO
+   FILAS coladas ocupando a largura inteira dele — a primeira SÓLIDA em âmbar, as outras
+   quatro chapadas. O jogo tinha título branco com régua de tinta embaixo e cinco pílulas
+   de contorno espaçadas, que liam como cinco opções de igual peso dentro de uma caixa
+   grande demais. */
+#pause-menu{background:rgba(var(--bg-900-rgb),.78)}
+/* NA PAUSA O HUD RECUA. Na referência 06 não há vida/munição/placar na tela: o assunto
+   é o menu. Sem isso a dica "ESC CONTINUAR" (que a referência põe no canto inferior
+   esquerdo) caía EM CIMA do bloco de vida, que mora no mesmo canto — texto sobre texto.
+   O `:has()` espelha o estado que o main.js já mantém na classe `.hidden`, sem pedir uma
+   linha de JS: mesma manobra usada pra separar as colunas de time no placar da tela 08. */
+body:has(#pause-menu:not(.hidden)) #hud{opacity:.12;transition:opacity var(--t) var(--ease)}
+#pause-menu .screen-title{color:var(--br-faixa);padding-bottom:0}
+#pause-menu .screen-title::after{display:none}   /* a referência não tem régua aqui */
+#pause-menu .panel::before{display:none}         /* nem a barra de risco no canto */
+#pause-menu .panel{padding:var(--s-4)}
+.pause-actions{display:flex;flex-direction:column;gap:4px;min-width:min(420px,86vw);text-align:center}
+/* FILAS, não pílulas: sem contorno, chapadas, coladas uma na outra. O CONTINUAR fica
+   sólido (vem do `.btn-big`) e é o único com peso — é a leitura da referência.
+   O `:not(.btn-big)` NÃO É ENFEITE: sem ele esta regra (0,2,0) ganha do `.btn-big`
+   (0,1,0) e repinta o fundo do CONTINUAR de escuro SEM mexer na cor do texto, que o
+   `.btn-big` deixou escura — botão principal preto no preto. Aconteceu, foi visto na
+   captura, está aqui pra não voltar. */
+.pause-actions .btn{width:100%}
+.pause-actions .btn:not(.btn-big){border-color:transparent;background:rgba(var(--bg-700-rgb),.55)}
+.pause-actions .btn:not(.btn-big):hover,
+.pause-actions .btn:not(.btn-big):focus-visible{background:rgba(var(--bg-500-rgb),.9);border-color:var(--line-2)}
+/* DICA NO CANTO INFERIOR ESQUERDO com a tecla em cápsula, como na referência — era texto
+   solto centralizado no rodapé, onde competia com o painel pelo eixo central. */
+#pause-menu .footnote{left:min(4vw,42px);bottom:26px;color:var(--ink-300);letter-spacing:var(--tr-2);
+  display:flex;align-items:center;gap:var(--s-2)}
+#pause-menu .footnote kbd{font-family:var(--mono);font-size:var(--fs-50);letter-spacing:var(--tr-1);
+  color:var(--ink-200);background:rgba(var(--bg-700-rgb),.9);border:1px solid var(--line-2);
+  padding:3px 8px;clip-path:var(--cut-sm)}
+.howto-grid{display:grid;grid-template-columns:auto auto;gap:var(--s-2) var(--s-5);font-size:var(--fs-200);
+  font-weight:600;letter-spacing:var(--tr-1);text-align:left;color:var(--ink-200)}
+.howto-grid span:nth-child(odd){color:var(--br-faixa);font-family:var(--mono);font-size:var(--fs-100)}
+
+/* ---------- HUD ---------- */
+/* MARGENS DO HUD — desvio 2 do BUG-05, medido e não achado. `ref-ui.py` dá, no consenso
+   das 9 telas, esq 4,49% / dir 3,12% / base 3,50% da tela. A mesma medição sobre a captura
+   do HUD do jogo dava esq 1,17% / dir 0,98% / base 0,00%: o HUD estava COLADO na moldura.
+   Traduzido para o enquadramento do dono (3:2, 1536×1024): 69 / 48 / 36 px.
+
+   POR QUE PX E NÃO vw/vh, já que a referência é FRAÇÃO: a UI3 só concede a isenção de
+   "elemento de canto" a quem ancora em PX (`emPx` em ui-check.mjs:637 — a convenção do
+   gênero: munição e vida no canto, e o viewmodel do CS 1.6 sai pelas duas bordas). Trocar
+   por vw faria o bloco de munição virar "flutuante" aos olhos da régua e reprovar por
+   invadir a zona da arma — melhoria de layout que acende portão é regressão. */
+#hud{position:fixed;inset:0;z-index:20;pointer-events:none;font-family:var(--font);font-weight:600;
+  --hud-x:68px;   /* 4,5% de 1536 */
+  --hud-xr:48px;  /* 3,1% de 1536 */
+  --hud-y:36px}   /* 3,5% de 1024 */
+/* HUD SEM CAIXA E SEM SCRIM — pedido do dono: "o placar e as informações embaixo não
+   precisam de background, pode ser transparente".
+
+   O QUE ESTAVA AQUI e por que sai: um scrim de canto (dois radial-gradient .84 → 0)
+   escurecendo a ZONA do HUD, porque no Piscinão o "100" cai sobre areia clara
+   (RGB 214,196,164, o pior fundo dos 4 mapas) e no awp_map o relógio cai sobre parede
+   branca. Sem ele, medido na época: "100" dava 1,49:1 e o rótulo 1,14:1.
+
+   O QUE SUBSTITUI: contorno no GLIFO em vez de caixa atrás dele — é como todo FPS
+   resolve HUD sem moldura. Não é invenção desta rodada: o `--sh-hud` (contorno preto
+   de 2px colado no glifo) já era o recurso do resto do HUD, e a UI1 já o CREDITA como
+   fundo real do texto (`fundoEfetivo`, ui-check.mjs:389 — "contorno de texto = fundo
+   real do glifo"). Os números grandes ganham por cima um `-webkit-text-stroke` com
+   `paint-order:stroke fill`, que pinta o traço ATRÁS do preenchimento e dá separação
+   óptica sobre areia clara sem engordar o algarismo.
+
+   O QUE CONTINUA COM FUNDO, e não é esquecimento: `#hp-bar`. Barra é OBJETO GRÁFICO, e
+   a UI1 não dá crédito de contorno pra objeto gráfico (ui-check.mjs:480 — "o que o olho
+   compara é PREENCHIMENTO ×"). Sem trilho próprio, não existe barra.
+
+   O crédito de scrim FOI TIRADO DA RÉGUA JUNTO (`alfaScrim` devolve 0): deixar a régua
+   somando um scrim que não existe mais seria medir a favor do código.
+
+   `#pickup-hint` e `#respawn-overlay` MANTÊM fundo próprio: são avisos passageiros, não
+   o HUD permanente de que o dono falou. */
+/* contorno forte só nos ALGARISMOS grandes — é onde a leitura acontece a 2m da tela */
+#hp-num,#ammo,#round-time{paint-order:stroke fill;-webkit-text-stroke:3px rgba(0,0,0,.5)}
+#radar{position:absolute;top:36px;left:68px;opacity:.92;border-radius:50%;
+  box-shadow:0 0 0 1px rgba(120,220,220,.10),0 2px 10px rgba(0,0,0,.45)}
+#radio-log{position:absolute;top:194px;left:68px;font-size:13px;color:var(--cs);text-shadow:var(--sh-hud)}
 .radio-line{animation:kfFade 4.2s forwards;margin-bottom:2px}
-#radio-menu{position:absolute;top:200px;left:14px;background:rgba(8,10,6,.85);border:1px solid #4a5a2a;padding:10px 16px;min-width:220px}
-.radio-title{color:#ffd23f;font-size:12px;letter-spacing:2px;margin-bottom:6px;border-bottom:1px solid #4a5a2a;padding-bottom:4px}
+#radio-menu{position:absolute;top:222px;left:68px;background:rgba(11,17,22,.92);border:1px solid var(--line);padding:10px 16px;min-width:220px}
+.radio-title{color:var(--yellow);font-size:12px;letter-spacing:2px;margin-bottom:6px;border-bottom:1px solid var(--line);padding-bottom:4px}
 .radio-item{color:var(--cs);font-size:14px;padding:2px 0}
+/* Mira: FORA do sistema de cor (não é "sistema", nem "objetivo", nem "crítico").
+   CIANO por padrão (ver --xhair), e a cor é escolhida pelo jogador em CONFIGURAÇÕES.
+   O gap (--ch) é escrito pelo game.js a cada frame = spread dinâmico real.
+
+   CONTORNO ADAPTATIVO em duas camadas, sem shader e sem ler pixel:
+     miolo claro/saturado  -> resolve fundo ESCURO;
+     anel preto de 1,5px colado (sem blur) -> resolve fundo CLARO;
+     halo preto difuso de 6px -> resolve fundo de MÉDIO tom e ruidoso (mato, sucata).
+   Como as três camadas são concêntricas, sempre existe uma aresta de ΔL* alto entre a
+   mira e o que estiver atrás dela, qualquer que seja o fundo. Era 1px .85 — o anel fino
+   sumia no antialias em 1600×900 e o ganho medido não cobria a parede branca. */
 #crosshair{position:absolute;left:50%;top:50%;width:0;height:0;--ch:6px}
-#crosshair i{position:absolute;background:#7dff9a;box-shadow:0 0 4px #000}
-#crosshair i:nth-child(1){left:-1px;top:calc(-8px - var(--ch));width:2px;height:8px}
-#crosshair i:nth-child(2){left:-1px;top:var(--ch);width:2px;height:8px}
-#crosshair i:nth-child(3){left:calc(-8px - var(--ch));top:-1px;width:8px;height:2px}
-#crosshair i:nth-child(4){left:var(--ch);top:-1px;width:8px;height:2px}
-#crosshair b{position:absolute;left:-1px;top:-1px;width:2px;height:2px;background:#7dff9a}
-#hitmarker{position:absolute;left:50%;top:50%;opacity:0;transform:scale(.6);transition:opacity .05s}
-#hitmarker.show{opacity:1;transform:scale(1)}
-#hitmarker.kill i{background:#ff3b3b;box-shadow:0 0 8px #ff3b3b}
-#hitmarker i{position:absolute;width:14px;height:3px;background:#fff;box-shadow:0 0 6px #000}
+#crosshair i{position:absolute;background:var(--xhair);
+  box-shadow:0 0 0 1.5px rgba(0,0,0,.92),0 0 6px rgba(0,0,0,.6)}
+#crosshair i:nth-child(1){left:-1px;top:calc(-9px - var(--ch));width:2px;height:9px}
+#crosshair i:nth-child(2){left:-1px;top:var(--ch);width:2px;height:9px}
+#crosshair i:nth-child(3){left:calc(-9px - var(--ch));top:-1px;width:9px;height:2px}
+#crosshair i:nth-child(4){left:var(--ch);top:-1px;width:9px;height:2px}
+#crosshair b{position:absolute;left:-1px;top:-1px;width:2px;height:2px;background:var(--xhair);
+  box-shadow:0 0 0 1.5px rgba(0,0,0,.92),0 0 5px rgba(0,0,0,.55)}
+/* ADS de rifle (R7.6): variante fina de precisão — braços 1px mais longos, gap mínimo */
+#crosshair.prec i:nth-child(1),#crosshair.prec i:nth-child(2){left:-.5px;width:1px;height:12px}
+#crosshair.prec i:nth-child(1){top:calc(-12px - var(--ch))}
+#crosshair.prec i:nth-child(3),#crosshair.prec i:nth-child(4){top:-.5px;height:1px;width:12px}
+#crosshair.prec i:nth-child(3){left:calc(-12px - var(--ch))}
+#crosshair.prec b{left:-.5px;top:-.5px;width:1px;height:1px}
+#hitmarker{position:absolute;left:50%;top:50%;opacity:0;transform:scale(.6)}   /* sem transition: o acerto aparece com opacidade 1 no PRIMEIRO frame (crítico R7.5) */
+#hitmarker.show{opacity:1;transform:scale(1);animation:hmPop .16s cubic-bezier(.16,1,.3,1)}
+#hitmarker.kill i{background:#ff3b3b;box-shadow:0 0 6px rgba(255,59,59,.8)}
+#hitmarker i{position:absolute;width:14px;height:3px;background:#fff;box-shadow:0 0 0 1px rgba(0,0,0,.7)}
 #hitmarker i:nth-child(1){transform:translate(-16px,-12px) rotate(45deg)}
 #hitmarker i:nth-child(2){transform:translate(3px,-12px) rotate(-45deg)}
 #hitmarker i:nth-child(3){transform:translate(-16px,9px) rotate(-45deg)}
 #hitmarker i:nth-child(4){transform:translate(3px,9px) rotate(45deg)}
+@keyframes hmPop{0%{transform:scale(1.2)}100%{transform:scale(1)}}
+
+/* damage numbers flutuantes (CoD): sobem e esmaecem; headshot âmbar, kill vermelho */
+#dmg-numbers{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.dmg-num{position:absolute;transform:translate(-50%,-50%);font-family:var(--font);font-size:23px;font-weight:800;
+  color:#fff;
+  text-shadow:1.5px 0 0 rgba(0,0,0,.85),-1.5px 0 0 rgba(0,0,0,.85),0 1.5px 0 rgba(0,0,0,.85),0 -1.5px 0 rgba(0,0,0,.85),
+    1px 1px 0 rgba(0,0,0,.85),-1px -1px 0 rgba(0,0,0,.85),1px -1px 0 rgba(0,0,0,.85),-1px 1px 0 rgba(0,0,0,.85),0 0 8px rgba(0,0,0,.6);
+  animation:dmgRise .85s ease-out forwards}
+.dmg-num.head{color:var(--am)}
+.dmg-num.kill{color:#ff5030}
+@keyframes dmgRise{0%{opacity:1;transform:translate(-50%,-50%) scale(1.4)}
+  15%{transform:translate(-50%,-62%) scale(1)}
+  45%{opacity:1}
+  100%{opacity:0;transform:translate(-50%,-160%) scale(.94)}}
 #scope-overlay{position:absolute;inset:0;display:none;background:radial-gradient(circle at 50% 50%,transparent 0 31vmin,rgba(0,0,0,.985) 32vmin)}
 #scope-overlay.on{display:block}
 .scope-circle{position:absolute;left:50%;top:50%;width:62vmin;height:62vmin;transform:translate(-50%,-50%);
@@ -187,62 +737,1045 @@ body{font-family:"Arial Black",Impact,Haettenschweiler,"Segoe UI",sans-serif;col
 .scope-line.h{left:50%;top:50%;width:62vmin;height:1px;transform:translate(-50%,0)}
 .scope-line.v{left:50%;top:50%;width:1px;height:62vmin;transform:translate(0,-50%)}
 #damage-vignette{position:absolute;inset:0;opacity:0;box-shadow:inset 0 0 140px 60px rgba(220,20,20,.75);transition:opacity .09s}
-#mk-banner{position:absolute;left:0;right:0;top:26%;text-align:center;font-family:"Arial Black",Impact,sans-serif;
-  font-size:46px;letter-spacing:6px;color:#ff5030;text-shadow:0 3px 0 #000,0 0 30px rgba(255,80,30,.6);
-  opacity:0;transform:scale(1.4);transition:all .12s;pointer-events:none}
-#mk-banner.show{opacity:1;transform:scale(1)}
-#hud-top{position:absolute;top:14px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:22px}
-.team-score{font-size:16px;letter-spacing:2px;padding:5px 12px;border-radius:3px;background:rgba(0,0,0,.55)}
-.ts-p{color:#ff8080;border:1px solid var(--red)}
-.ts-b{color:#9dff9d;border:1px solid var(--green)}
-#hud-mid{text-align:center}
-#round-time{font-size:30px;color:#f0e8c8;text-shadow:0 2px 0 #000;font-family:Consolas,monospace}
-#rounds-row{font-size:11px;letter-spacing:2px;color:#c9bfa4}
-#killfeed{position:absolute;top:70px;right:18px;display:flex;flex-direction:column;gap:4px;align-items:flex-end;font-size:12px}
-.kf-row{background:rgba(0,0,0,.6);padding:4px 10px;border-radius:3px;animation:kfFade 4.5s forwards}
-.kf-row .kp{color:#ff8080}.kf-row .kb{color:#9dff9d}.kf-row .kx{color:var(--yellow);font-size:11px}
+/* Indicador direcional de dano: cunha vermelha apontando pra origem do tiro.
+   Ganhou contorno escuro (era invisível contra parede clara) e ficou mais fina —
+   um triângulo de 104px de base competia com o centro da tela. */
+#dmg-dir{position:absolute;left:50%;top:50%;width:230px;height:230px;margin:-115px 0 0 -115px;opacity:0;
+  transition:opacity var(--t) var(--ease);pointer-events:none;
+  filter:drop-shadow(0 0 3px rgba(0,0,0,.9))}
+#dmg-dir::before{content:'';position:absolute;left:50%;top:-2px;transform:translateX(-50%);
+  border-left:42px solid transparent;border-right:42px solid transparent;border-top:26px solid rgba(255,60,60,.92)}
+#mk-banner{position:absolute;left:0;right:0;top:26%;text-align:center;font-weight:700;
+  font-size:46px;letter-spacing:20px;color:#ff5030;text-transform:uppercase;
+  text-shadow:0 2px 4px rgba(0,0,0,.8);
+  opacity:0;transform:scale(1.35);transition:all .16s cubic-bezier(.16,1,.3,1);pointer-events:none}
+#mk-banner.show{opacity:1;transform:scale(1);letter-spacing:8px}
+/* PROTEGIDO é estado DO JOGADOR: mora junto da vida (canto inferior esquerdo), não no
+   centro superior — ali colidia com a faixa de objetivos do CTF e disputava o centro. */
+#prot-badge{position:absolute;left:68px;bottom:108px;
+  font-weight:700;font-size:var(--fs-200);letter-spacing:var(--tr-2);color:var(--am);
+  text-shadow:var(--sh-hud);pointer-events:none}
+#prot-badge svg{vertical-align:-2px;margin-right:5px}   /* inline: flex separava o "3" do "s" */
+/* --- BLOCO SUPERIOR: altura DETERMINÍSTICA ---------------------------------
+   O bug da barra de CTF sobre "RODADA 1" era aritmética de caixa: #round-time
+   não tinha line-height, então o Rajdhani em `normal` (~1.55em) empurrava o
+   bloco pra ~80px enquanto #ctf-hud estava fixo em 62px — e o valor mudava se
+   a fonte caísse pro Arial Narrow. Agora cada linha tem line-height fixo e a
+   soma é conferível: 14 (top) + 32 + 5 + 15.6 ≈ 67px → CTF em 76px.
+   ATUALIZAÇÃO: #hud-mid ganhou uma plaquinha (padding 1px em cima + 2px embaixo),
+   então a soma vira 14 + 1 + 32 + 5 + 15.6 + 2 ≈ 70px — ainda 6px acima do CTF
+   em 76px. Se alguém aumentar esse padding, o topo do #ctf-hud tem que subir junto. */
+/* UM BLOCO SÓ, não três chips soltos (referência 05_hud_ingame.png): lá o topo é uma
+   peça contínua — tarja do time, placar, relógio, placar, tarja do time. Com gap s-5 os
+   três pedaços boiavam separados por ~40px e nada dizia que eram o mesmo painel. */
+#hud-top{position:absolute;top:36px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:var(--s-2)}
+/* SEM CAIXA (pedido do dono). O time continua legível por COR do texto + o trilho de 3px
+   na borda externa, que é marca de time sem virar moldura. O contorno do --sh-hud é o
+   que segura o contraste sobre parede branca agora que não há mais fundo. */
+.team-score{font-size:var(--fs-300);font-weight:700;letter-spacing:var(--tr-2);line-height:var(--lh-snug);
+  padding:var(--s-1) var(--s-3);text-shadow:var(--sh-hud)}
+.ts-p{color:#ff9a9a;border-left:3px solid var(--team-e)}
+.ts-b{color:#a9f0b6;border-right:3px solid var(--team-b)}
+/* A plaquinha do bloco central saiu junto: era rgba .72 + chanfro pra segurar o "1:39"
+   (branco) sobre a parede branca do awp_map, onde dava ~1,1:1. Quem segura agora é o
+   contorno do glifo (--sh-hud + text-stroke). O padding vertical FICA: ele entra na soma
+   de altura documentada acima, que é o que mantém o #ctf-hud fora do "RODADA 1". */
+#hud-mid{text-align:center;padding:1px var(--s-3) 2px}
+#round-time{font-size:var(--fs-700);line-height:var(--lh-tight);font-weight:700;color:var(--ink-100);
+  font-family:var(--font);font-variant-numeric:tabular-nums;text-shadow:var(--sh-hud)}
+/* CAPTURA: o maior tipo do topo mostra BANDEIRAS, não segundo. O `.ctf` sobrou de quando
+   o modo tinha relógio e o relógio precisava encolher; hoje o #round-time do CTF já é o
+   placar de bandeiras e usa o corpo cheio. A regra fica porque o kill-switch ?vmmat/?pace
+   e o modo legado ainda podem escrever a classe. */
+#round-time.ctf{font-size:var(--fs-300);letter-spacing:var(--tr-3);color:var(--am)}
+/* Últimos CTF_CLOCK_SHOW segundos da PARTIDA (game.js:108): o placar de bandeiras pulsa em
+   âmbar. É o único aviso de tempo do modo, e ele é de PARTIDA — nunca de round. */
+#round-time.urgente{color:var(--am);animation:blink 1s steps(2) infinite}
+#rounds-row{font-size:var(--fs-50);line-height:var(--lh-snug);font-weight:600;letter-spacing:var(--tr-3);
+  color:var(--ink-200);text-transform:uppercase;margin-top:5px;text-shadow:var(--sh-hud);
+  font-variant-numeric:tabular-nums}
+/* Faixa de objetivos do CTF: banda própria abaixo do bloco de round, com largura
+   TETO (não empurra mais o killfeed nem cresce com o nome do ponto). */
+#ctf-hud{position:absolute;top:98px;left:50%;transform:translateX(-50%);
+  display:flex;align-items:center;justify-content:center;gap:var(--s-2);
+  font-family:var(--font);font-weight:700;font-size:var(--fs-100);letter-spacing:var(--tr-1);
+  text-transform:uppercase;text-shadow:var(--sh-hud);pointer-events:none;white-space:nowrap;
+  max-width:min(62vw,720px);overflow:hidden;text-overflow:ellipsis;
+  padding:var(--s-1) var(--s-3)}
+/* SEM PAINEL (pedido do dono, 06/08: "tirar o bg e deixar transparente"). A história de
+   contraste que criou o painel .92 não se perde: quem precisava dos 3:1 da WCAG 1.4.11 era
+   a BARRA de captura (1,40:1 sobre a areia do Piscinão, ui-check UI1) — e a barra hoje
+   carrega o PRÓPRIO poço escuro (preto .55 + fio claro de 1 px, montado inline no
+   _updateCtfHud do game.js), então o painel da faixa inteira virou redundância. O texto
+   segue legível pelo contorno do --sh-hud, que vale pra glifo. Se a UI1 reprovar de novo,
+   engrossa o poço da barra — não devolve o painel. */
+/* irmão POSTERIOR no DOM: quando a faixa de CTF existe, o killfeed desce. */
+#ctf-hud:not(.hidden) ~ #killfeed{top:136px}
+#killfeed{position:absolute;top:98px;right:48px;display:flex;flex-direction:column;gap:var(--s-1);
+  align-items:flex-end;font-size:var(--fs-200);font-weight:600;max-width:min(42vw,460px)}
+.kf-row{display:flex;align-items:center;gap:var(--s-2);background:rgba(var(--bg-900-rgb),.82);padding:5px var(--s-3);
+  border-left:2px solid var(--line);clip-path:var(--cut-sm);animation:kfFade 4.5s forwards;
+  text-shadow:var(--sh-text)}
+.kf-row .kf-n{font-weight:700;letter-spacing:var(--tr-tight);padding:1px 7px;border-radius:var(--r-1)}   /* bg/color inline: tint do time + texto na cor do time */
+.kf-row .kf-w{color:var(--ink-300);font-family:var(--mono);font-size:var(--fs-50);letter-spacing:var(--tr-1);text-transform:uppercase}
+.kf-row .kf-ic{color:var(--ink-100);opacity:1;flex:0 0 auto}   /* ícone da arma: branco cheio (era .95 sobre céu claro) */
+.kf-row .kf-skull{color:var(--am)}                              /* headshot = conquista → âmbar, não mais um branco igual ao resto */
+/* ATENÇÃO: `//` NÃO é comentário em CSS. As duas linhas abaixo usavam `//` e o parser
+   engolia a regra .me-vic INTEIRA e o @keyframes kfFade seguinte — killfeed e rádio
+   apareciam/sumiam em corte seco e "VOCÊ morreu" nunca ficava vermelho. */
+/* AS DUAS LINHAS QUE MAIS IMPORTAM ERAM AS MENOS LEGÍVEIS. `background` é atalho, e
+   `.kf-row.me-atk` (especificidade 20) SUBSTITUÍA o `background:rgba(var(--bg-900-rgb),.82)` do
+   `.kf-row` (10) — não somava. Resultado: a linha "VOCÊ matou" e a "VOCÊ morreu" perdiam
+   o scrim escuro e ficavam com um tingimento de 16-18% sobre a cena. Medido em
+   tools/eval/ui-check.mjs (UI1), sobre a areia do Piscinão: ícone da arma 1,54:1, caveira
+   de headshot 1,00:1, nome do time 1,01:1 — a linha neutra, que mantém o scrim, dá 12,6:1.
+   Agora o tingimento vem DENTRO de uma cor opaca o bastante (.92): mesma leitura de cor,
+   com fundo de verdade (>= 5,4:1 em tudo). */
+.kf-row.me-atk{background:rgba(9,38,42,.92);border-left-color:var(--sys)}      /* VOCÊ matou */
+.kf-row.me-vic{background:rgba(44,10,10,.92);border-left-color:var(--crit)}    /* VOCÊ morreu */
 @keyframes kfFade{0%{opacity:0;transform:translateX(20px)}8%{opacity:1;transform:none}80%{opacity:1}100%{opacity:0}}
-#hud-bottom-left{position:absolute;left:22px;bottom:20px}
-#hp-row{display:flex;align-items:baseline;gap:8px}
-#hp-cross{color:var(--cs);font-size:22px;text-shadow:0 2px 0 #000}
-#hp-num{font-size:38px;color:var(--cs);text-shadow:0 2px 0 #000;font-family:Consolas,monospace}
-#hp-num.low{color:#ff5b5b}
-#hp-bar{width:200px;height:8px;background:rgba(0,0,0,.6);border:1px solid #445;border-radius:2px;overflow:hidden;margin-top:2px}
-#hp-fill{height:100%;width:100%;background:var(--cs);transition:width .15s}
-#hp-fill.low{background:#ff5b5b}
-#hud-bottom-right{position:absolute;right:26px;bottom:20px;text-align:right}
-#weapon-name{font-size:12px;letter-spacing:2px;color:var(--yellow);margin-bottom:2px;text-shadow:0 1px 0 #000}
-#ammo{font-size:38px;color:var(--cs);text-shadow:0 2px 0 #000;font-family:Consolas,monospace}
-#ammo-mag.empty{color:#ff5b5b}
-.ammo-sep{color:#6b7b4a;margin:0 8px;font-size:24px}
-#ammo-reserve{font-size:24px;color:#9aab6a}
-#reload-note{font-size:12px;letter-spacing:2px;color:var(--yellow);animation:blink .5s steps(2) infinite}
+/* --- VIDA / MUNIÇÃO: neutros por padrão, coloridos SÓ em estado crítico ---------
+   Antes vida, munição, mira, rádio e radar eram o MESMO ciano: cor saturada sem
+   significado, o olho tinha que ler o número pra saber o que era. Agora o número
+   grande é branco (hierarquia por tamanho/peso) e a cor só entra como alarme. */
+#hud-bottom-left{position:absolute;left:68px;bottom:36px}
+#hp-row{display:flex;align-items:baseline;gap:var(--s-2)}
+#hp-num{font-size:var(--fs-800);line-height:var(--lh-tight);font-weight:700;color:var(--ink-100);
+  font-family:var(--font);font-variant-numeric:tabular-nums;text-shadow:var(--sh-hud);
+  transition:color var(--t-fast)}
+/* Rótulos pequenos do HUD subiram de --ink-300 (5,5:1 só sobre --bg-800) para --ink-200
+   (10,8:1): sobre a areia clara do Piscinão o ink-300 caía abaixo de AA e nenhum scrim
+   de canto salva 12px de texto. A hierarquia continua vindo do TAMANHO (44px × 12px). */
+/* RÓTULO EMBAIXO DO NÚMERO, e "VIDA" em vez de "HP" (referência 05): lá o rótulo é uma
+   linha miúda SOB o algarismo, não uma sigla pendurada no ombro dele. O text-stroke
+   grosso do #hp-num tinha que ser desfeito aqui: num rótulo de 12px o traço de 3px
+   engole a letra. */
+#hp-num::after{content:'VIDA';display:block;margin-left:0;font-size:var(--fs-100);
+  letter-spacing:var(--tr-2);color:var(--ink-200);vertical-align:baseline;
+  -webkit-text-stroke:0;line-height:1.1}
+#hp-num.low{color:var(--crit)}
+/* A BARRA MANTÉM FUNDO DE PROPÓSITO: barra é OBJETO GRÁFICO e a UI1 não dá crédito de
+   contorno pra objeto gráfico — sem trilho próprio não existe barra. Preenchimento em
+   âmbar como na referência; o vermelho continua reservado pro alarme. */
+#hp-bar{width:200px;height:6px;background:rgba(var(--bg-900-rgb),.8);border:1px solid var(--line);overflow:hidden;margin-top:var(--s-1);clip-path:var(--cut-sm)}
+#hp-fill{height:100%;width:100%;background:var(--br-faixa);transition:width var(--t),background var(--t-fast)}
+#hp-fill.low{background:var(--crit)}
+/* MUNIÇÃO EM CIMA, NOME DA ARMA EMBAIXO (referência 05: "30 | 90" e só então "AK-47").
+   O DOM vem na ordem contrária e é escrito pelo game.js — `column-reverse` inverte a
+   leitura sem tocar em uma linha de JS, a mesma manobra que virou o placar da tela 08. */
+#hud-bottom-right{position:absolute;right:48px;bottom:36px;text-align:right;
+  display:flex;flex-direction:column-reverse;align-items:flex-end}
+#weapon-name{font-size:var(--fs-200);font-weight:700;letter-spacing:var(--tr-2);color:var(--ink-200);
+  margin-bottom:var(--s-1);text-transform:uppercase;text-shadow:var(--sh-hud)}
+#ammo{font-size:var(--fs-800);line-height:var(--lh-tight);font-weight:700;color:var(--ink-100);
+  font-family:var(--font);font-variant-numeric:tabular-nums;text-shadow:var(--sh-hud)}
+#ammo-mag{transition:color var(--t-fast)}
+#ammo-mag.empty{color:var(--crit)}
+.ammo-sep{color:var(--ink-400);margin:0 var(--s-2);font-size:var(--fs-600)}
+#ammo-reserve{font-size:var(--fs-600);color:var(--ink-200)}
+#smoke-count{font-size:var(--fs-200);color:var(--ink-200);letter-spacing:var(--tr-1);text-shadow:var(--sh-hud)}
+/* text-shadow explícito: o #reload-note era o ÚNICO texto do canto inferior direito sem
+   contorno próprio — ele vivia do scrim de canto, que saiu nesta rodada. Media 5,12:1
+   com scrim; sem contorno cairia pra âmbar sobre areia clara. */
+#reload-note{font-size:var(--fs-200);font-weight:700;letter-spacing:var(--tr-2);color:var(--am);
+  text-shadow:var(--sh-hud);animation:blink .5s steps(2) infinite}
 @keyframes blink{50%{opacity:.25}}
-#round-banner{position:absolute;left:0;right:0;top:32%;text-align:center;text-shadow:0 4px 0 #000,0 0 40px rgba(255,190,60,.4)}
-#banner-title{font-family:"Arial Black",Impact,sans-serif;font-size:52px;letter-spacing:6px;color:var(--yellow)}
-#banner-sub{font-size:18px;letter-spacing:3px;color:var(--hud);margin-top:8px;font-family:Arial,sans-serif}
+#round-banner{position:absolute;left:0;right:0;top:30%;text-align:center;
+  opacity:0;transition:opacity .38s ease;pointer-events:none}
+#round-banner.show{opacity:1}
+/* BANNER × PLACAR — o defeito do print do dono ("BOLSONARISTAS LEVARAM O ROUND"
+   atravessando o painel do placar). Os dois acendiam no MESMO quadro (game.js:_endRound)
+   e as caixas se cruzam POR CONSTRUÇÃO: banner em top:30% (196 px em 655 de altura, bloco
+   de ~100 px, linha mais LARGA que o painel) contra painel centrado em 50% com 350-405 px
+   de altura (8-10 combatentes) — ou seja, ocupando de ~125 px a ~530 px. NÃO EXISTE faixa
+   livre pra onde empurrar o banner: acima dele está o bloco de round do topo (14-104 px) e
+   abaixo o painel. A 1ª tentativa (top:8%) foi desenhada num mock em PIL e caiu em cima do
+   bloco de round — está registrado porque parece a correção óbvia e não é.
+   O QUE FICOU: o resultado da rodada virou o TÍTULO DO PAINEL (game.js:_resultadoDaRodada
+   -> .sb-result), que é o empilhamento das telas 08/09 da referência. A regra abaixo é a
+   garantia estrutural: enquanto o placar estiver aceso, banner nenhum desenha por cima. */
+#hud.sb-on #round-banner{display:none}
+#scoreboard h3 .sb-result{font-size:var(--fs-600);font-weight:700;letter-spacing:var(--tr-3);
+  color:var(--am);text-transform:uppercase;line-height:var(--lh-snug);text-align:center}
+#scoreboard h3 .sb-result-sub{font-size:var(--fs-200);font-weight:600;letter-spacing:var(--tr-1);
+  color:var(--ink-200);text-transform:none;margin-bottom:var(--s-2)}
+#banner-title{font-weight:700;font-size:52px;letter-spacing:8px;color:var(--yellow);text-transform:uppercase;
+  text-shadow:0 2px 6px rgba(0,0,0,.75)}
+#banner-sub{font-size:18px;font-weight:600;letter-spacing:3px;color:var(--ink1);margin-top:10px}
+.banner-rule{width:0;height:2px;margin:12px auto 0;background:var(--yellow);opacity:.85}
+/* entrada cinematográfica: slide/scale do título + settle do letter-spacing + rule que abre */
+#round-banner.show #banner-title{animation:bannerTitle .62s cubic-bezier(.16,1,.3,1) both}
+#round-banner.show .banner-rule{animation:bannerRule .7s cubic-bezier(.16,1,.3,1) .1s both}
+#round-banner.show #banner-sub{animation:bannerSub .6s ease-out .18s both}
+@keyframes bannerTitle{0%{opacity:0;transform:translateY(30px) scale(1.14);letter-spacing:26px}
+  60%{opacity:1}100%{opacity:1;transform:none;letter-spacing:8px}}
+@keyframes bannerRule{0%{width:0;opacity:0}30%{opacity:.85}100%{width:min(340px,40vw);opacity:.85}}
+@keyframes bannerSub{0%{opacity:0;transform:translateY(10px)}100%{opacity:1;transform:none}}
 #lock-hint{position:absolute;left:0;right:0;top:42%;text-align:center;pointer-events:none}
-.lh-title{font-family:"Arial Black",Impact,sans-serif;font-size:30px;letter-spacing:4px;color:var(--cs);
-  text-shadow:0 3px 0 #000,0 0 30px rgba(184,217,74,.5);animation:blink 1s steps(2) infinite}
-.lh-sub{font-size:13px;color:#c9bfa4;margin-top:10px;font-family:Arial,sans-serif}
-#pickup-hint{position:absolute;left:50%;top:58%;transform:translateX(-50%);font-family:Consolas,monospace;
-  font-size:15px;letter-spacing:2px;color:var(--cs);background:rgba(8,10,6,.8);border:1px solid #4a5a2a;
-  padding:8px 18px;text-shadow:0 1px 0 #000}
-#respawn-overlay{position:absolute;inset:0;background:rgba(30,0,0,.55);display:flex;flex-direction:column;gap:12px;align-items:center;justify-content:center;font-size:20px;letter-spacing:2px}
-.rip{font-size:44px;letter-spacing:6px;text-shadow:0 4px 0 #000}
-.rip-sub{font-size:13px;color:#e0b0b0;font-family:Arial,sans-serif}
-#scoreboard{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:var(--panel);
-  border:2px solid #4a5a2a;border-radius:8px;padding:22px 30px;min-width:560px}
-#scoreboard h3{text-align:center;letter-spacing:3px;color:var(--yellow);margin-bottom:12px;font-family:"Arial Black",sans-serif}
-#scoreboard table{width:100%;border-collapse:collapse;font-size:14px}
-#scoreboard th{font-size:10px;letter-spacing:2px;color:#8a8064;text-align:left;padding:4px 10px;border-bottom:1px solid #444}
-#scoreboard td{padding:5px 10px;color:#e8e0cc}
-#scoreboard tr.tp td:first-child{border-left:3px solid var(--red)}
-#scoreboard tr.tb td:first-child{border-left:3px solid var(--green)}
-#scoreboard tr.me td{background:rgba(255,210,63,.1)}
+/* O #lock-hint é a única peça do HUD que ficou SEM fundo E SEM contorno: ele é desenhado
+   no meio da tela, em cima da cena. Medido em tools/eval/ui-check.mjs (UI1) sobre a areia
+   do Piscinão: título 1,04:1 e sub 1,14:1 — invisível. O --sh-hud (contorno preto de 2px
+   colado no glifo, style.css:63) é o mesmo recurso que o resto do HUD já usa. */
+.lh-title{font-weight:700;font-size:30px;letter-spacing:4px;color:var(--cs);
+  text-shadow:var(--sh-hud);animation:blink 1s steps(2) infinite}
+.lh-sub{font-size:14px;font-weight:500;color:var(--ink2);margin-top:10px;text-shadow:var(--sh-hud)}
+/* PROMPT DO [E] — SAIU DO CENTRO (defeito 1 do dono: "fica fixo no centro-baixo, por cima
+   da arma"). Era left:50%/top:58% + translateX(-50%): uma tarja de 371 px CENTRADA na
+   coluna da mira, na faixa y 0,580-0,635. A zona do viewmodel começa em x 0,525 / y 0,455
+   (mínimo das 26 armas em tools/eval/vm_mint_audit.json, corroborado pelos 3 frames de
+   referência em tools/eval/ref_viewmodel.json: bordaEsq 0,520-0,565) — ou seja, a tarja
+   cobria a arma por 160 px de largura. Medido e reprovado em ui-check.mjs (UI3).
+   Agora ele mora na COLUNA DA ESQUERDA, logo acima do bloco de vida, que é onde o jogador
+   já olha pra ler estado seu (vida, PROTEGIDO) — e a largura tem TETO, senão uma arma de
+   nome comprido voltaria a atravessar a tela. 380px cabe a string mais longa que o jogo
+   consegue escrever ("[E] PEGAR G3SG1 · mire pra escolher", 35 caracteres em ST Mono de
+   15px com tracking de 2px = 362px com o padding); em tela estreita ela quebra em duas
+   linhas em vez de ser cortada por reticências. Caixa resultante (com a margem nova de
+   68 px): x 0,067-0,444, y 0,740-0,795 — fora da mira (0,470-0,530 × 0,449-0,551) e fora
+   do viewmodel (x < 0,525). Medido em `node tools/eval/ui-check.mjs ui3`. */
+#pickup-hint{position:absolute;left:68px;bottom:134px;font-family:var(--mono);
+  font-size:15px;letter-spacing:2px;color:var(--cs);background:rgba(var(--bg-800-rgb),.92);
+  border:1px solid var(--line);padding:8px 14px;max-width:min(38vw,380px)}
+/* Véu de morte a .6 sobre a areia do Piscinão deixava o texto de apoio em 3,94:1
+   (tools/eval/ui-check.mjs, UI1). .78 é o mesmo patamar do scrim de canto do #hud
+   (.84 no miolo) e põe tudo acima de 6:1 sem virar tela preta. */
+#respawn-overlay{position:absolute;inset:0;background:rgba(24,4,4,.78);display:flex;flex-direction:column;gap:12px;align-items:center;justify-content:center;font-size:20px;font-weight:600;letter-spacing:2px}
+.rip{font-size:44px;font-weight:700;letter-spacing:8px;text-transform:uppercase}
+.rip-sub{font-size:14px;font-weight:500;color:#e0b0b0}
+/* ---------- PLACAR — REDESENHO contra references/telas/08_placar.png ----------------
+   NÃO foi afinação de número: a tela era OUTRA. O que estava aqui era um painel flutuante
+   de 560px no meio da tela com UMA tabela só (jogador · personagem · kills · mortes), os
+   dois times misturados e ordenados por abate. A referência é uma tela CHEIA com scrim,
+   DUAS COLUNAS DE TIME lado a lado, cabeçalho de placar gigante no topo e faixas de linha
+   tingidas com a cor do time. Medido em `references/telas/08_placar.png` (512×341, o mesmo
+   quadro 3:2 do dono a 1/3 de escala), com `python3 -c` sobre os pixels:
 
-/* ---------- match end ---------- */
-#match-end .panel{min-width:520px}
-#match-title{font-size:38px;letter-spacing:4px;text-shadow:0 4px 0 #000}
-#match-stats{display:flex;gap:26px;font-family:Consolas,monospace;font-size:15px;color:#c9bfa4}
-#match-stats b{color:var(--yellow);font-size:24px;display:block;text-align:center}
+     · painel                  x 0,039-0,977 · y 0,023-0,88   → quase tela cheia, não card
+     · coluna esquerda         x  20-254 px  (0,039-0,496)
+     · coluna direita          x 268-500 px  (0,523-0,977)    → 14px de calha (0,027)
+     · faixa de linha          altura 18px / passo 20px = 5,3% / 5,9% da altura
+     · linha ímpar (time P)    rgb(80,24,24)  · linha par rgb(50,17,16)   → zebra TINGIDA
+     · linha ímpar (time B)    rgb(46,29,57)  · linha par rgb(28,20,34)
+     · placar do round         rgb(179,45,35) e rgb(134,94,178) — número GIGANTE colorido
+     · rodapé                  chip de tecla + rótulo, centrado
+
+   Zebra tingida (e não `rgba(232,244,246,.035)` cinza) é o que faz a coluna LER como time
+   à distância — é o mesmo papel que a referência dá pra cor. O tom escurece de cima pra
+   baixo (ímpar 80→49 no vermelho ao longo das 7 linhas): reproduzido com um degradê no
+   próprio `tbody`, e não linha a linha, pra não depender da contagem de combatentes.  */
+#scoreboard{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;align-items:center;
+  background:rgba(var(--bg-900-rgb),.95);box-shadow:inset 0 0 0 1px var(--line);
+  padding:4.4% clamp(var(--s-6),4vw,72px) 6%}
+/* Cabeçalho: RESULTADO (âmbar, some fora do fim de round) · RODADA · PLACAR gigante.
+   O innerHTML vem do game.js:_showScoreboard — `.sb-result`, `.sb-result-sub`, `.sb-label`
+   e `.sb-score` com <b class="tp">TAG N</b><i>×</i><b class="tb">N TAG</b>. A referência
+   parte tag e número em pesos diferentes; aqui os dois moram no MESMO <b>, então o par
+   inteiro cresce e ganha a cor do time — a hierarquia vem do TAMANHO (fs-800 contra
+   fs-100 do rótulo = razão 4,7, dentro da faixa 3,3-5,0 medida na referência). */
+#scoreboard h3,#scoreboard .sb-heads,#scoreboard table{width:min(1280px,100%)}
+#scoreboard h3{display:flex;flex-direction:column;align-items:center;gap:var(--s-2);
+  margin-bottom:var(--s-5);text-transform:uppercase;flex:0 0 auto}
+#scoreboard h3 .sb-label{letter-spacing:var(--tr-4);font-weight:700;color:var(--ink-300);font-size:var(--fs-200)}
+#scoreboard h3 .sb-score{display:flex;align-items:center;gap:clamp(var(--s-5),4vw,84px);
+  font-family:var(--font);font-weight:700;line-height:var(--lh-tight);
+  font-size:clamp(38px,6vw,78px);font-variant-numeric:tabular-nums;letter-spacing:var(--tr-2)}
+#scoreboard h3 .sb-score i{font-style:normal;color:var(--ink-200);font-size:clamp(20px,3.6vh,40px);
+  letter-spacing:var(--tr-3);align-self:center;font-weight:700}
+#scoreboard h3 .sb-score b.tp{color:#ff8a8a}
+#scoreboard h3 .sb-score b.tb{color:#b79bff}   /* violeta do time B na referência (134,94,178) */
+
+/* Grade compartilhada pelos rótulos e pelas linhas. Os dois cabeçalhos visíveis e cada
+   <tr> são grades INDEPENDENTES, então nenhuma coluna pode ser `auto` (largura de conteúdo
+   divergiria entre esquerda e direita e os rótulos sairiam do lugar): todas são fracionárias
+   ou em `em`. O CTF acrescenta CAP. — o estado real mora no #sb-cap-h, que o game.js liga
+   e desliga por id; o `:has()` abaixo espelha isso nos rótulos duplicados sem tocar em JS. */
+/* A coluna PERSONAGEM sai da GRADE (fica só no <thead> pro leitor de tela): pra bot,
+   `c.name` e `c.def.name` são a MESMA string, então ela era duplicata em 7 de 8 linhas —
+   era ela que fazia a linha parecer poluída ao lado da referência, que mostra retrato +
+   nome e mais nada de texto. */
+#scoreboard{--sbc:minmax(0,1fr) 2.8em 2.8em;--sb-gap:clamp(var(--s-5),3.4vw,64px);
+  --sb-rh:clamp(32px,5.2vh,54px);--sb-rg:5px}
+#scoreboard:has(#sb-cap-h:not(.hidden)){--sbc:minmax(0,1fr) 2.8em 2.8em 3.6em}
+#scoreboard:has(#sb-cap-h.hidden) .sb-cap{display:none}
+#scoreboard .sb-head span:nth-child(2),#scoreboard td:nth-child(2){display:none}
+#scoreboard .sb-heads{display:grid;grid-template-columns:1fr 1fr;column-gap:var(--sb-gap);flex:0 0 auto}
+#scoreboard .sb-head{display:grid;grid-template-columns:var(--sbc);align-items:end;gap:0 var(--s-4);
+  font-size:var(--fs-200);letter-spacing:var(--tr-2);color:var(--ink-300);font-weight:700;
+  text-transform:uppercase;padding:0 var(--s-4) var(--s-2)}
+#scoreboard .sb-head span:nth-child(n+3){text-align:right}
+/* SEM `width:100%` aqui: a largura vem da regra de teto (min(1000px,100%)) que a .sb-heads
+   também usa. Um `width:100%` neste bloco vinha DEPOIS e a sobrescrevia — os rótulos ficavam
+   numa grade de 1000px e as faixas numa de 1414px, e as colunas saíam do lugar. */
+#scoreboard table{display:block;font-size:var(--fs-500);font-weight:700;
+  flex:0 1 auto;min-height:0;overflow:auto;margin-top:var(--s-2)}
+#scoreboard thead{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}  /* só p/ leitor de tela */
+/* DUAS COLUNAS SEM MEXER NO game.js: ele emite uma lista única de <tr class="tp|tb">.
+   `dense` é obrigatório — sem ele uma sequência tp,tp,tb,tb deixa buraco e desalinha as
+   colunas (o cursor de auto-placement não volta pra trás). */
+#scoreboard tbody{display:grid;grid-template-columns:1fr 1fr;grid-auto-flow:row dense;
+  grid-auto-rows:var(--sb-rh);column-gap:var(--sb-gap);row-gap:var(--sb-rg);align-content:start;
+  /* zebra + escurecimento vertical pintados NO FUNDO, e as faixas de time entram por cima
+     com alfa — é assim que a mesma cor de time dá dois tons por linha, como na referência,
+     sem precisar contar linhas POR TIME (o CSS não sabe fazer "nth de uma classe"). */
+  background:
+    linear-gradient(180deg,rgba(255,255,255,.02) 0%,rgba(0,0,0,.30) 100%),
+    repeating-linear-gradient(180deg,
+      rgba(255,255,255,.07) 0 var(--sb-rh),
+      rgba(0,0,0,0) var(--sb-rh) calc((var(--sb-rh) + var(--sb-rg)) * 2))}
+#scoreboard tbody tr.tp{grid-column:1}
+#scoreboard tbody tr.tb{grid-column:2}
+#scoreboard tbody tr{display:grid;grid-template-columns:var(--sbc);align-items:center;gap:0 var(--s-4);
+  padding:0 var(--s-4);border-left:3px solid transparent}
+#scoreboard td{display:block;color:var(--ink-100);letter-spacing:var(--tr-1);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#scoreboard td:first-child{font-weight:700;text-transform:uppercase}
+#scoreboard td:nth-child(n+3){text-align:right;font-family:var(--font);font-weight:700;
+  font-size:clamp(18px,2.5vh,26px);font-variant-numeric:tabular-nums}
+/* Faixa TINGIDA pelo time, com alfa pra deixar a zebra do fundo aparecer. */
+#scoreboard tbody tr.tp{background:rgba(224,50,50,.22);border-left-color:rgba(224,50,50,.6)}
+#scoreboard tbody tr.tb{background:rgba(123,47,247,.24);border-left-color:rgba(123,47,247,.65)}
+#scoreboard tbody tr:hover{filter:brightness(1.25)}
+#scoreboard tr.me{box-shadow:inset 0 0 0 1px rgba(255,201,63,.45)}
+#scoreboard tr.me td:first-child{color:var(--br-faixa)}
+/* Fio quente no topo do 1º colocado da partida — a referência marca a liderança com um
+   fio que desbota pra direita (rgb(117,34,22) na quina esquerda → 67 na direita). */
+#scoreboard tbody tr:first-of-type{position:relative}
+#scoreboard tbody tr:first-of-type::before{content:"";position:absolute;left:0;right:0;top:0;height:2px;
+  background:linear-gradient(90deg,var(--br-sinal),rgba(226,64,44,0) 70%)}
+#scoreboard .sb-foot{position:absolute;left:0;right:0;bottom:3.4%;display:flex;align-items:center;justify-content:center;
+  gap:var(--s-2);font-family:var(--mono);font-size:var(--fs-50);
+  letter-spacing:var(--tr-3);color:var(--ink-300);text-transform:uppercase}
+#scoreboard .sb-foot kbd{font:inherit;border:1px solid var(--line-2);color:var(--ink-200);
+  padding:2px 7px}
+
+/* DUAS COLUNAS COM BRASÃO (07/08, ref 08_placar — pedido do dono: "pôr o brasão de cada
+   time e alinhar as informações à coluna de cada um"). O game.js emite dois .sb-col, cada
+   um com a própria tabela; as regras de tbody da grade única antiga ficam neutralizadas
+   aqui (mesma especificidade, depois no arquivo). */
+#scoreboard .sb-cols{display:grid;grid-template-columns:1fr 1fr;column-gap:var(--sb-gap);
+  width:min(1280px,100%);flex:0 1 auto;min-height:0}
+#scoreboard .sb-col{display:flex;flex-direction:column;min-height:0}
+#scoreboard .sb-chead{display:flex;align-items:center;gap:var(--s-3);padding:0 var(--s-4) var(--s-2);
+  font-weight:700;letter-spacing:var(--tr-2);font-size:var(--fs-400);text-transform:uppercase}
+#scoreboard .sb-chead img{height:36px;width:auto;filter:drop-shadow(0 2px 4px rgba(0,0,0,.5))}
+#scoreboard .sb-col.tp .sb-chead{color:#ff8a8a}
+#scoreboard .sb-col.tb .sb-chead{color:#b79bff}
+#scoreboard .sb-col table{display:block;width:100%;flex:0 1 auto;min-height:0;overflow:auto;margin-top:0}
+#scoreboard .sb-col thead{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+#scoreboard .sb-col tbody{display:grid;grid-template-columns:1fr;grid-auto-rows:var(--sb-rh);
+  row-gap:var(--sb-rg);align-content:start;background:none}
+#scoreboard .sb-col tbody tr{grid-column:auto;display:grid;
+  grid-template-columns:minmax(0,1fr) 2.8em 2.8em;align-items:center;gap:0 var(--s-4);
+  padding:0 var(--s-4);border-left:3px solid transparent}
+#scoreboard .sb-col.ctf tbody tr{grid-template-columns:minmax(0,1fr) 2.8em 2.8em 3.6em}
+#scoreboard .sb-col.tp tbody tr{background:rgba(224,50,50,.22);border-left-color:rgba(224,50,50,.6)}
+#scoreboard .sb-col.tb tbody tr{background:rgba(123,47,247,.24);border-left-color:rgba(123,47,247,.65)}
+/* flex:0 0 auto porque o #scoreboard virou coluna flex: sem isso o canvas do mascote
+   (kill-switch ?dolly=1) seria espremido pelo `flex-shrink` padrão. */
+#dollynho-dance{display:block;flex:0 0 auto;margin:12px auto 0;width:240px;height:190px}
+
+/* ---------- match end ----------
+   Três blocos com hierarquia declarada, em vez de um painel único com tudo do mesmo
+   tamanho: (1) VEREDITO — quem ganhou, (2) PLACAR — o número da partida, (3) SEU
+   DESEMPENHO — o que o jogador fez. A ação de jogar de novo é a maior peça clicável.
+   O título era 84px FIXO com tracking 14px: em 1280 de largura "DERROTA" encostava nas
+   bordas. Agora ele é fluido. */
+/* REDESENHO contra references/telas/09_resultado_partida.png. O que estava aqui era uma
+   COLUNA CENTRADA (título, frase, três linhas soltas de número, dois botões de contorno).
+   A referência é outra composição, medida em pixel sobre a tela de 512x341:
+
+     · coluna de conteúdo   x 22-231 px  (0,043-0,451)  ALINHADA À ESQUERDA
+     · metade direita       arte do vencedor (0,45-1,0) — aqui é .me-hero
+     · VITÓRIA              VERDE rgb(73,168,70), caixa y 50-89 (font ~11% da altura)
+     · sub                  BRANCO puro, caixa y 100-110 → razao titulo/sub ~ 3,5
+     · cartão de stats      x 22-208, y 125-237: RÓTULO à esquerda, VALOR à direita,
+                            fio fino entre linhas — não três frases centradas
+     · CTA                  PREENCHIDO rgb(208,157,27) com texto ESCURO rgb(46,36,11);
+                            o secundário é que é de contorno
+
+   O verde não estava na paleta (o token de vitória era --yellow, e amarelo é o papel de
+   OBJETIVO no sistema). --vitoria abaixo é o pixel medido, mantido como token pra não
+   voltar hex solto ao arquivo. */
+#match-end{justify-content:stretch;align-items:stretch;padding:0}
+#match-end::before{content:"";position:absolute;inset:0;pointer-events:none;background:var(--lambe);opacity:.6}
+.me-wrap{position:relative;gap:0;display:grid;grid-template-columns:minmax(0,clamp(420px,46%,720px)) minmax(0,1fr);
+  align-items:stretch;width:100%;height:100%;padding:10% 0 7% 4.3%}
+/* Ritmo da referência: título/sub/cartão empilhados no terço de cima com respiro CONSTANTE,
+   e as ações ancoradas no rodapé da coluna (`margin-top:auto`). `space-between` puro abria um
+   vão morto entre o sub e o cartão quando a partida rende só 3 linhas de estatística. */
+.me-col{display:flex;flex-direction:column;align-items:stretch;
+  gap:clamp(var(--s-5),3.4vh,var(--s-7));min-width:0}
+.me-actions{margin-top:auto}
+/* Campo atmosférico onde mora a arte do vencedor na referência. Sem o retrato ele existe
+   pra segurar a composição em duas metades — sem ele o conteúdo à esquerda lê como
+   desalinhado, e não como ancorado. */
+.me-hero{position:relative;align-self:stretch;pointer-events:none;
+  background:radial-gradient(58% 70% at 62% 46%,rgba(var(--bg-700-rgb),.85) 0%,rgba(var(--bg-900-rgb),0) 72%),
+             linear-gradient(90deg,rgba(var(--bg-900-rgb),.9) 0%,rgba(var(--bg-900-rgb),0) 26%)}
+.me-verdict{display:flex;flex-direction:column;align-items:flex-start;gap:var(--s-2);text-align:left}
+#match-title{font-size:clamp(46px,12vh,132px);font-weight:700;letter-spacing:clamp(2px,.4vw,7px);
+  text-transform:uppercase;line-height:var(--lh-tight);
+  animation:matchTitleIn .55s cubic-bezier(.16,1,.3,1) both}
+#match-end.win #match-title{color:var(--vitoria);text-shadow:0 0 40px rgba(73,168,70,.4)}
+#match-end.lose #match-title{color:var(--red);text-shadow:0 0 34px rgba(224,50,50,.3)}
+@keyframes matchTitleIn{0%{opacity:0;transform:scale(1.25);letter-spacing:34px}
+  100%{opacity:1;transform:scale(1)}}
+#match-sub{font-size:clamp(15px,2.8vh,29px);font-weight:700;letter-spacing:var(--tr-1);
+  color:var(--ink-100);text-transform:uppercase;max-width:34ch;line-height:var(--lh-snug)}
+/* #match-stats é preenchido pelo game.js (_endMatch). Coluna: se o main.js anexar o
+   aviso de "stats não enviados", ele cai embaixo em vez de entrar na grade. */
+/* CARTÃO DE ESTATÍSTICA. O game.js escreve `<div><b>24</b>kills de ZÉ DO AWP</div>` —
+   valor primeiro, rótulo colado logo atrás, sem espaço. Era isso que aparecia na tela como
+   "3 × 1rounds" e "24kills de ZÉ DO AWP". `row-reverse` num contêiner flex resolve os DOIS
+   defeitos de uma vez sem tocar no game.js: o texto solto vira item flex anônimo, vai pra
+   ESQUERDA como rótulo, o <b> vai pra DIREITA como valor, e `space-between` abre a calha
+   entre eles — que é exatamente a linha do cartão da referência (KILLS ......... 24).
+   A grafia colada continua errada na fonte; ver relatório (é game.js:_endMatch). */
+#match-stats{display:flex;flex-direction:column;align-items:stretch;gap:0;width:100%;
+  background:rgba(var(--bg-800-rgb),.6);border:1px solid var(--line);clip-path:var(--cut);
+  padding:clamp(var(--s-2),1.4vh,var(--s-4)) clamp(var(--s-4),2vw,var(--s-6))}
+#match-stats > div{display:flex;flex-direction:row-reverse;justify-content:space-between;
+  align-items:baseline;gap:var(--s-4);padding:clamp(var(--s-2),1.5vh,var(--s-4)) 0;
+  font-size:clamp(13px,2vh,21px);font-weight:700;letter-spacing:var(--tr-2);
+  text-transform:uppercase;color:var(--ink-300)}
+#match-stats > div + div{border-top:1px solid rgba(255,255,255,.07)}
+/* o main.js (submitNote) pendura um aviso de "stats não enviados" aqui — é um div SEM <b>,
+   e com `row-reverse` + `space-between` um item só encostaria na DIREITA. Volta pro fluxo. */
+#match-stats > div:not(:has(> b)){flex-direction:row;text-transform:none;letter-spacing:var(--tr-tight)}
+#match-stats > div > b{font-size:clamp(20px,3.3vh,36px);line-height:var(--lh-tight);
+  color:var(--ink-100);font-variant-numeric:tabular-nums;letter-spacing:var(--tr-tight);
+  white-space:nowrap}
+/* a 1ª linha é o PLACAR DA PARTIDA (3 × 1): é o número que fecha a treta, ganha o âmbar —
+   mesmo papel que a referência dá ao XP GANHO, a linha destacada do cartão dela. */
+#match-stats > div:first-child > b{color:var(--br-faixa)}
+/* PLACAR: os dois lados com nome e número; o vencedor em âmbar e em corpo maior. */
+.me-score{display:flex;align-items:center;justify-content:center;gap:var(--s-4);width:100%;
+  background:var(--panel);border:1px solid var(--line);clip-path:var(--cut);padding:var(--s-3) var(--s-5)}
+.mes-side{display:flex;align-items:center;gap:var(--s-3);flex:1 1 0;min-width:0}
+.mes-side:last-of-type{flex-direction:row-reverse}
+.mes-side i{font-style:normal;font-weight:700;font-size:var(--fs-200);letter-spacing:var(--tr-2);
+  text-transform:uppercase;color:var(--ink-300);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mes-side b{font-size:var(--fs-700);line-height:var(--lh-tight);font-variant-numeric:tabular-nums;
+  color:var(--ink-300)}
+.me-score .mes-win i{color:var(--ink-100)}
+.me-score .mes-win b{color:var(--br-faixa);font-size:var(--fs-800)}
+/* ink-300 e não ink-400: o sistema diz que ink-400 é régua decorativa, nunca texto */
+.mes-x{font-family:var(--mono);font-size:var(--fs-50);letter-spacing:var(--tr-2);color:var(--ink-300);
+  flex:0 0 auto;text-transform:uppercase}
+/* SEU DESEMPENHO: o bloco do jogador é o único com trilho de sinaleiro — é o que ele
+   veio ver. Números tabulares e rótulo embaixo, nunca na mesma linha (era isso que
+   quebrava em "9 kills de r"). */
+.me-you{width:100%;background:var(--panel);border:1px solid var(--line);clip-path:var(--cut);
+  padding:var(--s-4) var(--s-5);position:relative}
+.me-you::before{content:"";position:absolute;left:0;top:14px;width:4px;height:44px;background:var(--hazard)}
+.mey-h{display:block;font-size:var(--fs-100);font-weight:700;letter-spacing:var(--tr-3);
+  color:var(--ink-300);text-transform:uppercase;margin-bottom:var(--s-3);text-align:center}
+.mey-h b{color:var(--br-faixa)}
+.me-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));gap:var(--s-3) var(--s-4)}
+.me-grid div{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:0}
+.me-grid b{font-size:var(--fs-700);line-height:var(--lh-tight);font-weight:700;color:var(--ink-100);
+  font-variant-numeric:tabular-nums}
+.me-grid .hi b{color:var(--br-faixa)}
+.me-grid span{font-size:var(--fs-50);font-weight:600;letter-spacing:var(--tr-2);color:var(--ink-300);
+  text-transform:uppercase;text-align:center}
+/* O preenchimento do CTA mora na regra compartilhada `.btn-big,.btn-cta` lá em cima
+   (junto do `.btn`), não aqui: duplicar a cor foi o que deixou menu e pausa de contorno
+   enquanto só o resultado era sólido. */
+.me-actions{display:flex;gap:var(--s-3);align-items:center;justify-content:flex-start;flex-wrap:wrap}
+#btn-again{letter-spacing:var(--tr-3)}
+#btn-menu{background:transparent;border-color:var(--line-2);color:var(--ink-200)}
+#btn-menu:hover,#btn-menu:focus-visible{background:var(--bg-700);border-color:var(--ink-200);color:#fff}
+@media (max-width:900px){
+  .me-wrap{grid-template-columns:minmax(0,1fr);padding:0 var(--s-5)}
+  .me-hero{display:none}
+}
+
+/* ---- layout fix: menu rola e o JOGAR fica sempre visível ---- */
+#main-menu{padding-top:5vh;gap:14px;overflow-y:auto;overflow-x:hidden}
+
+/* carrossel de mapa: setas ‹ › sobre a arte (layout final em .map-picker, mais abaixo) */
+.map-arrow{font-family:var(--mono);font-size:var(--fs-600);line-height:var(--lh-tight);cursor:pointer;
+  background:var(--bg-800);border:1px solid var(--line);color:var(--ink-200);height:40px;
+  display:flex;align-items:center;justify-content:center;padding:0;clip-path:var(--cut-sm);
+  transition:background var(--t) var(--ease),border-color var(--t) var(--ease),color var(--t) var(--ease)}
+.map-arrow:hover,.map-arrow:focus-visible{border-color:var(--sys);color:#fff;background:var(--bg-600)}
+.map-arrow:active{transform:translateY(1px)}
+
+#bots-select,#diff-select{font-family:var(--mono);font-size:var(--fs-200);letter-spacing:var(--tr-1);text-align:center;
+  background:var(--bg-800);border:1px solid var(--line);color:var(--ink-100);padding:10px 12px;outline:none;cursor:pointer;width:100%;
+  transition:border-color var(--t) var(--ease)}
+#bots-select:hover,#diff-select:hover{border-color:var(--line-2)}
+
+/* empilha em telas estreitas */
+@media(max-width:640px){
+  .match-opts{grid-template-columns:1fr;gap:var(--s-3)}
+  .team-row{flex-wrap:wrap}
+  .team-card{flex:1 1 240px}
+}
+
+/* ============ MENU (Coro Solto) — wallpaper + lista de texto à esquerda ============ */
+#main-menu.cs-screen{display:block;padding:0;gap:0;overflow:hidden}
+/* ÂNCORA À ESQUERDA, não ao centro: os wall-* são 1672×941 (16:9) e o quadro do dono é
+   3:2, então `cover` escala pela ALTURA e sobra 284px de largura. Com `center` o corte
+   comia 142px de cada lado — e o logo do jogo está pintado colado na borda ESQUERDA do
+   wallpaper, então "CORO SOLTO" entrava em cena como "ORO OLTO" (conferido na captura
+   1536×1024). A referência 01_menu_principal.png mostra o logo INTEIRO dentro da coluna.
+   Ancorando à esquerda o corte inteiro (15,6%) vai pro lado direito, onde só há céu e
+   bandeira — o personagem da referência mora em ~65-90% da largura e continua no quadro. */
+.cs-wallpaper{position:absolute;inset:0;z-index:0;background:var(--bg-900) left center/cover no-repeat}
+/* Scrim que NASCE na borda da tela e morre em nada (CS2/Valorant). O texto passa a
+   depender do scrim, não de um card — por isso o painel de nav pode perder a caixa.
+
+   CORREÇÃO R2: o scrim horizontal era `linear-gradient(90deg, .74 -> 0 48%)`, ou seja,
+   cobria a COLUNA ESQUERDA INTEIRA, de cima a baixo. Só que o logo do jogo está pintado
+   no canto SUPERIOR esquerdo do wallpaper — medido na caixa (60,30)-(520,360) do
+   menu-01-main.png: -38% de brilho e -23% de saturação contra a baseline. O scrim
+   apagava a própria marca.
+   Agora ele é uma ELIPSE ancorada no canto INFERIOR esquerdo, onde a lista de fato mora.
+   Conferência geométrica em 1600×900: o ponto mais próximo do logo (60,360) fica a
+   r = 0,81 do centro da elipse (raios 120%W × 74%H) — além do stop de 76%, logo alpha 0.
+   O logo volta intacto e a lista continua com fundo. */
+.cs-vignette{position:absolute;inset:0;z-index:1;pointer-events:none;
+  background:
+    linear-gradient(0deg,rgba(var(--bg-900-rgb),.88) 0%,rgba(var(--bg-900-rgb),0) 42%),
+    radial-gradient(120% 74% at 0% 100%,rgba(var(--bg-900-rgb),.64) 0%,rgba(var(--bg-900-rgb),.36) 44%,rgba(var(--bg-900-rgb),0) 76%),
+    var(--lambe)}                                   /* textura de lambe-lambe: 1px de papel, quase subliminar */
+/* kill-switch ?ui=legacy: volta o scrim da rodada 1 (caso a elipse regrida em algum wallpaper) */
+html[data-ui="legacy"] .cs-vignette{
+  background:
+    linear-gradient(0deg,rgba(var(--bg-900-rgb),.88) 0%,rgba(var(--bg-900-rgb),0) 42%),
+    linear-gradient(90deg,rgba(var(--bg-900-rgb),.74) 0%,rgba(var(--bg-900-rgb),0) 48%),
+    var(--lambe)}
+.cs-left{position:absolute;z-index:3;left:min(4vw,64px);bottom:6vh;
+  display:flex;flex-direction:column;align-items:flex-start;gap:var(--s-3);max-width:52vw}
+/* Trilho de acento no lugar do retângulo cinza: caixa FECHADA sobre foto lê como
+   "widget colado". Sem border nos 4 lados, gradiente termina em 0 (não em .25, que
+   criava uma aresta dura de opacidade no lado direito).
+
+   CORREÇÃO R2: o gradiente ia de .70 (55%) direto a 0 (100%), mas a caixa de texto útil
+   vai até ~88% da largura (460 - 64 de padding-right). Resultado: "CAPTURE THE FLAG" e
+   "CONFIGURAÇÕES" terminavam com alpha ~0,25 em cima do capacete do alien do wallpaper —
+   sem fundo garantido. Agora o piso só começa a cair depois de 86%, ou seja, DEPOIS do
+   fim do texto. Com alpha .60 sob o glifo mais claro do wallpaper (amarelo do canarinho,
+   L~200) o contraste do --ink-200 fica ~4,9:1 = AA. A borda direita continua morrendo em
+   0, então não volta a ser um retângulo. */
+.cs-menu{position:relative;display:flex;flex-direction:column;gap:var(--s-1);width:min(460px,90vw);
+  padding:var(--s-4) var(--s-8) var(--s-4) var(--s-4);border:0;
+  background:linear-gradient(90deg,rgba(var(--bg-900-rgb),.92) 0%,rgba(var(--bg-900-rgb),.86) 60%,
+             rgba(var(--bg-900-rgb),.60) 86%,rgba(var(--bg-900-rgb),0) 100%)}
+/* único elemento com aresta = o trilho. Faixa amarelo/preto de sinaleiro de rua:
+   é a identidade BR entrando por linguagem visual de via pública, não por bandeirinha. */
+.cs-menu::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--hazard)}
+.cs-menu-label{font-family:var(--mono);font-size:var(--fs-50);letter-spacing:var(--tr-4);
+  color:var(--ink-300);text-transform:uppercase;padding:0 0 var(--s-2) var(--s-3);margin-bottom:var(--s-1);
+  border-bottom:1px solid rgba(255,255,255,.07)}
+.cs-item{appearance:none;background:none;border:0;border-left:3px solid transparent;
+  color:var(--ink-200);font-family:var(--font);font-weight:700;
+  font-size:clamp(19px,2.7vh,27px);letter-spacing:var(--tr-3);text-transform:uppercase;text-align:left;
+  padding:7px var(--s-4) 7px var(--s-3);cursor:pointer;position:relative;
+  text-shadow:var(--sh-text);                                   /* idle a 11:1 de contraste, não mais 58% de opacidade */
+  transition:color var(--t-slow) var(--ease),border-color var(--t) var(--ease),
+             transform var(--t-slow) var(--ease),letter-spacing var(--t-slow) var(--ease),background var(--t) var(--ease);
+  animation:cs-item-in .4s var(--ease) backwards}
+/* nth-of-type (não nth-child): o rótulo "// ESCOLHA A TRETA" é um div e desalinhava a escada */
+.cs-item:nth-of-type(1){animation-delay:.05s}.cs-item:nth-of-type(2){animation-delay:.10s}
+.cs-item:nth-of-type(3){animation-delay:.15s}.cs-item:nth-of-type(4){animation-delay:.20s}
+.cs-item:nth-of-type(5){animation-delay:.25s}.cs-item:nth-of-type(6){animation-delay:.30s}
+@keyframes cs-item-in{from{opacity:0;transform:translateX(-22px)}to{opacity:1;transform:translateX(0)}}
+.cs-tick{display:inline-block;width:0;overflow:hidden;opacity:0;color:var(--am);
+  transform:translateX(-8px);transition:all var(--t) var(--ease);margin-right:0}
+.cs-item:hover,.cs-item:focus-visible{color:#fff;border-left-color:var(--sys);
+  transform:translateX(10px);letter-spacing:var(--tr-4);
+  background:linear-gradient(90deg,rgba(57,214,224,.14),rgba(57,214,224,0));outline:none}
+.cs-item:hover .cs-tick,.cs-item:focus-visible .cs-tick{width:22px;opacity:1;transform:translateX(0);margin-right:6px}
+/* SELECIONADO/ATUAL = A BARRA CHEIA (referência 01_menu_principal.png).
+   A lista da referência não tem sete pesos iguais: tem UMA barra SÓLIDA em âmbar com
+   texto ESCURO (o "JOGAR") e o resto é texto solto. Aqui as sete entradas tinham
+   exatamente o mesmo peso e um degradê de 16% marcando a atual — nada dizia qual era a
+   ação padrão de quem acabou de abrir o jogo.
+   Quem tiver aria-current leva a barra; sem ninguém marcado ela mora na PRIMEIRA entrada
+   (SINGLE PLAYER = o JOGAR da referência). O `:not(:has(...))` é o que garante UMA barra
+   só — sem ele, abrir CONFIGURAÇÕES deixava duas barras cheias na tela ao mesmo tempo. */
+.cs-item[aria-current="true"],
+.cs-menu:not(:has(.cs-item[aria-current="true"])) .cs-item:first-of-type{
+  color:var(--bg-900);background:var(--br-faixa);border-left-color:var(--br-faixa);
+  text-shadow:none}
+.cs-item[aria-current="true"] .cs-tick,
+.cs-menu:not(:has(.cs-item[aria-current="true"])) .cs-item:first-of-type .cs-tick{
+  width:22px;opacity:1;transform:none;margin-right:6px;color:var(--bg-900)}
+/* hover da barra cheia: sem isto o `.cs-item:hover` pintava texto BRANCO sobre amarelo */
+.cs-item[aria-current="true"]:hover,.cs-item[aria-current="true"]:focus-visible,
+.cs-menu:not(:has(.cs-item[aria-current="true"])) .cs-item:first-of-type:hover,
+.cs-menu:not(:has(.cs-item[aria-current="true"])) .cs-item:first-of-type:focus-visible{
+  color:var(--bg-900);background:var(--am);border-left-color:var(--am)}
+.cs-left .footnote{position:static;color:var(--ink-300);font-size:var(--fs-100);max-width:420px;margin-top:0;
+  padding-left:var(--s-4);border-left:3px solid transparent;line-height:var(--lh-base);letter-spacing:var(--tr-tight);
+  text-shadow:var(--sh-text)}
+/* painel de setup (perfil + partida), desliza da direita sobre o wallpaper */
+/* painel de setup: SUBSTITUI o menu principal (a nav esmaece) e fica docado à direita,
+   em altura cheia — pedido do dono ("o menu do jogo substitui o principal, tudo à direita") */
+.cs-left{transition:opacity .22s,transform .22s,filter .22s}
+/* ARMADILHA CONSERTADA (R2). Antes: `opacity:0;pointer-events:none` na nav inteira quando
+   o setup abria. Consequência real, não teórica — depois de clicar em SINGLE PLAYER, os
+   outros 5 itens continuavam OCUPANDO a tela (opacity 0 não tira do layout) mas nenhum
+   clique chegava neles; a única saída era o botão VOLTAR. Foi exatamente isso que fez o
+   harness estourar 6 s em ctf/config/ranking/sobre e passar só em 'sp'.
+   E não havia motivo de layout: o painel de setup ocupa x >= 900px em 1600 (min(700px,62vw)
+   ancorado à direita) e a nav termina em ~896px — os dois NUNCA se sobrepõem.
+   Agora a nav RECUA (é o painel que tem o foco visual, como o dono pediu) mas continua
+   viva: dá pra pular de SINGLE PLAYER pra CAPTURE THE FLAG num clique, como em CS2.
+   O item de origem fica em destaque total por causa do [aria-current]. */
+#main-menu:has(.cs-setup.open) .cs-left{opacity:.40;filter:saturate(.5)}
+/* mouse ou foco de teclado na coluna = ela acorda inteira (opacidade é herdada pelo
+   subtree, então o estado tem que morar no container, não em cada .cs-item) */
+#main-menu:has(.cs-setup.open) .cs-left:hover,
+#main-menu:has(.cs-setup.open) .cs-left:focus-within{opacity:1;filter:none}
+#main-menu:has(.cs-setup.open) .cs-left .footnote{opacity:0}   /* só o texto legal some de vez */
+.cs-setup{position:absolute;z-index:4;right:0;top:0;bottom:0;width:min(700px,62vw);
+  display:flex;flex-direction:column;justify-content:center;
+  padding:42px min(4vw,56px) 42px 30px;overflow-y:auto;
+  background:linear-gradient(270deg,rgba(var(--bg-900-rgb),.94) 42%,rgba(var(--bg-900-rgb),.62) 80%,rgba(var(--bg-900-rgb),0));
+  transform:translateX(36px);opacity:0;pointer-events:none;
+  transition:opacity var(--t-slow) var(--ease),transform var(--t-slow) var(--ease)}
+.cs-setup.open{opacity:1;transform:none;pointer-events:auto}
+/* Cabeçalho do setup: eyebrow (passo do fluxo) + título. Sem isso o painel abria sem
+   dizer de onde veio nem em que etapa o jogador está. */
+.cs-setup-head{font-family:var(--font);font-weight:700;letter-spacing:var(--tr-4);
+  font-size:var(--fs-500);color:var(--am);text-transform:uppercase;margin-bottom:var(--s-3);text-align:right;
+  border-bottom:1px solid var(--line);padding-bottom:var(--s-2)}
+.cs-setup-head small{display:block;font-family:var(--mono);font-size:var(--fs-50);letter-spacing:var(--tr-3);
+  color:var(--ink-300);margin-bottom:var(--s-1)}
+/* VOLTAR do setup fica NO FLUXO do card (era absolute e flutuava por cima do SEU PERFIL) */
+#menu-setup .btn-back{position:static}
+.cs-setup-actions{display:flex;gap:12px;justify-content:space-between;align-items:center;margin-top:14px}
+.cs-setup-actions #btn-jogar{flex:1}
+/* Seletor de mapa: o preview VIRA a peça principal (era um <img> de 116px ao lado do
+   nome). Agora é um cartaz 16:9 com o nome sobreposto, badge de modo e setas nas
+   bordas — o jogador escolhe pela imagem, não pelo texto. */
+.map-picker{position:relative;display:block;width:100%}
+#map-thumb{width:100%;aspect-ratio:16/9;height:auto;object-fit:cover;display:block;
+  background:var(--bg-800);border:1px solid var(--line);clip-path:var(--cut);
+  transition:opacity var(--t-slow) var(--ease)}
+.map-picker::after{content:"";position:absolute;inset:0;pointer-events:none;clip-path:var(--cut);
+  background:linear-gradient(0deg,rgba(var(--bg-900-rgb),.92) 0%,rgba(var(--bg-900-rgb),.15) 46%,rgba(var(--bg-900-rgb),.35) 100%)}
+.map-side{position:absolute;left:0;right:0;bottom:0;z-index:2;padding:var(--s-2) var(--s-3);min-width:0}
+#map-name{font-family:var(--font);font-weight:700;font-size:var(--fs-300);letter-spacing:var(--tr-1);
+  text-transform:uppercase;text-align:left;color:var(--ink-100);background:none;border:0;padding:0;
+  line-height:var(--lh-snug);min-height:0;display:block;text-shadow:var(--sh-text);white-space:normal}
+/* setas nas BORDAS da arte (era uma barra abaixo que roubava a largura do nome e
+   truncava "HAVAN — ESTACIONAMENTO" em "HAVAN — ES…") */
+.map-arrows{position:absolute;top:44%;left:0;right:0;z-index:3;transform:translateY(-50%);
+  display:flex;justify-content:space-between;padding:0 var(--s-1);pointer-events:none}
+.map-arrows .map-arrow{height:42px;width:28px;pointer-events:auto;background:rgba(var(--bg-900-rgb),.7)}
+/* Virou BOTÃO (era <span>): o mapa define o padrão, o jogador alterna rounds↔CTF.
+   Precisa PARECER clicável — o defeito de UI mais comum é um controle que muda o
+   jogo e não avisa que é um controle. Daí o cursor, o ▸, a borda e o hover. */
+#map-mode{position:absolute;top:var(--s-2);left:var(--s-2);z-index:3;font-family:var(--mono);
+  font-size:var(--fs-50);letter-spacing:var(--tr-2);color:var(--bg-900);background:var(--am);
+  padding:2px var(--s-2);text-transform:uppercase;border:0;cursor:pointer;
+  display:inline-flex;align-items:center;gap:6px;transition:filter var(--t),transform var(--t)}
+#map-mode::after{content:'⇄';font-size:.92em;opacity:.72}
+#map-mode:hover{filter:brightness(1.12)}
+#map-mode:active{transform:translateY(1px)}
+#map-mode:focus-visible{outline:2px solid var(--bg-900);outline-offset:2px}
+#map-mode[data-mode="ctf"]{background:var(--br-faixa,#2fb85f);color:#04150a}
+#map-dots{position:absolute;top:var(--s-2);right:var(--s-2);z-index:2;display:flex;gap:5px}
+#map-dots i{width:6px;height:6px;background:rgba(255,255,255,.32);display:block;transition:background var(--t)}
+#map-dots i.on{background:var(--br-faixa)}
+
+/* ============ PASSOS DO SETUP (partida / perfil) ============
+   Pedido literal do dono: "o primeiro menu com o mapa não precisa ter o nick — a gente
+   pode pôr um botão pra configurar o usuário (como se fosse outro step) e dar uma maior
+   dimensão pro mapa". Então: passo 1 = A PARTIDA, com o cartaz do mapa ocupando a tela
+   inteira do painel; o perfil virou um passo próprio, atrás do botão PERFIL. Os dois
+   painéis vivem no MESMO container (#menu-setup[data-step]) pra não duplicar a máquina
+   de estados do menu (ESC, clique fora, VOLTAR, .cs-setup.open). */
+.setup-pane{display:none;flex-direction:column;gap:var(--s-4)}
+#menu-setup[data-step="match"] .pane-match,
+#menu-setup[data-step="profile"] .pane-profile{display:flex}
+/* o cartaz do mapa é o protagonista: sem rótulo em cima, sem caixa em volta */
+.pane-match .map-picker{margin-bottom:var(--s-1)}
+.map-kicker{display:block;font-family:var(--mono);font-size:var(--fs-50);letter-spacing:var(--tr-3);
+  color:var(--br-faixa);text-transform:uppercase;margin-bottom:2px;text-shadow:var(--sh-text)}
+.pane-match #map-name{font-size:var(--fs-600);letter-spacing:var(--tr-2)}
+#map-meta{display:block;font-family:var(--mono);font-size:var(--fs-100);letter-spacing:var(--tr-1);
+  color:var(--ink-200);text-transform:uppercase;margin-top:3px;text-shadow:var(--sh-text)}
+/* ARMAS e BOTS: duas fichas embaixo da arte. É o resto da partida, não o assunto dela. */
+.match-opts{display:grid;grid-template-columns:1fr 1fr;gap:var(--s-4);align-items:end}
+/* Botão do passo de perfil: rótulo pequeno + o nick de verdade, pra ele saber com que
+   nome vai entrar sem precisar abrir nada. */
+.btn-profile{display:flex;flex-direction:column;align-items:flex-start;gap:1px;
+  padding:7px var(--s-4);font-size:var(--fs-200);letter-spacing:var(--tr-1);max-width:44%}
+.btn-profile small{font-family:var(--mono);font-size:var(--fs-50);letter-spacing:var(--tr-2);
+  color:var(--ink-300);text-transform:uppercase}
+.btn-profile span{font-family:var(--mono);font-size:var(--fs-200);letter-spacing:var(--tr-1);
+  color:var(--br-faixa);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.btn-profile:hover small,.btn-profile:focus-visible small{color:var(--ink-200)}
+/* sem nick ainda: o botão vira o próximo passo óbvio, não um enfeite */
+.btn-profile[data-empty="1"]{border-color:var(--am)}
+.btn-profile[data-empty="1"] span{color:var(--am)}
+.pc-note{font-size:var(--fs-100);font-weight:500;color:var(--ink-300);line-height:var(--lh-base);
+  letter-spacing:var(--tr-tight)}
+
+/* fundo das telas de seleção = wallpaper rotativo (--wall, setado no main.js) + overlay escuro */
+#team-select,#char-select{
+  background-color:var(--bg-900);background-position:center;background-size:cover;background-repeat:no-repeat;
+  background-image:
+    linear-gradient(180deg,rgba(var(--bg-900-rgb),.85),rgba(var(--bg-900-rgb),.65) 40%,rgba(var(--bg-900-rgb),.92)),
+    var(--wall,url('/img/select-bg.png'))}
+
+/* ============ SPLASH DE BOOT + LOADING (G2-R6B) ============ */
+/* Splash: tela de entrada com identidade — cobre o load inicial (nada de cena parcial
+   visível) e o 1º gesto destrava o áudio COM SOM (autoplay exige gesto do usuário). */
+/* splash agora fala a língua da key art: brilho quente (tinta/poeira), textura de papel
+   colado — nada de glow ciano de terminal, que era a 2ª marca do jogo em 3 segundos */
+#boot-splash{position:fixed;inset:0;z-index:120;display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(180deg,var(--bg-800),var(--bg-900));
+  background-size:cover;background-position:center;background-repeat:no-repeat;
+  transition:opacity .45s ease;cursor:pointer}
+/* scrim escuro pra legibilidade da msg sobre o wallpaper loading-* (setado via JS) */
+#boot-splash::before{content:"";position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(180deg,rgba(var(--bg-900-rgb),.5) 0%,rgba(var(--bg-900-rgb),.32) 45%,rgba(var(--bg-900-rgb),.84) 100%)}
+/* o wallpaper loading-* já traz a marca CORO SOLTO — sem logo/subtítulo duplicado (pedido do dono) */
+#splash-logo,.splash-sub{display:none}
+#boot-splash.gone{opacity:0;pointer-events:none}
+.splash-frame{display:flex;flex-direction:column;align-items:center;gap:14px;padding:0 20px}
+#splash-logo{width:min(560px,86vw);height:auto}
+.splash-sub{font-family:var(--mono);font-size:var(--fs-100);letter-spacing:var(--tr-4);color:var(--ink-300)}
+.splash-bar{width:min(360px,72vw);height:6px;background:var(--bg-800);border:1px solid var(--line);
+  clip-path:var(--cut-sm);overflow:hidden}
+.splash-bar>div{height:100%;width:0;background:linear-gradient(90deg,var(--br-sinal),var(--br-faixa));
+  transition:width var(--t-slow) ease}
+.splash-status{width:min(360px,72vw);display:flex;justify-content:space-between;
+  font-family:var(--mono);font-size:var(--fs-50);letter-spacing:var(--tr-2);color:var(--ink-300)}
+#splash-enter{margin-top:var(--s-5);font-family:var(--font);font-weight:700;font-size:var(--fs-500);
+  letter-spacing:var(--tr-4);color:var(--br-faixa);text-transform:uppercase;animation:splashPulse 1.1s ease-in-out infinite}
+@keyframes splashPulse{0%,100%{opacity:1}50%{opacity:.35}}
+.splash-ver{position:absolute;right:18px;bottom:14px;font-family:var(--mono);font-size:11px;
+  letter-spacing:2px;color:var(--ink3)}
+
+/* Loading de partida/personagens: overlay OPACO (a cena montando nunca aparece) */
+#load-overlay{position:fixed;inset:0;z-index:110;display:flex;align-items:flex-end;justify-content:flex-end;
+  background:linear-gradient(180deg,var(--bg-800),var(--bg-900));
+  background-size:cover;background-position:center;background-repeat:no-repeat}
+#load-overlay::before{content:"";position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(180deg,rgba(var(--bg-900-rgb),.22) 0%,rgba(var(--bg-900-rgb),.12) 55%,rgba(var(--bg-900-rgb),.72) 100%)}
+.lo-title{display:none}   /* loading limpo: só o wallpaper + o progresso num painel no canto */
+.lo-box{position:absolute;right:var(--s-5);bottom:var(--s-5);z-index:2;display:flex;flex-direction:column;
+  align-items:flex-end;text-align:right;gap:var(--s-2);padding:13px 17px;
+  background:rgba(var(--bg-900-rgb),.55);backdrop-filter:blur(3px);border:1px solid var(--line)}
+.lo-box .splash-bar,.lo-box .splash-status{width:min(300px,52vw)}
+.lo-title{font-family:var(--font);font-weight:700;font-size:var(--fs-800);letter-spacing:var(--tr-6);color:var(--ink-100);
+  text-transform:uppercase;line-height:var(--lh-tight);display:flex;flex-direction:column;align-items:center;gap:var(--s-1)}
+.lo-title span{font-family:var(--mono);font-size:var(--fs-100);letter-spacing:5px;color:var(--br-faixa)}
+#load-label{font-family:var(--mono);font-size:var(--fs-200);letter-spacing:var(--tr-3);color:var(--ink-200);text-transform:uppercase}
+.lo-bar{width:min(440px,78vw)}
+.lo-bar+.splash-status{width:min(440px,78vw)}
+
+/* menu principal: respiro extra em telas baixas (1280×800 etc.) */
+@media(max-height:860px){
+  .cs-left{bottom:4vh;gap:8px}
+  .cs-menu{padding:10px 16px 10px 12px}
+  .cs-item{padding:5px 12px 5px 10px}
+}
+@media(max-height:700px){
+  .cs-item{letter-spacing:2px}
+}
+
+/* ============ MAP SCREEN (escolha de mapa em tela cheia — mockup tela 04) ============
+   Abre pelo cartaz do mapa no setup; lê o mesmo estado do carrossel. A arte do mapa é o
+   fundo da tela inteira; nome/ficha/descrição à esquerda, faixa de thumbs embaixo. */
+/* DUAS METADES, NÃO UM CARTAZ COM TEXTO POR CIMA (referência 04_escolha_mapa.png).
+   Medido na referência: a foto do mapa é um PAINEL fechado no alto à DIREITA (x 232-500
+   de 512, ou seja começa em 45% da largura) e o texto mora num campo escuro à esquerda.
+   No jogo a imagem estava `inset:0`, sangrando pela tela inteira, e a descrição caía em
+   cima do céu claro do Congresso — texto cinza sobre azul claro, ilegível na captura.
+
+   As quatro bordas do painel são token porque o scrim tem que ocupar EXATAMENTE a mesma
+   caixa: fossem dois conjuntos de números, uma mudança em um deixaria o degradê
+   desalinhado da foto. Mesma razão do --team-band-h da tela 02. */
+#map-screen{padding:0;justify-content:flex-start;align-items:stretch;background:var(--bg-900);
+  --ms-art-l:41%; --ms-art-r:min(4vw,52px);
+  --ms-art-t:clamp(84px,12vh,132px); --ms-art-b:clamp(238px,30vh,320px);
+  --ms-strip-b:104px}
+.ms-bg,.ms-scrim{position:absolute;inset:auto;
+  left:var(--ms-art-l);right:var(--ms-art-r);top:var(--ms-art-t);bottom:var(--ms-art-b);
+  width:auto;height:auto;overflow:hidden;clip-path:var(--cut)}
+.ms-bg{border:1px solid var(--line)}
+.ms-bg img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
+/* o scrim agora amacia a BORDA ESQUERDA da foto contra a coluna de texto (e o pé dela
+   contra a faixa de miniaturas), em vez de escurecer a tela toda */
+.ms-scrim{pointer-events:none;z-index:1;border:0;
+  background:
+    linear-gradient(90deg,rgba(var(--bg-900-rgb),.94) 0%,rgba(var(--bg-900-rgb),.30) 22%,rgba(var(--bg-900-rgb),0) 58%),
+    linear-gradient(180deg,rgba(var(--bg-900-rgb),0) 62%,rgba(var(--bg-900-rgb),.62) 100%)}
+/* A COLUNA DE TEXTO OCUPA A MESMA FAIXA VERTICAL DA FOTO, centrada nela: é isso que faz
+   as duas metades da referência lerem como um par. Em fluxo normal o texto grudava no
+   alto e sobravam ~440px de vazio embaixo dele, com a faixa de miniaturas lá longe. */
+.ms-head{position:absolute;z-index:1;left:0;width:var(--ms-art-l);
+  top:var(--ms-art-t);bottom:var(--ms-art-b);
+  display:flex;flex-direction:column;justify-content:center;
+  padding:0 var(--s-6) 0 8vw;text-align:left}
+.ms-head small{font-family:var(--mono);font-size:var(--fs-100);letter-spacing:var(--tr-4);color:var(--br-faixa)}
+/* teto de 48px e não 60: com a coluna fechada em 41% da largura, "PRAÇA DOS TRÊS
+   PODERES" a 60px partia em TRÊS linhas (a referência tem o nome do mapa em UMA). */
+.ms-name{margin-top:6px;font-size:clamp(30px,3.4vw,48px);font-weight:700;letter-spacing:var(--tr-4);
+  text-transform:uppercase;color:var(--ink-100);line-height:var(--lh-tight);position:relative;padding-bottom:var(--s-3)}
+.ms-name::after{content:"";position:absolute;left:0;bottom:0;width:120px;height:3px;
+  background:linear-gradient(90deg,var(--br-sinal),var(--br-faixa))}   /* régua de tinta, alinhada à esquerda */
+.ms-meta{margin-top:var(--s-3);font-family:var(--mono);font-size:var(--fs-100);letter-spacing:var(--tr-2);color:var(--am)}
+.ms-desc{margin-top:var(--s-2);font-size:var(--fs-200);font-weight:500;color:var(--ink-200);max-width:52ch;line-height:var(--lh-base)}
+.ms-strip{position:absolute;left:50%;bottom:var(--ms-strip-b);transform:translateX(-50%);display:flex;gap:10px;z-index:1}
+.ms-thumb{width:148px;padding:0 0 6px;display:flex;flex-direction:column;gap:5px;cursor:pointer;
+  background:rgba(var(--bg-800-rgb),.85);border:1px solid var(--line);clip-path:var(--cut-sm);
+  font-family:var(--mono);font-size:9px;letter-spacing:1px;color:var(--ink-300);text-transform:uppercase;
+  transition:border-color var(--t) var(--ease),color var(--t) var(--ease),transform var(--t) var(--ease)}
+.ms-thumb img{width:100%;height:76px;object-fit:cover;display:block}
+.ms-thumb span{padding:0 8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ms-thumb:hover,.ms-thumb:focus-visible{border-color:var(--sys);color:var(--ink-100)}
+.ms-thumb.on{border-color:var(--br-faixa);color:var(--br-faixa);transform:translateY(-4px)}
+/* Centralização por margin-top, NÃO por transform: o :active genérico de .map-arrow
+   (translateY(1px)) sobrescreveria o translateY(-50%) no mousedown e o botão pularia
+   33px pra baixo no meio do clique — o clique caía fora do botão (pego pelo harness). */
+/* AS SETAS LADEIAM A FAIXA, não o meio da tela (referência 04): elas comandam o
+   carrossel de miniaturas, e paradas em `top:44%` ficavam a 400px de distância do que
+   controlam — na captura sobravam boiando na altura do horizonte da foto. Ancoradas na
+   mesma base da faixa, com meia diferença de altura pra centralizar nela. */
+.ms-arrow{position:absolute;top:auto;bottom:calc(var(--ms-strip-b) + 18px);margin-top:0;
+  z-index:2;width:44px;height:64px;background:rgba(var(--bg-900-rgb),.7)}
+.ms-arrow-l{left:22px}
+.ms-arrow-r{right:22px}
+.ms-actions{position:absolute;right:min(5vw,64px);bottom:30px;z-index:2}
+@media(max-width:900px){.ms-strip{display:none}}   /* faixa de thumbs não cabe em tela estreita; as setas bastam */
+
+/* ============ CHAR ATTRS (ficha do personagem — mockup tela 03) ============ */
+/* RARIDADE = PASTILHA PREENCHIDA, e numa linha só dela (referência 03: o "ÉPICO" é um
+   bloco roxo cheio ABAIXO do nome, não uma etiqueta de contorno grudada no fim do
+   título). O `background` sai de `currentColor` porque quem escolhe a cor é o main.js,
+   inline (`rEl.style.color = RARITIES[tier][1]`) — então o tom da raridade continua
+   mandando e o CSS só o dilui pra virar fundo. Navegador sem color-mix cai no visual
+   antigo de contorno, que continua legível. */
+.rarity{align-self:flex-start;font-family:var(--mono);font-size:var(--fs-50);letter-spacing:var(--tr-2);
+  border:1px solid currentColor;padding:3px 10px;clip-path:var(--cut-sm);
+  background:color-mix(in srgb,currentColor 22%,transparent)}
+#char-attrs{display:flex;flex-direction:column;gap:var(--s-2);margin-top:var(--s-2)}
+.attr{display:grid;grid-template-columns:92px 1fr;align-items:center;gap:12px;
+  font-family:var(--mono);font-size:var(--fs-50);letter-spacing:var(--tr-1);color:var(--ink-300);text-transform:uppercase}
+/* BARRA SEGMENTADA (referência 03): os atributos da referência são blocos separados por
+   sulcos, não um traço contínuo — é o que faz "3 de 5" ser CONTÁVEL de relance em vez de
+   ter que estimar comprimento. Os sulcos são cortados por cima com um degradê repetido,
+   então valem pro trilho e pro preenchimento ao mesmo tempo e o `width:%` que o main.js
+   escreve no <i> continua sendo a única fonte do valor. */
+.attr-bar{position:relative;height:10px;background:var(--bg-700)}
+.attr-bar i{display:block;height:100%;background:var(--br-faixa)}
+.attr-bar::after{content:"";position:absolute;inset:0;pointer-events:none;
+  background:repeating-linear-gradient(90deg,
+    transparent 0 calc(10% - 3px),var(--bg-900) calc(10% - 3px) 10%)}
+
+/* ============ PLAYER PLATE (card do jogador no menu — mockup tela 01) ============ */
+.player-plate{display:flex;align-items:center;gap:12px;background:rgba(var(--bg-900-rgb),.85);
+  border:1px solid var(--line);clip-path:var(--cut);padding:10px 14px;cursor:pointer;text-align:left;
+  font-family:var(--font);transition:border-color var(--t) var(--ease)}
+.player-plate:hover,.player-plate:focus-visible{border-color:var(--sys)}
+.pp-avatar{width:44px;height:44px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;
+  background:var(--bg-600);color:var(--br-faixa);font-weight:700;font-size:16px;letter-spacing:1px;clip-path:var(--cut-sm)}
+.pp-info{display:flex;flex-direction:column;gap:2px;min-width:170px}
+.pp-nick{color:var(--ink-100);font-weight:700;letter-spacing:var(--tr-2);font-size:var(--fs-200);text-transform:uppercase}
+.player-plate[data-empty="1"] .pp-nick{color:var(--am)}
+.pp-level{font-family:var(--mono);font-size:10px;letter-spacing:2px;color:var(--am)}
+.xp-bar{height:4px;background:var(--bg-700);margin-top:3px}
+.xp-bar i{display:block;height:100%;background:linear-gradient(90deg,var(--br-sinal),var(--br-faixa))}
+.xp-num{font-family:var(--mono);font-size:9px;letter-spacing:1px;color:var(--ink-400)}
+
+/* ============ AJUSTES DE PARIDADE (references/telas) ============ */
+/* 02 — TARJA de rodapé com o elenco. Na referência é uma faixa escura colada na base da
+   placa, com o número em letra miúda apagada — não texto solto boiando sobre a foto,
+   que era como "9 PERSONAGENS" caía em cima da arte na captura. A altura vira token
+   porque o `.team-cta` se ancora nela: se a tarja mudar, os dois andam juntos. */
+.team-count{position:absolute;bottom:0;left:0;right:0;z-index:4;text-align:center;
+  box-sizing:border-box;height:var(--team-band-h);line-height:calc(var(--team-band-h) - 1px);
+  background:rgba(var(--bg-900-rgb),.90);border-top:1px solid rgba(255,255,255,.10);
+  font-family:var(--mono);font-size:var(--fs-50);letter-spacing:var(--tr-2);color:var(--ink-200);
+  text-shadow:none;pointer-events:none}
+
+/* 04 — chrome persistente da map screen: jogador no topo (nível/XP), VOLTAR embaixo */
+.ms-top{position:absolute;top:0;left:0;right:0;z-index:2;padding:14px 18px;
+  background:linear-gradient(180deg,rgba(var(--bg-900-rgb),.85),rgba(var(--bg-900-rgb),0))}
+.ms-top-player{display:flex;align-items:center;gap:10px;font-family:var(--font);font-weight:700;
+  font-size:var(--fs-200);letter-spacing:var(--tr-2);color:var(--ink-100);text-transform:uppercase}
+.ms-top-player .pp-avatar{width:34px;height:34px;font-size:12px}
+#map-screen .btn-back{top:auto;bottom:30px;left:min(5vw,64px)}   /* referência: VOLTAR embaixo à esquerda */
+
+/* Brasão da facção no TOPO do card (pedido do dono, 06/08) + setas do seletor de mapa
+   mais ÓBVIAS (mesmo pedido): as de 34px sumiam na moldura — viram alvo de 52px com
+   fundo de chip e hover amarelo. */
+.team-crest{width:56px;height:56px;margin:12px auto 2px;display:block;
+  object-fit:contain;z-index:2;filter:drop-shadow(0 2px 6px rgba(0,0,0,.6));position:relative}
+/* Pedido do dono (06/08, com print): sem "FACÇÃO 0N"; brasão no topo, NOME abaixo dele e
+   slogan abaixo do nome, tudo CENTRALIZADO. O plate deixa de ser linha no canto e vira
+   coluna central no topo do card. */
+.team-card .team-plate{position:relative;display:flex;flex-direction:column;align-items:center;
+  text-align:center;gap:2px;padding:0 10px}
+.team-card .team-name{display:block;text-align:center}
+.team-card .team-slogan{display:block;text-align:center;max-width:26ch}
+.ms-arrow{width:52px;height:72px;font-size:34px;line-height:72px;background:rgba(var(--bg-900-rgb),.85);
+  border:1px solid var(--line-2);color:var(--am)}
+.ms-arrow:hover{background:var(--am);color:#141216}
+/* rodapé do menu: online + links de dev (substitui a frase de sátira) */
+.menu-footer{position:fixed;right:min(4vw,42px);bottom:16px;z-index:60;
+  display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;justify-content:flex-end;
+  font-size:12px;color:var(--ink-300);text-align:right;max-width:min(70vw,760px)}
+.menu-footer .mf-ver{color:var(--ink-200);font-weight:700;letter-spacing:1px}
+.menu-footer .mf-online::before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;
+  background:#4ade60;margin-right:5px;box-shadow:0 0 6px rgba(74,222,96,.8);vertical-align:baseline}
+.menu-footer a{color:var(--ink-200);text-decoration:none;border-bottom:1px dotted var(--line-2)}
+.menu-footer a:hover{color:var(--am)}
+.menu-footer .mf-online{color:var(--verde,#7dc98f);font-weight:700}
+
+/* ---- MENU EM CELULAR RETRATO (print do dono, 07/08: logo cortado no meio e o
+   rodapé atropelando o último item). O logo é PINTADO no wallpaper 16:9; com
+   `cover` num viewport em pé a imagem escala pela ALTURA e o logo estoura a
+   largura. Em retrato o wallpaper passa a caber pela LARGURA (faixa no topo com
+   o logo inteiro, resto em --bg-900), o menu desce pra baixo da faixa e o
+   rodapé vira fluxo normal no fim da página em vez de fixed por cima do menu. */
+@media (max-width:640px) and (orientation:portrait){
+  .cs-wallpaper{background-size:100% auto;background-position:left top}
+  .cs-left{position:static;padding:56vw var(--s-5) 0;bottom:auto;left:auto}
+  #main-menu{display:block}
+  .menu-footer{position:static;justify-content:flex-start;text-align:left;
+    max-width:none;padding:18px var(--s-5) 24px}
+}
+
+/* =========================================================================
+   PASSO 1 — CARTAZ DO MAPA + DROPDOWN DE ARMAS (reprova do dono, com print)
+   =========================================================================
+   Contexto de por que este bloco existe DE NOVO: o ajuste de 06/08 (linha ~1571)
+   dizia "setas do seletor de mapa mais ÓBVIAS" mas mexeu na `.ms-arrow` — as setas
+   da tela CHEIA de mapa. As que o dono vê primeiro, e as do print, são as do CARTAZ
+   do passo 1 (`.map-arrows .map-arrow`), que continuaram 28×42 com fundo
+   `rgba(bg-900,.7)` boiando em `top:44%`. Ou seja: o pedido foi atendido no
+   elemento errado, e por isso ele pediu duas vezes. Aqui é o elemento certo.
+
+   Todo comentário aqui é de bloco: barra-barra NÃO é comentário em CSS e neste
+   arquivo já matou um @keyframes inteiro.
+   ========================================================================= */
+
+/* ---- 1) AS SETAS: alvo grande, NA BORDA da foto, com chapa opaca ----
+   Três defeitos no print, três correções:
+   (a) "escondidas" -> a chapa era translúcida (.7) sobre foto clara. Agora é .92 +
+       borda amarela + contorno escuro: o glifo tem fundo próprio, então lê sobre
+       areia do Piscinão, céu do awp_map ou concreto do Havan igualmente.
+   (b) "no meio da moldura" -> ficavam em top:44% DENTRO da arte, disputando com a
+       imagem. Agora cavalgam a borda (metade fora, metade dentro) na altura média.
+   (c) alvo pequeno -> 28×42 (1176px²) vira 48×66 (3168px²), ~2,7× a área de clique.
+   O deslocamento pra fora vive num token local porque a `.map-picker` tem que abrir
+   a mesma margem: a `.cs-setup` é `overflow-y:auto`, e overflow-x vira `auto` junto,
+   então vazar pra fora do padding do painel criaria BARRA HORIZONTAL. Nada sai da
+   caixa: a margem cede exatamente o espaço que a seta ocupa. */
+.map-picker{--ma-out:24px;--ma-w:48px;margin-inline:var(--ma-out)}
+/* Quem carrega o `transform` de centralização é o CONTAINER, nunca o botão: o
+   `.map-arrow:active{transform:translateY(1px)}` genérico sobrescreveria um
+   translateY(-50%) posto no botão e o clique cairia fora do alvo (armadilha já
+   documentada na .ms-arrow, linha ~1499). */
+.map-arrows{position:absolute;top:50%;left:calc(-1 * var(--ma-out));right:calc(-1 * var(--ma-out));
+  z-index:4;transform:translateY(-50%);display:flex;align-items:center;
+  justify-content:space-between;padding:0;pointer-events:none}
+.map-arrows .map-arrow{width:var(--ma-w);height:66px;flex:0 0 auto;pointer-events:auto;
+  font-size:32px;line-height:1;color:var(--br-faixa);
+  background:rgba(var(--bg-900-rgb),.92);border:1px solid var(--br-faixa);
+  box-shadow:0 2px 12px rgba(0,0,0,.7);clip-path:var(--cut-sm)}
+/* hover/foco INVERTE a chapa (amarelo cheio, glifo escuro) — mesmo idioma do
+   `.btn-big`/`.btn-cta` e da `.ms-arrow`: amarelo preenchido = "pode clicar aqui". */
+.map-arrows .map-arrow:hover,
+.map-arrows .map-arrow:focus-visible{background:var(--br-faixa);border-color:var(--br-faixa);
+  color:var(--bg-900);box-shadow:0 2px 16px rgba(0,0,0,.75)}
+.map-arrows .map-arrow:focus-visible{outline:2px solid var(--sys);outline-offset:2px}
+/* telas estreitas: a seta encolhe junto com o cartaz, mas continua alvo de dedo (44px) */
+@media(max-width:900px){
+  .map-picker{--ma-out:16px;--ma-w:40px}
+  .map-arrows .map-arrow{height:56px;font-size:26px}
+}
+
+/* ---- 2) A MOLDURA: vinheta que ANCORA o nome + friso amarelo ----
+   O nome do mapa flutuava sobre a foto com só um text-shadow. Sobre céu claro do
+   awp_map isso é cinza-sobre-branco. A vinheta agora fecha quase opaca na base (a
+   faixa onde o nome mora) e abre no meio (onde a arte tem que aparecer). */
+.pane-match .map-picker::after{
+  background:linear-gradient(0deg,
+    rgba(var(--bg-900-rgb),.96) 0%,
+    rgba(var(--bg-900-rgb),.80) 16%,
+    rgba(var(--bg-900-rgb),.10) 46%,
+    rgba(var(--bg-900-rgb),.46) 100%);
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.10)}
+/* moldura um degrau mais visível que `--line` (o cartaz é o protagonista do passo) */
+.pane-match #map-thumb{border-color:var(--line-2)}
+/* friso amarelo à esquerda do bloco do nome: é a "faixa" do sistema (sinaleiro/lambe)
+   e dá um começo de linha pro olho, em vez de texto começando no nada. */
+.pane-match .map-side{border-left:3px solid var(--br-faixa);padding-left:var(--s-3)}
+
+/* ---- 3) INDICADOR DE POSIÇÃO: 5 quadradinhos de 6px eram invisíveis ----
+   Vira uma régua de traços sobre chapa própria (o mesmo remédio das setas: sobre
+   foto, contraste só existe se o elemento trouxer o próprio fundo). O traço ativo é
+   mais LARGO além de amarelo — posição fica legível mesmo sem distinguir a cor. */
+#map-dots{position:absolute;top:var(--s-2);right:var(--s-2);z-index:3;display:flex;gap:4px;
+  align-items:center;padding:5px 7px;background:rgba(var(--bg-900-rgb),.78);
+  border:1px solid rgba(255,255,255,.10);clip-path:var(--cut-sm)}
+#map-dots i{width:12px;height:4px;display:block;background:rgba(255,255,255,.38);
+  transition:background var(--t) var(--ease),width var(--t) var(--ease)}
+#map-dots i.on{width:22px;background:var(--br-faixa)}
+
+/* ---- 4) ÍCONES DO DROPDOWN DE ARMAS: render real no lugar do glifo vetorial ----
+   O dono chamou de "glifos pixelados brancos toscos" — são os SVGs de 20×14 do
+   WPN_ICONS (main.js): silhuetas de 4 retângulos que, no tamanho servido, viram
+   borrão. Os renders de verdade já existem em /img/weapons/ (360×138, com alpha),
+   os mesmos usados na página de armas.
+
+   POR QUE ISTO É FEITO EM CSS E NÃO NA MARCAÇÃO: o main.js escreve o innerHTML da
+   `.dd-list` e do `#wpn-dd-label`, e main.js está fora do escopo desta mudança.
+   Então o <svg> vira apenas a CAIXA do ícone: os filhos somem e a arte entra como
+   background. Largura/altura em CSS ganham dos atributos `width`/`height` do SVG.
+   Consertar na fonte é trocar WPN_ICONS por <img> — 4 linhas em main.js. */
+#wpn-dd .dd-item > svg,
+#wpn-dd .dd-cur > svg{width:48px;height:22px;
+  background-repeat:no-repeat;background-position:center;background-size:contain;
+  background-image:url('/img/weapons/ak.webp');
+  /* os renders são pretos/oliva sobre alpha; sobre `--bg-700` a silhueta sumiria.
+     O brilho abre o metal e o halo branco de 1px devolve a borda do cano. */
+  filter:brightness(1.5) contrast(.95)
+         drop-shadow(0 0 1px rgba(255,255,255,.5)) drop-shadow(0 1px 2px rgba(0,0,0,.9));
+  transition:filter var(--t) var(--ease)}
+#wpn-dd .dd-item > svg > *,
+#wpn-dd .dd-cur > svg > *{display:none}
+#wpn-dd .dd-item:hover > svg,
+#wpn-dd .dd-item:focus-visible > svg{filter:brightness(1.85) contrast(.95)
+  drop-shadow(0 0 1px rgba(255,255,255,.65)) drop-shadow(0 1px 2px rgba(0,0,0,.9))}
+
+/* itens da lista: o `data-id` do main.js é o mapeamento estável arma -> render */
+#wpn-dd .dd-item[data-id="pistols"] > svg{background-image:url('/img/weapons/pistol.webp')}
+#wpn-dd .dd-item[data-id="knife"] > svg{background-image:url('/img/weapons/knife.webp')}
+#wpn-dd .dd-item[data-id="awp"] > svg{background-image:url('/img/weapons/awp.webp')}
+/* TODAS = duas armas empilhadas (fuzil por cima, pistola por baixo à direita).
+   Duas camadas de background no MESMO elemento: mantém a caixa de 48×22 e a altura
+   da linha igual à dos outros itens. */
+#wpn-dd .dd-item[data-id="all"] > svg,
+#wpn-dd .dd-cur > svg[width="22"]{
+  background-image:url('/img/weapons/ak.webp'),url('/img/weapons/pistol.webp');
+  background-size:42px auto,23px auto;
+  background-position:left top,right bottom}
+/* Botão FECHADO: o main.js não carimba `data-id` no rótulo atual, só o SVG. O
+   discriminador possível é o próprio SVG — `width` separa TODAS(22)/AWP(26) e o
+   `:has()` separa PISTOLA de FACA (as duas têm width 20). Se o WPN_ICONS mudar, o
+   pior caso é o botão cair no ícone padrão (TODAS): degrada, não quebra. */
+#wpn-dd .dd-cur > svg[width="26"]{background-image:url('/img/weapons/awp.webp');
+  background-size:contain;background-position:center}
+#wpn-dd .dd-cur > svg[width="20"]:has(rect[y="1"]){background-image:url('/img/weapons/pistol.webp')}
+#wpn-dd .dd-cur > svg[width="20"]:has(rect[y="10"]){background-image:url('/img/weapons/knife.webp')}
+/* o ícone cresceu de 20px pra 48px: a linha precisa de ar pra não virar aperto */
+#wpn-dd .dd-item{gap:12px;padding:9px 12px}
+#wpn-dd .dd-cur{gap:12px}
+
+/* Ícones do dropdown de armas agora são <img> reais (main.js WPN_ICONS) — o hack de
+   background por seletor de SVG do polish anterior fica inerte e pode sair depois. */
+.dd-ico{width:44px;height:17px;object-fit:contain;vertical-align:middle;margin-right:8px}
+.dd-ico-all{display:inline-flex;flex-direction:column;gap:1px;margin-right:8px}
+.dd-ico-all .dd-ico{width:38px;height:13px;margin:0}

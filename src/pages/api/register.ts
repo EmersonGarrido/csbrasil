@@ -2,23 +2,24 @@
 import type { APIRoute } from 'astro';
 import { supabaseAdmin, NOT_CONFIGURED } from '../../lib/supabase';
 import { buildSocialUrl } from '../../lib/social';
+import { isAllowedAvatarUrl } from '../../lib/safe-url';
+import { rateLimit } from '../../lib/ratelimit';
+import { isValidNick, NICK_HINT } from '../../lib/nick';
 
 export const prerender = false;
-
-const regHits = new Map<string, number[]>();
 
 export const POST: APIRoute = async ({ request }) => {
   if (!supabaseAdmin)
     return new Response(NOT_CONFIGURED, { status: 503, headers: { 'content-type': 'application/json' } });
 
-  // rate limit de registro: 10/min por IP (anti nick-farming)
+  // rate limit de registro: 10/min por IP (anti nick-farming).
+  // ERA um `new Map()` de módulo — que na Vercel vive só dentro de UMA instância
+  // de lambda e some no cold start; quem abrisse requests em paralelo ganhava um
+  // orçamento novo por instância. Agora conta no Postgres (RPC rl_take), que é
+  // memória compartilhada de verdade. Ver supabase/migrations/011.
   const ip = request.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'unknown';
-  const now = Date.now();
-  const prev = regHits.get(ip) || [];
-  const recent = prev.filter(t => now - t < 60_000);
-  if (recent.length >= 10)
+  if (!(await rateLimit(supabaseAdmin, 'register', ip, 10, 60)))
     return new Response(JSON.stringify({ error: 'rate_limited' }), { status: 429, headers: { 'content-type': 'application/json' } });
-  recent.push(now); regHits.set(ip, recent);
 
   let body: any;
   try { body = await request.json(); } catch {
@@ -27,8 +28,19 @@ export const POST: APIRoute = async ({ request }) => {
   const { nick, token, social, socials, accessToken, avatarUrl } = body ?? {};
   if (typeof nick !== 'string' || typeof token !== 'string' || nick.trim().length < 2)
     return new Response(JSON.stringify({ error: 'missing_fields' }), { status: 400, headers: { 'content-type': 'application/json' } });
+
+  // Charset do nick. O check no banco é a fonte da verdade (players_nick_charset,
+  // docs/seguranca.md §8); isto aqui é o espelho, e existe por dois motivos:
+  // devolver erro legível em vez do 409 genérico de constraint violada, e recusar
+  // ANTES de gastar uma chamada de RPC. Valida o nick já cortado em 14, que é o
+  // que de fato vai pro banco — validar o original e gravar o truncado deixaria
+  // passar lixo depois do 14º caractere.
+  const nickLimpo = nick.trim().slice(0, 14);
+  if (!isValidNick(nickLimpo))
+    return new Response(JSON.stringify({ error: 'nick_invalid', message: NICK_HINT }), { status: 400, headers: { 'content-type': 'application/json' } });
+
   const { error } = await supabaseAdmin.rpc('register_player', {
-    p_nick: nick.trim().slice(0, 14), p_token: token,
+    p_nick: nickLimpo, p_token: token,
     p_social: typeof social === 'string' ? social.slice(0, 60) : null,
   });
   if (error)
@@ -44,9 +56,16 @@ export const POST: APIRoute = async ({ request }) => {
     if (list.length) {
       await supabaseAdmin.from('players')
         .update({ socials: list, social_link: list[0].url.slice(0, 60) })
-        .eq('nick', nick.trim().slice(0, 14)).eq('token', token);
+        .eq('nick', nickLimpo).eq('token', token);
     }
   }
+
+  // ANTI-SSRF NA ORIGEM: avatar_url é lido de volta e BUSCADO pelo servidor em
+  // /api/badge. Guardar uma URL arbitrária aqui é o que armava o gatilho —
+  // por isso a validação (https + host de avatar conhecido) acontece nos dois
+  // lados: na escrita, aqui, e na leitura, no fetchAvatar. Ver src/lib/safe-url.ts.
+  const safeAvatar = (v: unknown) =>
+    typeof v === 'string' && isAllowedAvatarUrl(v) ? v.slice(0, 300) : null;
 
   // se veio sessão OAuth, vincula auth_user + avatar do provedor/custom
   if (typeof accessToken === 'string' && accessToken.length > 20) {
@@ -55,13 +74,12 @@ export const POST: APIRoute = async ({ request }) => {
       const meta: any = user.user_metadata || {};
       await supabaseAdmin.from('players').update({
         auth_user: user.id,
-        avatar_url: typeof avatarUrl === 'string' ? avatarUrl.slice(0, 300)
-          : (meta.avatar_url || meta.picture || null),
-      }).eq('nick', nick.trim().slice(0, 14)).eq('token', token);
+        avatar_url: safeAvatar(avatarUrl) ?? safeAvatar(meta.avatar_url) ?? safeAvatar(meta.picture),
+      }).eq('nick', nickLimpo).eq('token', token);
     }
-  } else if (typeof avatarUrl === 'string' && avatarUrl.length > 10) {
-    await supabaseAdmin.from('players').update({ avatar_url: avatarUrl.slice(0, 300) })
-      .eq('nick', nick.trim().slice(0, 14)).eq('token', token);
+  } else if (safeAvatar(avatarUrl)) {
+    await supabaseAdmin.from('players').update({ avatar_url: safeAvatar(avatarUrl) })
+      .eq('nick', nickLimpo).eq('token', token);
   }
   return new Response(JSON.stringify({ ok: true }), { headers: { 'content-type': 'application/json' } });
 };

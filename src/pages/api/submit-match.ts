@@ -3,21 +3,22 @@
 import type { APIRoute } from 'astro';
 import { supabaseAdmin, NOT_CONFIGURED } from '../../lib/supabase';
 import { geoFrom } from '../../lib/geo';
+import { rateLimit } from '../../lib/ratelimit';
 
 export const prerender = false;
 
-// rate limit por IP (best-effort: memória da instância serverless;
-// o limite durável por nick fica no RPC — 1 submit/90s)
-const hits = new Map<string, number>();
-const WINDOW_MS = 30_000;
+// Rate limit por IP: 1 submit/30 s. ERA um `new Map()` de módulo — que na
+// Vercel some no cold start e dá um orçamento novo por instância de lambda
+// (ver o cabeçalho de src/lib/ratelimit.ts). Agora conta no Postgres, então é
+// o mesmo limite pra todas as instâncias. O limite por NICK (1/90 s) e o teto
+// diário continuam dentro do RPC submit_match, onde sempre foram duráveis.
 
 export const POST: APIRoute = async ({ request, clientAddress }) => {
   if (!supabaseAdmin)
     return new Response(NOT_CONFIGURED, { status: 503, headers: { 'content-type': 'application/json' } });
 
   const ip = request.headers.get('x-forwarded-for')?.split(',')[0].trim() || clientAddress || 'unknown';
-  const now = Date.now();
-  if (hits.get(ip) && now - hits.get(ip)! < WINDOW_MS)
+  if (!(await rateLimit(supabaseAdmin, 'submit', ip, 1, 30)))
     return new Response(JSON.stringify({ error: 'rate_limited' }), { status: 429, headers: { 'content-type': 'application/json' } });
 
   let body: any;
@@ -32,8 +33,8 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
   // cascata de compatibilidade: se a função do banco está desatualizada
   // (sem p_character/p_seconds/p_rounds/p_team), grava o núcleo dos stats mesmo assim
   const attempts = [
-    { p_nick: n, p_token: token, p_won: !!won, p_kills: kills | 0, p_deaths: deaths | 0, p_headshots: headshots | 0, p_best_streak: bestStreak | 0, p_rounds: rounds | 0, p_team: team === 'P' || team === 'B' ? team : null, p_seconds: seconds | 0, p_character: typeof character === 'string' ? character.slice(0, 20) : null, p_ip: ip },
-    { p_nick: n, p_token: token, p_won: !!won, p_kills: kills | 0, p_deaths: deaths | 0, p_headshots: headshots | 0, p_best_streak: bestStreak | 0, p_rounds: rounds | 0, p_team: team === 'P' || team === 'B' ? team : null },
+    { p_nick: n, p_token: token, p_won: !!won, p_kills: kills | 0, p_deaths: deaths | 0, p_headshots: headshots | 0, p_best_streak: bestStreak | 0, p_rounds: rounds | 0, p_team: team === 'E' || team === 'P' ? 'P' : team === 'B' ? 'B' : null, p_seconds: seconds | 0, p_character: typeof character === 'string' ? character.slice(0, 20) : null, p_ip: ip },
+    { p_nick: n, p_token: token, p_won: !!won, p_kills: kills | 0, p_deaths: deaths | 0, p_headshots: headshots | 0, p_best_streak: bestStreak | 0, p_rounds: rounds | 0, p_team: team === 'E' || team === 'P' ? 'P' : team === 'B' ? 'B' : null },
     { p_nick: n, p_token: token, p_won: !!won, p_kills: kills | 0, p_deaths: deaths | 0, p_headshots: headshots | 0, p_best_streak: bestStreak | 0 },
   ];
   let error: any = null, degraded = false;
@@ -46,7 +47,6 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
   if (error)
     return new Response(JSON.stringify({ error: error.message }), { status: 403, headers: { 'content-type': 'application/json' } });
 
-  hits.set(ip, now);
   // geo: presença + histórico agregado por cidade (nunca IP bruto)
   const g = geoFrom(request);
   if (g) {    const today = new Date().toISOString().slice(0, 10);

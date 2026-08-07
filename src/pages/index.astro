@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<!-- Captura de crash: mostra o erro NA TELA. O jogo "fechava sozinho" e o erro sumia do
+     console; este overlay persiste a exceção (JS) pra o usuário printar. Script clássico
+     inline roda ANTES dos módulos (deferidos), então pega até erro em tempo de execução
+     dos módulos. Crash de GPU/renderer não dispara 'error' — pra esse caso use ?bloom=0. -->
+<script is:inline>
+(function(){
+  function show(kind, msg, extra){
+    try{
+      var el = document.getElementById('crash-overlay');
+      if(!el){
+        el = document.createElement('div'); el.id = 'crash-overlay';
+        el.style.cssText = 'position:fixed;left:0;right:0;bottom:0;max-height:45vh;overflow:auto;z-index:2147483647;background:rgba(120,0,0,.94);color:#fff;font:12px/1.45 ui-monospace,Menlo,monospace;padding:10px 14px;white-space:pre-wrap;border-top:2px solid #ff5252';
+        el.onclick = function(){ el.remove(); };
+        (document.body || document.documentElement).appendChild(el);
+      }
+      el.textContent = '⚠ CRASH (' + kind + '): ' + msg + (extra ? ('\n\n' + extra) : '') + '\n\n(clique pra fechar — tire um print e me mande)';
+    }catch(_){}
+  }
+  window.addEventListener('error', function(e){
+    var loc = e.filename ? (e.filename + ':' + e.lineno + ':' + e.colno) : '';
+    show('error', ((e.message || e.error || '?')) + (loc ? ('  @ ' + loc) : ''), e.error && e.error.stack);
+  });
+  window.addEventListener('unhandledrejection', function(e){
+    var r = e.reason; show('promise', (r && r.message) || String(r), r && r.stack);
+  });
+})();
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CORO SOLTO: Treta Suprema — FPS grátis de navegador (ex-CS BRASIL)</title>
+<meta name="description" content="Jogo FPS gratuito de navegador: arena de sniper estilo awp_map do CS 1.6 numa Brasília fictícia e satírica. 5 facções, 44 personagens originais, 5 mapas, 26 armas, bots, rounds, CTF, placar e rádio de voz. Sem instalação — jogue no desktop.">
+<meta name="keywords" content="coro solto, cs brasil, jogo de tiro navegador, fps browser grátis, awp, cs 1.6 brasileiro, jogo satira politica, treta suprema, jogo web three.js">
+<meta name="author" content="CORO SOLTO contributors">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<meta name="theme-color" content="#090704">
+<!-- CANONICAL COM www: a produção responde em www.csbrasil.online. Este link
+     estava no host sem www e brigava com o canonical das outras páginas
+     (que sai de astro.config.mjs) — dois hosts, sinal diluído. -->
+<link rel="canonical" href="https://www.csbrasil.online/">
+<!-- HREFLANG. Repetido aqui porque esta página tem <head> PRÓPRIO e não passa
+     pelo Layout.astro — a home é o jogo, não uma página de conteúdo. Deixar de
+     fora justamente a URL mais importante do site é o tipo de buraco que só
+     aparece quando alguém compara página por página.
+     Mesmo host e mesma forma do canonical acima. Ver Layout.astro pro porquê
+     de `x-default` e da auto-referência. -->
+<link rel="alternate" hreflang="pt-BR" href="https://www.csbrasil.online/">
+<link rel="alternate" hreflang="x-default" href="https://www.csbrasil.online/">
+<!-- Open Graph -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="CORO SOLTO: Treta Suprema">
+<meta property="og:title" content="CORO SOLTO: Treta Suprema — FPS grátis de navegador">
+<meta property="og:description" content="Arena de sniper estilo CS 1.6 numa Brasília fictícia: 5 facções, 44 personagens, AWP, bots, rounds e muita treta. Jogue grátis no navegador.">
+<meta property="og:url" content="https://www.csbrasil.online/">
+<meta property="og:image" content="https://www.csbrasil.online/og-image.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="CORO SOLTO: Treta Suprema — arena de sniper estilo CS 1.6 numa Brasília fictícia">
+<meta property="og:locale" content="pt_BR">
+<!-- Twitter -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="CORO SOLTO: Treta Suprema — FPS grátis de navegador">
+<meta name="twitter:description" content="Arena de sniper estilo CS 1.6 numa Brasília fictícia. 5 facções, 44 personagens. Jogue grátis no navegador.">
+<meta name="twitter:image" content="https://www.csbrasil.online/og-image.jpg">
+<meta name="twitter:image:alt" content="CORO SOLTO: Treta Suprema — arena de sniper estilo CS 1.6 numa Brasília fictícia">
+<!-- JSON-LD: UM nó VideoGame no site inteiro, e ele mora AQUI.
+     Antes, index.astro e sobre.astro emitiam cada um um VideoGame com a MESMA
+     url e SEM @id — dois nós anônimos idênticos, que é o caso clássico de
+     falha de deduplicação: o crawler não sabe se é uma entidade ou duas.
+     Agora o nó canônico tem @id estável (…/#game) e vive na home, que é a url
+     do próprio jogo; /sobre e as outras páginas só REFERENCIAM esse @id.
+     Uma entidade, um dono. (a fonte dos textos é src/lib/site.ts) -->
+<script type="application/ld+json" is:inline>
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    { "@type": "WebSite", "@id": "https://www.csbrasil.online/#website",
+      "url": "https://www.csbrasil.online/",
+      "name": "CORO SOLTO: Treta Suprema",
+      "alternateName": ["CORO SOLTO", "CS BRASIL", "CS BRASIL: Treta Suprema"],
+      "inLanguage": "pt-BR",
+      "publisher": { "@id": "https://www.csbrasil.online/#org" } },
+    { "@type": "Organization", "@id": "https://www.csbrasil.online/#org",
+      "name": "CORO SOLTO contributors",
+      "url": "https://www.csbrasil.online/",
+      "logo": "https://www.csbrasil.online/og-image.jpg" },
+    { "@type": "WebPage", "@id": "https://www.csbrasil.online/#webpage",
+      "url": "https://www.csbrasil.online/",
+      "name": "CORO SOLTO: Treta Suprema — FPS grátis de navegador (ex-CS BRASIL)",
+      "isPartOf": { "@id": "https://www.csbrasil.online/#website" },
+      "primaryImageOfPage": { "@type": "ImageObject", "url": "https://www.csbrasil.online/og-image.jpg", "width": 1200, "height": 630 },
+      "mainEntity": { "@id": "https://www.csbrasil.online/#game" } },
+    { "@type": "VideoGame", "@id": "https://www.csbrasil.online/#game",
+      "name": "CORO SOLTO: Treta Suprema",
+      "alternateName": ["CORO SOLTO", "CS BRASIL", "CS BRASIL: Treta Suprema"],
+      "url": "https://www.csbrasil.online/",
+      "image": "https://www.csbrasil.online/og-image.jpg",
+      "description": "FPS de navegador gratuito e satírico: arena de sniper estilo CS 1.6 (awp_map) numa Brasília fictícia. 5 facções, 44 personagens originais, 5 mapas, 26 armas, bots, rounds e Capture the Flag.",
+      "genre": ["Shooter", "FPS", "Comédia", "Sátira"],
+      "gamePlatform": ["Web Browser", "Desktop"],
+      "applicationCategory": "GameApplication",
+      "operatingSystem": "Qualquer navegador de desktop",
+      "playMode": "SinglePlayer",
+      "inLanguage": "pt-BR",
+      "isAccessibleForFree": true,
+      "isFamilyFriendly": true,
+      "license": "https://www.gnu.org/licenses/agpl-3.0.html",
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "BRL",
+                  "availability": "https://schema.org/InStock",
+                  "url": "https://www.csbrasil.online/" },
+      "author": { "@id": "https://www.csbrasil.online/#org" },
+      "publisher": { "@id": "https://www.csbrasil.online/#org" },
+      "gameLocation": [
+        { "@type": "Place", "name": "Praça dos Três Poderes" },
+        { "@type": "Place", "name": "Praça (clássico)" },
+        { "@type": "Place", "name": "Piscina da Treta" },
+        { "@type": "Place", "name": "Loja H (Estacionamento)" },
+        { "@type": "Place", "name": "Ferro Velho do Zé" }
+      ] }
+  ]
+}
+</script>
+<script type="application/ld+json" is:inline>
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "@id": "https://www.csbrasil.online/#faq",
+  "mainEntity": [
+    { "@type": "Question", "name": "O que é CORO SOLTO: Treta Suprema?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Um jogo FPS gratuito que roda no navegador: arena de sniper estilo awp_map do CS 1.6 ambientada numa Brasília fictícia e satírica. Tem 5 facções (Time E, Time B, Tribos Urbanas, Palhaços e Funkeiros), 44 personagens originais, 5 mapas, 26 armas, bots, sistema de rounds e Capture the Flag. O jogo já se chamou CS BRASIL." } },
+    { "@type": "Question", "name": "Preciso instalar ou pagar algo?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Não. O jogo é 100% gratuito e roda direto no navegador de desktop (Chrome, Edge ou Firefox), sem download, sem instalação e sem cadastro." } },
+    { "@type": "Question", "name": "Quais são os controles?",
+      "acceptedAnswer": { "@type": "Answer", "text": "WASD move, mouse mira, clique esquerdo atira, clique direito abre a luneta, Ctrl (ou C) agacha e melhora a mira, Shift corre, Espaço pula, R recarrega, as teclas 1/2/3 trocam entre primária, pistola e faca, Z/X/V abrem os comandos de voz, M troca de time e Tab mostra o placar." } },
+    { "@type": "Question", "name": "Quais são as facções e os personagens?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Cinco facções fictícias e satíricas, com 44 personagens no total: Time E (8), Time B (9), Tribos Urbanas (9), Palhaços (9) e Funkeiros (9). Tribos Urbanas e Funkeiros não têm nada de política. Todos são arquétipos originais, sem pessoas reais, e todos jogam exatamente igual." } },
+    { "@type": "Question", "name": "Quais mapas o jogo tem?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Cinco arenas: Praça dos Três Poderes (a Brasília fictícia, com a urna gigante quebrada no mid), Praça clássica, Piscina da Treta, Loja H (estacionamento) e Ferro Velho do Zé. As duas últimas abrem em Capture the Flag, mas qualquer mapa aceita qualquer modo." } },
+    { "@type": "Question", "name": "Tem ranking global?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Ainda não. O jogo está em alpha e o ranking global está desligado até o placar ser confiável. Seus stats de partida ficam salvos no seu navegador e aparecem no menu RANKING do jogo." } },
+    { "@type": "Question", "name": "É um jogo oficial da Valve ou do Counter-Strike?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Não. É uma paródia independente feita por fãs, sem qualquer afiliação com a Valve. Counter-Strike é marca da Valve Corporation." } },
+    { "@type": "Question", "name": "Funciona no celular?",
+      "acceptedAnswer": { "@type": "Answer", "text": "O jogo foi feito para desktop com mouse e teclado. Em telas de toque um aviso recomenda jogar no computador." } }
+  ]
+}
+</script>
+<!-- Favicon do jogo. Era um SVG inline (barras cianas genéricas) e link declarado SEMPRE
+     ganha do /favicon.ico implícito — por isso o ícone novo não aparecia na aba, e NÃO era
+     cache. O .ico tem 3 entradas com recorte por tamanho (16 = cabeça do canarinho, 32 = com
+     peito e cano da pistola, 48 = busto): corpo inteiro a 16 px vira mancha amarela, medido.
+     Gerado por tools/eval/canarinho-icon.mjs a partir do GLB real. -->
+<link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="stylesheet" href="/style.css?v=2.0.0-alpha.32">
+<!-- Cache-bust por módulo. Entraram nesta lista (07/08) o `graffiti_pass`/`graffiti_layout`
+     e, de quebra, o `map_quebrada`/`map_decals`, que estavam faltando desde que nasceram.
+     Sem o `?v=`, quem já jogou fica com o módulo em cache e vê o mapa NOVO com o grafite
+     VELHO — e o layout do grafite guarda coordenada de parede, então a divergência não é
+     cosmética: é peça colada onde a parede não está mais. -->
+<script type="importmap" is:inline>
+{ "imports": {
+  "three": "./vendor/three.module.js", "three/addons/": "./vendor/addons/",
+  "./js/main.js": "./js/main.js?v=2.0.0-alpha.32",
+  "./js/game.js": "./js/game.js?v=2.0.0-alpha.32",
+  "./js/glbchars.js": "./js/glbchars.js?v=2.0.0-alpha.32",
+  "./js/weapons.js": "./js/weapons.js?v=2.0.0-alpha.32",
+  "./js/characters.js": "./js/characters.js?v=2.0.0-alpha.32",
+  "./js/audio.js": "./js/audio.js?v=2.0.0-alpha.32",
+  "./js/maps.js": "./js/maps.js?v=2.0.0-alpha.32",
+  "./js/map_brasilia.js": "./js/map_brasilia.js?v=2.0.0-alpha.32",
+  "./js/map_piscina.js": "./js/map_piscina.js?v=2.0.0-alpha.32",
+  "./js/map_havan.js": "./js/map_havan.js?v=2.0.0-alpha.32",
+  "./js/map_ferrovelho.js": "./js/map_ferrovelho.js?v=2.0.0-alpha.32",
+  "./js/map_quebrada.js": "./js/map_quebrada.js?v=2.0.0-alpha.32",
+  "./js/map_decals.js": "./js/map_decals.js?v=2.0.0-alpha.32",
+  "./js/graffiti_pass.js": "./js/graffiti_pass.js?v=2.0.0-alpha.32",
+  "./js/graffiti_layout.js": "./js/graffiti_layout.js?v=2.0.0-alpha.32",
+  "./js/mapprops.js": "./js/mapprops.js?v=2.0.0-alpha.32",
+  "./js/fparms.js": "./js/fparms.js?v=2.0.0-alpha.32",
+  "./js/vmattach.js": "./js/vmattach.js?v=2.0.0-alpha.32",
+  "./js/stylize.js": "./js/stylize.js?v=2.0.0-alpha.32",
+  "./js/bloom.js": "./js/bloom.js?v=2.0.0-alpha.32",
+  "./js/gpuparticles.js": "./js/gpuparticles.js?v=2.0.0-alpha.32",
+  "./js/textures.js": "./js/textures.js?v=2.0.0-alpha.32",
+  "./js/version.js": "./js/version.js?v=2.0.0-alpha.32",
+  "./js/i18n.js": "./js/i18n.js?v=2.0.0-alpha.32",
+  "./js/handik.js": "./js/handik.js?v=2.0.0-alpha.32",
+  "./js/springs.js": "./js/springs.js?v=2.0.0-alpha.32"
+} }
+</script>
+</head>
+<body>
+<h1 class="sr-only">CORO SOLTO: Treta Suprema (ex-CS BRASIL) — jogo FPS gratuito de navegador, Time E × Time B</h1>
+
+<!-- SPLASH DE BOOT: cobre o load inicial (nada de cena parcial/"minecraft" visível) e
+     destrava o áudio COM SOM no 1º gesto (política de autoplay do browser exige gesto;
+     a splash transforma essa exigência em ritual de entrada). O menu carrega por baixo
+     e já aparece pronto quando a splash sai. -->
+<div id="boot-splash" style="position:fixed;inset:0;z-index:200;background:#141216">
+  <div class="splash-frame">
+    <canvas id="splash-logo" width="900" height="360"></canvas>
+    <div class="splash-sub">ARENA DE SNIPER · PET × BOL × TRIBOS</div>
+    <div class="splash-bar"><div id="boot-bar-fill"></div></div>
+    <div class="splash-status"><span id="boot-status">CARREGANDO ARENA…</span><span id="boot-pct">0%</span></div>
+    <div id="splash-enter" class="hidden">CLIQUE OU PRESSIONE QUALQUER TECLA</div>
+  </div>
+  <div class="splash-ver" id="splash-ver"></div>
+</div>
+
+<!-- LOADING de partida/personagens: overlay opaco com barra real (THREE.LoadingManager)
+     — enquanto os GLBs entram, NADA da cena montando fica visível -->
+<div id="load-overlay" class="hidden">
+  <div class="lo-box">
+    <div class="lo-title">CORO SOLTO<span>// TRETA SUPREMA</span></div>
+    <div id="load-label">CARREGANDO…</div>
+    <div class="splash-bar lo-bar"><div id="load-bar-fill"></div></div>
+    <div class="splash-status"><span id="load-status">CARREGANDO MODELOS 3D…</span><span id="load-pct">0%</span></div>
+  </div>
+</div>
+
+<!-- Mobile fallback -->
+<div id="mobile-warning" class="screen hidden">
+  <div class="panel center-panel">
+    <h1>CORO SOLTO: TRETA SUPREMA</h1>
+    <p class="big">🖱️⌨️ Este jogo foi feito para <b>desktop</b> (mouse + teclado).</p>
+    <p>Jogar num PC ou notebook é <b>recomendado</b>. No celular a treta não flui.</p>
+    <button id="mobile-ok" class="btn">ENTENDI</button>
+  </div>
+</div>
+
+<!-- Main menu -->
+<div id="main-menu" class="screen cs-screen">
+  <div class="cs-wallpaper"></div>
+  <div class="cs-vignette"></div>
+  <div class="scanlines"></div>
+
+  <div class="cs-left">
+    <!-- logo removido: os wallpapers (wall-1..4) já trazem o logo do jogo -->
+    <!-- nav com roving tabindex: setas ↑↓ movem, Enter/Espaço confirma (main.js).
+         aria-current marca o item que abriu o painel — antes nada dizia de onde
+         o setup tinha vindo. -->
+    <nav class="cs-menu" id="cs-menu" aria-label="Menu principal">
+      <div class="cs-menu-label">// ESCOLHA A TRETA</div>
+      <button class="cs-item" data-act="sp"    type="button"><span class="cs-tick">▸</span>SINGLE PLAYER</button>
+      <button class="cs-item" data-act="ctf"   type="button"><span class="cs-tick">▸</span>CAPTURE THE FLAG</button>
+      <button class="cs-item" data-act="config" type="button"><span class="cs-tick">▸</span>CONFIGURAÇÕES</button>
+      <button class="cs-item" data-act="ranking" type="button"><span class="cs-tick">▸</span>RANKING</button>
+      <!-- MAPA saiu do menu (o mapa se escolhe dentro de SINGLE PLAYER / CTF); no
+           lugar entrou FEEDBACK (pedido do dono, 07/08), que alimenta a lista da
+           futura newsletter — ver /api/feedback e supabase/migrations/013. -->
+      <button class="cs-item" data-act="feedback" type="button"><span class="cs-tick">▸</span>FEEDBACK</button>
+      <button class="cs-item" data-act="sobre" type="button"><span class="cs-tick">▸</span>SOBRE O JOGO</button>
+    </nav>
+    <!-- plate do jogador: nível/XP derivados dos stats locais (mesma fonte do RANKING).
+         Clique abre o passo de perfil do setup. -->
+    <!-- nível/XP FORA por enquanto (pedido do dono 06/08); DOM fica pro main.js não quebrar -->
+  <button class="player-plate" id="player-plate" type="button" data-empty="1" title="Abrir seu perfil" style="display:none">
+      <span class="pp-avatar" id="pp-avatar">CS</span>
+      <span class="pp-info">
+        <span class="pp-nick" id="pp-nick">SEM NICK</span>
+        <span class="pp-level" id="pp-level">NÍVEL 1</span>
+        <span class="xp-bar"><i id="xp-fill"></i></span>
+        <span class="xp-num" id="xp-num">0 / 2.000 XP</span>
+      </span>
+    </button>
+    <div class="menu-footer">
+        <span class="mf-ver" id="mf-ver"></span>
+        <span class="mf-online" id="mf-online" hidden><span id="mf-online-n">0</span> online</span>
+        <a href="https://github.com/rubenmarcus/csbrasil" target="_blank" rel="noopener">GitHub</a>
+        <a href="/docs/" target="_blank">Docs</a>
+        <a href="https://github.com/rubenmarcus/csbrasil/issues" target="_blank" rel="noopener">Issues</a>
+        <a href="/armas" target="_blank">Armas</a>
+        <a href="/personagens" target="_blank">Personagens</a>
+        <a href="/mapas" target="_blank">Mapas</a>
+        <a href="/como-jogar" target="_blank">Como jogar</a>
+        <a href="/changelog" target="_blank">Changelog</a>
+        <a href="/sobre" target="_blank">Sobre</a>
+      </div>
+  </div>
+
+  <!-- PAINEL DE SETUP — dois PASSOS no mesmo painel (data-step).
+       PASSO 1 = A PARTIDA: o mapa é o protagonista (cartaz grande, nome, modo, bots).
+       O nick saiu daqui a pedido do dono: perfil virou um passo próprio, aberto pelo
+       botão PERFIL. Dois passos no MESMO container pra não duplicar a máquina de
+       estados do menu (closeSetup / ESC / clique fora / :has(.cs-setup.open)). -->
+  <div id="menu-setup" class="cs-setup" data-step="match">
+    <div class="cs-setup-head"><small id="setup-step">PASSO 1 · A PARTIDA</small><span id="setup-title">SINGLE PLAYER</span></div>
+
+    <!-- ---------- PASSO 1: A PARTIDA ---------- -->
+    <section class="setup-pane pane-match">
+      <!-- O cartaz do mapa é a tela inteira do passo: arte grande, nome grande e a
+           ficha da partida (modo · bots · armas) LIDA EM CIMA DA ARTE, não num form. -->
+      <div class="map-picker">
+        <img id="map-thumb" src="/img/map-previews/awp_map.jpg" alt="preview do mapa">
+        <button id="map-mode" type="button" title="Clique pra trocar entre ROUNDS e CAPTURE THE FLAG">ROUNDS</button>
+        <span id="map-dots" aria-hidden="true"></span>
+        <!-- Setas do carrossel: `title` além do aria-label porque o dono reprovou duas
+             vezes por elas não parecerem clicáveis. O aria-label só fala com leitor de
+             tela; o title dá a dica no mouse. Ids e handlers intocados (main.js:806). -->
+        <div class="map-arrows">
+          <button id="map-prev" class="map-arrow" type="button" aria-label="mapa anterior" title="Mapa anterior">‹</button>
+          <button id="map-next" class="map-arrow" type="button" aria-label="próximo mapa" title="Próximo mapa">›</button>
+        </div>
+        <div class="map-side">
+          <span class="map-kicker">O PALCO DA TRETA</span>
+          <span id="map-name">—</span>
+          <span id="map-meta"></span>
+        </div>
+      </div>
+      <div class="match-opts">
+        <label class="map-label">ARMAS
+          <div class="dd" id="wpn-dd">
+            <button class="dd-btn" id="wpn-dd-btn" type="button"><span id="wpn-dd-label"></span><span class="dd-arrow">▾</span></button>
+            <div class="dd-list hidden" id="wpn-dd-list"></div>
+          </div>
+        </label>
+        <label class="map-label">BOTS / LADO
+          <select id="bots-select"></select>
+        </label>
+        <!-- Dificuldade agora é RANDÔMICA por bot (50% ruins / 20% médios / 20% bons /
+             10% muito bons) — seletor removido. -->
+      </div>
+      <div class="cs-setup-actions">
+        <button id="setup-back" class="btn btn-back" type="button">◀ VOLTAR</button>
+        <button id="btn-profile" class="btn btn-profile" type="button">
+          <small>SEU PERFIL</small><span id="profile-name">SEM NICK</span>
+        </button>
+        <button id="btn-jogar" class="btn btn-big">▶ JOGAR</button>
+      </div>
+    </section>
+
+    <!-- ---------- PASSO À PARTE: O PERFIL ---------- -->
+    <section class="setup-pane pane-profile">
+      <div class="profile-card">
+        <div class="pc-title">NOME NA CAMISA</div>
+        <label class="map-label" for="nick-input">SEU NICK
+          <input id="nick-input" maxlength="14" placeholder="ex: Zé do AWP" autocomplete="off">
+        </label>
+        <div class="map-label">REDES SOCIAIS (OPCIONAL)
+          <div id="social-list"></div>
+          <button id="social-add" class="btn-ghost" type="button">+ REDE SOCIAL</button>
+        </div>
+        <div id="avatar-row" class="hidden">
+          <button id="avatar-btn" class="btn-ghost">+ FOTO DE PERFIL</button>
+          <input id="avatar-file" type="file" accept="image/png,image/jpeg,image/webp" class="hidden">
+          <span id="avatar-note"></span>
+        </div>
+        <p class="pc-note">É esse nome que aparece no killfeed. Escolha com carinho — a treta é pública.</p>
+      </div>
+      <div class="cs-setup-actions">
+        <button id="profile-back" class="btn btn-back" type="button">◀ VOLTAR</button>
+        <button id="profile-ok" class="btn btn-big" type="button">TÁ ANOTADO</button>
+      </div>
+    </section>
+  </div>
+  <!-- botões legados (ainda referenciados pelo main.js; roteados pelo menu CS acima) -->
+  <div class="side-actions hidden">
+    <button id="btn-ranking" class="btn btn-side">RANKING</button>
+    <button id="btn-howto" class="btn btn-side">COMO JOGAR</button>
+    <button id="btn-settings" class="btn btn-side">CONFIG.</button>
+  </div>
+</div>
+
+<!-- Map screen (escolha de mapa em tela cheia) — abre pelo cartaz do mapa no setup.
+     Lê o MESMO estado do carrossel do menu (currentMap/mapIdx): trocar aqui troca lá. -->
+<div id="map-screen" class="screen hidden">
+  <div class="ms-bg"><img id="ms-bg-img" alt=""></div>
+  <div class="ms-scrim"></div>
+  <!-- chrome persistente (referência telas/04): jogador no topo, VOLTAR embaixo à esquerda -->
+  <div class="ms-top">
+    <div class="ms-top-player">
+      <span class="pp-avatar" id="ms-avatar">CS</span>
+      <span id="ms-top-nick">SEM NICK</span>
+      <span class="pp-level" id="ms-top-level">NÍVEL 1</span>
+    </div>
+  </div>
+  <header class="ms-head">
+    <small>O PALCO DA TRETA</small>
+    <h2 id="ms-name" class="ms-name">—</h2>
+    <p id="ms-meta" class="ms-meta"></p>
+    <p id="ms-desc" class="ms-desc"></p>
+  </header>
+  <button id="ms-prev" class="map-arrow ms-arrow ms-arrow-l" type="button" aria-label="mapa anterior">‹</button>
+  <button id="ms-next" class="map-arrow ms-arrow ms-arrow-r" type="button" aria-label="próximo mapa">›</button>
+  <div class="ms-strip" id="ms-strip"></div>
+  <button id="ms-back" class="btn btn-back" type="button">◀ VOLTAR</button>
+  <div class="ms-actions">
+    <button id="ms-continue" class="btn btn-big" type="button">CONTINUAR ▶</button>
+  </div>
+</div>
+
+<!-- Team selection — duas faces claras: cada facção é uma PLACA (arte + cor + slogan +
+     elenco), não um card de formulário. `data-step` troca a leitura da MESMA tela entre
+     "escolher o seu lado" (side) e "escolher o adversário" (enemy). O lugar da arte por
+     time já existe: .team-art consome --art (ver style.css) e, enquanto o arquivo não
+     existir, o degradê da facção continua sendo o fundo — sem ícone de imagem quebrada. -->
+<div id="team-select" class="screen hidden" data-step="side">
+  <header class="ts-head">
+    <small id="team-step">PASSO 2 · O SEU LADO</small>
+    <h2 class="screen-title" id="team-title">ESCOLHA SEU LADO DA TRETA</h2>
+    <p class="ts-hint" id="team-hint">Cada facção tem elenco, grito e jeito de brigar. Escolha o coro.</p>
+  </header>
+  <div class="team-row">
+    <button id="btn-team-e" class="team-card team-e">
+      <img class="team-crest" src="/img/brasoes/e.png" alt="">
+      <span class="team-art" aria-hidden="true"></span>
+      <span class="team-plate">
+        <span class="team-name">TIME E</span>
+        <span class="team-slogan">"A treta se faz na praça!"</span>
+      </span>
+      <span class="team-chars" aria-hidden="true"></span>
+      <span class="team-desc">Esquerdomacho · Líder do Sindicato · Líder do MST · Doutora do SUS · Jovem Místico</span>
+      <span class="team-cta" aria-hidden="true"></span>
+    </button>
+    <button id="btn-team-b" class="team-card team-b">
+      <img class="team-crest" src="/img/brasoes/b.png" alt="">
+      <span class="team-art" aria-hidden="true"></span>
+      <span class="team-plate">
+        <span class="team-name">TIME B</span>
+        <span class="team-slogan">"A treta se faz na rodovia!"</span>
+      </span>
+      <span class="team-chars" aria-hidden="true"></span>
+      <span class="team-desc">Caminhoneiro · Influencer de Dubai · Cantor Sertanejo · Tia Zilá · Coach Quântico</span>
+      <span class="team-cta" aria-hidden="true"></span>
+    </button>
+    <button id="btn-team-u" class="team-card team-u">
+      <img class="team-crest" src="/img/brasoes/u.png" alt="">
+      <span class="team-art" aria-hidden="true"></span>
+      <span class="team-plate">
+        <span class="team-name">TRIBOS URBANAS</span>
+        <span class="team-slogan">"A treta se faz na quebrada!"</span>
+      </span>
+      <span class="team-chars" aria-hidden="true"></span>
+      <span class="team-desc">Emo · Black Metal · Metaleiro · Punk · Skatista · Clubber · Rapper · Rasta · Pagodeiro</span>
+      <span class="team-cta" aria-hidden="true"></span>
+    </button>
+    <button id="btn-team-c" class="team-card team-c">
+      <img class="team-crest" src="/img/brasoes/c.png" alt="">
+      <span class="team-art" aria-hidden="true"></span>
+      <span class="team-plate">
+        <span class="team-name">PALHAÇOS</span>
+        <span class="team-slogan">"A treta se faz no picadeiro!"</span>
+      </span>
+      <span class="team-chars" aria-hidden="true"></span>
+      <span class="team-desc">Bonzo · Palhaço do Mal · Jozo · Adjim · Esbirro · Titica · Padati · Padata · Cadequinha</span>
+      <span class="team-cta" aria-hidden="true"></span>
+    </button>
+    <button id="btn-team-f" class="team-card team-f">
+      <img class="team-crest" src="/img/brasoes/f.png" alt="">
+      <span class="team-art" aria-hidden="true"></span>
+      <span class="team-plate">
+        <span class="team-name">FUNKEIROS</span>
+        <span class="team-slogan">"A treta se faz no bailão!"</span>
+      </span>
+      <span class="team-chars" aria-hidden="true"></span>
+      <span class="team-desc">Mandrake · Raul da Franja · Oakley · Cria RJ · Chave SP · Funk Raiz · Trap Funk · Fluxo · Ostentação</span>
+      <span class="team-cta" aria-hidden="true"></span>
+    </button>
+  </div>
+  <button id="team-back" class="btn btn-back">◀ VOLTAR</button>
+</div>
+
+<!-- Character selection — layout da referência (references/telas/03): filmstrip de
+     avatares à esquerda, ficha no meio (nome/raridade/especialidade/atributos/CTA) e
+     preview 3D GIGANTE à direita, com GIRAR/ZOOM de verdade (drag + wheel no main.js).
+     O corpo continua elástico (flex:1 + min-height:0) — a lição do bug 3:2 se mantém. -->
+<div id="char-select" class="screen hidden">
+  <header class="ts-head">
+    <small>PASSO 3 · O PERSONAGEM</small>
+    <h2 class="screen-title">ESCOLHA SEU PERSONAGEM</h2>
+  </header>
+  <div class="char-stage">
+    <div class="char-filmstrip">
+      <button id="strip-up" class="strip-arrow" type="button" aria-label="personagem anterior">⌃</button>
+      <div id="char-list" class="char-list" role="listbox" aria-label="Personagens"></div>
+      <button id="strip-down" class="strip-arrow" type="button" aria-label="próximo personagem">⌄</button>
+    </div>
+    <div class="char-sheet">
+      <div class="char-info-head">
+        <div id="char-info-name">—</div>
+        <span id="char-rarity" class="rarity">COMUM</span>
+      </div>
+      <div id="char-info-blurb">—</div>
+      <div class="char-spec">
+        <small>ESPECIALIDADE</small>
+        <b id="char-spec-name">—</b>
+        <p id="char-spec-desc">—</p>
+      </div>
+      <div class="char-attrs-block">
+        <small>ATRIBUTOS</small>
+        <div id="char-attrs"></div>
+      </div>
+      <button id="char-confirm" class="btn btn-big">USAR PERSONAGEM</button>
+    </div>
+    <div class="char-preview-box">
+      <canvas id="char-preview" width="640" height="640"></canvas>
+      <div class="pv-hints"><span>ARRASTE · GIRAR</span><span>SCROLL · ZOOM</span></div>
+    </div>
+  </div>
+  <button id="char-back" class="btn btn-back">◀ VOLTAR</button>
+</div>
+
+<!-- Settings — abas por categoria (padrão CS2/Valorant). Os IDs dos inputs NÃO mudam:
+     toda a persistência/wiring do main.js continua valendo. -->
+<div id="settings-panel" class="screen hidden">
+  <h2 class="screen-title">CONFIGURAÇÕES</h2>
+  <div class="panel settings-wrap">
+    <div class="set-tabs" role="tablist" aria-label="Categorias de configuração">
+      <button class="set-tab active" data-tab="video" role="tab" aria-selected="true">VÍDEO</button>
+      <button class="set-tab" data-tab="audio" role="tab" aria-selected="false">ÁUDIO</button>
+      <button class="set-tab" data-tab="mouse" role="tab" aria-selected="false">MOUSE</button>
+      <button class="set-tab" data-tab="interface" role="tab" aria-selected="false">INTERFACE</button>
+    </div>
+    <!-- DUAS COLUNAS (referência telas/07): lista de ajustes à esquerda, painel de
+         pré-visualização à direita. Os .set-pane continuam sendo filhos diretos de um
+         container que o main.js varre por `.set-pane` + data-pane — só mudou onde esse
+         container mora, então o wiring de abas continua intacto. -->
+    <div class="set-cols">
+    <div class="set-list">
+    <div class="set-pane" data-pane="video" role="tabpanel">
+      <label class="set-row">IDIOMA
+        <select id="set-lang">
+          <option value="auto" selected>Automático (navegador)</option>
+          <option value="pt">Português</option>
+          <option value="en">Inglês</option>
+        </select>
+      </label>
+      <label class="set-row">Qualidade gráfica
+        <select id="set-quality">
+          <option value="low">Batata (rápido)</option>
+          <option value="med" selected>Média</option>
+          <option value="high">Padrão ouro</option>
+        </select>
+      </label>
+    </div>
+    <div class="set-pane hidden" data-pane="audio" role="tabpanel">
+      <label class="set-row">Volume
+        <input id="set-vol" type="range" min="0" max="1" step="0.05" value="0.7">
+        <span id="set-vol-val">70%</span>
+      </label>
+      <label class="set-row">Falas dos memes (vozes dos times)
+        <input id="set-speech" type="checkbox" checked>
+      </label>
+    </div>
+    <div class="set-pane hidden" data-pane="mouse" role="tabpanel">
+      <label class="set-row">Sensibilidade do mouse
+        <input id="set-sens" type="range" min="0.2" max="3" step="0.1" value="1">
+        <span id="set-sens-val">1.0</span>
+      </label>
+    </div>
+    <div class="set-pane hidden" data-pane="interface" role="tabpanel">
+      <!-- A mira sai do sistema de cor do HUD: quem escolhe é o jogador (CS2/Valorant). -->
+      <label class="set-row">Cor da mira
+        <!-- Ciano é o PADRÃO e por isso vem primeiro: é o único matiz que nenhum cenário
+             dos 4 mapas ocupa. "Branca" desceu porque some na parede do awp_map (1,28:1). -->
+        <select id="set-xhair">
+          <option value="#4fe8e0">Ciano (padrão)</option>
+          <option value="#46e08a">Verde</option>
+          <option value="#ffc93f">Amarela</option>
+          <option value="#ff4d4d">Vermelha</option>
+          <option value="#ff5cf0">Magenta</option>
+          <option value="#e9f1f3">Branca</option>
+        </select>
+      </label>
+    </div>
+    </div>
+    <!-- painel de amostra: é uma captura real de mapa do jogo (a mesma família de
+         imagem que a referência usa), decorativa e fora da ordem de foco -->
+    <aside class="set-preview" aria-hidden="true"></aside>
+    </div>
+    <div class="set-actions">
+      <button id="settings-back" class="btn btn-big settings-save">SALVAR &amp; VOLTAR</button>
+    </div>
+  </div>
+</div>
+
+<!-- Ranking (local + global quando o Supabase estiver ligado) -->
+<div id="ranking-panel" class="screen hidden">
+  <div class="panel center-panel">
+    <h2>RANKING</h2>
+    <div id="rank-local" class="rank-stats"></div>
+    <div id="rank-global"></div>
+    <p class="rank-note">Estes stats ficam <strong>neste navegador</strong>. O ranking global está
+    desligado enquanto o jogo está em alpha — volta quando o placar for confiável.</p>
+    <button id="ranking-back" class="btn">VOLTAR</button>
+  </div>
+</div>
+
+<!-- Feedback (substituiu o MAPA no menu, 07/08). Email + consentimento são
+     obrigatórios: a tabela feedback é a semente da newsletter (migration 013). -->
+<div id="feedback-panel" class="screen hidden">
+  <div class="panel center-panel">
+    <h2>FEEDBACK</h2>
+    <p class="fb-note">Conta o que curtiu, o que quebrou, o que falta. Vai direto pro dono do jogo.</p>
+    <textarea id="fb-msg" maxlength="2000" rows="5" placeholder="escreve aqui o teu feedback…"></textarea>
+    <input id="fb-email" type="email" maxlength="254" autocomplete="email" placeholder="teu email">
+    <label class="fb-consent"><input type="checkbox" id="fb-news">
+      <span>Aceito receber novidades do jogo por email (newsletter)</span></label>
+    <p id="fb-status" class="fb-status" aria-live="polite"></p>
+    <button id="fb-send" class="btn">ENVIAR</button>
+    <button id="fb-back" class="btn">VOLTAR</button>
+  </div>
+</div>
+
+<!-- How to play -->
+<div id="howto-panel" class="screen hidden">
+  <div class="panel center-panel">
+    <h2>COMO JOGAR</h2>
+    <div class="howto-grid">
+      <span>W A S D</span><span>Mover</span>
+      <span>MOUSE</span><span>Mirar</span>
+      <span>SHIFT</span><span>Correr</span>
+      <span>CTRL ou C</span><span>Agachar (mira mais estável)</span>
+      <span>ESPAÇO</span><span>Pular</span>
+      <span>CLIQUE ESQ.</span><span>Atirar</span>
+      <span>CLIQUE DIR.</span><span>Mira telescópica (AWP)</span>
+      <span>R</span><span>Recarregar</span>
+      <span>1 / 2 / 3</span><span>AWP / Pistola / Faca</span>
+      <span>Z / X / V</span><span>Comandos de voz (rádio)</span>
+      <span>M</span><span>Trocar de time</span>
+      <span>TAB</span><span>Placar</span>
+      <span>ESC</span><span>Pausar</span>
+    </div>
+    <!-- index.astro:502 — O TEXTO TEM QUE DIZER O FORMATO DE CADA MODO, E OS DOIS SÃO
+         DIFERENTES DE PROPÓSITO (o dono: "o captura estava com cronometragem — isso não
+         acontece em CTF"). Números casados com game.js:76 e game.js:104-108; se um mudar
+         sem o outro, o portão UI4 do tools/eval/ui-check.mjs acusa a partida que não fecha
+         ou o cronômetro que não devia existir. -->
+    <p><b>MATA-MATA</b> com respawn: cada round dura 1:39 ou fecha quando um time chega no alvo de abates; o time com mais kills leva o round. Vence quem ganhar 3 rounds (melhor de 5).</p>
+    <p><b>CAPTURA</b> não tem cronômetro de round: a rodada acaba quando um time captura 3 bandeiras (ou domina todas de uma vez). Vence quem ganhar 2 rodadas (melhor de 3). A partida tem um limite de 8 minutos, que só aparece no HUD no último minuto.</p>
+    <button id="howto-back" class="btn">VOLTAR</button>
+  </div>
+</div>
+
+<!-- HUD -->
+<div id="hud" class="hidden">
+  <div id="hud-actions">
+    <button id="hud-speech" title="Liga/desliga as falas (memes)">🔊</button>
+    <!-- engrenagem SVG (emoji renderiza colorido, com métrica própria e diferente em cada SO) -->
+    <button id="hud-settings" title="Configurações" aria-label="Configurações"><svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="M6.6 0h2.8l.35 2.05 1.35.78 1.9-.83 1.4 2.42-1.55 1.37v1.56l1.55 1.37-1.4 2.42-1.9-.83-1.35.78L9.4 16H6.6l-.35-2.05-1.35-.78-1.9.83-1.4-2.42 1.55-1.37V8.65L1.6 7.28 3 4.86l1.9.83 1.35-.78zM10.6 8a2.6 2.6 0 1 0-5.2 0 2.6 2.6 0 0 0 5.2 0z"/></svg></button>
+  </div>
+  <canvas id="radar" width="150" height="150"></canvas>
+  <div id="radio-log"></div>
+  <div id="radio-menu" class="hidden"></div>
+  <div id="crosshair"><i></i><i></i><i></i><i></i><b></b></div>
+  <div id="hitmarker"><i></i><i></i><i></i><i></i></div>
+  <div id="dmg-numbers"></div>
+  <div id="scope-overlay">
+    <div class="scope-circle"></div>
+    <div class="scope-line h"></div>
+    <div class="scope-line v"></div>
+  </div>
+  <div id="damage-vignette"></div>
+  <div id="dmg-dir"></div>
+  <div id="mk-banner"></div>
+  <div id="prot-badge" class="hidden"><svg viewBox="0 0 14 14" width="13" height="13" aria-hidden="true"><path fill="currentColor" d="M7 .6 12.3 2.9v4.2c0 3.1-2.2 5.6-5.3 6.3-3.1-.7-5.3-3.2-5.3-6.3V2.9z"/></svg> PROTEGIDO <span id="prot-count">3</span>s</div>
+  <div id="hud-top">
+    <div id="score-e" class="team-score ts-p">PET <b>0</b></div>
+    <div id="hud-mid">
+      <div id="round-time">1:39</div>
+      <div id="rounds-row">RODADA 1 · PET 0 × 0 BOL</div>
+    </div>
+    <div id="score-b" class="team-score ts-b">BOL <b>0</b></div>
+  </div>
+  <div id="ctf-hud" class="hidden"></div>
+  <div id="killfeed"></div>
+  <div id="hud-bottom-left">
+    <div id="hp-row"><span id="hp-num">100</span></div>
+    <div id="hp-bar"><div id="hp-fill"></div></div>
+  </div>
+  <div id="hud-bottom-right">
+    <div id="weapon-name">AWP "DELIBERADOR"</div>
+    <div id="ammo"><span id="ammo-mag">5</span><span class="ammo-sep">|</span><span id="ammo-reserve">25</span></div>
+    <div id="smoke-count" title="Fumaça (tecla 4)  ·  Frag (tecla 5)">💨 5   🧨 1</div>
+    <div id="reload-note" class="hidden">RECARREGANDO…</div>
+  </div>
+  <div id="round-banner" class="hidden"><div id="banner-title"></div><div class="banner-rule"></div><div id="banner-sub"></div></div>
+  <div id="lock-hint" class="hidden">
+    <div class="lh-title"><svg viewBox="0 0 12 17" width="13" height="18" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="M6 0a6 6 0 0 1 6 6v5a6 6 0 0 1-12 0V6a6 6 0 0 1 6-6zm.9 3.2h-1.8v3.1h1.8z"/></svg> CLIQUE PARA ATIVAR A MIRA</div>
+    <div class="lh-sub">Se o navegador bloquear, clique de novo. Em iframe/preview, abra o jogo em aba própria.</div>
+  </div>
+  <div id="pickup-hint" class="hidden"></div>
+  <div id="respawn-overlay" class="hidden">
+    <div class="rip"><svg viewBox="0 0 14 13" width="34" height="32" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="M7 .8C4 .8 1.8 3 1.8 5.9c0 1.6.8 3 2 3.8v2.5h1.5v-1.6h1.1v1.6h1.2v-1.6h1.1v1.6h1.5V9.7c1.2-.8 2-2.2 2-3.8C13.2 3 11 .8 7 .8zM4.9 7.5c-.8 0-1.5-.6-1.5-1.4s.7-1.4 1.5-1.4 1.5.6 1.5 1.4-.6 1.4-1.5 1.4zM9.1 7.5c-.8 0-1.5-.6-1.5-1.4s.7-1.4 1.5-1.4 1.5.6 1.5 1.4-.7 1.4-1.5 1.4z"/></svg> ELIMINADO</div>
+    <div>Respawn em <span id="respawn-count">3</span>s…</div>
+    <div class="rip-sub">A treta continua sem você. Por enquanto.</div>
+  </div>
+  <!-- PLACAR (tela 08 da referência). Estrutura: duas colunas de time LADO A LADO, não uma
+       tabela única. O `game.js` continua escrevendo uma lista só em #sb-body, com `tr.tp` /
+       `tr.tb` — quem separa nas duas colunas é o CSS (`tbody` vira grade de 2 colunas com
+       `grid-auto-flow:row dense` e cada `tr` fixa a sua coluna pela classe de time). Assim a
+       tela nova NÃO exige tocar em `game.js`.
+       O thead real fica só pra leitor de tela (game.js liga/desliga o #sb-cap-h por id, e
+       essa é a única fonte de verdade do CTF); os rótulos VISÍVEIS são as duas .sb-head
+       abaixo, que espelham o estado do CAP. por `:has()` no CSS. -->
+  <div id="scoreboard" class="hidden">
+    <h3>CORO SOLTO — PLACAR</h3>
+    <!-- Duas colunas, uma por time, com o brasão da facção no topo (referência
+         08_placar, pedido do dono 07/08). O JS preenche #sb-cols. -->
+    <div class="sb-cols" id="sb-cols"></div>
+    <div class="sb-foot"><kbd>TAB</kbd> SEGURE PARA VER O PLACAR</div>
+  </div>
+</div>
+
+<!-- Pause — mesma linguagem das telas de fluxo (régua de tinta + chanfro) e fundo
+     translúcido: a partida continua visível atrás (o canvas pausado segue renderizando). -->
+<div id="pause-menu" class="screen hidden">
+  <h2 class="screen-title">PAUSA NA TRETA</h2>
+  <div class="pause-actions panel">
+    <button id="btn-resume" class="btn btn-big">CONTINUAR</button>
+    <button id="btn-pause-settings" class="btn">CONFIGURAÇÕES</button>
+    <button id="btn-pause-controls" class="btn">CONTROLES</button>
+    <button id="btn-restart" class="btn">REINICIAR PARTIDA</button>
+    <button id="btn-quit" class="btn">SAIR PRO MENU</button>
+  </div>
+  <!-- a tecla vira <kbd> pra virar cápsula, como na referência telas/06 (lá "ESC" é um
+       chip desenhado, não texto corrido) -->
+  <div class="footnote"><kbd>ESC</kbd> CONTINUAR</div>
+</div>
+
+<!-- Match end — veredito, placar e o desempenho DO JOGADOR em três blocos separados.
+     Antes era um painel só: o título, uma frase longa e três números soltos que quebravam
+     linha no meio ("9 kills de r"). O conteúdo de #match-stats é escrito pelo game.js. -->
+<!-- RESULTADO (tela 09 da referência). A referência NÃO é uma coluna centrada: é uma
+     coluna de conteúdo ANCORADA À ESQUERDA (título, sub, cartão de estatística, ações) com
+     a metade direita reservada pra arte do vencedor. O #me-hero é essa metade — hoje ela é
+     campo atmosférico, porque o retrato do personagem só existe em runtime (glbchars) e
+     quem saberia qual é é o game.js. Ver relatório: falta um gancho lá pra preencher. -->
+<div id="match-end" class="screen hidden">
+  <div class="me-wrap">
+    <div class="me-col">
+      <div class="me-verdict">
+        <h1 id="match-title">VITÓRIA</h1>
+        <p id="match-sub" class="big"></p>
+      </div>
+      <div id="match-stats"></div>
+      <div class="me-actions">
+        <button id="btn-again" class="btn btn-big btn-cta">JOGAR NOVAMENTE</button>
+        <button id="btn-menu" class="btn">VOLTAR AO MENU</button>
+      </div>
+    </div>
+    <div class="me-hero" aria-hidden="true"></div>
+  </div>
+</div>
+
+<div id="game-container"></div>
+
+<!-- Vercel Web Analytics + Speed Insights (static HTML — sem pacote npm).
+     Só carrega fora de localhost. Ative no dashboard: Analytics → Enable. -->
+<script is:inline>
+  if (!/^(localhost|127\.|0\.0\.0\.0)/.test(location.hostname)) {
+    window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
+    var _s1 = document.createElement('script'); _s1.defer = true;
+    _s1.src = '/_vercel/insights/script.js'; document.head.appendChild(_s1);
+    var _s2 = document.createElement('script'); _s2.defer = true;
+    _s2.src = '/_vercel/speed-insights/script.js'; document.head.appendChild(_s2);
+  }
+</script>
+
+<script type="module" src="/js/main.js" is:inline></script>
+</body>
+</html>

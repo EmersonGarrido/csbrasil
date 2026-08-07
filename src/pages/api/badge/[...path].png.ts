@@ -9,27 +9,53 @@ import { FONT_BOLD_B64 } from '../../../lib/font-data';
 import { displayTime } from '../../../lib/fmt';
 import { CHARS, charSvg, charName } from '../../../lib/charsvg';
 import { socialAvatar } from '../../../lib/social';
+import { fetchAvatar } from '../../../lib/safe-url';
 
 export const prerender = false;
 
 const fontBuffers = [Buffer.from(FONT_BOLD_B64, 'base64')];
 let wasmReady: Promise<unknown> | null = null;
+
+// O wasm vem de /wasm/resvg.wasm, que `scripts/copy-wasm.mjs` põe lá no build.
+// FALLBACK: se o arquivo não estiver publicado (era o caso até esta release —
+// `public/wasm/` nunca esteve no git nem era gerado por nada, então num deploy
+// limpo esta rota devolvia 500 e TODA página /u/* ficava sem og:image), lemos o
+// binário direto do pacote instalado. Duas fontes independentes pro mesmo byte:
+// a rota da badge é o ativo social mais importante do site e não pode depender
+// de um arquivo copiado à mão.
 function init(req: Request) {
   return wasmReady ??= (async () => {
-    const r = await fetch(new URL('/wasm/resvg.wasm', req.url));
-    if (!r.ok) throw new Error('wasm fetch failed: ' + r.status);
-    return initWasm(await r.arrayBuffer());
+    try {
+      const r = await fetch(new URL('/wasm/resvg.wasm', req.url));
+      if (r.ok) return await initWasm(await r.arrayBuffer());
+      console.warn('[badge] /wasm/resvg.wasm devolveu', r.status, '— usando o node_modules');
+    } catch (e) {
+      console.warn('[badge] fetch do wasm falhou — usando o node_modules:', e);
+    }
+    const { readFileSync } = await import('node:fs');
+    const { createRequire } = await import('node:module');
+    const require = createRequire(import.meta.url);
+    let p: string | null = null;
+    for (const c of ['@resvg/resvg-wasm/index_bg.wasm', '@resvg/resvg-wasm/dist/index_bg.wasm']) {
+      try { p = require.resolve(c); break; } catch { /* tenta o próximo */ }
+    }
+    if (!p) throw new Error('resvg.wasm indisponível (nem publicado nem no node_modules)');
+    return initWasm(readFileSync(p));
   })();
 }
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
+// ANTI-SSRF: o fetch cru que morava aqui aceitava qualquer URL vinda do banco
+// (players.avatar_url e o link social são escritos pelo próprio usuário em
+// /api/register) — dava pra apontar pra 169.254.169.254, 127.0.0.1 ou 10.x e
+// usar a badge pública como sonda da rede interna. `fetchAvatar` só sai pra
+// https em host de avatar conhecido, revalida cada redirect e limita bytes.
+// Ver src/lib/safe-url.ts.
 async function avatarDataUri(url?: string | null): Promise<string | null> {
-  if (!url) return null;
+  const buf = await fetchAvatar(url);
+  if (!buf) return null;
   try {
-    const r = await fetch(url, { signal: AbortSignal.timeout(4000) });
-    if (!r.ok) return null;
-    const buf = Buffer.from(await r.arrayBuffer());
     const png = await sharp(buf).resize(120, 120, { fit: 'cover' }).png().toBuffer();
     return 'data:image/png;base64,' + png.toString('base64');
   } catch { return null; }
@@ -72,7 +98,7 @@ function badgeSvg(p: any, avatarUri: string | null, charId: string | null): stri
   <rect width="840" height="440" fill="#0c0e11"/>
   <circle cx="748" cy="96" r="200" fill="${sideColor}" opacity="0.07"/>
   <rect width="840" height="6" fill="#e03232"/><rect y="434" width="840" height="6" fill="#1faa4d"/>
-  <text x="56" y="60" font-size="22" font-weight="bold" fill="#ffd23f" font-family="DejaVu Sans" letter-spacing="5">CS BRASIL</text>
+  <text x="56" y="60" font-size="22" font-weight="bold" fill="#ffd23f" font-family="DejaVu Sans" letter-spacing="5">CORO SOLTO</text>
   <text x="660" y="60" font-size="16" fill="${sideColor}" font-family="DejaVu Sans" text-anchor="end" font-weight="bold">${sideLabel} · ${p.matches_p}P × ${p.matches_b}B</text>
   <text x="56" y="132" font-size="54" font-weight="bold" fill="#f2ead8" font-family="DejaVu Sans">${esc(p.nick)}</text>
   ${p.social ? `<text x="56" y="166" font-size="18" fill="#b8d94a" font-family="DejaVu Sans">${esc(p.social)}</text>` : ''}
@@ -87,7 +113,12 @@ export const GET: APIRoute = async (ctx) => {
   try {
     return await handle(ctx);
   } catch (e: any) {
-    return new Response(JSON.stringify({ error: String(e?.message || e), stack: String(e?.stack || '').slice(0, 600) }),
+    // NÃO devolver mensagem nem stack pro cliente: esta rota é pública e sem
+    // auth, e o stack entregava caminhos internos, versões de lib e nomes de
+    // arquivo de graça pra quem estivesse mapeando o alvo. O detalhe vai pro
+    // log da função (visível no dashboard da Vercel), o cliente vê genérico.
+    console.error('[badge] render falhou:', e?.stack || e);
+    return new Response(JSON.stringify({ error: 'render_failed' }),
       { status: 500, headers: { 'content-type': 'application/json' } });
   }
 };

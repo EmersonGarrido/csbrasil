@@ -1,33 +1,75 @@
 // Boot, menus, settings, logo, main loop.
 import * as THREE from 'three';
 import { initTextures } from './textures.js';
-import { CHARACTERS, buildCharacter } from './characters.js';
+import { CHARACTERS, buildCharacter, charWeapon } from './characters.js';
+import { preloadCharacterAssets, buildCharacterModel, hasModel, GLB_CHARS } from './glbchars.js';
+import { preloadFPArms, preloadStaticVm } from './fparms.js';
+import { preloadMapProps } from './mapprops.js';
 import { MAPS, MAP_IDS, DEFAULT_MAP, resolveMapId } from './maps.js';
+import { setHavanCarSeed } from './map_havan.js';
 import { Sfx } from './audio.js';
-import { Game } from './game.js';
+import { Game, vmPreloadClasses, confirmGate, CONFIRM_MAX_MS } from './game.js';
 import { VERSION } from './version.js';
+import { LANG, translateDom, tr, frase } from './i18n.js';
+import { enableLightBloom } from './bloom.js';
+import { enableStylize } from './stylize.js';
 
 /* ---------------- settings & nickname ---------------- */
 const SETTINGS_KEY = 'awpbr_settings';
-const settings = Object.assign({ sens: 1, vol: 0.7, quality: 'med', speech: true, map: DEFAULT_MAP, wpnMode: 'all' },
+const settings = Object.assign({ sens: 1, vol: 0.7, quality: 'med', speech: true, map: DEFAULT_MAP, wpnMode: 'all', bots: 4, difficulty: 'normal' },
   JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}'));
 const saveSettings = () => localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
 const NICK_KEY = 'awpbr_nick';
 const SOCIAL_KEY = 'awpbr_social';
+const STATS_KEY = 'awpbr_stats';   // declarado no bloco de storage: syncPlayState→renderPlayerPlate→loadStats roda ANTES da definição antiga (TDZ)
 
 /* ---------------- renderer ---------------- */
+// Import extra (top-level, legal em ESM) em vez de mexer no bloco de imports lá de cima:
+// o tom do caminho SEM pós mora no bloom.js, que é o dono da tabela de exposição/piso por mapa.
+import { applyNoPostTone } from './bloom.js';
 const container = document.getElementById('game-container');
 const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
 renderer.setSize(innerWidth, innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+// Tonemap. Com o composer ligado three já força NoToneMapping nos materiais (só aplica
+// tonemap quando o alvo é null) e quem faz a curva é o AgX do bloom.js — deixamos
+// NoToneMapping EXPLÍCITO nesse caso pra não haver a menor chance de tonemap duplo.
+// Estes dois valores são só o ESTADO INICIAL: quem manda no caminho sem pós é o
+// applyNoPostTone() logo abaixo. Ver o bloco de comentário dele no bloom.js.
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.06;
+renderer.toneMappingExposure = 1.25;
 container.appendChild(renderer.domElement);
+// bloom leve (FASE 4) — ligado por padrão, pulado na qualidade 'low' ou com ?bloom=0
+// (escape hatch p/ GPUs/extensões que derrubam a aba — suspeita do "jogo fechar sozinho")
+{
+  const _qp = new URLSearchParams(location.search);
+  const _bloomOn = settings.quality !== 'low' && _qp.get('bloom') !== '0';
+  // pipeline estilizado (cel+contorno) atrás de ?style=1 — prova de conceito reversível.
+  if (_qp.get('style') === '1') enableStylize(renderer, { bloom: _bloomOn, quality: settings.quality });
+  else if (_bloomOn) {
+    enableLightBloom(renderer, { quality: settings.quality });
+    if (_qp.get('post') !== 'output') renderer.toneMapping = THREE.NoToneMapping;   // AgX manda
+  } else {
+    // 'low' / ?bloom=0: MESMA exposição por mapa e MESMO piso de ambiente do composite,
+    // aplicados dentro do material (zero passe fullscreen). Sem isso 'low' era outro jogo:
+    // ~1 stop mais escuro e com curva de tom diferente (ACES crusha a sombra que o piso do
+    // AgX segura). Kill-switch: ?lowtone=0 volta pro ACES puro.
+    applyNoPostTone(renderer);
+  }
+}
 
 const textures = initTextures();
 const sfx = new Sfx(); sfx.vol = settings.vol;
 sfx.speechEnabled = settings.speech !== false;
+sfx.reverbOn = new URLSearchParams(location.search).get('reverb') === '1';   // reverb leve opt-in (default off)
+// sidechain da música do menu: cliques/SFX abaixam a trilha por ~150-250ms e ela volta suave
+sfx.onDuck = (amt, hold) => {
+  const m = menuMusic;
+  if (!m || m.paused || m.muted || musicFade) return;
+  m.volume = MENU_MUSIC_VOL * amt;
+  setTimeout(() => { if (menuMusic && !musicFade && !menuMusic.paused) menuMusic.volume = MENU_MUSIC_VOL; }, hold * 1000 + 220);
+};
 const sfxReady = sfx.loadManifest();
 
 /* ---------------- selected map ---------------- */
@@ -36,31 +78,191 @@ let currentMap = resolveMapId(urlMap || settings.map);
 settings.map = currentMap;
 
 /* ---------------- menu backdrop (orbiting map) ---------------- */
+// Mint building/statue GLBs used by the Brasília map (loaded once, cloned per placement).
+const MAP_PROPS = ['congresso', 'catedral', 'ministerio', 'palacio', 'justica', 'tires', 'stall', 'tent', 'bus', 'drinkstand', 'urna', 'towner',
+  'quiosque', 'skate_ramp', 'lifeguard_tower', 'guarda_sol', 'arquibancada',
+  'churrasqueira', 'mesa_guardasol', 'cooler', 'boia', 'placa_piscina', 'caixa_som'];   // props do Piscinão de Ramos (Mint); carros/estátua do Havan carregam por-mapa   // Havan (estátua + carros + carrinho)
 let menuScene = new THREE.Scene();
 MAPS[currentMap].build(menuScene, textures);
 const menuCam = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, 0.1, 400);
+/* ---------------- loading real (barra via LoadingManager compartilhado) ---------------- */
+// GLTFLoader sem manager cai no THREE.DefaultLoadingManager — TODOS os GLBs (personagens,
+// props de mapa, braços FP, viewmodel) passam por ele. Cada fase faz snapshot do acumulado
+// (l0) e mede (loaded-l0)/(total-l0) → barra de progresso REAL, não spinner fake.
+const _lstat = { loaded: 0, total: 0, phase: null };
+THREE.DefaultLoadingManager.onProgress = (url, l, t) => {
+  _lstat.loaded = l; _lstat.total = t;
+  const ph = _lstat.phase;
+  if (ph) ph.set(Math.min(0.99, (l - ph.l0) / Math.max(1, t - ph.l0)));
+};
+function _mkPhase(fillEl, pctEl) {
+  const ph = { l0: _lstat.loaded, set(p) { fillEl.style.width = (p * 100).toFixed(0) + '%'; pctEl.textContent = Math.round(p * 100) + '%'; } };
+  _lstat.phase = ph; ph.set(0); return ph;
+}
+// fase de boot: props do cenário 3D do menu (carrega por baixo da splash)
+const _bootPhase = _mkPhase(document.getElementById('boot-bar-fill'), document.getElementById('boot-pct'));
+let _splashReady = false;
+function _splashSetReady() {
+  if (_splashReady) return; _splashReady = true;
+  _bootPhase.set(1);
+  if (_lstat.phase === _bootPhase) _lstat.phase = null;
+  // G2-R10: o failsafe de 20s dispara DEPOIS da splash sair do DOM (debug/?auto= e
+  // fluxos rápidos) — sem guarda, crashava "textContent null" (banner vermelho).
+  const bs = document.getElementById('boot-status'), se = document.getElementById('splash-enter');
+  if (bs) bs.textContent = 'ARENA PRONTA';
+  if (se) se.classList.remove('hidden');
+}
+setTimeout(_splashSetReady, 20000);   // failsafe: nunca prende o jogador na splash
+// overlay de loading de partida/personagens (cobre a cena montando — sem "minecraft")
+const _lo = {
+  box: document.getElementById('load-overlay'), fill: document.getElementById('load-bar-fill'),
+  pct: document.getElementById('load-pct'), label: document.getElementById('load-label'), status: document.getElementById('load-status'),
+};
+function showLoading(label, status = 'CARREGANDO MODELOS 3D…') {
+  _lo.label.textContent = label; _lo.status.textContent = status;
+  try { _lo.box.style.backgroundImage = wallUrl(_loadWallI++); } catch {}   // wallpaper rotativo (wall-*) no load de mapa
+  _lo.box.classList.remove('hidden');
+  _mkPhase(_lo.fill, _lo.pct);
+}
+function hideLoading() { _lstat.phase = null; _lo.box.classList.add('hidden'); }
 function rebuildMenuBackdrop() {
   menuScene = new THREE.Scene();
   MAPS[currentMap].build(menuScene, textures);
 }
+// The first backdrop is built before props load; rebuild once they're ready so the
+// menu shows the real Brasília landmarks too. Só então a splash libera a entrada.
+preloadMapProps(MAP_PROPS).then(() => { rebuildMenuBackdrop(); _splashSetReady(); }).catch(() => _splashSetReady());
 
 /* ---------------- screens ---------------- */
-const screens = ['mobile-warning', 'main-menu', 'team-select', 'char-select', 'settings-panel', 'howto-panel', 'ranking-panel', 'pause-menu', 'match-end'];
+const screens = ['mobile-warning', 'main-menu', 'map-screen', 'team-select', 'char-select', 'settings-panel', 'howto-panel', 'ranking-panel', 'feedback-panel', 'pause-menu', 'match-end'];
 function show(id) {
   for (const s of screens) document.getElementById(s).classList.toggle('hidden', s !== id);
   if (!id) for (const s of screens) document.getElementById(s).classList.add('hidden');
+  // ao navegar pra qualquer tela, fecha o painel de setup do menu CS (não fica aberto after)
+  // EXCEÇÃO: map-screen é EXTENSÃO do setup (abre pelo cartaz do mapa) — o painel fica
+  // aberto embaixo e o VOLTAR cai de volta nele, com mapa/modo/bots intactos.
+  if (id !== 'main-menu' && id !== 'map-screen') { const ms = document.getElementById('menu-setup'); if (ms) ms.classList.remove('open'); }
+  else { applyHomeWall(); if (musicArmed) startMenuMusic(); }   // volta pra home: wallpaper + música de menu
 }
 const $ = id => document.getElementById(id);
+
+/* Wallpapers rotativos (wall-1..9): 1 por tela no fluxo home→setup→lado→personagem, sem
+   repetir; o offset rotaciona a cada acesso (localStorage) pra variar entre visitas.
+
+   ESTAS LISTAS SÃO HARDCODED E JÁ ENGOLIRAM ARTE NOVA EM SILÊNCIO: o dono jogou wall-9.png e
+   loading-6.png na pasta em 04/08 e nenhum dos dois aparecia, porque o array parava em 8 e em
+   5 (mesmo defeito de MENU_TRACKS abaixo, que ignora a 27ª faixa). Página estática não lista
+   diretório pelo browser, então o conserto de verdade é um manifesto GERADO em build
+   (`tools/` → `public/img/walls.json`) e lido daqui com fallback. Ver KNOWN-BUGS.md BUG-08.
+   Enquanto isso: ARQUIVO NOVO NA PASTA = ENTRADA NOVA AQUI. */
+const WALLS = ['/img/wall-1.png', '/img/wall-2.png', '/img/wall-3.png', '/img/wall-4.png',
+  '/img/wall-5.png', '/img/wall-6.png', '/img/wall-7.png', '/img/wall-8.png',
+  '/img/wall-9.png'];
+let _wallK = 0;
+try { _wallK = (parseInt(localStorage.getItem('cs_wallK') || '-1', 10) + 1) % WALLS.length; localStorage.setItem('cs_wallK', String(_wallK)); } catch {}
+const wallUrl = (i) => `url('${WALLS[(_wallK + i) % WALLS.length]}')`;
+const HOME_WALL = wallUrl(0), SETUP_WALL = wallUrl(1), TEAM_WALL = wallUrl(2), CHAR_WALL = wallUrl(3);
+// loading-1..6: wallpaper rotativo SÓ da splash inicial (a msg "clique pra começar" fica por cima).
+// O overlay de carregamento de MAPA usa os wall-* (mesmo fluxo rotativo) — ver showLoading/_loadWallI.
+// Hardcoded pelo mesmo motivo (e com o mesmo defeito) do WALLS acima — ver KNOWN-BUGS.md BUG-08.
+const LOADING_WALLS = ['/img/loading-1.png', '/img/loading-2.png', '/img/loading-3.png',
+  '/img/loading-4.png', '/img/loading-5.png', '/img/loading-6.png'];
+let _loadWallI = 4;
+{ const bs = document.getElementById('boot-splash'); if (bs) bs.style.backgroundImage = `url('${LOADING_WALLS[_wallK % LOADING_WALLS.length]}')`; }
+function applyHomeWall() { const w = document.querySelector('#main-menu .cs-wallpaper'); if (w) w.style.backgroundImage = HOME_WALL; }
+function applySetupWall() { const w = document.querySelector('#main-menu .cs-wallpaper'); if (w) w.style.backgroundImage = SETUP_WALL; }
+applyHomeWall();
+{ const t = $('team-select'); if (t) t.style.setProperty('--wall', TEAM_WALL); }
+{ const c = $('char-select'); if (c) c.style.setProperty('--wall', CHAR_WALL); }
+
+// Música de menu (loop, volume baixo). Toca só nas telas de menu; some quando a partida
+// começa e volta ao voltar pro menu. Chrome bloqueia autoplay COM som até o 1º gesto do
+// usuário — contorno: a faixa toca MUDA desde o load (permitido) e desmuta com fade no 1º
+// gesto, então já está rolando quando o som entra. Se o arquivo não existir, falha em silêncio.
+// ATENÇÃO: use uma faixa CC0/licenciada — NÃO usar música protegida (ex.: YouTube/MPB) no
+// build público (risco de copyright, igual aos sons da Valve a trocar).
+const MENU_MUSIC_VOL = 0.3;
+// Trilhas do menu (public/audio/menu-music/m01..m15 — trims de ~105s normalizados via ffmpeg,
+// ver HANDOFF). Uma aleatória POR VISITA ao menu; troca a cada partida/retorno.
+const MENU_TRACKS = Array.from({ length: 26 }, (_, i) => `/audio/menu-music/m${String(i + 1).padStart(2, '0')}.mp3`);
+let menuMusic = null, musicArmed = false, musicFade = null;
+function _ensureMusic() {
+  if (menuMusic) return menuMusic;
+  { const _mi = (Math.random() * MENU_TRACKS.length) | 0;
+    menuMusic = new Audio(MENU_TRACKS[_mi]);
+    _pick('musica', `m${String(_mi + 1).padStart(2, '0')}`); }
+  menuMusic.loop = true; menuMusic.volume = MENU_MUSIC_VOL;
+  window.__mm = menuMusic;   // hook de debug/teste (estado da música do menu)
+  return menuMusic;
+}
+function startMenuMusic() {
+  const m = _ensureMusic();
+  if (musicFade) { clearInterval(musicFade); musicFade = null; }
+  if (!musicArmed) {
+    // tenta autoplay COM SOM (Chrome libera se o site tem Media Engagement Index alto pro
+    // usuário — é por isso que o YouTube consegue). Se rejeitar (NotAllowedError), cai no
+    // fluxo atual: mudo no load + desmute com fade no 1º gesto. Sem promise não tratada.
+    m.muted = false; m.volume = MENU_MUSIC_VOL;
+    const p = m.play();
+    if (p && p.then) p.then(() => { musicArmed = true; }, () => {
+      if (m.paused) { m.muted = true; m.play().catch(() => {}); }   // fallback gracioso
+    });
+    // o play() do boot nem sempre "gruda" (rede/dev server lento, readyState 0) —
+    // re-tenta quando houver dados, enquanto a intenção for tocar no menu
+    if (!m._cpHook) { m._cpHook = 1; m.addEventListener('canplay', () => { if (!menuMusic || menuMusic.paused) m.play().catch(() => {}); }); }
+    return;
+  }
+  m.muted = false; m.volume = MENU_MUSIC_VOL;
+  m.play().catch(() => {});   // silencioso se arquivo ausente
+}
+function stopMenuMusic() {   // fade rápido pra não cortar seco ao entrar na partida
+  if (!menuMusic) return;
+  if (musicFade) clearInterval(musicFade);
+  musicFade = setInterval(() => {
+    menuMusic.volume = Math.max(0, menuMusic.volume - 0.05);
+    if (menuMusic.volume <= 0.001) { clearInterval(musicFade); musicFade = null; menuMusic.pause(); }
+  }, 40);
+}
+// no 1º gesto (clique/tecla): desmuta com fade-in — a faixa JÁ está rolando (autoplay mudo),
+// então o som "entra" instantâneo, como se fosse autoplay de verdade
+const _armMusic = () => {
+  if (musicArmed) return; musicArmed = true;
+  const m = _ensureMusic();
+  m.muted = false;
+  let v = 0.02; m.volume = v;
+  musicFade = setInterval(() => { v += 0.04; m.volume = Math.min(MENU_MUSIC_VOL, v); if (v >= MENU_MUSIC_VOL) { clearInterval(musicFade); musicFade = null; } }, 40);
+};
+// SPLASH DE BOOT ("pressione para entrar"): o gesto que sai da splash é GARANTIDO, então
+// destrava o áudio COM SOM na hora — sem fallback mudo e sem fade atrapalhado. Registrado
+// em capture ANTES do _armMusic, que vira no-op (musicArmed já true).
+function dismissSplash() {
+  const sp = document.getElementById('boot-splash');
+  if (!sp || !_splashReady || sp.classList.contains('gone')) return;
+  sp.classList.add('gone');
+  setTimeout(() => sp.remove(), 480);
+  musicArmed = true;
+  if (musicFade) { clearInterval(musicFade); musicFade = null; }
+  const m = _ensureMusic();
+  m.muted = false; m.volume = MENU_MUSIC_VOL; m.play().catch(() => {});
+}
+window.addEventListener('pointerdown', dismissSplash, true);
+window.addEventListener('keydown', dismissSplash, true);
+window.addEventListener('pointerdown', _armMusic);
+window.addEventListener('keydown', _armMusic);
+startMenuMusic();   // boot: começa MUDA imediatamente (loop rolando antes do 1º clique)
 const isMobile = matchMedia('(pointer: coarse)').matches || innerWidth < 820;
 let settingsReturn = 'main-menu';
+let howtoReturn = 'main-menu';   // CONTROLES aberto pelo pause volta pro pause, pelo menu volta pro menu
 
 /* ---------------- 3D character preview ---------------- */
-let pv = null;
+let pv = null, pvDrag = null;
 function ensurePreview() {
   if (pv) return pv;
   const canvas = $('char-preview');
   const r = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
-  r.setSize(340, 340, false);
+  // 640² de backing pro preview GIGANTE da tela nova (era 400² pra 380 CSS px).
+  // O downscale continua dando borda limpa em qualquer tamanho de exibição.
+  r.setSize(640, 640, false);
   r.toneMapping = THREE.ACESFilmicToneMapping;
   const scene = new THREE.Scene();
   scene.add(new THREE.HemisphereLight(0xffe6c0, 0x5a4a38, 1.1));
@@ -70,51 +272,265 @@ function ensurePreview() {
   disc.position.y = -0.03; disc.receiveShadow = true; scene.add(disc);
   const cam = new THREE.PerspectiveCamera(34, 1, 0.1, 20);
   cam.position.set(0, 1.3, 3.2); cam.lookAt(0, 0.92, 0);
-  pv = { r, scene, cam, model: null };
+  pv = { r, scene, cam, model: null, disc };
+  // GIRAR/ZOOM de verdade — a dica embaixo do canvas não pode ser enfeite.
+  // Arrastar gira o modelo; scroll aproxima. Durante o arraste o giro automático pausa (ver loop()).
+  canvas.addEventListener('pointerdown', e => {
+    pvDrag = { x: e.clientX, yaw: pv.model ? pv.model.rotation.y : 0 };
+    canvas.setPointerCapture(e.pointerId);
+  });
+  canvas.addEventListener('pointermove', e => {
+    if (pvDrag && pv.model) pv.model.rotation.y = pvDrag.yaw + (e.clientX - pvDrag.x) * 0.012;
+  });
+  canvas.addEventListener('pointerup', () => { pvDrag = null; });
+  canvas.addEventListener('wheel', e => {
+    e.preventDefault();
+    pv.cam.position.z = Math.min(4.6, Math.max(2.2, pv.cam.position.z + e.deltaY * 0.002));
+  }, { passive: false });
   return pv;
 }
+/* ---------- miniatura da lista de personagens ----------------------------------
+   BUG DO DONO: "nas miniaturas os bonecos aparecem cinzas/sem cor, o preview grande
+   tem cor". A luz e o material eram os MESMOS — o defeito era de ENQUADRAMENTO e de
+   composição, e ele acontecia três vezes:
+     1. a miniatura reusava a câmera do preview (corpo inteiro a 3,2 m + disco escuro):
+        num quadro de 96 px o personagem saía com ~40 px, e exibido a 52 px sobrava
+        ~28 px de boneco. Quase todo pixel da miniatura era FUNDO;
+     2. o downscale de 96 -> 52 misturava esses poucos pixels coloridos com o preto do
+        fundo, então o croma médio caía (medido no print do dono: S 0,35 na miniatura
+        contra 0,42 no preview grande, mesmo personagem, mesmo frame);
+     3. o PNG saía com alfa e ia compor sobre --bg-700, um segundo escurecimento.
+   Correção: câmera PRÓPRIA de retrato (o personagem ocupa a miniatura inteira),
+   supersampling (render a 400² -> grava a 128²), disco fora do quadro e fundo OPACO
+   pintado antes do drawImage. Mesma luz, mesmo material, mesma cena: consistência. */
+// Kill-switch: ?thumbcam=0 volta a gravar a miniatura com a câmera larga do preview
+// (o comportamento antigo), caso o retrato corte mal algum personagem fora do padrão.
+// (URLSearchParams próprio: o `params` global só é declarado mais abaixo no arquivo)
+const THUMB_PORTRAIT = new URLSearchParams(location.search).get('thumbcam') !== '0';
+const THUMB_PX = 128;
+let _thumbCam = null;
+function thumbCam() {
+  if (!THUMB_PORTRAIT) return ensurePreview().cam;
+  if (_thumbCam) return _thumbCam;
+  // Retrato: da cintura pra cima. A altura visível a essa distância é ~1,15 m contra os
+  // 1,72 m do personagem — é o recorte que faz camisa, pele e cabelo lerem a 56 px.
+  const c = new THREE.PerspectiveCamera(30, 1, 0.1, 20);
+  c.position.set(0, 1.30, 2.15); c.lookAt(0, 1.24, 0);
+  _thumbCam = c;
+  return c;
+}
+function snapThumb(obj) {
+  const p = ensurePreview();
+  const prevVis = p.model ? p.model.visible : false;
+  if (p.model) p.model.visible = false;
+  if (p.disc) p.disc.visible = false;   // o disco entra no quadro do retrato e só rouba contraste
+  p.scene.add(obj);
+  p.r.render(p.scene, thumbCam());
+  const c = document.createElement('canvas'); c.width = c.height = THUMB_PX;
+  const x = c.getContext('2d');
+  x.fillStyle = '#1c1812';              // = var(--bg-700): a miniatura já nasce composta
+  x.fillRect(0, 0, THUMB_PX, THUMB_PX);
+  x.drawImage(p.r.domElement, 0, 0, THUMB_PX, THUMB_PX);   // backing 640² -> 128²: downscale = antialias de graça
+  p.scene.remove(obj);
+  if (p.disc) p.disc.visible = true;
+  if (p.model) p.model.visible = prevVis;
+  return c.toDataURL();
+}
+// Each character shows off a weapon that fits their vibe (not everyone with an AK).
+// CHAR_WEAPON/charWeapon live in characters.js, shared with game.js (initial loadout).
+let pvToken = 0;
 function pvSetChar(def) {
   const p = ensurePreview();
-  if (p.model) p.scene.remove(p.model);
-  p.model = buildCharacter(def).group;
-  p.model.rotation.y = 0.4;
-  p.scene.add(p.model);
+  // Swap to the real rigged GLB (idle) once loaded, if this is still the selection.
+  const my = ++pvToken;
+  const showBox = () => {   // procedural fallback (only when there's no GLB at all)
+    if (p.model) p.scene.remove(p.model);
+    p.mixer = null; p.ctrl = null;
+    p.model = buildCharacter(def).group;
+    p.model.rotation.y = 0.4;
+    p.scene.add(p.model);
+  };
+  if (GLB_CHARS.has(def.id)) {
+    // Keep the PREVIOUS model visible while the real GLB streams in — never flash the
+    // blocky placeholder for a character that has a real model (the pop-in bug).
+    preloadCharacterAssets([def.id]).then(() => {
+      if (my !== pvToken) return;
+      // preview: porte de EXIBIÇÃO — arma atravessada no peito (estilo vitrine do CS) em
+      // vez do porte funcional que aponta o cano pra câmera e esconde a silhueta da arma
+      // (era o "posturas bizarras" de 05/08). Ângulos por classe em glbchars.js. No jogo,
+      // nada muda.
+      const m = hasModel(def.id) ? buildCharacterModel(def, { weaponId: charWeapon(def.id), preview: true }) : null;
+      if (!m) { showBox(); return; }
+      if (p.model) p.scene.remove(p.model);
+      m.group.rotation.y = 0.4;
+      p.model = m.group; p.mixer = m.mixer; p.ctrl = m.ctrl;
+      p.scene.add(m.group);
+    }).catch(() => { if (my === pvToken) showBox(); });
+  } else {
+    showBox();
+  }
 }
 function pvThumb(def) {
-  pvSetChar(def);
-  const p = ensurePreview();
-  p.model.rotation.y = 0.55;
-  p.r.render(p.scene, p.cam);
-  const c = document.createElement('canvas'); c.width = c.height = 96;
-  c.getContext('2d').drawImage(p.r.domElement, 0, 0, 96, 96);
-  return c.toDataURL();
+  // Box-only thumbnail (tiny icon) — never triggers a GLB load.
+  // Passa pelo MESMO snapThumb do GLB: antes esta versão ainda destruía o preview
+  // grande (p.model = null) e gravava com outro enquadramento — duas miniaturas com
+  // duas aparências na mesma lista é exatamente o tipo de inconsistência que o dono vê.
+  const box = buildCharacter(def).group; box.rotation.y = 0.55;
+  return snapThumb(box);
 }
 
 /* ---------------- game lifecycle ---------------- */
-let game = null, currentTeam = 'P', currentChar = CHARACTERS[0].id, selChar = null;
+let game = null, currentTeam = 'E', currentFaction = 'E', currentChar = CHARACTERS[0].id, selChar = null;
+let pickingEnemy = false, currentEnemyFaction = null;   // 2º passo do team-select: escolher o adversário
 let submitted = true;   // stats da partida atual já enviados?
+
+/* ---------------- TELEMETRIA ANÔNIMA (ver supabase/migrations/012) ----------------
+   O ranking está desligado (src/lib/site.ts, RANKING_ON) mas a MEDIÇÃO não: o dono
+   quer saber quanto tempo se joga e em que mapa.
+
+   POR QUE UM ID PRÓPRIO E NÃO O NICK: `recordMatchStats` só fala com o backend dentro
+   de `if (nick && !testMode)`. Quem entra e joga sem digitar nick — que é o caminho
+   de menor atrito, e por isso o mais comum — não registra, não manda heartbeat e não
+   submete: é invisível. Medir só quem se registrou enviesa a amostra exatamente para
+   o jogador mais engajado, que é o contrário do que serve pra decidir mapa.
+
+   `anonId` identifica NAVEGADOR, não pessoa: UUID no localStorage, some quando o
+   jogador limpa o storage. O nick vai junto quando existe, só pra cruzar com `stats`
+   quando o ranking voltar.
+
+   sendBeacon porque isto costuma sair junto com o fim da partida ou com a aba
+   fechando — `fetch` normal é cancelado no unload, sendBeacon não. */
+const ANON_KEY = 'cs_anon';
+function getAnonId() {
+  let a = localStorage.getItem(ANON_KEY);
+  if (!a) { a = crypto.randomUUID(); localStorage.setItem(ANON_KEY, a); }
+  return a;
+}
+let telemetrySent = true;
+function sendTelemetry() {
+  if (telemetrySent || testMode || !game) return;
+  telemetrySent = true;   // uma partida = uma linha, mesmo com quit + beforeunload juntos
+  const g = game;
+  const payload = {
+    anonId: getAnonId(),
+    map: currentMap,
+    mode: matchMode,
+    seconds: Math.round(g.time || 0),
+    rounds: (g.roundsWon?.E || 0) + (g.roundsWon?.B || 0),
+    nick: registeredNick || null,
+  };
+  try {
+    const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
+    if (!navigator.sendBeacon('/api/telemetry', blob)) api('/api/telemetry', payload);
+  } catch { try { api('/api/telemetry', payload); } catch {} }
+}
 let registeredNick = ''; // nick usado no registro da sessão (token está atrelado a ele)
+let rankingBloqueado = ''; // erro do register da sessão (nick de outro dono, charset…) — vira aviso claro no fim da partida
 let heartbeatOff = false;
+
+/* CONTADOR "N ONLINE" do rodapé do menu (pedido do dono, 06/08). GET /api/online lê a
+   view online_now (heartbeat < 2 min). `hidden` até ter número: rodapé nunca mostra
+   zero mentiroso quando o backend está fora/local. Atualiza a cada 60 s só no menu. */
+{ const v = document.getElementById('mf-ver'); if (v) v.textContent = `CORO SOLTO v${VERSION}`; }
+// EN por camada: varre o menu estático UMA vez (PT é a fonte; i18n.js explica o desenho)
+translateDom(document.body);
+// links do rodapé por idioma: EN vai pras gêmeas que EXISTEM (characters, how-to-play,
+// weapons, maps, about, docs/en); /changelog e /mapa continuam só PT (issue #54)
+if (LANG === 'en') for (const a of document.querySelectorAll('.menu-footer a')) {
+  const GEMEA = { '/personagens': '/characters', '/como-jogar': '/how-to-play', '/armas': '/weapons', '/mapas': '/maps', '/sobre': '/about', '/docs/': '/docs/en/' };
+  const h = a.getAttribute('href');
+  if (GEMEA[h]) a.setAttribute('href', GEMEA[h]);
+}
+// seletor de idioma em CONFIGURAÇÕES: grava e recarrega (o dicionário aplica no boot)
+{ const sel = document.getElementById('set-lang');
+  if (sel) {
+    let salvo = null; try { salvo = localStorage.getItem('cs_lang'); } catch {}
+    sel.value = salvo || 'auto';
+    sel.onchange = () => {
+      try { salvo = sel.value === 'auto' ? localStorage.removeItem('cs_lang') : localStorage.setItem('cs_lang', sel.value); } catch {}
+      location.reload();
+    };
+  } }
+/* PICKS — "o que as pessoas escolhem" (dono, 06/08). sendBeacon: nunca atrasa nem
+   quebra o jogo; o servidor conta por (kind, key) na picks_daily (migration 013). */
+function _pick(kind, key) {
+  try { navigator.sendBeacon('/api/pick', new Blob([JSON.stringify({ kind, key })], { type: 'application/json' })); } catch { /* sem beacon: paciência */ }
+}
+function _picks(lote) {
+  try { navigator.sendBeacon('/api/pick', new Blob([JSON.stringify({ picks: lote })], { type: 'application/json' })); } catch { /* idem */ }
+}
+async function _refreshOnline() {
+  try {
+    const r = await fetch('/api/online');
+    const { online } = await r.json();
+    const box = document.getElementById('mf-online'), n = document.getElementById('mf-online-n');
+    if (box && n && typeof online === 'number' && online > 0) { n.textContent = online; box.hidden = false; }
+    else if (box) box.hidden = true;
+  } catch { /* rodapé segue sem contador */ }
+}
+_refreshOnline();
+setInterval(_refreshOnline, 60000);
 const params = new URLSearchParams(location.search);
 const testMode = params.get('debug') === '1';
 
-async function startGame(team, charId) {
+async function startGame(team, charId, enemyFaction) {
   if (isMobile && !testMode) { show('mobile-warning'); return; }
-  currentTeam = team; currentChar = charId;
+  // facção = time do personagem ('E'/'B'/'U'). O jogador ESCOLHE o adversário (enemyFaction);
+  // default = oposto político. Mesma facção dos dois lados = mirror (inimigo roxo no HUD).
+  const faction = (CHARACTERS.find(c => c.id === charId) || {}).team || team || 'E';
+  const side = faction === 'B' ? 'B' : 'E';
+  const enemyFac = enemyFaction || currentEnemyFaction || (side === 'B' ? 'E' : 'B');
+  currentFaction = faction; currentTeam = side; currentChar = charId; currentEnemyFaction = enemyFac;
+  // o lote de escolha da partida — 5 contadores numa chamada (ver /api/pick)
+  _picks([
+    { kind: 'mapa', key: currentMap },
+    { kind: 'modo', key: matchMode === 'ctf' ? 'ctf' : 'rounds' },
+    { kind: 'faccao', key: faction },
+    { kind: 'personagem', key: charId || 'aleatorio' },
+    { kind: 'arma', key: settings.wpnMode || 'all' },
+  ]);
+  stopMenuMusic();   // música é só do menu — some (fade) quando a partida começa
   if (game) game.dispose();
   show(null);
+  const _sp = document.getElementById('boot-splash'); if (_sp) _sp.remove();   // fluxo ?auto= pula a splash
+  // LOADING REAL da partida: overlay opaco cobre TUDO enquanto os GLBs entram e o mundo
+  // é construído — nada de cena parcial/"minecraft" aparecendo aos poucos
+  showLoading(frase('carregando', MAPS[currentMap].name.toUpperCase()));
   await sfxReady;   // make sure voice/CS samples are registered before round 1 sounds
+  // Preload real GLB character models + shared animation clips (bots). Falls back to
+  // procedural box meshes for any archetype that isn't modeled yet. Map props (statues)
+  // load in parallel and are optional — the map renders fine if they're missing.
+  // sorteia os carros da Havan desta partida ANTES do preload (seleção = props do mapa)
+  setHavanCarSeed((Math.random() * 1e9) | 0);
+  try {
+    await Promise.all([
+      preloadCharacterAssets([...GLB_CHARS]),
+      preloadMapProps([...MAP_PROPS, ...((MAPS[currentMap] && MAPS[currentMap].props) || [])]),   // + props do mapa (Havan: carros/estátua)
+      preloadFPArms(),   // braços FP dedicados (falha → fallback procedural, sem bloquear)
+      // viewmodel estático Tripo: LAZY (G2-R14A — crash Aw Snap! no CTF da Havan por OOM:
+      // o preload antigo baixava os 13 arms_*.glb ~270MB de uma vez). Boot = só o loadout
+      // inicial (classe da arma do personagem + rifle/pistol/faca + herói dedicada, se houver);
+      // as demais classes carregam sob demanda na 1ª troca (_ensureStaticVm, com cache).
+      preloadStaticVm(vmPreloadClasses(charWeapon(charId))),
+    ]);
+  } catch (e) { console.error('preload da partida falhou parcialmente', e); }
+  if (_lstat.phase) _lstat.phase.set(1);
   game = new Game({
     renderer, textures, sfx, settings,
-    playerCharId: charId, playerTeam: team, mapId: currentMap,
+    playerCharId: charId, playerTeam: side, playerFaction: faction, enemyFaction: enemyFac, mapId: currentMap,
     nickname: $('nick-input').value, testMode,
+    ctf: matchMode === 'ctf',   // o modo agora é 100% escolha do jogador (ctfMode só define o PADRÃO ao trocar de mapa)
     onMatchEnd: recordMatchStats,
   });
   window.__game = game;
   submitted = false;
+  telemetrySent = false;   // partida nova = uma linha nova de telemetria
   retryPending();
   armSwitchHook();
   game.onOpenSettings = () => { game.setPaused(true); settingsReturn = 'pause-menu'; show('settings-panel'); };
+  // pausa nova = botão destrutivo desarmado (senão um "CLIQUE DE NOVO" velho sobrevive
+  // até a pausa seguinte e o primeiro clique já confirmaria)
+  game.onPauseChange = () => resetConfirms();
   game.onToggleSpeech = () => {
     settings.speech = !settings.speech;
     sfx.speechEnabled = settings.speech;
@@ -123,20 +539,36 @@ async function startGame(team, charId) {
     return settings.speech;
   };
   game.start();
+  // esconde o loading só depois do 1º frame REAL da partida renderizado
+  await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+  hideLoading();
   // registra nick no ranking global (silencioso se a API não estiver no ar)
   const nick = $('nick-input').value.trim();
-  registeredNick = nick; heartbeatOff = false;
+  registeredNick = nick; heartbeatOff = false; rankingBloqueado = '';
   if (nick && !testMode) {
+    /* O ERRO DO REGISTER IMPORTA (06/08, print do dono: "⚠ stats não enviados: token
+       inválido" na tela de vitória). Causa: cada preview da Vercel é um domínio novo,
+       com localStorage novo → token novo; o nick já existe no banco com o token VELHO,
+       o register falha em silêncio aqui, e TODA partida terminava no 403 críptico.
+       A resposta agora fica guardada e o aviso do fim da partida diz o porquê. */
     api('/api/register', {
       nick, token: getToken(),
       socials: socials.filter(s => s.handle),
-    });
+    }).then((reg) => { if (reg && reg.error) rankingBloqueado = String(reg.error); });
   }
   try { window.va?.('event', { name: 'game_start', data: { team, character: charId, map: currentMap } }); } catch {}
   if (!testMode) { try { renderer.domElement.requestPointerLock()?.catch?.(() => {}); } catch {} }
 }
 function quitToMenu() {
-  if (game) { game.dispose(); game = null; }
+  // corta a vinheta de round ao sair da partida (pedido do dono): o teto de 25 s do
+  // audio.js e o corte no _startRound cobrem a partida em andamento, mas nenhum dos dois
+  // roda quando o jogador VAI EMBORA — a vinheta seguia tocando por cima da música do menu
+  try { sfx.stopRound(); } catch {}
+  switchMode = false;   // never carry an in-match team-switch into the menu
+  // dispose protegido: se a limpeza da partida falhar, o menu volta MESMO assim
+  // (antes, uma exceção aqui deixava o botão "SAIR PRO MENU" morto e o jogo zumbi)
+  try { if (game) game.dispose(); } catch (e) { console.error('dispose falhou ao sair pro menu', e); }
+  game = null; window.__game = null;
   if (document.pointerLockElement) document.exitPointerLock();
   show('main-menu');
 }
@@ -168,88 +600,450 @@ $('avatar-file').onchange = async e => {
   e.target.value = '';
 };
 
+/* ---------------- menu CS 1.6 (Coro Solto) ---------------- */
+/* Som de UI: um menu AAA tem TRÊS sons (mover, confirmar, voltar) e o "mover" é o que dá
+   a sensação tátil. Só existia uiClick(); hover/back são compostos aqui com as primitivas
+   do Sfx (audio.js pertence a outro agente — nada é adicionado lá). Falha em silêncio. */
+const ui = {
+  click() { try { sfx.uiClick(); } catch {} },
+  hover() { try { sfx.ensure(); sfx._beep('square', 1240, 1240, .02, .04, 0, true); } catch {} },
+  back()  { try { sfx.ensure(); sfx.duck(0.5, 0.1); sfx._beep('square', 560, 400, .06, .10, 0, true); } catch {} },
+};
+let matchMode = 'rounds';   // 'rounds' | 'ctf' — lido em startGame (ctf)
+/* O JOGADOR JÁ DISSE QUAL MODO QUER? (defeito: "esse mapa está como CAPTURA, mas eu
+   selecionei single player — e esse erro se repete em outros mapas")
+   O `ctfMode` do mapa é PADRÃO, não ordem. Só que `gotoMap` reescrevia `matchMode` a cada
+   troca de mapa, INCONDICIONALMENTE — e o carrossel de mapas fica DEPOIS da escolha do modo
+   no fluxo do menu. Quem clicava em SINGLE PLAYER e depois navegava até a Loja H ou o Ferro
+   Velho tinha a escolha dele apagada no caminho e caía em CTF; e quem clicava em CAPTURE THE
+   FLAG e navegava até os outros três caía em rounds. A invariante MOD1 não pegava isso: ela
+   só conferia que `ctfOnly` não existe mais no registro de mapas, que é outra coisa (o mapa
+   não FORÇA o modo — quem forçava era o menu).
+   Esta bandeira é a diferença entre PADRÃO e ESCOLHA: enquanto ninguém escolheu, o mapa
+   manda; depois que alguém escolheu, o mapa não encosta mais. Medida em tools/eval/mode-check.mjs
+   (invariante MOD2), que executa o CÓDIGO REAL destas funções nos 10 casos (5 mapas × 2 modos). */
+let modoEscolhido = false;
+if (MAPS[currentMap].ctfMode) matchMode = 'ctf';   // Loja H / Ferro Velho ABREM em CTF (geometria feita em volta das bandeiras), mas dá pra trocar
+const menuSetup = $('menu-setup');
+const csItems = [...document.querySelectorAll('.cs-item')];
+// Kill-switch de UI: ?ui=legacy volta o scrim do menu e o HUD ao visual da rodada 1
+// (vinheta de coluna inteira, HUD sem plaquinha nem scrim de canto). Serve de degradação
+// segura se o tratamento novo regredir em algum wallpaper/mapa.
+if (params.get('ui') === 'legacy') document.documentElement.dataset.ui = 'legacy';
+// aria-current = "o painel aberto veio DAQUI". Antes nenhum item tinha estado de seleção.
+function markCurrent(act) {
+  for (const it of csItems) {
+    const on = !!act && it.dataset.act === act;
+    if (on) it.setAttribute('aria-current', 'true'); else it.removeAttribute('aria-current');
+  }
+}
+/* O setup tem DOIS passos no mesmo painel (data-step):
+     'match'   = PASSO 1, escolher a partida — o mapa é o protagonista;
+     'profile' = passo à parte, o perfil (nick/redes/foto), que o dono pediu pra tirar
+                 da primeira tela ("o primeiro menu com o mapa não precisa ter o nick").
+   Um container só = a máquina de estados do menu (ESC, clique fora, VOLTAR, o seletor
+   :has(.cs-setup.open) do CSS) continua valendo pros dois sem duplicação. */
+let setupTitle = 'SINGLE PLAYER';
+function setSetupStep(step) {
+  menuSetup.dataset.step = step;
+  const st = $('setup-step'), tt = $('setup-title');
+  if (step === 'profile') {
+    if (st) st.textContent = 'PASSO À PARTE · NOME NA CAMISA';
+    if (tt) tt.textContent = 'SEU PERFIL';
+  } else {
+    if (st) st.textContent = matchMode === 'ctf' ? 'PASSO 1 · A PARTIDA (CTF)' : 'PASSO 1 · A PARTIDA';
+    if (tt) tt.textContent = setupTitle;
+  }
+}
+const openSetup = (mode, title, act) => {
+  if (mode) { matchMode = mode; modoEscolhido = true; }   // veio de SINGLE PLAYER/CAPTURE THE FLAG = escolha explícita
+  setupTitle = title;
+  markCurrent(act);
+  menuSetup.classList.add('open');
+  setMapMode();
+  setSetupStep('match');   // abrir o menu SEMPRE cai no passo da partida, nunca no perfil
+  applySetupWall();   // "escolher mapa/config" usa o wallpaper da posição 2 do fluxo
+};
+csItems.forEach((it) => {
+  it.onmouseenter = () => ui.hover();
+  it.onclick = () => {
+    ui.click();
+    switch (it.dataset.act) {
+      case 'sp':    openSetup('rounds', 'SINGLE PLAYER', 'sp'); break;
+      case 'ctf':   openSetup('ctf', 'CAPTURE THE FLAG', 'ctf'); break;
+      /* MAPA saiu (mapa se escolhe no fluxo de partida); FEEDBACK entrou (07/08) */
+      case 'feedback': markCurrent('feedback'); show('feedback-panel'); break;
+      case 'config': markCurrent('config'); show('settings-panel'); break;
+      case 'ranking': markCurrent('ranking'); showRanking(); break;
+      case 'sobre': markCurrent('sobre'); howtoReturn = 'main-menu'; show('howto-panel'); break;
+    }
+  };
+});
+// Navegação por teclado no menu (↑↓ / Home / End). Num FPS de PC não navegar no teclado
+// é falha de acessibilidade E de sensação — CS2/Valorant fazem tudo sem mouse.
+$('cs-menu').addEventListener('keydown', (e) => {
+  const i = csItems.indexOf(document.activeElement);
+  let n = -1;
+  if (e.key === 'ArrowDown') n = (i < 0 ? 0 : (i + 1) % csItems.length);
+  else if (e.key === 'ArrowUp') n = (i < 0 ? csItems.length - 1 : (i - 1 + csItems.length) % csItems.length);
+  else if (e.key === 'Home') n = 0;
+  else if (e.key === 'End') n = csItems.length - 1;
+  if (n < 0) return;
+  e.preventDefault(); csItems[n].focus(); ui.hover();
+});
+// Fechar o setup tinha UMA saída só: o botão VOLTAR. Enquanto ele estava aberto a coluna
+// da esquerda ficava inerte (ver style.css, bloco `:has(.cs-setup.open)`), então quem
+// clicasse em SINGLE PLAYER ficava preso ali. Agora são três saídas — botão, ESC e clique
+// fora — e a nav continua clicável. `back` = tocar o som só quando foi gesto do jogador.
+function closeSetup(back) {
+  if (!menuSetup.classList.contains('open')) return false;
+  if (back) ui.back();
+  menuSetup.classList.remove('open');
+  markCurrent(null);
+  applyHomeWall();
+  return true;
+}
+$('setup-back').onclick = () => { closeSetup(true); };
+/* passo do perfil: entra pelo botão PERFIL e volta pro passo da partida (nunca fecha o
+   menu inteiro — voltar um passo é voltar UM passo). */
+function openProfileStep(focusNick) {
+  ui.click();
+  setSetupStep('profile');
+  if (focusNick) setTimeout(() => nickEl.focus(), 60);
+}
+$('btn-profile').onclick = () => openProfileStep(true);
+$('profile-back').onclick = () => { ui.back(); setSetupStep('match'); };
+$('profile-ok').onclick = () => { ui.click(); saveSettings(); setSetupStep('match'); };
+// ESC no menu = voltar um passo. Num jogo de PC, ESC é o botão de voltar universal;
+// não ter isso no menu é inconsistente com o próprio jogo (ESC pausa a partida).
+// no window (não no #main-menu): depois de um clique no wallpaper o foco volta pro <body>
+// e um listener preso ao container nunca receberia a tecla.
+addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape') return;
+  // ESC na map screen = o VOLTAR dela (cai de volta no setup, estado intacto)
+  if (!$('map-screen').classList.contains('hidden')) { e.preventDefault(); ui.back(); show('main-menu'); return; }
+  if ($('main-menu').classList.contains('hidden')) return;
+  // ESC no passo do perfil volta pro passo da partida — só o segundo ESC fecha o painel.
+  if (menuSetup.classList.contains('open') && menuSetup.dataset.step === 'profile') {
+    e.preventDefault(); ui.back(); setSetupStep('match'); return;
+  }
+  if (closeSetup(true)) { e.preventDefault(); csItems[0]?.focus(); }
+});
+// Clique no wallpaper (fora do painel e fora da nav) também fecha — comportamento de
+// qualquer painel docado; sem isso o jogador tenta e não acontece nada.
+$('main-menu').addEventListener('pointerdown', (e) => {
+  if (e.target.closest('.cs-setup') || e.target.closest('.cs-left')) return;
+  closeSetup(true);
+});
+
 /* ---------------- menu wiring ---------------- */
+// JOGAR sem nick era um SHAKE depois do clique; agora é ESTADO (aria-disabled), atualizado
+// a cada tecla — o jogador vê que falta algo ANTES de tentar.
+function syncPlayState() {
+  const nick = (nickEl.value || '').trim();
+  const b = $('btn-jogar'); if (b) b.setAttribute('aria-disabled', nick ? 'false' : 'true');
+  // o botão do passo de perfil mostra o nick de verdade: o jogador sabe com que nome
+  // vai entrar sem ter que abrir o passo pra conferir
+  const p = $('btn-profile');
+  if (p) {
+    p.dataset.empty = nick ? '0' : '1';
+    const s = $('profile-name');
+    if (s) s.textContent = nick || 'PÔR O NOME NA CAMISA';
+  }
+  renderPlayerPlate();   // nick do card do menu acompanha a digitação
+}
 $('btn-jogar').onclick = () => {
   if (!(nickEl.value || '').trim()) {
+    // sem nick o JOGAR não morre: ele LEVA pro passo que falta (o nick não está mais
+    // nesta tela, então um shake num campo invisível não diria nada a ninguém)
+    nickEl.placeholder = 'SEM NOME NÃO TEM CORO!';
+    openProfileStep(true);
     nickEl.classList.add('invalid');
-    nickEl.placeholder = 'DIGITE UM NICK PRIMEIRO!';
-    nickEl.focus();
     setTimeout(() => nickEl.classList.remove('invalid'), 1500);
     return;   // sem nick, sem treta
   }
   sfx.uiClick();
-  const firstEmpty = socials.find(s => !s.handle);
-  if (firstEmpty) {
-    document.querySelector('.social-item input')?.classList.add('invalid');
-    setTimeout(() => document.querySelector('.social-item input')?.classList.remove('invalid'), 1200);
-  }
+  setTeamStep('side');
   show('team-select');
+  ensureTeamPreviews();   // thumbnails 3D dos times (async, cacheia no card)
 };
 $('btn-ranking').onclick = () => { sfx.uiClick(); showRanking(); };
-$('ranking-back').onclick = () => { sfx.uiClick(); show('main-menu'); };
-// dropdown de mapas (depois dos campos do usuário, antes do JOGAR)
-const mapSel = $('map-select');
-for (const id of MAP_IDS) {
-  const o = document.createElement('option');
-  o.value = id; o.textContent = MAPS[id].name;
-  mapSel.appendChild(o);
+$('ranking-back').onclick = () => { ui.back(); markCurrent(null); show('main-menu'); };
+/* FEEDBACK: email + consentimento obrigatórios ANTES de enviar — a tabela é a
+   semente da newsletter (migration 013), então não entra linha sem os dois. */
+$('fb-back').onclick = () => { ui.back(); markCurrent(null); show('main-menu'); };
+$('fb-send').onclick = async () => {
+  ui.click();
+  const msg = $('fb-msg').value.trim(), email = $('fb-email').value.trim();
+  const news = $('fb-news').checked, st = $('fb-status');
+  const falha = (t, campo) => { st.textContent = t; st.classList.add('erro'); campo?.classList.add('invalid');
+    setTimeout(() => campo?.classList.remove('invalid'), 600); };
+  st.classList.remove('erro');
+  if (msg.length < 3) return falha(tr('escreve o feedback primeiro'), $('fb-msg'));
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return falha(tr('preenche um email válido'), $('fb-email'));
+  if (!news) return falha(tr('marca o aceite da newsletter pra enviar'), null);
+  $('fb-send').disabled = true; st.textContent = tr('enviando…');
+  const res = await api('/api/feedback', { email, newsletter: news, message: msg, map: currentMap, version: VERSION });
+  $('fb-send').disabled = false;
+  if (res && res.ok) { st.textContent = tr('valeu! feedback enviado.'); $('fb-msg').value = ''; }
+  else falha(res?.error === 'rate_limited' ? tr('calma — muitos envios, tenta daqui a pouco') : tr('não deu pra enviar agora, tenta de novo mais tarde'), null);
+};
+// carrossel de mapas: setas ‹ › trocam o mapa E o fundo 3D do menu + thumbnail real do mapa
+const mapNameEl = $('map-name');
+const mapThumb = $('map-thumb');
+if (mapThumb) {
+  mapThumb.onload = () => { mapThumb.style.opacity = '1'; };
+  mapThumb.onerror = () => { mapThumb.style.opacity = '0'; };   // sem captura ainda → some limpo
 }
-mapSel.value = currentMap;
-mapSel.onchange = () => {
-  sfx.uiClick();
-  currentMap = resolveMapId(mapSel.value);
+function setMapThumb() {
+  if (!mapThumb) return;
+  mapThumb.style.opacity = '0';
+  mapThumb.src = `/img/map-previews/${currentMap}.jpg?v=${VERSION}`;
+}
+// Badge de modo + pontinhos de posição: o carrossel não dizia onde o jogador estava
+// (quantos mapas existem, qual é este) nem que Havan/Ferro Velho SÃO CTF por natureza.
+// Rótulos dos modos de arma em UM lugar (WPN_MODES lá embaixo é derivado daqui): a
+// ficha do cartaz e o dropdown têm que dizer a mesma coisa com as mesmas palavras.
+const WPN_MODE_LABEL = { all: 'TODAS', pistols: 'SÓ PISTOLAS', knife: 'SÓ FACA', awp: 'SÓ AWP' };
+// Ficha da partida IMPRESSA NO CARTAZ (modo · bots · armas). O dono pediu "maior dimensão
+// pro mapa" com "nome, modo, bots" — então o resumo mora sobre a arte, e não numa coluna
+// de formulário ao lado dela.
+function setMapMeta() {
+  const el = $('map-meta'); if (!el) return;
+  const n = settings.bots || 4;
+  const modo = matchMode === 'ctf' ? 'CAPTURE THE FLAG' : frase('melhorDe5');
+  el.textContent = frase('resumoPartida', modo, n, tr(WPN_MODE_LABEL[settings.wpnMode || 'all'] || 'TODAS'));
+}
+function setMapMode() {
+  const m = $('map-mode');
+  if (m) {
+    m.textContent = matchMode === 'ctf' ? 'CAPTURE THE FLAG' : 'ROUNDS';
+    m.dataset.mode = matchMode;
+  }
+  const d = $('map-dots');
+  if (d) d.innerHTML = MAP_IDS.map((_, i) => `<i class="${i === mapIdx ? 'on' : ''}"></i>`).join('');
+  setMapMeta();
+}
+// O badge de modo virou BOTÃO: pedido do dono ("os mapas todos podem ser rounds ou CTF,
+// mas tem uns que forçam ser CTF"). Antes ele era um <span> informativo e Loja H/Ferro Velho
+// eram prisão de CTF. Agora o mapa só define o PADRÃO e o jogador alterna aqui.
+{
+  const mm = $('map-mode');
+  if (mm) mm.addEventListener('click', () => {
+    matchMode = matchMode === 'ctf' ? 'rounds' : 'ctf';
+    modoEscolhido = true;   // alternar no badge também é escolha do jogador
+    ui.click();
+    setMapMode();
+    setSetupStep('match');   // o eyebrow do passo carrega o modo (PARTIDA / PARTIDA (CTF))
+  });
+}
+let mapIdx = Math.max(0, MAP_IDS.indexOf(currentMap));
+function gotoMap(i) {
+  mapIdx = (i + MAP_IDS.length) % MAP_IDS.length;
+  currentMap = resolveMapId(MAP_IDS[mapIdx]);
   settings.map = currentMap; saveSettings();
+  mapNameEl.textContent = MAPS[currentMap].name;
+  setMapThumb();
+  // troca de mapa aplica o PADRÃO do mapa (Loja H/Ferro Velho abrem em CTF, o resto em rounds)
+  // — mas SÓ enquanto o jogador não tiver escolhido. Ver `modoEscolhido` lá em cima: era
+  // aqui que a escolha dele morria (main.js:692 na versão anterior).
+  if (!modoEscolhido) matchMode = MAPS[currentMap].ctfMode ? 'ctf' : 'rounds';
+  setMapMode();
   rebuildMenuBackdrop();
+  renderMapScreen();   // se a tela cheia estiver aberta, ela acompanha o carrossel
+}
+function stepMap(dir) { ui.click(); gotoMap(mapIdx + dir); }
+mapNameEl.textContent = MAPS[currentMap].name;
+setMapThumb();
+setMapMode();
+$('map-prev').onclick = () => stepMap(-1);
+$('map-next').onclick = () => stepMap(1);
+[$('map-prev'), $('map-next')].forEach(b => b && (b.onmouseenter = () => ui.hover()));
+
+/* ---------------- map screen (escolha de mapa em tela cheia) ----------------
+   Abre pelo cartaz do mapa no setup. Lê o MESMO estado do carrossel (currentMap/mapIdx) —
+   trocar aqui troca lá, e vice-versa. CONTINUAR segue o fluxo normal (nick → facção). */
+const MAP_DESC = {
+  awp_map: 'O coração do poder vira arena: rampas do Planalto, espelho d\'água e linhas de tiro longas entre os ministérios.',
+  fy_pool_day: 'Salão fechado, eco de tiro e briga de faca no raso. Quem controla a borda controla o round.',
+  fy_havan: 'Estacionamento de megastore: corredores de vaga, mezanino de sniper e a estátua te olhando atirar.',
+  fy_ferrovelho: 'Um ferro velho gigantesco onde tudo pode ser arma e toda sombra pode esconder um traira.',
 };
+function renderMapScreen() {
+  const img = $('ms-bg-img'); if (!img) return;
+  img.src = `/img/map-previews/${currentMap}.jpg?v=${VERSION}`;
+  $('ms-name').textContent = MAPS[currentMap].name;
+  $('ms-meta').textContent = $('map-meta').textContent;   // a MESMA ficha impressa no cartaz
+  $('ms-desc').textContent = MAP_DESC[currentMap] || '';
+  // chrome do topo: o mesmo jogador do plate do menu (uma fonte só de verdade)
+  const nick = (nickEl.value || '').trim();
+  $('ms-top-nick').textContent = nick || 'SEM NICK';
+  $('ms-avatar').textContent = (nick || 'CS').replace(/[^a-z0-9]/gi, '').slice(0, 2).toUpperCase() || 'CS';
+  $('ms-top-level').textContent = 'NÍVEL ' + (Math.floor(playerXp(loadStats()) / 2000) + 1);
+  $('ms-strip').innerHTML = MAP_IDS.map((id, i) =>
+    `<button class="ms-thumb${id === currentMap ? ' on' : ''}" data-i="${i}" type="button">` +
+    `<img src="/img/map-previews/${id}.jpg?v=${VERSION}" alt="${MAPS[id].name}"><span>${MAPS[id].name}</span></button>`).join('');
+  $('ms-strip').querySelectorAll('.ms-thumb').forEach(b => {
+    b.onclick = () => { ui.click(); gotoMap(+b.dataset.i); };
+    b.onmouseenter = () => ui.hover();
+  });
+}
+mapThumb.title = 'Ver mapa em tela cheia';
+mapThumb.style.cursor = 'pointer';
+mapThumb.onclick = () => { ui.click(); renderMapScreen(); show('map-screen'); };
+$('ms-prev').onclick = () => stepMap(-1);
+$('ms-next').onclick = () => stepMap(1);
+$('ms-back').onclick = () => { ui.back(); show('main-menu'); };
+// CONTINUAR = o JOGAR de sempre: ele decide o próximo passo (perfil se falta nick, facção se não)
+$('ms-continue').onclick = () => { show('main-menu'); $('btn-jogar').click(); };
+// ← → trocam de mapa com a tela cheia aberta (ESC fecha — ver o handler de ESC do menu)
+addEventListener('keydown', (e) => {
+  if ($('map-screen').classList.contains('hidden')) return;
+  if (e.key === 'ArrowLeft') { e.preventDefault(); stepMap(-1); }
+  else if (e.key === 'ArrowRight') { e.preventDefault(); stepMap(1); }
+});
 const wpnSel = { value: settings.wpnMode || 'all' };
-// dropdown custom de modo de armas (com ícones SVG originais)
+// dropdown de modo de armas: renders REAIS de /img/weapons (o dono reprovou os glifos)
+const _wpnImg = (id) => `<img class="dd-ico" src="/img/weapons/${id}.webp" alt="" width="44" height="17" loading="lazy">`;
 const WPN_ICONS = {
-  all: `<svg width="22" height="14" viewBox="0 0 22 14" fill="none"><path d="M1 9l8-6 1 1-8 6-1-1zm20-2L13 1l-1 1 8 6 1-1z" fill="currentColor"/><rect x="9" y="6" width="4" height="7" fill="currentColor"/></svg>`,
-  pistols: `<svg width="20" height="14" viewBox="0 0 20 14" fill="none"><path d="M1 2h12v4H9v6H5V6H1V2z" fill="currentColor"/><rect x="9" y="1" width="4" height="3" fill="currentColor"/></svg>`,
-  knife: `<svg width="20" height="14" viewBox="0 0 20 14" fill="none"><path d="M1 12L14 1l4 1-3 11-8 2-6-3z" fill="currentColor"/><rect x="1" y="10" width="5" height="3" fill="currentColor"/></svg>`,
-  awp: `<svg width="26" height="12" viewBox="0 0 26 12" fill="none"><rect x="0" y="4" width="26" height="3" fill="currentColor"/><rect x="7" y="0" width="8" height="4" fill="currentColor"/><rect x="2" y="7" width="6" height="4" fill="currentColor"/></svg>`,
+  all: `<span class="dd-ico-all">${_wpnImg('ak')}${_wpnImg('pistol')}</span>`,
+  pistols: _wpnImg('pistol'),
+  knife: _wpnImg('knife'),
+  awp: _wpnImg('awp'),
 };
-const WPN_MODES = [
-  { id: 'all', label: 'TODAS' },
-  { id: 'pistols', label: 'SÓ PISTOLAS' },
-  { id: 'knife', label: 'SÓ FACA' },
-  { id: 'awp', label: 'SÓ AWP' },
-];
+const WPN_MODES = Object.entries(WPN_MODE_LABEL).map(([id, label]) => ({ id, label }));
 const wpnDdBtn = $('wpn-dd-btn'), wpnDdList = $('wpn-dd-list'), wpnDdLabel = $('wpn-dd-label');
 function wpnLabel(id) {
   const m = WPN_MODES.find(m => m.id === id);
-  wpnDdLabel.innerHTML = `<span class="dd-cur">${WPN_ICONS[id]}<span>${m ? m.label : id}</span></span>`;
+  wpnDdLabel.innerHTML = `<span class="dd-cur">${WPN_ICONS[id]}<span>${tr(m ? m.label : id)}</span></span>`;
 }
 wpnDdList.innerHTML = WPN_MODES.map(m =>
-  `<button class="dd-item" data-id="${m.id}" type="button">${WPN_ICONS[m.id]}<span>${m.label}</span></button>`).join('');
+  `<button class="dd-item" data-id="${m.id}" type="button">${WPN_ICONS[m.id]}<span>${tr(m.label)}</span></button>`).join('');
 wpnLabel(wpnSel.value);
 wpnDdBtn.onclick = e => { e.stopPropagation(); wpnDdList.classList.toggle('hidden'); wpnDdBtn.classList.toggle('open'); };
 document.addEventListener('click', () => { wpnDdList.classList.add('hidden'); wpnDdBtn.classList.remove('open'); });
 wpnDdList.querySelectorAll('.dd-item').forEach(b => b.onclick = () => {
   settings.wpnMode = b.dataset.id; saveSettings();
-  wpnLabel(settings.wpnMode); sfx.uiClick();
+  wpnLabel(settings.wpnMode); setMapMeta(); sfx.uiClick();
 });
-$('btn-howto').onclick = () => { sfx.uiClick(); show('howto-panel'); };
-$('howto-back').onclick = () => { sfx.uiClick(); show('main-menu'); };
+// bots-per-side + difficulty selectors (custom match)
+const botsSel = $('bots-select');
+if (botsSel) {
+  [2, 3, 4, 5, 6, 7, 8].forEach(n => { const o = document.createElement('option'); o.value = n; o.textContent = `${n} vs ${n}`; botsSel.appendChild(o); });
+  botsSel.value = settings.bots || 4;
+  botsSel.onchange = () => { settings.bots = +botsSel.value; saveSettings(); setMapMeta(); sfx.uiClick(); };
+}
+const diffSel = $('diff-select');
+if (diffSel) {
+  [['easy', 'FÁCIL'], ['normal', 'NORMAL'], ['hard', 'DIFÍCIL'], ['insane', 'INSANO']].forEach(([v, l]) => { const o = document.createElement('option'); o.value = v; o.textContent = l; diffSel.appendChild(o); });
+  diffSel.value = settings.difficulty || 'normal';
+  diffSel.onchange = () => { settings.difficulty = diffSel.value; saveSettings(); sfx.uiClick(); };
+}
+$('btn-howto').onclick = () => { sfx.uiClick(); howtoReturn = 'main-menu'; show('howto-panel'); };
+$('howto-back').onclick = () => { ui.back(); markCurrent(null); const r = howtoReturn; howtoReturn = 'main-menu'; show(r); };
 $('btn-settings').onclick = () => { sfx.uiClick(); settingsReturn = 'main-menu'; show('settings-panel'); };
 $('settings-back').onclick = () => {
-  sfx.uiClick(); saveSettings();
+  ui.back(); saveSettings();
   if (game) game.applySettings();
+  if (settingsReturn === 'main-menu') markCurrent(null);
   show(settingsReturn);
 };
+// Abas das configurações: troca o pane visível; os inputs nunca são re-criados,
+// então o wiring de persistência abaixo vale pra todos os panes.
+document.querySelectorAll('.set-tab').forEach(tab => {
+  tab.onclick = () => {
+    sfx.uiClick();
+    document.querySelectorAll('.set-tab').forEach(t => {
+      const on = t === tab;
+      t.classList.toggle('active', on);
+      t.setAttribute('aria-selected', on);
+    });
+    document.querySelectorAll('.set-pane').forEach(p => p.classList.toggle('hidden', p.dataset.pane !== tab.dataset.tab));
+  };
+});
 $('mobile-ok').onclick = () => { sfx.uiClick(); show('main-menu'); };
-$('team-back').onclick = () => { sfx.uiClick(); show('main-menu'); };
-$('char-back').onclick = () => { sfx.uiClick(); show('team-select'); };
-$('btn-team-p').onclick = () => { sfx.uiClick(); pickTeam('P'); };
+$('team-back').onclick = () => { ui.back(); pickingEnemy = false; setEnemyPickMode(false); setTeamStep('side'); show('main-menu'); };
+$('char-back').onclick = () => { ui.back(); show('team-select'); };
+// Setas do filmstrip: movem a SELEÇÃO (não só o scroll) e garantem a linha visível.
+const stripStep = (dir) => {
+  const rows = [...document.querySelectorAll('.char-row')];
+  if (!rows.length) return;
+  const i = Math.max(0, rows.findIndex(r => r.classList.contains('sel')));
+  const next = rows[(i + dir + rows.length) % rows.length];
+  next.click();
+  next.scrollIntoView({ block: 'nearest' });
+};
+$('strip-up').onclick = () => { ui.click(); stripStep(-1); };
+$('strip-down').onclick = () => { ui.click(); stripStep(1); };
+// Contador de elenco nos cards de facção ("8 PERSONAGENS" — referência telas/02)
+for (const f of ['e', 'b', 'u', 'c', 'f']) {
+  const n = CHARACTERS.filter(c => c.team === f.toUpperCase()).length;
+  const card = $('btn-team-' + f);
+  if (!card) continue;
+  const chip = document.createElement('span');
+  chip.className = 'team-count';
+  chip.textContent = `${n} PERSONAGENS`;
+  card.appendChild(chip);
+}
+$('btn-team-e').onclick = () => { sfx.uiClick(); pickTeam('E'); };
 $('btn-team-b').onclick = () => { sfx.uiClick(); pickTeam('B'); };
+$('btn-team-u') && ($('btn-team-u').onclick = () => { sfx.uiClick(); pickTeam('U'); });
+$('btn-team-c') && ($('btn-team-c').onclick = () => { sfx.uiClick(); pickTeam('C'); });
+$('btn-team-f') && ($('btn-team-f').onclick = () => { sfx.uiClick(); pickTeam('F'); });
 $('btn-resume').onclick = () => { sfx.uiClick(); game?.resume(); };
 $('btn-pause-settings').onclick = () => { sfx.uiClick(); settingsReturn = 'pause-menu'; show('settings-panel'); };
-$('btn-quit').onclick = () => {
-  sfx.uiClick();
+$('btn-pause-controls').onclick = () => { sfx.uiClick(); howtoReturn = 'pause-menu'; show('howto-panel'); };
+/* ---- AÇÕES QUE DESTROEM A PARTIDA EM ANDAMENTO: DOIS TOQUES ----------------
+   "pela quinta vez o jogo reiniciou sozinho, eu estava no meio de uma partida e ele foi
+   pro menu principal sozinho" (dono, 04/08).
+
+   Não havia caminho automático: `quitToMenu()` só é chamado por estes dois `onclick`.
+   O clique era REAL — o menu de pausa cai debaixo da MIRA quando o pointer lock some
+   sozinho (alt-tab, ESC, notificação), e o tiro que já estava saindo apertava o botão.
+   Medido com o pause aberto em 1536×1024: centro da tela = CONFIGURAÇÕES,
+   centro+100 px = REINICIAR PARTIDA, centro+150 px = SAIR PRO MENU — a coluna inteira
+   fica na linha de tiro. Ver PAUSE_ARM_MS em game.js e tools/eval/pause-check.mjs.
+
+   A janela de guarda do game.js resolve o tiro em voo; esta trava resolve o resto:
+   NENHUM clique único tira o jogador da partida. A REGRA do segundo toque
+   (`confirmGate`) mora no game.js e é medida em node — ver a cláusula PAUSA6 de
+   tools/eval/pause-check.mjs, que nasceu de uma rajada de 8 cliques a 60 ms que
+   atravessou a primeira versão desta trava e saiu pro menu. */
+const confirmables = [];
+function needsConfirm(btn, run) {
+  const label = btn.textContent;
+  let armedAt = 0, t = null;
+  // o aviso é INLINE de propósito: style.css é território de outra frente nesta rodada, e
+  // um estado que só existe como classe sem regra seria um botão que muda de texto e não
+  // avisa NADA — o jogador tem que ver que o próximo clique é o que vale
+  const reset = () => {
+    if (t) clearTimeout(t); t = null; armedAt = 0;
+    btn.textContent = label; btn.classList.remove('confirming');
+    btn.style.color = ''; btn.style.borderColor = '';
+  };
+  confirmables.push(reset);
+  btn.onclick = () => {
+    const now = performance.now();
+    const acao = confirmGate(now, armedAt);
+    if (acao === 'confirma') { reset(); run(); return; }
+    if (acao === 'arma') sfx.uiClick();
+    armedAt = now;   // 'rearma' (rajada) cai aqui também: o relógio volta ao zero
+    btn.textContent = 'CLIQUE DE NOVO PRA CONFIRMAR';
+    btn.classList.add('confirming');
+    btn.style.color = 'var(--am, #ffc93f)'; btn.style.borderColor = 'var(--am, #ffc93f)';
+    if (t) clearTimeout(t);
+    t = setTimeout(reset, CONFIRM_MAX_MS);
+  };
+}
+const resetConfirms = () => { for (const r of confirmables) r(); };
+// Mesma chamada da REVANCHE do match-end: recomeça a partida com time/personagem/adversário atuais.
+needsConfirm($('btn-restart'), () => startGame(currentTeam, currentChar));
+needsConfirm($('btn-quit'), () => {
+  sendTelemetry();   // fora do `if (pl)`: partialPayload() devolve null sem nick, telemetria não depende disso
   const pl = partialPayload();
   if (pl) { submitted = true; submitGlobal(pl); }
   quitToMenu();
-};
+});
 $('btn-again').onclick = () => { sfx.uiClick(); startGame(currentTeam, currentChar); };
 $('btn-menu').onclick = () => { sfx.uiClick(); quitToMenu(); };
 // M in-game: escolhe o personagem do novo time antes de trocar
@@ -264,14 +1058,54 @@ function armSwitchHook() {
 $('char-confirm').onclick = () => {
   sfx.uiClick();
   if (!selChar) return;
-  if (switchMode) {
+  // Only take the in-match "switch team" path when there's a live game to switch;
+  // a stale switchMode flag (e.g. backed out of M) must NOT hit game._switchTeam on a
+  // disposed game — that used to throw and leave the next match unable to load.
+  if (switchMode && game) {
     switchMode = false;
     currentChar = selChar.id;
     show(null);
-    game._switchTeam(selChar.id);
-    if (!testMode) renderer.domElement.requestPointerLock();
-  } else startGame(currentTeam, selChar.id);
+    try { game._switchTeam(selChar.id); } catch (e) { console.error('switch team failed', e); }
+    game.resume();   // unpause + re-request pointer lock (fixes "M opens but game won't resume")
+  } else {
+    switchMode = false;
+    // 2º passo: escolher o ADVERSÁRIO (reusa o team-select com título trocado).
+    // O card da SUA facção é escondido — adversário só entre os outros 2 (sem mirror).
+    currentChar = selChar.id;
+    pickingEnemy = true;
+    setEnemyPickMode(true, currentFaction);
+    setTeamStep('enemy', currentFaction);
+    show('team-select');
+    ensureTeamPreviews();   // no-op se já rodou (previews ficam cacheados nos cards)
+  }
 };
+
+// Esconde/mostra o card da sua facção na tela de adversário (btn-team-e/b/u).
+function setEnemyPickMode(on, myFaction) {
+  for (const f of ['e', 'b', 'u', 'c', 'f']) {
+    const b = $('btn-team-' + f);
+    if (b) b.classList.toggle('hidden', !!(on && f.toUpperCase() === myFaction));
+  }
+}
+/* A MESMA tela serve dois passos e precisa DIZER qual é. Antes o único sinal era o
+   título trocado por querySelector em 4 lugares diferentes do arquivo — e o 2º passo
+   ficava com cara de formulário ("escolha o adversário" e três caixas iguais).
+   Agora o passo é um estado (data-step) que a tela inteira lê: eyebrow, título, dica
+   e o texto da barra de ação de cada placa (ver .team-cta no style.css). */
+const FACTION_NAME = { P: 'TIME E', B: 'TIME B', U: 'TRIBOS URBANAS', C: 'PALHAÇOS', F: 'FUNKEIROS' };
+function setTeamStep(step, myFaction) {
+  const ts = $('team-select'); if (ts) ts.dataset.step = step;
+  const st = $('team-step'), tt = $('team-title'), hint = $('team-hint');
+  if (step === 'enemy') {
+    if (st) st.textContent = 'PASSO 4 · O ADVERSÁRIO';
+    if (tt) tt.textContent = 'QUEM VAI LEVAR O CORO?';
+    if (hint) hint.textContent = `Você fecha com ${FACTION_NAME[myFaction] || 'os seus'}. Aponte quem vai encarar do outro lado.`;
+  } else {
+    if (st) st.textContent = 'PASSO 2 · O SEU LADO';
+    if (tt) tt.textContent = 'ESCOLHA SEU LADO DA TRETA';
+    if (hint) hint.textContent = 'Cada facção tem elenco, grito e jeito de brigar. Escolha o coro.';
+  }
+}
 
 const nickEl = $('nick-input');
 nickEl.value = localStorage.getItem(NICK_KEY) || '';
@@ -327,6 +1161,8 @@ function renderSocials() {
 }
 $('social-add').onclick = () => { socials.push({ net: 'x', handle: '' }); saveSocials(); renderSocials(); };
 nickEl.addEventListener('input', updateAvatarVisibility);
+nickEl.addEventListener('input', syncPlayState);
+syncPlayState();   // estado inicial do botão JOGAR (nick vem do localStorage)
 renderSocials();
 
 /* ---------------- global ranking API (via /api/* do site) ---------------- */
@@ -355,13 +1191,22 @@ function submitNote(msg) {
     el.appendChild(d);
   }
 }
+/* Traduz o erro cru do RPC pra algo que o jogador entende e pode agir em cima.
+   "token inválido" = o nick já existe no banco com OUTRO token (outro navegador,
+   outra aba de preview da Vercel, localStorage limpo). Se o register da sessão já
+   tinha acusado (rankingBloqueado), essa é a explicação quase certa. */
+function traduErroSubmit(msg) {
+  if (/token|inválid|nick/i.test(msg) || rankingBloqueado)
+    return 'esse nick já está registrado em outro navegador — troca o nick no PERFIL pra gravar no ranking';
+  return msg;
+}
 
 // stats parciais quando o jogador abandona a partida (sair pro menu / fechar aba)
 function partialPayload() {
   if (!game || submitted || testMode) return null;
   if (!['live', 'roundEnd', 'countdown'].includes(game.state)) return null;
   const g = game, p = g.player;
-  const rounds = g.roundsWon.P + g.roundsWon.B;
+  const rounds = g.roundsWon.E + g.roundsWon.B;
   if (!p.kills && !p.deaths && !rounds && g.time < 30) return null;
   const nick = registeredNick || (nickEl.value || '').trim();
   if (!nick) return null;
@@ -372,6 +1217,7 @@ function partialPayload() {
   };
 }
 addEventListener('beforeunload', () => {
+  sendTelemetry();   // aba fechando no meio da partida ainda conta como tempo jogado
   const pl = partialPayload();
   if (pl) navigator.sendBeacon('/api/submit-match', new Blob([JSON.stringify(pl)], { type: 'application/json' }));
 });
@@ -394,14 +1240,15 @@ async function retryPending() {
   else if (res?.error && /aguarde/i.test(res.error)) setTimeout(retryPending, 95_000);
 }
 
-/* ---------------- local stats (espelhados pro ranking global) ---------------- */
-const STATS_KEY = 'awpbr_stats';
+/* ---------------- local stats (espelhados pro ranking global) ----------------
+   STATS_KEY mora no bloco de storage lá em cima (TDZ: renderPlayerPlate roda antes daqui). */
 function loadStats() {
   return Object.assign({ matches: 0, wins: 0, kills: 0, deaths: 0, headshots: 0, bestStreak: 0 },
     JSON.parse(localStorage.getItem(STATS_KEY) || '{}'));
 }
 async function recordMatchStats(s) {
   submitted = true;
+  sendTelemetry();   // ANTES do guard de nick lá embaixo: telemetria cobre quem não registrou
   const st = loadStats();
   st.matches++; if (s.won) st.wins++;
   st.kills += s.kills; st.deaths += s.deaths; st.headshots += s.headshots;
@@ -419,9 +1266,31 @@ async function recordMatchStats(s) {
       character: s.character,
     });
     if (!res) submitNote('ranking global indisponível');
-    else if (res.error) submitNote(res.error);
+    else if (res.error) submitNote(traduErroSubmit(res.error));
   }
+  renderPlayerPlate();   // XP/nível do card do menu sobem junto com os stats
 }
+
+/* ---------------- player plate (card do jogador no menu principal) ----------------
+   Nível/XP derivados dos MESMOS stats locais do ranking — uma fonte só de verdade.
+   2.000 XP por nível: kill 100 · headshot 25 · vitória 500 · partida 50. */
+function playerXp(st) { return st.kills * 100 + st.headshots * 25 + st.wins * 500 + st.matches * 50; }
+function renderPlayerPlate() {
+  const el = $('player-plate'); if (!el) return;
+  const st = loadStats();
+  const xp = playerXp(st);
+  const level = Math.floor(xp / 2000) + 1;
+  const into = xp % 2000;
+  const nick = (nickEl.value || '').trim();
+  $('pp-avatar').textContent = (nick || 'CS').replace(/[^a-z0-9]/gi, '').slice(0, 2).toUpperCase() || 'CS';
+  $('pp-nick').textContent = nick || 'SEM NICK';
+  $('pp-level').textContent = 'NÍVEL ' + level;
+  $('xp-fill').style.width = (into / 20) + '%';
+  $('xp-num').textContent = `${into.toLocaleString('pt-BR')} / 2.000 XP`;
+  el.dataset.empty = nick ? '0' : '1';
+}
+// o plate abre o passo de perfil do setup (onde nick/avatar se editam de verdade)
+$('player-plate').onclick = () => { openSetup(null, 'SEU PERFIL', null); openProfileStep(true); };
 function showRanking() {
   const st = loadStats();
   const kd = st.deaths ? (st.kills / st.deaths).toFixed(2) : st.kills.toFixed(2);
@@ -442,15 +1311,25 @@ function showRanking() {
 }
 async function renderGlobal(nick) {
   const box = $('rank-global');
-  box.innerHTML = '<h3>🌐 RANKING GLOBAL</h3><div class="rg-off">carregando…</div>';
+  box.innerHTML = '<h3>RANKING GLOBAL</h3><div class="rg-off">carregando…</div>';
   const data = await api('/api/leaderboard');
+  /* `disabled` é escolha, `indisponível` é defeito — e o jogador lê a diferença.
+     A flag mora só no servidor (src/lib/site.ts, RANKING_ON); aqui a gente só
+     reage à resposta, pra não existirem duas fontes de verdade que divergem. */
+  if (data && data.disabled) {
+    box.innerHTML = '<h3>RANKING GLOBAL</h3>' +
+      '<div class="rg-off">desligado por enquanto — o jogo está em alpha e o ranking volta ' +
+      'quando o placar for confiável. Seus stats deste navegador continuam contando, ali em cima.</div>' +
+      '<div class="rg-links"><a href="/mapa" target="_blank" style="color:var(--cs)">MAPA AO VIVO ↗</a></div>';
+    return;
+  }
   if (!data || !data.players) {
-    box.innerHTML = '<h3>🌐 RANKING GLOBAL</h3><div class="rg-off">indisponível no momento</div>';
+    box.innerHTML = '<h3>RANKING GLOBAL</h3><div class="rg-off">indisponível no momento</div>';
     return;
   }
   const rows = data.players.slice(0, 10).map((p, i) =>
     `<tr class="${p.nick === nick ? 'me' : ''}"><td>${i + 1}</td><td>${p.nick}</td><td>${p.kd}</td><td>${p.kills}</td><td>${p.wins > 0 ? p.wins : "—"}</td></tr>`).join('');
-  box.innerHTML = '<h3>🌐 RANKING GLOBAL (top 10)</h3>' +
+  box.innerHTML = '<h3>RANKING GLOBAL (top 10)</h3>' +
     (rows
       ? `<table><tr><th>#</th><th>JOGADOR</th><th>K/D</th><th>KILLS</th><th>VIT.</th></tr>${rows}</table>`
       : '<div class="rg-off">ainda vazio — seja o primeiro!</div>') +
@@ -459,31 +1338,142 @@ async function renderGlobal(nick) {
     `<a href="/mapa" target="_blank" style="color:var(--cs)">MAPA AO VIVO ↗</a></div>`;
 }
 
-function pickTeam(team) {
-  currentTeam = team;
-  const list = $('char-list');
-  list.innerHTML = '';
-  const chars = CHARACTERS.filter(c => c.team === team);
-  let firstRow = null;
-  chars.forEach((c, i) => {
-    const row = document.createElement('button');
-    row.className = 'char-row';
-    row.innerHTML = `<img src="${pvThumb(c)}" alt="${c.name}"><span>${c.name}</span>`;
-    row.onclick = () => { sfx.uiClick(); selectChar(c, row); };
-    list.appendChild(row);
-    if (i === 0) firstRow = row;
+// GLB idle thumbnail (no weapon), rendered off the shared preview renderer.
+function glbThumb(def) {
+  if (!hasModel(def.id)) return null;
+  const m = buildCharacterModel(def, { weapon: false });
+  if (!m) return null;
+  m.group.rotation.y = 0.5;
+  for (let i = 0; i < 42; i++) m.mixer.update(1 / 60); // settle into the idle pose
+  return snapThumb(m.group);
+}
+/* ---------------- previews 3D dos times nos cards (pedido do dono: "uma imagem
+   preview dos models, tipo um time") — renderiza 4 GLBs reais de cada facção no
+   renderer de preview (dataURL) e cacheia no card. Roda 1x por visita ao menu. */
+let teamPreviewsDone = false;
+function ensureTeamPreviews() {
+  if (teamPreviewsDone) return;
+  teamPreviewsDone = true;
+  for (const [btn, fac] of [['btn-team-e', 'E'], ['btn-team-b', 'B'], ['btn-team-u', 'U'], ['btn-team-c', 'C'], ['btn-team-f', 'F']]) {
+    const box = document.querySelector(`#${btn} .team-chars`);
+    if (!box) continue;
+    const chars = CHARACTERS.filter(c => c.team === fac && GLB_CHARS.has(c.id)).slice(0, 4);
+    if (!chars.length) continue;
+    box.innerHTML = chars.map(() => '<span class="tc-slot"></span>').join('');
+    const slots = [...box.children];
+    preloadCharacterAssets(chars.map(c => c.id)).then(() => {
+      chars.forEach((c, i) => {
+        const url = glbThumb(c);
+        if (url && slots[i]) slots[i].innerHTML = `<img src="${url}" alt="${c.name}" title="${c.name}">`;
+      });
+    }).catch(() => {});
+  }
+}
+function pickTeam(faction) {
+  // 2º passo: se está escolhendo o ADVERSÁRIO, grava e começa a partida.
+  // (o card da sua facção fica escondido nessa tela — adversário é sempre um dos outros 2)
+  if (pickingEnemy) {
+    pickingEnemy = false; currentEnemyFaction = faction;
+    setEnemyPickMode(false);
+    setTeamStep('side');
+    startGame(currentTeam, currentChar, faction);
+    return;
+  }
+  // faction = FACÇÃO escolhida (P/B/U). O LADO físico é P (petista/tribos) ou B (bolsonarista).
+  currentFaction = faction;
+  currentTeam = faction === 'B' ? 'B' : 'E';
+  // estado de seleção persistente nos cards: ao voltar do personagem, a tela diz qual é o SEU lado
+  for (const f of ['e', 'b', 'u', 'c', 'f']) {
+    const b = $('btn-team-' + f);
+    if (b) b.setAttribute('aria-pressed', String(f.toUpperCase() === faction));
+  }
+  const chars = CHARACTERS.filter(c => c.team === faction);   // roster da facção escolhida
+  // LOADING REAL da seleção de personagem: os GLBs do roster entram ANTES da tela abrir —
+  // nada de thumbnails de caixa montando aos poucos (o "minecraft" que o dono viu)
+  showLoading('CARREGANDO PERSONAGENS…');
+  preloadCharacterAssets(chars.map(c => c.id)).catch(() => {}).then(() => {
+    hideLoading();
+    const list = $('char-list');
+    list.innerHTML = '';
+    let firstRow = null;
+    chars.forEach((c, i) => {
+      const row = document.createElement('button');
+      row.className = 'char-row';
+      // GLB direto (acabou de pré-carregar) — caixa procedural só se o modelo não existe
+      const thumb0 = (hasModel(c.id) ? glbThumb(c) : null) || pvThumb(c);
+      row.type = 'button'; row.setAttribute('role', 'option'); row.setAttribute('aria-selected', 'false');
+      row.innerHTML = `<img src="${thumb0}" alt="${c.name}"><span>${c.name}</span>`;
+      row.onmouseenter = () => ui.hover();
+      // teclado: ↑↓ percorrem o roster e já trocam o preview (era só mouse)
+      row.onkeydown = (e) => {
+        const rows = [...list.children];
+        const k = rows.indexOf(row);
+        let n = -1;
+        if (e.key === 'ArrowDown') n = (k + 1) % rows.length;
+        else if (e.key === 'ArrowUp') n = (k - 1 + rows.length) % rows.length;
+        if (n < 0) return;
+        e.preventDefault(); rows[n].focus(); rows[n].click();
+      };
+      row.onclick = () => { ui.click(); selectChar(c, row); };
+      list.appendChild(row);
+      if (i === 0) firstRow = row;
+    });
+    // seleciona DEPOIS de gerar todos os thumbs — senão o preview fica com o último
+    if (firstRow) selectChar(chars[0], firstRow);
+    show('char-select');
   });
-  // seleciona DEPOIS de gerar todos os thumbs — senão o preview fica com o último
-  if (firstRow) selectChar(chars[0], firstRow);
-  show('char-select');
+}
+/* Ficha do personagem (tela de seleção): raridade + atributos derivados da arma inicial
+   (charWeapon) e de um hash estável do id. É FLAVOR de apresentação no estilo CS2/Valorant —
+   NÃO afeta gameplay (vida/velocidade reais são iguais pra todo mundo). */
+const ATTR_BY_WPN = {
+  awp: [2, 2, 5], mosin: [2, 2, 5], deagle: [2, 3, 4], revolver38: [2, 3, 4], pistol: [2, 4, 3],
+  ak: [3, 3, 3], m4: [3, 3, 4], md97: [3, 3, 3], scar: [3, 3, 4],
+  mp5: [2, 4, 3], uzi: [2, 5, 2], p90: [2, 4, 2], shotgun: [4, 3, 1], lmg: [5, 1, 2],
+};
+/* Especialidade: flavor derivado da arma inicial (mesma fonte dos atributos).
+   É o "papel" do personagem na tela de seleção, estilo agente de Valorant. */
+const SPEC_BY_WPN = {
+  awp: ['FRANCO-ATIRADOR', 'Um tiro, uma história. Domina as linhas longas do mapa.'],
+  mosin: ['FRANCO-ATIRADOR', 'Ferrolho de guerra: lento, mas cada bala conta uma lenda.'],
+  deagle: ['DUELISTA', 'Canhão de mão. Recompensa mira fria e pavio curto.'],
+  revolver38: ['DUELISTA', 'Seis tiros de pura confiança. Não precisa de mais.'],
+  pistol: ['CORINGA', 'Leve e rápido: ganha no giro, na economia e na esperteza.'],
+  ak: ['SOLDADO', 'Dano bruto por bala. Controla o recuo, controla a treta.'],
+  m4: ['SOLDADO', 'Precisão consistente em qualquer distância.'],
+  md97: ['SOLDADO', 'O fuzil da pátria: equilibrado em tudo, ruim em nada.'],
+  scar: ['SOLDADO', 'Pesada e estável — tiroteio longo é com ela mesma.'],
+  mp5: ['BATEDOR', 'Mobilidade e cadência: entra, resolve, sai.'],
+  uzi: ['BATEDOR', 'A mais rápida do pedaço: o mapa inteiro é dela.'],
+  p90: ['BATEDOR', '50 balas de pressão constante no corredor.'],
+  shotgun: ['QUEBRA-PORTA', 'De perto não tem conversa. Nem round pro outro lado.'],
+  lmg: ['PAREDE', 'Fogo de supressão: segura o corredor sozinho.'],
+};
+const RARITIES = [['COMUM', 'var(--ink-300)'], ['RARO', 'var(--sys)'], ['ÉPICO', '#b47aff'], ['LENDÁRIO', 'var(--br-faixa)']];
+function renderCharAttrs(c) {
+  let h = 0; for (const ch of c.id) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  const wpn = charWeapon(c.id);
+  const [vida, velo, prec] = ATTR_BY_WPN[wpn] || [3, 3, 3];
+  const meme = 1 + (h % 5);
+  const r = h % 10, tier = r < 5 ? 0 : r < 8 ? 1 : r < 9 ? 2 : 3;   // 50% comum / 30% raro / 10% épico / 10% lendário
+  const rEl = $('char-rarity');
+  rEl.textContent = RARITIES[tier][0];
+  rEl.style.color = RARITIES[tier][1];
+  const [specName, specDesc] = SPEC_BY_WPN[wpn] || ['SOLDADO', 'Equilíbrio em tudo.'];
+  $('char-spec-name').textContent = specName;
+  $('char-spec-desc').textContent = specDesc;
+  $('char-attrs').innerHTML = [['VIDA', vida], ['VELOCIDADE', velo], ['PRECISÃO', prec], ['MEME', meme]]
+    .map(([l, v]) => `<div class="attr"><span>${l}</span><div class="attr-bar"><i style="width:${v * 20}%"></i></div></div>`).join('');
 }
 function selectChar(c, row) {
   selChar = c;
-  document.querySelectorAll('.char-row').forEach(r => r.classList.remove('sel'));
-  row.classList.add('sel');
+  // aria-selected além da classe: estado de seleção legível por teclado/leitor de tela
+  document.querySelectorAll('.char-row').forEach(r => { r.classList.remove('sel'); r.setAttribute('aria-selected', 'false'); });
+  row.classList.add('sel'); row.setAttribute('aria-selected', 'true');
   pvSetChar(c);
   $('char-info-name').textContent = c.name;
   $('char-info-blurb').textContent = c.blurb;
+  renderCharAttrs(c);
 }
 
 /* ---------------- settings wiring ---------------- */
@@ -496,6 +1486,22 @@ const updLabels = () => {
 sensEl.oninput = () => { settings.sens = +sensEl.value; updLabels(); saveSettings(); };
 volEl.oninput = () => { settings.vol = +volEl.value; sfx.setVolume(settings.vol); updLabels(); saveSettings(); };
 qualEl.onchange = () => { settings.quality = qualEl.value; saveSettings(); if (game) game.applySettings(); };
+// Cor da mira: a mira sai do sistema de cor do HUD (ciano = sistema, âmbar = objetivo,
+// vermelho = crítico) e passa a ser escolha do jogador — puro CSS var, sem custo por frame.
+// PADRÃO = CIANO, não branco. O branco foi medido em 1,28:1 contra a parede clara do
+// awp_map (janela de 44×42 px em volta da mira) — invisível. O ciano é o único matiz que
+// nenhum dos 4 cenários ocupa. Mantido em UM lugar só (XHAIR_DEF) pra não divergir do CSS.
+const XHAIR_DEF = '#4fe8e0';
+const xhairEl = $('set-xhair');
+function applyXhair() {
+  document.documentElement.style.setProperty('--xhair', settings.xhair || XHAIR_DEF);
+}
+if (xhairEl) {
+  xhairEl.value = settings.xhair || XHAIR_DEF;
+  if (!xhairEl.value) xhairEl.value = XHAIR_DEF;   // valor salvo fora da lista (ex.: o ciano antigo #39d6e0) → volta pro padrão
+  xhairEl.onchange = () => { settings.xhair = xhairEl.value; applyXhair(); saveSettings(); ui.click(); };
+}
+applyXhair();
 const speechEl = $('set-speech');
 speechEl.checked = settings.speech !== false;
 speechEl.onchange = () => {
@@ -508,69 +1514,85 @@ updLabels();
 
 /* ---------------- logo ---------------- */
 (function drawLogo() {
-  const c = $('logo-canvas'), x = c.getContext('2d');
+  // O splash mostrava um wordmark TERMINAL/SCI-FI (soundwave ciano + aberração cromática)
+  // e 3 segundos depois o menu mostrava a key art com o logo REAL do jogo: letreiramento
+  // de brush, vermelho/amarelo/branco, graffiti brasileiro. Duas marcas em 3 segundos — o
+  // primeiro frame do jogo mentia sobre o produto. Este desenho passa a falar a MESMA
+  // língua da key art: wordmark empilhado, tinta de pincel, borda comida, respingo, faixa
+  // amarelo/preto de sinaleiro. Sem ciano, sem moldura de HUD.
+  const c = $('logo-canvas') || $('splash-logo'); if (!c) return;   // splash de boot (o menu usa o logo do wallpaper)
+  const x = c.getContext('2d');
   const W = 900, H = 360;
-  const g = x.createRadialGradient(W / 2, H / 2, 40, W / 2, H / 2, 420);
-  g.addColorStop(0, 'rgba(255,180,80,0.30)'); g.addColorStop(1, 'rgba(0,0,0,0)');
-  x.fillStyle = g; x.fillRect(0, 0, W, H);
-  // skyline silhouette
-  x.fillStyle = 'rgba(18,16,20,0.9)';
-  x.fillRect(120, 250, 660, 110);
-  x.fillRect(398, 170, 14, 90); x.fillRect(428, 170, 14, 90);   // congress towers
-  x.beginPath(); x.arc(360, 252, 34, Math.PI, 0); x.fill();      // dome
-  x.beginPath(); x.arc(486, 216, 34, 0, Math.PI); x.fill();      // bowl
-  for (let i = 0; i < 7; i++) {                                  // cathedral spikes
-    x.save(); x.translate(210 + i * 16, 260); x.rotate((i - 3) * 0.12);
-    x.fillRect(-2, -46, 4, 46); x.restore();
+  const CAL = '#f4f1e8', AMAR = '#ffc93f', SINAL = '#e2402c', TINTA = '#0b0f13';
+  x.clearRect(0, 0, W, H);
+  // ruído determinístico (mulberry-ish): o mesmo logo em todo boot, sem flicker entre sessões
+  let seed = 20260731;
+  const rnd = () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296;
+
+  // camada offscreen: a erosão do pincel usa destination-out e não pode comer o fundo
+  const off = document.createElement('canvas'); off.width = W; off.height = H;
+  const o = off.getContext('2d');
+  o.textAlign = 'center'; o.lineJoin = 'round'; o.textBaseline = 'alphabetic';
+
+  // três linhas empilhadas, levemente rotacionadas — pintura de caminhão/lambe-lambe
+  const LINES = [
+    { t: 'CORO',  y: 104, col: CAL,   sx: 1.00, rot: -0.020 },
+    { t: 'SOLTO', y: 196, col: AMAR,  sx: 1.06, rot: 0.014 },
+    { t: 'TRETA', y: 288, col: SINAL, sx: 1.02, rot: -0.010 },
+  ];
+  for (const L of LINES) {
+    o.save();
+    o.translate(W / 2, L.y); o.rotate(L.rot); o.scale(L.sx, 1);
+    o.font = '900 96px "Arial Black",Impact,"Haettenschweiler",sans-serif';
+    o.lineWidth = 16; o.strokeStyle = TINTA; o.strokeText(L.t, 0, 0);   // contorno de tinta grossa
+    o.lineWidth = 5;  o.strokeStyle = 'rgba(0,0,0,.55)'; o.strokeText(L.t, 3, 4);
+    o.fillStyle = L.col; o.fillText(L.t, 0, 0);
+    o.restore();
   }
-  // crossed rifles
-  const rifle = (color) => {
-    x.fillStyle = '#1c1c1c';
-    x.fillRect(-130, -7, 150, 14);
-    x.fillRect(20, -3.5, 110, 7);
-    x.fillRect(-40, -20, 55, 11);
-    x.beginPath(); x.moveTo(-130, -7); x.lineTo(-165, 14); x.lineTo(-130, 14); x.closePath(); x.fill();
-    x.fillStyle = color; x.fillRect(-128, 5, 145, 4);
-  };
-  x.save(); x.translate(W / 2, 190); x.rotate(-0.42); rifle('#e03232'); x.restore();
-  x.save(); x.translate(W / 2, 190); x.scale(-1, 1); x.rotate(-0.42); rifle('#1faa4d'); x.restore();
-  // Brazil silhouette, split colors + crack
-  const BR = [[.32, .05], [.45, .02], [.58, .07], [.62, .14], [.75, .13], [.85, .20], [.97, .27],
-    [.90, .33], [.86, .40], [.80, .50], [.74, .58], [.70, .68], [.62, .75], [.58, .86], [.52, .97],
-    [.46, .90], [.44, .78], [.38, .72], [.32, .68], [.28, .60], [.30, .50], [.24, .44], [.18, .38], [.16, .28], [.22, .22], [.24, .13]];
-  const bw = 190, bh = 190, bx = W / 2 - bw / 2, by = 92;
-  const path = () => {
-    x.beginPath();
-    BR.forEach((p, i) => i ? x.lineTo(bx + p[0] * bw, by + p[1] * bh) : x.moveTo(bx + p[0] * bw, by + p[1] * bh));
-    x.closePath();
-  };
-  x.save(); path(); x.clip();
-  let hg = x.createLinearGradient(bx, 0, bx + bw, 0);
-  hg.addColorStop(0, '#8f1d1d'); hg.addColorStop(1, '#e03232');
-  x.fillStyle = hg; x.fillRect(bx, by, bw / 2, bh);
-  hg = x.createLinearGradient(bx + bw / 2, 0, bx + bw, 0);
-  hg.addColorStop(0, '#1faa4d'); hg.addColorStop(1, '#e8bd25');
-  x.fillStyle = hg; x.fillRect(bx + bw / 2, by, bw / 2, bh);
-  x.strokeStyle = '#f2ead8'; x.lineWidth = 4; x.beginPath();
-  let cx = bx + bw * 0.52, cy = by;
-  x.moveTo(cx, cy);
-  while (cy < by + bh) { cx += (Math.random() - .5) * 26; cy += 14 + Math.random() * 10; x.lineTo(cx, cy); }
-  x.stroke(); x.restore();
-  path(); x.strokeStyle = '#0c0e11'; x.lineWidth = 5; x.stroke();
-  // title
+  // borda comida: mordidas irregulares no miolo das letras (pincel seco em tapume)
+  o.globalCompositeOperation = 'destination-out';
+  for (let i = 0; i < 320; i++) {
+    const bx = 90 + rnd() * (W - 180), by = 40 + rnd() * 262;
+    o.beginPath(); o.ellipse(bx, by, 1 + rnd() * 5, 1 + rnd() * 3, rnd() * 3, 0, 7); o.fill();
+  }
+  o.globalCompositeOperation = 'source-over';
+  // respingo de spray ao redor (só onde já não há letra: fica atrás no composite final)
+  for (let i = 0; i < 90; i++) {
+    const bx = 60 + rnd() * (W - 120), by = 30 + rnd() * 300;
+    o.fillStyle = [CAL, AMAR, SINAL][(rnd() * 3) | 0];
+    o.globalAlpha = 0.18 + rnd() * 0.5;
+    o.beginPath(); o.arc(bx, by, 0.7 + rnd() * 2.2, 0, 7); o.fill();
+  }
+  o.globalAlpha = 1;
+
+  // Fundo: brilho quente de tinta atrás do bloco.
+  // BUG CONSERTADO (R2): era um createLinearGradient HORIZONTAL pintado num
+  // fillRect(-400,-142,800,284) girado -0,02 rad. Um gradiente 1D só esmaece no eixo em
+  // que ele existe — no eixo vertical o alpha era constante até a borda do retângulo, e o
+  // retângulo tinha aresta dura. Resultado visível em menu-00-splash.png: um painel
+  // retangular INCLINADO atrás do wordmark, com topo e base marcados.
+  // Agora é um gradiente RADIAL: o alpha cai em todas as direções e chega a 0 (raio 400 →
+  // 168px no eixo Y depois do scale) ANTES da borda do fillRect (176px), então não existe
+  // nenhuma aresta pra ver. A rotação saiu junto: sem aresta, ela não tinha o que inclinar.
+  x.save();
+  x.translate(W / 2, 180); x.scale(1, 0.42);   // scale = elipse deitada (canvas só faz radial circular)
+  const hz = x.createRadialGradient(0, 0, 30, 0, 0, 400);
+  hz.addColorStop(0, 'rgba(255,201,63,.17)');
+  hz.addColorStop(.55, 'rgba(255,201,63,.075)');
+  hz.addColorStop(1, 'rgba(255,201,63,0)');
+  x.fillStyle = hz; x.fillRect(-420, -420, 840, 840);
+  x.restore();
+  x.drawImage(off, 0, 0);
+
+  // subtítulo: "SUPREMA" entre réguas, como carimbo de placa
   x.textAlign = 'center';
-  x.font = '900 96px "Arial Black",Impact,sans-serif';
-  x.lineWidth = 14; x.strokeStyle = '#0c0e11'; x.lineJoin = 'round';
-  x.strokeText('CS BRASIL', W / 2, 96);
-  const tg = x.createLinearGradient(0, 30, 0, 100);
-  tg.addColorStop(0, '#ffffff'); tg.addColorStop(1, '#ffd9a0');
-  x.fillStyle = tg; x.fillText('CS BRASIL', W / 2, 96);
-  x.font = '900 52px "Arial Black",Impact,sans-serif';
-  x.lineWidth = 10;
-  x.strokeText('TRETA SUPREMA', W / 2, 338);
-  const sg = x.createLinearGradient(200, 0, 700, 0);
-  sg.addColorStop(0, '#ff6b6b'); sg.addColorStop(0.5, '#ffd23f'); sg.addColorStop(1, '#7dff9a');
-  x.fillStyle = sg; x.fillText('TRETA SUPREMA', W / 2, 338);
+  x.font = '900 26px "Arial Black",Impact,sans-serif';
+  x.fillStyle = CAL; x.globalAlpha = .92;
+  x.fillText('S U P R E M A', W / 2, 336);
+  x.globalAlpha = 1;
+  x.strokeStyle = 'rgba(255,201,63,.75)'; x.lineWidth = 3;
+  x.beginPath(); x.moveTo(W / 2 - 250, 329); x.lineTo(W / 2 - 120, 329);
+  x.moveTo(W / 2 + 120, 329); x.lineTo(W / 2 + 250, 329); x.stroke();
 })();
 
 /* ---------------- loop ---------------- */
@@ -584,17 +1606,24 @@ let menuAngle = 0;
 function loop() {
   requestAnimationFrame(loop);
   const dt = Math.min(0.05, clock.getDelta());
-  if (game) {
+  const csOpen = !$('char-select').classList.contains('hidden');
+  // While the char-select is open mid-match (pressing M to switch teams), the game
+  // auto-pauses — so we must NOT keep rendering it here, and we MUST still spin the
+  // preview. Rendering the preview only lived in the menu branch before, which is
+  // why M froze the selector.
+  if (game && !csOpen) {
     game.update(dt);
-  } else {
+  } else if (!game) {
     menuAngle += dt * 0.07;
     menuCam.position.set(Math.sin(menuAngle) * 34, 17 + Math.sin(menuAngle * 0.6) * 4, Math.cos(menuAngle) * 34);
     menuCam.lookAt(0, 1, 0);
     renderer.render(menuScene, menuCam);
-    if (pv && pv.model && !$('char-select').classList.contains('hidden')) {
-      pv.model.rotation.y += dt * 0.9;
-      pv.r.render(pv.scene, pv.cam);
-    }
+  }
+  if (csOpen && pv && pv.model) {
+    if (!pvDrag) pv.model.rotation.y += dt * 0.9;   // giro automático pausa enquanto arrasta
+    // ctrl.update (idle + IK da mão de apoio) quando há GLB; mixer cru só no fallback box
+    if (pv.ctrl) pv.ctrl.update(dt, 0, false, 0); else if (pv.mixer) pv.mixer.update(dt);
+    pv.r.render(pv.scene, pv.cam);
   }
 }
 loop();
@@ -602,8 +1631,9 @@ loop();
 /* ---------------- boot ---------------- */
 document.querySelector('.footnote').textContent =
   `v${VERSION} · Sátira política fictícia. Nenhum político real foi consultado (ou poupado).`;
+{ const sv = document.getElementById('splash-ver'); if (sv) sv.textContent = `v${VERSION}`; }
 show(isMobile && !testMode ? 'mobile-warning' : 'main-menu');
 if (testMode && params.get('auto')) {
   const [team, char] = params.get('auto').split(',');
-  startGame(team || 'P', char || CHARACTERS[0].id);
+  startGame(team || 'E', char || CHARACTERS[0].id);
 }
