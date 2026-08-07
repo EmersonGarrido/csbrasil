@@ -3,28 +3,28 @@ id: licenca
 title: Licença, arte e marca
 sidebar_label: Licença, arte e marca
 sidebar_position: 7
-description: O que vale hoje, a migração para AGPL-3.0 que está decidida e não aplicada, o levantamento de consentimento medido, e a separação código × arte × marca que permite vender skin sem trancar o código.
+description: A AGPL-3.0, aplicada em 07/08/2026, por que a troca de MIT para AGPL não pediu consentimento de quem contribuiu antes, e a separação código × arte × marca que permite vender skin sem trancar o código.
 ---
 
 # Licença, arte e marca
 
 Esta página responde três perguntas que costumam ser respondidas errado, e por arquivos
-diferentes: **o que vale hoje**, **o que está decidido e ainda não foi aplicado**, e **quem
-precisa concordar** para a mudança acontecer.
+diferentes: **o que vale hoje**, **o que mudou em 07/08/2026 e por quê**, e **o que a
+licença não resolve** — que é onde a conta erra com mais frequência.
 
 :::danger Esta página não troca a licença
 Ela **documenta**. Enquanto o `LICENSE` disser o que diz no bloco abaixo, é isso que vale —
-aqui e em qualquer outro arquivo do repositório. Nenhum arquivo pode **declarar** a licença
-futura antes do `LICENSE`.
+aqui e em qualquer outro arquivo do repositório. Nenhum arquivo tem autoridade para
+**declarar** licença diferente da que está no `LICENSE`.
 :::
 
 ## O que vale hoje
 
 {/* BEGIN:GERADO:licenca — não edite à mão, rode `npm run docs` */}
 
-O código está sob **GNU AFFERO GENERAL PUBLIC LICENSE** — é o que vale hoje, e a fonte é o arquivo `LICENSE` na raiz do repositório. Nenhum outro arquivo tem autoridade sobre isso.
+O código está sob **AGPL-3.0** (GNU Affero General Public License, versão 3) — é o que vale hoje, e a fonte é o arquivo `LICENSE` na raiz do repositório. Nenhum outro arquivo tem autoridade sobre isso.
 
-> Bloco gerado por `node tools/gen-docs.mjs`. Fonte: `head -1 LICENSE`
+> Bloco gerado por `node tools/gen-docs.mjs`. Fonte: `título lido do texto do LICENSE, conferido contra o campo license do package.json`
 
 {/* END:GERADO:licenca */}
 
@@ -37,22 +37,22 @@ não enumerada à mão:
 
 {/* BEGIN:GERADO:licenca_pontos — não edite à mão, rode `npm run docs` */}
 
-| Superfície | Arquivo | Onde diz `?` |
+| Superfície | Arquivo | Onde diz `AGPL-3.0` |
 |---|---|---|
-| licença canônica | `LICENSE` | — (não nomeia a licença)  |
-| badge + seção de licenças | `README.md` | — (não nomeia a licença)  |
-| termo que o contribuidor aceita | `CONTRIBUTING.md` | — (não nomeia a licença)  |
-| rodapé do site | `src/layouts/Layout.astro` | — (não nomeia a licença)  |
-| JSON-LD do jogo | `src/pages/index.astro` | — (não nomeia a licença)  |
-| página `/sobre` | `src/pages/sobre.astro` | — (não nomeia a licença)  |
-| `llms.txt` (resposta para LLM) | `public/llms.txt` | — (não nomeia a licença)  |
+| licença canônica | `LICENSE` | linhas 1, 10, 42, 63 (+7)  |
+| badge + seção de licenças | `README.md` | linhas 3, 338, 344, 345 (+1)  |
+| termo que o contribuidor aceita | `CONTRIBUTING.md` | linhas 173, 176, 179  |
+| rodapé do site | `src/layouts/Layout.astro` | linha 591  |
+| JSON-LD do jogo | `src/pages/index.astro` | linha 109  |
+| página `/sobre` | `src/pages/sobre.astro` | linhas 121, 124, 133  |
+| `llms.txt` (resposta para LLM) | `public/llms.txt` | linhas 9, 46  |
 | rodapé desta documentação | `docs/docusaurus.config.js` | — (não nomeia a licença)  |
 
-**0 ocorrências** de `null` em **0** das 8 superfícies declaradas. Trocar a licença é mudar **todas elas no mesmo commit**: metade trocada é pior que nenhuma, porque cada arquivo passa a responder uma coisa diferente para quem pergunta.
+**26 ocorrências** de `AGPL-3.0` em **7** das 8 superfícies declaradas. Trocar a licença é mudar **todas elas no mesmo commit**: metade trocada é pior que nenhuma, porque cada arquivo passa a responder uma coisa diferente para quem pergunta.
 
-`MIT` já aparece em `README.md` (linhas 338, 344, 345, 346, 350), `CONTRIBUTING.md` (linhas 176, 177, 178), `src/layouts/Layout.astro` (linha 591), `src/pages/sobre.astro` (linha 123), `public/llms.txt` (linha 47), `docs/docusaurus.config.js` (linha 152) — como **aviso de mudança planejada**, não como declaração. A regra é essa: nenhum arquivo pode DECLARAR `MIT` antes de o `LICENSE` dizer.
+**Outros nomes de licença citados nessas superfícies:** `MIT` em `README.md` (linhas 344, 345, 346, 350), `MIT` em `CONTRIBUTING.md` (linhas 176, 177, 178), `MIT` em `src/pages/sobre.astro` (linha 123), `MIT` em `public/llms.txt` (linha 47), `MIT` em `docs/docusaurus.config.js` (linha 152). Citar não é declarar — essas linhas são histórico da migração ou crédito a dependência de terceiro. A regra continua a mesma: **só o `LICENSE` declara**, e hoje ele diz `AGPL-3.0`.
 
-> Bloco gerado por `node tools/gen-docs.mjs`. Fonte: `grep -n do nome lido do LICENSE, nas superfícies declaradas em tools/gen-docs.mjs`
+> Bloco gerado por `node tools/gen-docs.mjs`. Fonte: `grep -n dos nomes de licença conhecidos, nas superfícies declaradas em tools/gen-docs.mjs`
 
 {/* END:GERADO:licenca_pontos */}
 
@@ -66,11 +66,13 @@ no topo do `tools/gen-docs.mjs`; **onde** cada uma nomeia a licença é medido a
 `npm run docs`.
 :::
 
-## O que está decidido e pendente: AGPL-3.0
+## A migração MIT → AGPL-3.0, aplicada em 07/08/2026
 
-Há **decisão registrada do dono** de migrar o código para **AGPL-3.0**. Ela **não foi
-aplicada**, e reverte uma recomendação anterior do próprio repositório (`plans/06 §1.2`
-defendia manter permissivo por causa de Steamworks e de programas de crédito de IA).
+O projeto nasceu **MIT** e é **AGPL-3.0** desde **07/08/2026**, aplicada no commit
+[`3f7a9be`](https://github.com/rubenmarcus/csbrasil/commit/3f7a9be) — as oito superfícies
+num commit só, como esta página exigia antes de a troca acontecer. A decisão reverte uma
+recomendação anterior do próprio repositório (`plans/06 §1.2` defendia manter permissivo por
+causa de Steamworks e de programas de crédito de IA).
 
 O motivo da virada está no [`plans/08 §3`](https://github.com/rubenmarcus/csbrasil/blob/main/plans/08-RELEASE-PROFISSIONAL.md):
 o projeto pretende **vender skins e mapas**, e venda de item muda o modelo de ameaça. A AGPL
@@ -78,10 +80,34 @@ o projeto pretende **vender skins e mapas**, e venda de item muda o modelo de am
 resolve: qualquer um pode publicar um fork com o gate de posse removido, **legalmente**. Essa
 é a razão de a proteção real ser server-side, não a licença.
 
-### O que ainda não foi feito, e não é linha de comando
+### Por que não foi preciso pedir consentimento a quem já tinha contribuído
 
-**Licença só troca retroativamente com o consentimento de quem já contribuiu.** Esse
-levantamento é a tarefa bloqueante, e ele tem nome e tamanho — medidos, não estimados:
+Esta era a tarefa que a doc anunciava como bloqueante, e **ela estava mal formulada**. A
+regra do consentimento vale para a direção **permissiva → permissiva** ou para relicenciar
+contribuição de terceiro sob termos que a licença original não autoriza. Não é o caso aqui:
+
+- **MIT é permissiva e compatível com a AGPL.** Ela autoriza sublicenciar e incorporar o
+  código em obra distribuída sob outros termos, desde que o aviso de copyright original
+  continue no pacote.
+- Por isso **o que entrou antes de 07/08/2026 segue MIT dentro do conjunto**, e o conjunto é
+  distribuído sob AGPL-3.0. Quem contribuiu antes **não perde nada e não precisou aprovar**.
+- A direção **incompatível** seria a inversa — pegar código AGPL de terceiro e redistribuir
+  sob MIT. Essa, sim, exigiria consentimento de cada autor, e é a razão de a troca ser
+  **de mão única na prática**.
+
+O mesmo texto vale no [`CONTRIBUTING.md`](https://github.com/rubenmarcus/csbrasil/blob/main/CONTRIBUTING.md)
+e no `README.md`, e é lá que ele é normativo — aqui é explicação.
+
+:::note Isto é a leitura do projeto, não parecer jurídico
+Compatibilidade MIT → AGPL é consenso confortável e velho no ecossistema, mas se a sua
+contribuição tem exigência específica de empregador ou de cliente, **pergunte antes de abrir
+o PR** em vez de assumir.
+:::
+
+### Quem assina o histórico publicado
+
+O levantamento continua útil por outro motivo — saber de quem é o código —, e ele é medido,
+não estimado:
 
 ```bash
 git shortlog -sne --no-merges origin/main   # quem assina o histórico publicado
@@ -106,13 +132,14 @@ seção sobre a divergência entre `main` e `v2/alpha`.
 :::
 
 O repositório é **público** e tem estrelas (`gh repo view --json stargazerCount`), o que quer
-dizer que já existem cópias do código sob a licença atual. **Isso é irreversível:** o
-histórico do git guarda a versão livre para sempre, e um fork feito hoje continua sob a
-licença de hoje.
+dizer que **já existem cópias do código sob MIT**, feitas antes de 07/08/2026. **Isso é
+irreversível:** o histórico do git guarda a versão permissiva para sempre, e um fork feito
+sob a licença antiga continua sob ela. A AGPL vale para o que sai daqui **de hoje em
+diante** — ela não recolhe o que já saiu.
 
-### Os pontos que mudam juntos
+### Os pontos que mudaram juntos
 
-Quando a migração for aplicada, tudo isto vai **num commit só**, anunciado:
+Tudo isto foi no mesmo commit, e é a lista que qualquer troca futura tem que repetir:
 
 1. o arquivo `LICENSE`;
 2. o badge do topo do `README.md`;
@@ -126,6 +153,23 @@ A tabela gerada acima é a versão sempre atual desta lista — os números de l
 não deste parágrafo. **Meia troca de licença é pior que nenhuma**, porque cada arquivo passa
 a responder uma coisa diferente para quem pergunta.
 
+:::caution O que a troca de licença NÃO faz sozinha: publicar
+O commit trocou os arquivos. A doc publicada continuou dizendo `MIT` por três dias, porque
+`docs/` é um site **buildado** — e ninguém tinha rodado o build depois da migração. Não
+adianta trocar as oito superfícies num commit se a nona, a página que o público lê, é uma
+cópia estática de antes:
+
+```bash
+cd docs && npm run build:site   # reescreve public/docs/ — é ISSO que vai para o ar
+```
+
+Pior ainda: o `tools/gen-docs.mjs` **não reconhecia** o `LICENSE` novo (o texto oficial da
+AGPL não contém a sigla `AGPL-3.0` em lugar nenhum do cabeçalho) e, em vez de ficar
+vermelho, devolveu `null` e escreveu prosa coerente em cima de nada. As duas coisas estão
+consertadas: o nome sai do **título** da licença, é conferido contra o campo `license` do
+`package.json`, e **não identificar reprova o `docs:check`** em vez de publicar um `null`.
+:::
+
 ## A separação que quase ninguém sabe: código × arte × marca
 
 Esta é a decisão do [`plans/08 §3`](https://github.com/rubenmarcus/csbrasil/blob/main/plans/08-RELEASE-PROFISSIONAL.md)
@@ -133,7 +177,7 @@ que torna o resto possível, e ela é **três licenças diferentes para três co
 
 | Camada | O que é | Regime | Onde mora |
 |---|---|---|---|
-| **Código** | motor, mapas base, UI, o arnês inteiro | **aberto** (AGPL-3.0, quando aplicada) | repositório público |
+| **Código** | motor, mapas base, UI, o arnês inteiro | **aberto** (AGPL-3.0) | repositório público |
 | **Arte paga** | skins, mapas e itens vendidos | **licença própria, proprietária** | **fora** do repositório público, sob autorização |
 | **Marca** | "CORO SOLTO: Treta Suprema", o canarinho, a logomarca | **não licenciada** | de ninguém além do dono |
 
@@ -174,5 +218,6 @@ resultado, com o registro de procedência em `mint-assets.json` — ver
 
 O termo que vale está no [`CONTRIBUTING.md`](https://github.com/rubenmarcus/csbrasil/blob/main/CONTRIBUTING.md),
 e ele é a fonte — esta página não o repete. O resumo operacional: você licencia sob a licença
-que o `LICENSE` disser **no momento do seu PR**, a migração planejada virá num commit único e
-anunciado, e se isso for decisivo para você, **pergunte antes de abrir o PR**.
+que o `LICENSE` disser **no momento do seu PR** — hoje, **AGPL-3.0** —, qualquer troca futura
+virá num commit único e anunciado, e se isso for decisivo para você, **pergunte antes de
+abrir o PR**.

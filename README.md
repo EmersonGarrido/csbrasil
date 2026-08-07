@@ -30,9 +30,9 @@ sem cadastro.
 
 | O que | Quanto | Onde confere |
 |---|---:|---|
-| Código do jogo | 25.821 linhas em 28 arquivos | `cat public/js/*.js \| wc -l` |
+| Código do jogo | 26.991 linhas em 30 arquivos | `cat public/js/*.js \| wc -l` |
 | `game.js` | **6.543** linhas | `wc -l public/js/game.js` |
-| `main.js` | 1.639 linhas | `wc -l public/js/main.js` |
+| `main.js` | 1.663 linhas | `wc -l public/js/main.js` |
 | Armas com GLB | 26 | `ls public/models/weapons/*.glb \| wc -l` |
 | GLBs de personagem | 45 | `ls public/models/characters/*.glb \| wc -l` |
 | Props em GLB | 108 | `ls public/models/props/*.glb \| wc -l` |
@@ -40,9 +40,9 @@ sem cadastro.
 | Personagens jogáveis | 44, em 5 facções | array `CHARACTERS` de `characters.js` |
 | Mapas no registro | 5 | objeto `MAPS` de `maps.js` |
 | Arnêses visuais em HTML | 12 | `ls public/*.html \| wc -l` |
-| Scripts do arnês | 154 | `ls tools/eval/*.mjs tools/eval/*.py \| wc -l` |
-| Scripts de pipeline | 43 | `ls tools/*.mjs \| wc -l` |
-| Tarefas de entrada escritas | 15 | `ls docs/issues/[0-9]*.md \| wc -l` |
+| Scripts do arnês | 157 | `ls tools/eval/*.mjs tools/eval/*.py \| wc -l` |
+| Scripts de pipeline | 44 | `ls tools/*.mjs \| wc -l` |
+| Tarefas de entrada escritas | 26 | `ls docs/issues/[0-9]*.md \| wc -l` |
 | Versão | `2.0.0-alpha.32` | `public/js/version.js` e `package.json` (batem) |
 
 > Bloco gerado por `node tools/gen-docs.mjs`. Fonte: `o comando da coluna direita de cada linha`
@@ -85,7 +85,7 @@ arquitetura): `cd docs && npm install && npm start` → <http://localhost:3000/d
 | Camada | Ferramenta | Versão |
 |---|---|---|
 | Motor 3D (WebGL) | **Three.js**, vendorizado | `r160` |
-| Jogo | ES modules vanilla, **zero build** | 28 arquivos |
+| Jogo | ES modules vanilla, **zero build** | 30 arquivos |
 | Site | **Astro** com SSR | `^7.1.1` |
 | Hospedagem | adapter **Vercel** | `^11.0.3` |
 | Banco | **Postgres gerenciado** (RLS; schema privado, fora do repo) | `^2.110.7` |
@@ -96,7 +96,7 @@ arquitetura): `cd docs && npm install && npm start` → <http://localhost:3000/d
 | Esta documentação | **Docusaurus** | `3.6.3` |
 | Runtime de CI | **Node** | `22` |
 
-Three.js sai de `public/vendor/three.module.js` (**sem CDN, sem npm no runtime**). Astro e Vercel de `package.json` + `astro.config.mjs` + `vercel.json`. Dos scripts de `tools/`, **94** importam Playwright, **36** importam gltf-transform e **4** importam meshoptimizer.
+Three.js sai de `public/vendor/three.module.js` (**sem CDN, sem npm no runtime**). Astro e Vercel de `package.json` + `astro.config.mjs` + `vercel.json`. Dos scripts de `tools/`, **97** importam Playwright, **36** importam gltf-transform e **4** importam meshoptimizer.
 
 > Bloco gerado por `node tools/gen-docs.mjs`. Fonte: `dependencies/devDependencies do package.json · REVISION de public/vendor/three.module.js`
 
@@ -195,7 +195,7 @@ npm run check        # npm run syntax && npm run audio:check && npm run eval:ctf
 npm run check:fast   # npm run syntax && npm run docs:check && npm run arch:check && npm run audio:check && npm run feet:check && npm run eval:ctfhud && npm run eval:pause && npm run eval:ctfround && npm run eval:ctfwin && npm run eval:spawn && npm run eval:regen && npm run eval:pegada && npm run eval:ctflabels && npm run anims:check
 ```
 
-`package.json` tem **41 scripts**. Vários trazem uma chave `//nome` logo acima com o motivo de existirem — é onde mora o porquê.
+`package.json` tem **44 scripts**. Vários trazem uma chave `//nome` logo acima com o motivo de existirem — é onde mora o porquê.
 
 > Bloco gerado por `node tools/gen-docs.mjs`. Fonte: `node -p "Object.keys(require('./package.json').scripts)"`
 
@@ -270,11 +270,11 @@ Os mapas registrados, e em que modo cada um abre:
 
 | Id | Nome no menu | Abre em | Arquivo em `public/js/` | Linhas |
 |---|---|---|---|---:|
-| `awp_map` | Praça dos Três Poderes | rodadas | `map_brasilia.js` | 1.795 |
+| `awp_map` | Praça dos Três Poderes | rodadas | `map_brasilia.js` | 1.845 |
 | `fy_pool_day` | Piscina da Treta | rodadas | `—` | — |
-| `fy_havan` | Loja H (Estacionamento) | **captura** | `map_havan.js` | 1.885 |
-| `fy_ferrovelho` | Ferro Velho do Zé | **captura** | `map_ferrovelho.js` | 1.854 |
-| `fy_quebrada` | Quebrada (Rua do Baile) | **captura** | `map_quebrada.js` | 1.531 |
+| `fy_havan` | Loja H (Estacionamento) | **captura** | `map_havan.js` | 1.920 |
+| `fy_ferrovelho` | Ferro Velho do Zé | **captura** | `map_ferrovelho.js` | 1.888 |
+| `fy_quebrada` | Quebrada (Rua do Baile) | **captura** | `map_quebrada.js` | 1.599 |
 
 **5 mapas registrados** — 2 abrem em rodadas e 3 em captura. `ctfMode` **abre** o mapa em captura, não prende: o jogador troca no menu (é a `MOD1`). Há 6 arquivos `map_*.js` em `public/js/` — arquivo no disco **não** implica mapa jogável.
 
@@ -335,9 +335,9 @@ são distribuídos aqui.
 
 <!-- BEGIN:GERADO:licenca — não edite à mão, rode `npm run docs` -->
 
-O código está sob **GNU AFFERO GENERAL PUBLIC LICENSE** — é o que vale hoje, e a fonte é o arquivo `LICENSE` na raiz do repositório. Nenhum outro arquivo tem autoridade sobre isso.
+O código está sob **AGPL-3.0** (GNU Affero General Public License, versão 3) — é o que vale hoje, e a fonte é o arquivo `LICENSE` na raiz do repositório. Nenhum outro arquivo tem autoridade sobre isso.
 
-> Bloco gerado por `node tools/gen-docs.mjs`. Fonte: `head -1 LICENSE`
+> Bloco gerado por `node tools/gen-docs.mjs`. Fonte: `título lido do texto do LICENSE, conferido contra o campo license do package.json`
 
 <!-- END:GERADO:licenca -->
 

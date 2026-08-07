@@ -294,7 +294,38 @@ function medir() {
          `plans/08 §3`) e as duas esquecem o JSON-LD de `src/pages/index.astro` e o
          rodapé desta documentação. Lista à mão de onde a licença aparece tem o mesmo
          prazo de validade de qualquer outro número escrito à mão — por isso é medida. */
-  const NOME_LICENCA = /\b(AGPL-3\.0|AGPL|GPL-3\.0|MIT)\b/;
+  /* POR QUE ISTO NÃO É MAIS `head -1 LICENSE` + regex de sigla — custou uma doc publicada
+     mentindo. O texto oficial da AGPL começa com "GNU AFFERO GENERAL PUBLIC LICENSE" e NÃO
+     contém a sigla `AGPL-3.0` em lugar nenhum do cabeçalho. Quando a migração rodou
+     (07/08/2026), a regex antiga não casou, `atual` virou `null` — e o gerador SEGUIU EM
+     FRENTE: a tabela publicou "0 ocorrências de `null` em 0 das 8 superfícies" e a prosa
+     passou a chamar `MIT` de "aviso de mudança planejada". O site publicado dizia MIT num
+     repositório AGPL.
+     A lição é a Lei 1 da casa aplicada à própria régua: régua que não sabe medir tem que
+     ficar VERMELHA, não devolver `null` com cara de fato. Por isso agora são três coisas:
+     (1) o nome sai do TEXTO da licença, não da sigla; (2) `package.json` é a segunda fonte
+     e divergir entre as duas é inconsistência declarada; (3) não identificar entra em
+     `inconsistencias`, que reprova o `--check`. */
+  /* `titulo` identifica o arquivo `LICENSE`; `mencao` acha a licença NAS SUPERFÍCIES — e são
+     coisas diferentes, porque cada superfície nomeia a licença no dialeto dela: o `LICENSE`
+     escreve o título por extenso e nunca a sigla, o JSON-LD escreve a URL da FSF
+     (`agpl-3.0.html`), o README escreve `AGPL-3.0`, a prosa escreve `AGPL`. Procurar só a
+     sigla dava "não nomeia a licença" justamente para o arquivo canônico: falso negativo com
+     cara de fato, que é o mesmo defeito de novo, um degrau abaixo. */
+  const LICENCAS_CONHECIDAS = [
+    { titulo: /GNU AFFERO GENERAL PUBLIC LICENSE/i, sigla: 'AGPL-3.0', longo: 'GNU Affero General Public License, versão 3', mencao: /\bAGPL(-3\.0)?\b|GNU AFFERO GENERAL PUBLIC LICENSE|agpl-3\.0/i },
+    /* O `(?<![a-z])` não é enfeite: sem ele, `gpl-3.0` casa DENTRO de `AGPL-3.0` (e a URL da
+       FSF no JSON-LD é minúscula), e a GPL aparecia citada em toda superfície que só fala de
+       AGPL. Sigla que é sufixo de outra sigla precisa de âncora à esquerda. */
+    { titulo: /GNU GENERAL PUBLIC LICENSE/i, sigla: 'GPL-3.0', longo: 'GNU General Public License, versão 3', mencao: /(?<![a-z])GPL-3\.0\b|(?<!AFFERO )GNU GENERAL PUBLIC LICENSE/i },
+    { titulo: /GNU LESSER GENERAL PUBLIC LICENSE/i, sigla: 'LGPL-3.0', longo: 'GNU Lesser General Public License, versão 3', mencao: /\bLGPL(-3\.0)?\b|GNU LESSER GENERAL PUBLIC LICENSE/i },
+    { titulo: /Mozilla Public License/i, sigla: 'MPL-2.0', longo: 'Mozilla Public License 2.0', mencao: /\bMPL-2\.0\b|Mozilla Public License/i },
+    { titulo: /Apache License/i, sigla: 'Apache-2.0', longo: 'Apache License 2.0', mencao: /\bApache-2\.0\b|Apache License/i },
+    { titulo: /BSD 3-Clause/i, sigla: 'BSD-3-Clause', longo: 'BSD 3-Clause', mencao: /\bBSD-3-Clause\b/i },
+    /* `MIT` fica SEM o `i` de propósito: em minúscula a sigla casa dentro de palavra alheia,
+       e menção de licença falsa é ruído que ninguém confere duas vezes. */
+    { titulo: /\bMIT License\b/i, sigla: 'MIT', longo: 'MIT License', mencao: /\bMIT\b/ },
+  ];
   const SUPERFICIES = [
     ['licença canônica', 'LICENSE'],
     ['badge + seção de licenças', 'README.md'],
@@ -305,27 +336,74 @@ function medir() {
     ['`llms.txt` (resposta para LLM)', 'public/llms.txt'],
     ['rodapé desta documentação', 'docs/docusaurus.config.js'],
   ];
-  const cabecalho = existe('LICENSE') ? ler('LICENSE').split('\n')[0].trim() : null;
-  const atual = cabecalho && NOME_LICENCA.exec(cabecalho) ? NOME_LICENCA.exec(cabecalho)[1] : null;
-  const ondeAparece = (arq, nome) => {
-    if (!existe(arq) || !nome) return [];
-    const re = new RegExp(`\\b${nome.replace(/[.]/g, '\\.')}\\b`);
-    return ler(arq).split('\n').map((l, i) => (re.test(l) ? i + 1 : 0)).filter(Boolean);
+  /* O cabeçalho é o TÍTULO da licença, e ele pode ocupar mais de uma linha (o texto oficial
+     da AGPL quebra em "GNU AFFERO GENERAL PUBLIC LICENSE" / "Version 3, 19 November 2007").
+     Ler cinco linhas e achatar o espaço é o que faz o casamento não depender da largura da
+     coluna do arquivo. */
+  const textoLicenca = existe('LICENSE') ? ler('LICENSE') : '';
+  const cabecalho = textoLicenca.split('\n').slice(0, 5).join(' ').replace(/\s+/g, ' ').trim() || null;
+  const casada = cabecalho ? LICENCAS_CONHECIDAS.find((l) => l.titulo.test(cabecalho)) : null;
+  const atual = casada ? casada.sigla : null;           // sigla SPDX — 'AGPL-3.0'
+  const atualLongo = casada ? casada.longo : null;      // nome por extenso, para a prosa
+  /* Segunda fonte: `package.json`. `AGPL-3.0-only` e `AGPL-3.0-or-later` são o MESMO
+     `AGPL-3.0` para efeito de "qual licença este projeto usa". */
+  const pkgLicenca = (() => {
+    try { return JSON.parse(ler('package.json')).license || null; } catch { return null; }
+  })();
+  const pkgBase = pkgLicenca ? pkgLicenca.replace(/-(only|or-later)$/, '') : null;
+  const ondeAparece = (arq, lic) => {
+    if (!existe(arq) || !lic) return [];
+    return ler(arq).split('\n').map((l, i) => (lic.mencao.test(l) ? i + 1 : 0)).filter(Boolean);
   };
+  /* OUTROS nomes de licença citados nas superfícies. Não é "a licença futura" — a direção da
+     mudança não é derivável do repositório, e chutá-la foi exatamente o defeito anterior.
+     O que é derivável é o fato: tal arquivo cita tal nome que não é o do `LICENSE`. O motivo
+     (histórico de migração, crédito a dependência de terceiro) é prosa humana, não medida. */
+  const outras = LICENCAS_CONHECIDAS.filter((l) => l.sigla !== atual);
   f.licenca = {
-    nome: cabecalho,
+    nome: atual,
+    nomeLongo: atualLongo,
     atual,
+    /* Siglas conhecidas expostas pro guarda das traduções lá embaixo. A lista mora
+       aqui dentro e o guarda mora fora do `medir()`; duplicá-la seria criar duas
+       verdades sobre quais licenças o projeto sabe reconhecer. */
+    siglas: LICENCAS_CONHECIDAS.map((l) => l.sigla),
+    cabecalho,
+    pacote: pkgLicenca,
+    /* Divergir entre `LICENSE` e `package.json` é doc mentindo em uma das duas pontas. */
+    concordam: !!(atual && pkgBase) && pkgBase === atual,
     superficies: SUPERFICIES.map(([rotulo, arq]) => ({
-      rotulo, arquivo: arq, existe: existe(arq), linhas: ondeAparece(arq, atual),
+      rotulo, arquivo: arq, existe: existe(arq), linhas: ondeAparece(arq, casada),
     })),
-    /* Quem já NOMEIA a licença futura. A regra escrita no README é que nenhum arquivo
-       pode DECLARAR AGPL antes de o LICENSE dizer — as menções de hoje são avisos de
-       mudança planejada, e este número existe para que a diferença não passe batida. */
-    outroNome: atual === 'MIT' ? 'AGPL' : 'MIT',
-    mencoesOutro: SUPERFICIES.map(([, arq]) => ({ arquivo: arq, linhas: ondeAparece(arq, atual === 'MIT' ? 'AGPL' : 'MIT') }))
-      .filter((x) => x.linhas.length),
-    cmdNome: 'head -1 LICENSE',
-    cmd: 'grep -n do nome lido do LICENSE, nas superfícies declaradas em tools/gen-docs.mjs',
+    /* O próprio `LICENSE` fica FORA desta varredura, e o motivo é textual: o corpo da AGPL
+       cita a GPL no preâmbulo e no "How to Apply". Contar isso como "outra licença citada"
+       seria denunciar a licença por ter preâmbulo. As outras sete superfícies são prosa do
+       projeto — lá, citar outro nome é fato que interessa. */
+    outrasMencoes: outras.flatMap((lic) => SUPERFICIES
+      .filter(([, arq]) => arq !== 'LICENSE')
+      .map(([, arq]) => ({ nome: lic.sigla, arquivo: arq, linhas: ondeAparece(arq, lic) }))
+      .filter((x) => x.linhas.length)),
+    /* A doc em inglês (`docs/i18n/en/`) é tradução À MÃO, e os blocos GERADOS dela são cópia
+       humana do bloco em português: `npm run docs` não reescreve nenhum deles. Foi por aí que
+       a rota `/license` seguiu publicando "the code is under the MIT License" enquanto o
+       `LICENSE` já era AGPL. Gerar os dois idiomas pede um gerador bilíngue (issue #54); o
+       que dá para fazer hoje, barato, é proibir a tradução de CONTRADIZER o `LICENSE` —
+       o bloco `licenca` em inglês tem que nomear a licença vigente. */
+    /* A varredura EN lá embaixo pega a tradução que DECLARA a licença errada. Esta pega o
+       caso mudo, que aquela não vê: um bloco que não nomeia licença NENHUMA ("the code is
+       open source"). Silêncio não é verde — é a mesma regra do `null` do gerador. */
+    traducaoMuda: (() => {
+      const arq = 'docs/i18n/en/docusaurus-plugin-content-docs/current/licenca.md';
+      if (!existe(arq) || !casada) return null;
+      const bloco = /BEGIN:GERADO:licenca\b[\s\S]*?END:GERADO:licenca\b/.exec(ler(arq));
+      if (!bloco) return `${arq} não tem o bloco GERADO:licenca`;
+      return LICENCAS_CONHECIDAS.some((l) => l.mencao.test(bloco[0]))
+        ? null : `${arq} tem o bloco GERADO:licenca sem nomear licença nenhuma`;
+    })(),
+    /* Sem crase aqui dentro: o rodapé já embrulha este texto em crase, e crase aninhada
+       vira markdown quebrado nas duas pontas (GitHub e Docusaurus). */
+    cmdNome: 'título lido do texto do LICENSE, conferido contra o campo license do package.json',
+    cmd: 'grep -n dos nomes de licença conhecidos, nas superfícies declaradas em tools/gen-docs.mjs',
   };
   f.issues = {
     escritas: glob('docs/issues', (x) => /^\d+-.*\.md$/.test(x)).length,
@@ -389,9 +467,12 @@ const BLOCOS = {
   licenca_pontos: (f) => [
     `| Superfície | Arquivo | Onde diz \`${f.licenca.atual || '?'}\` |`,
     '|---|---|---|',
+    /* Teto de 4 linhas por superfície: o corpo do `LICENSE` nomeia a própria licença onze
+       vezes, e uma célula com onze números não informa mais que uma com quatro — informa
+       menos, porque ninguém lê. O total honesto vai no `+N` e na contagem abaixo da tabela. */
     ...f.licenca.superficies.map((s) => `| ${s.rotulo} | \`${s.arquivo}\` | ${
       !s.existe ? '**arquivo não existe**'
-        : s.linhas.length ? `linha${s.linhas.length > 1 ? 's' : ''} ${s.linhas.join(', ')}`
+        : s.linhas.length ? `linha${s.linhas.length > 1 ? 's' : ''} ${s.linhas.slice(0, 4).join(', ')}${s.linhas.length > 4 ? ` (+${s.linhas.length - 4})` : ''}`
           : '— (não nomeia a licença)'}  |`),
     '',
     `**${f.licenca.superficies.reduce((a, s) => a + s.linhas.length, 0)} ocorrências** de ` +
@@ -399,10 +480,11 @@ const BLOCOS = {
     `${f.licenca.superficies.length} superfícies declaradas. Trocar a licença é mudar **todas elas no mesmo commit**: ` +
     'metade trocada é pior que nenhuma, porque cada arquivo passa a responder uma coisa diferente para quem pergunta.',
     '',
-    f.licenca.mencoesOutro.length
-      ? `\`${f.licenca.outroNome}\` já aparece em ${f.licenca.mencoesOutro.map((m) => `\`${m.arquivo}\` (linha${m.linhas.length > 1 ? 's' : ''} ${m.linhas.join(', ')})`).join(', ')} — ` +
-        `como **aviso de mudança planejada**, não como declaração. A regra é essa: nenhum arquivo pode DECLARAR \`${f.licenca.outroNome}\` antes de o \`LICENSE\` dizer.`
-      : `Nenhuma superfície menciona \`${f.licenca.outroNome}\`.`,
+    f.licenca.outrasMencoes.length
+      ? `**Outros nomes de licença citados nessas superfícies:** ${f.licenca.outrasMencoes.map((m) => `\`${m.nome}\` em \`${m.arquivo}\` (linha${m.linhas.length > 1 ? 's' : ''} ${m.linhas.join(', ')})`).join(', ')}. ` +
+        'Citar não é declarar — essas linhas são histórico da migração ou crédito a dependência de terceiro. ' +
+        `A regra continua a mesma: **só o \`LICENSE\` declara**, e hoje ele diz \`${f.licenca.atual}\`.`
+      : 'Nenhuma superfície cita outro nome de licença.',
     rodape(f.licenca.cmd),
   ].join('\n'),
 
@@ -576,9 +658,15 @@ const BLOCOS = {
      é LINK QUEBRADO no Docusaurus (`onBrokenLinks: 'throw'` derruba o build), porque
      `LICENSE` não é uma rota do site. O mesmo bloco vive nos dois lugares, então ele só
      pode conter markdown que sobrevive aos dois renderizadores. */
+  /* Sem nome identificado o bloco DIZ que não sabe. A versão anterior interpolava `null` e
+     seguia — e é assim que uma página publicada passa três dias afirmando a licença errada. */
   licenca: (f) => [
-    `O código está sob **${f.licenca.nome}** — é o que vale hoje, e a fonte é o arquivo ` +
-    '`LICENSE` na raiz do repositório. Nenhum outro arquivo tem autoridade sobre isso.',
+    f.licenca.nome
+      ? `O código está sob **${f.licenca.nome}** (${f.licenca.nomeLongo}) — é o que vale hoje, e a ` +
+        'fonte é o arquivo `LICENSE` na raiz do repositório. Nenhum outro arquivo tem autoridade sobre isso.'
+      : '⚠️ **A licença não foi identificada.** O `LICENSE` da raiz não casa com nenhum nome conhecido do ' +
+        '`tools/gen-docs.mjs`. Enquanto isso não for resolvido, esta página **não responde** qual é a licença — ' +
+        'leia o arquivo `LICENSE` direto no repositório.',
     rodape(f.licenca.cmdNome),
   ].join('\n'),
 
@@ -716,8 +804,54 @@ const { mudancas, achados, semLugar, faltando, semBloco } = aplicar(fatos);
 
 /* Consistências que NÃO são bloco de doc, mas que a doc depende para não mentir. */
 const inconsistencias = [];
+
+/* ── O GÊMEO EM INGLÊS TAMBÉM MENTE, E NINGUÉM ESTAVA OLHANDO (07/08) ─────────
+   `COLOCACAO` só lista arquivos PT. As traduções em
+   `docs/i18n/en/docusaurus-plugin-content-docs/current/` carregam os MESMOS
+   marcadores `BEGIN:GERADO:` — e nunca são regeradas, porque o conteúdo dos blocos
+   é escrito em português e traduzi-los automaticamente seria inventar.
+
+   O resultado, achado pelo dono e não pelo portão: depois da migração para AGPL,
+   `/docs/licenca` em português dizia "GNU AFFERO GENERAL PUBLIC LICENSE" e a página
+   `/docs/license` em inglês continuava dizendo "**MIT License** — that is what holds
+   today". Uma página pública de LICENÇA declarando a licença errada. O `/about` em
+   inglês fazia o mesmo.
+
+   Traduzir automático não dá. Mas DETECTAR dá, e é barato: se um gêmeo EN cita o
+   nome de uma licença conhecida que NÃO é a vigente, ele está velho. É a mesma
+   lição do bloco `LICENCAS_CONHECIDAS` lá em cima — não saber tem que custar o
+   mesmo que estar errado, e agora vale para os dois idiomas. */
+{
+  const EN = 'docs/i18n/en/docusaurus-plugin-content-docs/current';
+  const vigente = fatos.licenca.atual;
+  for (const nome of (existe(EN) ? glob(EN, (x) => x.endsWith('.md')) : [])) {
+    const txt = ler(`${EN}/${nome}`);
+    if (!txt) continue;
+    for (const sigla of (fatos.licenca.siglas || [])) {
+      if (sigla === vigente) continue;
+      // `MIT` aparece legitimamente na lista de dependências de terceiros (three.js
+      // é MIT e continua sendo). O que não pode é a tradução DECLARAR a licença do
+      // projeto — e declaração vem sempre com "is under" / "holds today".
+      const declara = new RegExp(`(is under|holds today|licensed under)[^\\n]{0,80}\\b${sigla.replace(/[.]/g, '\\.')}\\b`, 'i');
+      if (declara.test(txt)) {
+        inconsistencias.push(`tradução EN \`${EN}/${nome}\` declara '${sigla}' e o LICENSE diz '${vigente}'`
+          + ' — o gêmeo em inglês não é regerado, então ele precisa ser corrigido à mão no MESMO commit');
+      }
+    }
+  }
+}
 if (!fatos.versao.concordam)
   inconsistencias.push(`version.js diz '${fatos.versao.jogo}' e package.json diz '${fatos.versao.pacote}'`);
+/* LICENÇA — as duas maneiras de a página mentir, e as duas ficam vermelhas.
+   Isto existe porque o caso real não foi nenhum dos erros que a gente imaginava: o gerador
+   simplesmente NÃO RECONHECEU o LICENSE novo, devolveu `null` e publicou prosa coerente em
+   cima de nada. Não saber tem que custar o mesmo que estar errado. */
+if (!fatos.licenca.atual)
+  inconsistencias.push(`LICENSE não casa com nenhuma licença conhecida (cabeçalho lido: '${fatos.licenca.cabecalho || '(vazio)'}') — acrescente o nome em LICENCAS_CONHECIDAS, em tools/gen-docs.mjs`);
+else if (!fatos.licenca.concordam)
+  inconsistencias.push(`LICENSE diz '${fatos.licenca.atual}' e package.json diz '${fatos.licenca.pacote}'`);
+if (fatos.licenca.traducaoMuda)
+  inconsistencias.push(`${fatos.licenca.traducaoMuda} (sync à mão — issue #54)`);
 
 if (process.argv.includes('--check')) {
   const erros = [];
