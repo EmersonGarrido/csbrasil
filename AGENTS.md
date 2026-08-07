@@ -10,6 +10,19 @@ desatualizados. Duplicar é criar o quinto.
 
 ---
 
+
+## Antes de escrever régua ou mexer em asset: `docs/LICOES.md`
+
+14 lições, cada uma com o caso real e o número que a comprou. Elas existem porque
+sem esse arquivo todo agente novo redescobre os mesmos buracos — e paga de novo.
+
+Atalhos por tarefa:
+- **escrever régua** → lições 1-4 e a skill `regua`
+- **mexer em asset ou build** → 5, 11, 12, 14
+- **gerar arte com pessoa real** → 9
+- **portão VERDE e o dono dizendo que está errado** → 1 e 3 (o caso mais importante
+  desta base, e o mais mal resolvido)
+
 ## O que é este projeto
 
 FPS de navegador em **Three.js vanilla, zero build**, em `public/`, servido por um site
@@ -28,7 +41,7 @@ algo está errado e o quality gate está verde, o defeito é do quality gate.
 
 | Zona | O que é | Tamanho medido | Regra |
 |---|---|---|---|
-| `public/` | o **jogo** | 30 arquivos `.js`, 27.089 linhas · Three.js `r160` vendorizado | ES modules servidos crus, **zero build**, sem dependência de runtime |
+| `public/` | o **jogo** | 30 arquivos `.js`, 26.644 linhas · Three.js `r160` vendorizado | ES modules servidos crus, **zero build**, sem dependência de runtime |
 | `src/` | o **site** | 17 páginas `.astro`, 12 rotas `/api` · Astro `^7.1.1` | framework é bem-vindo; `service_role` só no servidor |
 | `tools/` | o **arnês** | 159 scripts em `tools/eval/`, 44 em `tools/` | node puro: sobe o jogo real sem browser |
 
@@ -126,7 +139,7 @@ npm run check        # npm run syntax && npm run audio:check && npm run eval:ctf
 npm run check:fast   # npm run syntax && npm run docs:check && npm run arch:check && npm run audio:check && npm run feet:check && npm run eval:ctfhud && npm run eval:pause && npm run eval:ctfround && npm run eval:ctfwin && npm run eval:spawn && npm run eval:regen && npm run eval:pegada && npm run eval:ctflabels && npm run eval:faccao && npm run anims:check
 ```
 
-`package.json` tem **47 scripts**. Vários trazem uma chave `//nome` logo acima com o motivo de existirem — é onde mora o porquê.
+`package.json` tem **48 scripts**. Vários trazem uma chave `//nome` logo acima com o motivo de existirem — é onde mora o porquê.
 
 > Bloco gerado por `node tools/gen-docs.mjs`. Fonte: `node -p "Object.keys(require('./package.json').scripts)"`
 

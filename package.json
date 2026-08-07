@@ -1,6 +1,6 @@
 {
   "name": "coro-solto",
-  "version": "2.0.0-alpha.34",
+  "version": "2.0.0-alpha.35",
   "license": "AGPL-3.0-only",
   "description": "CORO SOLTO: Treta Suprema (ex-CS BRASIL) — FPS de navegador estilo CS 1.6 (site Astro + jogo vanilla em Three.js)",
   "scripts": {
@@ -55,6 +55,9 @@
     "grafite": "node tools/gen-graffiti-layout.mjs",
     "//eval:grafite": "COBERTURA DE PAREDE PINTADA, medida no navegador. A decal-probe roda em node, onde nenhum GLB carrega, e por isso jurava 334 peças na Quebrada enquanto o dono via 12,7% de parede com arte. Esta abre cada mapa num Chrome de verdade, atira 16 raios de cada waypoint e conta quantas placas de parede visível têm tinta. Exige `npm run eval:serve` no ar.",
     "eval:grafite": "node tools/eval/graffiti-census.mjs",
+    "//eval:grafite:ar": "A régua IRMÃ da cobertura, e ela existe porque cobertura é cega pro defeito oposto: peça flutuando não derruba o número, ela MELHORA (cobre a placa de trás). Mede peça a peça — vão atrás, tapada na frente, sobreposta. Exige navegador e `npm run eval:serve` no ar. `--fotos N` fotografa as piores: quando o número não move depois de um conserto que deveria movê-lo, é a foto que resolve.",
+    "eval:grafite:ar": "node tools/eval/graffiti-audit.mjs",
+
     "audio": "node tools/gen-audio-manifest.mjs",
     "audio:check": "node tools/gen-audio-manifest.mjs --check",
     "feet": "node tools/gen-foot-offsets.mjs",

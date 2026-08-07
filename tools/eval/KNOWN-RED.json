@@ -15,6 +15,7 @@
   "CHR1": "antropometria do elenco Mint fora de ±35% (cabeça/ombro/perna) — corrigir exigiria re-gerar/escalar o roster",
   "CHR3": "proporções do elenco — mesmo lote do CHR1",
   "CHR4": "proporções do elenco — mesmo lote do CHR1",
-  "CTF1": "geometria de bandeira fora do critério em mapa(s) legado(s) — ajuste de layout pendente"
+  "CTF1": "geometria de bandeira fora do critério em mapa(s) legado(s) — ajuste de layout pendente",
+  "GRAF1": "grafite: 272 peças com vão atrás em 5 mapas (brasília 68 · quebrada 102 · ferro 51 · loja H 28 · piscina 23) e 145 sobrepostas. Saiu de 698/540 em 07/08 alinhando o limiar das duas réguas; o resto é peça em quina de GLB e em superfície curva. Régua: `npm run eval:grafite:ar`. Ver docs/LICOES.md §1 e §2."
  }
 }
