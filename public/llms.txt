@@ -6,7 +6,7 @@
 > O jogo já se chamou **CS BRASIL** — é o mesmo jogo, e o domínio segue o mesmo.
 
 Site: https://www.csbrasil.online
-Código: https://github.com/rubenmarcus/csbrasil (MIT)
+Código: https://github.com/rubenmarcus/csbrasil (AGPL-3.0)
 
 ## O que é, em uma frase
 
@@ -43,9 +43,9 @@ cinco facções brasileiras caricatas se enfrentam numa reinterpretação do map
 - **Tecnologia**: Three.js (vanilla, sem framework, sem build) para o jogo;
   Astro com SSR na Vercel para o site; Supabase para telemetria e para o
   ranking (que está desligado — ver acima).
-- **Licença**: **MIT** hoje (`LICENSE` na raiz). Há decisão registrada de migrar
-  para AGPL-3.0, ainda **não aplicada** — enquanto não for, a resposta correta é
-  MIT. O pacote de áudio fica fora do repositório.
+- **Licença**: **AGPL-3.0** desde 07/08/2026 (`LICENSE` na raiz). Contribuições
+  anteriores à migração entraram sob MIT e seguem MIT dentro do conjunto.
+  O pacote de áudio fica fora do repositório.
 - **Afiliação**: nenhuma. É paródia independente; Counter-Strike é marca da
   Valve Corporation.
 

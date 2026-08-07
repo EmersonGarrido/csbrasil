@@ -1,6 +1,8 @@
 # CORO SOLTO: Treta Suprema
 
-[![license: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![license: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue)](LICENSE)
+[![CI](https://github.com/rubenmarcus/csbrasil/actions/workflows/ci.yml/badge.svg?branch=v2%2Falpha-release)](https://github.com/rubenmarcus/csbrasil/actions/workflows/ci.yml)
+[![pr-gates](https://github.com/rubenmarcus/csbrasil/actions/workflows/pr-gates.yml/badge.svg)](https://github.com/rubenmarcus/csbrasil/actions/workflows/pr-gates.yml)
 [![astro](https://img.shields.io/badge/site-astro-ff5d01?logo=astro)](https://astro.build)
 [![three.js](https://img.shields.io/badge/jogo-three.js%20r160-000000?logo=three.js)](https://threejs.org)
 [![supabase](https://img.shields.io/badge/ranking-supabase-3fcf8e?logo=supabase&logoColor=white)](https://supabase.com)
@@ -8,11 +10,14 @@
 
 Construído em par com agentes de IA — cada commit diz qual:
 
-[![Claude Fable 5](https://img.shields.io/badge/agente-Claude_Fable_5-d97757?logo=anthropic&logoColor=white)](https://claude.com/claude-code)
-[![Claude Opus](https://img.shields.io/badge/agente-Claude_Opus-d97757?logo=anthropic&logoColor=white)](https://claude.com/claude-code)
+[![Claude Fable 5](https://img.shields.io/badge/agente-Claude_Fable_5-d97757?logo=claude&logoColor=white)](https://claude.com/claude-code)
+[![Claude Opus](https://img.shields.io/badge/agente-Claude_Opus-d97757?logo=claude&logoColor=white)](https://claude.com/claude-code)
 [![Kimi K3](https://img.shields.io/badge/agente-Kimi_K3-1a1a2e)](https://www.kimi.com)
-[![arte 2D: Gemini via OpenRouter](https://img.shields.io/badge/arte_2D-Gemini_·_OpenRouter-4285f4?logo=googlegemini&logoColor=white)](https://openrouter.ai)
-[![3D: Tripo · Meshy · Mint](https://img.shields.io/badge/3D-Tripo_·_Meshy_·_mint.gg-8a2be2)](https://www.tripo3d.ai)
+[![Gemini](https://img.shields.io/badge/arte_2D-Gemini-4285f4?logo=googlegemini&logoColor=white)](https://deepmind.google/technologies/gemini/)
+[![OpenRouter](https://img.shields.io/badge/API-OpenRouter-6566f1)](https://openrouter.ai)
+[![Tripo3D](https://img.shields.io/badge/3D-Tripo3D-ff6b35)](https://www.tripo3d.ai)
+[![Meshy](https://img.shields.io/badge/rig-Meshy-00c4b3)](https://www.meshy.ai)
+[![mint.gg](https://img.shields.io/badge/3D-mint.gg-8a2be2)](https://mint.gg)
 
 ![CORO SOLTO: Treta Suprema — arena de sniper estilo CS 1.6 numa Brasília fictícia](public/og-image.jpg)
 
@@ -330,19 +335,17 @@ são distribuídos aqui.
 
 <!-- BEGIN:GERADO:licenca — não edite à mão, rode `npm run docs` -->
 
-O código está sob **MIT License** — é o que vale hoje, e a fonte é o arquivo `LICENSE` na raiz do repositório. Nenhum outro arquivo tem autoridade sobre isso.
+O código está sob **GNU AFFERO GENERAL PUBLIC LICENSE** — é o que vale hoje, e a fonte é o arquivo `LICENSE` na raiz do repositório. Nenhum outro arquivo tem autoridade sobre isso.
 
 > Bloco gerado por `node tools/gen-docs.mjs`. Fonte: `head -1 LICENSE`
 
 <!-- END:GERADO:licenca -->
 
-> **Migração para AGPL-3.0 está DECIDIDA e NÃO aplicada.** Ela precisa ir num
-> commit só (`LICENSE`, o badge do topo deste arquivo, esta seção,
-> `CONTRIBUTING.md`, `public/llms.txt`, `/sobre` e o rodapé do site), e **antes**
-> exige levantar se há PR de terceiro já mesclado: licença só troca
-> retroativamente com consentimento de quem contribuiu. Isso é levantamento, não
-> linha de comando. Até lá, **a resposta correta sobre a licença é MIT** — e
-> nenhum arquivo deste repositório deve dizer AGPL antes de o `LICENSE` dizer.
+> **Migrado de MIT para AGPL-3.0 em 07/08/2026.** As contribuições feitas antes
+> da troca entraram sob MIT — licença permissiva e compatível com a AGPL: elas
+> continuam MIT dentro do todo, e o conjunto é distribuído sob AGPL-3.0. Quem
+> contribuiu antes não perde nada nem precisa de novo consentimento (a direção
+> incompatível seria a inversa).
 
 - Three.js r160 — MIT (© Three.js authors), em `public/vendor/`.
 - Código, texturas, personagens e logo: originais.

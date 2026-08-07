@@ -22,7 +22,7 @@ futura antes do `LICENSE`.
 
 {/* BEGIN:GERADO:licenca — não edite à mão, rode `npm run docs` */}
 
-O código está sob **MIT License** — é o que vale hoje, e a fonte é o arquivo `LICENSE` na raiz do repositório. Nenhum outro arquivo tem autoridade sobre isso.
+O código está sob **GNU AFFERO GENERAL PUBLIC LICENSE** — é o que vale hoje, e a fonte é o arquivo `LICENSE` na raiz do repositório. Nenhum outro arquivo tem autoridade sobre isso.
 
 > Bloco gerado por `node tools/gen-docs.mjs`. Fonte: `head -1 LICENSE`
 
@@ -37,20 +37,20 @@ não enumerada à mão:
 
 {/* BEGIN:GERADO:licenca_pontos — não edite à mão, rode `npm run docs` */}
 
-| Superfície | Arquivo | Onde diz `MIT` |
+| Superfície | Arquivo | Onde diz `?` |
 |---|---|---|
-| licença canônica | `LICENSE` | linhas 1, 32  |
-| badge + seção de licenças | `README.md` | linhas 3, 333, 344, 347  |
-| termo que o contribuidor aceita | `CONTRIBUTING.md` | linhas 173, 178  |
-| rodapé do site | `src/layouts/Layout.astro` | linha 591  |
-| JSON-LD do jogo | `src/pages/index.astro` | linha 109  |
-| página `/sobre` | `src/pages/sobre.astro` | linhas 121, 135  |
-| `llms.txt` (resposta para LLM) | `public/llms.txt` | linhas 9, 46, 48  |
-| rodapé desta documentação | `docs/docusaurus.config.js` | linha 152  |
+| licença canônica | `LICENSE` | — (não nomeia a licença)  |
+| badge + seção de licenças | `README.md` | — (não nomeia a licença)  |
+| termo que o contribuidor aceita | `CONTRIBUTING.md` | — (não nomeia a licença)  |
+| rodapé do site | `src/layouts/Layout.astro` | — (não nomeia a licença)  |
+| JSON-LD do jogo | `src/pages/index.astro` | — (não nomeia a licença)  |
+| página `/sobre` | `src/pages/sobre.astro` | — (não nomeia a licença)  |
+| `llms.txt` (resposta para LLM) | `public/llms.txt` | — (não nomeia a licença)  |
+| rodapé desta documentação | `docs/docusaurus.config.js` | — (não nomeia a licença)  |
 
-**16 ocorrências** de `MIT` em **8** das 8 superfícies declaradas. Trocar a licença é mudar **todas elas no mesmo commit**: metade trocada é pior que nenhuma, porque cada arquivo passa a responder uma coisa diferente para quem pergunta.
+**0 ocorrências** de `null` em **0** das 8 superfícies declaradas. Trocar a licença é mudar **todas elas no mesmo commit**: metade trocada é pior que nenhuma, porque cada arquivo passa a responder uma coisa diferente para quem pergunta.
 
-`AGPL` já aparece em `README.md` (linhas 339, 345), `CONTRIBUTING.md` (linha 177), `src/pages/sobre.astro` (linha 122), `public/llms.txt` (linha 47) — como **aviso de mudança planejada**, não como declaração. A regra é essa: nenhum arquivo pode DECLARAR `AGPL` antes de o `LICENSE` dizer.
+`MIT` já aparece em `README.md` (linhas 338, 344, 345, 346, 350), `CONTRIBUTING.md` (linhas 176, 177, 178), `src/layouts/Layout.astro` (linha 591), `src/pages/sobre.astro` (linha 123), `public/llms.txt` (linha 47), `docs/docusaurus.config.js` (linha 152) — como **aviso de mudança planejada**, não como declaração. A regra é essa: nenhum arquivo pode DECLARAR `MIT` antes de o `LICENSE` dizer.
 
 > Bloco gerado por `node tools/gen-docs.mjs`. Fonte: `grep -n do nome lido do LICENSE, nas superfícies declaradas em tools/gen-docs.mjs`
 

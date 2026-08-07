@@ -10,7 +10,10 @@ cd "$(dirname "$0")/.."
 URL="${DECALS_PACK_URL:-https://github.com/rubenmarcus/csbrasil/releases/download/decals-pack-v1/decals-pack.zip}"
 DEST="public/img/decals"
 
-if [ -d "$DEST" ] && [ "$(ls -1 "$DEST"/*.png 2>/dev/null | wc -l)" -gt 0 ]; then
+# Sentinela conta só o ACERVO baixável (exclui os `or-*.png`, que são obra própria
+# VERSIONADA e vêm no clone — sem esta exclusão, qualquer clone fresco tem >0 PNG,
+# o early-exit dispara e o pacote do acervo nunca baixa na Vercel).
+if [ -d "$DEST" ] && [ "$(ls -1 "$DEST"/*.png 2>/dev/null | grep -cv '/or-')" -gt 0 ]; then
   echo "decals/ já configurado — nada a fazer."
   exit 0
 fi

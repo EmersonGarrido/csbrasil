@@ -170,15 +170,13 @@ E teste à mão: o jogo abre, o console fica limpo, uma partida completa roda
    feature de julho — e tinha acumulado **143 commits** de assuntos completamente
    diferentes (personagens GLB, funkeiros, viewmodel, mapas), sem upstream, enquanto a
    `main` seguia parada em 18/07. Nome que não diz o que a branch é vira depósito.
-3. Ao contribuir, você concorda em licenciar sua contribuição sob a **MIT**
+3. Ao contribuir, você concorda em licenciar sua contribuição sob a **AGPL-3.0**
    (veja [`LICENSE`](LICENSE)).
 
-   > **Aviso de mudança planejada.** Existe decisão registrada de migrar o projeto
-   > para **AGPL-3.0**. Ela **ainda não foi aplicada** — enquanto o `LICENSE` disser
-   > MIT, é MIT que vale, aqui e em qualquer outro arquivo. A troca é retroativa e
-   > depende de levantar consentimento de quem já contribuiu, então ela virá num
-   > commit único e anunciado. Se isso for decisivo pra você, pergunte antes de
-   > abrir o PR.
+   > **Migração aplicada em 07/08/2026.** O projeto era MIT e virou **AGPL-3.0**.
+   > Contribuições anteriores à troca entraram sob MIT — licença permissiva e
+   > compatível: elas seguem MIT dentro do conjunto, que é distribuído sob
+   > AGPL-3.0. Se isso for decisivo pra você, pergunte antes de abrir o PR.
 
 ## Reportando bugs
 
