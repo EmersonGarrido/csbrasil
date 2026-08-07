@@ -41,6 +41,8 @@
     "//eval:select": "BALÃO NA TELA DE SELEÇÃO. Exige BROWSER e o servidor no ar: `npm run eval:serve &` antes. Mede o caminho REAL do preview (buildCharacterModel + arma + IK + curl + ctrl.update), que é onde o defeito mora — a pose-inflate lê o GLB do disco e é cega pra ele (KNOWN-BUGS BUG-25). ~4 min pros 44. Fora do `check` de propósito: `check` roda sem browser.",
     "eval:select": "node tools/eval/select-inflate.mjs",
     "eval:select:mutate": "node tools/eval/select-inflate.mjs mandrake,pagodeiro --mutate=skin",
+    "//assert:assets": "T1. REPROVA O BUILD se o pacote de áudio ou o acervo de decalques não chegou inteiro. Existe porque os dois fetch scripts falham EM SILÊNCIO: o fetch-audio.sh:23 copia manifest.example.json (62 caminhos) por cima quando o unzip não traz o real (308) e o build passa verde com o jogo mudo. Roda no buildCommand da Vercel entre os fetches e o build. Mutação: AUDIO_PACK_URL=https://example.invalid/x.zip com public/audio vazio.",
+    "assert:assets": "node tools/eval/assets-check.mjs",
     "eval:serve": "node tools/eval/serve.mjs 8123",
     "//grafite": "ASSA a colocação do grafite dos 5 mapas. Roda a passada de graffiti_pass.js NO NAVEGADOR (único lugar onde os GLB existem) e congela o resultado em public/js/graffiti_layout.js. Exige `npm run eval:serve` no ar. REGERE depois de mexer em geometria de mapa, pool de decalque ou bandas — layout velho vira peça no lugar errado, e quem cobra isso é o eval:grafite.",
     "grafite": "node tools/gen-graffiti-layout.mjs",

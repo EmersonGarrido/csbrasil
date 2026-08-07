@@ -1,6 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "bash scripts/fetch-audio.sh && bash scripts/fetch-decals.sh && npm run build",
+  "buildCommand": "bash scripts/fetch-audio.sh && bash scripts/fetch-decals.sh && npm run assert:assets && npm run build",
   "headers": [
     {
       "source": "/(.*)",
