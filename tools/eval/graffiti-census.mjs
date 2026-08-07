@@ -53,7 +53,12 @@ const MAPS = ['awp_map', 'fy_pool_day', 'fy_havan', 'fy_ferrovelho', 'fy_quebrad
    "os mapas mais degradados" e vão a 90%; Brasília é cidade oficial e vai a 60%;
    Loja H e Ferro Velho são pátio murado — a meta vale pro muro, que é quase tudo
    que eles têm de parede. */
-const META = { awp_map: 60, fy_pool_day: 90, fy_havan: 85, fy_ferrovelho: 85, fy_quebrada: 90 };
+/* Loja H e Ferro Velho baixaram de 85 em 07/08 por DECISÃO DE ARTE, não por dívida:
+   a Loja H só é pichada por fora (a zona limpa está declarada no mapa e a régua a
+   respeita) e no Ferro Velho lataria e mato não recebem tinta — e essas superfícies
+   CONTINUAM contando como placa de parede aqui, porque elas são parede que o jogador
+   vê. Cobrar 85 delas seria a régua brigando com o pedido do dono. */
+const META = { awp_map: 60, fy_pool_day: 90, fy_havan: 70, fy_ferrovelho: 70, fy_quebrada: 90 };
 
 const gRoot = execSync('npm root -g').toString().trim();
 const _pw = await import(pathToFileURL(`${gRoot}/playwright/index.js`).href);
@@ -68,6 +73,13 @@ const browser = await chromium.launch({
 const CENSO = async () => {
   const THREE = await import('./vendor/three.module.js');
   const { normalMundo } = await import('./js/graffiti_pass.js');
+  /* ZONA LIMPA: parede que o mapa declara como "sem tinta de propósito". Sem ler isto,
+     a régua cobraria a loja inteira da Loja H — 74% das placas dela — de uma decisão
+     de direção de arte do dono. A declaração mora no mapa e viaja no layout assado;
+     aqui só se lê, pra não existirem duas listas discordando. */
+  const { GRAFITE } = await import('./js/graffiti_layout.js');
+  const LIMPO = ((GRAFITE || {})[window.__mapId] || {}).limpo || [];
+  const _limpo = (x, z) => LIMPO.some((b) => x >= b.x0 && x <= b.x1 && z >= b.z0 && z <= b.z1);
   const scene = window.__scene, W = window.__gworld;
   const EYE = 1.6, ALCANCE = 7, RAIOS = 16, CEL = 1.5, FOLGA = 0.35, PERTO = 0.6;
 
@@ -147,6 +159,7 @@ const CENSO = async () => {
       // certa somando a matriz da instância.
       const nw = normalMundo(h);
       if (Math.abs(nw.y) > 0.45) continue;                    // chão/teto não é parede
+      if (_limpo(h.point.x, h.point.z)) continue;              // declarada limpa: não é dívida
       /* FACE DE TRÁS NÃO É PAREDE PRA ESTA RÉGUA. Medido na Quebrada: das 114 placas
          que continuavam "peladas" com a cobertura em 85%, ~92 eram a face INTERNA do
          muro externo (x ≈ -26, normal apontando pra fora do mapa) — o raio entrava por

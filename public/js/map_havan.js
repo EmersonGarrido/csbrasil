@@ -1877,6 +1877,14 @@ export function buildHavan(scene, T) {
   grafitar({
     id: 'fy_havan',
     root, T, waypoints: nodes, seed: 5501, passo: 1.0, alcance: 9, cobre: 0.5, minLarg: 0.32,
+    /* SÓ DO LADO DE FORA (dono, 07/08: "pode tirar os graffitis de dentro da loja,
+       pode deixar só na parte de fora que ficou boa"). O interior da loja é z < -6;
+       74% das peças do mapa estavam lá dentro, e 7 dos 8 murais de homenagem também.
+       O corte fica em -6,4 pra que a FACHADA (z ≈ -6, virada pro estacionamento)
+       continue pichada — ela é a parte de fora, e é a que ele aprovou.
+       Declarado aqui e só aqui: a `graffiti-census` lê esta mesma zona do layout
+       assado, senão ela cobraria pra sempre tinta de parede que ninguém quer. */
+    limpo: [{ x0: -1e4, x1: 1e4, z0: -1e4, z1: -6.4 }],
     bandas: [
       /* CARTAZ DA COLEÇÃO (07/08). Reprovação: "tem diversos posters da minha coleção
          e tb que vc gerou que não estão em nenhum mapa". Eram 30 arquivos vivendo em

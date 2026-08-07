@@ -71,7 +71,15 @@ for (const id of MAPAS) {
   const g = await page.evaluate(() => window.__grafite || null);
   await page.close();
   if (!g || !g.pass || !g.pass.layout) { console.log(`  ${id}: sem passada (mapa ainda não ligado)`); continue; }
-  anterior[id] = { arquivos: g.pass.layout.arquivos, pecas: g.pass.layout.pecas, murais: (g.hom && g.hom.layout) || [] };
+  anterior[id] = {
+    arquivos: g.pass.layout.arquivos, pecas: g.pass.layout.pecas,
+    murais: (g.hom && g.hom.layout) || [],
+    /* A ZONA LIMPA VIAJA JUNTO. Ela é decisão de direção de arte declarada no mapa
+       ("na Loja H o grafite fica só do lado de fora"), e quem precisa dela depois é a
+       `graffiti-census`: sem isso ela conta a parede interna da loja como dívida e
+       reprova pra sempre uma coisa que está certa de propósito. */
+    ...(g.pass.layout.limpo ? { limpo: g.pass.layout.limpo } : {}),
+  };
   console.log(`  ${id}: ${anterior[id].pecas.length} peças · ${anterior[id].arquivos.length} arquivos · `
     + `${anterior[id].murais.length} murais · ${g.ms} ms de passada`);
 }

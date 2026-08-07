@@ -1853,6 +1853,12 @@ export function buildFerroVelho(scene, T) {
   grafitar({
     id: 'fy_ferrovelho',
     root, T, waypoints: nodes, seed: 8123, passo: 0.95, alcance: 9, cobre: 0.55, minLarg: 0.32,
+    /* NEM LATARIA NEM MATO (dono, 07/08: "não faz sentido grafite nos carros e na
+       grama, só nas paredes em volta mesmo e no escritório"). Ferro velho de verdade
+       tem o muro bombardeado e a sucata limpa — ninguém picha carro que vai pra prensa.
+       Por TIPO e não por zona: a lataria empilhada fica no meio do pátio que DEVE ser
+       pichado, então recorte por coordenada pegaria o muro junto. */
+    evitar: /car|carro|wreck|junk|prensa|guindaste|pneu|tire|grama|grass|mato|bush|planta|plant|folha_|leaf|arbusto|weed/i,
     bandas: [
       /* CARTAZ DA COLEÇÃO (07/08). Reprovação: "tem diversos posters da minha coleção
          e tb que vc gerou que não estão em nenhum mapa". Eram 30 arquivos vivendo em

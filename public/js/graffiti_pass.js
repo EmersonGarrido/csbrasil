@@ -147,7 +147,7 @@ export function grafitar(cfg) {
   } else {
     pass = pintarParedes(cfg);
     hom = murais
-      ? pendurarMurais(Object.assign({ root, T, waypoints }, murais))
+      ? pendurarMurais(Object.assign({ root, T, waypoints, limpo: cfg.limpo, evitar: cfg.evitar }, murais))
       : { murais: 0, layout: [] };
   }
   if (typeof window !== 'undefined') {
@@ -169,11 +169,29 @@ function mix32(n) {
 /* Malha serve de parede pra tinta? Mesma cláusula do `map_decals._pintavel`, mais
    um filtro por NOME: vidro/água/tela já caem por `transparent`, mas placa de
    trânsito, faixa de bandeira e tela de TV são opacas e pintá-las lê como bug. */
-const NAO_PINTA = /vidro|glass|window|janela|agua|water|pool_water|flag|bandeira|placa_|sign|tela|screen|led|farol|light|lamp|decal:|mural:|sky|ceu/i;
+const NAO_PINTA = new RegExp([
+  'vidro|glass|window|janela',            // vidro: cartaz em vidro foi a reclamação nº 1
+  'agua|water|pool_water',
+  'flag|bandeira|placa_|sign|tela|screen|led|farol|light|lamp',
+  'decal:|mural:|sky|ceu',
+  /* ── LONA NÃO É PAREDE (07/08, os 12 prints do dono) ──────────────────────────
+     "alguns estão renderizados no ar, e não em prédios de verdade". Medido na
+     Quebrada: 15 peças na tenda de cúpula, 3 no guarda-sol do boteco, 3 na
+     arquibancada e 1 na barraca de feira. Todas passavam no `_encaixar` — a face de
+     um toldo É plana e sólida — e todas leem como pintura pairando, porque abaixo
+     delas não há prédio. A regra do chão (`_temChao`) pega o caso geral; esta lista
+     pega o caso em que a lona VAI até o chão e mesmo assim ninguém picharia. */
+  'tent|tenda|barraca|umbrella|guarda_sol|sombrinha',
+  'stall|banca|toldo|awning|canopy|marquise|lona|tarp',
+  'arquibancada|bleacher|palco|stage',
+].join('|'), 'i');
 
 function _pintavel(o) {
   if (!o.isMesh || !o.visible || !o.material || !o.geometry) return false;
-  if (NAO_PINTA.test(String(o.name))) return false;
+  /* Testa a CADEIA de nomes, não só o da malha: num GLB do Tripo a malha se chama
+     `tripo_node_<uuid>` e quem carrega `Weathered_Green_Dome_Tent` é o grupo pai.
+     Testando só `o.name`, metade da lista de exclusão nunca casaria. */
+  if (NAO_PINTA.test(_cadeia(o))) return false;
   const teste = (m) => m && m.visible !== false
     && !(m.transparent && (m.opacity === undefined || m.opacity < 0.9));
   return Array.isArray(o.material) ? o.material.some(teste) : teste(o.material);
@@ -196,8 +214,24 @@ export function pintarParedes(opts) {
   const {
     root, T, waypoints, bandas,
     alcance = 7, passo = 2.2, raios = 16, cobre = 0.25,
-    excluir = null, seed = 1, maxLarg = 5.2, minLarg = 0.45,
+    excluir = null, limpo = null, evitar = null, seed = 1, maxLarg = 5.2, minLarg = 0.45,
+    exigeChao = true,
   } = opts;
+  /* ZONA LIMPA — parede que o dono quer SEM tinta, declarada em coordenada.
+     Nasceu da Loja H (07/08): "pode tirar os graffitis de dentro da loja, pode deixar
+     só na parte de fora que ficou boa". 74% das peças do mapa estavam lá dentro.
+     Ela é declarada UMA vez, no `grafitar` do mapa, e viaja no layout assado — a
+     `graffiti-census` lê de lá pra não cobrar tinta de parede que ninguém quer
+     pintada. Duas listas separadas (uma no mapa, outra na régua) virariam duas
+     verdades sobre a mesma decisão, e a régua acusaria dívida eterna. */
+  const _naZona = (x, z) => !!limpo && limpo.some((b) =>
+    x >= b.x0 && x <= b.x1 && z >= b.z0 && z <= b.z1);
+  /* SUPERFÍCIE QUE NÃO SE PICHA — por tipo, não por lugar (Ferro Velho, 07/08:
+     "não faz sentido grafite nos carros e na grama, só nas paredes em volta e no
+     escritório"). A zona limpa resolve "aqui não"; isto resolve "nisto não", que é
+     outra pergunta: a lataria empilhada está NO MEIO do pátio que deve ser pichado.
+     O teste é na CADEIA de nomes (malha + ancestrais) porque a malha de um GLB se
+     chama `tripo_node_<uuid>` e quem carrega o nome do prop é o grupo pai. */
   if (!root || !T || !T.decals || !T.decalAspects || !waypoints || !waypoints.length) {
     return { ancoras: 0, pecas: 0 };
   }
@@ -238,8 +272,10 @@ export function pintarParedes(opts) {
         const k = `${Math.round(h.point.x / passo)}|${Math.round(h.point.z / passo)}|`
           + `${Math.round(ry / (Math.PI / 4))}`;
         if (ancoras.has(k)) continue;
+        if (_naZona(h.point.x, h.point.z)) continue;
+        if (evitar && evitar.test(_cadeia(h.object))) continue;
         if (excluir && excluir(h.point.x, h.point.y, h.point.z, nw, h.object)) continue;
-        ancoras.set(k, { x: h.point.x, z: h.point.z, ry, teto: 0 });
+        ancoras.set(k, { x: h.point.x, z: h.point.z, ry, teto: 0, quem: _cadeia(h.object) });
       }
     }
   }
@@ -270,7 +306,7 @@ export function pintarParedes(opts) {
   /* CONTADOR DE RECUSA. Cobertura baixa tem 5 causas possíveis e elas pedem
      correções OPOSTAS (banda errada × parede lombada × peça grande demais). Sem
      separar, "43% e não sei por quê" vira tentativa e erro. Sai no relatório. */
-  const rec = { semTeto: 0, sorteio: 0, curta: 0, semParede: 0, cobria: 0, vazia: 0 };
+  const rec = { semTeto: 0, sorteio: 0, curta: 0, semParede: 0, cobria: 0, noAr: 0, vazia: 0 };
   const vazias = [];
 
   for (const [, A] of lista) {
@@ -317,7 +353,8 @@ export function pintarParedes(opts) {
         const ax = A.x + Math.cos(A.ry) * du, az = A.z - Math.sin(A.ry) * du;
         const px = ax - Math.sin(A.ry) * recuo, pz = az - Math.cos(A.ry) * recuo;
         if (_cobreDemais(postas, px, yc, pz, A.ry, w, h, cobre)) { rec.cobria++; continue; }
-        postas.push({ i, cartaz, x: px, y: yc, z: pz, ry: A.ry, hw: w / 2, hh: h / 2 });
+        if (exigeChao && !_temChao(amostra, du, w, yc - h / 2)) { rec.noAr++; continue; }
+        postas.push({ i, cartaz, x: px, y: yc, z: pz, ry: A.ry, hw: w / 2, hh: h / 2, quem: A.quem });
         const g = new THREE.PlaneGeometry(w, h);
         g.rotateY(A.ry); g.translate(px, yc, pz);
         const chave = (cartaz ? 'p' : 'd') + i;
@@ -348,7 +385,14 @@ export function pintarParedes(opts) {
   });
   return {
     ancoras: ancoras.size, pecas: n, malhas: meshes, recusa: rec, tempo,
-    alvos: alvos.length, layout: { arquivos, pecas }, vazias,
+    alvos: alvos.length, layout: { arquivos, pecas, limpo: limpo || undefined },
+    /* EM QUE SUPERFÍCIE A TINTA CAIU. Diagnóstico, não decoração: o dono reprovou
+       "peça no ar" e a regra de chão só pegou 26 de 1.547 — sem saber o NOME do que
+       está recebendo tinta não dá pra distinguir "toldo de barraca" de "empena". */
+    superficies: Object.entries(postas.reduce((a, p) => {
+      const k = (String(p.quem || '').match(/[A-Za-z_]{4,}/g) || ['?']).slice(0, 2).join('/');
+      a[k] = (a[k] || 0) + 1; return a;
+    }, {})).sort((x, y) => y[1] - x[1]).slice(0, 18), vazias,
   };
 }
 
@@ -397,6 +441,46 @@ export function aplicarGrafite(root, T, layout, muraisTex) {
     murais++;
   }
   return { pecas: postas.length, malhas, murais, assado: true };
+}
+
+/* ── A PAREDE TEM QUE CHEGAR AO CHÃO ─────────────────────────────────────────
+   Reprovação do dono (07/08, com 12 prints): "ficou muito bom, mas alguns estão
+   renderizados no ar, e não em prédios de verdade; eu sei que muitos modelos GLB
+   têm a área quadrada, mas visualmente fica ruim".
+
+   Ele descreveu a causa junto: o `_encaixar` só pergunta "tem superfície plana ATRÁS
+   deste quad?". Toldo, lona, marquise, laje de arquibancada e a face lisa da caixa
+   de um GLB respondem SIM — são superfície plana de verdade. Só que abaixo delas não
+   há prédio nenhum, e o jogador lê uma pintura pairando.
+
+   A pergunta que faltava é vertical: DESCE ATÉ O CHÃO? Da base da peça pra baixo, de
+   45 em 45 cm, o mesmo amostrador confere se ainda há superfície na mesma faixa de
+   profundidade. Três colunas, e bastam 2 chegarem — porta e janela abrem vão legítimo
+   embaixo de muro pichado, e reprovar por causa de uma porta seria trocar um defeito
+   por outro. Custa quase nada: o amostrador é cacheado por âncora.
+
+   `exigeChao: false` existe para o caso que ainda não apareceu — parede suspensa que
+   o mapa QUEIRA pichada. Nenhum mapa usa hoje. */
+function _temChao(amostra, du, w, yBase) {
+  if (yBase <= 0.9) return true;                 // já nasce rente ao chão
+  let colunas = 0;
+  for (const su of [-0.35, 0, 0.35]) {
+    let desce = true;
+    for (let y = yBase - 0.45; y >= 0.45; y -= 0.45) {
+      if (amostra(du + su * w, y) === null) { desce = false; break; }
+    }
+    if (desce) colunas++;
+  }
+  return colunas >= 2;
+}
+
+/* Nome da malha + o de todos os ancestrais, colado. É onde mora o id do prop:
+   `placeProp('junk_car')` devolve um grupo com esse nome e a malha dentro dele se
+   chama `tripo_node_<uuid>`, que não diz nada. */
+function _cadeia(o) {
+  let n = String(o.name || '');
+  for (let p = o.parent; p; p = p.parent) n += '/' + String(p.name || '');
+  return n;
 }
 
 function _h(s) { let v = 0; for (let i = 0; i < s.length; i++) v = (v * 31 + s.charCodeAt(i)) | 0; return v >>> 0; }
@@ -466,8 +550,17 @@ function _grade(alvos, cel = 6) {
 export function pendurarMurais(opts) {
   const {
     root, T, waypoints, texturas, nomes = [], alcance = 9, passo = 3.0,
-    larg = 5.4, alt = 2.8, minLarg = 3.0, separacao = 14, seed = 7, excluir = null,
+    larg = 5.4, alt = 2.8, minLarg = 3.0, separacao = 14, seed = 7, excluir = null, limpo = null,
+    evitar = null,
   } = opts;
+  const _naZona = (x, z) => !!limpo && limpo.some((b) =>
+    x >= b.x0 && x <= b.x1 && z >= b.z0 && z <= b.z1);
+  /* SUPERFÍCIE QUE NÃO SE PICHA — por tipo, não por lugar (Ferro Velho, 07/08:
+     "não faz sentido grafite nos carros e na grama, só nas paredes em volta e no
+     escritório"). A zona limpa resolve "aqui não"; isto resolve "nisto não", que é
+     outra pergunta: a lataria empilhada está NO MEIO do pátio que deve ser pichado.
+     O teste é na CADEIA de nomes (malha + ancestrais) porque a malha de um GLB se
+     chama `tripo_node_<uuid>` e quem carrega o nome do prop é o grupo pai. */
   if (!root || !texturas || !texturas.length || !waypoints || !waypoints.length) return { murais: 0 };
 
   root.updateMatrixWorld(true);
@@ -494,6 +587,8 @@ export function pendurarMurais(opts) {
       const ry = Math.atan2(nw.x, nw.z);
       const k = `${Math.round(h.point.x / passo)}|${Math.round(h.point.z / passo)}|${Math.round(ry / (Math.PI / 4))}`;
       if (cand.has(k)) continue;
+      if (_naZona(h.point.x, h.point.z)) continue;
+      if (evitar && evitar.test(_cadeia(h.object))) continue;
       if (excluir && excluir(h.point.x, h.point.y, h.point.z, nw, h.object)) continue;
       cand.set(k, { x: h.point.x, z: h.point.z, ry });
     }
@@ -521,8 +616,12 @@ export function pendurarMurais(opts) {
     const w = Math.min(larg, c.wP - 0.5), h = Math.min(alt, w * alt / larg, c.hP - 0.7);
     if (w < minLarg || h < 1.4) continue;
     const yc = Math.min(1.15 + h / 2, c.hP - h / 2 - 0.35);
-    const rec = _encaixar(perto(c.A.x, c.A.z), rc, c.A, yc, w, h);   // mesmo teste da passada
+    /* Mural pairando é pior que tag pairando — ele é grande e o olho vai nele. Mesma
+       regra de chão da passada (ver `_temChao`). */
+    const am = _amostrador(perto(c.A.x, c.A.z), rc, c.A);
+    const rec = _encaixar(null, rc, c.A, yc, w, h, am);
     if (rec === null) continue;
+    if (!_temChao(am, 0, w, yc - h / 2)) continue;
     const px = c.A.x - Math.sin(c.A.ry) * rec, pz = c.A.z - Math.cos(c.A.ry) * rec;
     const i = feitos.length;
     const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshLambertMaterial({

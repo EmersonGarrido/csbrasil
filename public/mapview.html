@@ -21,6 +21,7 @@ const MAP = resolveMapId(qp.get('map'));
 // `?grafite=vivo` faz o mapa RODAR a passada de grafite (segundos) em vez de aplicar
 // o layout assado. É como o tools/gen-graffiti-layout.mjs colhe a colocação.
 if (qp.get('grafite') === 'vivo') window.__grafiteLive = true;
+window.__mapId = MAP;   // a régua de grafite lê a zona limpa do layout por este id
 const W = innerWidth, H = innerHeight;
 const hud = document.getElementById('hud');
 
