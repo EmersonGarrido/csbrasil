@@ -459,6 +459,30 @@ function _pick(kind, key) {
 function _picks(lote) {
   try { navigator.sendBeacon('/api/pick', new Blob([JSON.stringify({ picks: lote })], { type: 'application/json' })); } catch { /* idem */ }
 }
+/* PRESENÇA ANÔNIMA — o que o "N online" do rodapé passou a contar (07/08).
+   Antes o único sinal de presença era o `/api/heartbeat`, que exige nick + token e
+   só dispara com `game && registeredNick`: jogador REGISTRADO e DENTRO de partida.
+   Com o site no ar, a Vercel Analytics mostrava 8 pessoas e o rodapé mostrava
+   nada — as duas medidas certas, contando coisas diferentes, e a maioria nunca
+   digita nick.
+
+   `anonId` é o MESMO UUID da telemetria (navegador, não pessoa). Só pinga com a
+   aba VISÍVEL: aba de fundo esquecida por horas inflaria o contador, e número
+   inflado num rodapé de social proof é pior que número pequeno.
+   45 s contra a janela de 2 min da view (migration 014): perder um pacote não
+   apaga ninguém da conta. */
+function _pingPresenca() {
+  if (testMode) return;
+  if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
+  const payload = JSON.stringify({ anonId: getAnonId() });
+  try {
+    const blob = new Blob([payload], { type: 'application/json' });
+    if (!navigator.sendBeacon('/api/presence', blob)) api('/api/presence', JSON.parse(payload));
+  } catch { /* presença nunca atrapalha o jogador */ }
+}
+_pingPresenca();
+setInterval(_pingPresenca, 45_000);
+
 async function _refreshOnline() {
   try {
     const r = await fetch('/api/online');
