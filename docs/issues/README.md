@@ -1,6 +1,6 @@
 # Tarefas boas pra primeira contribuição
 
-15 issues escritas pra serem **coladas direto no GitHub**. Cada arquivo é uma
+21 issues escritas pra serem **coladas direto no GitHub**. Cada arquivo é uma
 issue completa: contexto, o que fazer, critério de aceite e quais arquivos
 tocar. Nenhuma delas depende de conhecimento tácito que não esteja escrito.
 
@@ -12,7 +12,7 @@ primeira linha (`# …`).
 ```bash
 bash docs/issues/abrir-issues.sh --dry-run   # imprime título + labels, não abre nada
 bash docs/issues/abrir-issues.sh --labels    # cria as 8 labels usadas
-bash docs/issues/abrir-issues.sh             # abre as 15
+bash docs/issues/abrir-issues.sh             # abre as 21
 ```
 
 O script **não foi executado por ninguém**: o repositório é público e é do dono,
@@ -27,6 +27,9 @@ fonte.
 |---|---|
 | 30 min | [01](01-hreflang-e-og-locale.md) · [11](11-api-config-morta.md) |
 | 1 h | [06](06-skip-link-e-foco.md) · [07](07-404-personalizada.md) · [08](08-vendorizar-leaflet.md) · [09](09-atomizar-city-daily.md) · [10](10-validar-charset-do-nick.md) · [14](14-changelog-anchors.md) |
+| 30 min | [17](17-layout-de-grafite-pode-citar-arquivo-que-nao-existe.md) · [21](21-flags-de-viewmodel-somem-em-producao-sem-aviso.md) |
+| 1 h | [18](18-poda-do-build-nao-tem-regua.md) · [19](19-aspecto-de-6-cartazes-esta-errado.md) |
+| 2-3 h | [16](16-censo-de-grafite-so-mede-na-altura-do-olho.md) · [20](20-changelog-das-27-versoes-sem-entrada.md) |
 | 2-3 h | [02](02-sitemap-index.md) · [03](03-og-image-por-pagina.md) · [04](04-pagina-faccao.md) · [05](05-tabela-comparativa-armas.md) · [12](12-skills-lock-verificar-hash.md) · [13](13-aposentar-evals-obsoletos.md) · [15](15-teste-de-fumaca-do-site.md) |
 
 ## Por área
@@ -71,3 +74,21 @@ npm run build        # o site tem que buildar
 Esse é o código onde os agentes de gameplay trabalham em paralelo e onde a
 tabela de conflito do `tools/eval/ARCH.md` manda. A única que chega perto é a
 10, e ela diz explicitamente pra combinar antes.
+
+## Leva de 07/08 (16-21)
+
+Saíram todas de defeito **medido** durante a rodada de arte urbana e do Bloco 1 da
+trilha — nenhuma é especulação:
+
+- **[16](16-censo-de-grafite-so-mede-na-altura-do-olho.md)** — a régua de cobertura mede
+  só a 1,6 m, então a faixa de empena da passada é invisível para ela.
+- **[17](17-layout-de-grafite-pode-citar-arquivo-que-nao-existe.md)** — o layout assado
+  pode citar PNG que saiu do pacote; hoje isso é um `console.warn` e peças somem caladas.
+- **[18](18-poda-do-build-nao-tem-regua.md)** — nada confere que os 154 MB de viewmodel
+  ficaram fora do publicado.
+- **[19](19-aspecto-de-6-cartazes-esta-errado.md)** — 6 dos 26 cartazes têm proporção
+  declarada errada (um deles 46% fora): a arte está esticada na parede AGORA.
+- **[20](20-changelog-das-27-versoes-sem-entrada.md)** — só documentação, boa para
+  primeira contribuição sem tocar em código.
+- **[21](21-flags-de-viewmodel-somem-em-producao-sem-aviso.md)** — efeito colateral
+  declarado da poda do build, sem mensagem para quem esbarra nele.
