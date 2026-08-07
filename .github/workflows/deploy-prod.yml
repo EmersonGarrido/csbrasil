@@ -14,7 +14,8 @@ jobs:
     environment: production
     steps:
       - uses: actions/checkout@v4
-        with: { ref: ${{ github.event.release.tag_name }} }
+        with:
+          ref: ${{ github.event.release.tag_name }}
       - uses: actions/setup-node@v4
         with: { node-version: 22 }
       - run: npm i -g vercel@latest

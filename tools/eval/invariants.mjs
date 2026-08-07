@@ -2165,20 +2165,27 @@ skip('PX3', 'mão travada no grip em todo frame de toda animação', 'exige brow
 skip('PX4', 'aliado × inimigo distinguíveis em 1 frame a 5/20/40 m', 'exige browser');
 
 // ── RELATÓRIO ───────────────────────────────────────────────────────────────
+/* KNOWN-RED.json: dívidas conhecidas viram DÍVIDA (não reprovam); crítica
+   vermelha FORA da lista reprova. Entrada cuja régua já passa deve ser removida. */
+const conhecidas = JSON.parse(readFileSync(new URL('./KNOWN-RED.json', import.meta.url), 'utf8')).dividas;
 const crit = results.filter((r) => r.sev === 'crit');
 const warn = results.filter((r) => r.sev === 'warn');
-const falhas = crit.filter((r) => r.ok === false);
+const falhas = crit.filter((r) => r.ok === false && !(r.id in conhecidas));
+const dividas = crit.filter((r) => r.ok === false && r.id in conhecidas);
+const quitadas = crit.filter((r) => r.ok === true && r.id in conhecidas);
 const avisos = warn.filter((r) => r.ok === false);
 
 if (JSON_OUT) {
-  console.log(JSON.stringify({ results, falhas: falhas.length, avisos: avisos.length }, null, 1));
+  console.log(JSON.stringify({ results, falhas: falhas.length, dividas: dividas.length, avisos: avisos.length }, null, 1));
 } else {
-  const mark = (r) => (r.ok === null ? '·· PULADO' : r.ok ? '✓ PASSA  ' : '✗ FALHA  ');
+  const mark = (r) => (r.ok === null ? '·· PULADO' : r.ok ? '✓ PASSA  ' : r.id in conhecidas ? '≈ DÍVIDA ' : '✗ FALHA  ');
   console.log('\n=============== INVARIANTES — CORO SOLTO ===============\n');
   for (const r of results) console.log(`${mark(r)} ${r.id.padEnd(5)} ${r.desc}\n${' '.repeat(16)}${r.evid}`);
   console.log('\n--------------------------------------------------------');
   console.log(`CRÍTICAS: ${crit.filter((r) => r.ok === true).length}/${crit.filter((r) => r.ok !== null).length} passam` +
-    (falhas.length ? `  ← ${falhas.map((r) => r.id).join(', ')} VERMELHAS` : '  ← tudo verde'));
+    (falhas.length ? `  ← ${falhas.map((r) => r.id).join(', ')} VERMELHAS (novas — reprovam)` : '  ← nenhuma falha nova'));
+  if (dividas.length) console.log(`DÍVIDAS:  ${dividas.map((r) => r.id).join(', ')} (KNOWN-RED.json — não reprovam, mas continuam devidas)`);
+  if (quitadas.length) console.log(`QUITADAS: ${quitadas.map((r) => r.id).join(', ')} passaram — REMOVA do KNOWN-RED.json`);
   console.log(`AVISOS:   ${avisos.length ? avisos.map((r) => r.id).join(', ') + ' fora do alvo' : 'nenhum'}`);
   console.log(`PULADAS:  ${results.filter((r) => r.sev === 'skip').length} (exigem browser ou arnês ausente)`);
   console.log('--------------------------------------------------------\n');

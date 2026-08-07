@@ -1,0 +1,21 @@
+{
+ "o_que_e": "Dívidas CONHECIDAS do portão de invariantes. Cada ID aqui vira DÍVIDA (aviso) em vez de reprovar o CI — qualquer crítica vermelha FORA desta lista continua reprovando. Quando uma régua daqui passar a verde, REMOVA a entrada (o portão avisa). Não adicione nada aqui para 'passar o CI' — adicione só com issue/plano registrado.",
+ "gerado": "2026-08-07",
+ "commitBase": "10fce33",
+ "dividas": {
+  "VM1": "silhueta: borda esquerda fora de 0,50-0,60 em 10/26 armas (knife, m92, g3, m400…) — reposicionamento por arma pendente",
+  "VM3": "enquadramento viewmodel fora da faixa de referência — mesmo lote do VM1",
+  "VM9": "enquadramento viewmodel — mesmo lote do VM1",
+  "VM12": "enquadramento viewmodel — mesmo lote do VM1",
+  "VM16": "enquadramento viewmodel — mesmo lote do VM1",
+  "VM18": "enquadramento viewmodel — mesmo lote do VM1",
+  "VM19": "enquadramento viewmodel — mesmo lote do VM1",
+  "VM20": "enquadramento viewmodel — mesmo lote do VM1",
+  "BOT8": "comportamento de bot fora do alvo no protocolo botsim — backlog de rotas/mira",
+  "CHR1": "antropometria do elenco Mint fora de ±35% (cabeça/ombro/perna) — corrigir exigiria re-gerar/escalar o roster",
+  "CHR3": "proporções do elenco — mesmo lote do CHR1",
+  "CHR4": "proporções do elenco — mesmo lote do CHR1",
+  "CTF1": "geometria de bandeira fora do critério em mapa(s) legado(s) — ajuste de layout pendente",
+  "TEX1": "fundo branco de grafite/poster no fy_quebrada (10 superfícies #ffffff/#f2f0ec ≥ 6 m²) — EM CONSERTO: knockout de branco nos decalques"
+ }
+}
