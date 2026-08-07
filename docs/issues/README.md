@@ -1,6 +1,6 @@
 # Tarefas boas pra primeira contribuição
 
-21 issues escritas pra serem **coladas direto no GitHub**. Cada arquivo é uma
+26 issues escritas pra serem **coladas direto no GitHub**. Cada arquivo é uma
 issue completa: contexto, o que fazer, critério de aceite e quais arquivos
 tocar. Nenhuma delas depende de conhecimento tácito que não esteja escrito.
 
@@ -12,7 +12,7 @@ primeira linha (`# …`).
 ```bash
 bash docs/issues/abrir-issues.sh --dry-run   # imprime título + labels, não abre nada
 bash docs/issues/abrir-issues.sh --labels    # cria as 8 labels usadas
-bash docs/issues/abrir-issues.sh             # abre as 21
+bash docs/issues/abrir-issues.sh             # abre as 26
 ```
 
 O script **não foi executado por ninguém**: o repositório é público e é do dono,
@@ -92,3 +92,22 @@ trilha — nenhuma é especulação:
   primeira contribuição sem tocar em código.
 - **[21](21-flags-de-viewmodel-somem-em-producao-sem-aviso.md)** — efeito colateral
   declarado da poda do build, sem mensagem para quem esbarra nele.
+
+## Leva de automação e arnês (22-26)
+
+O que estas cinco têm em comum: são **mecanismo**, não conserto. Cada uma fecha um buraco
+onde hoje o projeto depende de alguém lembrar de fazer a coisa certa — e memória de pessoa
+não é mecanismo.
+
+- **[22](22-o-layout-de-grafite-pode-envelhecer-em-silencio.md)** — o layout de grafite é
+  assado; mexer no mapa sem regerar deixa tinta colada onde a parede estava ontem, e nenhum
+  portão vê.
+- **[23](23-as-reguas-de-navegador-estao-fora-do-portao.md)** — o `npm run check` inteiro
+  roda em node, que é cego para GLB. Foi essa cegueira que deixou 238 decalques morrerem
+  calados.
+- **[24](24-o-ratchet-de-dividas-so-cresce.md)** — nada impede o `KNOWN-RED.json` de
+  crescer. Ratchet que anda para os dois lados é lista de desculpas.
+- **[25](25-feedback-nao-notifica-ninguem.md)** — o form grava no banco e não avisa
+  ninguém. Descoberto do jeito mais direto: o dono enviou e não recebeu nada.
+- **[26](26-mutation-testing-automatizado.md)** — a T4 da trilha. Régua que parou de morder
+  continua imprimindo verde, e hoje só um humano lembrando descobre isso.
