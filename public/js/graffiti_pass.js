@@ -314,6 +314,27 @@ export function pintarParedes(opts) {
   const postas = (ocupado || []).map((p) => ({
     x: p.x, y: p.y, z: p.z, ry: p.ry, hw: p.w / 2, hh: p.h / 2, i: -1, semente: true,
   }));
+  /* ── O QUE JÁ ESTÁ NA PAREDE TAMBÉM É VAGA OCUPADA ──────────────────────────
+     Os 5 mapas colam decalques À MÃO antes desta passada rodar (porta de aço, muro
+     do baile, parede de armários do Piscinão). A passada não sabia deles, e o
+     resultado saiu na `graffiti-audit`: 274 sobreposições no Piscina, 107 na Loja H
+     — a passada pintando por cima da vaga escolhida a dedo, que é justamente a que
+     não deveria ser coberta.
+     Varrer o `root` aqui resolve pros cinco de uma vez, sem fiação por mapa: quem
+     colar peça nova antes do `grafitar` fica protegido automaticamente. */
+  root.traverse((o) => {
+    if (!o.isMesh) return;
+    const n = String(o.name);
+    if (!n.startsWith('decal:') && !n.startsWith('mural:')) return;
+    const g = o.geometry && o.geometry.parameters;
+    if (!g || !g.width) return;                       // malha junta de outra passada
+    o.updateMatrixWorld(true);
+    const pos = o.getWorldPosition(new THREE.Vector3());
+    postas.push({
+      x: pos.x, y: pos.y, z: pos.z, ry: o.rotation.y,
+      hw: g.width / 2, hh: g.height / 2, i: -1, semente: true,
+    });
+  });
   const porArquivo = new Map();                             // i -> [geometrias]
   let n = 0;
   /* CONTADOR DE RECUSA. Cobertura baixa tem 5 causas possíveis e elas pedem
