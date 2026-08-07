@@ -10,16 +10,23 @@
 
 ## Agora (fecha o release v2)
 
-1. **Bloco 1 da trilha (T1–T3)** — o que quebra calado em produção:
-   asserção pós-fetch de áudio/decalques, tirar os 154 MB de `fpvm` do publicado,
-   build limpo do zero. *Plano revisado em 07/08 — ver correções na seção
-   "Plano do Bloco 1" abaixo.*
-2. **Paridade de grafite em produção** — prod builda do git puro e o acervo de
-   decalques (gitignored por procedência) dá 404: só as peças originais `or-*`
-   existem lá. Caminho: continuar gerando levas `or-*` via OpenRouter
-   (`tools/gen-image.mjs`) até aposentar o acervo baixado da web. A cobertura
-   procedural já existe (map_quebrada/piscina/havan/ferrovelho); falta volume de
-   peça própria e o adensamento da Brasília.
+1. **REPUBLICAR O PACOTE DE DECALQUES** — *bloqueia deploy*. O `decals-pack-v1`
+   tem **174** arquivos e o `DECAL_FILES` do textures.js pede **196**: os 22
+   `folha-*` (pixação, throw-up, stencil, lambe, personagem) nunca foram
+   republicados. Em produção eles dão 404 hoje — **513 das 4.671 peças de grafite
+   somem, 30% da Quebrada**. Quem achou foi a asserção do T1 no build limpo; antes
+   dela ninguém tinha como ver. O zip corrigido já monta com
+   `node -e` a partir de `public/img/decals` (196 arquivos, 9,4 MB). Falta: subir
+   como `decals-pack-v2` e apontar `scripts/fetch-decals.sh` pra ele. Enquanto não
+   subir, `npm run assert:assets` reprova o build — de propósito.
+   *(O manifest de áudio publicado também está 2 caminhos atrás: 306 contra 308.
+   Passa no piso de 250, então não bloqueia.)*
+2. **Paridade de grafite em produção** — o acervo é gitignored por procedência, então
+   prod depende do pacote acima. Caminho de longo prazo continua: gerar levas `or-*`
+   via OpenRouter (`tools/gen-image.mjs`) até aposentar o acervo baixado da web.
+   A cobertura procedural fechou em 07/08 (`graffiti_pass.js` + layout assado):
+   piscina 99,1% · ferrovelho 95,7% · loja H 89,6% · quebrada 88,7% · brasília 88,5%,
+   medido por `npm run eval:grafite`.
 3. **Aplicar a migration `013_feedback.sql` no Supabase de prod** — o form de
    FEEDBACK do menu (semente da newsletter) responde "indisponível" até isso.
 4. **BOT8 / BUG-03** — bot com linha de visão no jogador por segundos sem atirar.
@@ -45,25 +52,25 @@
 - **Monetização** — doações + anúncios próprios + portais (CrazyGames/itch:
   `frame-ancestors` já liberado, falta o pacote de submissão).
 
-## Plano do Bloco 1 — revisão de 07/08
+## Bloco 1 — FECHADO em 07/08
 
-O plano (T1–T3) está **aprovado no desenho** — asserção sempre (inclusive no
-early-exit da sentinela), poda pós-build em vez de mover `public/`, clone
-descartável como Vercel-símile. Três correções de fato, porque o repo mudou
-embaixo dele em 07/08:
+T1, T2 e T3 entregues e provados. O que ficou de pé:
 
-1. **`DECAL_FILES` não tem mais 174 entradas fixas**: são 174 estáticas + 12
-   `or-*` via `push` (total 196 em runtime, e vai crescer). O assert de decals
-   deve extrair a lista COMPLETA em runtime (import do módulo em node, não parse
-   das linhas 535-712) e tratar as duas classes: `or-*` vêm do GIT (falta = clone
-   quebrado), o resto vem do PACK (falta = fetch quebrado).
-2. **A sentinela do `fetch-decals.sh` foi corrigida em 07/08** ("tem >0 PNG"
-   passaria sempre num clone fresco, porque os `or-*` versionados já chegam com o
-   clone — o pack nunca baixaria). Já conta só o acervo (`grep -cv '/or-'`). O
-   assert do T1 continua necessário por cima disso.
-3. **O piso de entradas do manifest de áudio (≥250)** precisa ser re-medido na
-   execução com o método documentado no próprio script — o número do plano (306)
-   foi medido com outro contador; a forma da medição importa mais que o valor.
+- **T1** `npm run assert:assets` (`tools/eval/assets-check.mjs`) no `buildCommand` da
+  Vercel, entre os fetches e o build. Conta FOLHA DE STRING no manifest (o método
+  importa mais que o número: o mesmo arquivo dá 309 por item de lista e 9 por chave de
+  topo; por folha dá 308 no real e 62 no exemplo — piso 250). Decalques saem do módulo
+  importado em node, não de parse de linha, e com diagnóstico por classe (`or-*` do git
+  × acervo do pack). Provado com um zip SEM manifest servido em localhost: o
+  `fetch-audio.sh` diz "Pronto" e sai 0, e a régua reprova nomeando a linha 23.
+- **T2** `scripts/prune-dist.mjs` no fim do build: `models/fpvm` sai do `dist/client`
+  E do espelho `.vercel/output/static` (154,3 MB em cada). `dist/client` 625 → 488 MB.
+  Custo declarado: `?tripovm=1` e `?tvm=1` só valem em dev. `KEEP_FPVM=1` desliga.
+- **T3** feito em clone descartável (Vercel-símile), que é o que achou os dois defeitos
+  reais desta rodada: o pacote de decalques desatualizado (item 1 do "Agora") e o
+  atalho do `three` que o harness plantava FORA do projeto — um clone velho em
+  /tmp deixava o link pendurado e qualquer checkout novo nascia com as 150 réguas de
+  `tools/eval` quebradas, em silêncio.
 
 ## Como contribuir
 
