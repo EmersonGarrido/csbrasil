@@ -1176,20 +1176,27 @@ export function buildQuebrada(scene, T) {
        (respawn olha direto pra elas) e 2 no muro do baile. Plano 2 cm à frente da
        face do muro (sem z-fight), sem colisor — muro continua sendo o colisor. */
     if (T.muraisHom && T.muraisHom.length >= 8) {
-      const GW = 3.9, GH = 2.0, GY = 1.12;   // muro tem 2,2 m; mural de 2,0 encosta no chão visual
+      /* ESPALHADOS (correção do dono, 07/08: "colocou tudo no mesmo lugar — a ideia
+         era espalhado"): um por REGIÃO do mapa, pra topar com eles JOGANDO, não
+         numa galeria só. Cada vaga passa pelo mesmo `medirParede` dos decalques:
+         empena sem parede real naquele ponto → mural não cola (nada de arte no ar). */
+      const GW = 3.9, GH = 2.0, GY = 1.12;
       const vagas = [
-        [0, -12, GY, 27.72, Math.PI],  // campinho, face da travessa (z<28)
-        [1, 0, GY, 27.72, Math.PI],
-        [2, 12, GY, 27.72, Math.PI],
-        [3, -12, GY, 28.28, 0],        // campinho, face do campo (z>28)
-        [4, 0, GY, 28.28, 0],
-        [5, 12, GY, 28.28, 0],
-        [6, -24, GY, -39.72, 0],       // muro do baile, face da rua
-        [7, -10, GY, -39.72, 0],
+        [0, -12.43, GY, -30, Math.PI / 2],   // Chorão — fachada oeste da avenida, ponta do baile
+        [1, -21.07, GY, -18, -Math.PI / 2],  // Champignon — viela oeste
+        [2, 12.43, GY, -8, -Math.PI / 2],    // Tim Maia — fachada leste da avenida, meio
+        [3, 24.93, GY, 8, -Math.PI / 2],     // Rita Lee — muro externo leste
+        [4, 0, GY, 27.72, Math.PI],          // Raul — travessa do campinho (a vaga aprovada no print)
+        [5, -24.93, GY, -2, Math.PI / 2],    // Sabotage — muro externo oeste
+        [6, -14, GY, -39.72, 0],             // Yuka — muro do baile
+        [7, 21.07, GY, 18, Math.PI / 2],     // Chico Science — viela leste
       ];
       for (const [i, gx, gy, gz, ry] of vagas) {
+        const rec = medirParede([root], gx, gy, gz, ry, GW, GH);   // gy JÁ é o centro do plano
+        if (rec === null) continue;
         const g = new THREE.Mesh(new THREE.PlaneGeometry(GW, GH), lam({ map: T.muraisHom[i] }));
-        g.position.set(gx, gy, gz); g.rotation.y = ry; g.renderOrder = 2;
+        g.position.set(gx - Math.sin(ry) * rec, gy, gz - Math.cos(ry) * rec);
+        g.rotation.y = ry; g.renderOrder = 2;
         g.name = 'mural:homenagem-' + i;
         g.receiveShadow = true;
         root.add(g);
@@ -1343,6 +1350,63 @@ export function buildQuebrada(scene, T) {
   for (const x of [-9, 1, 8]) decal(D_CARTAZERA, x, 0.5, 28.22, 0, 1.4, 2.0);
   for (const x of [-26, -15, -8]) decal(D_PIXO, x, 0.32, -39.73, 0, 1.4, 2.6);
   decal(D_CARTAZERA, -20.5, 0.5, -39.73, 0, 1.5, 2.2);
+
+  /* ===================== COBERTURA PROCEDURAL (dono, 07/08) =====================
+     "70-80% das superfícies tomadas — pixação, grafite, bombs, stencils, posters;
+     parede branca é desperdício, o mapa tem que passar clima urbano degradado."
+     As listas de coordenada acima nunca chegariam lá: são ~40 vagas escolhidas à
+     mão num mapa com ~100 lotes. Aqui a régua vira código: varre TODO lote
+     (`LOTES` guarda {x0,x1,z0,z1,h} de cada barraco construído), acha as faces
+     EXPOSTAS (face colada em outro lote a <0,6 m é divisa — peça lá é invisível
+     e só gasta draw call) e ladrilha a cada ~2,3 m com a gramática de rua:
+     pixo na faixa baixa, tag/throw-up no meio, lambe/stencil em altura de colar,
+     personagem/peça na faixa alta de lote alto. ~20% das vagas ficam vazias de
+     propósito (parede 100% coberta lê como papel de parede, não como rua).
+     O `decal()` continua passando por `medirParede`: peça sem parede real atrás
+     (vão, janela, recuo do GLB) morre em silêncio — o gerador pode propor à
+     vontade que só cola o que tem muro. */
+  {
+    const exposta = (lado, c, a0, a1) => {
+      for (const O of LOTES) {
+        if (lado === 'x-' && Math.abs(O.x1 - c) < 0.6 && O.z0 < a1 && O.z1 > a0) return false;
+        if (lado === 'x+' && Math.abs(O.x0 - c) < 0.6 && O.z0 < a1 && O.z1 > a0) return false;
+        if (lado === 'z-' && Math.abs(O.z1 - c) < 0.6 && O.x0 < a1 && O.x1 > a0) return false;
+        if (lado === 'z+' && Math.abs(O.z0 - c) < 0.6 && O.x0 < a1 && O.x1 > a0) return false;
+      }
+      return true;
+    };
+    let ck = 7, coladas = 0;
+    const TETO = 520;   // além disto é draw call queimada: o frustum não corta o passe de sombra
+    for (const L of LOTES) {
+      if (coladas >= TETO) break;
+      const faces = [
+        ['x-', L.x0, L.z0, L.z1, -Math.PI / 2],
+        ['x+', L.x1, L.z0, L.z1, Math.PI / 2],
+        ['z-', L.z0, L.x0, L.x1, Math.PI],
+        ['z+', L.z1, L.x0, L.x1, 0],
+      ];
+      for (const [lado, c, a0, a1, ry] of faces) {
+        const len = a1 - a0;
+        if (len < 1.8 || !exposta(lado, c, a0, a1)) continue;
+        for (let t = a0 + 1.0; t < a1 - 0.9 && coladas < TETO; t += 2.3) {
+          const k = mix32(++ck * 2246822519 ^ ((t * 8) | 0));
+          if (k % 10 < 2) continue;   // o respiro
+          const jit = ((k >> 4) % 7 - 3) * 0.11;
+          const x = lado[0] === 'x' ? c : t + jit;
+          const z = lado[0] === 'x' ? t + jit : c;
+          const r = k % 100;
+          let ok = null;
+          if (r < 36) ok = decal(D_PIXO, x, 0.22 + ((k >> 5) % 3) * 0.12, z, ry, 1.25 + ((k >> 7) % 3) * 0.22, 2.0);
+          else if (r < 56) ok = decal(D_TAG, x, 0.45, z, ry, 1.55, 1.9);
+          else if (r < 72) ok = decal(D_THROW, x, 0.75, z, ry, 1.35, 1.8);
+          else if (r < 84) ok = decal(D_CARTAZERA, x, 0.5, z, ry, 1.5, 1.4);
+          else if (L.h > 2.9) ok = decal(D_MURAL, x, 0.85, z, ry, Math.min(2.1, L.h - 1.1), 1.9);
+          else ok = decal(D_PERSO, x, 0.7, z, ry, 1.3, 1.6);
+          if (ok !== null && ok !== undefined) coladas++;
+        }
+      }
+    }
+  }
   /* O ABRIGO DO PONTO DE ÔNIBUS PERDEU OS DOIS LAMBE-LAMBES. Eles estavam colados nas
      COSTAS DE VIDRO do abrigo (`MAT_VIDRO`, x = -11,85, `collide: false`) — ou seja, em
      vidro e sem sólido nenhum atrás. É literalmente a reclamação do dono ("colocaste em

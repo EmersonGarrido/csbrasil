@@ -1505,6 +1505,21 @@ export function buildFerroVelho(scene, T) {
     for (const z of [-32, -14, 30]) decal(D_TAG, -31.40, 0.3, z, Math.PI / 2, 2.6, 4.5);   // muro oeste
     for (const z of [-32, -9, 16]) decal(D_TAG, 31.40, 0.3, z, -Math.PI / 2, 2.6, 4.5);    // muro leste
     for (const x of [-30, -8, 9, 30]) decal(D_MURAL, x, 0.3, 35.40, Math.PI, 2.6, 4.5);    // muro sul
+    /* ADENSAMENTO (dono, 07/08): peça menor nos vãos entre as grandes dos 4 muros —
+       intercalado, sem tocar chapa de zinco nem a seta ENTRADA (mesmos limites acima). */
+    {
+      let fk = 23;
+      for (const x of [-24, -19, -7, 10, 16, 24]) {
+        const k = (fk = (fk * 2654435761) >>> 0) >>> 8;
+        decal(k % 3 === 0 ? D_LAMBE : D_TAG, x, k % 2 ? 0.35 : 1.4, -35.40, 0, 1.5, 2.4);
+        decal(k % 3 === 1 ? D_LAMBE : D_TAG, x + 2, k % 2 ? 1.4 : 0.35, 35.40, Math.PI, 1.5, 2.4);
+      }
+      for (const z of [-26, -20, -6, 3, 10, 22, 27]) {
+        const k = (fk = (fk * 2654435761) >>> 0) >>> 8;
+        decal(D_TAG, -31.40, k % 2 ? 0.35 : 1.4, z, Math.PI / 2, 1.5, 2.4);
+        decal(D_TAG, 31.40, k % 2 ? 1.4 : 0.35, z + 2, -Math.PI / 2, 1.5, 2.4);
+      }
+    }
     /* GALPÃO DO ZÉ — é o marco do spawn B e a única alvenaria do mapa. Frente (2 peças),
        lateral oeste e o trecho de lateral leste que não é vão de porta. */
     for (const x of [-9, -1]) decal(D_MURAL, x, 0.3, -26.68, 0, 2.7, 5.5);

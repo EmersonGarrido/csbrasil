@@ -250,9 +250,9 @@ O registro, gerado do `MAPS` de `public/js/maps.js`:
 |---|---|---|---|---:|
 | `awp_map` | Praça dos Três Poderes | rodadas | `map_brasilia.js` | 1.795 |
 | `fy_pool_day` | Piscina da Treta | rodadas | `—` | — |
-| `fy_havan` | Loja H (Estacionamento) | **captura** | `map_havan.js` | 1.869 |
-| `fy_ferrovelho` | Ferro Velho do Zé | **captura** | `map_ferrovelho.js` | 1.839 |
-| `fy_quebrada` | Quebrada (Rua do Baile) | **captura** | `map_quebrada.js` | 1.467 |
+| `fy_havan` | Loja H (Estacionamento) | **captura** | `map_havan.js` | 1.885 |
+| `fy_ferrovelho` | Ferro Velho do Zé | **captura** | `map_ferrovelho.js` | 1.854 |
+| `fy_quebrada` | Quebrada (Rua do Baile) | **captura** | `map_quebrada.js` | 1.531 |
 
 **5 mapas registrados** — 2 abrem em rodadas e 3 em captura. `ctfMode` **abre** o mapa em captura, não prende: o jogador troca no menu (é a `MOD1`). Há 6 arquivos `map_*.js` em `public/js/` — arquivo no disco **não** implica mapa jogável.
 

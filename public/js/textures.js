@@ -747,13 +747,13 @@ export function initTextures() {
     // homenagens póstumas a ídolos da música BR (07/08) — versão SOLTA (alpha) pros
     // mapas que não são o quebrada; a versão de tijolo vira mural em or-mural-*.jpg
     ['or-hom-chorao.png', 1.49, 'peca', 0],
-    ['or-hom-champignon.png', 1.49, 'peca', 0],
+    ['or-hom-champignon.png', 1.07, 'peca', 0],
     ['or-hom-tim-maia.png', 1.411, 'peca', 0],
     ['or-hom-rita-lee.png', 1.49, 'peca', 0],
     ['or-hom-raul.png', 1.63, 'peca', 0],
-    ['or-hom-sabotage.png', 1.123, 'peca', 0],
-    ['or-hom-yuka.png', 1.449, 'peca', 0],
-    ['or-hom-chico.png', 1.49, 'peca', 0],
+    ['or-hom-sabotage.png', 1.466, 'peca', 0],
+    ['or-hom-yuka.png', 1.059, 'peca', 0],
+    ['or-hom-chico.png', 0.906, 'peca', 0],
   );
   /* GALERIA DE HOMENAGENS do quebrada (versão tijolo, opaca) — lazy igual aos decals:
      8 jpg de 1408×768 só devem baixar quando o quebrada monta a galeria. */

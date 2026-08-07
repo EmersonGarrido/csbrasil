@@ -451,6 +451,42 @@ export function buildPoolDay(scene, T) {
         // vidro em z = ∓17,28 e decalque em vidro é a reclamação nº 1 do dono — não vai.
         for (const sx of [-1, 1]) decal(D_TAG, sx * 1.46, 0.45, sz * 18.5, sx > 0 ? Math.PI / 2 : -Math.PI / 2, 1.9, 2.0);
       }
+
+      /* ADENSAMENTO PROCEDURAL (dono, 07/08: "parede branca é desperdício — 70-80%
+         das superfícies tomadas, clima urbano degradado"). As listas acima são vagas
+         escolhidas; isto aqui varre as 4 paredes perimetrais em TRÊS faixas de altura
+         (pixo embaixo, lambe/stencil no olho, bomb em cima) num passo de ~2,6 m com
+         jitter e ~25% de respiro. Tudo passa no `paredeAtras`: porta, vidro e vão
+         continuam limpos porque a peça sem sólido atrás morre antes de nascer. */
+      {
+        let ck = 31;
+        const bandas = [
+          [D_ADESIVO, 0.35, 1.2],
+          [D_TAG, 0.5, 1.6],
+          [D_CARTAZ, 1.0, 1.5],
+          [D_BOMBA, 3.7, 1.35],
+          [D_BOMBA, 5.1, 1.3],
+        ];
+        const paredes = [
+          ['z', -HALF_X + OFFD, Math.PI / 2],
+          ['z', HALF_X - OFFD, -Math.PI / 2],
+          ['x', -HALF_Z + OFFD, 0],
+          ['x', HALF_Z - OFFD, Math.PI],
+        ];
+        for (const [eixo, c, ry] of paredes) {
+          const lim = (eixo === 'z' ? HALF_Z : HALF_X) - 2.2;
+          for (let t = -lim; t <= lim; t += 2.6) {
+            const k = _dmix(++ck * 733 + ((t * 8) | 0));
+            if (k % 100 < 25) continue;   // o respiro
+            const [pool, y0, alt] = bandas[k % bandas.length];
+            if (!pool || !pool.length) continue;
+            const jit = ((k >> 5) % 5 - 2) * 0.18;
+            const x = eixo === 'z' ? c : t + jit;
+            const z = eixo === 'z' ? t + jit : c;
+            decal(pool, x, y0, z, ry, alt, 2.2);
+          }
+        }
+      }
     };
   }
 

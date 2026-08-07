@@ -1,5 +1,5 @@
 {
- "gerado": "2026-08-07T03:08:02.860Z",
+ "gerado": "2026-08-07T03:55:44.185Z",
  "protocolo": "node puro; DOM stubado + three vendorizado (mesmo protocolo de botsim.mjs/pickup-check.mjs); GLB lido por tp-mount-probe.mjs",
  "fontes": {
   "glb": 44,
@@ -81,48 +81,48 @@
    },
    {
     "mapa": "fy_pool_day",
-    "materiais": 71,
-    "map": 50,
+    "materiais": 76,
+    "map": 55,
     "normalMap": 0,
     "roughnessMap": 0,
     "aoMap": 0,
-    "meshes": 418,
-    "triangulos": 3914
+    "meshes": 464,
+    "triangulos": 4006
    },
    {
     "mapa": "fy_havan",
-    "materiais": 211,
-    "map": 44,
+    "materiais": 218,
+    "map": 51,
     "normalMap": 18,
     "roughnessMap": 18,
     "aoMap": 0,
-    "meshes": 338,
-    "triangulos": 18030
+    "meshes": 361,
+    "triangulos": 18076
    },
    {
     "mapa": "fy_ferrovelho",
-    "materiais": 227,
-    "map": 189,
+    "materiais": 232,
+    "map": 194,
     "normalMap": 9,
     "roughnessMap": 9,
     "aoMap": 0,
-    "meshes": 610,
-    "triangulos": 21892
+    "meshes": 635,
+    "triangulos": 21942
    },
    {
     "mapa": "fy_quebrada",
-    "materiais": 215,
-    "map": 90,
+    "materiais": 218,
+    "map": 93,
     "normalMap": 10,
     "roughnessMap": 10,
     "aoMap": 0,
-    "meshes": 1311,
-    "triangulos": 23630
+    "meshes": 1522,
+    "triangulos": 24052
    }
   ],
   "total": {
-   "materiais": 769,
-   "map": 403,
+   "materiais": 789,
+   "map": 423,
    "normalMap": 53,
    "roughnessMap": 53,
    "aoMap": 0

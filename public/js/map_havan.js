@@ -1302,6 +1302,22 @@ export function buildHavan(scene, T) {
   for (const x of [-30, -17, -4, 11, 26]) decal(D_MURAL, x, 0.15, wZ - 0.58, Math.PI, 2.3, 5.5);
   for (const z of [2, 18, 34, 50]) decal(D_TAG, -(HALF_X - 0.08), 0.15, z, Math.PI / 2, 2.3, 5.5);
   for (const z of [10, 26, 42]) decal(D_TAG, HALF_X - 0.08, 0.15, z, -Math.PI / 2, 2.3, 5.5);
+  /* ADENSAMENTO (dono, 07/08: "70-80% das superfícies, parede branca é desperdício").
+     Preenche os vãos ENTRE as vagas grandes acima com escrita menor em duas faixas —
+     o passo de 5,3 m intercala com as peças de 5,5 m sem sobrepor, e o pilarete de
+     8 em 8 m continua respeitado porque a peça pequena cabe no vão. */
+  {
+    let hk = 17;
+    for (const x of [-27, -21, -11, -8, 4, 8, 18, 23, 29]) {
+      const k = (hk = (hk * 2654435761) >>> 0) >>> 8;
+      decal(k % 3 === 0 ? D_TAG : D_MURAL, x, k % 2 ? 0.3 : 1.35, wZ - 0.58, Math.PI, 1.5, 2.6);
+    }
+    for (const z of [6, 12, 22, 28, 38, 44, 47]) {
+      const k = (hk = (hk * 2654435761) >>> 0) >>> 8;
+      decal(D_TAG, -(HALF_X - 0.08), k % 2 ? 0.3 : 1.3, z, Math.PI / 2, 1.5, 2.6);
+      decal(D_TAG, HALF_X - 0.08, k % 3 ? 0.35 : 1.3, z + 3, -Math.PI / 2, 1.5, 2.6);
+    }
+  }
   // RITMO NO MURO (crítico: "paredão liso" — 64m de parede sem nenhuma quebra de massa):
   // pilaretes salientes a cada 8m + rufo de coroamento. Tudo collide:false: a caixa de
   // colisão do muro continua exatamente a mesma, só a silhueta melhora.

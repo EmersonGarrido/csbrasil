@@ -3,8 +3,18 @@
 [![license: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![astro](https://img.shields.io/badge/site-astro-ff5d01?logo=astro)](https://astro.build)
 [![three.js](https://img.shields.io/badge/jogo-three.js%20r160-000000?logo=three.js)](https://threejs.org)
+[![supabase](https://img.shields.io/badge/ranking-supabase-3fcf8e?logo=supabase&logoColor=white)](https://supabase.com)
+[![vercel](https://img.shields.io/badge/deploy-vercel-000000?logo=vercel)](https://vercel.com)
 
-![CORO SOLTO: Treta Suprema — arena de sniper estilo CS 1.6 numa Brasília fictícia](public/og-image.png)
+Construído em par com agentes de IA — cada commit diz qual:
+
+[![Claude Fable 5](https://img.shields.io/badge/agente-Claude_Fable_5-d97757?logo=anthropic&logoColor=white)](https://claude.com/claude-code)
+[![Claude Opus](https://img.shields.io/badge/agente-Claude_Opus-d97757?logo=anthropic&logoColor=white)](https://claude.com/claude-code)
+[![Kimi K3](https://img.shields.io/badge/agente-Kimi_K3-1a1a2e)](https://www.kimi.com)
+[![arte 2D: Gemini via OpenRouter](https://img.shields.io/badge/arte_2D-Gemini_·_OpenRouter-4285f4?logo=googlegemini&logoColor=white)](https://openrouter.ai)
+[![3D: Tripo · Meshy · Mint](https://img.shields.io/badge/3D-Tripo_·_Meshy_·_mint.gg-8a2be2)](https://www.tripo3d.ai)
+
+![CORO SOLTO: Treta Suprema — arena de sniper estilo CS 1.6 numa Brasília fictícia](public/og-image.jpg)
 
 **FPS gratuito de navegador em Three.js**: arena de sniper estilo CS 1.6
 (`awp_map`) numa Brasília fictícia e satírica. Facções, personagens originais,
@@ -15,7 +25,7 @@ sem cadastro.
 
 | O que | Quanto | Onde confere |
 |---|---:|---|
-| Código do jogo | 25.690 linhas em 28 arquivos | `cat public/js/*.js \| wc -l` |
+| Código do jogo | 25.821 linhas em 28 arquivos | `cat public/js/*.js \| wc -l` |
 | `game.js` | **6.543** linhas | `wc -l public/js/game.js` |
 | `main.js` | 1.639 linhas | `wc -l public/js/main.js` |
 | Armas com GLB | 26 | `ls public/models/weapons/*.glb \| wc -l` |
@@ -28,7 +38,7 @@ sem cadastro.
 | Scripts do arnês | 154 | `ls tools/eval/*.mjs tools/eval/*.py \| wc -l` |
 | Scripts de pipeline | 43 | `ls tools/*.mjs \| wc -l` |
 | Tarefas de entrada escritas | 15 | `ls docs/issues/[0-9]*.md \| wc -l` |
-| Versão | `2.0.0-alpha.31` | `public/js/version.js` e `package.json` (batem) |
+| Versão | `2.0.0-alpha.32` | `public/js/version.js` e `package.json` (batem) |
 
 > Bloco gerado por `node tools/gen-docs.mjs`. Fonte: `o comando da coluna direita de cada linha`
 
@@ -257,9 +267,9 @@ Os mapas registrados, e em que modo cada um abre:
 |---|---|---|---|---:|
 | `awp_map` | Praça dos Três Poderes | rodadas | `map_brasilia.js` | 1.795 |
 | `fy_pool_day` | Piscina da Treta | rodadas | `—` | — |
-| `fy_havan` | Loja H (Estacionamento) | **captura** | `map_havan.js` | 1.869 |
-| `fy_ferrovelho` | Ferro Velho do Zé | **captura** | `map_ferrovelho.js` | 1.839 |
-| `fy_quebrada` | Quebrada (Rua do Baile) | **captura** | `map_quebrada.js` | 1.467 |
+| `fy_havan` | Loja H (Estacionamento) | **captura** | `map_havan.js` | 1.885 |
+| `fy_ferrovelho` | Ferro Velho do Zé | **captura** | `map_ferrovelho.js` | 1.854 |
+| `fy_quebrada` | Quebrada (Rua do Baile) | **captura** | `map_quebrada.js` | 1.531 |
 
 **5 mapas registrados** — 2 abrem em rodadas e 3 em captura. `ctfMode` **abre** o mapa em captura, não prende: o jogador troca no menu (é a `MOD1`). Há 6 arquivos `map_*.js` em `public/js/` — arquivo no disco **não** implica mapa jogável.
 
