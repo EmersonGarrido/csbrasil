@@ -43,6 +43,7 @@ const MODULOS = [
   "bloom.js",
   "gpuparticles.js",
   "textures.js",
+  "glcontext.js",
   "version.js",
   "i18n.js",
   "handik.js",
@@ -75,6 +76,12 @@ const IMPORTMAP = JSON.stringify({
   var enviados = {}, nEnviados = 0, migalhas = [], reportando = false;
 
   function show(kind, msg, extra){
+    /* SEM WEBGL O OVERLAY SE CALA. `glcontext.js` marca `__semWebgl` quando nenhum degrau
+       criou contexto, e nesse caso o jogador JÁ está lendo uma explicação em português —
+       empilhar `three.module.js:28672` por cima dela não informa, atrapalha. O erro
+       continua sendo REPORTADO (a chamada de `reporta` não passa por aqui): o que se
+       suprime é o banner, não o dado. */
+    if (window.__semWebgl) return;
     try{
       var el = document.getElementById('crash-overlay');
       if(!el){
@@ -118,7 +125,10 @@ const IMPORTMAP = JSON.stringify({
     try{
       var g = window.__game;
       if (g) {
-        c.map = g.mapId || null;
+        // `_mapId` (game.js:620) e NÃO `mapId`: o construtor recebe `mapId` e guarda
+        // resolvido no campo com underscore. Ler o nome errado dá `undefined` calado —
+        // o erro chegaria sem mapa e ninguém desconfiaria da coluna vazia.
+        c.map = g._mapId || null;
         c.mode = g.ctf ? 'ctf' : 'rounds';
         c.faction = g.playerFaction || null;
         c.matchSecs = Math.round(g.time || 0);

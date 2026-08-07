@@ -35,10 +35,10 @@ const END = '<!-- END:GERADO -->';
 const FRENTES = {
   'ARMAS / VIEWMODEL': {
     arquivos: ['public/js/vmattach.js', 'public/js/springs.js', 'public/js/weapons.js', 'public/js/fparms.js', 'public/js/handik.js'],
-    simbolos: ['_buildViewModels', '_vmFrame', '_buildStaticVmClass', '_applyVmVisibility', '_ensureStaticVm',
+    simbolos: ['_buildViewModels', '_vmFrame', '_applyVmVisibility',
       '_switchWeapon', '_startReload', '_scope', '_zoomFov', '_tryShoot', '_fireHitscan', '_meleeHit',
       '_muzzleWorld', '_flash', '_tracer', '_ejectCasing', '_shotRecoil', '_installRecoil'],
-    consts: ['WEAPONS', 'STATIC_CLASS', 'VM_FOV_DEFAULT', 'VM_OFF', 'VM_SHRINK', 'MINT_VM', 'REC_DEG', 'VM_KNOB', 'GUNFEEL'],
+    consts: ['WEAPONS', 'STATIC_CLASS', 'VM_FOV_DEFAULT', 'VM_OFF', 'REC_DEG', 'VM_KNOB', 'GUNFEEL'],
   },
   'BOTS / JOGABILIDADE': {
     arquivos: [],

@@ -375,7 +375,8 @@ export function buildVmAttachment(cls, kind) {
                                               leem o mesmo ângulo, que é o bug 3:2 morto.
    O que varia por arma é só o quanto o cano avança na tela = len·(1-gripZ) — que é
    exatamente a identidade que a Mint traz (SMG curta, sniper longa).
-   Kill-switch: ?tripovm=1 volta ao pipeline Tripo inteiro (ver game.js).                */
+   (O kill-switch ?tripovm=1 que voltava ao pipeline Tripo foi removido em 07/08/2026 —
+   junto com os arms_*.glb de public/models/fpvm. O histórico está no git.)              */
 export const VM_FRAME = {
   vmScale: 0.72,        // escala global do GLB no viewmodel (invariante ao enquadramento — não encolhe a arma na tela)
   /* tanBarrel 0,28 -> 0,22 (RODADA DA REFERENCIA MEDIDA).

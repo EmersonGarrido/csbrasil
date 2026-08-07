@@ -4,8 +4,8 @@ import { MAPS, resolveMapId } from './maps.js';
 import { buildCharacter, poseCharacter, byId, CHARACTERS, buildRifle, charWeapon } from './characters.js';
 import { buildCharacterModel } from './glbchars.js';
 import { weaponModel, weaponCFG, ONE_HANDED, WEAPON_IDS, PISTOLS, gripPoints } from './weapons.js';
-import { buildFPArms, poseToWeapon, FP_OFF, getStaticVm, getStaticVmTex, loadStaticVm } from './fparms.js';
-import { VM_GUNSPACE, gunBasis, buildVmAttachment, VM_FRAME } from './vmattach.js';
+import { buildFPArms, poseToWeapon, FP_OFF } from './fparms.js';
+import { VM_FRAME } from './vmattach.js';
 import { GPUParticles } from './gpuparticles.js';
 // radiância do céu MEDIDA por mapa (r3_fog.py) — teto de brilho da fumaça, ver _corDaFumaca
 import { skyRadiance } from './bloom.js';
@@ -386,12 +386,14 @@ BALL_CLASS.shotgun = 'shotgun';
 for (const w of ['mp5', 'uzi', 'p90']) BALL_CLASS[w] = 'smg';
 for (const w of ['pistol', 'deagle', 'revolver38']) BALL_CLASS[w] = 'pistol';
 BALL_CLASS.lmg = 'lmg';
-// Classe do viewmodel ESTÁTICO Tripo por arma — TODAS as armas têm classe (arms_<cls>.glb).
-// Snipers entram na classe 'awp' com VARIAÇÃO de acabamento por arma (SNIPER_VM abaixo).
+// Classe de viewmodel por arma — usada pelo caminho ATIVO (ADS `_adsPose`, kickMul de
+// pistola, boca de cano `_muzzleWorld`) e lida pelo auditor (invariants.mjs/vm-project.mjs
+// fatiam o trecho da declaração até a linha do 'knife' e AVALIAM como JS — não citar a
+// declaração literal nos comentários deste bloco, senão a fatia começa no lugar errado).
 const STATIC_CLASS = {};
 for (const w of ['ak', 'akm', 'm4', 'm92', 'g3', 'carbine', 'mp5', 'uzi', 'p90', 'scar', 'tavor', 'famas', 'lmg']) STATIC_CLASS[w] = 'rifle';
 for (const w of ['pistol', 'deagle', 'revolver38']) STATIC_CLASS[w] = 'pistol';
-/* MD97 SAIU DE 'shotgun' (game.js:269 até esta rodada) — mesmo erro de classificação que já
+/* MD97 SAIU DE 'shotgun' (game.js:269 até aquela rodada) — mesmo erro de classificação que já
    foi corrigido no BALÍSTICO (BALL_CLASS, logo acima) e no ÁUDIO (audio.js, GUN_CLASS 'ar':
    o manifest mapeava md97 para o sample da XM1014). Ela é o IMBEL MD97, fuzil 5,56 do
    Exército Brasileiro, e a classe de espingarda vazava para QUATRO lugares:
@@ -401,66 +403,14 @@ for (const w of ['pistol', 'deagle', 'revolver38']) STATIC_CLASS[w] = 'pistol';
      • _adsPose[cls] — hoje shotgun e rifle têm valores IDÊNTICOS, então não muda pixel
        nenhum; era uma armadilha esperando alguém tunar a pose da espingarda
      • caminho Tripo (?tripovm=1) — arms_shotgun.glb + SHOTGUN_VM.md97, ou seja a MALHA e
-       os attachments de espingarda (`shells` = cartuchos de calibre 12 num fuzil 5,56)
-   MEDIDO NESTA RODADA, e é o que impede exagerar o estrago: no caminho PADRÃO (MINT_VM,
-   `?tripovm=1` não passado) o viewmodel da md97 já vem de public/models/weapons/md97.glb —
-   um GLB por arma —, e os arms_*.glb da Tripo NÃO EXISTEM MAIS no repo (public/models/ só
-   tem fparms/ e weapons/). Ou seja: a malha desenhada na tela é a certa; o que a classe
-   errada estragava de fato era som de saque, som de recarga e o caminho legado. */
+       os attachments de espingarda (`shells` = cartuchos de calibre 12 num fuzil 5,56).
+       Caminho REMOVIDO em 07/08/2026 (pedido do dono) — restou este registro.
+   O viewmodel da md97 vem de public/models/weapons/md97.glb — um GLB por arma — e os
+   arms_*.glb da Tripo não existem mais no repo (desta vez de verdade: `git log -- public/models/fpvm`). */
 STATIC_CLASS.shotgun = 'shotgun';
 STATIC_CLASS.md97 = 'rifle';
 for (const w of ['awp', 'mosin', 'rem700', 'm400', 'svd', 'g3sg1', 'sks']) STATIC_CLASS[w] = 'awp';
 STATIC_CLASS['knife'] = 'knife';
-// Variação visual por sniper sobre o MESMO arms_awp.glb: TEXTURA por variante (gerada
-// offline com máscara mãos-vs-arma — mãos/luvas pixel-idênticas) + micro-delta de
-// escala/posição. A tentativa anterior de tint no material falhava (material único
-// tingia as mãos; crítico R6). chave = id da arma (staticVms).
-const SNIPER_VM = {
-  awp:    { tex: 'awp_glove', orm: 'awp_orm_wear', att: ['scope_awp'] },
-  mosin:  { tex: 'awp_mosin', orm: 'awp_orm_wear', dPos: [0.005, 0.01, -0.02], dScale: 1.04, att: ['mosinbolt', 'mosinbarrel', 'scope_pu'], muzzleExt: 0.25 },  // madeira + ferrolho + PU fina
-  rem700: { tex: 'awp_rem700', orm: 'awp_orm_wear', dPos: [0, -0.005, 0], att: ['rem700barrel', 'scope_hunt'] },                                          // oliva escuro + bull barrel
-  m400:   { tex: 'awp_m400', orm: 'awp_orm_wear', dPos: [-0.01, 0.005, 0.01], dScale: 0.97 },     // desert tan
-  svd:    { tex: 'awp_svd', orm: 'awp_orm_wear', dPos: [0.01, -0.01, -0.03], dScale: 1.05, att: ['svdstock', 'svdguard', 'scope_svd'] },                     // preto fosco + esqueleto + PSO-1
-  g3sg1:  { tex: 'awp_g3sg1', orm: 'awp_orm_wear', dPos: [0, 0, -0.01], att: ['g3sg1stock', 'g3sg1guard', 'bipod', 'scope_zf'] },                          // cinza-verde + coronha G3 + handguard largo + bipé (G2-R10) + ZF curta
-  sks:    { tex: 'awp_sks', orm: 'awp_orm_wear', dPos: [-0.005, 0.008, -0.015], dScale: 1.02, att: ['sksmag', 'sksbayonet', 'sksclip'] },                  // madeira (corpo inteiro, G2-R10) + pente integral + pente no topo + baioneta
-};
-// Identidade POR ARMA nas classes rifle/pistol/shotgun (GAUNTLET 2.0 — "os rifles estão
-// todos iguais"): textura de acabamento (tools/vm-variant-tex.mjs — máscara mãos-vs-arma
-// por texel+3D, mãos preservadas) + ATTACHMENTS procedurais (primitivas alinhadas ao
-// eixo do cano — gun-space medido em tools/g2-gunspace.mjs). Mesma regra do SNIPER_VM:
-// chave = id da arma em staticVms. Rifles sem entrada (m92/carbine/uzi/tavor/lmg) caem
-// na base 'rifle' (acabamento M4). att = lista de attachments (buildVmAttachment).
-const RIFLE_VM = {
-  ak:    { tex: 'rifle_ak', att: ['akmag'] },                                  // madeira + mag curva 7.62
-  akm:   { tex: 'rifle_akm', orm: 'rifle_orm_akm', att: ['akmag_bakelite', 'gastube', 'slantbrake'] },// + gas tube + slant brake (FORMA, não cor)
-  m4:    { tex: 'rifle_lift', att: ['holo'] },                                 // base M4 + EOTech
-  mp5:   { tex: 'rifle_mp5', att: ['suppressor', 'slimmag'], muzzleExt: 0.42 },// MP5SD supressor GORDO/LONGO + mag fina
-  g3:    { tex: 'rifle_g3', orm: 'rifle_orm_g3', att: ['g3stock', 'g3mag'] },                       // coronha fixa larga + mag longa
-  scar:  { tex: 'rifle_scar', orm: 'rifle_orm_scar', att: ['aimpoint'] },                             // FDE tan + aimpoint tubular
-  famas: { tex: 'rifle_famas', orm: 'rifle_orm_famas', att: ['famashump'] },                           // carry handle arqueado alto
-  p90:   { tex: 'rifle_p90', orm: 'rifle_orm_p90', att: ['p90mag', 'p90body', 'p90cover'], dScale: 0.85, dPos: [0.01, 0.01, 0] },  // mag horizontal + corpo + SEM mag embaixo; MENOR (SMG — G2-R10: SEM avançar z, o dPos z+ comia a redução aparente)
-  m92:   { tex: 'rifle_m92', orm: 'rifle_orm_m92', att: ['m92barrel', 'lever'], muzzleExt: 0.28 },   // carabina de alavanca: nogal + aço azulado (G2-R8 — era rifle_ak, lia como AK)
-  // md97 VEIO DO SHOTGUN_VM nesta rodada (ver o bloco de STATIC_CLASS). Mantém a identidade
-  // que fazia sentido — handguard tático ventilado + coronha pistol-grip, que é o que
-  // distingue o MD97 de um FAL — e PERDE o `shells`, que desenhava cartuchos de calibre 12
-  // no flanco de um fuzil 5,56. Sem `tex`: a textura 'shotgun_md97' foi pintada sobre a UV
-  // do corpo de espingarda e não tem sentido sobre a malha de fuzil.
-  md97:  { att: ['tacguard', 'pgrip'] },
-  carbine: { tex: 'rifle_carbine', orm: 'rifle_orm_carbine', att: ['longbarrel'], muzzleExt: 0.26 },     // M1: madeira clara + parkerizado (G2-R8 — era rifle_lift, lia como uzi/M4)
-  uzi:   { tex: 'rifle_mp5', orm: 'rifle_orm_mp5', att: ['uzibody', 'uzimag', 'uzimagcover'] },   // boxy + mag no grip (G2-R13: framing próprio em VM_FWD.uzi — dScale/dPos absorvidos lá)
-  tavor: { tex: 'rifle_tavor', orm: 'rifle_orm_tavor', att: ['tavorbody', 'tavormag', 'tavorshroud'] },// polímero preto + bullpup: cheek rest + mag atrás do grip (G2-R9: tex própria — era rifle_famas)
-  lmg:   { tex: 'rifle_lift', orm: 'rifle_orm_lmg', att: ['lmgbox', 'bipod'] },                      // caixa + cinto de cartuchos + bipé
-};
-const PISTOL_VM = {
-  deagle:     { tex: 'pistol_deagle', orm: 'pistol_orm_wear', metal: 0.55, rough: 0.55, env: 2.2 },   // cromada (slide longo já lê na textura; extensão 3D lia como "cartão" no ângulo FP)
-  revolver38: { tex: 'pistol_revolver38', att: ['drum2', 'drumside'] },                                     // aço azulado + tambor à frente + cilindro lateral
-};
-/* SHOTGUN_VM FICA VAZIO — a md97 saiu daqui junto com STATIC_CLASS (ver o bloco lá em
-   cima). Ela é fuzil 5,56, e o que ficava neste mapa era literalmente o kit de espingarda:
-   `shells` desenha CARTUCHOS DE CALIBRE 12 no flanco da arma. Ficar vazio é correto: hoje a
-   única arma de classe 'shotgun' é a `shotgun`, que usa a base da classe sem variante.
-   Este mapa só é lido no caminho Tripo (`?tripovm=1`), que não tem asset no repo. */
-const SHOTGUN_VM = {};
 // FOV da vmCamera com HORIZONTAL constante (GAUNTLET 2.0 — bug 3:2): referência 16:9
 // (fov vertical 70). Em telas mais altas (MacBook 3024×1964 ≈ 1.54:1) o FOV horizontal
 // encolhia e o VM invadia a tela; aqui o vertical abre p/ compensar — em 16:9 retorna
@@ -582,51 +532,21 @@ const VM_OFF = (() => { const s = (new URLSearchParams(location.search).get('vmo
    deixar de medir a tela. Preferi manter a régua mordendo a ter a conveniência. Para
    comparar lado a lado, use o commit anterior — não afrouxe o loadOffYFn. */
 const vmOffY = (aspect) => VM_OFF[1] * ((16 / 9) / (aspect || 16 / 9));
-// chave do staticVm por arma (variante por id quando existe; senão a classe)
-function staticVmKey(w) {
-  return (SNIPER_VM[w] || RIFLE_VM[w] || PISTOL_VM[w] || SHOTGUN_VM[w]) ? w : (STATIC_CLASS[w] || null);
-}
-// ARMAS-HERÓI dedicadas (G2-R7 AK; G2-R7B M4/MP5/AWP — prova Tripo por arma):
-// arms_<tpl>.glb já nasce a arma de verdade (sem kit procedural) — NÃO recebe
-// textura-variante nem attachments (UV/geometria próprios). Só o material fix
-// global. Sem a GLB carregada (ou com ?no<arma>=1, A/B do dono), cai no kit
-// clássico da classe. tpl = chave de template E de gun-space/VM_FWD (a AWP-herói
-// usa 'awphero' p/ não colidir com a CLASSE awp, que serve as outras 6 snipers).
-// Módulo (G2-R14A): o lazy-load (_ensureStaticVm / vmPreloadClasses) precisa dela fora do build.
-const DED_VM = { ak: 'ak', m4: 'm4', mp5: 'mp5', awp: 'awphero', p90: 'p90', tavor: 'tavor', famas: 'famas', svd: 'svd' };   // uzi REMOVIDA G2-R12 (kit tem o tell); svd G2-R13
 /* ===================== G3-R1: VIEWMODEL = OS 26 GLBs DA MINT =====================
-   O QUE MUDOU E POR QUÊ. A 1ª pessoa usava um pipeline PRÓPRIO — 8 GLBs-herói da Tripo
-   (arms_*.glb, 18 MB cada) + um kit de textura-variante e attachments procedurais sobre ~5
-   malhas base. Resultado medido: 26 armas viravam 8 identidades + 5 bases, que é exatamente
-   a reclamação do dono ("várias armas têm visuais iguais, perderam a identidade dos models
-   do mint.gg"). A 3ª pessoa e o chão, enquanto isso, sempre usaram os 26 GLBs da Mint —
-   um por arma, com identidade própria e com len/rot/gripZ JÁ MEDIDOS em weapons.js.
-   Agora existe UM caminho só para as 26 armas: GLB da Mint + braços FP (buildFPArms) +
-   IK no grip real (poseToWeapon). Ganhos colaterais: ~250 KB por arma em vez de 18 MB (o
-   lazy-load deixa de ser problema e o risco de OOM some) e o enquadramento/animação passam
-   a ser controlados em código (VM_FRAME) em vez de brigar com malha importada.
-   KILL-SWITCH: ?tripovm=1 devolve o pipeline Tripo INTEIRO (nada foi apagado) — A/B do dono. */
-const MINT_VM = QS.get('tripovm') !== '1';
-// Classes de viewmodel p/ pré-carregar no boot dado o loadout inicial (G2-R14A lazy-load):
-// as 3 do loadout base (rifle/pistol/faca) + a classe da arma do personagem + a herói
-// dedicada dela. As demais sobem sob demanda no _switchWeapon (cacheadas depois da 1ª vez).
-export function vmPreloadClasses(weaponId) {
-  if (MINT_VM) return [];   // G3-R1: sem o pipeline Tripo não há classe nenhuma pra pré-carregar
-  const set = new Set(['rifle', 'pistol', 'knife']);
-  const cls = STATIC_CLASS[weaponId];
-  if (cls) set.add(cls);
-  if (DED_VM[weaponId]) set.add(DED_VM[weaponId]);
-  return [...set];
-}
-// Encolhimento global dos viewmodels (G2-R14A — dono: "armas tomam a maior parte da
-// tela, quero ver o jogo"): ~28% menor em tamanho aparente nos VMs estáticos (heróis
-// + classes). Muzzles são recomputados do transform final no build — seguem a escala.
-// GUNFEEL: 0.72→0.62 — compensa EXATAMENTE a lente mais fechada da vmCamera (V0 70→62:
-// tan35/tan31 = 1.165; 0.62/0.72 = 0.861 → tamanho aparente 1.003). Medido em captura A/B
-// 1600×900: a arma NÃO cresce na tela (a regra do dono continua valendo), só ganha a
-// perspectiva mais fechada, que é o que tira a distorção do antebraço na borda.
-// Só faz sentido junto com V0=62: ?vmwide=1 troca os DOIS de volta (70 + 0.72).
-const VM_SHRINK = new URLSearchParams(location.search).get('vmwide') === '1' ? 0.72 : 0.62;
+   A 1ª pessoa usava um pipeline PRÓPRIO — 8 GLBs-herói da Tripo (arms_*.glb, 18 MB cada)
+   + um kit de textura-variante e attachments procedurais sobre ~5 malhas base. Resultado
+   medido: 26 armas viravam 8 identidades + 5 bases, que é exatamente a reclamação do dono
+   ("várias armas têm visuais iguais, perderam a identidade dos models do mint.gg"). A 3ª
+   pessoa e o chão, enquanto isso, sempre usaram os 26 GLBs da Mint — um por arma, com
+   identidade própria e com len/rot/gripZ JÁ MEDIDOS em weapons.js.
+   Existe UM caminho só para as 26 armas: GLB da Mint + braços FP (buildFPArms) + IK no
+   grip real (poseToWeapon). O pipeline Tripo viveu atrás do kill-switch ?tripovm=1 para
+   A/B e foi REMOVIDO em 07/08/2026 (pedido do dono): 154 MB de public/models/fpvm no
+   repo/deploy sem nenhum jogador baixar. Foram juntos: SNIPER_VM/RIFLE_VM/PISTOL_VM/
+   SHOTGUN_VM, DED_VM, staticVmKey, vmPreloadClasses, _buildStaticVmClass,
+   _ensureStaticVm, _rebuildStaticVmClass e o bloco ?tvm=1. O histórico está no git. */
+// (VM_SHRINK, o encolhimento global dos VMs estáticos Tripo, morreu com eles em
+// 07/08/2026. O par `?vmwide=1` segue vivo só no FOV — ver vmFovForAspect.)
 // EIXO do viewmodel — CALIBRAÇÃO R2 (conserto de regressão).
 // A rodada 1 leu pos.x como se fosse um ÂNGULO DE MIRA e o cortou pela metade (ak
 // 0.19→0.092, "27° → 14°"). pos.x NÃO aponta o cano: ele diz de QUE ÂNGULO a câmera
@@ -1147,9 +1067,9 @@ export class Game {
       awp:     new THREE.Vector3(0.076, -0.191, -0.427),
       knife:   new THREE.Vector3(0.2, -0.12, -0.4),
     };
-    // boca por CLASSE recomputada no build (pose nova rifle/shotgun) + por ARMA
-    // (attachments que estendem o cano — supressor do MP5). Lookup arma→classe→fallback.
-    Object.assign(this._vmMuzzle, this._vmMuzzleCls || {}, this._vmMuzzleExt || {});
+    // boca por ARMA medida no GLB pelo _vmFrame (origem do flash/tracer). Lookup
+    // arma→fallback no _muzzleWorld.
+    Object.assign(this._vmMuzzle, this._vmMuzzleExt || {});
     // cápsulas (brass) ejetadas a cada tiro — geo/mat compartilhados, pool reusado
     this._casingGeo = new THREE.CylinderGeometry(0.011, 0.011, 0.034, 6);
     this._casingMat = new THREE.MeshStandardMaterial({ color: 0xd9a441, metalness: 0.85, roughness: 0.4 });
@@ -1426,8 +1346,8 @@ export class Game {
     // the grip; the support hand wraps the handguard ~55% of the way from grip to muzzle
     // (two-handed weapons only). Derived from each weapon's CFG (len/gripZ), not guesses.
     const alignHands = (g, id) => {
-      // MINT_VM: o grip nasce na origem do grupo (mountRw não desloca), então GRIP_Z = 0.
-      const GRIP_Z = MINT_VM ? 0 : (id === 'knife' ? 0 : 0.12);
+      // O grip nasce na origem do grupo (mountRw não desloca), então GRIP_Z = 0.
+      const GRIP_Z = 0;
       const gp = gripPoints(id);   // espaço do GLB (cano +Z); aqui o cano é -Z → z' = GRIP_Z - z
       const hR = g.getObjectByName('handR'), hL = g.getObjectByName('handL');
       if (hR) hR.position.set(gp.grip.x, -0.03, GRIP_Z - gp.grip.z);
@@ -1479,7 +1399,7 @@ export class Game {
       o.material.envMapIntensity = 1.2;
     });
     // Monta o GLB da Mint dentro do grupo do viewmodel da arma.
-    // MINT_VM (padrão): escala VM_FRAME.vmScale × cfg.vm e GRIP EXATAMENTE NA ORIGEM do
+    // Escala VM_FRAME.vmScale × cfg.vm e GRIP EXATAMENTE NA ORIGEM do
     // grupo (position.z = 0). Ter o grip na origem é o que torna o enquadramento derivável
     // (_vmFrame) e o que dá ao IK/animação um ponto de empunhadura único e confiável — o
     // +0.12 legado era um chute que deslocava o grip e obrigava a compensar em 3 lugares.
@@ -1488,12 +1408,11 @@ export class Game {
       if (!rw) return null;
       rw.name = 'rw';                    // espaço local: grip na origem, cano +Z (IK mira nele)
       // vmRotY (flip 180 só no FP) era um curativo pra um `rot` errado; com o rot medido
-      // (weapons.js, p90) ele não é mais necessário — e no caminho Mint ele MENTIRIA sobre
-      // pra onde o cano aponta, que é justamente o bug "miro no meio do mapa e a arma
-      // aponta pra baixo". Só o caminho Tripo continua honrando o legado.
-      rw.rotation.y = Math.PI + (MINT_VM ? 0 : (weaponCFG(id).vmRotY || 0));   // cano +Z -> -Z (frente da câmera)
-      rw.scale.multiplyScalar((MINT_VM ? VM_FRAME.vmScale : 0.82) * (weaponCFG(id).vm ?? 1));
-      rw.position.z += MINT_VM ? 0 : (id === 'knife' ? 0 : 0.12);
+      // (weapons.js, p90) ele não é mais necessário — e aqui ele MENTIRIA sobre pra onde
+      // o cano aponta, que é justamente o bug "miro no meio do mapa e a arma aponta pra
+      // baixo". Sumiu junto com o caminho Tripo, o único que ainda honrava o legado.
+      rw.rotation.y = Math.PI;   // cano +Z -> -Z (frente da câmera)
+      rw.scale.multiplyScalar(VM_FRAME.vmScale * (weaponCFG(id).vm ?? 1));
       fixVmMaterials(rw);
       g.add(rw);
       return rw;
@@ -1535,7 +1454,6 @@ export class Game {
        o recálculo em troca de resolução (chamado do _updatePlayer, custo zero quando igual). */
     const gripPt = {}, adsPt = {}, vmRot = {};
     this._vmFrame = (force) => {
-      if (!MINT_VM) return;
       const asp = (this.vmCamera && this.vmCamera.aspect) || this.camera.aspect || 16 / 9;
       if (!force && this._vmFrameAspect === asp) return;
       this._vmFrameAspect = asp;
@@ -1620,7 +1538,7 @@ export class Game {
           adsPt[id] = new THREE.Vector3(-s.x, -s.y, VM_FRAME.adsPullZ);
         } else adsPt[id] = new THREE.Vector3(0, 0, 0);
       }
-      if (this._vmMuzzle) Object.assign(this._vmMuzzle, this._vmMuzzleCls || {}, this._vmMuzzleExt || {});
+      if (this._vmMuzzle) Object.assign(this._vmMuzzle, this._vmMuzzleExt || {});
     };
     // Braços FP DEDICADOS (FASE 2): asset próprio (models/fparms/arms.glb, mãos com
     // dedos de verdade) p/ TODOS os personagens, por padrão. Só cai nas mãos
@@ -1641,8 +1559,8 @@ export class Game {
        braço", a régua nova decide: o critério nº1 é NÃO TER BUG PERCEPTÍVEL (o dono: "o
        usuário tem que se preocupar em jogar e não com bugs"), e a referência que ele mesmo
        escolheu — ev.io, CS 1.6 — mostra arma-sozinha ou mão mínima na maior parte do tempo.
-       Então: no caminho Mint o padrão é ARMA SOZINHA, e `?hands=1` liga os braços pra quem
-       quiser continuar o trabalho de rig. No caminho Tripo (?tripovm=1) nada muda.
+       Então: o padrão é ARMA SOZINHA, e `?hands=1` liga os braços pra quem
+       quiser continuar o trabalho de rig.
        PENDÊNCIA REGISTRADA: refazer a escala/pose de buildFPArms contra o grip da Mint. */
     const _qsHands = new URLSearchParams(location.search).get('hands');
     // SÓ-ARMA por padrão, estilo UNREAL TOURNAMENT (dono é fã de UT — arcade, só a arma no
@@ -1651,227 +1569,20 @@ export class Game {
     if (!FP_OFF && !WEAPON_ONLY) arms = buildFPArms({ id: this.playerCharId, team: this.playerFaction });
     if (arms) {
       root.add(arms.group);
-      // Aproxima as armas pra distância de alcance real do braço (as posições antigas,
-      // z=-0.5, ficam além do comprimento do braço — o guarda-mão seria inalcançável).
-      // Medido: ombro L→guarda-mão do rifle ≈ 0.55 m (braço do asset ≈ 0.60 m) — além
-      // disso o IK não alcança e a mão flutua fora da madeira.
-      // MINT_VM: as 3 posições fixas por classe saem de cena — quem posiciona é o _vmFrame,
-      // que deriva o ponto POR ARMA de len/gripZ e garante alcance do braço arma a arma
-      // (medido em vm-mint-audit.mjs: folga mínima 0,117 m em 26). Com a tabela de 3 mounts,
-      // uma AWP e uma UZI eram penduradas no MESMO ponto — daí "mão solta no ar".
-      const ARM_MOUNTS = { rifle: [0.16, -0.13, -0.38], pistol: [0.18, -0.11, -0.36], knife: [0.19, -0.1, -0.33] };
+      // Quem posiciona as armas é o _vmFrame, que deriva o ponto POR ARMA de len/gripZ e
+      // garante alcance do braço arma a arma (medido em vm-mint-audit.mjs: folga mínima
+      // 0,117 m em 26). A tabela antiga de 3 mounts fixos por classe pendurava uma AWP e
+      // uma UZI no MESMO ponto — daí "mão solta no ar". Foi embora com o caminho Tripo.
       for (const k in models) {
         const g = models[k];
         const hR = g.getObjectByName('handR'), hL = g.getObjectByName('handL');
         if (hR) hR.visible = false;
         if (hL) hL.visible = false;
-        if (MINT_VM) continue;
-        const m = ARM_MOUNTS[ONE_HANDED.has(k) ? (k === 'knife' ? 'knife' : 'pistol') : 'rifle'];
-        g.position.set(m[0], m[1], m[2]);
-        if (k !== 'knife') g.rotation.set(0, 0.03, 0);   // faca mantém a rotação própria
       }
     }
     // SÓ-ARMA: esconde as mãos procedurais (handR/handL) presas a cada modelo de arma.
     if (WEAPON_ONLY) for (const k in models) models[k].traverse((o) => { if (o.name === 'handR' || o.name === 'handL') o.visible = false; });
     this._weaponOnly = WEAPON_ONLY;
-    // Viewmodels ESTÁTICOS Tripo (braços+arma baked) por classe: rifle / pistol / shotgun /
-    // awp / knife. Nessa classe, arma procedural + braços IK ficam escondidos (_switchWeapon).
-    // Classe awp gera UMA entrada por arma (SNIPER_VM — variação de acabamento; chave = id).
-    const staticVms = {};
-    // Build dos VMs estáticos DE UMA classe (extraído p/ o lazy-load G2-R14A): no boot só
-    // as classes pré-carregadas constroem (as demais nem template têm — `stpl` null); na
-    // 1ª troca p/ arma de uma classe nova o _ensureStaticVm carrega e chama de novo.
-    this._staticVmBuilt = new Set();
-    this._buildStaticVmClass = (cls) => {
-      if (MINT_VM || WEAPON_ONLY || this._staticVmBuilt.has(cls)) return;   // G3-R1: pipeline Tripo só com ?tripovm=1
-      const stpl = getStaticVm(cls);
-      if (!stpl) return;
-      this._staticVmBuilt.add(cls);
-      {
-        // variantes: awp = uma por arma (SNIPER_VM); rifle/pistol/shotgun = base + uma por
-        // arma com identidade (RIFLE_VM/PISTOL_VM/SHOTGUN_VM, GAUNTLET 2.0); faca = lâmina
-        // de aço. Demais armas da classe caem na entrada-base.
-        const RIFLE_BASE = { tex: 'rifle_lift', orm: 'rifle_orm_wear', env: 2.4, emis: 'rifle_emissive', emisI: 5.0 };
-        const SHOTGUN_BASE = { tex: 'shotgun_glove', orm: 'shotgun_orm_wear', metal: 0.6, rough: 1.3, env: 0.9 };
-        const clsVariants = cls === 'awp' ? Object.entries(SNIPER_VM)
-          : cls === 'rifle' ? [['rifle', RIFLE_BASE], ...Object.entries(RIFLE_VM).map(([k, v]) => [k, { ...RIFLE_BASE, ...v }])]
-          : cls === 'pistol' ? [['pistol', { tex: 'pistol_polymer' }], ...Object.entries(PISTOL_VM)]
-          : cls === 'shotgun' ? [['shotgun', SHOTGUN_BASE], ...Object.entries(SHOTGUN_VM).map(([k, v]) => [k, { ...SHOTGUN_BASE, ...v }])]
-          : [[cls, cls === 'knife' ? { tex: 'knife_steel', orm: 'knife_orm' } : {}]];
-        for (const [key, v] of clsVariants) {
-          // Herói dedicada: template próprio (DED_VM, escopo de módulo desde G2-R14A —
-          // o lazy-load e o preload do boot consultam a mesma tabela).
-          const dedKey = (DED_VM[key] && new URLSearchParams(location.search).get('no' + key) !== '1' && getStaticVm(DED_VM[key])) ? DED_VM[key] : null;
-          const ded = dedKey ? getStaticVm(dedKey) : null;
-          if (dedKey) (this._staticVmDed || (this._staticVmDed = new Set())).add(key);   // herói já nasceu dedicada (rebuild só se faltar)
-          const vv = ded ? {} : v;
-          const m = (ded || stpl).clone(true);
-          // material do Tripo vem escuro + metalness~1 sem env (era "silhueta preta") —
-          // clamp metalness + envMap da cena = metal lê de verdade. Variantes trocam o
-          // mapa base (mãos preservadas na textura — ver tools/vm-variant-tex.mjs).
-          const vt = vv.tex ? getStaticVmTex(vv.tex) : null;
-          const vo = vv.orm ? getStaticVmTex(vv.orm) : null;
-          const ve = vv.emis ? getStaticVmTex(vv.emis) : null;
-          m.traverse((o) => {
-            if (!o.isMesh || !o.material) return;
-            o.material = o.material.clone();
-            if (vt) o.material.map = vt;
-            if (vo) { o.material.metalnessMap = vo; o.material.roughnessMap = vo; }
-            if (ve && 'emissive' in o.material) {
-              // piso emissivo só na arma (mapa = cinza 0.1 arma / preto mãos): o albedo
-              // do receiver é ~0.005 — luz física não resgata (medido: mediana 8/255).
-              o.material.emissiveMap = ve;
-              o.material.emissive = new THREE.Color(0xffffff);
-              o.material.emissiveIntensity = v.emisI ?? 1.0;
-            }
-            if ('metalness' in o.material) o.material.metalness = vo ? (v.metal ?? 1.0) : Math.min(o.material.metalness, v.metal ?? 0.55);
-            if ('roughness' in o.material) o.material.roughness = vo ? (v.rough ?? 1.0) : Math.max(o.material.roughness, v.rough ?? 0.45);
-            // albedo do Tripo é fisicamente "correto" (gunmetal ~0.03 linear) — sob sol
-            // pleno lia como silhueta preta mesmo com o rig (crítico R6). Lift 1.5× no
-            // multiplicador (a textura-variante já carrega a diferença de acabamento).
-            if (o.material.color) o.material.color.multiplyScalar(1.5);
-            // envMap 1.8 (era 1.2): os metais do VM liam "pintados/chapados" (crítico R6.5)
-            // — com o ORM de desgaste eles passam a quebrar o especular de verdade.
-            // rifle pede piso maior (albedo ~0.03: mediana do receiver 8/255 → meta ≥35).
-            o.material.envMapIntensity = v.env ?? 1.8;
-            o.castShadow = false; o.frustumCulled = false;
-          });
-          // transform POR CLASSE (G2-R6A — regressões do dono: "armas invertidas, perderam
-          // o model original, mãos fora de quadro"). A pose GAUNTLET 2.0 deitava as armas
-          // em diagonal cruzando a tela (rifle yaw -52° roll 171°, pistol 90° de lado) — na
-          // tela 3:2 do dono liam como "viradas/erradas" e a mão saía do quadro. Agora o
-          // eixo stock→muzzle do modelo baked é ALINHADO ao -Z da câmera (cano pra frente,
-          // arma em pé — gun-space medido no vmattach) + um cant leve de hip por classe.
-          // Tunado em capturas 1512×982 @ dsf=2 (a tela dele): modelo Tripo visível, mãos
-          // no quadro, identidade (textura+attachments) preservada. Faca = pose CS clássica.
-          const VM_FWD = {
-            // G2-R14A (dono: "mira num lugar, a arma aponta pro outro"): yaws ~0.22-0.38
-            // que "expoŕiam a lateral" faziam o cano apontar VISIVELMENTE fora do crosshair
-            // — regressão funcional. Agora yaw ≤0.09 em TODAS (cano colado na linha de mira;
-            // a identidade vem do modelo/textura/attachments, não do ângulo). Escala global
-            // -28% via VM_SHRINK (dono: "armas tomam a maior parte da tela").
-            // GUNFEEL (r1): pos recalculado para 14° à direita / 8.4° abaixo do eixo de
-            // mira (x = |z|·tan14, y = -|z|·tan8.4). CALIBRAÇÃO R2: esse recálculo é o
-            // 1º argumento do VMP e virou opt-in (?vmaxis=1) — ele colapsava a silhueta
-            // (ver o bloco do VMP lá em cima). O 2º argumento, ATIVO, é a tabela cujo
-            // x/|z| ≈ 0,43–0,53 (23–28°) — o ângulo de onde a arma LÊ. Os yaws ≤0.09
-            // (o que realmente cola o cano no crosshair) continuam intocados nos dois.
-            rifle:   { yaw: 0.08, roll: -0.071, pitch: 0.065, pos: VMP([0.105, -0.089, -0.42], [0.18, -0.08, -0.42]), scale: 0.45 },
-            // pistola: era 26.6°/26.6° e a arma ocupava 0.5% da tela contra 3.4% do antebraço
-            // (7× a arma, com o TUBO ABERTO do braço visível). scale 0.26→0.40 e 28% mais
-            // perto: a arma cresce e o antebraço sai por baixo do quadro, como no CS.
-            // MEDIDO em A/B 1600×900: os números do crítico (scale 0.40, pos y -0.10) fazem o
-            // ANTEBRAÇO crescer junto — vira um tubo azul ocupando o quadrante inteiro e a
-            // seção aberta sobe pra dentro do quadro. O mesh é ~85% braço, então subir a
-            // escala sem descer o eixo piora. Meio-termo: +15% de arma, eixo horizontal
-            // corrigido (15°) e o braço mantido BAIXO (25°, quase o valor antigo) pra sair
-            // por baixo do quadro como no CS.
-            // CALIBRAÇÃO R2 — o revólver: com x/|z|=0.27 (15°) a câmera olhava quase pela
-            // linha do cano e a .38 virava um bloco cinza-azulado (só a face da boca e um
-            // naco de slide). O flanco — tambor, haste ejetora, guarda-mato — só existe se
-            // a câmera vir a arma DE LADO, e isso é x/|z| (0.50 = 26.6°, restaurado). Aqui
-            // o eixo vertical também volta ao valor calibrado (y -0.15): com V0=62 ele
-            // desce ~5%H a mais, o que enterra de vez a seção aberta do antebraço ("tubo")
-            // sob a borda de baixo. Escala 0.26→0.28 (+8% linear / +16% de área, não os
-            // +15%/+34% da r1): a .38 precisa de massa pra ler, mas o mesh é ~85% braço.
-            pistol:  { yaw: -0.07, roll: -0.06, pitch: 0.01, pos: VMP([0.078, -0.135, -0.29], [0.15, -0.15, -0.30]), scale: VMP(0.30, 0.28) },
-            awp:     { yaw: 0.08, roll: -0.053, pitch: 0.012, pos: VMP([0.100, -0.091, -0.43], [0.17, -0.10, -0.43]), scale: 0.46 },
-            shotgun: { yaw: 0.08, roll: -0.078, pitch: 0.037, pos: VMP([0.110, -0.094, -0.44], [0.19, -0.09, -0.44]), scale: 0.42 },
-            // AK dedicada (G2-R7): gun-space próprio quase sem cant — deltas distintos da
-            // classe rifle. G2-R14A: yaw 0.28→0.09 (alinho do cano ao crosshair).
-            ak:      { yaw: 0.09, roll: -0.07, pitch: 0.02, pos: VMP([0.092, -0.079, -0.37], [0.19, -0.12, -0.37]), scale: 0.54 },
-            m4:      { yaw: 0.09, roll: -0.07, pitch: 0.02, pos: VMP([0.092, -0.079, -0.37], [0.19, -0.12, -0.37]), scale: 0.54 },
-            // MP5: o cano dela corre ao longo de -X no model space — no euler LOCAL os
-            // papéis trocam: "roll" vira elevação do cano (por isso roll -0.24 alto) e
-            // "pitch" vira rolagem. G2-R10: -15% de tamanho aparente — lia "tamanho de rifle".
-            mp5:     { yaw: 0.09, roll: -0.24, pitch: 0.02, pos: VMP([0.100, -0.085, -0.40], [0.21, -0.13, -0.40]), scale: 0.41 },
-            // p90: gun-space refeito pelo trilho do cano em X (o slab em Z mentia).
-            p90:     { yaw: 0.09, roll: -0.061, pitch: 0.172, pos: VMP([0.095, -0.081, -0.38], [0.20, -0.13, -0.38]), scale: 0.44 },
-            // UZI-kit (G2-R12+): entrada própria desde a remoção da herói.
-            uzi:     { yaw: 0.09, roll: -0.088, pitch: 0.087, pos: VMP([0.105, -0.089, -0.42], [0.18, -0.08, -0.42]), scale: 0.45 },
-            // m92-kit (G2-R13): rotação própria expõe a ALAVANCA + nogal claro separa da g3.
-            m92:     { yaw: 0.08, roll: -0.189, pitch: 0.139, pos: VMP([0.105, -0.089, -0.42], [0.18, -0.08, -0.42]), scale: 0.45 },
-            // Herói G2-R13 (SVD): coronha esqueleto de madeira + PSO-1.
-            svd:     { yaw: 0.09, roll: -0.117, pitch: 0.09, pos: VMP([0.092, -0.079, -0.37], [0.19, -0.12, -0.37]), scale: 0.54 },
-            // Heróis G2-R11B (TAVOR/FAMAS): bullpups curtas — arma inteira no quadro.
-            tavor:   { yaw: 0.09, roll: 0.038, pitch: -0.026, pos: VMP([0.095, -0.081, -0.38], [0.20, -0.13, -0.38]), scale: 0.44 },
-            famas:   { yaw: 0.08, roll: -0.097, pitch: 0.011, pos: VMP([0.095, -0.081, -0.38], [0.20, -0.13, -0.38]), scale: 0.44 },
-            awphero: { yaw: 0.09, roll: -0.07, pitch: 0.02, pos: VMP([0.092, -0.079, -0.37], [0.19, -0.12, -0.37]), scale: 0.54 },
-          };
-          if (cls === 'knife') { m.scale.setScalar(0.32 * VM_SHRINK); m.rotation.set(-0.15, 0.55, 0.2); m.position.set(0.15, -0.1, -0.14); }   // G2-R14A: -28% (VM_SHRINK) — tomava a tela; pose CS mantida
-          else {
-            // framing: herói dedicada (dedKey) → entrada por ARMA (VM_FWD[key], ex: uzi
-            // kit G2-R13) → classe. dScale/dPos seguem por cima em todos os casos.
-            const f = VM_FWD[dedKey] || VM_FWD[key] || VM_FWD[cls];
-            // q alinhamento: gunBasis(cls).quat leva +Z local→eixo do cano; invertido leva o
-            // cano a +Z; o yaw π vira pra -Z (frente). Deltas YXZ de estilo por classe.
-            const q = gunBasis(dedKey || cls).quat.invert();
-            q.premultiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI));
-            const qAlign0 = q.clone();   // alinhamento puro (sem deltas) — tuning view-space (g2r8-sweep)
-            q.multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(f.pitch, f.yaw, f.roll, 'YXZ')));
-            m.quaternion.copy(q);
-            m.userData.qAlign = q.clone();   // tuning ao vivo (tools/eval/g2r7-aksweep.mjs, g2r8-sweep.mjs)
-            m.userData.qAlign0 = qAlign0;
-            // dScale/dPos por ARMA (awp: SNIPER_VM; rifle G2-R9: SMGs uzi/p90 MENORES no
-            // FP — eram "corpo de rifle gigante"). Sem entrada: transform da classe intacto.
-            // G2-R14A: VM_SHRINK global (-28% aparente) por cima de tudo.
-            const s = f.scale * (v.dScale ?? 1) * VM_SHRINK, d = v.dPos || [0, 0, 0];
-            m.scale.setScalar(s); m.position.set(f.pos[0] + d[0], f.pos[1] + d[1], f.pos[2] + d[2]);
-          }
-          // Boca do cano POR CLASSE recomputada do model space (poses mudaram desde os
-          // anchors R7.6 hardcoded — knife mantém o calibrado; as demais recomputam).
-          // Com herói dedicado na chave-base (só acontece na awp), a boca da CLASSE é
-          // medida num clone do template da classe com o transform da classe — as outras
-          // 6 snipers não podem herdar o muzzle da herói.
-          if (key === cls && (cls === 'rifle' || cls === 'shotgun' || cls === 'awp' || cls === 'pistol')) {
-            let mm = m;
-            if (ded) {
-              mm = stpl.clone(true);
-              const f0 = VM_FWD[cls];
-              const q0 = gunBasis(cls).quat.invert();
-              q0.premultiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI));
-              q0.multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(f0.pitch, f0.yaw, f0.roll, 'YXZ')));
-              mm.quaternion.copy(q0); mm.scale.setScalar(f0.scale * VM_SHRINK); mm.position.set(f0.pos[0], f0.pos[1], f0.pos[2]);
-            }
-            mm.updateWorldMatrix(true, false);
-            (this._vmMuzzleCls || (this._vmMuzzleCls = {}))[cls] = mm.localToWorld(new THREE.Vector3(...(VM_GUNSPACE[cls].tip || VM_GUNSPACE[cls].muzzle)));
-          }
-          // Arma-herói dedicada: boca do cano = `tip` do gun-space próprio (a ponta +Z do
-          // mesh pode ser os DEDOS, não o cano — ver vmattach.js) — sobrescreve o
-          // fallback de classe no merge do construtor (arma → classe → rifle).
-          if (ded) {
-            m.updateWorldMatrix(true, false);
-            (this._vmMuzzleExt || (this._vmMuzzleExt = {}))[key] = m.localToWorld(new THREE.Vector3(...(VM_GUNSPACE[dedKey].tip || VM_GUNSPACE[dedKey].muzzle)));
-          }
-          // Attachments procedurais por arma (GAUNTLET 2.0): filhos do clone — herdam o
-          // transform da classe e o kick/sway do vm.root. muzzleExt: a boca real anda
-          // (supressor) — ponto em model space transformado p/ vm.root space no build
-          // (o vm.root está em identidade aqui — view space == vm.root space neste frame).
-          if (vv.att && VM_GUNSPACE[cls]) for (const kind of vv.att) m.add(buildVmAttachment(cls, kind));
-          if (vv.muzzleExt && VM_GUNSPACE[cls]) {
-            const g = VM_GUNSPACE[cls];
-            const tip = new THREE.Vector3(g.muzzle[0], g.muzzle[1], g.muzzle[2])
-              .addScaledVector(new THREE.Vector3(g.muzzle[0] - g.stock[0], g.muzzle[1] - g.stock[1], g.muzzle[2] - g.stock[2]).normalize(), vv.muzzleExt);
-            m.updateWorldMatrix(true, false);
-            (this._vmMuzzleExt || (this._vmMuzzleExt = {}))[key] = m.localToWorld(tip);
-          }
-          // dScale/dPos por arma (G2-R10): a boca também anda — sem isso o flash ficaria na
-          // posição da CLASSE (base 0.45), fora do cano da variante reduzida (uzi/p90).
-          // Idem pra framing próprio por arma (G2-R13: VM_FWD[key], ex: uzi-kit).
-          else if ((v.dScale || v.dPos || (key !== cls && VM_FWD[key])) && VM_GUNSPACE[cls]) {
-            m.updateWorldMatrix(true, false);
-            (this._vmMuzzleExt || (this._vmMuzzleExt = {}))[key] = m.localToWorld(new THREE.Vector3(...(VM_GUNSPACE[cls].tip || VM_GUNSPACE[cls].muzzle)));
-          }
-          m.visible = false;
-          root.add(m);
-          staticVms[key] = m;
-        }
-      }
-    };
-    // Boot (lazy-load G2-R14A): constroem só as classes que o preload já trouxe (loadout
-    // inicial — ver vmPreloadClasses no main.js). Classe sem template: `stpl` null, o
-    // build não marca como feita e o _ensureStaticVm re-tenta depois do load sob demanda.
-    for (const cls of ['rifle', 'pistol', 'shotgun', 'awp', 'knife']) this._buildStaticVmClass(cls);
     // grip/ads expostos no objeto do VM (G3-R1): `grip[id]` é o PONTO DE EMPUNHADURA em
     // espaço do vm.root — contrato combinado com o agente de animação, que prende a mão nele
     // em todos os frames (saque/recarga/tiro) em vez de chutar um offset por classe.
@@ -1887,7 +1598,7 @@ export class Game {
          • pose de ADS — `_adsPose`+`STATIC_CLASS` são lidos pelo auditor e pela AUD1.
          • bob — travado em `p.stepPhase`, o MESMO contador que dispara o som de passo
            (daí `bobGain: 0`: o rig calcula bobAmp, mas não soma deslocamento). */
-    const vmObj = { root, models, awp, pistol, knife, arms, grip: gripPt, ads: adsPt, rot: vmRot, kick: 0, kickSide: 0, bobPhase: 0, rig: new ViewModelRig({ bobGain: 0 }), recoil: new RecoilAxis(11, 0.5, 0.12, 0.15), staticVms };
+    const vmObj = { root, models, awp, pistol, knife, arms, grip: gripPt, ads: adsPt, rot: vmRot, kick: 0, kickSide: 0, bobPhase: 0, rig: new ViewModelRig({ bobGain: 0 }), recoil: new RecoilAxis(11, 0.5, 0.12, 0.15) };
     // R1.b — ACÚMULO EM RAJADA. O 3º/4º argumento do RecoilAxis é o residual (tau, share):
     // a fatia do coice que NÃO volta pela mola e decai por `approach` com constante de tempo
     // tau. Com (0.28, 0.30) o resíduo de um tiro ainda valia ~70% quando o próximo saía
@@ -1896,26 +1607,6 @@ export class Game {
     // ~43% em 0,1 s e o k sustentado fica <= 1,0 — a curva volta a ~zero entre tiros, que é
     // o que dá a leitura de "cada tiro é um evento" em vez de "arma tremendo".
     this._vmFrame(true);   // 1º enquadramento (aspecto atual da câmera principal)
-    // ?tvm=1 (prova): viewmodel Tripo mão+arma por personagem em models/fpvm/<char>_<arma>.glb.
-    // Vira filho do vm.root → herda sway/kick/reload de graça. Framing afinável por querystring
-    // (tvs=escala, tvp=x,y,z, tvr=x,y,z rad). Reversível: sem a flag, nada muda.
-    this._tvm = new URLSearchParams(location.search).get('tvm') === '1';
-    if (this._tvm) {
-      const qp = new URLSearchParams(location.search);
-      const n3 = (k, d) => { const v = qp.get(k); if (!v) return d; const a = v.split(',').map(Number); return a.length === 3 ? a : d; };
-      const wid = charWeapon(this.playerCharId);
-      new GLTFLoader().load(`models/fpvm/${this.playerCharId}_${wid}.glb`, (g) => {
-        const o = g.scene;
-        const box = new THREE.Box3().setFromObject(o), sz = box.getSize(new THREE.Vector3()), ctr = box.getCenter(new THREE.Vector3());
-        o.position.sub(ctr);
-        const holder = new THREE.Group(); holder.add(o);
-        holder.scale.setScalar((0.5 / Math.max(sz.x, sz.y, sz.z)) * (parseFloat(qp.get('tvs')) || 0.55));
-        const r = n3('tvr', [-0.3, 3.6, 0]); holder.rotation.set(r[0], r[1], r[2]);   // cano pra frente/baixo-direita (afinado in-game)
-        const pp = n3('tvp', [0.18, -0.22, -0.42]); holder.position.set(pp[0], pp[1], pp[2]);
-        holder.visible = false; root.add(holder);
-        vmObj.tvm = holder; vmObj.tvmWeapon = wid;
-      }, undefined, (e) => console.warn('[tvm] load falhou', e));
-    }
     return vmObj;
   }
 
@@ -2503,7 +2194,20 @@ export class Game {
       frase('statsFim', this.roundsWon.E, this.roundsWon.B, this.player.kills, this.player.name, this.player.deaths);
     this.el.matchEnd.classList.remove('hidden');
     if (document.pointerLockElement) document.exitPointerLock();
-    try { window.va?.('event', { name: 'match_end', data: { winner, roundsP: this.roundsWon.E, roundsB: this.roundsWon.B } }); } catch {}
+    /* MAPA, MODO, PERSONAGEM E DURAÇÃO ENTRAM AQUI (07/08) porque sem eles o `match_end`
+       não CRUZA com o `game_start`, que já mandava os três. O painel mostrava 1.1K
+       `game_start` para 215 `match_end` e não havia como perguntar "que mapa as pessoas
+       abandonam", que é a única pergunta interessante desse número. Os nomes são os
+       MESMOS do `game_start` (map/mode/character) de propósito: propriedade com nome
+       diferente para o mesmo conceito é o que transforma dois eventos em dois relatórios
+       que não conversam. */
+    try {
+      window.va?.('event', { name: 'match_end', data: {
+        winner, roundsP: this.roundsWon.E, roundsB: this.roundsWon.B,
+        map: this._mapId, mode: this.ctf ? 'ctf' : 'rounds',
+        character: this.playerCharId, seconds: Math.round(this.time),
+      } });
+    } catch {}
     try {
       this.onMatchEnd?.({
         won: mine, team: this.playerTeam, character: this.playerDef.id,
@@ -2677,81 +2381,14 @@ export class Game {
   }
 
   /* ================= weapons ================= */
-  // Visibilidade arma procedural × viewmodel estático Tripo (uma regra só, usada pelo
-  // _switchWeapon e pelo _resetPositions): variante por id quando existe (staticVmKey);
-  // senão a classe. Se o template da classe ainda não carregou (lazy-load G2-R14A),
-  // mostra o procedural + braços IK e dispara o load em background (_ensureStaticVm).
+  // Visibilidade do viewmodel (uma regra só, usada pelo _switchWeapon e pelo
+  // _resetPositions): caminho ÚNICO das 26 armas — GLB da Mint + braços FP. O bloco
+  // Tripo (?tripovm=1, staticVms, lazy-load de 18 MB por classe) foi removido em
+  // 07/08/2026 — o histórico está no git.
   _applyVmVisibility() {
     const w = this.player.weapon;
-    // G3-R1: caminho ÚNICO das 26 armas — GLB da Mint + braços FP. Sem staticVms, sem
-    // lazy-load de 18 MB, sem "classe ainda não carregou" (a fonte de troca de aparência
-    // no meio da partida). ?tripovm=1 cai no bloco antigo, intacto.
-    if (MINT_VM) {
-      for (const m of Object.values(this.vm.staticVms)) m.visible = false;
-      if (this.vm.arms) this.vm.arms.group.visible = true;
-      for (const k in this.vm.models) this.vm.models[k].visible = k === w;
-      return;
-    }
-    let sc = staticVmKey(w);
-    // G2-R13: a herói dedicada da arma pode faltar mesmo com a VARIANTE de classe já
-    // construída (classe subiu no boot sem o template herói — ex.: trocar pra m4/svd sem
-    // preload). Sem esse gatilho o _ensureStaticVm nunca rodava e a arma ficava na variante.
-    const dedMissing = DED_VM[w] && !(this._staticVmDed && this._staticVmDed.has(w));
-    if (sc && (!this.vm.staticVms[sc] || dedMissing)) { this._ensureStaticVm(w); if (!this.vm.staticVms[sc]) sc = null; }
-    for (const [k, m] of Object.entries(this.vm.staticVms)) m.visible = k === sc;
-    if (this.vm.arms) this.vm.arms.group.visible = !sc;
-    for (const k in this.vm.models) this.vm.models[k].visible = sc ? false : k === w;
-  }
-  // Lazy-load do viewmodel estático da classe da arma (G2-R14A): carrega arms_<cls>.glb
-  // (+ o template herói dedicado, se a arma tiver) sob demanda, constrói as variantes da
-  // classe e re-aplica a visibilidade se o jogador segura uma arma dessa classe.
-  _ensureStaticVm(w) {
-    if (MINT_VM) return;   // G3-R1: nada da Tripo é carregado sem ?tripovm=1
-    const cls = STATIC_CLASS[w];
-    if (!cls || this._weaponOnly) return;
-    const pend = this._vmLoading || (this._vmLoading = {});
-    const dedTpl = DED_VM[w];
-    // pendência por CLASSE+HERÓI (era só classe: trocar m4→mp5 rápido deixava a herói da
-    // mp5 sem carregar pra sempre — a 1ª pendência abafava as seguintes).
-    const key = dedTpl ? `${cls}+${dedTpl}` : cls;
-    if (pend[key]) return;
-    pend[key] = true;
-    const infl = this._vmInflight || (this._vmInflight = {});
-    infl[cls] = (infl[cls] || 0) + 1;
-    const loads = [];
-    if (!this._staticVmBuilt.has(cls)) loads.push(loadStaticVm(cls));
-    if (dedTpl) loads.push(loadStaticVm(dedTpl));
-    if (!loads.length) { infl[cls]--; return; }
-    Promise.all(loads).then(() => {
-      infl[cls]--;
-      if (this._disposed) return;
-      if (!this._staticVmBuilt.has(cls)) this._buildStaticVmClass(cls);
-      // Classe JÁ construída (ex.: rifle do loadout inicial) mas a herói dedicada
-      // desta arma chegou agora: rebuild da classe p/ a chave nascer com a GLB herói.
-      // Só rebuilda quando TODAS as heróis em voo da classe chegaram — troca rápida
-      // m4→mp5→p90 dispara N ensures e faria N rebuilds idênticos (pico de heap).
-      else if (dedTpl && !(this._staticVmDed && this._staticVmDed.has(w)) && !infl[cls]) this._rebuildStaticVmClass(cls);
-      // bocas de cano recomputadas no build (classe + heróis) entram no lookup
-      Object.assign(this._vmMuzzle, this._vmMuzzleCls || {}, this._vmMuzzleExt || {});
-      if (STATIC_CLASS[this.player.weapon] === cls) this._applyVmVisibility();
-    }).catch((e) => console.warn('[vm] lazy-load da classe falhou', cls, e));
-  }
-  // Rebuild de uma classe já construída (herói dedicada carregou DEPOIS do build — ver
-  // _ensureStaticVm): remove os clones antigos do vm.root, libera os materiais clonados
-  // (a GEOMETRIA é compartilhada com o template — nunca dispor) e constrói de novo.
-  _rebuildStaticVmClass(cls) {
-    for (const [k, m] of Object.entries(this.vm.staticVms)) {
-      if (k !== cls && STATIC_CLASS[k] !== cls) continue;
-      this.vm.root.remove(m);
-      m.traverse((o) => {
-        if (!o.isMesh || !o.material) return;
-        const mats = Array.isArray(o.material) ? o.material : [o.material];
-        for (const mm of mats) mm.dispose && mm.dispose();
-      });
-      delete this.vm.staticVms[k];
-    }
-    this._staticVmBuilt.delete(cls);
-    this._buildStaticVmClass(cls);
+    if (this.vm.arms) this.vm.arms.group.visible = true;
+    for (const k in this.vm.models) this.vm.models[k].visible = k === w;
   }
   _switchWeapon(w) {
     const p = this.player;
@@ -4836,11 +4473,9 @@ export class Game {
     } else if (this.el.scope.style.opacity) this.el.scope.style.opacity = '';
     this._scopeMask = mask;
     this.el.crosshair.style.display = mask > 0.88 ? 'none' : 'block';
-    // crosshair de precisão no ADS rifle (VM já deslizou pra fora — ver _adsSlide):
-    // braços finos de 1px e gap mínimo fixo (AUG do CS); fora disso, gap dinâmico normal.
-    // crosshair fina de precisão: no pipeline Mint a arma NÃO desliza pra fora, então o
-    // gatilho passa a ser o próprio progresso do ADS (a mira afina junto com a arma subindo).
-    const precAds = MINT_VM ? (this.vm.adsF || 0) > 0.6 : (this._adsSlide || 0) > 0.5;
+    // crosshair fina de precisão no ADS: a arma NÃO desliza pra fora, então o gatilho é o
+    // próprio progresso do ADS (a mira afina junto com a arma subindo).
+    const precAds = (this.vm.adsF || 0) > 0.6;
     this.el.crosshair.classList.toggle('prec', precAds);
     // dynamic crosshair gap (movement/spray opens it, crouch + ADS tighten it)
     const gap = precAds ? 3 : Math.max(3, Math.min(26, 5 + sp * 1.15 + this.vm.kick * 20 - p.crouchF * 2.5 - (p.scoped ? 4 : 0)));
@@ -4895,25 +4530,15 @@ export class Game {
       speed: sp, grounded: p.grounded !== false, crouch: p.crouchF > 0.5,
       lookDX: dYaw, lookDY: -dPit,
     });
-    // POSE DE ADS (G3-R1). MINT_VM: o delta vem MEDIDO por arma (vm.ads[id], calculado no
+    // POSE DE ADS (G3-R1). O delta vem MEDIDO por arma (vm.ads[id], calculado no
     // _vmFrame a partir da alça de mira do GLB) e leva a alça ao centro EXATO da tela — é
-    // literalmente sight picture, não "arma deslizando pro canto". Sem MINT_VM, cai na
-    // tabela por classe do pipeline Tripo (_adsPose), que é o que existia.
+    // literalmente sight picture, não "arma deslizando pro canto".
     // ADS CONSISTENTE (dono: "simplicidade > realismo, o jogo tem que casar"): a detecção de
     // alça de mira por-arma (vm.ads[weapon]) era FRÁGIL — em várias GLBs a alça caía errada e a
     // pose virava -s.y grande, DERRUBANDO a arma pra baixo/fora ("miro e a arma aponta pra baixo,
     // não vejo mira"). Trocado por uma pose de mira por CLASSE, igual pra todas as armas: nudge
-    // sutil pro centro + leve zoom, sempre legível, nunca some. (?tripovm=1 mantém o antigo.)
+    // sutil pro centro + leve zoom, sempre legível, nunca some.
     const pose = this._adsPose[STATIC_CLASS[p.weapon]] || this._adsPose._hip;
-    // ADS rifle (R7.6, SÓ no pipeline Tripo): sight picture era impossível com o
-    // arms_rifle.glb (mesh único, cano baked em diagonal) — em adsF>0.8 o VM DESLIZAVA pra
-    // fora da tela e a crosshair virava a variante fina de precisão. Era a origem literal do
-    // "miro e não vejo a arma". Com o GLB da Mint a arma tem alça de verdade: o slide morre
-    // e a arma FICA na tela, alinhada. (?tripovm=1 traz o comportamento antigo de volta.)
-    const _adsCls = STATIC_CLASS[p.weapon];
-    const sl01 = Math.min(1, Math.max(0, (a0 - 0.8) / 0.2));
-    const sl = (!MINT_VM && adsWant && (_adsCls === 'rifle' || _adsCls === 'shotgun')) ? sl01 * sl01 * (3 - 2 * sl01) : 0;
-    this._adsSlide = sl;
     // draw animation: agora é o estado 'draw' do rig (ver _switchWeapon). `p.drawUntil`
     // continua sendo o que TRAVA o tiro — gameplay e animação seguem em variáveis separadas.
     // Kick mais PUNCHY (dono: "animação de tiro ruim"): recuo pra trás + salto pra cima + subida
@@ -4949,7 +4574,7 @@ export class Game {
     // Os ganhos abaixo mantêm a MESMA forma de curva (mesma mola, mesma assinatura por
     // arma), só reduzem a amplitude cosmética. Esta camada NÃO mexe na mira: o recuo de
     // câmera é _shotRecoil/_installRecoil e continua intocado.
-    this.vm.root.position.set(VM_OFF[0] + pose.x * a + sl * 0.3 + bobX + rg.pos.x, vmOffY((this.vmCamera && this.vmCamera.aspect) || this.camera.aspect) + bobY - p.crouchF * 0.02 + pose.y * a - sl * 0.38 + k * 0.015 + rg.pos.y, VM_OFF[2] + k * 0.050 + pose.z * a - swPz + rg.pos.z);
+    this.vm.root.position.set(VM_OFF[0] + pose.x * a + bobX + rg.pos.x, vmOffY((this.vmCamera && this.vmCamera.aspect) || this.camera.aspect) + bobY - p.crouchF * 0.02 + pose.y * a + k * 0.015 + rg.pos.y, VM_OFF[2] + k * 0.050 + pose.z * a - swPz + rg.pos.z);
     this.vm.root.rotation.x = k * 0.070 + pose.rx * a + swRx + rg.rot.x;   // subida do cano + ADS + golpe da faca + rig (recarga/saque/respiração)
     this.vm.root.rotation.y = ks * k * 0.018 + pose.ry * a + swRy + rg.rot.y;                            // yaw do coice/ADS + varredura da faca
     this.vm.root.rotation.z = ks * k * 0.022 + swRz + rg.rot.z;                                          // roll do coice + giro da lâmina + sway
@@ -4973,16 +4598,6 @@ export class Game {
     if (this.vm.arms && this.vm.root.visible) {
       const wg = this.vm.models[p.weapon];
       if (wg) poseToWeapon(this.vm.arms, wg, p.weapon);
-    }
-    // ?tvm=1: quando o viewmodel Tripo existe p/ a arma equipada, mostra ele e esconde o
-    // braço+arma procedural (a GLB já traz mão+arma). Override por frame (robusto ao equip).
-    if (this._tvm && this.vm.tvm) {
-      const on = this.vm.root.visible && p.weapon === this.vm.tvmWeapon;
-      this.vm.tvm.visible = on;
-      if (on) {
-        if (this.vm.arms && this.vm.arms.group) this.vm.arms.group.visible = false;
-        const wg = this.vm.models[p.weapon]; if (wg) wg.visible = false;
-      }
     }
   }
   // fy_pool_day ground weapons: anyone who runs over one grabs it (CS-1.6 style).

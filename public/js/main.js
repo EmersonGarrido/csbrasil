@@ -3,12 +3,12 @@ import * as THREE from 'three';
 import { initTextures } from './textures.js';
 import { CHARACTERS, buildCharacter, charWeapon } from './characters.js';
 import { preloadCharacterAssets, buildCharacterModel, hasModel, GLB_CHARS } from './glbchars.js';
-import { preloadFPArms, preloadStaticVm } from './fparms.js';
+import { preloadFPArms } from './fparms.js';
 import { preloadMapProps } from './mapprops.js';
 import { MAPS, MAP_IDS, DEFAULT_MAP, resolveMapId } from './maps.js';
 import { setHavanCarSeed } from './map_havan.js';
 import { Sfx } from './audio.js';
-import { Game, vmPreloadClasses, confirmGate, CONFIRM_MAX_MS } from './game.js';
+import { Game, confirmGate, CONFIRM_MAX_MS } from './game.js';
 import { VERSION } from './version.js';
 import { LANG, translateDom, tr, frase } from './i18n.js';
 import { enableLightBloom } from './bloom.js';
@@ -27,8 +27,23 @@ const STATS_KEY = 'awpbr_stats';   // declarado no bloco de storage: syncPlaySta
 // Import extra (top-level, legal em ESM) em vez de mexer no bloco de imports lá de cima:
 // o tom do caminho SEM pós mora no bloom.js, que é o dono da tabela de exposição/piso por mapa.
 import { applyNoPostTone } from './bloom.js';
+import { criaRenderer, avisaSemWebgl } from './glcontext.js';
 const container = document.getElementById('game-container');
-const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+/* SEM WEBGL O MÓDULO NÃO PODE MORRER AQUI — 07/08, relatado por jogador em Arch Linux
+   com Firefox e Brave (Mesa/llvmpipe, `BindToCurrentSequence failed`). A construção é
+   TOPO DE MÓDULO: a exceção matava a avaliação inteira de `main.js` e o menu ficava
+   inerte — a MESMA classe do BUG-34, causa diferente. E o pedido era o mais exigente
+   possível (`high-performance` + MSAA), que em Linux híbrido é justamente o que falha.
+   A escada de degradação e o porquê de cada degrau moram no `glcontext.js`. */
+const renderer = criaRenderer();
+if (!renderer) {
+  avisaSemWebgl('WebGL indisponível neste navegador/driver');
+  /* A exceção continua: sem renderer não há o que ligar, e seguir daqui só produziria
+     uma cascata de `null.setSize is not a function` que esconde a causa real. O que
+     mudou é que o jogador já está lendo uma explicação — e o `__semWebgl` cala o
+     overlay vermelho, que aqui só empilharia stack por cima da mensagem. */
+  throw new Error('sem_webgl');
+}
 renderer.setSize(innerWidth, innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -154,10 +169,14 @@ const $ = id => document.getElementById(id);
    5 (mesmo defeito de MENU_TRACKS abaixo, que ignora a 27ª faixa). Página estática não lista
    diretório pelo browser, então o conserto de verdade é um manifesto GERADO em build
    (`tools/` → `public/img/walls.json`) e lido daqui com fallback. Ver KNOWN-BUGS.md BUG-08.
-   Enquanto isso: ARQUIVO NOVO NA PASTA = ENTRADA NOVA AQUI. */
-const WALLS = ['/img/wall-1.png', '/img/wall-2.png', '/img/wall-3.png', '/img/wall-4.png',
-  '/img/wall-5.png', '/img/wall-6.png', '/img/wall-7.png', '/img/wall-8.png',
-  '/img/wall-9.png'];
+   Enquanto isso: ARQUIVO NOVO NA PASTA = ENTRADA NOVA AQUI.
+
+   Servidos em .webp desde 07/08: os PNG de 2–2,6 MB viraram ~250 KB (ffmpeg libwebp q85,
+   comparado lado a lado antes da troca — texto do cartaz e grão idênticos). Os .png ficam
+   na pasta como fonte; wallpaper novo entra como PNG e vira .webp no mesmo commit. */
+const WALLS = ['/img/wall-1.webp', '/img/wall-2.webp', '/img/wall-3.webp', '/img/wall-4.webp',
+  '/img/wall-5.webp', '/img/wall-6.webp', '/img/wall-7.webp', '/img/wall-8.webp',
+  '/img/wall-9.webp'];
 let _wallK = 0;
 try { _wallK = (parseInt(localStorage.getItem('cs_wallK') || '-1', 10) + 1) % WALLS.length; localStorage.setItem('cs_wallK', String(_wallK)); } catch {}
 const wallUrl = (i) => `url('${WALLS[(_wallK + i) % WALLS.length]}')`;
@@ -165,8 +184,8 @@ const HOME_WALL = wallUrl(0), SETUP_WALL = wallUrl(1), TEAM_WALL = wallUrl(2), C
 // loading-1..6: wallpaper rotativo SÓ da splash inicial (a msg "clique pra começar" fica por cima).
 // O overlay de carregamento de MAPA usa os wall-* (mesmo fluxo rotativo) — ver showLoading/_loadWallI.
 // Hardcoded pelo mesmo motivo (e com o mesmo defeito) do WALLS acima — ver KNOWN-BUGS.md BUG-08.
-const LOADING_WALLS = ['/img/loading-1.png', '/img/loading-2.png', '/img/loading-3.png',
-  '/img/loading-4.png', '/img/loading-5.png', '/img/loading-6.png'];
+const LOADING_WALLS = ['/img/loading-1.webp', '/img/loading-2.webp', '/img/loading-3.webp',
+  '/img/loading-4.webp', '/img/loading-5.webp', '/img/loading-6.webp'];
 let _loadWallI = 4;
 { const bs = document.getElementById('boot-splash'); if (bs) bs.style.backgroundImage = `url('${LOADING_WALLS[_wallK % LOADING_WALLS.length]}')`; }
 function applyHomeWall() { const w = document.querySelector('#main-menu .cs-wallpaper'); if (w) w.style.backgroundImage = HOME_WALL; }
@@ -543,11 +562,6 @@ async function startGame(team, charId, enemyFaction) {
       preloadCharacterAssets([...GLB_CHARS]),
       preloadMapProps([...MAP_PROPS, ...((MAPS[currentMap] && MAPS[currentMap].props) || [])]),   // + props do mapa (Havan: carros/estátua)
       preloadFPArms(),   // braços FP dedicados (falha → fallback procedural, sem bloquear)
-      // viewmodel estático Tripo: LAZY (G2-R14A — crash Aw Snap! no CTF da Havan por OOM:
-      // o preload antigo baixava os 13 arms_*.glb ~270MB de uma vez). Boot = só o loadout
-      // inicial (classe da arma do personagem + rifle/pistol/faca + herói dedicada, se houver);
-      // as demais classes carregam sob demanda na 1ª troca (_ensureStaticVm, com cache).
-      preloadStaticVm(vmPreloadClasses(charWeapon(charId))),
     ]);
   } catch (e) { console.error('preload da partida falhou parcialmente', e); }
   if (_lstat.phase) _lstat.phase.set(1);
@@ -592,7 +606,10 @@ async function startGame(team, charId, enemyFaction) {
       socials: socials.filter(s => s.handle),
     }).then((reg) => { if (reg && reg.error) rankingBloqueado = String(reg.error); });
   }
-  try { window.va?.('event', { name: 'game_start', data: { team, character: charId, map: currentMap } }); } catch {}
+  /* `mode` faltava, e sem ele metade da pergunta não tem resposta: dá para saber QUE MAPA
+     as pessoas escolhem, não SE escolhem captura ou rodadas. O `match_end` manda os quatro
+     com os mesmos nomes — é o que permite comparar quem começa com quem termina. */
+  try { window.va?.('event', { name: 'game_start', data: { team, character: charId, map: currentMap, mode: matchMode === 'ctf' ? 'ctf' : 'rounds' } }); } catch {}
   if (!testMode) { try { renderer.domElement.requestPointerLock()?.catch?.(() => {}); } catch {} }
 }
 function quitToMenu() {
@@ -600,6 +617,21 @@ function quitToMenu() {
   // audio.js e o corte no _startRound cobrem a partida em andamento, mas nenhum dos dois
   // roda quando o jogador VAI EMBORA — a vinheta seguia tocando por cima da música do menu
   try { sfx.stopRound(); } catch {}
+  /* `match_abandon` — o evento que faltava para o número que mais dói. O painel mostra
+     1.1K `game_start` para 215 `match_end`: oito em cada dez partidas não terminam, e
+     NENHUM evento dizia por quê nem em qual mapa. Sai daqui (SAIR PRO MENU) com os mesmos
+     nomes de propriedade dos outros dois, mais `seconds`, que é o que separa "não gostou
+     do mapa" (sai em 20 s) de "não tinha mais tempo" (sai em 6 min).
+     ISTO NÃO COBRE FECHAR A ABA: `beforeunload` não garante entrega de evento de
+     analytics, e prometer que cobre seria pior que não medir. O que este evento mede é
+     saída DELIBERADA pelo menu; a diferença entre ele e o `game_start` continua sendo a
+     soma de "fechou a aba" com "travou". */
+  try {
+    if (game) window.va?.('event', { name: 'match_abandon', data: {
+      map: game._mapId, mode: game.ctf ? 'ctf' : 'rounds',
+      character: game.playerCharId, seconds: Math.round(game.time || 0),
+    } });
+  } catch {}
   switchMode = false;   // never carry an in-match team-switch into the menu
   // dispose protegido: se a limpeza da partida falhar, o menu volta MESMO assim
   // (antes, uma exceção aqui deixava o botão "SAIR PRO MENU" morto e o jogo zumbi)

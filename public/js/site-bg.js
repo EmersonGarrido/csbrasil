@@ -7,9 +7,20 @@
 import * as THREE from 'three';
 import { initTextures } from './textures.js';
 import { buildBrasilia } from './map_brasilia.js';
+import { criaRenderer } from './glcontext.js';
 
 const canvas = document.getElementById('bg-canvas');
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+/* AQUI O 3D É DECORAÇÃO, E DECORAÇÃO NÃO DERRUBA PÁGINA. Sem guarda, o jogador sem
+   WebGL (relato de 07/08: Arch + Wayland + NVIDIA) levava exceção de topo de módulo em
+   TODA página de conteúdo — /sobre, /armas, /mapas, /personagens, /como-jogar — e não só
+   no jogo. Antes de 07/08 isso passava despercebido porque o `site-bg.js` estava morto
+   nessas rotas por outro motivo (faltava `three/addons/` no import map do Layout.astro);
+   consertar aquilo teria ACORDADO este defeito para ele. Sem contexto: sai de fininho. */
+const renderer = criaRenderer({ canvas, antialias: true });
+if (!renderer) {
+  canvas && (canvas.style.display = 'none');   // sem tela preta boba no lugar do fundo
+  throw new Error('site-bg: sem WebGL — fundo desligado, página segue');
+}
 renderer.setSize(innerWidth, innerHeight);
 renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
 renderer.toneMapping = THREE.ACESFilmicToneMapping;

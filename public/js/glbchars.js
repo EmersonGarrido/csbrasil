@@ -284,19 +284,31 @@ export async function preloadCharacterAssets(ids) {
     _clips = {};
     await Promise.all([
       preloadWeapons(), // real weapon GLBs (mounts fall back to box if missing)
-      ...STATES.map(async (s) => {
+      // Pack compartilhado em 1 GLB MESCLADO (tools/merge-anims.mjs): os 11 requests de
+      // clipe viram 1. O THREE amarra o clipe no esqueleto pelo NOME do osso, então
+      // basta ler as animações nomeadas. Se o mesclado faltar (deploy velho, ?animdir=
+      // experimental), o per-estado de sempre cobre o que faltou.
+      (async () => {
         try {
-          const g = await loadGLB(`${ANIM_DIR}/${s}.glb?v=${VERSION}`);
-          if (g.animations[0]) { g.animations[0].name = s; _clips[s] = g.animations[0]; }
-        } catch (e) { console.warn('anim load failed', s, e); }
-      }),
-      // Opcionais (idle/walk de 1 mão p/ pistolas): ausência NÃO é erro — sem warn.
-      ...OPT_STATES.map(async (s) => {
-        try {
-          const g = await loadGLB(`${ANIM_DIR}/${s}.glb?v=${VERSION}`);
-          if (g.animations[0]) { g.animations[0].name = s; _clips[s] = g.animations[0]; }
-        } catch (e) { /* fallback: idle/walk de 2 mãos */ }
-      }),
+          const g = await loadGLB(`${ANIM_DIR}.glb?v=${VERSION}`);
+          for (const c of g.animations) _clips[c.name] = c;
+        } catch (e) { /* fallback: per-estado abaixo */ }
+        await Promise.all([
+          ...STATES.filter((s) => !_clips[s]).map(async (s) => {
+            try {
+              const g = await loadGLB(`${ANIM_DIR}/${s}.glb?v=${VERSION}`);
+              if (g.animations[0]) { g.animations[0].name = s; _clips[s] = g.animations[0]; }
+            } catch (e) { console.warn('anim load failed', s, e); }
+          }),
+          // Opcionais (idle/walk de 1 mão p/ pistolas): ausência NÃO é erro — sem warn.
+          ...OPT_STATES.filter((s) => !_clips[s]).map(async (s) => {
+            try {
+              const g = await loadGLB(`${ANIM_DIR}/${s}.glb?v=${VERSION}`);
+              if (g.animations[0]) { g.animations[0].name = s; _clips[s] = g.animations[0]; }
+            } catch (e) { /* fallback: idle/walk de 2 mãos */ }
+          }),
+        ]);
+      })(),
     ]);
   }
   const wanted = [...new Set(ids)].filter((id) => GLB_CHARS.has(id) && !_base.has(id));
@@ -314,8 +326,22 @@ export async function preloadCharacterAssets(ids) {
     // (manifesto ausente ou fetch falhou) mantém o comportamento antigo: pede tudo.
     const _idx = await animIndex();
     const disponiveis = _idx && _idx.clipes ? (_idx.clipes[id] || []) : null;
+    // 1 GLB MESCLADO por personagem (tools/merge-anims.mjs): 11 requests viram 1.
+    // O manifesto diz quem tem mesclado; quem não tem (os 8 palhaços) nem tenta —
+    // senão o 404 voltava por outra porta. Sem o mesclado ou sem clipe dentro dele,
+    // cai no per-estado, que cai no compartilhado.
+    let mesclado = null;
+    if (!disponiveis || disponiveis.length) {
+      try { mesclado = (await loadGLB(`models/anims/${id}.glb?v=${VERSION}`)).animations; }
+      catch (e) { /* fallback: per-estado */ }
+    }
     await Promise.all([...STATES, ...OPT_STATES].map(async (s) => {
       if (disponiveis && !disponiveis.includes(s)) return;   // não pede o que o build sabe que não existe
+      if (mesclado) {
+        const c = mesclado.find((a) => a.name === s);
+        if (c) { set[s] = c; return; }
+        if (disponiveis) return;  // mesclado em dia (manifesto) e sem o clipe: compartilhado
+      }
       try {
         const g = await loadGLB(`models/anims/${id}/${s}.glb?v=${VERSION}`);
         if (g.animations[0]) { g.animations[0].name = s; set[s] = g.animations[0]; }
