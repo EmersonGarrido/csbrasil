@@ -744,17 +744,28 @@ function _encaixar(alvos, rc, A, yc, w, h, amostra, du = 0, planura = 0.28) {
   const FRENTE = 0.30;
   let dmin = Infinity, dmax = -Infinity, achou = 0;
   if (amostra) {
-    for (const [su, sv] of [[0, 0], [-0.42, -0.42], [0.42, -0.42], [-0.42, 0.42], [0.42, 0.42]]) {
+    /* 9 AMOSTRAS, NÃO 5 — porque as minhas duas réguas discordavam (07/08). A
+       passada aceitava 1 vazia de 5 (20% de buraco) e a `graffiti-audit` reprova
+       acima de 2 de 15 (13%). Peça aprovada aqui nascia reprovada lá, e o "no ar"
+       ficou parado em ~690 depois de dois consertos que deveriam ter derrubado o
+       número. Duas réguas com limiar diferente medindo a mesma coisa é o instrumento
+       discordando de si — o defeito que esta casa mais paga caro.
+       9 pontos cobrem quinas, meios de borda e centro. Custa o dobro de amostra, e é
+       offline: quem paga é o `npm run grafite`, não o jogador. */
+    for (const [su, sv] of [[0, 0],
+      [-0.44, -0.44], [0, -0.44], [0.44, -0.44],
+      [-0.44, 0], [0.44, 0],
+      [-0.44, 0.44], [0, 0.44], [0.44, 0.44]]) {
       const prof = amostra(du + su * w, yc + sv * h);
       if (prof === null) continue;
       if (prof < dmin) dmin = prof;
       if (prof > dmax) dmax = prof;
       achou++;
     }
-    /* 3 de 5 basta quando a banda já admite parede torta (`planura` folgada): é a
-       banda de tag miúda, e o que sobrava reprovado ali era chapa ondulada e quina de
-       contêiner, onde uma das quinas sempre fura. Mural continua exigindo 4. */
-    if (achou < (planura > 0.4 ? 3 : 4)) return null;
+    /* 1 vazia é a folga do caixilho de janela e do vão de porta — buraco legítimo em
+       muro pichado. A banda de tag miúda (`planura` folgada) aceita 2, porque chapa
+       ondulada e quina de contêiner sempre furam uma amostra. */
+    if (achou < (planura > 0.4 ? 7 : 8)) return null;
     if (dmax - dmin > planura) return null;
     return dmin - 0.03;
   }
