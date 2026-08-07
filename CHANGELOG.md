@@ -17,6 +17,115 @@
 > O conteúdo e as datas das entradas continuam intactos; só o rótulo mudou, porque chamar de
 > 3.3.0 um build com P0 em aberto promete ao jogador uma estabilidade que ele não tem.
 
+## [2.0.0-alpha.32] — 2026-08-07
+
+> Primeira entrada da linha `alpha` desde a `.4`. As 27 versões do meio existiram como
+> commit e não como release; o que está aqui é o saldo delas, agrupado pelo que mudou
+> para quem joga, para quem contribui e para quem publica.
+
+### Adicionado — arte urbana medida, não declarada
+- **A parede dos 5 mapas passou a ser pintada por medição.** O jeito antigo era lista de
+  coordenadas escrita à mão (`for (const z of [-34, -22, -17, …])`), e ela tem três
+  doenças que esforço não cura: só cobre a parede de que alguém lembrou, não sabe se a
+  peça sobreviveu, e não escala. `public/js/graffiti_pass.js` inverteu a pergunta — em
+  vez de declarar ONDE pintar, ele **descobre onde há parede**, por raycast a partir dos
+  waypoints (por onde se anda de fato), e pinta em faixas de altura.
+- **A régua que faltava**: `npm run eval:grafite` abre cada mapa num navegador de verdade
+  e conta quantas placas de parede VISÍVEL têm tinta. Foi escrita ANTES do conserto e
+  reproduziu a queixa do dono com um ponto de erro — ele disse "10-15% de arte urbana na
+  Quebrada"; ela mediu **12,7%**.
+
+  | mapa | antes | depois |
+  |---|---|---|
+  | Piscina | 42,1% | **99,1%** |
+  | Loja H | — | **95,6%** |
+  | Brasília | **0,0%** | **87,1%** |
+  | Quebrada | 12,7% | **87,1%** |
+  | Ferro Velho | — | **70,5%** |
+
+  A Brasília tinha literalmente **zero** peça na tela: as 16 dos ministérios nasciam no
+  vão do pilotis e eram, corretamente, reprovadas uma a uma.
+- **A colocação é assada** (`public/js/graffiti_layout.js`, via `npm run grafite`). A
+  passada custa ~9 s na Quebrada e o build inteiro do Piscina custa 88 ms; como a
+  colocação é função pura de (geometria, semente), ela roda uma vez no navegador — o único
+  lugar onde os GLB existem — e o jogo só monta a geometria pronta, em 6 ms.
+- **Direção de arte por declaração**: `limpo` (zona sem tinta — a Loja H só é pichada por
+  fora) e `evitar` (tipo de superfície — no Ferro Velho, lataria e mato não recebem tinta).
+  As duas viajam no layout, então a régua não cobra dívida de parede que ninguém quer
+  pintada.
+- **Galeria de homenagens póstumas** em mural de tijolo de 5,4 × 2,8 m: Chorão, Champignon,
+  Tim Maia, Rita Lee, Raul Seixas, Sabotage, Marcelo Yuka e Chico Science. A vaga de cada
+  uma é **medida** — a passada procura a maior parede livre de cada região. Antes elas
+  existiam como adesivo de 1 m dentro de um pool de tags, e por isso só apareciam num mapa.
+- Os **cartazes da coleção** deixaram de viver em 2 dos 5 mapas. Nenhum ficou órfão.
+
+### Corrigido — o que quebrava calado
+- **Decalque morria em silêncio.** Os barracos da Quebrada são `InstancedMesh` criados na
+  penúltima linha do build; todo decalque era colado ANTES disso, num mundo onde a fachada
+  ainda não existia. `medirParede` não achava malha, devolvia `null`, e a peça sumia sem
+  aviso: **96 peças na tela de 334 pedidas**. Em node o GLB nunca carrega, então o probe
+  antigo jurava que estava tudo lá.
+- **PNG que dá 404 virava retângulo branco.** Só 12 dos 209 decalques estão no git (o resto
+  é gitignored por procedência); textura que falha no three não some — fica sem `image` e o
+  material desenha branco chapado. Agora a peça some junto com o arquivo.
+- **O pacote de decalques publicado estava atrás do jogo**: `decals-pack-v1` tinha 174
+  arquivos e o `DECAL_FILES` já pedia 196. Os 22 `folha-*` davam 404 em produção — **513
+  das 4.671 peças sumiam, 30% da Quebrada**. Publicado o `decals-pack-v2`.
+- **Peça no ar**: toldo, marquise e lona passavam no teste de encaixe (a face de um toldo É
+  plana) e liam como pintura pairando. Duas regras novas — a parede tem que descer até o
+  chão, e lona não é parede.
+
+### Adicionado — o build reprova antes de publicar coisa quebrada
+- **`npm run assert:assets`** entra no `buildCommand` da Vercel. `scripts/fetch-audio.sh`
+  terminava com `|| cp manifest.example.json manifest.json`: zip sem manifest = build
+  **verde** com o jogo mudo, no áudio sintetizado. E isso nunca aparecia na máquina de quem
+  desenvolve, porque os dois fetch scripts começam com early-exit — o caminho de download
+  só roda na Vercel. Bug invisível por construção.
+- **154 MB de viewmodel Tripo fora do publicado** (`scripts/prune-dist.mjs`). Só carregam
+  atrás de `?tripovm=1` e `?tvm=1`. `dist/client` 625 → 488 MB.
+- **O atalho do `three` do arnês mudou de casa.** Era plantado UM NÍVEL ACIMA do projeto,
+  logo compartilhado por todo checkout debaixo daquele pai — um clone velho em `/tmp`
+  deixou o link pendurado e qualquer checkout novo nascia com as ~150 réguas de
+  `tools/eval` quebradas, em silêncio (`existsSync` num symlink quebrado devolve `false`,
+  e um `try{}catch{}` engolia o `EEXIST`).
+
+### Adicionado — jogo e interface
+- **Inglês no jogo**: detecção pelo navegador, seletor em CONFIGURAÇÕES e `?lang=`. As
+  páginas estáticas ganharam gêmeas EN, com nav e rodapé por idioma.
+- **FEEDBACK no menu** (era MAPA): texto livre, email e consentimento explícito de
+  newsletter em coluna própria — só entra na lista quem marcou.
+- **Placar** com brasão por time, duas colunas alinhadas e bandeirinha na cor do time.
+- **Menu mobile em retrato** consertado. O HUD em pé continua devendo.
+- Spawn nasce no chão do mapa (fim do teleporte de 3,40 m na Loja H); colisores na altura
+  do corpo em Brasília; bandeira de CTF com o nome do próprio mapa.
+- **Áudio** com nomes binários, fechando o BUG-19 (produção servia o pack de julho e todo
+  som novo dava 404).
+
+### Adicionado — site, SEO e acessibilidade
+- `hreflang` pt-BR + `x-default`; sitemap vira índice paginado acima de 5.000 URLs;
+  `og:image` própria por página; uma página por facção em `/faccoes/<id>`; 404 no visual do
+  jogo; âncoras e busca por versão no `/changelog`.
+- Skip link, foco visível universal e auditoria de contraste.
+- Página de armas com as **26 renderizadas do GLB do jogo**, não geradas por IA.
+
+### Mudado — licença e governança
+- **AGPL-3.0** aplicada em 8 superfícies, num commit só.
+- Produção passa a sair **só por Release** — a Vercel deixou de auto-deployar a `main`.
+- Portões de PR, banco fora do repo público (schema e migrations viram acervo privado) e
+  ratchet de dívidas conhecidas no portão de invariantes.
+
+### Conhecido — o que continua devendo
+- Quebrada em 87,1% contra a meta de 90%. As placas que faltam estão num trecho escalonado
+  do muro oeste onde a régua enxerga uma face 0,6 m à frente daquela em que a peça
+  encaixou; densidade maior não move o número.
+- Brasília recebeu **1** mural de homenagem: é praça aberta sobre pilotis e não tem 8
+  paredes de 4 m livres. As vagas são medidas, não declaradas.
+- Os murais do Chorão e do Yuka são "no espírito de", não retrato — semelhança de verdade
+  precisa de foto de referência local (`tools/gen-image.mjs --ref`).
+- `013_feedback.sql` é aplicada **à mão** no Supabase de produção; até lá o form responde
+  "indisponível".
+- 13 dívidas críticas seguem no `tools/eval/KNOWN-RED.json` e o BOT8/BUG-03 continua aberto.
+
 ## [2.0.0-alpha.4] — 2026-08-04
 ### Mudado — ranking DESLIGADO, medição LIGADA
 - **`RANKING_ON = false`** (`src/lib/site.ts`, fonte única). `/ranking` e `/u/*` respondem
