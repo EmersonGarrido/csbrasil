@@ -1032,6 +1032,29 @@ body:has(#pause-menu:not(.hidden)) #hud{opacity:.12;transition:opacity var(--t) 
   letter-spacing:var(--tr-3);color:var(--ink-300);text-transform:uppercase}
 #scoreboard .sb-foot kbd{font:inherit;border:1px solid var(--line-2);color:var(--ink-200);
   padding:2px 7px}
+
+/* DUAS COLUNAS COM BRASÃO (07/08, ref 08_placar — pedido do dono: "pôr o brasão de cada
+   time e alinhar as informações à coluna de cada um"). O game.js emite dois .sb-col, cada
+   um com a própria tabela; as regras de tbody da grade única antiga ficam neutralizadas
+   aqui (mesma especificidade, depois no arquivo). */
+#scoreboard .sb-cols{display:grid;grid-template-columns:1fr 1fr;column-gap:var(--sb-gap);
+  width:min(1280px,100%);flex:0 1 auto;min-height:0}
+#scoreboard .sb-col{display:flex;flex-direction:column;min-height:0}
+#scoreboard .sb-chead{display:flex;align-items:center;gap:var(--s-3);padding:0 var(--s-4) var(--s-2);
+  font-weight:700;letter-spacing:var(--tr-2);font-size:var(--fs-400);text-transform:uppercase}
+#scoreboard .sb-chead img{height:36px;width:auto;filter:drop-shadow(0 2px 4px rgba(0,0,0,.5))}
+#scoreboard .sb-col.tp .sb-chead{color:#ff8a8a}
+#scoreboard .sb-col.tb .sb-chead{color:#b79bff}
+#scoreboard .sb-col table{display:block;width:100%;flex:0 1 auto;min-height:0;overflow:auto;margin-top:0}
+#scoreboard .sb-col thead{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+#scoreboard .sb-col tbody{display:grid;grid-template-columns:1fr;grid-auto-rows:var(--sb-rh);
+  row-gap:var(--sb-rg);align-content:start;background:none}
+#scoreboard .sb-col tbody tr{grid-column:auto;display:grid;
+  grid-template-columns:minmax(0,1fr) 2.8em 2.8em;align-items:center;gap:0 var(--s-4);
+  padding:0 var(--s-4);border-left:3px solid transparent}
+#scoreboard .sb-col.ctf tbody tr{grid-template-columns:minmax(0,1fr) 2.8em 2.8em 3.6em}
+#scoreboard .sb-col.tp tbody tr{background:rgba(224,50,50,.22);border-left-color:rgba(224,50,50,.6)}
+#scoreboard .sb-col.tb tbody tr{background:rgba(123,47,247,.24);border-left-color:rgba(123,47,247,.65)}
 /* flex:0 0 auto porque o #scoreboard virou coluna flex: sem isso o canvas do mascote
    (kill-switch ?dolly=1) seria espremido pelo `flex-shrink` padrão. */
 #dollynho-dance{display:block;flex:0 0 auto;margin:12px auto 0;width:240px;height:190px}

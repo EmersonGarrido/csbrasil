@@ -1,5 +1,5 @@
 {
- "gerado": "2026-08-05T14:49:04.821Z",
+ "gerado": "2026-08-07T00:13:28.261Z",
  "protocolo": "node puro; DOM stubado + three vendorizado (mesmo protocolo de botsim.mjs/pickup-check.mjs); GLB lido por tp-mount-probe.mjs",
  "fontes": {
   "glb": 44,
@@ -76,18 +76,18 @@
     "normalMap": 16,
     "roughnessMap": 16,
     "aoMap": 0,
-    "meshes": 115,
-    "triangulos": 2915
+    "meshes": 117,
+    "triangulos": 2979
    },
    {
     "mapa": "fy_pool_day",
-    "materiais": 62,
-    "map": 41,
+    "materiais": 64,
+    "map": 43,
     "normalMap": 0,
     "roughnessMap": 0,
     "aoMap": 0,
-    "meshes": 416,
-    "triangulos": 3910
+    "meshes": 418,
+    "triangulos": 3914
    },
    {
     "mapa": "fy_havan",
@@ -111,18 +111,18 @@
    },
    {
     "mapa": "fy_quebrada",
-    "materiais": 176,
-    "map": 51,
+    "materiais": 202,
+    "map": 77,
     "normalMap": 10,
     "roughnessMap": 10,
     "aoMap": 0,
-    "meshes": 1213,
-    "triangulos": 23414
+    "meshes": 1261,
+    "triangulos": 23530
    }
   ],
   "total": {
-   "materiais": 718,
-   "map": 352,
+   "materiais": 746,
+   "map": 380,
    "normalMap": 53,
    "roughnessMap": 53,
    "aoMap": 0
@@ -132,7 +132,7 @@
   {
    "id": "esquerdomacho",
    "nome": "Esquerdomacho",
-   "time": "P",
+   "time": "E",
    "tribo": null,
    "fonte": "glb",
    "marcos": {
@@ -258,7 +258,7 @@
   {
    "id": "sindicato",
    "nome": "Líder do Sindicato",
-   "time": "P",
+   "time": "E",
    "tribo": null,
    "fonte": "glb",
    "marcos": {
@@ -384,7 +384,7 @@
   {
    "id": "mst",
    "nome": "Líder do MST",
-   "time": "P",
+   "time": "E",
    "tribo": null,
    "fonte": "glb",
    "marcos": {
@@ -510,7 +510,7 @@
   {
    "id": "doutora",
    "nome": "Doutora do SUS",
-   "time": "P",
+   "time": "E",
    "tribo": null,
    "fonte": "glb",
    "marcos": {
@@ -636,7 +636,7 @@
   {
    "id": "mistico",
    "nome": "Jovem Místico",
-   "time": "P",
+   "time": "E",
    "tribo": null,
    "fonte": "glb",
    "marcos": {
@@ -1140,7 +1140,7 @@
   {
    "id": "gotinha",
    "nome": "Zé da Gotinha",
-   "time": "P",
+   "time": "E",
    "tribo": null,
    "fonte": "glb",
    "marcos": {
@@ -1518,7 +1518,7 @@
   {
    "id": "hipster",
    "nome": "Hipster Alternativo",
-   "time": "P",
+   "time": "E",
    "tribo": null,
    "fonte": "glb",
    "marcos": {
@@ -1770,7 +1770,7 @@
   {
    "id": "et",
    "nome": "ET de Varginha",
-   "time": "P",
+   "time": "E",
    "tribo": null,
    "fonte": "glb",
    "marcos": {

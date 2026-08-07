@@ -1215,7 +1215,7 @@ export class Game {
       banner: $('round-banner'), bannerTitle: $('banner-title'), bannerSub: $('banner-sub'),
       respawn: $('respawn-overlay'), respawnCount: $('respawn-count'),
       prot: $('prot-badge'), protCount: $('prot-count'),
-      scoreboard: $('scoreboard'), sbBody: $('sb-body'),
+      scoreboard: $('scoreboard'), sbCols: $('sb-cols'),
       matchEnd: $('match-end'), matchTitle: $('match-title'), matchSub: $('match-sub'), matchStats: $('match-stats'),
       pause: $('pause-menu'), radar: $('radar'),
       // painel de botões do pause: a JANELA DE GUARDA (PAUSE_ARM_MS) desliga o ponteiro
@@ -4462,8 +4462,12 @@ export class Game {
       const bar = `<span style="display:inline-block;width:64px;height:8px;margin-left:6px;background:rgba(0,0,0,.80);border:1px solid rgba(233,241,243,.55);border-radius:2px;vertical-align:middle;overflow:hidden"><span style="display:block;height:100%;width:${(prog * 100) | 0}%;background:${barCol};transition:width .1s"></span></span>`;
       return `<span style="color:${col}">● ${p.label}</span>${bar}`;
     }).join(sep('·'))
-      + sep('—') + `<span style="color:${this._teamColor('E')}">🚩 ${this.ctfCaps.E || 0}</span>`
-      + sep('·') + `<span style="color:${this._teamColor('B')}">🚩 ${this.ctfCaps.B || 0}</span>`;
+      /* A bandeirinha NÃO pode ser o emoji 🚩: o glifo do emoji ignora o CSS `color` e
+         renderiza vermelho sempre (reprovação do dono, 07/08: "as bandeirinhas têm que
+         ser da cor do time e não vermelhas"). SVG inline com fill:currentColor herda a
+         cor do <span> — a mesma _teamColor do resto do HUD. */
+      + sep('—') + `<span style="color:${this._teamColor('E')}"><svg viewBox="0 0 12 12" width="11" height="11" style="vertical-align:-1px" aria-hidden="true"><path d="M2 1v10M2 1h8l-2.5 3L10 7H2z" fill="currentColor"/></svg> ${this.ctfCaps.E || 0}</span>`
+      + sep('·') + `<span style="color:${this._teamColor('B')}"><svg viewBox="0 0 12 12" width="11" height="11" style="vertical-align:-1px" aria-hidden="true"><path d="M2 1v10M2 1h8l-2.5 3L10 7H2z" fill="currentColor"/></svg> ${this.ctfCaps.B || 0}</span>`;
   }
 
   /* ================= player physics ================= */
@@ -6346,15 +6350,27 @@ export class Game {
         `<span class="sb-label">PLACAR · ROUND ${this.roundNum}</span>` +
         `<span class="sb-score"><b class="tp">${this._teamTag('E')} ${this.roundsWon.E}</b>` +
         `<i>×</i><b class="tb">${this.roundsWon.B} ${this._teamTag('B')}</b></span>`;
-      const capH = document.getElementById('sb-cap-h');
-      if (capH) capH.classList.toggle('hidden', !this.ctf);
       // no CTF ordena por capturas (depois kills); senão por kills
       const rank = this.ctf ? (a, b) => (b.captures || 0) - (a.captures || 0) || b.kills - a.kills : (a, b) => b.kills - a.kills;
-      const rows = [...this.combatants].sort(rank).map(c =>
-        `<tr class="${c.team === 'E' ? 'tp' : 'tb'}${c.isPlayer ? ' me' : ''}">
-          <td>${c.name}${c.isPlayer ? ' ★' : ''}</td><td>${c.def.name}</td>
-          <td>${c.kills}</td><td>${c.deaths}</td>${this.ctf ? `<td>${c.captures || 0}</td>` : ''}</tr>`).join('');
-      this.el.sbBody.innerHTML = rows;
+      /* DUAS COLUNAS COM BRASÃO (referência 08_placar, pedido do dono 07/08: "na tela de
+         placar, temos que pôr o brasão de cada time e alinhar as informações à coluna de
+         cada um"). O brasão é o MESMO arquivo que estampa a bandeira CTF (img/brasoes/),
+         lido pela letra da facção que ocupa o lado — nunca pelo lado cru (a lição do
+         _factionOf: lado 'B' ≠ facção 'B' por acidente de letra). */
+      const BRASAO_FILE = { E: 'e', B: 'b', U: 'u', C: 'c', F: 'f' };
+      const coluna = (side) => {
+        const fac = this._factionOf(side);
+        const f = BRASAO_FILE[fac];
+        const linhas = [...this.combatants].filter(c => c.team === side).sort(rank).map(c =>
+          `<tr${c.isPlayer ? ' class="me"' : ''}>
+            <td class="sb-n">${c.name}${c.isPlayer ? ' ★' : ''}</td><td class="sb-p">${c.def.name}</td>
+            <td>${c.kills}</td><td>${c.deaths}</td>${this.ctf ? `<td>${c.captures || 0}</td>` : ''}</tr>`).join('');
+        return `<div class="sb-col ${side === 'E' ? 'tp' : 'tb'}${this.ctf ? ' ctf' : ''}">
+          <div class="sb-chead">${f ? `<img src="img/brasoes/${f}.png" alt="brasão ${this._teamName(side)}">` : ''}<span>${this._teamName(side)}</span></div>
+          <table><thead><tr><th>JOGADOR</th><th>PERSONAGEM</th><th>K</th><th>M</th>${this.ctf ? '<th>CAP.</th>' : ''}</tr></thead>
+          <tbody>${linhas}</tbody></table></div>`;
+      };
+      document.getElementById('sb-cols').innerHTML = coluna('E') + coluna('B');
     }
     this.el.scoreboard.classList.toggle('hidden', !v);
     /* game.js:5933 — DEFEITO DO PRINT: "TIME B LEVARAM O ROUND" atravessando POR

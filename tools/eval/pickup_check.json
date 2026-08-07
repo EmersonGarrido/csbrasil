@@ -1,5 +1,5 @@
 {
- "gerado": "2026-08-05T14:48:55.235Z",
+ "gerado": "2026-08-07T00:13:22.279Z",
  "criterios": {
   "chaoMinimoM": -0.1,
   "vaoMaximoM": 0.05,
@@ -19,7 +19,7 @@
    "waypoints": 554,
    "pickups": 50,
    "spawnPiorDistWaypoint": 3.49,
-   "celulasAlcancadas": 215897,
+   "celulasAlcancadas": 216066,
    "semAlcance": 0,
    "semAlcanceWpVelho": 49,
    "semAlcanceRetaVelho": 5,

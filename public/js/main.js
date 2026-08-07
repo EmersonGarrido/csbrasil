@@ -425,6 +425,7 @@ function sendTelemetry() {
   } catch { try { api('/api/telemetry', payload); } catch {} }
 }
 let registeredNick = ''; // nick usado no registro da sessão (token está atrelado a ele)
+let rankingBloqueado = ''; // erro do register da sessão (nick de outro dono, charset…) — vira aviso claro no fim da partida
 let heartbeatOff = false;
 
 /* CONTADOR "N ONLINE" do rodapé do menu (pedido do dono, 06/08). GET /api/online lê a
@@ -543,12 +544,17 @@ async function startGame(team, charId, enemyFaction) {
   hideLoading();
   // registra nick no ranking global (silencioso se a API não estiver no ar)
   const nick = $('nick-input').value.trim();
-  registeredNick = nick; heartbeatOff = false;
+  registeredNick = nick; heartbeatOff = false; rankingBloqueado = '';
   if (nick && !testMode) {
+    /* O ERRO DO REGISTER IMPORTA (06/08, print do dono: "⚠ stats não enviados: token
+       inválido" na tela de vitória). Causa: cada preview da Vercel é um domínio novo,
+       com localStorage novo → token novo; o nick já existe no banco com o token VELHO,
+       o register falha em silêncio aqui, e TODA partida terminava no 403 críptico.
+       A resposta agora fica guardada e o aviso do fim da partida diz o porquê. */
     api('/api/register', {
       nick, token: getToken(),
       socials: socials.filter(s => s.handle),
-    });
+    }).then((reg) => { if (reg && reg.error) rankingBloqueado = String(reg.error); });
   }
   try { window.va?.('event', { name: 'game_start', data: { team, character: charId, map: currentMap } }); } catch {}
   if (!testMode) { try { renderer.domElement.requestPointerLock()?.catch?.(() => {}); } catch {} }
@@ -1165,6 +1171,15 @@ function submitNote(msg) {
     el.appendChild(d);
   }
 }
+/* Traduz o erro cru do RPC pra algo que o jogador entende e pode agir em cima.
+   "token inválido" = o nick já existe no banco com OUTRO token (outro navegador,
+   outra aba de preview da Vercel, localStorage limpo). Se o register da sessão já
+   tinha acusado (rankingBloqueado), essa é a explicação quase certa. */
+function traduErroSubmit(msg) {
+  if (/token|inválid|nick/i.test(msg) || rankingBloqueado)
+    return 'esse nick já está registrado em outro navegador — troca o nick no PERFIL pra gravar no ranking';
+  return msg;
+}
 
 // stats parciais quando o jogador abandona a partida (sair pro menu / fechar aba)
 function partialPayload() {
@@ -1231,7 +1246,7 @@ async function recordMatchStats(s) {
       character: s.character,
     });
     if (!res) submitNote('ranking global indisponível');
-    else if (res.error) submitNote(res.error);
+    else if (res.error) submitNote(traduErroSubmit(res.error));
   }
   renderPlayerPlate();   // XP/nível do card do menu sobem junto com os stats
 }
