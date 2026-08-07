@@ -18,6 +18,9 @@ import { preloadMapProps } from './js/mapprops.js';
 
 const qp = new URLSearchParams(location.search);
 const MAP = resolveMapId(qp.get('map'));
+// `?grafite=vivo` faz o mapa RODAR a passada de grafite (segundos) em vez de aplicar
+// o layout assado. É como o tools/gen-graffiti-layout.mjs colhe a colocação.
+if (qp.get('grafite') === 'vivo') window.__grafiteLive = true;
 const W = innerWidth, H = innerHeight;
 const hud = document.getElementById('hud');
 
@@ -40,7 +43,9 @@ window.MAPEVAL = {
 (async ()=>{
   const T = initTextures();
   await preloadMapProps(allProps);
+  const _tb = performance.now();
   const world = MAPS[MAP].build(scene, T);
+  window.__buildMs = Math.round(performance.now() - _tb);   // custo total do build, p/ régua de tempo
   window.__world = { spawns: world.spawns, bounds: world.bounds, ctf: world.ctfPoints, nodes: world.waypoints.nodes.length };
   window.__scene = scene;
   window.__gworld = world;   // colliders/waypoints/findPath p/ checagens de LOS e conectividade

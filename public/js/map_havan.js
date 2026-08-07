@@ -11,6 +11,7 @@ import { VAO_BANDS, aoBoxGeo, aoMatFactory, ContactSkirt, BASE_FLOATING, onGroun
 import { makeAerialFog } from './bloom.js';   // névoa exponencial + cor por direção do olhar
 import { detailFor, registerDetail } from './textures.js';   // normal+rough por Sobel (ver lam)
 import { decalIds, paredeAtras } from './map_decals.js';     // pool por NOME + raycast de parede
+import { grafitar } from './graffiti_pass.js';               // cobertura medida, não coordenada à mão
 
 const HALF_X = 38, HALF_Z = 58;
 // Carros do estacionamento (ids otimizados em public/models/props). Forte cara BR.
@@ -552,9 +553,7 @@ export function buildHavan(scene, T) {
     'personagens-graffiti-02.png', 'personagens-graffiti-03.png', 'personagens-graffiti-04.png',
     'personagens-graffiti-05.png', 'personagens-graffiti-06.png', 'personagens-graffiti-07.png',
     'peca-bolha.png', 'or-graf-treta.png', 'or-graf-coro.png',          // originais versionados
-    'or-stencil-capivara.png', 'or-stencil-pomba.png',                  // (únicos vivos em prod)
-    'or-hom-chorao.png', 'or-hom-champignon.png', 'or-hom-tim-maia.png', 'or-hom-rita-lee.png',
-    'or-hom-raul.png', 'or-hom-sabotage.png', 'or-hom-yuka.png', 'or-hom-chico.png']);
+    'or-stencil-capivara.png', 'or-stencil-pomba.png']);                // (únicos vivos em prod)
   const _dmix = (n) => { let v = (n * 2654435761) >>> 0; v ^= v >>> 15; v = Math.imul(v, 2246822519) >>> 0; v ^= v >>> 13; v = Math.imul(v, 3266489917) >>> 0; return (v ^ (v >>> 16)) >>> 0; };
   const _dmat = new Map(), _usados = [];
   function decal(pool, x, y, z, ry, alt, larg = 99) {
@@ -1867,6 +1866,33 @@ export function buildHavan(scene, T) {
   PAINT_BATCH.build(root);
   PROPS.build(root);
   PROPS_LOJA.build(root);
+
+  /* ═══ PASSADA DE GRAFITE (07/08) ══════════════════════════════════════════
+     Pedido literal do dono: "na loja h seria em todo estacionamento no muro e na
+     estátua". As 35 peças à mão cobriam a fachada da loja e paravam ali.
+     A passada mira dos waypoints do estacionamento, e a Estátua da Liberdade entra
+     sozinha: ela é malha vertical no caminho do raio como qualquer muro. Nada de
+     caso especial pra ela — caso especial é o que não sobrevive à próxima mudança. */
+  grafitar({
+    id: 'fy_havan',
+    root, T, waypoints: nodes, seed: 5501, passo: 1.0, alcance: 9, cobre: 0.5, minLarg: 0.32,
+    bandas: [
+      /* CARTAZ DA COLEÇÃO (07/08). Reprovação: "tem diversos posters da minha coleção
+         e tb que vc gerou que não estão em nenhum mapa". Eram 30 arquivos vivendo em
+         2 dos 5 mapas, e mesmo nesses só ~6 entravam por rodada (a vaga era fixa).
+         Aqui eles entram como lambe-lambe: banda do olho, tamanho de papel colado, e
+         `chance` baixa de propósito — cartaz é tempero, parede de cartaz vira outdoor. */
+      { y0: 0.4, y1: 2.6, larg: 1.9, alturas: [1.5, 1.15, 0.85], chance: 22, fonte: 'poster',
+        pool: (T.posterFiles || []).map((_, i) => i) },
+      { y0: 0.35, y1: 2.6, larg: 3.6, alturas: [2.1, 1.55, 1.1, 0.8],
+        pool: D_TAG.concat(D_MURAL) },
+      { y0: 2.5, y1: 5.2, larg: 4.8, alturas: [2.3, 1.6, 1.1],
+        pool: D_MURAL.concat(D_TAG) },
+      { y0: 0.35, y1: 3.0, larg: 1.6, alturas: [0.9, 0.65, 0.45], planura: 0.5,
+        pool: D_TAG },
+    ],
+    murais: { texturas: T.muraisHom, nomes: T.muraisHomNomes, seed: 29, separacao: 15 },
+  });
 
   return {
     root, colliders, occluders, decalSolids: [root], groundHeightAt, spawns, sun, hemi, pickups, doors, ctfPoints,

@@ -59,8 +59,22 @@ for (const [id, m] of Object.entries(MAPS)) {
   const files = new Map(), linhas = [], soltas = [];
   const solids = W.decalSolids || W.colliders || [];
   let n = 0, menor = Infinity, maior = 0;
+  /* ── AS PEÇAS DA PASSADA NÃO SÃO MEDIDAS AQUI, E ISSO É DE PROPÓSITO (07/08) ──
+     A passada de grafite (`public/js/graffiti_pass.js`) resolve a colocação NO
+     NAVEGADOR, contra a malha GLB, e o resultado fica congelado em
+     `public/js/graffiti_layout.js`. Este probe roda em NODE, onde NENHUM GLB carrega:
+     medir `paredeAtras` numa peça que foi colada numa fachada de barraco que aqui não
+     existe devolve "sem parede" para TODAS elas — 186 falsos positivos só na Quebrada
+     na primeira vez que isto rodou. Reprovar por isso seria a régua acusando o
+     instrumento dela mesma.
+     Elas também não têm `geometry.parameters` (viram uma malha por arquivo, via
+     mergeGeometries), então o tamanho vem de `userData.pecas` só pra contagem.
+     Quem cobra a colocação delas é `tools/eval/graffiti-census.mjs`, que abre o mapa
+     num navegador de verdade — inclusive o caso "layout velho, peça no ar". */
+  let daPassada = 0;
   W.root.traverse((o) => {
     if (!o.isMesh || !String(o.name).startsWith('decal:')) return;
+    if (o.userData && o.userData.pecas) { daPassada += o.userData.pecas; return; }
     const f = o.name.slice(6), g = o.geometry.parameters || {};
     const w = g.width || 0, h = g.height || 0;
     n++; files.set(f, (files.get(f) || 0) + 1);
@@ -78,9 +92,10 @@ for (const [id, m] of Object.entries(MAPS)) {
      muro de 3 m com faixa pintada no topo o teto é FÍSICO. Por isso conta, não reprova. */
   const abaixo = linhas.filter((l) => parseFloat(l.split('×')[1]) < H_CARTAZ).length;
   curtos += abaixo;
-  console.log(`${id.padEnd(15)} ${String(n).padStart(3)} decalque(s) | ${files.size} arquivo(s) distinto(s)`
+  console.log(`${id.padEnd(15)} ${String(n).padStart(3)} decalque(s) à mão | ${files.size} arquivo(s) distinto(s)`
     + (n ? ` | altura ${menor.toFixed(2)}–${maior.toFixed(2)} m | ${abaixo} abaixo dos ${H_CARTAZ} m do cartaz`
-      + ` | ${soltas.length} sem parede atrás` : ''));
+      + ` | ${soltas.length} sem parede atrás` : '')
+    + ` | + ${daPassada} da passada (medidas no navegador — ver graffiti-census)`);
   soltas.forEach((l) => console.log(l));      // sempre, não só no V=1: isto é defeito
   if (VERBOSE) linhas.sort().forEach((l) => console.log(l));
 }

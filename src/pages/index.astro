@@ -155,6 +155,11 @@
 <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="stylesheet" href="/style.css?v=2.0.0-alpha.32">
+<!-- Cache-bust por módulo. Entraram nesta lista (07/08) o `graffiti_pass`/`graffiti_layout`
+     e, de quebra, o `map_quebrada`/`map_decals`, que estavam faltando desde que nasceram.
+     Sem o `?v=`, quem já jogou fica com o módulo em cache e vê o mapa NOVO com o grafite
+     VELHO — e o layout do grafite guarda coordenada de parede, então a divergência não é
+     cosmética: é peça colada onde a parede não está mais. -->
 <script type="importmap" is:inline>
 { "imports": {
   "three": "./vendor/three.module.js", "three/addons/": "./vendor/addons/",
@@ -169,6 +174,10 @@
   "./js/map_piscina.js": "./js/map_piscina.js?v=2.0.0-alpha.32",
   "./js/map_havan.js": "./js/map_havan.js?v=2.0.0-alpha.32",
   "./js/map_ferrovelho.js": "./js/map_ferrovelho.js?v=2.0.0-alpha.32",
+  "./js/map_quebrada.js": "./js/map_quebrada.js?v=2.0.0-alpha.32",
+  "./js/map_decals.js": "./js/map_decals.js?v=2.0.0-alpha.32",
+  "./js/graffiti_pass.js": "./js/graffiti_pass.js?v=2.0.0-alpha.32",
+  "./js/graffiti_layout.js": "./js/graffiti_layout.js?v=2.0.0-alpha.32",
   "./js/mapprops.js": "./js/mapprops.js?v=2.0.0-alpha.32",
   "./js/fparms.js": "./js/fparms.js?v=2.0.0-alpha.32",
   "./js/vmattach.js": "./js/vmattach.js?v=2.0.0-alpha.32",

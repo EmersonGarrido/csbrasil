@@ -9,6 +9,7 @@ import { VAO_BANDS, aoBoxGeo, aoMatFactory, ContactSkirt, BASE_FLOATING, onGroun
 import { makeAerialFog } from './bloom.js';   // névoa exponencial + cor por direção do olhar
 import { detailFor, registerDetail } from './textures.js';   // normal+rough por Sobel (ver lam)
 import { decalIds, paredeAtras } from './map_decals.js';   // pool por NOME + raycast na MALHA
+import { grafitar } from './graffiti_pass.js';             // cobertura medida, não coordenada à mão
 
 /* PEGADA NA ALTURA DO CORPO (reprovação do dono, 05/08: "problemas com o box do ônibus
    e barracas"). O colisor derivado do Box3 do GLB INTEIRO conta como parede coisas que só
@@ -1166,6 +1167,7 @@ export function buildBrasilia(scene, T) {
   }
 
   /* ---------------- protest posters / banners on the ministry FACADES ---------------- */
+  let POOLS = null;   // ponte dos pools de decalque pra passada de grafite (fim do build)
   {
     const imgs = T.posterImgs || [], aspects = T.posterAspects || [];
     const laneOrder = [1, 4, 0, 3, 2, 5];   // priority posters land on the mid buildings first
@@ -1223,12 +1225,27 @@ export function buildBrasilia(scene, T) {
        posição, porque o `botsim` é determinístico e mapa que muda a cada carregamento é
        defeito. Fora do pool: as 47 folhas de 'alfabeto' (letra fina e clara, some a 10 m —
        BAR §2.1) e os recortes de olho/boca soltos (viram mancha abstrata ampliados). */
+    // (`POOLS` é declarado antes do bloco — ver a ponte no fim desta seção)
     const D_MURAL = decalIds(T, ['personagem-muro.png', 'personagens-graffiti-01.png',
       'personagens-graffiti-02.png', 'personagens-graffiti-03.png', 'personagens-graffiti-04.png',
       'personagens-graffiti-05.png', 'personagens-graffiti-06.png', 'personagens-graffiti-07.png',
       'peca-bolha.png', 'or-graf-treta.png', 'or-graf-coro.png',
-      'or-stencil-capivara.png', 'or-stencil-pomba.png',     // originais versionados (vivos em prod)
-      'or-hom-rita-lee.png', 'or-hom-chico.png', 'or-hom-yuka.png', 'or-hom-champignon.png']);
+      'or-stencil-capivara.png', 'or-stencil-pomba.png']);   // originais versionados (vivos em prod)
+    /* PROTESTO E PIXO PRA PASSADA DE COBERTURA (07/08). A Praça dos Três Poderes não
+       se escreve com tag de bairro: o que aparece em muro de contenção, tapume de obra
+       e ônibus queimado aqui é lambe de campanha, stencil e pixação de manifestação.
+       Por isso pool separado do `D_MURAL` — mesma passada, vocabulário diferente. */
+    const D_LAMBE = decalIds(T, ['cartaz-america-latina.png', 'cartaz-medo.png',
+      'cartaz-neutro.png', 'dont-overthink.png', 'gratidao-sol.png', 'meio-ano.png',
+      'pra-gringo.png', 'folha-lambes.png', 'folha-stenci.png']);
+    const D_TAG = decalIds(T, ['tag-fina.png', 'tag-flop.png', 'tag-larga.png',
+      'tag-money.png', 'tag-pingo.png', 'tag-selvagem.png', 'tags-treino-02.png',
+      'tags-treino-05.png', 'folha-pixaca-01.png', 'folha-pixaca-03.png',
+      'folha-pixaca-05.png', 'folha-pixaca-07.png']);
+    /* Ponte pro fim do build: a passada roda depois dos waypoints (é deles que ela
+       mira) e este bloco é fechado. Copiar as listas lá embaixo criaria duas verdades
+       sobre o mesmo pacote de arte. */
+    POOLS = { D_MURAL, D_LAMBE, D_TAG };
     /* SÓLIDOS DE DECALQUE. O bloco do ministério é GLB e, com `bigscale`, entra com
        `solid: false` — a colisão fica só nos pilares do piloti, então `colliders` NÃO tem a
        empena e o `paredeAtras` reprovaria as 16 peças certas. A empena entra aqui, medida do
@@ -1767,6 +1784,38 @@ export function buildBrasilia(scene, T) {
 
   // saia de contato: TODAS as bases registradas viram UMA malha mesclada = 1 draw call
   SKIRT.build(root);
+
+  /* ═══ PASSADA DE GRAFITE (07/08) ══════════════════════════════════════════
+     Este mapa tinha ZERO arte na tela. As 16 peças das empenas dos ministérios são
+     coladas com `paredeAtras`, que mede contra a MALHA — e o ministério é um bloco
+     sobre PILOTIS, com o térreo vazado: as 16 nasciam no ar e passaram a ser todas
+     reprovadas, corretamente. Resultado medido pela `graffiti-census`: 0 de 425
+     placas pintadas. O dono pediu ~60% aqui — é cidade oficial pichada, não quebrada.
+
+     A passada mira dos waypoints, então quem recebe tinta é o que dá pra ver andando:
+     muro de contenção, empena de bloco, barreira, ônibus queimado, tapume de obra.
+     Pool com peso em PROTESTO (lambe, stencil, cartaz), que é a escrita real desta
+     praça — tag de bairro em Brasília leria como outro mapa. */
+  grafitar({
+    id: 'awp_map',
+    root, T, waypoints: nodes, seed: 3311, passo: 1.1, alcance: 9, cobre: 0.45, minLarg: 0.35,
+    bandas: [
+      /* CARTAZ DA COLEÇÃO (07/08). Reprovação: "tem diversos posters da minha coleção
+         e tb que vc gerou que não estão em nenhum mapa". Eram 30 arquivos vivendo em
+         2 dos 5 mapas, e mesmo nesses só ~6 entravam por rodada (a vaga era fixa).
+         Aqui eles entram como lambe-lambe: banda do olho, tamanho de papel colado, e
+         `chance` baixa de propósito — cartaz é tempero, parede de cartaz vira outdoor. */
+      { y0: 0.4, y1: 2.6, larg: 1.9, alturas: [1.5, 1.15, 0.85], chance: 30, fonte: 'poster',
+        pool: (T.posterFiles || []).map((_, i) => i) },
+      { y0: 0.35, y1: 2.6, larg: 3.8, alturas: [2.1, 1.6, 1.15, 0.85],
+        pool: POOLS.D_LAMBE.concat(POOLS.D_TAG, POOLS.D_MURAL) },
+      { y0: 2.5, y1: 5.0, larg: 5.0, alturas: [2.3, 1.7, 1.2], chance: 82,
+        pool: POOLS.D_MURAL.concat(POOLS.D_LAMBE) },
+      { y0: 0.35, y1: 3.0, larg: 1.7, alturas: [0.9, 0.65, 0.45], planura: 0.5, chance: 70,
+        pool: POOLS.D_TAG },
+    ],
+    murais: { texturas: T.muraisHom, nomes: T.muraisHomNomes, seed: 17, separacao: 13, larg: 4.0, alt: 2.1, minLarg: 2.2 },
+  });
 
   return {
     root, colliders, occluders, groundHeightAt, spawns, sun, hemi,

@@ -19,9 +19,11 @@
 import * as THREE from 'three';
 import { placeProp, hasProp, PropBatch } from './mapprops.js';
 import { decalIds, paredeAtras, medirParede } from './map_decals.js';   // pool por NOME + medição de parede
+import { grafitar } from './graffiti_pass.js';   // cobertura medida, não coordenada à mão
 import { VAO_BANDS, aoBoxGeo, aoMatFactory, ContactSkirt, BASE_FLOATING, onGround } from './vao.js';
 import { makeAerialFog } from './bloom.js';
 import { detailFor } from './textures.js';
+
 
 const QP = new URLSearchParams(typeof location !== 'undefined' ? location.search : '');
 const LOWQ = (() => { try { return JSON.parse(localStorage.getItem('awpbr_settings') || '{}').quality === 'low'; } catch (e) { return false; } })();
@@ -364,6 +366,14 @@ export function buildQuebrada(scene, T) {
   const D_PERSO = decalIds(T, ['folha-person-01.png', 'folha-person-02.png', 'folha-person-03.png',
     'folha-person-04.png', 'folha-person-05.png', 'folha-person-06.png']);
   const D_CARTAZERA = decalIds(T, ['folha-lambes.png', 'folha-stenci.png']);
+  /* ADESIVO: peça PEQUENA (0,5–0,95 m) pro resgate da passada — canto de muro, faixa
+     entre porta e janela, lateral de caixa d'água. Só recorte de silhueta fechada, que
+     é o que aguenta ser lido a 0,5 m sem virar borrão; os `olhos-bocas-*` do pacote
+     ficam de fora aqui pelo mesmo motivo de sempre (fragmento vira mancha). */
+  const D_ADESIVO = decalIds(T, ['tags-treino-01.png', 'tags-treino-02.png', 'tags-treino-03.png',
+    'tags-treino-04.png', 'tags-treino-05.png', 'tags-treino-06.png', 'tag-pingo.png',
+    'tag-money.png', 'tag-selvagem.png', 'or-stencil-capivara.png', 'or-stencil-pomba.png',
+    'coelho-rosa.png', 'bola-amarela.png']);
   /* PORTA DE AÇO: pool de tinta CLARA (a chapa é 0x2b2926) e SÓ peça em pé (aspecto < 1).
      Porta tem ~1,3-2,3 m de vão: arte deitada encolhe pra caber na largura e sobra uma
      tarja de 1,1 m no meio de uma porta de 2,1 m — pequena e sem intenção. */
@@ -1523,6 +1533,63 @@ export function buildQuebrada(scene, T) {
   PBC.build(root);      // carros pintados por instância
   PB.build(root);       // instancia barraco e fachada: 1 draw call por (material, bloco de 24 m)
   SKIRT.build(root);
+
+  /* ═══ A PASSADA DE GRAFITE — E POR QUE ELA VEM DEPOIS DO `PB.build` ═══════════
+     Este mapa colava ~334 decalques e o dono, andando nele, contou "10-15% de arte
+     urbana". As duas medidas estavam certas e a régua nova (graffiti-census, que
+     mede NO NAVEGADOR) explicou a diferença: 96 peças na tela, cobertura 12,7%.
+
+     O que matava as outras 238 é esta linha, o `PB.build(root)` logo acima. Os
+     barracos são InstancedMesh e nascem AQUI, no fim; a casca procedural de cada
+     lote fica `visible = false` assim que existe GLB. Então todo `decalFachada`
+     lá de cima roda num mundo onde a fachada AINDA NÃO EXISTE: o `medirParede` não
+     acha malha, devolve null, e a peça morre em silêncio. Em node o GLB nunca
+     carrega, a casca procedural continua visível e as 334 passam — que é por que
+     o `decal-probe` jurava que estava tudo lá.
+
+     Depois do `PB.build` a parede existe, e aí não é preciso adivinhar coordenada:
+     a passada acha parede por raio a partir dos waypoints (por onde se anda de
+     fato — "vc anda pelos becos e avenidas principais e não tem") e pinta o que
+     achar, em três faixas de altura. As chamadas à mão acima continuam: elas são
+     as vagas escolhidas a dedo (porta de aço, muro do baile, travessa do campinho)
+     e agora quase todas sobrevivem, porque a passada não depende delas. */
+  grafitar({
+    id: 'fy_quebrada',
+    root, T, waypoints: nodes, seed: 4021, passo: 0.72, alcance: 9, cobre: 0.62, minLarg: 0.3,
+    /* HOMENAGENS: peça de primeira classe, 5,4 × 2,8 m (eram 3,9 × 2,0 numa vaga
+       fixa que o navegador reprovava), na melhor parede medida de cada região. */
+    murais: { texturas: T.muraisHom, nomes: T.muraisHomNomes, seed: 91, separacao: 15 },
+    bandas: [
+      /* CARTAZ DA COLEÇÃO (07/08). Reprovação: "tem diversos posters da minha coleção
+         e tb que vc gerou que não estão em nenhum mapa". Eram 30 arquivos vivendo em
+         2 dos 5 mapas, e mesmo nesses só ~6 entravam por rodada (a vaga era fixa).
+         Aqui eles entram como lambe-lambe: banda do olho, tamanho de papel colado, e
+         `chance` baixa de propósito — cartaz é tempero, parede de cartaz vira outdoor. */
+      { y0: 0.4, y1: 2.6, larg: 1.9, alturas: [1.5, 1.15, 0.85], chance: 30, fonte: 'poster',
+        pool: (T.posterFiles || []).map((_, i) => i) },
+      // banda do olho: a escrita da rua — pixo em pé, throw-up, tag, lambe
+      { y0: 0.25, y1: 2.35, larg: 3.6, alturas: [2.0, 1.5, 1.1, 0.8, 0.6],
+        pool: D_PIXO.concat(D_THROW, D_TAG, D_CARTAZERA, D_LAMBE, D_PERSO) },
+      // banda de peito de muro alto: personagem e peça, que é o que lê de longe
+      { y0: 2.3, y1: 4.3, larg: 4.4, alturas: [1.9, 1.4, 1.0],
+        pool: D_MURAL.concat(D_CARA, D_PERSO, D_THROW) },
+      // banda de empena: só onde a parede realmente sobe (sobrado, muro do baile)
+      { y0: 4.2, y1: 7.6, larg: 4.8, alturas: [2.2, 1.5, 1.0], chance: 78,
+        pool: D_MURAL.concat(D_THROW, D_TAG) },
+      /* RESGATE. As três bandas acima só sabem colar peça de 1 m pra cima, e sobrava
+         412 âncora sem NADA: canto de muro, trecho entre porta e janela, lateral de
+         caixa d'água. Muro de quebrada de verdade é justamente ali que tem mais tag
+         miúda. Esta banda existe pra esses restos — peça pequena, largura curta, e
+         ela roda por último, então só ocupa o que as outras não quiseram. */
+      /* `planura` folgada aqui e só aqui: o que sobrava pelado depois das três bandas
+         era parede de tijolo aparente e chapa ondulada, onde os 28 cm padrão de
+         variação de profundidade reprovam tudo. Peça de meio metro em tijolo torto é
+         exatamente o que existe na rua — o limite apertado protege MURAL, não tag. */
+      { y0: 0.3, y1: 2.9, larg: 1.7, alturas: [0.95, 0.7, 0.5, 0.38], planura: 0.5,
+        pool: D_TAG.concat(D_ADESIVO) },
+    ],
+  });
+
   return {
     root, colliders, occluders, decalSolids: [root], groundHeightAt, spawns, sun, hemi, pickups, ctfPoints,
     waypoints: { nodes, adj }, nearestWaypoint, findPath,

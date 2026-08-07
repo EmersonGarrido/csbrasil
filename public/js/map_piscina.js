@@ -26,7 +26,8 @@
 // shower stalls, a glass skylight roof — and rows of weapons on the deck.
 // Same buildWorld contract as map.js.
 import * as THREE from 'three';
-import { decalIds, paredeAtras } from './map_decals.js';   // pool por NOME + raycast de parede
+import { decalIds, paredeAtras } from './map_decals.js';
+import { grafitar } from './graffiti_pass.js';   // cobertura medida, não coordenada à mão
 
 const HALF_X = 17, HALF_Z = 25;   // interior half-extents (walls sit just outside)
 const WALL_H = 7, CEIL = 7;
@@ -305,6 +306,10 @@ export function buildPoolDay(scene, T) {
      empurra collider (decalque com colisor vira parede invisível — BUG-21, o ônibus da
      Brasília); `paredeAtras` antes de desenhar; 6-8 cm de afastamento; e escolha
      determinística por posição, porque o `botsim` é determinístico. */
+  /* Os pools nascem DENTRO do bloco abaixo, mas a passada de grafite roda no fim do
+     build (depois dos waypoints, que é de onde ela mira). `POOLS` é a única ponte —
+     copiar as listas lá embaixo faria duas verdades sobre o mesmo pacote de arte. */
+  let POOLS = null;
   {
     const D_TAG = decalIds(T, ['tag-fina.png', 'tag-flop.png', 'tag-larga.png', 'tag-money.png',
       'tag-pingo.png', 'tag-selvagem.png', 'tags-treino-02.png', 'tags-treino-05.png', 'peca-bolha.png',
@@ -331,13 +336,12 @@ export function buildPoolDay(scene, T) {
        a contenção que reprovou o pool_ramos continua valendo (BAR-CONSISTENCIA §2.4). */
     const D_BOMBA = decalIds(T, ['peca-bolha.png', 'alfabeto-bolha.png', 'alfabeto-bolha2.png',
       'alfabeto-grosso-01.png', 'tag-flop.png', 'tags-treino-04.png',
-      'or-graf-treta.png', 'or-graf-coro.png',     // originais versionados
-      'or-hom-chorao.png', 'or-hom-champignon.png', 'or-hom-tim-maia.png', 'or-hom-rita-lee.png',
-      'or-hom-raul.png', 'or-hom-sabotage.png', 'or-hom-yuka.png', 'or-hom-chico.png']);
+      'or-graf-treta.png', 'or-graf-coro.png']);   // originais versionados
     // adesivo de armário: peça pequena e fechada, que aguenta 1 m sem virar borrão
     const D_ADESIVO = decalIds(T, ['tags-treino-02.png', 'tags-treino-03.png', 'tags-treino-05.png',
       'tags-treino-06.png', 'tag-money.png', 'tag-selvagem.png', 'alfabeto-reto-05.png',
       'alfabeto-reto-07.png', 'alfabeto-grosso-01.png']);
+    POOLS = { D_TAG, D_LETRA, D_CARTAZ, D_BOMBA, D_ADESIVO };
     const _dmix = (n) => { let v = (n * 2654435761) >>> 0; v ^= v >>> 15; v = Math.imul(v, 2246822519) >>> 0; v ^= v >>> 13; v = Math.imul(v, 3266489917) >>> 0; return (v ^ (v >>> 16)) >>> 0; };
     const _dmat = new Map(), _usados = [];
     /* raio da anti-repetição: 6 m, era 12 m. Com 66 peças num salão de 34 × 50 m, 12 m
@@ -748,6 +752,41 @@ export function buildPoolDay(scene, T) {
   // `this.world.slowAt && ...`, mas declarar explicitamente evita que a próxima
   // pessoa ache que ficou faltando.
   const slowAt = () => false;
+
+  /* ═══ PASSADA DE GRAFITE (07/08) ══════════════════════════════════════════
+     Reprovação do dono: "na piscina ainda tem muito muro e obstáculos e armários
+     sem". A régua nova (`tools/eval/graffiti-census.mjs`, que mede NO NAVEGADOR)
+     confirmou: 42,1% das placas de parede visíveis tinham arte — as 66 vagas à mão
+     acima cobrem as 4 paredes grandes e param aí.
+     A passada acha parede por raio a partir dos waypoints e pinta o que achar, então
+     armário, pilastra, bloco de partida e mureta entram sem ninguém escrever
+     coordenada. Ver `public/js/graffiti_pass.js` pro porquê de ser assado. */
+  grafitar({
+    id: 'fy_pool_day',
+    root, T, waypoints: nodes, seed: 7717, passo: 0.9, alcance: 9, cobre: 0.55, minLarg: 0.3,
+    bandas: [
+      /* CARTAZ DA COLEÇÃO (07/08). Reprovação: "tem diversos posters da minha coleção
+         e tb que vc gerou que não estão em nenhum mapa". Eram 30 arquivos vivendo em
+         2 dos 5 mapas, e mesmo nesses só ~6 entravam por rodada (a vaga era fixa).
+         Aqui eles entram como lambe-lambe: banda do olho, tamanho de papel colado, e
+         `chance` baixa de propósito — cartaz é tempero, parede de cartaz vira outdoor. */
+      { y0: 0.4, y1: 2.6, larg: 1.9, alturas: [1.5, 1.15, 0.85], chance: 28, fonte: 'poster',
+        pool: (T.posterFiles || []).map((_, i) => i) },
+      // banda do olho: azulejo e concreto do deck — tag, cartaz e letra
+      { y0: 0.3, y1: 2.5, larg: 3.4, alturas: [2.0, 1.5, 1.1, 0.8, 0.6],
+        pool: POOLS.D_TAG.concat(POOLS.D_CARTAZ, POOLS.D_LETRA) },
+      // banda alta das 4 paredes do salão: bomba, que é o que lê do outro lado da piscina
+      { y0: 2.4, y1: 4.6, larg: 4.6, alturas: [2.2, 1.6, 1.1],
+        pool: POOLS.D_BOMBA.concat(POOLS.D_TAG) },
+      { y0: 4.5, y1: 7.4, larg: 4.8, alturas: [2.2, 1.5, 1.0], chance: 75,
+        pool: POOLS.D_BOMBA },
+      // resgate: canto de armário, pilastra fina, lateral de bloco de partida
+      { y0: 0.3, y1: 2.9, larg: 1.6, alturas: [0.9, 0.7, 0.5, 0.38], planura: 0.5,
+        pool: POOLS.D_ADESIVO.concat(POOLS.D_TAG) },
+    ],
+    murais: { texturas: T.muraisHom, nomes: T.muraisHomNomes, seed: 53, separacao: 11 },
+  });
+
   return {
     root, colliders, occluders, decalSolids: [root], groundHeightAt, slowAt, spawns, sun, hemi, pickups,
     /* BANDEIRAS DO CTF — DECLARADAS (06/08, defeito do dono: "bandeiras com nome do pátio

@@ -12,6 +12,7 @@ import { VAO_BANDS, aoBoxGeo, aoMatFactory, ContactSkirt, BASE_FLOATING, onGroun
 import { makeAerialFog } from './bloom.js';   // névoa exponencial + cor por direção do olhar
 import { detailFor } from './textures.js';   // normal+rough por Sobel (ver lam)
 import { decalIds, paredeAtras, caixaGirada } from './map_decals.js';   // pool por NOME + raycast de parede
+import { grafitar } from './graffiti_pass.js';                         // cobertura medida, não coordenada à mão
 
 // kill-switches (padrão do projeto): ?nofog=1 sem névoa, ?rays=0 sem god rays,
 // ?dust=0 sem poeira em suspensão, ?mato=0 sem vegetação invasora.
@@ -636,8 +637,7 @@ export function buildFerroVelho(scene, T) {
   const D_MURAL = decalIds(T, ['personagem-muro.png', 'personagens-graffiti-01.png',
     'personagens-graffiti-02.png', 'personagens-graffiti-03.png', 'personagens-graffiti-04.png',
     'personagens-graffiti-05.png', 'personagens-graffiti-06.png', 'personagens-graffiti-07.png',
-    'peca-bolha.png', 'or-graf-treta.png', 'or-graf-coro.png',     // originais versionados
-    'or-hom-chorao.png', 'or-hom-tim-maia.png', 'or-hom-raul.png', 'or-hom-sabotage.png']);
+    'peca-bolha.png', 'or-graf-treta.png', 'or-graf-coro.png']);   // originais versionados
   const D_TAG = decalIds(T, ['tag-fina.png', 'tag-flop.png', 'tag-larga.png', 'tag-money.png',
     'tag-pingo.png', 'tag-selvagem.png', 'tags-treino-02.png', 'tags-treino-05.png',
     'or-stencil-capivara.png', 'or-stencil-pomba.png']);           // originais versionados
@@ -1186,7 +1186,7 @@ export function buildFerroVelho(scene, T) {
     for (const [x, z, w, tx] of [
       [-3.5, 4.8, 3.2, oilA], [19, 21, 2.6, oilB], [-27, -17, 3.0, oilA], [5, -30.5, 2.4, oilB], [27, 7, 2.8, oilA],
       [-25.4, 30.6, 2.8, oilA], [24, -4.5, 3.4, oilB], [0.5, 29, 3.0, oilB], [-6, 25, 2.2, oilA], [8, 27.5, 2.4, oilA],
-      [-9, -2, 2.6, oilB], [12, -12, 2.8, oilA], [-20, 6, 2.4, oilB], [2, -8, 2.2, oilA], [-14, -25, 2.6, oilB], [16, 16, 2.4, oilA],
+      [-9, -2, 2.6, oilB], [12, -12, 2.8, oilA], [-20, 6, 2.4, oilB], [2, -8, 2.2, oilA], [-14, -25, 2.6, oilB], [16, 16, 2.4, oilA]
     ]) decal(tx, w, w * (0.7 + drnd() * 0.5), x, z, drnd() * 6.3, 0.018, 1, 0.22, 0.6);
     // poeira/areia acumulada no rodapé dos muros (vento + abandono)
     const dust = blobTex(196, 176, 138, 0.4, 303);
@@ -1203,7 +1203,7 @@ export function buildFerroVelho(scene, T) {
     for (const [x, z, w, t] of [
       [-20, -30, 7, clay], [12, -22, 6, clay], [-6, 6, 8, clay], [22, 26, 7, clay], [-26, 16, 6, clay],
       [4, 34, 6, clay], [28, -14, 5, clay], [-14, 24, 6, clay],
-      [0, 22, 6, grit], [-18, -4, 6, grit], [16, 4, 6, grit], [-4, -26, 6, grit], [26, -26, 5, grit], [-28, 6, 5, grit],
+      [0, 22, 6, grit], [-18, -4, 6, grit], [16, 4, 6, grit], [-4, -26, 6, grit], [26, -26, 5, grit], [-28, 6, 5, grit]
     ]) decal(t, w, w * (0.6 + drnd() * 0.5), x, z, drnd() * 6.3, 0.012, 0.85);
     // POÇAS: material espelhado (metalness alta + roughness baixa) — é o único lugar do
     // pátio onde o céu de fim de tarde aparece refletido, e o BAR pede isso nominalmente.
@@ -1842,6 +1842,33 @@ export function buildFerroVelho(scene, T) {
 
   // saia de contato: todas as bases registradas viram UMA malha mesclada = 1 draw call
   SKIRT.build(root);
+
+  /* ═══ PASSADA DE GRAFITE (07/08) ══════════════════════════════════════════
+     Pedido do dono: "no ferro velho em todas paredes que derem, não só do escritório
+     mas dos muros em volta". As 44 peças à mão vivem no escritório e no portão; o muro
+     do perímetro, os contêineres e as pilhas de lataria estavam limpos.
+     Ferro velho é o lugar mais bombardeado que existe na vida real — muro de fundo de
+     pátio é a superfície preferida de quem pinta, justamente porque ninguém reclama. */
+  grafitar({
+    id: 'fy_ferrovelho',
+    root, T, waypoints: nodes, seed: 8123, passo: 0.95, alcance: 9, cobre: 0.55, minLarg: 0.32,
+    bandas: [
+      /* CARTAZ DA COLEÇÃO (07/08). Reprovação: "tem diversos posters da minha coleção
+         e tb que vc gerou que não estão em nenhum mapa". Eram 30 arquivos vivendo em
+         2 dos 5 mapas, e mesmo nesses só ~6 entravam por rodada (a vaga era fixa).
+         Aqui eles entram como lambe-lambe: banda do olho, tamanho de papel colado, e
+         `chance` baixa de propósito — cartaz é tempero, parede de cartaz vira outdoor. */
+      { y0: 0.4, y1: 2.6, larg: 1.9, alturas: [1.5, 1.15, 0.85], chance: 24, fonte: 'poster',
+        pool: (T.posterFiles || []).map((_, i) => i) },
+      { y0: 0.3, y1: 2.6, larg: 3.6, alturas: [2.1, 1.55, 1.1, 0.8, 0.6],
+        pool: D_TAG.concat(D_MURAL) },
+      { y0: 2.5, y1: 5.0, larg: 4.8, alturas: [2.2, 1.6, 1.1],
+        pool: D_MURAL.concat(D_TAG) },
+      { y0: 0.3, y1: 3.0, larg: 1.6, alturas: [0.9, 0.65, 0.45], planura: 0.5,
+        pool: D_TAG },
+    ],
+    murais: { texturas: T.muraisHom, nomes: T.muraisHomNomes, seed: 61, separacao: 13 },
+  });
 
   return {
     root, colliders, occluders, groundHeightAt, spawns, sun, hemi, pickups, ctfPoints,

@@ -497,6 +497,10 @@ export function initTextures() {
     t.minFilter = THREE.LinearMipmapLinearFilter;
     return t;
   });
+  /* Nome do arquivo por índice — a passada de grafite guarda NOME no layout assado
+     (índice desliza quando alguém mexe no POSTER_FILES, e aí o mapa cola outro
+     cartaz sem erro nenhum; é a mesma lição do `decalFiles`). */
+  T.posterFiles = POSTER_FILES.map(([f]) => f);
   T.posterAspects = POSTER_FILES.map(([, a]) => a);
   T.posterEscala = POSTER_FILES.map(([, , e]) => e || 1);   // multiplicador de altura por cartaz
 
@@ -757,7 +761,29 @@ export function initTextures() {
   );
   /* GALERIA DE HOMENAGENS do quebrada (versão tijolo, opaca) — lazy igual aos decals:
      8 jpg de 1408×768 só devem baixar quando o quebrada monta a galeria. */
+  /* ── OS `or-hom-*.png` SAÍRAM DOS POOLS (07/08) ────────────────────────────
+     Reprovação do dono: "as homenagens aos outros artistas ficaram muito pequenas e
+     só no mapa piscina" e "o do chorão está com um fundo branco".
+
+     As duas coisas eram o MESMO arquivo. A homenagem existia em duas formas: estes
+     murais de tijolo (`or-mural-*.jpg`, grandes, certos) e uns recortes `or-hom-*.png`
+     que entravam nos pools de tag — ou seja, sorteados contra 15 outras artes e do
+     tamanho de um adesivo. E MEDIDO nos 8: `or-hom-chorao.png` e `or-hom-rita-lee.png`
+     têm fundo 100% OPACO (quina 239,239,240) — o recorte falhou quando eles foram
+     gerados, e na parede aquilo desenha um retângulo cinza-claro com um adesivo no
+     meio. Era literalmente o "fundo branco".
+
+     Tentar re-recortar não resolve: o fundo é um gradiente de estúdio, não uma cor
+     chapada — flood fill da borda tira 2/3 e deixa o miolo (conferido).
+     Então a homenagem passa a existir SÓ como mural, que é a forma que o dono
+     aprovou ("o grafite do sabotage ficou demais"), agora em 5,4 × 2,8 m e nos 5
+     mapas via `pendurarMurais`. Os PNG ficam no disco, intactos, sem pool.        */
   const MURAIS_HOM = ['chorao', 'champignon', 'tim-maia', 'rita-lee', 'raul', 'sabotage', 'yuka', 'chico'];
+  /* A ORDEM É CONTRATO: `T.muraisHom[i]` é o artista `T.muraisHomNomes[i]`. Os 5 mapas
+     pendem essas telas pelo nome (`mural:homenagem-<artista>`), e o layout assado do
+     grafite guarda o NOME, não o índice — se a lista fosse copiada em cada mapa, mexer
+     nela renomearia mural em silêncio num mapa e não no outro. */
+  T.muraisHomNomes = MURAIS_HOM.map((n) => 'homenagem-' + n);
   T.muraisHom = [];
   MURAIS_HOM.forEach((n, i) => {
     Object.defineProperty(T.muraisHom, i, {
