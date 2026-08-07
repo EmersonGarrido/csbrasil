@@ -11,6 +11,7 @@
 import type { APIRoute } from 'astro';
 import { supabaseAdmin, NOT_CONFIGURED } from '../../lib/supabase';
 import { rateLimit } from '../../lib/ratelimit';
+import { notificar } from '../../lib/notify';
 
 export const prerender = false;
 
@@ -43,5 +44,19 @@ export const POST: APIRoute = async ({ request }) => {
     p_version: typeof version === 'string' ? version.slice(0, 40) : null,
   });
   if (error) return json({ error: 'indisponivel' }, 503);
+
+  /* NOTIFICAÇÃO DEPOIS DO BANCO, E SEM PODER DERRUBAR A RESPOSTA (issue #85).
+     A ordem importa: o feedback já está gravado quando o email sai, então provedor
+     fora do ar custa a notificação e não o dado. `notificar` não lança — devolve
+     boolean — e sem `FEEDBACK_TO` ela não faz nada e avisa uma vez no log.
+     NÃO vai IP no corpo, pela mesma razão da telemetria. */
+  await notificar(`[CORO SOLTO] feedback de ${email.trim()}`, {
+    mensagem: message.trim(),
+    email: email.trim(),
+    newsletter: newsletter === true ? 'sim' : 'não',
+    mapa: typeof map === 'string' ? map.slice(0, 40) : '—',
+    versao: typeof version === 'string' ? version.slice(0, 40) : '—',
+  });
+
   return json({ ok: true });
 };
