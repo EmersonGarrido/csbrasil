@@ -15,7 +15,6 @@
   "CHR1": "antropometria do elenco Mint fora de ±35% (cabeça/ombro/perna) — corrigir exigiria re-gerar/escalar o roster",
   "CHR3": "proporções do elenco — mesmo lote do CHR1",
   "CHR4": "proporções do elenco — mesmo lote do CHR1",
-  "CTF1": "geometria de bandeira fora do critério em mapa(s) legado(s) — ajuste de layout pendente",
-  "TEX1": "fundo branco de grafite/poster no fy_quebrada (10 superfícies #ffffff/#f2f0ec ≥ 6 m²) — EM CONSERTO: knockout de branco nos decalques"
+  "CTF1": "geometria de bandeira fora do critério em mapa(s) legado(s) — ajuste de layout pendente"
  }
 }

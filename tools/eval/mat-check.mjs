@@ -195,6 +195,10 @@ function superficiesLisas(scene) {
   const esc = new THREE.Vector3(), pos = new THREE.Vector3();
   scene.traverse((o) => {
     if (!o.isMesh || !o.material || !o.geometry || !o.visible) return;
+    /* proxy de GLB (userData.glbFallback): no browser ele some quando o asset
+       carrega; no node o GLB nunca carrega e o proxy fica visível com material
+       cru — media parede branca que jogador nenhum vê. Fica de fora do TEX1. */
+    if (o.userData && o.userData.glbFallback) return;
     for (let p = o.parent; p; p = p.parent) if (!p.visible) return;
     const mats = Array.isArray(o.material) ? o.material : [o.material];
     for (const m of mats) {

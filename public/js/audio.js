@@ -111,6 +111,16 @@ export class Sfx {
     if (a) { this._roundAudio = a; this._roundT = setTimeout(() => this.stopRound(1.2), 25000); }
     return true;
   }
+  /** Agenda o corte da vinheta pra daqui a `secs` — o round novo já começou e ela segue
+      tocando por baixo (pedido do dono, 07/08: "quando um round acaba deixa a música tocar
+      uns 15 s"; ~4,5 s correm na pausa de fim de round + estes aqui). Reusa o _roundT:
+      um stopRound() de verdade (sair pro menu, dispose) cancela a agenda e corta na hora. */
+  stopRoundAfter(secs, fade = 1.2) {
+    if (!this._roundAudio) return;
+    clearTimeout(this._roundT);
+    this._roundT = setTimeout(() => this.stopRound(fade), secs * 1000);
+  }
+
   /** Corta a vinheta de round com fade (s). Idempotente: pode ser chamado sempre. */
   stopRound(fade = 0.45) {
     clearTimeout(this._roundT); this._roundT = null;

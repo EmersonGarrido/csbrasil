@@ -463,7 +463,12 @@ export function buildQuebrada(scene, T) {
        da tela (`vis`) e o volume passa a ser desenhado pelos GLB do `barracoGlb` abaixo.
        Colisor, occluder e `solids` ficam onde estavam — ver "ACABAMENTO GLB". */
     const glb = o.glb !== false && BARRACOS_GLB.length > 0;
-    const vis = (m) => (glb ? hide(m) : m);
+    /* userData.glbFallback: marca "isto é o proxy que some quando o GLB carrega".
+       O TEX1 (mat-check superficiesLisas) pula malha marcada — no node nenhum GLB
+       carrega e o proxy fica visível de material cru, o que enchia o TEX1 de
+       superfície branca que jogador nenhum vê. A marca é estática (independe do
+       GLB ter carregado) justamente para valer no node. */
+    const vis = (m) => { m.userData.glbFallback = true; return glb ? hide(m) : m; };
     vis(addBox(w, h, d, o.mat || MAT_BARRACO[k % MAT_BARRACO.length], cx, 0, cz));
     const temUp = o.up !== false && (k >> 3) % 3 !== 0;
     /* LAJE ou FIBROCIMENTO, e a escolha não é sorteio decorativo: quem vai levantar outro
@@ -640,7 +645,7 @@ export function buildQuebrada(scene, T) {
        A caixa continua existindo, invisível, como occluder: é ela que a bala testa
        (ver "ACABAMENTO GLB"). */
     const glbCar = useGlb('tiara_gt83');
-    const vis = (m) => (glbCar ? hide(m) : m);
+    const vis = (m) => { m.userData.glbFallback = true; return glbCar ? hide(m) : m; };  // ver barraco()
     if (glbCar) pbAdd(PBC, 'tiara_gt83', { x: cx, z: cz, targetH: 1.25, ry, color: cor });
     const pint = lam({ color: cor, roughness: 0.28, metalness: 0.55, envMapIntensity: 1.6 });
     occ(vis(addBox(4.4, 0.62, 1.82, pint, cx, 0.28, cz, { ry, collide: false })));        // lataria rebaixada
@@ -807,7 +812,7 @@ export function buildQuebrada(scene, T) {
        A PORTA DE AÇO CONTINUA SENDO CRIADA em qualquer modo: o decalque de pixo (`decal`)
        é ancorado nela, e escondê-la deixaria a pichação flutuando na calçada. */
     const glbFach = useGlb('fachada_comercio');
-    const visC = (m) => (glbFach ? hide(m) : m);
+    const visC = (m) => { m.userData.glbFallback = true; return glbFach ? hide(m) : m; };  // ver barraco()
     addBox(0.12, 0.95, d * 0.94, placa, fx + out, 2.62, cz, { collide: false, cast: false });
     visC(addBox(1.5, 0.1, d * 0.9, lam({ color: bgHex, roughness: 0.8 }), fx - side * 0.75, 2.5, cz, { collide: false }));
     addBox(0.1, 2.1, d * 0.42, lam({ color: 0x2b2926, roughness: 0.6, metalness: 0.3 }), fx + out, 0, cz, { collide: false, cast: false });   // porta de aço
@@ -889,7 +894,7 @@ export function buildQuebrada(scene, T) {
        modos, e o GLB é que é encaixado neles. */
     const BX = -5.6, BZ = -6, BW = 2.28, BL = 8.76, BH = 3.1;
     const glbBus = useGlb('onibus_sptrans');
-    const visB = (m) => (glbBus ? hide(m) : m);
+    const visB = (m) => { m.userData.glbFallback = true; return glbBus ? hide(m) : m; };  // ver barraco()
     if (glbBus) {
       // ry = +π/2: o comprimento do modelo está no X local e a rua corre em Z.
       gpropC('onibus_sptrans', BX, BZ, BH, Math.PI / 2);
@@ -1175,6 +1180,7 @@ export function buildQuebrada(scene, T) {
     // a caixa continua existindo como OCCLUDER mesmo com o GLB na tela: é ela que a bala
     // testa, e um baú de 6 m que a bala atravessa seria pior que um baú de caixa (§ACABAMENTO)
     const bau = addBox(TW, TH, TL, lam({ color: 0xdcdad4, roughness: 0.55, metalness: 0.2 }), TX, 0, TZ, { collide: false });
+    bau.userData.glbFallback = true;  // ver barraco(): proxy que some quando o GLB carrega
     occ(bau); if (glbT) hide(bau);
     col(TX - TW / 2, TX + TW / 2, 0, TH, TZ - TL / 2, TZ + TL / 2);
   }
@@ -1286,6 +1292,27 @@ export function buildQuebrada(scene, T) {
   decal(D_MURAL, -18, 0.4, -39.75, 0, 1.7, 4.4);
   decal(D_PIXO, -12, 0.35, -39.75, 0, 1.5, 3.0);   // muro da vila do baile também entra na leva
   decal(D_THROW, -23, 0.4, -39.75, 0, 1.2, 2.4);
+  /* TERCEIRA LEVA (dono, 07/08: "encher mais de posters, pixações e grafites").
+     Mesma gramática das levas anteriores — peça grande na faixa alta, escrita na
+     baixa — e posições INTERCALADAS às duas levas acima (nenhum z repete numa
+     mesma parede). O que esta leva acrescenta de novo é a CARTAZERA (lambe-lambe/
+     stencil = os "posters" do pedido), que só existia em 2 vagas no mapa todo. */
+  for (const z of [-39, -23, -13, 6, 13]) decalFachada(D_CARTAZERA, -12.43, z, Math.PI / 2, 1.7, 0.5, 1.9);
+  for (const z of [-38, -26, -8, 7, 23]) decalFachada(D_CARTAZERA, 12.43, z, -Math.PI / 2, 1.7, 0.5, 1.9);
+  for (const z of [-24, -10, 5, 24]) decalFachada(D_CARA, -12.43, z, Math.PI / 2, 2.0, 1.1, 1.8);
+  for (const z of [-19, -4, 10, 18]) decalFachada(D_CARA, 12.43, z, -Math.PI / 2, 2.0, 1.1, 1.8);
+  for (const z of [-29, -12, 0, 19]) decalFachada(D_THROW, -12.43, z, Math.PI / 2, 1.9, 0.9, 1.5);
+  for (const z of [-25, -9, 6, 24]) decalFachada(D_THROW, 12.43, z, -Math.PI / 2, 1.9, 0.9, 1.5);
+  // vielas: cartazera + tag nas vagas que sobraram
+  for (const z of [-33, -20, -5, 9, 23]) decalFachada(D_CARTAZERA, -21.07, z, -Math.PI / 2, 1.6, 0.5, 1.8);
+  for (const z of [-30, -18, -4, 13, 23]) decalFachada(D_CARTAZERA, 21.07, z, Math.PI / 2, 1.6, 0.5, 1.8);
+  for (const z of [-21, -9, 4, 20]) decalFachada(D_TAG, -24.93, z, Math.PI / 2, 2.6, 0.8, 2.2);
+  for (const z of [-35, -25, -13, 2, 18]) decalFachada(D_TAG, 24.93, z, -Math.PI / 2, 2.6, 0.8, 2.2);
+  // muro do campinho e muro do baile: fecha os vãos que sobraram das levas 1-2
+  for (const x of [-17.5, -10, 4, 12, 17]) decal(D_PIXO, x, 0.32, 27.78, Math.PI, 1.4, 2.8);
+  for (const x of [-9, 1, 8]) decal(D_CARTAZERA, x, 0.5, 28.22, 0, 1.4, 2.0);
+  for (const x of [-26, -15, -8]) decal(D_PIXO, x, 0.32, -39.73, 0, 1.4, 2.6);
+  decal(D_CARTAZERA, -20.5, 0.5, -39.73, 0, 1.5, 2.2);
   /* O ABRIGO DO PONTO DE ÔNIBUS PERDEU OS DOIS LAMBE-LAMBES. Eles estavam colados nas
      COSTAS DE VIDRO do abrigo (`MAT_VIDRO`, x = -11,85, `collide: false`) — ou seja, em
      vidro e sem sólido nenhum atrás. É literalmente a reclamação do dono ("colocaste em

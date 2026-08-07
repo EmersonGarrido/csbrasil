@@ -58,6 +58,7 @@ const MAPS = [
   ['fy_pool_day', 'P,mst'],
   ['fy_havan', 'B,bozo'],
   ['fy_ferrovelho', 'B,bozo'],
+  ['fy_quebrada', 'B,sertanejo'],
 ];
 
 async function gameShots() {

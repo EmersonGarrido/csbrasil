@@ -1,5 +1,5 @@
 {
- "gerado": "2026-08-07T00:14:22.313Z",
+ "gerado": "2026-08-07T01:50:47.722Z",
  "renderer": {
   "toneMappingInicial": "ACESFilmicToneMapping",
   "toneMappingExposureInicial": 1.25,
@@ -377,7 +377,7 @@
    "mutacoes": []
   },
   "chao_drop": {
-   "linha": 5201,
+   "linha": 5203,
    "mutacoes": []
   },
   "tp_mount": {
@@ -1370,149 +1370,6 @@
      "claro": false
     },
     {
-     "cor": "#ffffff",
-     "lum": 1,
-     "mat": "MeshBasicMaterial",
-     "geo": "BoxGeometry",
-     "maiorTri": 11.8,
-     "pos": [
-      13,
-      6,
-      -1
-     ],
-     "claro": true
-    },
-    {
-     "cor": "#ffffff",
-     "lum": 1,
-     "mat": "MeshBasicMaterial",
-     "geo": "BoxGeometry",
-     "maiorTri": 11.1,
-     "pos": [
-      -19,
-      4,
-      -31
-     ],
-     "claro": true
-    },
-    {
-     "cor": "#ffffff",
-     "lum": 1,
-     "mat": "MeshBasicMaterial",
-     "geo": "BoxGeometry",
-     "maiorTri": 11,
-     "pos": [
-      15,
-      4,
-      -19
-     ],
-     "claro": true
-    },
-    {
-     "cor": "#f2f0ec",
-     "lum": 0.87,
-     "mat": "MeshStandardMaterial",
-     "geo": "BoxGeometry",
-     "maiorTri": 10,
-     "pos": [
-      -6,
-      1,
-      -6
-     ],
-     "claro": true
-    },
-    {
-     "cor": "#c4161c",
-     "lum": 0.12,
-     "mat": "MeshStandardMaterial",
-     "geo": "BoxGeometry",
-     "maiorTri": 10,
-     "pos": [
-      -6,
-      2,
-      -6
-     ],
-     "claro": false
-    },
-    {
-     "cor": "#f2f0ec",
-     "lum": 0.87,
-     "mat": "MeshStandardMaterial",
-     "geo": "BoxGeometry",
-     "maiorTri": 10,
-     "pos": [
-      -6,
-      2,
-      -6
-     ],
-     "claro": true
-    },
-    {
-     "cor": "#f2f0ec",
-     "lum": 0.87,
-     "mat": "MeshStandardMaterial",
-     "geo": "BoxGeometry",
-     "maiorTri": 9.8,
-     "pos": [
-      -6,
-      3,
-      -6
-     ],
-     "claro": true
-    },
-    {
-     "cor": "#20303c",
-     "lum": 0.03,
-     "mat": "MeshStandardMaterial",
-     "geo": "BoxGeometry",
-     "maiorTri": 9.6,
-     "pos": [
-      -6,
-      2,
-      -6
-     ],
-     "claro": false
-    },
-    {
-     "cor": "#1a1c1f",
-     "lum": 0.01,
-     "mat": "MeshStandardMaterial",
-     "geo": "BoxGeometry",
-     "maiorTri": 9.4,
-     "pos": [
-      -6,
-      1,
-      -6
-     ],
-     "claro": false
-    },
-    {
-     "cor": "#ffffff",
-     "lum": 1,
-     "mat": "MeshBasicMaterial",
-     "geo": "BoxGeometry",
-     "maiorTri": 9.3,
-     "pos": [
-      -26,
-      5,
-      29
-     ],
-     "claro": true
-    },
-    {
-     "cor": "#ffffff",
-     "lum": 1,
-     "mat": "MeshBasicMaterial",
-     "geo": "BoxGeometry",
-     "maiorTri": 9.3,
-     "pos": [
-      -26,
-      5,
-      43
-     ],
-     "claro": true
-    },
-    {
      "cor": "#3f6f8f",
      "lum": 0.14,
      "mat": "MeshStandardMaterial",
@@ -1524,32 +1381,6 @@
       11
      ],
      "claro": false
-    },
-    {
-     "cor": "#dcdad4",
-     "lum": 0.7,
-     "mat": "MeshStandardMaterial",
-     "geo": "BoxGeometry",
-     "maiorTri": 7.6,
-     "pos": [
-      -6,
-      2,
-      3
-     ],
-     "claro": true
-    },
-    {
-     "cor": "#ffffff",
-     "lum": 1,
-     "mat": "MeshBasicMaterial",
-     "geo": "BoxGeometry",
-     "maiorTri": 6.5,
-     "pos": [
-      21,
-      4,
-      -44
-     ],
-     "claro": true
     }
    ],
    "fumaca": {
@@ -1557,14 +1388,14 @@
     "raio": 4,
     "duracao": 13,
     "corSprite": "#6d89a4",
-    "opacidadeSprite": 0.986,
+    "opacidadeSprite": 0.992,
     "escalaSprite": [
      3.1,
      5.12
     ],
-    "spritesCobrindoCentro": 15,
-    "alfaAcumuladoCentro": 0.9985,
-    "maiorAlfaSprite": 0.543,
+    "spritesCobrindoCentro": 13,
+    "alfaAcumuladoCentro": 0.9992,
+    "maiorAlfaSprite": 0.74,
     "radianciaFumaca": 0.2379,
     "radianciaCeu": 0.3172,
     "razaoFumacaCeu": 0.75,
@@ -1584,7 +1415,7 @@
   }
  ],
  "shade": {
-  "gerado": "2026-08-07T00:14:22.313Z",
+  "gerado": "2026-08-07T01:50:47.722Z",
   "armas": [
    {
     "arma": "ak",

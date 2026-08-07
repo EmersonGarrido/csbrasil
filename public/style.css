@@ -1632,6 +1632,20 @@ html[data-ui="legacy"] .cs-vignette{
 .menu-footer a:hover{color:var(--am)}
 .menu-footer .mf-online{color:var(--verde,#7dc98f);font-weight:700}
 
+/* ---- MENU EM CELULAR RETRATO (print do dono, 07/08: logo cortado no meio e o
+   rodapé atropelando o último item). O logo é PINTADO no wallpaper 16:9; com
+   `cover` num viewport em pé a imagem escala pela ALTURA e o logo estoura a
+   largura. Em retrato o wallpaper passa a caber pela LARGURA (faixa no topo com
+   o logo inteiro, resto em --bg-900), o menu desce pra baixo da faixa e o
+   rodapé vira fluxo normal no fim da página em vez de fixed por cima do menu. */
+@media (max-width:640px) and (orientation:portrait){
+  .cs-wallpaper{background-size:100% auto;background-position:left top}
+  .cs-left{position:static;padding:56vw var(--s-5) 0;bottom:auto;left:auto}
+  #main-menu{display:block}
+  .menu-footer{position:static;justify-content:flex-start;text-align:left;
+    max-width:none;padding:18px var(--s-5) 24px}
+}
+
 /* =========================================================================
    PASSO 1 — CARTAZ DO MAPA + DROPDOWN DE ARMAS (reprova do dono, com print)
    =========================================================================
