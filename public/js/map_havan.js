@@ -11,7 +11,7 @@ import { VAO_BANDS, aoBoxGeo, aoMatFactory, ContactSkirt, BASE_FLOATING, onGroun
 import { makeAerialFog } from './bloom.js';   // névoa exponencial + cor por direção do olhar
 import { detailFor, registerDetail } from './textures.js';   // normal+rough por Sobel (ver lam)
 import { decalIds, paredeAtras } from './map_decals.js';     // pool por NOME + raycast de parede
-import { grafitar } from './graffiti_pass.js';               // cobertura medida, não coordenada à mão
+import { grafitar, esconderSeFaltar } from './graffiti_pass.js';               // cobertura medida, não coordenada à mão
 
 const HALF_X = 38, HALF_Z = 58;
 // Carros do estacionamento (ids otimizados em public/models/props). Forte cara BR.
@@ -587,6 +587,7 @@ export function buildHavan(scene, T) {
     q.position.set(x, y + h / 2, z); q.rotation.y = ry; q.renderOrder = 2;
     q.receiveShadow = true;                               // tinta escurece junto com o muro
     q.name = 'decal:' + (T.decalFiles ? T.decalFiles[i] : i);
+    esconderSeFaltar(q, T.decals[i]);   // PNG 404 em prod vira BRANCO CHAPADO se não sumir (ver graffiti_pass.esconderSeFaltar)
     root.add(q);
     return q;
   }

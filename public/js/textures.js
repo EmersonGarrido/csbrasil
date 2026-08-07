@@ -802,7 +802,21 @@ export function initTextures() {
     Object.defineProperty(T.decals, i, {
       enumerable: true, configurable: true,
       get() {
-        const t = _tl.load('img/decals/' + f);
+        /* ── ARQUIVO QUE NÃO EXISTE EM PROD NÃO PODE VIRAR RETÂNGULO BRANCO ──────
+           Só 12 dos 209 PNG de `public/img/decals` estão no git: o resto é
+           gitignored por procedência (.gitignore:104) e chega pelo `fetch-decals.sh`.
+           Prod builda de clone puro, então lá esses arquivos dão 404 — e textura que
+           falha no three não some, ela fica SEM `image`, o que o material desenha
+           como BRANCO CHAPADO. Ou seja: o modo de falha era pintar a parede de
+           retângulos brancos, que é pior que parede pelada e é exatamente a classe de
+           defeito que o dono já reprovou uma vez ("o do chorão está com fundo branco").
+           `faltou` deixa quem usa a textura sumir com a peça — ver `_juntar` em
+           graffiti_pass.js. Vale pras peças à mão e pras da passada. */
+        const t = _tl.load('img/decals/' + f, undefined, undefined, () => {
+          t.userData.faltou = true;
+          if (t.userData.aoFaltar) t.userData.aoFaltar();
+          console.warn('[decals] 404 em "' + f + '" — peça escondida (rode scripts/fetch-decals.sh)');
+        });
         t.colorSpace = THREE.SRGBColorSpace;
         t.minFilter = THREE.LinearMipmapLinearFilter;
         // memoiza: troca o getter pela textura, então a 2ª leitura não repete nada

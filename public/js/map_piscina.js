@@ -27,7 +27,7 @@
 // Same buildWorld contract as map.js.
 import * as THREE from 'three';
 import { decalIds, paredeAtras } from './map_decals.js';
-import { grafitar } from './graffiti_pass.js';   // cobertura medida, não coordenada à mão
+import { grafitar, esconderSeFaltar } from './graffiti_pass.js';   // cobertura medida, não coordenada à mão
 
 const HALF_X = 17, HALF_Z = 25;   // interior half-extents (walls sit just outside)
 const WALL_H = 7, CEIL = 7;
@@ -376,6 +376,7 @@ export function buildPoolDay(scene, T) {
       const q = addPlane(w, h, m, x, y0 + h / 2, z, ry);
       q.renderOrder = 2;
       q.name = 'decal:' + (T.decalFiles ? T.decalFiles[i] : i);
+      esconderSeFaltar(q, T.decals[i]);   // PNG 404 em prod vira BRANCO CHAPADO se não sumir (ver graffiti_pass.esconderSeFaltar)
       return q;
     };
     const OFFD = 0.08;

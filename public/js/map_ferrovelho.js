@@ -12,7 +12,7 @@ import { VAO_BANDS, aoBoxGeo, aoMatFactory, ContactSkirt, BASE_FLOATING, onGroun
 import { makeAerialFog } from './bloom.js';   // névoa exponencial + cor por direção do olhar
 import { detailFor } from './textures.js';   // normal+rough por Sobel (ver lam)
 import { decalIds, paredeAtras, caixaGirada } from './map_decals.js';   // pool por NOME + raycast de parede
-import { grafitar } from './graffiti_pass.js';                         // cobertura medida, não coordenada à mão
+import { grafitar, esconderSeFaltar } from './graffiti_pass.js';                         // cobertura medida, não coordenada à mão
 
 // kill-switches (padrão do projeto): ?nofog=1 sem névoa, ?rays=0 sem god rays,
 // ?dust=0 sem poeira em suspensão, ?mato=0 sem vegetação invasora.
@@ -681,6 +681,7 @@ export function buildFerroVelho(scene, T) {
     m.position.set(x, y + h / 2, z); m.rotation.y = ry; m.renderOrder = 2;
     m.receiveShadow = true;                            // tinta escurece junto com a chapa
     m.name = 'decal:' + (T.decalFiles ? T.decalFiles[i] : i);
+    esconderSeFaltar(m, T.decals[i]);   // PNG 404 em prod vira BRANCO CHAPADO se não sumir (ver graffiti_pass.esconderSeFaltar)
     root.add(m);            // NUNCA em `occluders`/`colliders`: é tinta, não é peça
     return m;
   }

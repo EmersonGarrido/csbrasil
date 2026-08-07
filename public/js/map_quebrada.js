@@ -19,7 +19,7 @@
 import * as THREE from 'three';
 import { placeProp, hasProp, PropBatch } from './mapprops.js';
 import { decalIds, paredeAtras, medirParede } from './map_decals.js';   // pool por NOME + medição de parede
-import { grafitar } from './graffiti_pass.js';   // cobertura medida, não coordenada à mão
+import { grafitar, esconderSeFaltar } from './graffiti_pass.js';   // cobertura medida, não coordenada à mão
 import { VAO_BANDS, aoBoxGeo, aoMatFactory, ContactSkirt, BASE_FLOATING, onGround } from './vao.js';
 import { makeAerialFog } from './bloom.js';
 import { detailFor } from './textures.js';
@@ -430,6 +430,7 @@ export function buildQuebrada(scene, T) {
     // nome = quem é o arquivo: em node a textura nunca carrega, então esta é a ÚNICA forma
     // de uma régua conferir POSIÇÃO e TAMANHO do que foi colado (tools/eval/decal-probe).
     m.name = 'decal:' + (T.decalFiles ? T.decalFiles[i] : i);
+    esconderSeFaltar(m, T.decals[i]);   // PNG 404 em prod vira BRANCO CHAPADO se não sumir (ver graffiti_pass.esconderSeFaltar)
     /* recebe sombra, não projeta: tinta na parede escurece junto com a parede. Sem
        `receiveShadow` o mural fica ACESO dentro da sombra do prédio e denuncia o adesivo;
        com `castShadow` ele projetaria um retângulo no chão, que é pior ainda. */

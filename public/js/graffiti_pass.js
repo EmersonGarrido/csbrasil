@@ -106,6 +106,20 @@ export function normalMundo(h, out) {
   return n.transformDirection(h.object.matrixWorld).normalize();
 }
 
+/* Esconde a peça se o PNG dela der 404. Exportado porque as vagas coladas à mão
+   (porta de aço, muro do baile, armário do Piscinão) correm o MESMO risco: prod
+   builda de clone puro e 197 dos 209 decalques são gitignored por procedência.
+   Textura que falha no three não some — ela desenha BRANCO CHAPADO. */
+export function esconderSeFaltar(mesh, tex) {
+  if (!mesh || !tex) return mesh;
+  if (tex.userData.faltou) mesh.visible = false;
+  else {
+    const antes = tex.userData.aoFaltar;
+    tex.userData.aoFaltar = () => { if (antes) antes(); mesh.visible = false; };
+  }
+  return mesh;
+}
+
 /* ============================================================================
    grafitar — A PORTA ÚNICA QUE OS 5 MAPAS CHAMAM.
    ----------------------------------------------------------------------------
@@ -710,6 +724,13 @@ function _juntar(porArquivo, T, root, postas) {
       map: tex, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4,
     }, cartaz ? {} : { transparent: true, alphaTest: 0.24 }));
     const mesh = new THREE.Mesh(g, m);
+    /* PNG que dá 404 some junto com a peça. Em prod (clone puro do git) 197 dos 209
+       decalques não existem — são gitignored por procedência — e textura que falha no
+       three vira BRANCO CHAPADO, não vira nada. Sem isto, o mapa em produção
+       apareceria com centenas de retângulos brancos na parede. Ver o `faltou` no
+       getter de `T.decals` (textures.js). */
+    esconderSeFaltar(mesh, tex);    // ENCADEIA o callback; atribuir direto apagava o
+                                    // guarda das peças coladas à mão que usam o mesmo PNG
     mesh.renderOrder = 2;
     mesh.receiveShadow = true;      // tinta escurece junto com a parede
     mesh.matrixAutoUpdate = false;  // geometria já está em mundo
