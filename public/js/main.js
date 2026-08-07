@@ -480,8 +480,14 @@ function _pingPresenca() {
     if (!navigator.sendBeacon('/api/presence', blob)) api('/api/presence', JSON.parse(payload));
   } catch { /* presença nunca atrapalha o jogador */ }
 }
-_pingPresenca();
-setInterval(_pingPresenca, 45_000);
+/* AS CHAMADAS MORAM DEPOIS DO `const testMode` — e isto não é estilo, é o que fazia o jogo
+   não abrir (07/08, medido em produção). `_pingPresenca` lê `testMode` na primeira linha;
+   `const` não é hoisted como `var`: chamar a função ANTES da linha 498 lança
+   `ReferenceError: Cannot access 'testMode' before initialization` — no ESCOPO DO MÓDULO,
+   ou seja a avaliação inteira de `main.js` morre ali. Tudo que é ligado depois nunca
+   acontece: medido no navegador, `#btn-jogar` existia e o `onclick` dele (linha ~779) era
+   `null`. O botão JOGAR do site no ar estava inerte, e o console mostrava UMA linha.
+   Régua: `tools/eval/boot-check.mjs`. */
 
 async function _refreshOnline() {
   try {
@@ -496,6 +502,12 @@ _refreshOnline();
 setInterval(_refreshOnline, 60000);
 const params = new URLSearchParams(location.search);
 const testMode = params.get('debug') === '1';
+
+/* Presença: as chamadas descem para CÁ, depois de `testMode` existir (ver o comentário na
+   linha em que elas moravam). O intervalo e o comportamento são os mesmos — o que muda é
+   só a ordem, que era o defeito. */
+_pingPresenca();
+setInterval(_pingPresenca, 45_000);
 
 async function startGame(team, charId, enemyFaction) {
   if (isMobile && !testMode) { show('mobile-warning'); return; }

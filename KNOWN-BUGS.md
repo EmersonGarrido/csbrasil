@@ -412,6 +412,49 @@ mudar.
 
 ## P1 — o jogador vê
 
+### ~~BUG-34 · O botão JOGAR estava INERTE em produção — o jogo não abria~~ · RESOLVIDO 07/08
+
+**Como apareceu.** Não foi reportado: caiu no colo enquanto se media outra coisa. A régua das
+bandeiras imprimiu, antes do resultado, uma linha de `pageerror` que não tinha nada a ver com
+bandeira: `Cannot access 'testMode' before initialization`.
+
+**Causa raiz.** `public/js/main.js` chamava `_pingPresenca()` **no escopo do módulo** na linha
+483, e a função lê `testMode` na primeira linha — `const` declarado só na 498. `const` não é
+hoisted como `var`, então a chamada lança `ReferenceError` **na avaliação do módulo**: tudo
+depois da linha 483 nunca acontece, inclusive o `onclick` do `#btn-jogar` (linha ~779).
+
+**Medido no navegador, contra `https://www.csbrasil.online`:**
+
+| | antes | depois |
+|---|---|---|
+| `pageerror` no boot da rota `/` | 1 | 0 |
+| `#btn-jogar` existe | sim | sim |
+| `onclick` do JOGAR ligado | **não** | sim |
+
+**Por que TODO portão desta casa passou verde com o jogo morto** — e esta é a parte que vale
+guardar:
+
+| portão | por que não viu |
+|---|---|
+| `npm run syntax` | TDZ é erro de **runtime**; o módulo parseia perfeitamente |
+| `eval:site` | mede status HTTP e JSON-LD; a `/` respondia **200** com o HTML inteiro |
+| `harness.mjs` | importa `game.js` **direto** — nunca passa por `main.js` |
+| capturas visuais | usam `/?debug=1&auto=1` ou importam módulos soltos |
+| `npm run build` | compila o site; não executa a página |
+
+Faltava a pergunta mais boba da lista — *o `main.js` terminou de avaliar?* — e é sempre a mais
+boba que fica sem régua.
+
+**Régua nova:** `tools/eval/boot-check.mjs` (`npm run eval:boot`). B1 exige zero `pageerror`;
+B2 exige o `onclick` do JOGAR, que mede o **efeito** e não a ausência de erro (um `catch` de
+terceiro engoliria B1 com o jogo morto do mesmo jeito). Mutação executada: `--mutante=tdz`,
+que injeta a leitura antecipada no `main.js` servido e devolve `B1 FALHA · B2 FALHA`, exit 1.
+**Exige browser**, então fica fora do `check` (que roda sem browser) — é passo obrigatório
+antes de deploy.
+
+**Não verificado:** por quanto tempo ficou assim em produção. O `_pingPresenca()` está no
+`HEAD` publicado; datar isso pede `git log -S` no bloco e cruzar com o deploy, e não foi feito.
+
 ### ~~BUG-21 · Parede invisível a 2,3 m do ônibus (Brasília)~~ · RESOLVIDO 05/08 (2ª rodada)
 
 **Sintoma (do dono, com print):** *"o mapa não deixa eu andar perto do ônibus"*.

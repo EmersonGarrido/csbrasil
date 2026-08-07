@@ -1,6 +1,6 @@
 {
   "name": "coro-solto",
-  "version": "2.0.0-alpha.32",
+  "version": "2.0.0-alpha.33",
   "license": "AGPL-3.0-only",
   "description": "CORO SOLTO: Treta Suprema (ex-CS BRASIL) — FPS de navegador estilo CS 1.6 (site Astro + jogo vanilla em Three.js)",
   "scripts": {
@@ -21,6 +21,8 @@
     "eval:pegada": "node tools/eval/pegada-check.mjs",
     "//eval:ctflabels": "Bandeira com nome do PRÓPRIO mapa, declarada pelo mapa (defeito de 06/08: 'CONGRESSO' jogando na piscina — o fallback do game.js vazava os nomes de Brasília). --mutante=vaza prova que morde.",
     "eval:ctflabels": "node tools/eval/ctf-labels-check.mjs",
+    "//eval:boot": "O JOGO ABRE? Sobe o astro dev, abre a rota `/` num Chrome de verdade e exige zero pageerror MAIS o `onclick` do #btn-jogar ligado (prova de que o main.js avaliou até o fim). Nasceu de 07/08: `_pingPresenca()` rodava no escopo do módulo antes do `const testMode`, o TDZ matava a avaliação de main.js na linha 483 e o botão JOGAR ficava INERTE — em produção, com o site respondendo 200 e o check:fast inteiro verde. EXIGE BROWSER: fica fora do `check` (que roda sem browser) e é o passo obrigatório antes de deploy. `--mutante=tdz` reproduz o defeito interceptando o main.js servido.",
+    "eval:boot": "node tools/eval/boot-check.mjs",
     "eval:vm": "node tools/eval/vm-mint-audit.mjs",
     "eval:kick": "node tools/eval/vm-kick-sim.mjs",
     "eval:bots": "node tools/eval/botsim.mjs 60 all",
