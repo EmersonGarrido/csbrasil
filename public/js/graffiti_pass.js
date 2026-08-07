@@ -497,6 +497,12 @@ function _h(s) { let v = 0; for (let i = 0; i < s.length; i++) v = (v * 31 + s.c
    encaixe só testa as 9 células ao redor. O resultado é o mesmo — é prefiltro
    geométrico, não aproximação: malha fora do raio de 1 m não tinha como ser
    acertada mesmo. */
+/* Exportada porque a `graffiti-audit` faz a MESMA conta ao contrário (para cada
+   peça, o que há atrás dela) e tropeçou no mesmo custo: 48 mil raycasts contra a
+   lista inteira de malhas. Duplicar o prefiltro daria duas versões da mesma
+   geometria discordando por bug de cópia. */
+export function gradeEspacial(alvos, cel = 6) { return _grade(alvos, cel); }
+
 function _grade(alvos, cel = 6) {
   const g = new Map(), bb = new THREE.Box3(), cache = new Map();
   for (const o of alvos) {
