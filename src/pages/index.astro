@@ -1,13 +1,79 @@
+---
+/* ============================================================================
+   O `?v=` DO IMPORT MAP SAI DE UMA FONTE SÓ (07/08)
+   ----------------------------------------------------------------------------
+   Ele era 26 literais escritos à mão, e a versão vive em outros dois lugares
+   (`package.json` e `public/js/version.js`). Três fontes que precisam concordar,
+   nenhum mecanismo garantindo — e o `version.js` já avisava por escrito:
+
+     "bump dos dois lados juntos, senão o navegador serve módulos JS velhos do
+      cache — causa raiz de 'correções que não chegavam ao usuário' por dias"
+
+   Pior desde que se passou a commitar direto na `main`: o `versao-bumpada` do
+   `pr-gates` só dispara em `pull_request`, então push direto passa por fora dele.
+   Esquecer o bump deixou de ser um risco e virou o caminho padrão.
+
+   Agora a lista é UMA e a versão vem do `package.json`. Módulo novo entra em
+   `MODULOS` e já nasce com cache-bust; esquecer o bump deixa de ser possível,
+   em vez de virar mais um item de checklist.
+   ============================================================================ */
+import pkg from '../../package.json';
+
+const V = pkg.version;
+const MODULOS = [
+  "main.js",
+  "game.js",
+  "glbchars.js",
+  "weapons.js",
+  "characters.js",
+  "audio.js",
+  "maps.js",
+  "map_brasilia.js",
+  "map_piscina.js",
+  "map_havan.js",
+  "map_ferrovelho.js",
+  "map_quebrada.js",
+  "map_decals.js",
+  "graffiti_pass.js",
+  "graffiti_layout.js",
+  "mapprops.js",
+  "fparms.js",
+  "vmattach.js",
+  "stylize.js",
+  "bloom.js",
+  "gpuparticles.js",
+  "textures.js",
+  "version.js",
+  "i18n.js",
+  "handik.js",
+  "springs.js"
+];
+const IMPORTMAP = JSON.stringify({
+  imports: {
+    three: './vendor/three.module.js',
+    'three/addons/': './vendor/addons/',
+    ...Object.fromEntries(MODULOS.map((m) => [`./js/${m}`, `./js/${m}?v=${V}`])),
+  },
+});
+---
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<!-- Captura de crash: mostra o erro NA TELA. O jogo "fechava sozinho" e o erro sumia do
-     console; este overlay persiste a exceção (JS) pra o usuário printar. Script clássico
-     inline roda ANTES dos módulos (deferidos), então pega até erro em tempo de execução
-     dos módulos. Crash de GPU/renderer não dispara 'error' — pra esse caso use ?bloom=0. -->
+<!-- Captura de crash: mostra o erro NA TELA **e reporta** para /api/jserror.
+     O overlay existia e não bastava: em 07/08 o botão JOGAR ficou INERTE em produção
+     (BUG-34, TDZ no main.js) e o banner vermelho pintou na tela de alguém e MORREU ALI,
+     porque não ia para lugar nenhum. Site respondendo 200, build passando, check:fast
+     verde. Erro no navegador de quem joga é o único sinal que portão nenhum alcança.
+     Script clássico inline roda ANTES dos módulos (deferidos), então pega até erro em
+     tempo de execução dos módulos — que foi exatamente o caso do BUG-34.
+     Crash de GPU/renderer não dispara 'error' — pra esse caso use ?bloom=0. -->
 <script is:inline>
 (function(){
+  var TETO_SESSAO = 10;      // no máximo 10 erros DISTINTOS por carregamento de página
+  var MIGALHAS = 20;         // últimas ações guardadas
+  var enviados = {}, nEnviados = 0, migalhas = [], reportando = false;
+
   function show(kind, msg, extra){
     try{
       var el = document.getElementById('crash-overlay');
@@ -20,13 +86,118 @@
       el.textContent = '⚠ CRASH (' + kind + '): ' + msg + (extra ? ('\n\n' + extra) : '') + '\n\n(clique pra fechar — tire um print e me mande)';
     }catch(_){}
   }
+
+  /* Agrupa igual ao banco (migration 015): mensagem + origem viram uma chave, e o
+     UPSERT lá vira `hits`. Sem isto, um erro dentro do requestAnimationFrame manda
+     60 linhas por segundo. FNV-1a de 32 bits — não é criptografia, é balde. */
+  function digital(s){
+    var h = 2166136261;
+    for (var i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = (h * 16777619) >>> 0; }
+    return ('0000000' + h.toString(16)).slice(-8);
+  }
+
+  /* A versão sai do `?v=` do próprio HTML: ela já está aqui, já sobe junto no bump dos
+     dois lados, e assim não há terceiro lugar para esquecer de atualizar. */
+  function versao(){
+    try{
+      var l = document.querySelector('link[rel=stylesheet][href*="?v="]');
+      return l ? (l.getAttribute('href').split('?v=')[1] || null) : null;
+    }catch(_){ return null; }
+  }
+
+  /* Contexto de partida do `window.__game` (main.js:556 já o expõe). Tudo em try:
+     ler contexto NUNCA pode ser o que derruba o relatório do erro de verdade. */
+  function contexto(){
+    var c = { version: versao(), route: location.pathname, breadcrumbs: migalhas.slice() };
+    try{
+      // 'cs_anon' é a MESMA chave do `ANON_KEY` de main.js:403 — sem isso o erro não
+      // cruza com a telemetria do mesmo navegador, que é metade da utilidade.
+      var a = localStorage.getItem('cs_anon');
+      if (a) c.anonId = a;
+    }catch(_){}
+    try{
+      var g = window.__game;
+      if (g) {
+        c.map = g.mapId || null;
+        c.mode = g.ctf ? 'ctf' : 'rounds';
+        c.faction = g.playerFaction || null;
+        c.matchSecs = Math.round(g.time || 0);
+        c.nick = g.nickname || null;
+      } else {
+        var n = document.getElementById('nick-input');
+        if (n && n.value) c.nick = n.value.slice(0, 40);
+      }
+    }catch(_){}
+    return c;
+  }
+
+  function reporta(kind, msg, source, stack){
+    if (reportando || nEnviados >= TETO_SESSAO) return;   // guarda de laço + teto
+    try{
+      var fp = digital(kind + '|' + (msg || '') + '|' + (source || ''));
+      if (enviados[fp]) return;                            // 1 envio por erro distinto
+      enviados[fp] = 1; nEnviados++;
+      reportando = true;
+      var c = contexto();
+      c.fingerprint = fp; c.kind = kind;
+      c.message = String(msg || '?').slice(0, 500);
+      c.source = source || null;
+      c.stack = stack ? String(stack).slice(0, 4000) : null;
+      var corpo = JSON.stringify(c);
+      /* sendBeacon sobrevive à aba fechando, que é justamente quando o jogador some
+         depois de um crash. Sem ele, o erro que mata a página não chega nunca. */
+      if (!(navigator.sendBeacon && navigator.sendBeacon('/api/jserror', new Blob([corpo], {type:'application/json'}))))
+        fetch('/api/jserror', { method:'POST', headers:{'content-type':'application/json'}, body: corpo, keepalive: true }).catch(function(){});
+    }catch(_){ /* coletor NUNCA atrapalha o jogo */ }
+    reportando = false;
+  }
+
+  /* Migalhas: o que o jogador FEZ, nunca o que ele ESCREVEU. Clique em elemento com id
+     ou em botão cobre o menu inteiro sem precisar instrumentar main.js linha a linha —
+     e a regra "só rótulo, nunca conteúdo" está escrita na migration 015. */
+  function migalha(txt){
+    migalhas.push(new Date().toISOString().slice(11, 19) + ' ' + String(txt).slice(0, 120));
+    if (migalhas.length > MIGALHAS) migalhas.shift();
+  }
+  window.__migalha = migalha;   // hook para quem quiser marcar passo de jogo
+  document.addEventListener('click', function(e){
+    try{
+      var t = e.target && e.target.closest ? e.target.closest('button,[id],a') : null;
+      if (t) migalha('clique ' + (t.id ? '#' + t.id : t.tagName.toLowerCase()));
+    }catch(_){}
+  }, true);
+
   window.addEventListener('error', function(e){
     var loc = e.filename ? (e.filename + ':' + e.lineno + ':' + e.colno) : '';
-    show('error', ((e.message || e.error || '?')) + (loc ? ('  @ ' + loc) : ''), e.error && e.error.stack);
+    var msg = (e.message || e.error || '?');
+    show('error', msg + (loc ? ('  @ ' + loc) : ''), e.error && e.error.stack);
+    reporta('error', msg, loc, e.error && e.error.stack);
   });
   window.addEventListener('unhandledrejection', function(e){
-    var r = e.reason; show('promise', (r && r.message) || String(r), r && r.stack);
+    var r = e.reason;
+    show('promise', (r && r.message) || String(r), r && r.stack);
+    reporta('promise', (r && r.message) || String(r), null, r && r.stack);
   });
+
+  /* console.error NÃO ganha overlay de propósito: nem todo console.error é crash, e
+     tapar a tela do jogador com aviso de textura faltando seria pior que o aviso. Ele
+     é reportado (o dono pediu "trackear console errors") e agrupado igual aos outros.
+     O original é chamado PRIMEIRO: se o relatório explodir, o log dele não se perde. */
+  try{
+    var orig = console.error;
+    console.error = function(){
+      try{ orig.apply(console, arguments); }catch(_){}
+      try{
+        var partes = [];
+        for (var i = 0; i < arguments.length && i < 4; i++) {
+          var a = arguments[i];
+          partes.push(a && a.message ? a.message : String(a));
+        }
+        var m = partes.join(' ');
+        reporta('console', m, null, (arguments[0] && arguments[0].stack) || null);
+      }catch(_){}
+    };
+  }catch(_){}
 })();
 </script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -154,43 +325,13 @@
      Gerado por tools/eval/canarinho-icon.mjs a partir do GLB real. -->
 <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-<link rel="stylesheet" href="/style.css?v=2.0.0-alpha.34">
+<link rel="stylesheet" href={`/style.css?v=${V}`}>
 <!-- Cache-bust por módulo. Entraram nesta lista (07/08) o `graffiti_pass`/`graffiti_layout`
      e, de quebra, o `map_quebrada`/`map_decals`, que estavam faltando desde que nasceram.
      Sem o `?v=`, quem já jogou fica com o módulo em cache e vê o mapa NOVO com o grafite
      VELHO — e o layout do grafite guarda coordenada de parede, então a divergência não é
      cosmética: é peça colada onde a parede não está mais. -->
-<script type="importmap" is:inline>
-{ "imports": {
-  "three": "./vendor/three.module.js", "three/addons/": "./vendor/addons/",
-  "./js/main.js": "./js/main.js?v=2.0.0-alpha.34",
-  "./js/game.js": "./js/game.js?v=2.0.0-alpha.34",
-  "./js/glbchars.js": "./js/glbchars.js?v=2.0.0-alpha.34",
-  "./js/weapons.js": "./js/weapons.js?v=2.0.0-alpha.34",
-  "./js/characters.js": "./js/characters.js?v=2.0.0-alpha.34",
-  "./js/audio.js": "./js/audio.js?v=2.0.0-alpha.34",
-  "./js/maps.js": "./js/maps.js?v=2.0.0-alpha.34",
-  "./js/map_brasilia.js": "./js/map_brasilia.js?v=2.0.0-alpha.34",
-  "./js/map_piscina.js": "./js/map_piscina.js?v=2.0.0-alpha.34",
-  "./js/map_havan.js": "./js/map_havan.js?v=2.0.0-alpha.34",
-  "./js/map_ferrovelho.js": "./js/map_ferrovelho.js?v=2.0.0-alpha.34",
-  "./js/map_quebrada.js": "./js/map_quebrada.js?v=2.0.0-alpha.34",
-  "./js/map_decals.js": "./js/map_decals.js?v=2.0.0-alpha.34",
-  "./js/graffiti_pass.js": "./js/graffiti_pass.js?v=2.0.0-alpha.34",
-  "./js/graffiti_layout.js": "./js/graffiti_layout.js?v=2.0.0-alpha.34",
-  "./js/mapprops.js": "./js/mapprops.js?v=2.0.0-alpha.34",
-  "./js/fparms.js": "./js/fparms.js?v=2.0.0-alpha.34",
-  "./js/vmattach.js": "./js/vmattach.js?v=2.0.0-alpha.34",
-  "./js/stylize.js": "./js/stylize.js?v=2.0.0-alpha.34",
-  "./js/bloom.js": "./js/bloom.js?v=2.0.0-alpha.34",
-  "./js/gpuparticles.js": "./js/gpuparticles.js?v=2.0.0-alpha.34",
-  "./js/textures.js": "./js/textures.js?v=2.0.0-alpha.34",
-  "./js/version.js": "./js/version.js?v=2.0.0-alpha.34",
-  "./js/i18n.js": "./js/i18n.js?v=2.0.0-alpha.34",
-  "./js/handik.js": "./js/handik.js?v=2.0.0-alpha.34",
-  "./js/springs.js": "./js/springs.js?v=2.0.0-alpha.34"
-} }
-</script>
+<script type="importmap" is:inline set:html={IMPORTMAP}></script>
 </head>
 <body>
 <h1 class="sr-only">CORO SOLTO: Treta Suprema (ex-CS BRASIL) — jogo FPS gratuito de navegador, Time E × Time B</h1>
