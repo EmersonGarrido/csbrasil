@@ -764,7 +764,7 @@ export function buildPoolDay(scene, T) {
      coordenada. Ver `public/js/graffiti_pass.js` pro porquê de ser assado. */
   grafitar({
     id: 'fy_pool_day',
-    root, T, waypoints: nodes, seed: 7717, passo: 0.9, alcance: 9, cobre: 0.55, minLarg: 0.3,
+    root, T, waypoints: nodes, seed: 7717, passo: 0.9, alcance: 9, cobre: 0.06, minLarg: 0.3,
     bandas: [
       /* CARTAZ DA COLEÇÃO (07/08). Reprovação: "tem diversos posters da minha coleção
          e tb que vc gerou que não estão em nenhum mapa". Eram 30 arquivos vivendo em

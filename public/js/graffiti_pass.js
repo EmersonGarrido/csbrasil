@@ -145,10 +145,16 @@ export function grafitar(cfg) {
     pass = { pecas: r.pecas, malhas: r.malhas, assado: true };
     hom = { murais: r.murais, assado: true };
   } else {
-    pass = pintarParedes(cfg);
+    /* ORDEM: MURAL PRIMEIRO. Ele é a peça grande e escolhida a dedo; a tag é o
+       preenchimento. Com a passada rodando antes, o mural caía por cima do que já
+       estava pintado e a `graffiti-audit` acusava sobreposição de 200%+ — quad
+       menor inteiro dentro do maior. Invertido, a passada recebe as vagas dos
+       murais em `ocupado` e desvia. */
     hom = murais
       ? pendurarMurais(Object.assign({ root, T, waypoints, limpo: cfg.limpo, evitar: cfg.evitar }, murais))
       : { murais: 0, layout: [] };
+    const vagasMural = (hom.layout || []).map(([, x, y, z, ry, w, h]) => ({ x, y, z, ry, w, h }));
+    pass = pintarParedes(Object.assign({}, cfg, { ocupado: vagasMural }));
   }
   if (typeof window !== 'undefined') {
     window.__grafite = {
@@ -215,7 +221,7 @@ export function pintarParedes(opts) {
     root, T, waypoints, bandas,
     alcance = 7, passo = 2.2, raios = 16, cobre = 0.25,
     excluir = null, limpo = null, evitar = null, seed = 1, maxLarg = 5.2, minLarg = 0.45,
-    exigeChao = true,
+    exigeChao = true, ocupado = null,
   } = opts;
   /* ZONA LIMPA — parede que o dono quer SEM tinta, declarada em coordenada.
      Nasceu da Loja H (07/08): "pode tirar os graffitis de dentro da loja, pode deixar
@@ -300,7 +306,14 @@ export function pintarParedes(opts) {
      Ordem determinística por hash da célula (não pela ordem de descoberta, que
      depende da ordem dos waypoints e mudaria a arte a cada mexida no grafo). */
   const lista = [...ancoras.entries()].sort((A, B) => mix32(_h(A[0]) + seed) - mix32(_h(B[0]) + seed));
-  const postas = [];                                        // {x,y,z,ry,hw,hh,ux,uz}
+  /* Vagas JÁ OCUPADAS entram na lista antes da primeira peça. Sem isto o mural de
+     homenagem — que é a peça grande, a que o olho procura — nascia por baixo de tag
+     e cartaz: a `graffiti-audit` mediu 1.152 sobreposições na Quebrada, três delas
+     com o quad menor INTEIRO dentro do maior (223%, 212%, 211%). A ordem certa é o
+     mural primeiro e a passada depois, desviando dele. */
+  const postas = (ocupado || []).map((p) => ({
+    x: p.x, y: p.y, z: p.z, ry: p.ry, hw: p.w / 2, hh: p.h / 2, i: -1, semente: true,
+  }));
   const porArquivo = new Map();                             // i -> [geometrias]
   let n = 0;
   /* CONTADOR DE RECUSA. Cobertura baixa tem 5 causas possíveis e elas pedem
@@ -371,12 +384,17 @@ export function pintarParedes(opts) {
   }
 
   tempo.pintar = Math.round(_ms() - _t); _t = _ms();
-  const meshes = _juntar(porArquivo, T, root, postas);
+  const meshes = _juntar(porArquivo, T, root, postas.filter((p) => !p.semente));
   tempo.juntar = Math.round(_ms() - _t);
   /* `layout` é o que o `gen-graffiti-layout` assa. Arredondado a 3 casas: o layout
      de 5 mapas passa de 900 KB pra ~200 KB e 1 mm não move peça nenhuma. */
   const arquivos = [], mapa = new Map();
-  const pecas = postas.map((p) => {
+  /* SEMENTE FORA. As vagas de mural entram em `postas` só para a passada desviar
+     delas; elas já foram desenhadas por `pendurarMurais` e não têm arquivo de
+     decalque. Sem este filtro, `T.decalFiles[-1]` vira `undefined`, o JSON grava
+     `null` em `arquivos`, e o `aplicarGrafite` do próximo carregamento estoura em
+     `nome.startsWith` — que foi exatamente o que aconteceu. */
+  const pecas = postas.filter((p) => !p.semente).map((p) => {
     const f = p.cartaz ? ('poster:' + ((T.posterFiles || [])[p.i] || p.i))
       : (T.decalFiles ? T.decalFiles[p.i] : String(p.i));
     let a = mapa.get(f);
@@ -414,6 +432,14 @@ export function aplicarGrafite(root, T, layout, muraisTex) {
   const porArquivo = new Map(), postas = [];
   for (const [a, x, y, z, ry, w, h] of (layout.pecas || [])) {
     const nome = layout.arquivos[a];
+    /* Nome ausente = layout corrompido (aconteceu: uma semente de mural entrou na
+       lista de peças com índice -1 e virou `null` no JSON). Um mapa inteiro não pode
+       cair por causa de uma entrada ruim — pula, avisa alto, e o resto do grafite
+       aparece. Silêncio aqui seria pior; queda também. */
+    if (typeof nome !== 'string') {
+      console.warn('[grafite] entrada', a, 'do layout sem nome de arquivo — regere com `npm run grafite`');
+      continue;
+    }
     // `poster:` no nome = veio da coleção do dono, não do pacote de decalques
     const cartaz = nome.startsWith('poster:');
     const i = cartaz ? idxP.get(nome.slice(7)) : idx.get(nome);

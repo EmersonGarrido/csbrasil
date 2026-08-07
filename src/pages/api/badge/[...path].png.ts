@@ -5,6 +5,7 @@ import type { APIRoute } from 'astro';
 import { initWasm, Resvg } from '@resvg/resvg-wasm';
 import sharp from 'sharp';
 import { supabaseAdmin, NOT_CONFIGURED } from '../../../lib/supabase';
+import { rateLimit } from '../../../lib/ratelimit';
 import { FONT_BOLD_B64 } from '../../../lib/font-data';
 import { displayTime } from '../../../lib/fmt';
 import { CHARS, charSvg, charName } from '../../../lib/charsvg';
@@ -110,6 +111,17 @@ function badgeSvg(p: any, avatarUri: string | null, charId: string | null): stri
 }
 
 export const GET: APIRoute = async (ctx) => {
+  /* ── RATE LIMIT + CACHE DE CDN (07/08, com o site no ar) ────────────────────
+     Esta rota roda `resvg-wasm` A CADA REQUISIÇÃO e aceita QUALQUER nick no
+     caminho, então o cache por URL não protege: quem varia o nick gera trabalho
+     novo toda vez. E o `cache-control` só tinha `max-age` (navegador), sem
+     `s-maxage` — a CDN não guardava nada e todo hit chegava na função.
+     60/min por IP é folgado pro uso real (a badge é embutida em README e perfil,
+     um hit por visita) e corta a varredura. Mesmo helper das outras rotas. */
+  const ip = ctx.request.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'unknown';
+  if (supabaseAdmin && !(await rateLimit(supabaseAdmin, 'badge', ip, 60, 60)))
+    return new Response('rate limited', { status: 429 });
+
   try {
     return await handle(ctx);
   } catch (e: any) {
@@ -142,6 +154,7 @@ const handle: APIRoute = async ({ params, request }) => {
     background: '#0c0e11',
   });
   return new Response(new Uint8Array(resvg.render().asPng()), {
-    headers: { 'content-type': 'image/png', 'cache-control': 'public, max-age=300' },
+    // `s-maxage` faltava: sem ele a CDN não guarda e todo hit paga o WASM de novo.
+    headers: { 'content-type': 'image/png', 'cache-control': 'public, max-age=300, s-maxage=600, stale-while-revalidate=3600' },
   });
 };

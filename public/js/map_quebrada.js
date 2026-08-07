@@ -1556,7 +1556,7 @@ export function buildQuebrada(scene, T) {
      e agora quase todas sobrevivem, porque a passada não depende delas. */
   grafitar({
     id: 'fy_quebrada',
-    root, T, waypoints: nodes, seed: 4021, passo: 0.72, alcance: 9, cobre: 0.62, minLarg: 0.3,
+    root, T, waypoints: nodes, seed: 4021, passo: 0.72, alcance: 9, cobre: 0.06, minLarg: 0.3,
     /* HOMENAGENS: peça de primeira classe, 5,4 × 2,8 m (eram 3,9 × 2,0 numa vaga
        fixa que o navegador reprovava), na melhor parede medida de cada região. */
     murais: { texturas: T.muraisHom, nomes: T.muraisHomNomes, seed: 91, separacao: 15 },

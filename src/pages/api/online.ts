@@ -4,15 +4,32 @@
 // é invisível e corta o QPS no Postgres.
 import type { APIRoute } from 'astro';
 import { supabaseAdmin, NOT_CONFIGURED } from '../../lib/supabase';
+import { rateLimit } from '../../lib/ratelimit';
 
 export const prerender = false;
 
-export const GET: APIRoute = async () => {
-  if (NOT_CONFIGURED) {
+export const GET: APIRoute = async ({ request }) => {
+  /* ── ESTA GUARDA ESTAVA SEMPRE VERDADEIRA (achado 07/08) ────────────────────
+     Era `if (NOT_CONFIGURED)`. Mas `NOT_CONFIGURED` não é booleano: é o CORPO da
+     resposta 503, `JSON.stringify({...})` (src/lib/supabase.ts:11) — string não
+     vazia, logo sempre truthy. A rota devolvia `{"online": null}` incondicionalmente
+     e **nunca chegava a consultar o banco**. Com Supabase configurado ou não, o
+     rodapé escondia o contador, e o `try/catch` lá embaixo — que eu cheguei a
+     acusar — nunca rodou uma vez sequer.
+     Todas as outras rotas usam `NOT_CONFIGURED` como corpo e testam `!supabaseAdmin`;
+     só esta trocou as duas coisas. É o tipo de erro que nenhum teste de tipo pega,
+     porque `if (string)` é JavaScript válido. */
+  if (!supabaseAdmin) {
     return new Response(JSON.stringify({ online: null }), {
       status: 200, headers: { 'content-type': 'application/json' },
     });
   }
+  /* 60/min: o rodapé chama a cada 60 s e a resposta tem `s-maxage=30`, então o
+     tráfego real é quase todo CDN. O limite existe pro caminho que fura o cache. */
+  const ip = request.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'unknown';
+  if (!(await rateLimit(supabaseAdmin, 'online', ip, 60, 60)))
+    return new Response(JSON.stringify({ error: 'rate_limited' }), { status: 429, headers: { 'content-type': 'application/json' } });
+
   try {
     /* `online_anon`, não `online_now` (07/08). A `online_now` conta jogador
        REGISTRADO DENTRO DE PARTIDA, porque é isso que o /api/heartbeat exige — e

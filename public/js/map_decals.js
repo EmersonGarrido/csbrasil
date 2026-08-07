@@ -262,22 +262,49 @@ export function medirParede(raizes, x, y, z, ry, w, h) {
     if (!alvos.length) return null;
     const nx = Math.sin(ry), nz = Math.cos(ry);
     const ux = Math.cos(ry), uz = -Math.sin(ry);
-    let orgulhoso = Infinity, recuado = -Infinity;
+    /* ── QUANTO DÁ PRA RECUAR SEM SAIR DO OUTRO LADO DO BECO (07/08) ─────────
+       O raio nascia SEMPRE 1,5 m à frente do plano nominal, pra alcançar a face
+       orgulhosa de um GLB. Numa VIELA isso é fatal: as vielas da Quebrada têm
+       1,3 m de vão, então o ponto de partida cai ATRÁS da parede de enfrente, o
+       primeiro acerto é ela, e o `recuo` calculado joga a peça no meio do beco.
+       Medido pela `graffiti-audit`: 451 peças no ar na Quebrada, e 34 das 40
+       piores eram justamente as coladas à mão nas vielas (x ≈ ±20,7) e nos muros
+       externos (±25).
+
+       O conserto não é encurtar o alcance pra todo mundo — quem tem espaço na
+       frente continua precisando dele. É PERGUNTAR primeiro: um raio pra frente
+       diz onde está o obstáculo, e a partida recua pra 5 cm antes dele. Rua
+       aberta segue com 1,5 m; beco de 1,3 m usa o que tem. */
+    let frente = 1.5;
+    _rc.far = 1.5;
+    _rc.set(_o.set(x, y, z), _d.set(nx, 0, nz).normalize());
+    const dFrente = _tiro(alvos);
+    if (dFrente != null) frente = Math.max(0.12, dFrente - 0.05);
+
+    let orgulhoso = Infinity, recuado = -Infinity, vazias = 0;
     for (const su of [-0.4, 0, 0.4]) {
       for (const sv of [-0.35, 0, 0.35]) {
-        // o raio sai de 1,5 m À FRENTE do plano nominal, pra trás — cobre face
-        // orgulhosa (GLB à frente do declarado) e recuada
-        _o.set(x + ux * su * w + nx * 1.5, y + sv * h, z + uz * su * w + nz * 1.5);
-        _rc.far = 2.7;                                     // 1,5 pra frente + 1,2 pra trás
+        _o.set(x + ux * su * w + nx * frente, y + sv * h, z + uz * su * w + nz * frente);
+        _rc.far = frente + 1.2;                            // o que couber à frente + 1,2 atrás
         _rc.set(_o, _d.set(-nx, 0, -nz).normalize());
         const t = _tiro(alvos);
-        if (t == null) continue;                           // esta coluna não tem parede — tolera
-        const recuo = 1.5 - t;                             // >0: parede atrás do plano nominal
+        if (t == null) { vazias++; continue; }             // esta coluna não tem parede
+        const recuo = frente - t;                          // >0: parede atrás do plano nominal
         if (recuo < orgulhoso) orgulhoso = recuo;
         if (recuo > recuado) recuado = recuo;
       }
     }
     if (orgulhoso === Infinity) return null;               // nenhuma coluna achou parede
+    /* ── QUANTO BURACO A PEÇA PODE TER ATRÁS (07/08) ────────────────────────
+       Antes, amostra sem parede era só `continue`: bastava UMA das nove achar
+       parede para a peça nascer. Foi assim que o pixo do beco oeste ficou 100% no
+       ar por cima do vão da porta — medido pela `graffiti-audit` e visto na foto
+       (`/tmp/graffiti-audit/fy_quebrada/00_vao100.png`): a peça atravessa a viga e
+       continua sobre o recuo da porta, com parede só numa ponta.
+       3 de 9 é a folga que sobra: caixilho de janela e vão de porta abrem buraco
+       legítimo no meio de um muro pichado, e reprovar por causa deles trocaria um
+       defeito por outro. Acima disso não é parede com furo, é peça pendurada. */
+    if (vazias > 3) return null;
     if (recuado - orgulhoso > 0.6) return null;            // degrau: duas paredes, não uma
     if (orgulhoso > 1.2) return null;                      // parede longe demais: peça flutuaria
     return orgulhoso - 0.03;                               // 3 cm à frente da face mais orgulhosa

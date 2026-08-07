@@ -102,9 +102,12 @@ export const CHAR_FX = {
 // 0.35 (era 0.45 na R2): com o piso agora multiplicativo o rim voltou a ser o único
 // termo aditivo do personagem, e cada ponto que ele anda na direção do branco é croma
 // que ele TIRA do boneco. Medido no char_sim: 0.45 custava ~1,5 de C* sem ganhar ΔL*.
-const TEAM_RIM = { P: 0xff5555, B: 0x55dd66, U: 0x4aa3ff, F: 0xffc233 };
+// `E` (não `P`) e `C` (07/08): o rename Time E deixou esta tabela para trás e os palhaços
+// nunca entraram nela. `TEAM_RIM[team] || 0xffffff` não dá erro — dá contorno BRANCO, que
+// parece decisão de arte. Régua: `tools/eval/faccao-paleta-check.mjs`.
+const TEAM_RIM = { E: 0xff5555, B: 0x55dd66, U: 0x4aa3ff, C: 0xff6ec7, F: 0xffc233 };
 export function charRimColor(def) {
-  const c = new THREE.Color(TEAM_RIM[(def && def.team) || 'P'] || 0xffffff);
+  const c = new THREE.Color(TEAM_RIM[(def && def.team) || 'E'] || 0xffffff);
   return c.lerp(new THREE.Color(0xffffff), 0.35);
 }
 
@@ -766,7 +769,10 @@ export function buildCharacter(def) {
   torso.add(gun); parts.gun = gun;
 
   // team armband
-  const band = def.team === 'P' ? 0xe03232 : def.team === 'B' ? 0x1faa4d : def.team === 'F' ? 0xffc233 : 0x4aa3ff;
+  /* `E` (era `P`, rename de 06/08) e `C` explícito: sem o ramo, a facção cai no ELSE e sai
+     azul de Tribos Urbanas — o time do jogador usava braçadeira azul e os palhaços também.
+     O else continua sendo o U, de propósito, e é isso que a régua declara. */
+  const band = def.team === 'E' ? 0xe03232 : def.team === 'B' ? 0x1faa4d : def.team === 'F' ? 0xffc233 : def.team === 'C' ? 0xc23a86 : 0x4aa3ff;
   parts.armL.add(marcaAdereco(box(D.bracoW + 0.02, 0.08, D.bracoD + 0.02, band, 0, -bracoLen * 0.24, 0)));
 
   addAccessories(def, parts, torsoW);

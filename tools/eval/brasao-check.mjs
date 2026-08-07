@@ -47,7 +47,9 @@ const MUTAR = val('mutar', '');
 const OUT = val('out', 'tools/eval/out');
 
 const FACS = ['E', 'B', 'U', 'C', 'F'];
-const NOME = { P: 'PETISTAS', B: 'BOLSONARISTAS', U: 'TRIBOS URBANAS', C: 'PALHAÇOS', F: 'FUNKEIROS' };
+/* `E` e não `P`: terceira ocorrência do mesmo rename esquecido no mesmo arquivo — aqui ele
+   não dava número errado, dava CRASH (`NOME[it.f].padEnd` de undefined) depois do C3. */
+const NOME = { E: 'TIME E', B: 'TIME B', U: 'TRIBOS URBANAS', C: 'PALHAÇOS', F: 'FUNKEIROS' };
 const WEBER_MIN = 0.25;      // mesmo teto do canarinho
 const DIST_MIN = 14;         // distância média por pixel entre duas bandeiras a 64 px
 
@@ -58,7 +60,11 @@ function paletaDoJogo() {
   const src = fs.readFileSync('public/js/game.js', 'utf8');
   const bloco = src.slice(src.indexOf('_teamColor(side'), src.indexOf('_teamColor(side') + 900);
   const out = {};
-  for (const m of bloco.matchAll(/f === '([PBUCF])'\)\s*return\s*dark\s*\?\s*'(#[0-9a-f]{6})'\s*:\s*'(#[0-9a-f]{6})'/g)) {
+  /* `[A-Z]` e não `[PBUCF]` (07/08): a lista fechada era uma lista escrita à mão dentro de
+     um regex, e envelheceu como toda lista escrita à mão — no rename Time E de 06/08 o
+     `game.js` passou a dizer `f === 'E'`, este regex parou de casar a facção do jogador, e
+     o C3 comparou vazio com vazio para ela. Cegueira de régua, não defeito de arte. */
+  for (const m of bloco.matchAll(/f === '([A-Z])'\)\s*return\s*dark\s*\?\s*'(#[0-9a-f]{6})'\s*:\s*'(#[0-9a-f]{6})'/g)) {
     out[m[1]] = m[3];
   }
   return out;

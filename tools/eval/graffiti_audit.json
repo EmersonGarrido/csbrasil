@@ -1,0 +1,548 @@
+{
+ "fy_quebrada": {
+  "total": 1067,
+  "noAr": 235,
+  "tapadas": 12,
+  "sobrepostas": 55,
+  "piores": [
+   {
+    "x": -16.7,
+    "y": 2.51,
+    "z": -10.5,
+    "ry": -1.57,
+    "w": 2.9,
+    "h": 1.58,
+    "vao": 1,
+    "tapada": 0.27,
+    "quem": "mural:eternamente"
+   },
+   {
+    "x": -12.5,
+    "y": 3.3,
+    "z": 21.94,
+    "ry": -1.57,
+    "w": 4.11,
+    "h": 1.9,
+    "vao": 0.27,
+    "tapada": 0.87,
+    "quem": "or-graf-coro.png"
+   },
+   {
+    "x": 16.82,
+    "y": 1.5,
+    "z": -40.6,
+    "ry": -1.57,
+    "w": 0.84,
+    "h": 1.5,
+    "vao": 0,
+    "tapada": 1,
+    "quem": "poster:ashtar.png"
+   },
+   {
+    "x": -12.37,
+    "y": 1.2,
+    "z": 13.47,
+    "ry": 1.57,
+    "w": 0.35,
+    "h": 0.7,
+    "vao": 0,
+    "tapada": 1,
+    "quem": "tags-treino-03.png"
+   },
+   {
+    "x": 16.11,
+    "y": 3.3,
+    "z": 19.87,
+    "ry": 0,
+    "w": 1.33,
+    "h": 1.9,
+    "vao": 0,
+    "tapada": 1,
+    "quem": "personagem-muro.png"
+   },
+   {
+    "x": 20.1,
+    "y": 2.51,
+    "z": 10.65,
+    "ry": 1.57,
+    "w": 2.9,
+    "h": 1.58,
+    "vao": 1,
+    "tapada": 0,
+    "quem": "mural:leste-vive"
+   },
+   {
+    "x": 20.1,
+    "y": 2.51,
+    "z": 10.65,
+    "ry": -1.57,
+    "w": 2.9,
+    "h": 1.58,
+    "vao": 1,
+    "tapada": 0,
+    "quem": "mural:leste-vive"
+   },
+   {
+    "x": 0,
+    "y": 1.1,
+    "z": 27.91,
+    "ry": 3.14,
+    "w": 1.95,
+    "h": 1.5,
+    "vao": 1,
+    "tapada": 0,
+    "quem": "decal:tag-flop.png"
+   },
+   {
+    "x": -12.46,
+    "y": 0.9,
+    "z": -5.92,
+    "ry": 1.57,
+    "w": 1.4,
+    "h": 0.8,
+    "vao": 0,
+    "tapada": 1,
+    "quem": "decal:folha-lambes.png"
+   },
+   {
+    "x": -20.84,
+    "y": 1.3,
+    "z": -17.28,
+    "ry": 3.14,
+    "w": 1.41,
+    "h": 2,
+    "vao": 0.27,
+    "tapada": 0.67,
+    "quem": "pra-gringo.png"
+   },
+   {
+    "x": -4.71,
+    "y": 3.3,
+    "z": -42.54,
+    "ry": 0,
+    "w": 1.9,
+    "h": 1.9,
+    "vao": 0.6,
+    "tapada": 0.33,
+    "quem": "or-stencil-capivara.png"
+   },
+   {
+    "x": -13.1,
+    "y": 1.5,
+    "z": -19.35,
+    "ry": 0,
+    "w": 1.08,
+    "h": 1.5,
+    "vao": 0,
+    "tapada": 0.87,
+    "quem": "poster:574381edb80801aaff5e9a1cdd88bc4b.jpg"
+   },
+   {
+    "x": 19.99,
+    "y": 0.68,
+    "z": 3.12,
+    "ry": -3.14,
+    "w": 1.37,
+    "h": 0.95,
+    "vao": 0.87,
+    "tapada": 0,
+    "quem": "tag-selvagem.png"
+   },
+   {
+    "x": 14.32,
+    "y": 1.3,
+    "z": 19.81,
+    "ry": 3.14,
+    "w": 3.6,
+    "h": 1.98,
+    "vao": 0,
+    "tapada": 0.8,
+    "quem": "folha-throwu-05.png"
+   },
+   {
+    "x": -12.5,
+    "y": 5.6,
+    "z": 21.44,
+    "ry": -1.57,
+    "w": 1.32,
+    "h": 1.5,
+    "vao": 0.47,
+    "tapada": 0.33,
+    "quem": "personagens-graffiti-06.png"
+   },
+   {
+    "x": -17.52,
+    "y": 1.3,
+    "z": 0.89,
+    "ry": 0,
+    "w": 2.09,
+    "h": 1.5,
+    "vao": 0.4,
+    "tapada": 0.4,
+    "quem": "folha-pixaca-04.png"
+   },
+   {
+    "x": 25.97,
+    "y": 0.9,
+    "z": -34.16,
+    "ry": -1.57,
+    "w": 1.5,
+    "h": 0.5,
+    "vao": 0.8,
+    "tapada": 0,
+    "quem": "tags-treino-04.png"
+   },
+   {
+    "x": 23.78,
+    "y": 1.3,
+    "z": 27.19,
+    "ry": -0.79,
+    "w": 0.78,
+    "h": 1.1,
+    "vao": 0.4,
+    "tapada": 0.4,
+    "quem": "pra-gringo.png"
+   },
+   {
+    "x": 12.75,
+    "y": 0.75,
+    "z": 1.55,
+    "ry": 1.57,
+    "w": 0.72,
+    "h": 0.8,
+    "vao": 0.8,
+    "tapada": 0,
+    "quem": "folha-person-03.png"
+   },
+   {
+    "x": -22.13,
+    "y": 1.3,
+    "z": 27.19,
+    "ry": -0.79,
+    "w": 0.82,
+    "h": 0.6,
+    "vao": 0.4,
+    "tapada": 0.4,
+    "quem": "folha-pixaca-05.png"
+   },
+   {
+    "x": -17.39,
+    "y": 1.3,
+    "z": 16.09,
+    "ry": -0.79,
+    "w": 2.07,
+    "h": 2,
+    "vao": 0.47,
+    "tapada": 0.27,
+    "quem": "folha-person-04.png"
+   },
+   {
+    "x": 26.77,
+    "y": 1.3,
+    "z": 16.38,
+    "ry": 0,
+    "w": 1.61,
+    "h": 1.1,
+    "vao": 0.73,
+    "tapada": 0,
+    "quem": "folha-pixaca-06.png"
+   },
+   {
+    "x": -16.7,
+    "y": 2.51,
+    "z": -10.5,
+    "ry": 1.57,
+    "w": 2.9,
+    "h": 1.58,
+    "vao": 0.73,
+    "tapada": 0,
+    "quem": "mural:eternamente"
+   },
+   {
+    "x": -18.18,
+    "y": 0.68,
+    "z": -38.04,
+    "ry": 1.57,
+    "w": 0.36,
+    "h": 0.95,
+    "vao": 0.67,
+    "tapada": 0,
+    "quem": "tags-treino-06.png"
+   },
+   {
+    "x": 14.32,
+    "y": 5.05,
+    "z": 19.81,
+    "ry": 3.14,
+    "w": 1.16,
+    "h": 1,
+    "vao": 0,
+    "tapada": 0.67,
+    "quem": "personagens-graffiti-05.png"
+   },
+   {
+    "x": 15.88,
+    "y": 1.3,
+    "z": -26.17,
+    "ry": 3.14,
+    "w": 3.51,
+    "h": 2,
+    "vao": 0.67,
+    "tapada": 0,
+    "quem": "folha-lambes.png"
+   },
+   {
+    "x": -25.75,
+    "y": 0.6,
+    "z": 9.41,
+    "ry": 1.57,
+    "w": 0.86,
+    "h": 1.1,
+    "vao": 0.67,
+    "tapada": 0,
+    "quem": "folha-person-02.png"
+   },
+   {
+    "x": -26.17,
+    "y": 1.3,
+    "z": -37.06,
+    "ry": 2.36,
+    "w": 0.72,
+    "h": 0.8,
+    "vao": 0.2,
+    "tapada": 0.47,
+    "quem": "folha-person-03.png"
+   },
+   {
+    "x": -11.74,
+    "y": 1.3,
+    "z": -6.44,
+    "ry": 1.57,
+    "w": 3.6,
+    "h": 1.94,
+    "vao": 0.27,
+    "tapada": 0.33,
+    "quem": "folha-throwu-02.png"
+   },
+   {
+    "x": 16.63,
+    "y": 1.6,
+    "z": -36.18,
+    "ry": 3.14,
+    "w": 0.78,
+    "h": 0.7,
+    "vao": 0.4,
+    "tapada": 0.2,
+    "quem": "tags-treino-01.png"
+   },
+   {
+    "x": -12.21,
+    "y": 1.2,
+    "z": -8.98,
+    "ry": -1.57,
+    "w": 2,
+    "h": 1.5,
+    "vao": 0,
+    "tapada": 0.6,
+    "quem": "tag-money.png"
+   },
+   {
+    "x": 22.84,
+    "y": 1.3,
+    "z": 27.8,
+    "ry": 3.14,
+    "w": 2.73,
+    "h": 1.5,
+    "vao": 0.6,
+    "tapada": 0,
+    "quem": "folha-throwu-05.png"
+   },
+   {
+    "x": -12.5,
+    "y": 1.3,
+    "z": 21.94,
+    "ry": -1.57,
+    "w": 3.6,
+    "h": 1.92,
+    "vao": 0,
+    "tapada": 0.6,
+    "quem": "folha-stenci.png"
+   },
+   {
+    "x": -15.32,
+    "y": 0.87,
+    "z": 1.8,
+    "ry": 0,
+    "w": 1.7,
+    "h": 0.57,
+    "vao": 0.6,
+    "tapada": 0,
+    "quem": "tags-treino-04.png"
+   },
+   {
+    "x": 12.43,
+    "y": 1.3,
+    "z": -30.47,
+    "ry": -1.32,
+    "w": 1.11,
+    "h": 1.1,
+    "vao": 0.6,
+    "tapada": 0,
+    "quem": "folha-person-01.png"
+   },
+   {
+    "x": 17.16,
+    "y": 0.68,
+    "z": 24.71,
+    "ry": 0,
+    "w": 0.36,
+    "h": 0.95,
+    "vao": 0.6,
+    "tapada": 0,
+    "quem": "tags-treino-06.png"
+   },
+   {
+    "x": -17.02,
+    "y": 1.6,
+    "z": 31.16,
+    "ry": 0,
+    "w": 0.78,
+    "h": 0.7,
+    "vao": 0.6,
+    "tapada": 0,
+    "quem": "tags-treino-01.png"
+   },
+   {
+    "x": 12.5,
+    "y": 1.3,
+    "z": 10.18,
+    "ry": -1.57,
+    "w": 2.89,
+    "h": 2,
+    "vao": 0.6,
+    "tapada": 0,
+    "quem": "tag-selvagem.png"
+   },
+   {
+    "x": -14.97,
+    "y": 1.6,
+    "z": 28.09,
+    "ry": 1.57,
+    "w": 0.68,
+    "h": 0.95,
+    "vao": 0.6,
+    "tapada": 0,
+    "quem": "bola-amarela.png"
+   },
+   {
+    "x": -25.96,
+    "y": 0.6,
+    "z": 10.54,
+    "ry": 1.57,
+    "w": 1.34,
+    "h": 1.1,
+    "vao": 0.6,
+    "tapada": 0,
+    "quem": "folha-pixaca-02.png"
+   }
+  ],
+  "piorSobrepor": [
+   {
+    "x": -0.1,
+    "y": 1.6,
+    "z": 27.8,
+    "frac": 8.84,
+    "a": "or-stencil-pomba.png",
+    "b": "mural:homenagem-4"
+   },
+   {
+    "x": -0.1,
+    "y": 1.6,
+    "z": 27.8,
+    "frac": 2.96,
+    "a": "or-stencil-pomba.png",
+    "b": "decal:tag-flop.png"
+   },
+   {
+    "x": 0.6,
+    "y": 1.3,
+    "z": 27.8,
+    "frac": 2.39,
+    "a": "gratidao-sol.png",
+    "b": "mural:homenagem-4"
+   },
+   {
+    "x": -6.9,
+    "y": 1.6,
+    "z": 27.8,
+    "frac": 2.16,
+    "a": "tags-treino-06.png",
+    "b": "decal:folha-pixaca-03.png"
+   },
+   {
+    "x": 12.5,
+    "y": 1.6,
+    "z": 1.4,
+    "frac": 2.08,
+    "a": "or-stencil-capivara.png",
+    "b": "decal:tag-money.png"
+   },
+   {
+    "x": 0,
+    "y": 1.1,
+    "z": 27.6,
+    "frac": 1.73,
+    "a": "mural:homenagem-4",
+    "b": "decal:tag-flop.png"
+   },
+   {
+    "x": -1.6,
+    "y": 1.3,
+    "z": 27.8,
+    "frac": 1.6,
+    "a": "folha-person-05.png",
+    "b": "mural:homenagem-4"
+   },
+   {
+    "x": -12.4,
+    "y": 1.3,
+    "z": -5.5,
+    "frac": 1.45,
+    "a": "tags-treino-05.png",
+    "b": "decal:folha-lambes.png"
+   },
+   {
+    "x": -12.4,
+    "y": 1.6,
+    "z": -21.7,
+    "frac": 1.36,
+    "a": "tag-flop.png",
+    "b": "decal:folha-throwu-04.png"
+   },
+   {
+    "x": 12.5,
+    "y": 1.3,
+    "z": 0.1,
+    "frac": 1.28,
+    "a": "folha-throwu-01.png",
+    "b": "decal:tags-treino-06.png"
+   },
+   {
+    "x": 1.4,
+    "y": 1.5,
+    "z": 27.8,
+    "frac": 1.28,
+    "a": "poster:or-baile.jpg",
+    "b": "mural:homenagem-4"
+   },
+   {
+    "x": -12.4,
+    "y": 1.3,
+    "z": -5.5,
+    "frac": 1.22,
+    "a": "tags-treino-05.png",
+    "b": "decal:personagens-graffiti-04.png"
+   }
+  ]
+ }
+}

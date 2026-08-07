@@ -1799,7 +1799,7 @@ export function buildBrasilia(scene, T) {
      praça — tag de bairro em Brasília leria como outro mapa. */
   grafitar({
     id: 'awp_map',
-    root, T, waypoints: nodes, seed: 3311, passo: 1.1, alcance: 9, cobre: 0.45, minLarg: 0.35,
+    root, T, waypoints: nodes, seed: 3311, passo: 1.1, alcance: 9, cobre: 0.06, minLarg: 0.35,
     bandas: [
       /* CARTAZ DA COLEÇÃO (07/08). Reprovação: "tem diversos posters da minha coleção
          e tb que vc gerou que não estão em nenhum mapa". Eram 30 arquivos vivendo em

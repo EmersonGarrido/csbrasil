@@ -44,7 +44,13 @@ import * as THREE from 'three';
    original é MÉTODO DE INSTÂNCIA da classe `Game` (depende de `_mirror`/`_factionOf`,
    que são estado de partida), então não há o que importar. Se a paleta mudar lá, muda
    aqui — `tools/eval/brasao-check.mjs` falha se os dois discordarem. */
-const COR_TIME = { P: '#ff5555', B: '#55dd66', U: '#4aa3ff', C: '#ff6ec7', F: '#ffc233' };
+/* `E` e não `P` (07/08): o rename Time E de 06/08 trocou a letra no `BRASAO` logo abaixo
+   e no arquivo (`img/brasoes/p.png` -> `e.png`) e ESQUECEU esta linha. Com `COR_TIME['E']`
+   indefinido, `bandeiraTextura('E')` saía por `!cor` na primeira linha e devolvia `null` —
+   a bandeira do time do jogador ficava sem cor E sem brasão, os dois de uma vez, que foi
+   como o defeito chegou: *"quando captura bandeira não pinta de vermelho e nem põe o
+   brasão"*. Régua: `tools/eval/faccao-paleta-check.mjs`. */
+const COR_TIME = { E: '#ff5555', B: '#55dd66', U: '#4aa3ff', C: '#ff6ec7', F: '#ffc233' };
 
 /* Só estas cinco têm brasão. Facção fora da lista devolve `null` de propósito: é o sinal
    combinado com o chamador para ele manter o pano que já desenhava. */

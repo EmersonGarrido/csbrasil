@@ -1876,7 +1876,7 @@ export function buildHavan(scene, T) {
      caso especial pra ela — caso especial é o que não sobrevive à próxima mudança. */
   grafitar({
     id: 'fy_havan',
-    root, T, waypoints: nodes, seed: 5501, passo: 1.0, alcance: 9, cobre: 0.5, minLarg: 0.32,
+    root, T, waypoints: nodes, seed: 5501, passo: 1.0, alcance: 9, cobre: 0.06, minLarg: 0.32,
     /* SÓ DO LADO DE FORA (dono, 07/08: "pode tirar os graffitis de dentro da loja,
        pode deixar só na parte de fora que ficou boa"). O interior da loja é z < -6;
        74% das peças do mapa estavam lá dentro, e 7 dos 8 murais de homenagem também.

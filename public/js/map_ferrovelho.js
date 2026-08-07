@@ -1852,7 +1852,7 @@ export function buildFerroVelho(scene, T) {
      pátio é a superfície preferida de quem pinta, justamente porque ninguém reclama. */
   grafitar({
     id: 'fy_ferrovelho',
-    root, T, waypoints: nodes, seed: 8123, passo: 0.95, alcance: 9, cobre: 0.55, minLarg: 0.32,
+    root, T, waypoints: nodes, seed: 8123, passo: 0.95, alcance: 9, cobre: 0.06, minLarg: 0.32,
     /* NEM LATARIA NEM MATO (dono, 07/08: "não faz sentido grafite nos carros e na
        grama, só nas paredes em volta mesmo e no escritório"). Ferro velho de verdade
        tem o muro bombardeado e a sucata limpa — ninguém picha carro que vai pra prensa.
