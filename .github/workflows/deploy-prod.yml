@@ -1,3 +1,12 @@
+# ⚠️ DESLIGADO NA PRÁTICA DESDE 07/08, e por um motivo que não é este arquivo:
+#    NÃO EXISTE NENHUM SEGREDO configurado no repositório nem nos environments
+#    (`gh secret list` volta vazio; `Preview` e `Production` existem sem segredo).
+#    O passo do Vercel morre em "You defined --token, but it's missing a value".
+#    Enquanto isso, `vercel.json` voltou a auto-deployar a `main` — decisão do dono em
+#    07/08, explicitamente temporária ("deixa a publicação rolar normalmente como vai na
+#    main e depois arrumamos isso"). Para religar o caminho por release: cadastrar
+#    VERCEL_TOKEN / VERCEL_ORG_ID / VERCEL_PROJECT_ID e pôr `main: false` de volta.
+#
 # Produção SÓ por release (pedido do dono, 06/08): a Vercel deixa de auto-deployar a main
 # (vercel.json desliga; previews de branch continuam) e este workflow publica quando um
 # GitHub Release é PUBLICADO (tag v*). Segredos necessários (Settings → Secrets → Actions):
