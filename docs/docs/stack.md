@@ -242,19 +242,17 @@ de trabalhar. Elas vivem em `.agents/skills/`, e `.claude/skills/` são symlinks
 
 | Contagem | Quanto | O que significa |
 |---|---:|---|
-| Declaradas no `skills-lock.json` | 30 | com `source`, `skillPath` e `computedHash` — skill de terceiro que mudar de conteúdo é detectável |
-| Pastas em `.agents/skills/` no disco | 30 | o que existe **nesta máquina** |
-| …dessas, com `SKILL.md` presente | 9 | o resto é pasta vazia: a skill está no lock e o conteúdo não foi baixado |
+| Declaradas no `skills-lock.json` | 39 | com `source`, `skillPath` e `computedHash` — skill de terceiro que mudar de conteúdo é detectável |
 | Versionadas (chegam em quem clona) | 9 | `git ls-files .agents/skills` |
 | …dessas, com `SKILL.md` no git | 9 | é o que um clone limpo consegue ler |
 
-**As três contagens divergem de propósito, e a diferença é o fato:** a maioria das skills é de terceiro, fixada por hash no lock e baixada sob demanda. Quem clonar o repositório recebe o lock inteiro e só uma parte do conteúdo. Publicar só uma das contagens esconderia exatamente o que o contribuidor precisa saber.
+**As contagens divergem de propósito, e a diferença é o fato:** a maioria das skills é de terceiro, fixada por hash no lock e baixada sob demanda. Quem clonar o repositório recebe o lock inteiro e só uma parte do conteúdo. Publicar só uma das contagens esconderia exatamente o que o contribuidor precisa saber.
 
 `.claude/skills/` são **symlinks** para `.agents/skills/` — uma cópia só, dois nomes, porque o Claude Code lê de `.claude/` e outros arnêses leem de `.agents/`.
 
 A skill do loop desta casa, **`gauntlet-fps`**, é a única que nasceu aqui: vive em `.claude/skills/gauntlet-fps/SKILL.md`, não é symlink e não entra no lock.
 
-> Bloco gerado por `node tools/gen-docs.mjs`. Fonte: `git ls-files .agents/skills · skills-lock.json · ls .agents/skills`
+> Bloco gerado por `node tools/gen-docs.mjs`. Fonte: `git ls-files .agents/skills · skills-lock.json`
 
 {/* END:GERADO:skills */}
 
