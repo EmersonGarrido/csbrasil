@@ -108,6 +108,8 @@ Diga ao caçador, explicitamente: *se não houver regressão, diga isso — não
 
 Leia os vereditos, monte a rodada seguinte com as regressões **em primeiro lugar** (regressão não pode dormir), e rode de novo. Pare quando você quiser parar.
 
+**Detector de loop:** se duas rodadas seguidas não moveram nenhum critério de FAIL para PASS, o loop está girando — mude de frente, troque o crítico (contexto limpo de verdade, não o mesmo com outro nome), ou pare e reporte o platô medido. Rodada que não move número é custo, não progresso.
+
 ## Página viva
 
 Gere uma página HTML com os pares antes/depois embutidos como data URL (redimensione para ~760px, JPEG q62 — 34 pares cabem em ~2MB) e entregue ao usuário a cada rodada. Ele acompanha do celular sem interromper o loop.

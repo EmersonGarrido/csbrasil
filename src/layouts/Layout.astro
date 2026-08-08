@@ -194,7 +194,14 @@ const NAV: [string, string][] = [
     mesmo depois de o arquivo entrar no repo. */}
 <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-<script type="importmap">{ "imports": { "three": "/vendor/three.module.js" } }</script>
+<!-- `three/addons/` NÃO é enfeite: sem ele o `site-bg.js` (linha 535) morre antes de
+     desenhar. Ele importa `map_brasilia.js`, que chega em `mapprops.js`, que importa
+     `three/addons/loaders/GLTFLoader.js` — e um especificador sem entrada no import map
+     é `pageerror`, não aviso. Medido em PRODUÇÃO em 07/08 pela `tools/eval/console-check.mjs`:
+     /sobre, /armas, /mapas, /personagens e /como-jogar cuspiam o mesmo erro e ficavam
+     SEM o fundo 3D, com o site respondendo 200. O `index.astro` tem a entrada desde
+     sempre; este mapa é o gêmeo esquecido. Os dois mudam juntos. -->
+<script type="importmap">{ "imports": { "three": "/vendor/three.module.js", "three/addons/": "/vendor/addons/" } }</script>
 <!-- Espelhos em texto puro pros crawlers de resposta. `/llms.txt` é a proposta
      de llmstxt.org; `/llms-full.txt`, `/docs.json` e `/ai-index.json` e os
      espelhos `.md` são gerados no build (scripts/aeo.mjs, via aeo.js).

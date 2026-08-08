@@ -25,14 +25,10 @@ import { solveCCDIK } from './handik.js';
 
 // Escape hatch p/ debug e A-B: ?fpoff=1 força o fallback procedural.
 export const FP_OFF = new URLSearchParams(location.search).get('fpoff') === '1';
-// ===== G3-R1: PIPELINE TRIPO APOSENTADO DO VIEWMODEL =====
-// O viewmodel de 1ª pessoa voltou a ser os 26 GLBs da Mint (um por arma, ~250 KB) montados
-// nos braços FP — ver game.js MINT_VM. Os 8 arms_*.glb da Tripo (18 MB cada) davam 8+5
-// aparências para 26 armas ("várias armas com visuais iguais") e eram a causa do OOM no
-// CTF da Havan. O código deles fica AQUI, íntegro, atrás do kill-switch ?tripovm=1 — o dono
-// consegue comparar A/B sem revert. Sem a flag NADA da Tripo é sequer baixado (nem os 6.7 MB
-// de textura-variante): é o preload/lazy-load inteiro que some.
-export const TRIPO_VM = new URLSearchParams(location.search).get('tripovm') === '1';
+// O viewmodel de 1ª pessoa são os 26 GLBs da Mint (um por arma, ~250 KB) montados nos
+// braços FP. O pipeline Tripo (arms_*.glb de 18 MB, kill-switch ?tripovm=1, G3-R1) foi
+// REMOVIDO em 07/08/2026 a pedido do dono: 154 MB no repo/deploy sem nenhum jogador
+// baixar. A régua do caminho ativo é tools/eval/vm-mint-audit.mjs.
 
 const qp = new URLSearchParams(location.search);
 const _n3 = (s, d) => { const p = (s || '').split(',').map(Number); return p.length === 3 && p.every((n) => !isNaN(n)) ? p : d; };
@@ -88,56 +84,6 @@ export function preloadFPArms() {
   }
   return _loading;
 }
-
-// Viewmodels ESTÁTICOS Tripo (braços+arma baked, sem rig): a pose já nasce empunhando —
-// substituem arma procedural + braços IK na classe deles (visual muito acima, ver HANDOFF).
-const _staticTpls = {};
-// Texturas de variante dos viewmodels (geradas por tools/vm-variant-tex.mjs: máscara
-// mãos-vs-arma por proximidade 3D da pele + regras de cor; SÓ a zona da arma muda).
-const _texTpls = {};
-export function getStaticVmTex(name) { return _texTpls[name] || null; }
-// LAZY-LOAD (G2-R14A — crash "Aw Snap! Error code: 15" no CTF da Havan): o preload antigo
-// baixava os 13 arms_*.glb de UMA vez (~270MB compactados, >1GB decodificado entre JS heap
-// e GPU — 8 heróis de ~19MB cada que o jogador nem usa na partida). Agora cada classe
-// carrega sob demanda (loadStaticVm) e cacheia; o boot (preloadStaticVm) traz só as
-// classes do loadout inicial + as texturas de variante (6.7MB, leves).
-const _staticPromises = {};
-export function loadStaticVm(cls) {
-  if (!TRIPO_VM) return Promise.resolve(null);   // sem ?tripovm=1 os heróis Tripo nem são baixados
-  if (_staticTpls[cls]) return Promise.resolve(_staticTpls[cls]);
-  if (!_staticPromises[cls]) {
-    _staticPromises[cls] = new Promise((res, rej) => _loader.load(`models/fpvm/arms_${cls}.glb?v=${VERSION}`, res, undefined, rej))
-      .then((g) => { _staticTpls[cls] = g.scene; return _staticTpls[cls]; })
-      .catch((e) => { console.warn('[fparms] static vm falhou p/ classe', cls, e); return null; });
-  }
-  return _staticPromises[cls];
-}
-let _texLoading = null;
-export function preloadStaticVm(classes = ['rifle', 'pistol', 'knife']) {
-  if (!TRIPO_VM) return Promise.resolve([]);   // idem: nem as texturas-variante sobem
-  if (!_texLoading) {
-    // variantes de textura (snipers/lift rifle/lâmina da faca) — carrega junto
-    const tl = new THREE.TextureLoader();
-    _texLoading = Promise.all(['awp_svd', 'awp_mosin', 'awp_m400', 'awp_rem700', 'awp_g3sg1', 'awp_sks', 'awp_glove', 'awp_orm_wear', 'rifle_lift', 'rifle_orm_wear', 'rifle_emissive', 'pistol_glove', 'shotgun_glove', 'shotgun_orm_wear', 'knife_steel', 'knife_orm',
-      // identidade por arma (GAUNTLET 2.0): acabamentos rifle/pistol/shotgun
-      'rifle_ak', 'rifle_akm', 'rifle_g3', 'rifle_scar', 'rifle_mp5', 'rifle_famas', 'rifle_p90', 'pistol_deagle', 'pistol_revolver38', 'pistol_orm_wear', 'shotgun_md97',
-      // G2-R8 (GAP3): m92 aço azulado, carbine madeira, pistol polímero
-      // G2-R9 (GAP1): tavor polímero preto (paleta divergente)
-      'rifle_m92', 'rifle_carbine', 'pistol_polymer', 'rifle_tavor',
-      // G2-R12 (GAP2): ORM de desgaste POR ARMA (cada rifle tem crackle próprio)
-      'rifle_orm_akm', 'rifle_orm_g3', 'rifle_orm_scar', 'rifle_orm_famas', 'rifle_orm_p90', 'rifle_orm_m92', 'rifle_orm_carbine', 'rifle_orm_mp5', 'rifle_orm_tavor', 'rifle_orm_lmg'].map(async (n) => {
-      try {
-        const t = await tl.loadAsync(`models/fpvm/tex/${n}.webp?v=${VERSION}`);
-        t.flipY = false;   // convenção glTF (mesma das texturas do GLB)
-        t.colorSpace = n.endsWith('_orm') || n.endsWith('_orm_wear') ? THREE.NoColorSpace : THREE.SRGBColorSpace;
-        t.wrapS = t.wrapT = THREE.RepeatWrapping;
-        _texTpls[n] = t;
-      } catch (e) { console.warn('[fparms] vm tex falhou', n, e); }
-    }));
-  }
-  return Promise.all([_texLoading, ...classes.map(loadStaticVm)]);
-}
-export function getStaticVm(cls = 'rifle') { return _staticTpls[cls] || null; }
 
 // Alcance de uma cadeia braço→antebraço→mão (+ offset da palma), em metros de MUNDO, medido
 // na pose já normalizada. Soma dos segmentos = o máximo que o CCD consegue esticar.

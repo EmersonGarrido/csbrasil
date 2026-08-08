@@ -242,22 +242,29 @@ function medir() {
   /* ---- skills: o que vem no CLONE (git), não o que está no disco de alguém ---- */
   const skl = sh('git', ['ls-files', '.agents/skills']).trim().split('\n').filter(Boolean);
   const dirsSkill = new Set(skl.map((p) => p.split('/')[2]).filter(Boolean));
-  /* Três contagens diferentes de propósito, porque elas DIVERGEM e a diferença é o fato:
-     o lock declara N skills, o git carrega M (o que chega em quem clona) e o disco tem P.
-     Doc que publica só uma das três esconde justamente o que o contribuidor precisa saber. */
-  const comMdNoDisco = existe('.agents/skills')
-    ? readdirSync(R('.agents/skills')).filter((d) => !d.startsWith('.') && existe(`.agents/skills/${d}/SKILL.md`)).length : 0;
+  /* SÓ dado de git — e isto é correção, não gosto: as duas contagens "no disco" desta
+     máquina (30 pastas × 9 versionadas) deixavam o docs:check VERMELHO em qualquer clone,
+     inclusive o da Vercel — medido no deploy do PR #91 (08/08): check:deploy reprovou no
+     docs:check por stack.md, e o build não publicou. Número que só existe na máquina de
+     uma pessoa não é régua, é retrato — e vermelho que não corresponde a defeito ensina
+     a ignorar vermelho. O fato que importa sobrevive com git puro: o lock declara N e o
+     clone carrega M < N (o resto é baixado sob demanda). */
   f.skills = {
     versionadas: dirsSkill.size,
     comSkillMd: skl.filter((p) => p.endsWith('/SKILL.md') && p.split('/').length === 4).length,
-    pastasNoDisco: existe('.agents/skills') ? readdirSync(R('.agents/skills')).filter((d) => !d.startsWith('.')).length : 0,
-    comSkillMdNoDisco: comMdNoDisco,
     lock: existe('skills-lock.json') ? Object.keys(JSON.parse(ler('skills-lock.json')).skills || {}).length : null,
     gauntlet: existe('.claude/skills/gauntlet-fps/SKILL.md'),
-    cmd: 'git ls-files .agents/skills · skills-lock.json · ls .agents/skills',
+    cmd: 'git ls-files .agents/skills · skills-lock.json',
   };
 
   /* ---- gente: quem assina commit, descontando agentes ---- */
+  /* Clone RASO (Vercel, CI com fetch-depth:1) não TEM o histórico: o shortlog ali mede
+     só o commit da ponta. Medido no deploy do PR #91 (08/08): docs:check vermelho no
+     colaborar.md dentro do build da Vercel, verde na máquina. Número que não existe no
+     ambiente não pode derrubar o portão — com clone raso o bloco `pessoas` NÃO é
+     regenerado (fica o que está commitado) e o --check passa trivialmente; onde há
+     histórico completo, ele continua mordendo. */
+  f.raso = sh('git', ['rev-parse', '--is-shallow-repository']).trim() === 'true';
   const short = sh('git', ['shortlog', '-sn', '--no-merges', 'HEAD']).trim().split('\n').filter(Boolean);
   const autores = short.map((l) => { const m = /^\s*(\d+)\s+(.*)$/.exec(l); return m ? { n: +m[1], nome: m[2] } : null; }).filter(Boolean);
   const ehAgente = (n) => /^claude\b/i.test(n) || /^(codex|kimi|gpt|cursor|devin)\b/i.test(n);
@@ -590,12 +597,10 @@ const BLOCOS = {
     '| Contagem | Quanto | O que significa |',
     '|---|---:|---|',
     `| Declaradas no \`skills-lock.json\` | ${f.skills.lock} | com \`source\`, \`skillPath\` e \`computedHash\` — skill de terceiro que mudar de conteúdo é detectável |`,
-    `| Pastas em \`.agents/skills/\` no disco | ${f.skills.pastasNoDisco} | o que existe **nesta máquina** |`,
-    `| …dessas, com \`SKILL.md\` presente | ${f.skills.comSkillMdNoDisco} | o resto é pasta vazia: a skill está no lock e o conteúdo não foi baixado |`,
     `| Versionadas (chegam em quem clona) | ${f.skills.versionadas} | \`git ls-files .agents/skills\` |`,
     `| …dessas, com \`SKILL.md\` no git | ${f.skills.comSkillMd} | é o que um clone limpo consegue ler |`,
     '',
-    '**As três contagens divergem de propósito, e a diferença é o fato:** a maioria das skills é ' +
+    '**As contagens divergem de propósito, e a diferença é o fato:** a maioria das skills é ' +
     'de terceiro, fixada por hash no lock e baixada sob demanda. Quem clonar o repositório recebe ' +
     'o lock inteiro e só uma parte do conteúdo. Publicar só uma das contagens esconderia exatamente ' +
     'o que o contribuidor precisa saber.',
@@ -775,6 +780,8 @@ function aplicar(fatos) {
       if (!re.test(novo)) continue;
       if (!achados.has(nome)) achados.set(nome, new Set());
       achados.get(nome).add(arq);
+      // Clone raso não tem o histórico que o bloco mede — ver o comentário em medir().
+      if (nome === 'pessoas' && fatos.raso) continue;
       novo = novo.replace(re, (_, abre, __, fecha) => `${abre}\n\n${gerar(fatos).trim()}\n\n${fecha}`);
     }
     if (novo !== atual) mudancas.push({ arquivo: arq, novo });
