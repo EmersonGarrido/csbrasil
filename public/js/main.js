@@ -513,7 +513,7 @@ function _funnel(step) {
 // AQUISIÇÃO (019): 1x por navegador. referrer vira host (URL inteira pode carregar query
 // sensível); UTM e ?ref= lidos da URL de entrada. first-touch-wins no servidor.
 let _acqSent = false;
-function _sendAcquisition() {
+async function _sendAcquisition() {
   if (testMode || _acqSent) return;
   try { if (localStorage.getItem('cs_acq')) { _acqSent = true; return; } } catch {}
   const u = new URLSearchParams(location.search);
@@ -524,11 +524,17 @@ function _sendAcquisition() {
     ref: u.get('ref'), landing: location.pathname,
   };
   try {
-    const queued = navigator.sendBeacon('/api/acquisition', new Blob([JSON.stringify(payload)], { type: 'application/json' }));
-    // sendBeacon devolve false quando NÃO enfileira (fila cheia, limite do browser).
-    // Se gravássemos cs_acq mesmo assim, a 1ª aquisição se perdia pra SEMPRE (próxima
-    // visita aborta no getItem). Só marca se enfileirou — a próxima visita tenta de novo.
-    if (!queued) return;
+    /* fetch + keepalive, e NÃO sendBeacon: aqui a RESPOSTA importa. sendBeacon
+       não devolve resposta — marcar cs_acq sem saber se o servidor gravou
+       aposentava a 1ª aquisição para sempre num 503/stored:false (P1 da review,
+       PR #92). keepalive mantém a entrega mesmo se a aba fechar no meio. */
+    const resp = await fetch('/api/acquisition', {
+      method: 'POST', keepalive: true,
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const dados = await resp.json().catch(() => null);
+    if (!resp.ok || !dados || dados.stored !== true) return; // próxima visita retenta
     try { localStorage.setItem('cs_acq', '1'); } catch {}
     _acqSent = true;
   } catch { /* fail-silent */ }
