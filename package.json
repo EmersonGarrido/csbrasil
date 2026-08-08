@@ -21,6 +21,8 @@
     "docs:check": "node tools/gen-docs.mjs --check",
     "syntax": "for f in public/js/*.js; do node --input-type=module --check < \"$f\" || exit 1; done",
     "eval:invariants": "node tools/eval/invariants.mjs",
+    "//prod:coherence": "Mede o que o EDGE está servindo, não o repo: baixa o HTML de produção, segue o import map e verifica que todo import nomeado existe como export no módulo alvo. Nasceu do apagão de 08/08 (cache split-brain: main.js de um deploy com fparms.js de outro — BUG-39). NÃO entra no check:fast (precisa de rede e de produção no ar); quem roda é o prod-watch.yml a cada 15 min. `--selftest` é a mutação que prova que morde.",
+    "prod:coherence": "node tools/eval/prod-coherence.mjs",
     "//eval:pegada": "Colisor de prop na ALTURA DO CORPO (Brasília): recomputa a pegada dos GLBs (tent/stall/drinkstand/bus) e acusa deriva da tabela PEGADA_CORPO / PEGADA_BUS. Nasceu da reprovação de 05/08 ('box do ônibus e barracas') com o obb-check VERDE — ele compara contra a caixa declarada e não vê caixa mais gorda que a malha.",
     "eval:pegada": "node tools/eval/pegada-check.mjs",
     "//eval:ctflabels": "Bandeira com nome do PRÓPRIO mapa, declarada pelo mapa (defeito de 06/08: 'CONGRESSO' jogando na piscina — o fallback do game.js vazava os nomes de Brasília). --mutante=vaza prova que morde.",
