@@ -70,14 +70,25 @@ jobs:
             fs.writeFileSync(p, fs.readFileSync(p, 'utf8').replace(/VERSION = '[^']*'/, \"VERSION = '$V'\"));
           "
           node tools/gen-docs.mjs
+          # gen-arch também: o ARCH.md embute a versão do jogo no cabeçalho gerado, e sem
+          # regenerá-lo aqui o arch:check reprova o PR SEGUINTE (caso real 08/08: o bump
+          # do alpha.38 deixou o ARCH.md em alpha.37 e o PR #94 nasceu vermelho). Os dois
+          # geradores são node puro, não precisam de npm ci.
+          node tools/gen-arch.mjs
           if git ls-remote --exit-code --tags origin "$NEW" > /dev/null 2>&1; then
             echo "::error::tag $NEW já existe no remoto — bump manual necessário."
             exit 1
           fi
-          git add package.json package-lock.json public/js/version.js README.md docs/
+          git add package.json package-lock.json public/js/version.js README.md docs/ tools/eval/ARCH.md
           git commit -m "chore(release): $NEW"
-          git tag "$NEW"
-          git push origin main --follow-tags
+          # Tag ANOTADA + push explícito do ref. `--follow-tags` só sobe tag anotada, e
+          # `git tag` sem `-a` cria tag LEVE: o alpha.38 (08/08) nasceu leve, ficou só no
+          # runner, e o `gh release create` abortou com "tag exists locally but has not
+          # been pushed" (reproduzido em repo bare local: tag leve + --follow-tags = nada
+          # no remoto). O ls-remote final é a régua que prova que a tag subiu de verdade.
+          git tag -a "$NEW" -m "$NEW"
+          git push origin main "refs/tags/$NEW"
+          git ls-remote --exit-code origin "refs/tags/$NEW" > /dev/null
 
       - name: GitHub Release
         if: steps.guard.outputs.skip != 'true'
