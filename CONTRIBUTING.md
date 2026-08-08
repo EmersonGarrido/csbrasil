@@ -23,12 +23,15 @@ critério de aceite.
 
 ## Regras de PR (valem para todo mundo, CI cobra)
 
-1. **PR para a `main` só com bump de versão** — `package.json` E `public/js/version.js`
-   E o `?v=` do import map (`src/pages/index.astro`) sobem JUNTOS. O workflow
-   `pr-gates.yml` reprova sem isso. Motivo: sem o bump o navegador serve módulo velho
-   do cache e "a correção não chega" — já custou dias (ver `public/js/version.js`).
-2. **Produção só sai por RELEASE** (tag `v*` publicada → `deploy-prod.yml`). Merge na
-   main NÃO deploya produção; preview de branch continua normal.
+1. **`package.json` e `public/js/version.js` têm que concordar** — o `?v=` do import map
+   (`src/pages/index.astro`) sai da versão no build; se os dois arquivos divergem o
+   navegador serve módulo velho do cache e "a correção não chega" — já custou dias
+   (ver `public/js/version.js`). O workflow `pr-gates.yml` reprova a divergência. O
+   BUMP da versão NÃO é mais tarefa do PR: desde 08/08 o `release.yml` bumpa, taga e
+   publica o GitHub Release sozinho a cada push na `main`.
+2. **Produção publica no MERGE** (auto-deploy da Vercel na `main`, decisão do dono em
+   08/08); o Release/tag/bump saem juntos, automáticos, via `release.yml`. O caminho
+   manual por tag (`deploy-prod.yml` via dispatch) continua de pé como fallback.
 3. **PR de fork ganha preview via bot**: o `cs-brasil-ai-bot` (`preview-bot.yml`) avalia
    o diff sem executar seu código; PR pequeno e fora de área sensível (workflows, deps,
    `src/pages/api/`, deploy) recebe `preview-autorizado` e o preview sobe sozinho.
