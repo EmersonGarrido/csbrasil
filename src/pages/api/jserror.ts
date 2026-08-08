@@ -83,5 +83,40 @@ export const POST: APIRoute = async ({ request }) => {
     p_breadcrumbs: breadcrumbs,
   });
   if (error) return json({ error: 'indisponivel' }, 503);
+
+  /* PRIMEIRA OCORRÊNCIA → repository_dispatch `prod-crash` (crash-fix.yml).
+     O UPDATE condicional é atômico: duas requisições simultâneas do mesmo erro
+     novo não disparam duas vezes (ver migration 020). Teto de 5 dispatch/hora
+     no total — erro novo de verdade é raro; mais que isso é loop ou ataque, e
+     a tabela continua recebendo os hits normalmente.
+     O await tem timeout de 2 s e try/catch: GitHub fora do ar NÃO pode derrubar
+     o coletor — coletor que falha dentro do handler de erro é loop infinito. */
+  const dispatchToken = process.env.GH_DISPATCH_TOKEN;
+  if (dispatchToken) {
+    try {
+      const { data: escaladas } = await supabaseAdmin
+        .from('js_error')
+        .update({ dispatched_at: new Date().toISOString() })
+        .eq('fingerprint', fingerprint)
+        .is('dispatched_at', null)
+        .select('fingerprint');
+      if (escaladas?.length && (await rateLimit(supabaseAdmin, 'ghdispatch', 'global', 5, 3600))) {
+        await fetch(`https://api.github.com/repos/${process.env.GH_DISPATCH_REPO || 'rubenmarcus/csbrasil'}/dispatches`, {
+          method: 'POST',
+          signal: AbortSignal.timeout(2000),
+          headers: {
+            authorization: `Bearer ${dispatchToken}`,
+            accept: 'application/vnd.github+json',
+            'content-type': 'application/json',
+          },
+          body: JSON.stringify({
+            event_type: 'prod-crash',
+            client_payload: { fingerprint, message, source: str(body?.source, 300), stack: str(body?.stack, 4000), version: str(body?.version, 40) },
+          }),
+        });
+      }
+    } catch { /* fail-silent: o erro já está na tabela, o dispatch é o cinto */ }
+  }
+
   return json({ ok: true });
 };
