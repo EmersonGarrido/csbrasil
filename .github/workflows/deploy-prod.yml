@@ -1,31 +1,19 @@
-# ⚠️ DESLIGADO NA PRÁTICA DESDE 07/08, e por um motivo que não é este arquivo:
-#    NÃO EXISTE NENHUM SEGREDO configurado no repositório nem nos environments
-#    (`gh secret list` volta vazio; `Preview` e `Production` existem sem segredo).
-#    O passo do Vercel morre em "You defined --token, but it's missing a value".
-#    Enquanto isso, `vercel.json` voltou a auto-deployar a `main` — decisão do dono em
-#    07/08, explicitamente temporária ("deixa a publicação rolar normalmente como vai na
-#    main e depois arrumamos isso"). Para religar o caminho por release: cadastrar
-#    VERCEL_TOKEN / VERCEL_ORG_ID / VERCEL_PROJECT_ID e pôr `main: false` de volta.
+# ⚠️ CAMINHO MANUAL / FALLBACK desde 08/08. Os segredos VERCEL_TOKEN / VERCEL_ORG_ID /
+#    VERCEL_PROJECT_ID JÁ ESTÃO cadastrados no repositório (07/08), então este workflow
+#    FUNCIONA via dispatch: `gh workflow run deploy-prod.yml -f tag=vX`.
+#    Mas o caminho vigente de publicação é outro, por decisão do dono (08/08):
+#      · produção publica no MERGE (auto-deploy da Vercel na `main`, vercel.json ligado);
+#      · bump + tag + GitHub Release saem automáticos a cada push na main (release.yml).
+#    Este arquivo fica de pé para o dia em que o auto-deploy for desligado de novo
+#    (aí é `main: false` no vercel.json + este workflow como porta de produção).
 #
-# Produção SÓ por release (pedido do dono, 06/08): a Vercel deixa de auto-deployar a main
-# (vercel.json desliga; previews de branch continuam) e este workflow publica quando um
-# GitHub Release é PUBLICADO (tag v*). Segredos necessários (Settings → Secrets → Actions):
-#   VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID
-#
-# ── POR QUE EXISTE O `workflow_dispatch` AQUI (07/08) ────────────────────────────
-# O caminho `tag -> job release do ci.yml -> Release publicado -> este workflow` NUNCA
-# funcionou, e a v2.0.0-alpha.32 provou: o CI da tag passou, o Release saiu, e este
-# workflow não disparou. A causa é regra do GitHub, não bug do arquivo — evento gerado
-# com o `GITHUB_TOKEN` **não cria run de workflow**, é a proteção contra recursão. O job
-# `release` do ci.yml cria o Release com `GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}`, então o
-# `release: published` dele nasce mudo. (As 3 falhas de 06/08 são de outra versão deste
-# arquivo, que disparava em `push`.)
-#
-# Duas saídas, e ficaram as duas:
-#   · publicar o Release À MÃO pela interface — aí o evento é de gente e dispara;
-#   · `gh workflow run deploy-prod.yml -f tag=v2.0.0-alpha.32` — que é este bloco.
-# A saída definitiva seria um PAT no job `release`, mas isso é mais um segredo pra
-# guardar e girar, e o dispatch resolve com o que já existe.
+# Histórico (06-07/08): produção SÓ por release foi tentada; o auto-deploy da main chegou
+# a ficar desligado. O caminho `tag -> job release do ci.yml -> Release publicado ->
+# este workflow` NUNCA funcionou, e a v2.0.0-alpha.32 provou: o CI da tag passou, o
+# Release saiu, e este workflow não disparou. A causa é regra do GitHub, não bug do
+# arquivo — evento gerado com o `GITHUB_TOKEN` **não cria run de workflow**, é a
+# proteção contra recursão. (O release.yml contorna isso criando o Release no mesmo
+# workflow que empurra a tag.)
 name: deploy-prod
 on:
   release:
