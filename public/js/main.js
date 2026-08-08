@@ -524,7 +524,11 @@ function _sendAcquisition() {
     ref: u.get('ref'), landing: location.pathname,
   };
   try {
-    navigator.sendBeacon('/api/acquisition', new Blob([JSON.stringify(payload)], { type: 'application/json' }));
+    const queued = navigator.sendBeacon('/api/acquisition', new Blob([JSON.stringify(payload)], { type: 'application/json' }));
+    // sendBeacon devolve false quando NÃO enfileira (fila cheia, limite do browser).
+    // Se gravássemos cs_acq mesmo assim, a 1ª aquisição se perdia pra SEMPRE (próxima
+    // visita aborta no getItem). Só marca se enfileirou — a próxima visita tenta de novo.
+    if (!queued) return;
     try { localStorage.setItem('cs_acq', '1'); } catch {}
     _acqSent = true;
   } catch { /* fail-silent */ }
