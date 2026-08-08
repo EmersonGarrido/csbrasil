@@ -77,9 +77,13 @@ jobs:
         run: echo "cache-split remediado com purge; edge coerente. Nada a corrigir no repo."
 
       - name: issue deduplicada (bug de código, ou cache-split que o purge não resolveu)
+        # always() é OBRIGATÓRIO aqui: sem status function, o GitHub faz AND
+        # implícito com success() — e com o re-probe vermelho o job já está em
+        # falha, então a issue (o único registro persistente) nunca era criada.
         if: >-
-          steps.cls.outputs.classe == 'codigo' ||
-          (steps.cls.outputs.classe == 'cache-split' && steps.reprobe.outcome == 'failure')
+          always() &&
+          (steps.cls.outputs.classe == 'codigo' ||
+          (steps.cls.outputs.classe == 'cache-split' && steps.reprobe.outcome == 'failure'))
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           FP: ${{ github.event.client_payload.fingerprint }}
