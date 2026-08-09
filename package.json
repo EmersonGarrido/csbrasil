@@ -115,6 +115,7 @@
     "@gltf-transform/core": "^4.4.1",
     "@gltf-transform/extensions": "^4.4.1",
     "@gltf-transform/functions": "^4.4.1",
+    "@playwright/test": "^1.62.1",
     "aeo.js": "^0.0.16",
     "meshoptimizer": "^1.2.0",
     "playwright": "^1.62.1"
