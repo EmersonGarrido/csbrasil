@@ -515,16 +515,18 @@ function initEditor(side, host, ov) {
     const ap = al ? [al.x, al.y, al.z] : [CP.ads.wx * 0.01, CP.ads.wy * 0.01, CP.ads.wz * 0.01];
     const L = (a, b) => a + (b - a) * adsT;
     vm.position.set(L(hp[0], ap[0]), L(hp[1], ap[1]), L(hp[2], ap[2]));
-    vm.position.z -= recoil.kick;
+    vm.position.z += recoil.kick;              // tranco: a arma recua PRA TRÁS (em direção ao olho)
+    vm.position.y += recoil.kick * 0.4;        // e sobe um pouco
     vm.scale.setScalar(L(CP.hip.sz, CP.ads.sz) * 0.01);
     const R = Math.PI / 180;
-    vm.rotation.set(L(CP.hip.rx, CP.ads.rx) * R - recoil.kick * 1.6, L(CP.hip.ry, CP.ads.ry) * R, L(CP.hip.wt, CP.ads.wt) * R + recoil.side * 0.6);
+    // cano SOBE junto com a mira (mesma direção do view-punch) + inclinação lateral do jolt
+    vm.rotation.set(L(CP.hip.rx, CP.ads.rx) * R + recoil.pitch * 0.55, L(CP.hip.ry, CP.ads.ry) * R, L(CP.hip.wt, CP.ads.wt) * R + recoil.side * 0.6);
     vm.position.x += Math.sin(bob) * 0.006 * (1 - adsT);
     vm.position.y += Math.abs(Math.cos(bob)) * 0.004 * (1 - adsT);
     vm.visible = !scopeAds;
     const wantFov = scopeAds ? CP.hip.fov * 0.35 : L(CP.hip.fov, CP.ads.fov);
     cam.fov += (wantFov - cam.fov) * Math.min(1, dt * 12); cam.updateProjectionMatrix();
-    vmCam.fov = cam.fov; vmCam.aspect = cam.aspect; vmCam.rotation.set(recoil.pitch, 0, 0); vmCam.updateProjectionMatrix();
+    vmCam.fov = cam.fov; vmCam.aspect = cam.aspect; vmCam.rotation.set(0, 0, 0); vmCam.updateProjectionMatrix();   // VM cam fixa: quem se mexe é a ARMA (senão o coice faz a arma "descer")
     elScope.style.display = scopeAds ? 'block' : 'none';
     elRet.style.display = scopeAds ? 'block' : 'none';
     elCross.style.display = scopeAds ? 'none' : 'block';
