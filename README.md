@@ -30,8 +30,8 @@ sem cadastro.
 
 | O que | Quanto | Onde confere |
 |---|---:|---|
-| Código do jogo | 27.037 linhas em 31 arquivos | `cat public/js/*.js \| wc -l` |
-| `game.js` | **6.203** linhas | `wc -l public/js/game.js` |
+| Código do jogo | 27.208 linhas em 33 arquivos | `cat public/js/*.js \| wc -l` |
+| `game.js` | **6.262** linhas | `wc -l public/js/game.js` |
 | `main.js` | 1.860 linhas | `wc -l public/js/main.js` |
 | Armas com GLB | 26 | `ls public/models/weapons/*.glb \| wc -l` |
 | GLBs de personagem | 45 | `ls public/models/characters/*.glb \| wc -l` |
@@ -39,7 +39,7 @@ sem cadastro.
 | Clipes de animação versionados | 573 | `git ls-files public/models/anims \| wc -l` |
 | Personagens jogáveis | 44, em 5 facções | array `CHARACTERS` de `characters.js` |
 | Mapas no registro | 5 | objeto `MAPS` de `maps.js` |
-| Arnêses visuais em HTML | 12 | `ls public/*.html \| wc -l` |
+| Arnêses visuais em HTML | 13 | `ls public/*.html \| wc -l` |
 | Scripts do arnês | 167 | `ls tools/eval/*.mjs tools/eval/*.py \| wc -l` |
 | Scripts de pipeline | 45 | `ls tools/*.mjs \| wc -l` |
 | Tarefas de entrada escritas | 26 | `ls docs/issues/[0-9]*.md \| wc -l` |
@@ -85,7 +85,7 @@ arquitetura): `cd docs && npm install && npm start` → <http://localhost:3000/d
 | Camada | Ferramenta | Versão |
 |---|---|---|
 | Motor 3D (WebGL) | **Three.js**, vendorizado | `r160` |
-| Jogo | ES modules vanilla, **zero build** | 31 arquivos |
+| Jogo | ES modules vanilla, **zero build** | 33 arquivos |
 | Site | **Astro** com SSR | `^7.1.1` |
 | Hospedagem | adapter **Vercel** | `^11.0.3` |
 | Banco | **Postgres gerenciado** (RLS; schema privado, fora do repo) | `^2.110.7` |
