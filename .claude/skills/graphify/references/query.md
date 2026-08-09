@@ -2,6 +2,14 @@
 
 Load this when the user asks a question against an existing graph, or runs `/graphify path` or `/graphify explain`. The core's query stub points here for the full traversal flow. These flows use the `graphify query` CLI when it is available and fall back to an inline NetworkX traversal otherwise.
 
+Before any query command, use a non-shell file-writing tool to create
+`graphify-out/.graphify_query_args.json`. Keep every user- or model-controlled
+string in this JSON file, never in shell or Python source:
+
+```json
+{"original_question":"","expanded_question":"","mode":"bfs","budget":2000,"node_a":"","node_b":"","node_name":"","save_question":"","answer":"","result_type":"query","nodes":[],"outcome":"useful","correction":""}
+```
+
 Two traversal modes - choose based on the question:
 
 | Mode | Flag | Best for |
@@ -60,12 +68,19 @@ If the list is empty, say so plainly and stop — do not proceed to traversal.
 
 ### Step 1 — Traversal
 
-Build the **expanded query string** by joining the selected tokens with spaces. Use this string as `QUESTION` below — NOT the original user question. (The original question is preserved only for `save-result` at the end.)
+Build the **expanded query string** by joining the selected tokens with spaces and write it to `expanded_question` in the JSON argument file. Preserve the verbatim question in `original_question` for `save-result`.
 
 Prefer the CLI when it is installed:
 ```bash
-graphify query "QUESTION"
-# or: graphify query "QUESTION" --dfs --budget 3000
+$(cat graphify-out/.graphify_python) - <<'PY'
+import json, subprocess
+from pathlib import Path
+args = json.loads(Path('graphify-out/.graphify_query_args.json').read_text(encoding='utf-8'))
+cmd = ['graphify', 'query', args['expanded_question'], '--budget', str(int(args.get('budget', 2000)))]
+if args.get('mode') == 'dfs':
+    cmd.append('--dfs')
+subprocess.run(cmd, check=True)
+PY
 ```
 
 If the CLI is unavailable, load `graphify-out/graph.json` and run the traversal inline:
@@ -86,8 +101,9 @@ from pathlib import Path
 data = json.loads(Path('graphify-out/graph.json').read_text(encoding='utf-8'))
 G = json_graph.node_link_graph(data, edges='links')
 
-question = 'QUESTION'
-mode = 'MODE'  # 'bfs' or 'dfs'
+args = json.loads(Path('graphify-out/.graphify_query_args.json').read_text(encoding='utf-8'))
+question = args['expanded_question']
+mode = args.get('mode', 'bfs')
 terms = [t.lower() for t in question.split() if len(t) >= 3]  # match the vocab threshold; keeps api/jwt/ios (#1392)
 
 # Find best-matching start nodes
@@ -137,7 +153,7 @@ else:
         frontier = next_frontier
 
 # Token-budget aware output: rank by relevance, cut at budget (~4 chars/token)
-token_budget = BUDGET  # default 2000
+token_budget = int(args.get('budget', 2000))
 char_budget = token_budget * 4
 
 # Score each node by term overlap for ranked output
@@ -163,15 +179,26 @@ print(output)
 "
 ```
 
-Replace `QUESTION` with the **expanded** query string, `MODE` with `bfs` or `dfs`, and `BUDGET` with the token budget (default `2000`, or whatever `--budget N` specifies). Then answer based on the subgraph output above, using only what the graph contains.
+Then answer based on the subgraph output above, using only what the graph contains.
 
 After writing the answer, save it back into the graph so it improves future queries. Include the expanded tokens inside the `--answer` text (e.g. `"Expanded from original query via vocab: [tokens]. Then traversed..."`) so the next `--update` extracts the expansion history as a graph node:
 
 ```bash
-$(cat graphify-out/.graphify_python) -m graphify save-result --question "ORIGINAL_QUESTION" --answer "ANSWER" --type query --nodes NODE1 NODE2
+$(cat graphify-out/.graphify_python) - <<'PY'
+import json, subprocess, sys
+from pathlib import Path
+args = json.loads(Path('graphify-out/.graphify_query_args.json').read_text(encoding='utf-8'))
+cmd = [sys.executable, '-m', 'graphify', 'save-result',
+       '--question', args['save_question'], '--answer', args['answer'],
+       '--type', args['result_type'], '--nodes', *args.get('nodes', []),
+       '--outcome', args.get('outcome', 'useful')]
+if args.get('correction'):
+    cmd.extend(['--correction', args['correction']])
+subprocess.run(cmd, check=True)
+PY
 ```
 
-Replace `ORIGINAL_QUESTION` with the user's verbatim question, `ANSWER` with your full answer text (containing the expanded-token trace), `NODE1 NODE2` with the list of node labels you cited. This closes the feedback loop: the next `--update` will extract this Q&A as a node in the graph.
+Set `save_question`, `answer`, `result_type`, and `nodes` in the JSON argument file first. This closes the feedback loop: the next `--update` will extract this Q&A as a node in the graph.
 
 **Work memory (self-improving loop).** Add an `--outcome` so future sessions learn from this one — append `--outcome useful|dead_end|corrected` to the `save-result` command (and `--correction "the right answer"` when correcting):
 
@@ -188,7 +215,12 @@ At the **start** of graph work, refresh and read the lessons: run `graphify refl
 Find the shortest path between two named concepts in the graph. Prefer the CLI when installed:
 
 ```bash
-graphify path "NODE_A" "NODE_B"
+$(cat graphify-out/.graphify_python) - <<'PY'
+import json, subprocess
+from pathlib import Path
+args = json.loads(Path('graphify-out/.graphify_query_args.json').read_text(encoding='utf-8'))
+subprocess.run(['graphify', 'path', args['node_a'], args['node_b']], check=True)
+PY
 ```
 
 If the CLI is unavailable, run it inline:
@@ -203,8 +235,9 @@ from pathlib import Path
 data = json.loads(Path('graphify-out/graph.json').read_text(encoding='utf-8'))
 G = json_graph.node_link_graph(data, edges='links')
 
-a_term = 'NODE_A'
-b_term = 'NODE_B'
+args = json.loads(Path('graphify-out/.graphify_query_args.json').read_text(encoding='utf-8'))
+a_term = args['node_a']
+b_term = args['node_b']
 
 def find_node(term):
     term = term.lower()
@@ -241,13 +274,11 @@ except nx.NodeNotFound as e:
 "
 ```
 
-Replace `NODE_A` and `NODE_B` with the actual concept names from the user. Then explain the path in plain language - what each hop means, why it's significant.
+Then explain the path in plain language - what each hop means, why it's significant.
 
 After writing the explanation, save it back:
 
-```bash
-$(cat graphify-out/.graphify_python) -m graphify save-result --question "Path from NODE_A to NODE_B" --answer "ANSWER" --type path_query --nodes NODE_A NODE_B
-```
+Set `save_question`, `answer`, `result_type` (`path_query`), and `nodes` in the JSON argument file, then use the safe `save-result` block above.
 
 ---
 
@@ -256,7 +287,12 @@ $(cat graphify-out/.graphify_python) -m graphify save-result --question "Path fr
 Give a plain-language explanation of a single node - everything connected to it. Prefer the CLI when installed:
 
 ```bash
-graphify explain "NODE_NAME"
+$(cat graphify-out/.graphify_python) - <<'PY'
+import json, subprocess
+from pathlib import Path
+args = json.loads(Path('graphify-out/.graphify_query_args.json').read_text(encoding='utf-8'))
+subprocess.run(['graphify', 'explain', args['node_name']], check=True)
+PY
 ```
 
 If the CLI is unavailable, run it inline:
@@ -271,7 +307,8 @@ from pathlib import Path
 data = json.loads(Path('graphify-out/graph.json').read_text(encoding='utf-8'))
 G = json_graph.node_link_graph(data, edges='links')
 
-term = 'NODE_NAME'
+args = json.loads(Path('graphify-out/.graphify_query_args.json').read_text(encoding='utf-8'))
+term = args['node_name']
 term_lower = term.lower()
 
 # Find best matching node
@@ -302,10 +339,8 @@ for neighbor in G.neighbors(nid):
 "
 ```
 
-Replace `NODE_NAME` with the concept the user asked about. Then write a 3-5 sentence explanation of what this node is, what it connects to, and why those connections are significant. Use the source locations as citations.
+Then write a 3-5 sentence explanation of what this node is, what it connects to, and why those connections are significant. Use the source locations as citations.
 
 After writing the explanation, save it back:
 
-```bash
-$(cat graphify-out/.graphify_python) -m graphify save-result --question "Explain NODE_NAME" --answer "ANSWER" --type explain --nodes NODE_NAME
-```
+Set `save_question`, `answer`, `result_type` (`explain`), and `nodes` in the JSON argument file, then use the safe `save-result` block above.
