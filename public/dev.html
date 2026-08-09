@@ -39,6 +39,7 @@
   /* controle: rótulo + slider + input numérico */
   .ctl{display:grid;grid-template-columns:74px 1fr 46px;align-items:center;gap:8px}
   .ctl>span{font-size:12px;color:#aeb9c4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #fxTiro .ctl,#fxLuz .ctl,#fxRecuo .ctl{grid-template-columns:92px 1fr 42px}
   .ctl input[type=range]{width:100%;min-width:0}
   .num{width:48px;font-family:inherit;font-size:12px;background:#0b0e12;color:#7fe;border:1px solid #2a3340;border-radius:5px;padding:3px 4px;text-align:right}
   .num:focus{outline:none;border-color:#2fbf71}
@@ -134,11 +135,14 @@
       <div class="ctl"><span>yaw</span><input type="range" id="ry" min="-30" max="30" value="7"><input class="num" type="number" id="ry_n" min="-30" max="30"></div>
       <div class="ctl"><span>inclinação</span><input type="range" id="wt" min="-30" max="30" value="10"><input class="num" type="number" id="wt_n" min="-30" max="30"></div>
     </div>
+    <div class="grp"><div class="cap">Efeito do tiro <span class="muted">FX</span></div><div id="fxTiro"></div></div>
+    <div class="grp"><div class="cap">Fogo / luz <span class="muted">FX</span></div><div id="fxLuz"></div></div>
+    <div class="grp"><div class="cap">Recuo <span class="muted">FX</span></div><div id="fxRecuo"></div></div>
     <div class="grp">
       <div class="cap">Ações</div>
       <button id="play" class="btn primary">▶ testar na cena</button>
-      <div class="row"><button id="cop" class="btn">📋 copiar</button><button id="rst" class="btn">↺ resetar</button></div>
-      <button id="exp" class="btn">exportar tudo</button>
+      <div class="row"><button id="cop" class="btn">📋 copiar arma</button><button id="rst" class="btn">↺ resetar</button></div>
+      <div class="row"><button id="exp" class="btn">exportar tudo</button><button id="cfx" class="btn">📋 copiar FX</button></div>
       <div id="vals"></div>
     </div>
     <details class="help">
@@ -214,6 +218,28 @@ function initEditor(side, host, ov) {
     },
   };
   const RATE = { awp: 900, mosin: 1000, rem700: 900, deagle: 260, pistol: 200, knife: 400 };
+  // ── FX / RECUO (playground): valores globais afináveis ao vivo. Persistem no navegador.
+  // Portáveis pro engine depois (é a mesma ideia das poses). Unidades: ver .cap de cada um.
+  const FXDEF = {
+    flashSize: { min: 10, max: 140, val: 55, cap: 'flash tam.' },     // ×0.01 (m) do sprite de boca
+    flashLife: { min: 20, max: 220, val: 60, cap: 'flash dur.' },     // ms
+    sparks: { min: 0, max: 20, val: 7, cap: 'faíscas' },              // qtd por tiro
+    trThick: { min: 1, max: 8, val: 3, cap: 'tracer esp.' },          // mult. da grossura
+    trOpacity: { min: 0, max: 100, val: 90, cap: 'tracer opac.' },    // %
+    lightInt: { min: 0, max: 24, val: 8, cap: 'luz forte' },          // intensidade
+    warmth: { min: 0, max: 100, val: 60, cap: 'luz calor' },          // 0=frio(branco) 100=quente(laranja)
+    lightLife: { min: 20, max: 220, val: 55, cap: 'luz dur.' },       // ms
+    kick: { min: 0, max: 300, val: 100, cap: 'kick' },               // % do recuo pra trás
+    rise: { min: 0, max: 300, val: 100, cap: 'subida' },             // % da subida do cano (pitch)
+    side: { min: 0, max: 300, val: 100, cap: 'lateral' },            // % do jolt lateral
+    recover: { min: 20, max: 400, val: 100, cap: 'recuperar' },      // % da velocidade de volta
+  };
+  const FXGROUPS = { fxTiro: ['flashSize', 'flashLife', 'sparks', 'trThick', 'trOpacity'], fxLuz: ['lightInt', 'warmth', 'lightLife'], fxRecuo: ['kick', 'rise', 'side', 'recover'] };
+  const FX = {}; for (const k in FXDEF) FX[k] = FXDEF[k].val;
+  try { Object.assign(FX, JSON.parse(localStorage.getItem('devFX') || '{}')); } catch {}
+  function saveFX() { try { localStorage.setItem('devFX', JSON.stringify(FX)); } catch {} }
+  const CD = new THREE.Color(0xfff2e0), CW = new THREE.Color(0xffab55);
+  const warm = () => CD.clone().lerp(CW, FX.warmth / 100);
   const sfx = new Sfx();
   const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
   renderer.setPixelRatio(Math.min(2, devicePixelRatio));
@@ -235,7 +261,7 @@ function initEditor(side, host, ov) {
   const flash = new THREE.PointLight(0xffe08a, 0, 10, 2); scene.add(flash);
   const tracerGeo = new THREE.CylinderGeometry(0.01, 0.01, 1, 5, 1, true);
   const tracers = [];
-  function tracer(from, to) { const m = new THREE.Mesh(tracerGeo, new THREE.MeshBasicMaterial({ color: 0xfff3d6, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false })); const d = new THREE.Vector3().subVectors(to, from); const len = d.length(); m.position.copy(from).addScaledVector(d, 0.5); m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.clone().normalize()); m.scale.set(1, len, 1); m.userData.t = 0.09; scene.add(m); tracers.push(m); }
+  function tracer(from, to) { const m = new THREE.Mesh(tracerGeo, new THREE.MeshBasicMaterial({ color: 0xfff3d6, transparent: true, opacity: FX.trOpacity / 100, blending: THREE.AdditiveBlending, depthWrite: false })); const d = new THREE.Vector3().subVectors(to, from); const len = d.length(); m.position.copy(from).addScaledVector(d, 0.5); m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.clone().normalize()); m.scale.set(FX.trThick, len, FX.trThick); m.userData.t = 0.09; scene.add(m); tracers.push(m); }
 
   const wsel = { value: 'ak' };
   const tuned = new Set();
@@ -260,7 +286,7 @@ function initEditor(side, host, ov) {
   let running = false, raf = 0;
   const keys = {};
   const look = { yaw: Math.PI, pitch: 0 };
-  const recoil = { pitch: 0, kick: 0 };
+  const recoil = { pitch: 0, kick: 0, side: 0 };
   let locked = false, aiming = false, shootHeld = false, lastShot = 0, jumpQueued = false;
   addEventListener('keydown', (e) => { if (!running) return; keys[e.code] = true; if (e.code === 'Space') { jumpQueued = true; e.preventDefault(); } if (e.code === 'KeyR') spawnBots(); });
   addEventListener('keyup', (e) => { if (!running) return; keys[e.code] = false; });
@@ -288,6 +314,26 @@ function initEditor(side, host, ov) {
       .applyEuler(new THREE.Euler(A.rx * R, A.ry * R, A.wt * R));
     const Z = A.wz * 0.01;
     return new THREE.Vector3(-p.x + A.wx * 0.01, -p.y + A.wy * 0.01, Z - p.z);
+  }
+
+  // sprites/luz de boca + faíscas NA CENA DO VM (ficam na arma, em 1ª pessoa)
+  function makeGlow() {
+    const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d');
+    const rg = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+    rg.addColorStop(0, 'rgba(255,255,255,1)'); rg.addColorStop(0.35, 'rgba(255,220,150,.85)'); rg.addColorStop(1, 'rgba(255,180,80,0)');
+    g.fillStyle = rg; g.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c);
+  }
+  const glowTex = makeGlow();
+  const mzSpr = () => new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0 }));
+  const mzFlash = mzSpr(); mzFlash.visible = false; vmScene.add(mzFlash); let mzT = 0;
+  const vmFlashL = new THREE.PointLight(0xffd9a0, 0, 3, 2); vmScene.add(vmFlashL); let vmFlashT = 0;
+  const sparkPool = [], sparksA = [];
+  for (let i = 0; i < 28; i++) { const s = mzSpr(); s.visible = false; vmScene.add(s); sparkPool.push(s); }
+  function muzzleVM() {
+    const met = gun && gun.userData && gun.userData.metrics;
+    vm.updateMatrixWorld(true);
+    if (met && met.muzzle) return gun.localToWorld(met.muzzle.clone().divideScalar(met.norm || 1));
+    return vm.localToWorld(new THREE.Vector3(0, 0, -0.3));
   }
 
   const SLIDERS = ['fov', 'sz', 'wx', 'wy', 'wz', 'rx', 'ry', 'wt'];
@@ -322,6 +368,16 @@ function initEditor(side, host, ov) {
     $(id + '_n').addEventListener('input', () => { const n = $(id + '_n'); if (n.value !== '' && !isNaN(+n.value)) setVal(id, +n.value); });
   }
   side.querySelectorAll('#mode button').forEach((b) => (b.onclick = () => { mode = b.dataset.m; side.querySelectorAll('#mode button').forEach((x) => x.classList.toggle('on', x === b)); loadSliders(); }));
+  // controles de FX (gerados): rótulo + slider + número, sincronizados; salvam no navegador
+  for (const gid in FXGROUPS) {
+    $(gid).innerHTML = FXGROUPS[gid].map((k) => { const d = FXDEF[k]; return `<div class="ctl"><span title="${d.cap}">${d.cap}</span><input type="range" id="fx_${k}" min="${d.min}" max="${d.max}" value="${FX[k]}"><input class="num" type="number" id="fx_${k}_n" min="${d.min}" max="${d.max}" value="${FX[k]}"></div>`; }).join('');
+  }
+  for (const k in FXDEF) {
+    const r = $('fx_' + k), n = $('fx_' + k + '_n');
+    const setf = (v) => { v = Math.max(+r.min, Math.min(+r.max, Math.round(v))); FX[k] = v; r.value = v; n.value = v; saveFX(); };
+    r.addEventListener('input', () => setf(+r.value));
+    n.addEventListener('input', () => { if (n.value !== '' && !isNaN(+n.value)) setf(+n.value); });
+  }
   const fmt = (o) => SLIDERS.map((k) => `${k}=${o[k]}`).join(' ');
   $('play').onclick = () => { renderer.domElement.requestPointerLock(); sfx.ensure && sfx.ensure(); };
   $('cop').onclick = () => {
@@ -335,6 +391,11 @@ function initEditor(side, host, ov) {
     const str = ids.length ? ids.map((id) => `${id} QUADRIL ${fmt(POSE[id].hip)}\n${id} MIRADO  ${fmt(POSE[id].ads)}`).join('\n') : '(nenhuma arma ajustada ainda)';
     $('vals').textContent = str;
     try { navigator.clipboard.writeText(str); $('exp').textContent = '✓ copiado!'; setTimeout(() => $('exp').textContent = 'exportar tudo', 1200); } catch {}
+  };
+  $('cfx').onclick = () => {
+    const str = 'FX ' + Object.keys(FXDEF).map((k) => `${k}=${FX[k]}`).join(' ');
+    $('vals').textContent = str;
+    try { navigator.clipboard.writeText(str); $('cfx').textContent = '✓ copiado!'; setTimeout(() => $('cfx').textContent = '📋 copiar FX', 1200); } catch {}
   };
   $('rst').onclick = () => { delete POSE[wsel.value]; tuned.delete(wsel.value); loadSliders(); renderList(); save(); };
   renderList();
@@ -362,17 +423,35 @@ function initEditor(side, host, ov) {
   function fireShot() {
     const w = wsel.value;
     sfx.shotWeapon && sfx.shotWeapon(w, 0, 0.9);
-    const k = SCOPED.has(w) ? 0.06 : (w === 'deagle' ? 0.05 : 0.022);
-    recoil.pitch += k * (aiming ? 0.5 : 1); recoil.kick += (SCOPED.has(w) ? 0.05 : 0.02);
+    // 3 · RECUO (base por arma × multiplicadores do FX)
+    const bp = SCOPED.has(w) ? 0.06 : (w === 'deagle' ? 0.05 : 0.022);
+    const bk = SCOPED.has(w) ? 0.05 : 0.02;
+    recoil.pitch += bp * (aiming ? 0.5 : 1) * (FX.rise / 100);
+    recoil.kick += bk * (FX.kick / 100);
+    recoil.side += (Math.random() * 2 - 1) * 0.03 * (FX.side / 100);
     const dir = new THREE.Vector3(); cam.getWorldDirection(dir);
-    const muzzle = cam.position.clone().addScaledVector(dir, 0.6).add(new THREE.Vector3(0, -0.05, 0));
-    flash.position.copy(muzzle); flash.intensity = 7;
+    const wMuzzle = cam.position.clone().addScaledVector(dir, 0.6).add(new THREE.Vector3(0, -0.05, 0));
+    const col = warm();
+    // 2 · FOGO/LUZ — luz no mundo (ilumina a cena) + luz no vm (ilumina a arma)
+    flash.position.copy(wMuzzle); flash.color.copy(col); flash.intensity = FX.lightInt;
+    const mz = muzzleVM();
+    vmFlashL.position.copy(mz); vmFlashL.color.copy(col); vmFlashL.intensity = FX.lightInt; vmFlashT = FX.lightLife / 1000;
+    // 1 · EFEITO DO TIRO — sprite de flash na boca + faíscas
+    mzFlash.position.copy(mz); mzFlash.material.color.copy(col); mzFlash.material.rotation = Math.random() * Math.PI * 2;
+    mzFlash.material.opacity = 1; mzFlash.scale.setScalar(FX.flashSize / 100); mzFlash.visible = true; mzT = FX.flashLife / 1000;
+    const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(vm.quaternion);
+    for (let i = 0; i < FX.sparks; i++) {
+      const s = sparkPool.pop(); if (!s) break;
+      s.position.copy(mz); s.material.color.copy(col); s.material.opacity = 1; s.scale.setScalar(0.015 + Math.random() * 0.02); s.visible = true;
+      const v = fwd.clone().multiplyScalar(1.4 + Math.random() * 2.2).add(new THREE.Vector3((Math.random() - 0.5) * 2.4, (Math.random() - 0.5) * 2.4, (Math.random() - 0.5) * 2.4));
+      sparksA.push({ s, v, t: 0.1 + Math.random() * 0.06 });
+    }
     ray.set(cam.position, dir);
     const alive = bots.filter((b) => !b.dead);
     const hits = ray.intersectObjects(alive.map((b) => b.group), true);
     let end = cam.position.clone().addScaledVector(dir, 60);
     if (hits.length) { end = hits[0].point; const b = alive.find((x) => isDesc(hits[0].object, x.group)); if (b) { b.hp--; hitmark(); if (b.hp <= 0) { b.dead = true; b.tRespawn = 2.2; if (b.ctrl && b.ctrl._to) b.ctrl._to('death'); } } }
-    tracer(muzzle, end);
+    tracer(wMuzzle, end);
   }
 
   let pos = new THREE.Vector3(0, 0, 0), vy = 0, grounded = true, bob = 0, adsT = 0;
@@ -399,13 +478,17 @@ function initEditor(side, host, ov) {
     bob += moving ? dt * (run ? 12 : 8) : 0;
     const eyeH = (crouch ? 1.1 : 1.6);
     cam.position.set(pos.x, pos.y + eyeH, pos.z);
-    cam.rotation.set(look.pitch + recoil.pitch, look.yaw, 0);
+    cam.rotation.set(look.pitch + recoil.pitch, look.yaw, recoil.side * 0.4);
     for (const b of bots) { if (b.dead) { b.tRespawn -= dt; if (b.tRespawn <= 0) { b.dead = false; b.hp = 3; if (b.ctrl && b.ctrl._to) b.ctrl._to('idle'); } } b.ctrl && b.ctrl.update(dt, 0, false, 0); }
     const rate = RATE[wsel.value] || 105;
     if (shootHeld && now - lastShot > rate) { fireShot(); lastShot = now; if (SCOPED.has(wsel.value) || wsel.value === 'deagle') shootHeld = false; }
-    recoil.pitch *= Math.pow(0.0001, dt); recoil.kick *= Math.pow(0.0002, dt);
+    const rc = FX.recover / 100;
+    recoil.pitch *= Math.pow(0.0001, dt * rc); recoil.kick *= Math.pow(0.0002, dt * rc); recoil.side *= Math.pow(0.0001, dt * rc);
     flash.intensity *= Math.pow(0.00001, dt); if (flash.intensity < 0.05) flash.intensity = 0;
-    for (let i = tracers.length - 1; i >= 0; i--) { const t = tracers[i]; t.userData.t -= dt; t.material.opacity = Math.max(0, t.userData.t / 0.09) * 0.9; if (t.userData.t <= 0) { scene.remove(t); tracers.splice(i, 1); } }
+    if (mzT > 0) { mzT -= dt; mzFlash.material.opacity = Math.max(0, mzT / (FX.flashLife / 1000)); if (mzT <= 0) mzFlash.visible = false; }
+    if (vmFlashT > 0) { vmFlashT -= dt; vmFlashL.intensity = FX.lightInt * Math.max(0, vmFlashT / (FX.lightLife / 1000)); if (vmFlashT <= 0) vmFlashL.intensity = 0; }
+    for (let i = sparksA.length - 1; i >= 0; i--) { const sp = sparksA[i]; sp.t -= dt; sp.s.position.addScaledVector(sp.v, dt); sp.s.material.opacity = Math.max(0, sp.t / 0.14); if (sp.t <= 0) { sp.s.visible = false; sparkPool.push(sp.s); sparksA.splice(i, 1); } }
+    for (let i = tracers.length - 1; i >= 0; i--) { const t = tracers[i]; t.userData.t -= dt; t.material.opacity = Math.max(0, t.userData.t / 0.09) * (FX.trOpacity / 100); if (t.userData.t <= 0) { scene.remove(t); tracers.splice(i, 1); } }
     if (hitT > 0) { hitT -= dt; if (hitT <= 0) elHit.style.opacity = '0'; }
     const scoped = SCOPED.has(wsel.value);
     const showAds = (aiming || mode === 'ads');
@@ -421,7 +504,7 @@ function initEditor(side, host, ov) {
     vm.position.z -= recoil.kick;
     vm.scale.setScalar(L(CP.hip.sz, CP.ads.sz) * 0.01);
     const R = Math.PI / 180;
-    vm.rotation.set(L(CP.hip.rx, CP.ads.rx) * R, L(CP.hip.ry, CP.ads.ry) * R, L(CP.hip.wt, CP.ads.wt) * R);
+    vm.rotation.set(L(CP.hip.rx, CP.ads.rx) * R, L(CP.hip.ry, CP.ads.ry) * R, L(CP.hip.wt, CP.ads.wt) * R + recoil.side * 0.6);
     vm.position.x += Math.sin(bob) * 0.006 * (1 - adsT);
     vm.position.y += Math.abs(Math.cos(bob)) * 0.004 * (1 - adsT);
     vm.visible = !scopeAds;
