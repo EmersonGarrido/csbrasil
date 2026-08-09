@@ -52,6 +52,22 @@
   #wephud .slot .ic svg{width:100%;height:100%;fill:currentColor}
   #wephud .slot .nm{flex:1;font-size:12px;letter-spacing:.5px;text-transform:uppercase}
   #wephud .slot .am{font-size:12px;color:#7fe;font-variant-numeric:tabular-nums}
+  /* preview da LOJA (estilo CS) — abre no B */
+  #buymenu{position:absolute;inset:0;z-index:8;display:none;flex-direction:column;align-items:center;justify-content:center;background:rgba(6,8,11,.72);pointer-events:auto}
+  #buymenu .bm-top{color:#cfe;font-size:12px;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:14px}
+  #buymenu .bm-top b{color:#2fbf71}
+  #buymenu .cols{display:flex;gap:12px;align-items:flex-start}
+  #buymenu .col{background:rgba(16,20,26,.92);border:1px solid #2a3340;border-radius:9px;padding:10px;width:180px}
+  #buymenu .col.sel{border-color:#2fbf71;box-shadow:0 0 0 1px #2fbf71}
+  #buymenu .col h4{margin:0 0 8px;font-size:12px;color:#7fd;letter-spacing:1px;text-transform:uppercase;display:flex;gap:8px;align-items:center}
+  #buymenu .col h4 .cn{background:#1b2029;border:1px solid #2a3340;border-radius:5px;padding:1px 7px;color:#cfe}
+  #buymenu .col.sel h4 .cn{background:#2fbf71;border-color:#2fbf71;color:#042012}
+  #buymenu .it{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;cursor:pointer;color:#9fb;font-size:12px}
+  #buymenu .it:hover{background:rgba(47,191,113,.16)}
+  #buymenu .it .n{min-width:16px;text-align:center;color:#7fd;opacity:.75}
+  #buymenu .it .nm{flex:1;text-transform:uppercase;letter-spacing:.4px}
+  #buymenu .it .pr{color:#7fe;opacity:.6}
+  #buymenu .bm-hint{margin-top:14px;color:#89a;font-size:11px}
   .ctl input[type=range]{width:100%;min-width:0}
   .num{width:48px;font-family:inherit;font-size:12px;background:#0b0e12;color:#7fe;border:1px solid #2a3340;border-radius:5px;padding:3px 4px;text-align:right}
   .num:focus{outline:none;border-color:#2fbf71}
@@ -199,6 +215,7 @@
       <label>Arma <select id="gwep"></select></label>
       <label class="chk"><input type="checkbox" id="gvmlab" checked> viewmodel afinado (minhas poses)</label>
       <label class="chk"><input type="checkbox" id="ghud" checked> preview do HUD de armas (CS)</label>
+      <button id="gbuy" class="btn">🛒 abrir loja (tecla B)</button>
     </div>
     <div class="grp"><div class="cap">Config da arma <span class="muted">real</span></div><div id="gcfg"></div></div>
     <div class="grp"><div class="cap">Recuo <span class="muted" id="grecls">real</span></div><div id="grec"></div></div>
@@ -801,6 +818,52 @@ function initGame(side, host) {
     }).join('');
   }
   setInterval(updateHud, 250);
+  // ── PREVIEW da LOJA (estilo CS): abre no B, categorias + teclas de atalho ──
+  const buy = document.createElement('div'); buy.id = 'buymenu'; host.appendChild(buy);
+  const CATS = [
+    { t: 'Pistolas', w: ['pistol', 'deagle', 'revolver38'] },
+    { t: 'SMG', w: ['mp5', 'uzi', 'p90'] },
+    { t: 'Rifles', w: ['ak', 'akm', 'm4', 'm92', 'scar', 'famas', 'tavor', 'carbine', 'g3', 'md97'] },
+    { t: 'Snipers', w: ['awp', 'mosin', 'rem700', 'm400', 'svd', 'g3sg1', 'sks'] },
+    { t: 'Pesadas', w: ['shotgun', 'lmg'] },
+    { t: 'Granadas', w: ['nade_smoke', 'nade_frag'] },
+  ];
+  const labelOf = (id) => (id === 'nade_smoke' ? 'fumaça' : (id === 'nade_frag' ? 'frag' : id.toUpperCase()));
+  let buyOpen = false, buyCol = 0;
+  function buildBuy() {
+    buy.innerHTML =
+      '<div class="bm-top">LOJA — <b>B</b> abre/fecha · número escolhe a categoria e depois o item · Esc fecha</div>' +
+      '<div class="cols">' +
+      CATS.map((c, ci) => `<div class="col ${buyCol === ci + 1 ? 'sel' : ''}"><h4><span class="cn">${ci + 1}</span>${c.t}</h4>` +
+        c.w.map((id, ii) => `<div class="it" data-id="${id}"><span class="n">${ii + 1}</span><span class="nm">${labelOf(id)}</span><span class="pr">$—</span></div>`).join('') +
+        '</div>').join('') +
+      '</div>' +
+      '<div class="bm-hint">sem dinheiro por enquanto — comprar = equipa a arma (grátis). pronto pra ter preço depois.</div>';
+    buy.querySelectorAll('.it').forEach((el) => (el.onclick = () => buyItem(el.dataset.id)));
+  }
+  function buyItem(id) {
+    const g = G(); if (!g || !g.player) return;
+    if (id === 'nade_smoke') { g.player.smokes = (g.player.smokes | 0) + 1; g._updateSmokeHud && g._updateSmokeHud(); }
+    else if (id === 'nade_frag') { g.player.frags = (g.player.frags | 0) + 1; g._updateSmokeHud && g._updateSmokeHud(); }
+    else if (g._switchWeapon) { g._switchWeapon(id); if (g.player) g.player.drawUntil = 0; }
+    closeBuy();
+  }
+  function openBuy() { buyOpen = true; buyCol = 0; buildBuy(); buy.style.display = 'flex'; try { iframe.contentWindow.document.exitPointerLock && iframe.contentWindow.document.exitPointerLock(); } catch {} }
+  function closeBuy() { buyOpen = false; buy.style.display = 'none'; }
+  function navDigit(d) {
+    if (buyCol === 0) { if (d >= 1 && d <= CATS.length) { buyCol = d; buildBuy(); } }
+    else { const col = CATS[buyCol - 1]; if (col && d >= 1 && d <= col.w.length) buyItem(col.w[d - 1]); }
+  }
+  function onBuyKey(e) {   // captura ANTES do jogo (capture=true) e barra a propagação p/ ele não trocar arma
+    if (host.hidden) return;
+    if (e.code === 'KeyB') { buyOpen ? closeBuy() : openBuy(); e.preventDefault(); e.stopImmediatePropagation(); return; }
+    if (!buyOpen) return;
+    if (e.code === 'Escape') { closeBuy(); e.preventDefault(); e.stopImmediatePropagation(); return; }
+    const m = /^Digit([1-9])$/.exec(e.code);
+    if (m) { navDigit(+m[1]); e.preventDefault(); e.stopImmediatePropagation(); }
+  }
+  addEventListener('keydown', onBuyKey, true);   // parent (mouse solto / menu aberto)
+  $('gbuy').onclick = () => (buyOpen ? closeBuy() : openBuy());
   // parâmetros REAIS por arma (WEAPONS/REC_DEG) + FX (multiplicadores globais)
   // config da arma (WEAPONS[w])
   const CFG = {
@@ -859,7 +922,7 @@ function initGame(side, host) {
     const t0 = performance.now();
     (function poll() {
       const g = G();
-      if (g && g.state === 'live') { $('gstatus').textContent = 'pronto · edite ao vivo'; g._switchWeapon(cur); if (g.player) g.player.drawUntil = 0; loadCfg(); loadFx(); return; }
+      if (g && g.state === 'live') { $('gstatus').textContent = 'pronto · edite ao vivo'; g._switchWeapon(cur); if (g.player) g.player.drawUntil = 0; loadCfg(); loadFx(); try { iframe.contentWindow.addEventListener('keydown', onBuyKey, true); } catch {} return; }
       if (performance.now() - t0 > 60000) { $('gstatus').textContent = 'demorou (recarregue)'; return; }
       setTimeout(poll, 250);
     })();
