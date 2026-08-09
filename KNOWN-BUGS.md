@@ -1607,7 +1607,8 @@ publicação em potencial, e o `.gitignore` não protege de um deploy local.
   O cliente chamava o método diretamente ao criar `cs_anon` e `awpbr_token`; quando
   `crypto` existia sem `randomUUID`, `getAnonId()` lançava antes do primeiro ping.
   `npm run eval:uuid` reproduz esse ambiente e exige UUID v4 nos caminhos nativo,
-  `getRandomValues` e sem Web Crypto. Medição: **0/3 → 3/3**; a mutação
+  `getRandomValues` e sem Web Crypto (este último reprova em vez de gerar token
+  previsível com `Math.random`). Medição: **0/3 → 3/3**; a mutação
   `--mutante=chamada-direta` devolve o erro.
 
 - **~~BUG-40 · Release atribui ao bot uma contribuição externa e usa o nome antigo~~ ·

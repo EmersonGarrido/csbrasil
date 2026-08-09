@@ -439,9 +439,9 @@ const ANON_KEY = 'cs_anon';
 function clientUuid() {
   const c = globalThis.crypto;
   if (typeof c?.randomUUID === 'function') return c.randomUUID();
+  if (typeof c?.getRandomValues !== 'function') throw new Error('Web Crypto indisponível');
   const bytes = new Uint8Array(16);
-  if (typeof c?.getRandomValues === 'function') c.getRandomValues(bytes);
-  else for (let i = 0; i < bytes.length; i++) bytes[i] = Math.floor(Math.random() * 256);
+  c.getRandomValues(bytes);
   bytes[6] = (bytes[6] & 0x0f) | 0x40;
   bytes[8] = (bytes[8] & 0x3f) | 0x80;
   const hex = [...bytes].map(value => value.toString(16).padStart(2, '0')).join('');

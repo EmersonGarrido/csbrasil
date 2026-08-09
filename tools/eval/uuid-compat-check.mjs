@@ -34,7 +34,12 @@ function run(crypto) {
 const native = '11111111-2222-4333-8444-555555555555';
 if (run({ randomUUID: () => native }) !== native) throw new Error('nao usa randomUUID quando disponivel');
 if (!uuidRe.test(run({ getRandomValues: bytes => bytes.fill(0xab) }))) throw new Error('fallback getRandomValues invalido');
-if (!uuidRe.test(run(undefined))) throw new Error('fallback sem Web Crypto invalido');
+try {
+  run(undefined);
+  throw new Error('sem Web Crypto gerou token fraco');
+} catch (error) {
+  if (error?.message === 'sem Web Crypto gerou token fraco') throw error;
+}
 
 for (const name of ['getAnonId', 'getToken']) {
   if (!functionSource(name).includes('clientUuid()')) throw new Error(`${name} ainda chama randomUUID diretamente`);
