@@ -164,12 +164,9 @@ const $ = id => document.getElementById(id);
 /* Wallpapers rotativos (wall-1..9): 1 por tela no fluxo home→setup→lado→personagem, sem
    repetir; o offset rotaciona a cada acesso (localStorage) pra variar entre visitas.
 
-   ESTAS LISTAS SÃO HARDCODED E JÁ ENGOLIRAM ARTE NOVA EM SILÊNCIO: o dono jogou wall-9.png e
-   loading-6.png na pasta em 04/08 e nenhum dos dois aparecia, porque o array parava em 8 e em
-   5 (mesmo defeito de MENU_TRACKS abaixo, que ignora a 27ª faixa). Página estática não lista
-   diretório pelo browser, então o conserto de verdade é um manifesto GERADO em build
-   (`tools/` → `public/img/walls.json`) e lido daqui com fallback. Ver KNOWN-BUGS.md BUG-08.
-   Enquanto isso: ARQUIVO NOVO NA PASTA = ENTRADA NOVA AQUI.
+   Estes arrays são fallback do primeiro quadro. A fonte de verdade é
+   public/img/walls.json, gerado por `npm run media` a partir do disco. O manifesto
+   recalcula a rotação quando chega; falha de rede mantém este fallback.
 
    Servidos em .webp desde 07/08: os PNG de 2–2,6 MB viraram ~250 KB (ffmpeg libwebp q85,
    comparado lado a lado antes da troca — texto do cartaz e grão idênticos). Os .png ficam
@@ -177,10 +174,15 @@ const $ = id => document.getElementById(id);
 const WALLS = ['/img/wall-1.webp', '/img/wall-2.webp', '/img/wall-3.webp', '/img/wall-4.webp',
   '/img/wall-5.webp', '/img/wall-6.webp', '/img/wall-7.webp', '/img/wall-8.webp',
   '/img/wall-9.webp'];
-let _wallK = 0;
-try { _wallK = (parseInt(localStorage.getItem('cs_wallK') || '-1', 10) + 1) % WALLS.length; localStorage.setItem('cs_wallK', String(_wallK)); } catch {}
+let _wallVisit = 0;
+try {
+  _wallVisit = parseInt(localStorage.getItem('cs_wallK') || '-1', 10) + 1;
+  if (!Number.isFinite(_wallVisit)) _wallVisit = 0;
+  localStorage.setItem('cs_wallK', String(_wallVisit));
+} catch {}
+let _wallK = _wallVisit % WALLS.length;
 const wallUrl = (i) => `url('${WALLS[(_wallK + i) % WALLS.length]}')`;
-const HOME_WALL = wallUrl(0), SETUP_WALL = wallUrl(1), TEAM_WALL = wallUrl(2), CHAR_WALL = wallUrl(3);
+let HOME_WALL = wallUrl(0), SETUP_WALL = wallUrl(1), TEAM_WALL = wallUrl(2), CHAR_WALL = wallUrl(3);
 // loading-1..6: wallpaper rotativo SÓ da splash inicial (a msg "clique pra começar" fica por cima).
 // O overlay de carregamento de MAPA usa os wall-* (mesmo fluxo rotativo) — ver showLoading/_loadWallI.
 // Hardcoded pelo mesmo motivo (e com o mesmo defeito) do WALLS acima — ver KNOWN-BUGS.md BUG-08.
@@ -188,6 +190,20 @@ const LOADING_WALLS = ['/img/loading-1.webp', '/img/loading-2.webp', '/img/loadi
   '/img/loading-4.webp', '/img/loading-5.webp', '/img/loading-6.webp'];
 let _loadWallI = 4;
 { const bs = document.getElementById('boot-splash'); if (bs) bs.style.backgroundImage = `url('${LOADING_WALLS[_wallK % LOADING_WALLS.length]}')`; }
+fetch(`/img/walls.json?v=${VERSION}`)
+  .then((response) => (response.ok ? response.json() : null))
+  .then((manifest) => {
+    if (!manifest) return;
+    if (Array.isArray(manifest.walls) && manifest.walls.length) WALLS.splice(0, WALLS.length, ...manifest.walls);
+    if (Array.isArray(manifest.loading) && manifest.loading.length) LOADING_WALLS.splice(0, LOADING_WALLS.length, ...manifest.loading);
+    _wallK = _wallVisit % WALLS.length;
+    HOME_WALL = wallUrl(0); SETUP_WALL = wallUrl(1); TEAM_WALL = wallUrl(2); CHAR_WALL = wallUrl(3);
+    applyHomeWall();
+    const team = $('team-select'); if (team) team.style.setProperty('--wall', TEAM_WALL);
+    const character = $('char-select'); if (character) character.style.setProperty('--wall', CHAR_WALL);
+    const splash = $('boot-splash'); if (splash) splash.style.backgroundImage = `url('${LOADING_WALLS[_wallK % LOADING_WALLS.length]}')`;
+  })
+  .catch(() => {});
 function applyHomeWall() { const w = document.querySelector('#main-menu .cs-wallpaper'); if (w) w.style.backgroundImage = HOME_WALL; }
 function applySetupWall() { const w = document.querySelector('#main-menu .cs-wallpaper'); if (w) w.style.backgroundImage = SETUP_WALL; }
 applyHomeWall();
