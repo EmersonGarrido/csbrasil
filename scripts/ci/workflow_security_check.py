@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 import re
+import tempfile
 from pathlib import Path
 
 
@@ -45,6 +46,14 @@ def supply_failures(workflows: dict[Path, str]) -> list[str]:
     return errors
 
 
+def read_workflows(root: Path = Path('.github/workflows')) -> dict[Path, str]:
+    return {
+        path: path.read_text(encoding='utf-8')
+        for pattern in ('*.yml', '*.yaml')
+        for path in root.glob(pattern)
+    }
+
+
 def selftest(source: str) -> list[str]:
     mutations = {
         'auto-label': source + '\n# --add-label "preview-autorizado"\n',
@@ -60,6 +69,11 @@ def selftest(source: str) -> list[str]:
         name for name, mutated in mutations.items()
         if not (preview_failures(mutated) + supply_failures({WORKFLOW: mutated}))
     ]
+    with tempfile.TemporaryDirectory() as tmp:
+        mutant = Path(tmp) / 'mutable-action.yaml'
+        mutant.write_text('steps:\\n  - uses: actions/checkout@v4\\n', encoding='utf-8')
+        if not supply_failures(read_workflows(Path(tmp))):
+            missed.append('extensao-yaml')
     return missed
 
 
@@ -68,7 +82,7 @@ def main() -> int:
     parser.add_argument('--selftest', action='store_true')
     args = parser.parse_args()
     source = WORKFLOW.read_text(encoding='utf-8')
-    workflows = {path: path.read_text(encoding='utf-8') for path in Path('.github/workflows').glob('*.yml')}
+    workflows = read_workflows()
     errors = preview_failures(source) + supply_failures(workflows)
     if errors:
         for error in errors:
@@ -80,7 +94,7 @@ def main() -> int:
         if missed:
             print(f'WFS MUTATION FAIL: {", ".join(missed)}')
             return 1
-        print('WFS MUTATION PASS: 8/8 mutações ficaram vermelhas')
+        print('WFS MUTATION PASS: 9/9 mutações ficaram vermelhas')
     return 0
 
 
