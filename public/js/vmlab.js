@@ -1,5 +1,5 @@
 // VMLAB (?vmlab=1) — modo de COMPARAÇÃO do viewmodel. Aplica no jogo a pose de arma
-// afinada na bancada (public/bancada-corpo.html): quadril + mirado por arma. É opt-in;
+// afinada no editor de viewmodel (public/dev.html): quadril + mirado por arma. É opt-in;
 // SEM a flag o jogo desenha o viewmodel calibrado normal (game.js, "nenhuma tabela por
 // arma"). Aqui a tabela existe de propósito — é o experimento pra testar o look do editor
 // dentro de uma partida de verdade, sem tocar no padrão.
