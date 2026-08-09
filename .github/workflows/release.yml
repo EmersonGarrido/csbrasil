@@ -106,9 +106,10 @@ jobs:
           TAG=$(git describe --tags --exact-match HEAD)
           T=${TAG#v}
           awk "/^## \[$T\]/{f=1;next}/^## \[/{f=0}f" CHANGELOG.md > release-body.md
-          # Sem seção no CHANGELOG pra esta versão? Notas = commits desde a tag anterior.
-          if [ ! -s release-body.md ]; then
-            PREV=$(git describe --tags --abbrev=0 "$TAG^" 2>/dev/null || true)
-            git log --oneline ${PREV:+$PREV..}$TAG > release-body.md
+          EXTRA=()
+          if [ -s release-body.md ]; then
+            EXTRA=(--notes "$(cat release-body.md)")
           fi
-          gh release create "$TAG" --notes-file release-body.md --title "CORO SOLTO $TAG"
+          # As notas nativas ligam PRs e contribuidores às contas GitHub. O fallback
+          # antigo (`git log --oneline`) apagou esse crédito no alpha.47 (BUG-40).
+          gh release create "$TAG" --generate-notes "${EXTRA[@]}" --title "CSBR $TAG"
