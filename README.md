@@ -218,6 +218,49 @@ dobrar de tamanho.
 > baixados, `eval:invariants` e `eval:vm` falham com `ENOENT` — é ambiente, não
 > regressão.
 
+## Knowledge graph com Graphify
+
+O repo agora inclui integração project-scoped do [Graphify](https://github.com/Graphify-Labs/graphify)
+para múltiplos adapters:
+
+- Claude Code
+- Codex
+- OpenCode
+- Kimi
+- adapters compatíveis com `agent skills` via `.agents/`
+
+Arquivos principais:
+
+- `AGENTS.md` e `CLAUDE.md`: instruções de uso do grafo
+- `.codex/`, `.claude/`, `.opencode/`, `.kimi/`, `.agents/`: skills/config por adapter
+- `graphify-out/graph.json`: grafo consultável
+- `graphify-out/GRAPH_REPORT.md`: resumo navegável
+- `graphify-out/graph.html`: visualização local do grafo
+
+Build inicial do grafo:
+
+- foi gerado em modo `code-only`, local e determinístico
+- inclui SQL (`supabase/schema.sql` e migrations)
+- não usa API externa
+
+Atualizar depois de mudanças de código:
+
+```bash
+./scripts/graphify update .
+./scripts/graphify cluster-only . --graph ./graphify-out/graph.json --no-label
+```
+
+Regenerar do zero:
+
+```bash
+./scripts/graphify extract . --code-only --out . --force
+./scripts/graphify cluster-only . --graph ./graphify-out/graph.json --no-label
+```
+
+Observação: a versão atual do Graphify extrai este repo muito bem em JS/TS/SQL, mas ainda
+reporta parsing parcial em arquivos `.astro`. Isso é limitação do extrator atual, não do
+projeto.
+
 ## Controles
 
 | Tecla | Ação |

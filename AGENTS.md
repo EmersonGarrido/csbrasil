@@ -227,3 +227,25 @@ já tinha o dobro; corrigir à mão dura exatamente um commit.
 
 E o resto — o porquê, a decisão, o caso que gerou a regra — é conhecimento humano, mora em
 **um** arquivo só, e os outros apontam para ele.
+
+## graphify
+
+Este projeto mantém um knowledge graph em `graphify-out/`, com relações entre arquivos,
+clusters e nós centrais da base.
+
+Quando o usuário pedir `/graphify`, use o skill/config instalado do adapter antes de seguir.
+
+Regras:
+
+- Para perguntas sobre a base, rode `graphify query "<pergunta>"` quando `graphify-out/graph.json`
+  existir. Use `graphify path "<A>" "<B>"` para relações e `graphify explain "<conceito>"`
+  para conceitos focados.
+- Arquivos sujos em `graphify-out/` são esperados depois de hooks ou updates incrementais.
+  Isso não é motivo para pular Graphify; só pule se a tarefa for justamente depurar saída
+  stale/incorreta do grafo, ou se o usuário pedir explicitamente para não usar.
+- Se `graphify-out/wiki/index.md` existir, use-o para navegação ampla antes de sair
+  abrindo fonte cru.
+- Leia `graphify-out/GRAPH_REPORT.md` só para revisão ampla de arquitetura ou quando
+  `query/path/explain` não trouxerem contexto suficiente.
+- Depois de mexer em código, rode `graphify update .` para manter o grafo atual
+  (AST-only, sem custo de API).
