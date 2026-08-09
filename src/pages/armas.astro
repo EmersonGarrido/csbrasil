@@ -21,7 +21,7 @@ import { BRAND_FULL, GAME_ID, abs } from '../lib/site';
 const classes = [...new Set(ARMAS.map(a => a.classe))];
 const porClasse = classes.map(c => ({ classe: c, armas: ARMAS.filter(a => a.classe === c) }));
 
-// As 26 armas numa lista só, pra responder "qual mata mais rápido" sem obrigar a
+// Todas as armas numa lista só, pra responder "qual mata mais rápido" sem obrigar a
 // rolar classe por classe. Ordenada por dano por padrão.
 const armasOrdenadas = [...ARMAS].sort((a, b) => b.dano - a.dano);
 
@@ -126,7 +126,8 @@ const jsonld = [
       </thead>
       <tbody>
         {armasOrdenadas.map(a => {
-          const dps = Math.round((a.dano / a.cadencia) * 10) / 10;
+          const danoPorTiro = a.id === 'shotgun' ? a.dano * 9 : a.dano;
+          const dps = Math.round((danoPorTiro / a.cadencia) * 10) / 10;
           return (
             <tr data-arma={a.nome} data-classe={a.classe} data-dano={a.dano}
               data-pente={a.pente} data-reserva={a.reserva} data-cadencia={a.cadencia}
