@@ -24,8 +24,8 @@
 
    MUTAÇÃO (regra da casa: régua que não morde não existe)
      node tools/eval/poster-aspect-check.mjs --mutate
-   estraga UM aspecto declarado de propósito e exige que o teste FIQUE VERMELHO. Se a
-   mutação passar, o arnês sai 1 denunciando a si mesmo.
+   estraga a SEGUNDA ocorrência de um cartaz repetido e exige vermelho. Também remove
+   o marcador do bloco para provar que parser vazio é erro, não um verde por vacuidade.
 
    Uso: node tools/eval/poster-aspect-check.mjs [--mutate] [--json]
    ============================================================================ */
@@ -42,24 +42,30 @@ const JSON_OUT = process.argv.includes('--json');
 
 const TOL = 0.06; // ver cabeçalho: 6% cobre a borda de acervo (máx. legítimo 4,0%)
 
-/** Recorta os pares [arquivo, aspecto declarado] do bloco POSTER_FILES de textures.js. */
-function lerDeclarados() {
-  const src = readFileSync(path.join(ROOT, 'public', 'js', 'textures.js'), 'utf8');
-  const ini = src.indexOf('const POSTER_FILES');
-  const fim = src.indexOf('];', ini);
-  const bloco = src.slice(ini, fim);
-  const pares = [...bloco.matchAll(/\[\s*['"]([^'"]+)['"]\s*,\s*([0-9.]+)/g)];
-  const mapa = new Map();
-  for (const m of pares) if (!mapa.has(m[1])) mapa.set(m[1], parseFloat(m[2]));
-  return mapa;
+/** Recorta TODAS as entradas, inclusive repetidas: repetição pesa a rotação no jogo. */
+function lerDeclarados(fonte) {
+  const src = fonte ?? readFileSync(path.join(ROOT, 'public', 'js', 'textures.js'), 'utf8');
+  const bloco = src.match(/const\s+POSTER_FILES\s*=\s*\[([\s\S]*?)\];/)?.[1];
+  if (bloco == null) throw new Error('bloco POSTER_FILES não encontrado em textures.js');
+
+  const limpo = bloco.replace(/\/\/.*$/gm, '');
+  const numero = '(?:\\d+(?:\\.\\d*)?|\\.\\d+)';
+  const entrada = new RegExp(`\\[\\s*(['"])([^'"]+)\\1\\s*,\\s*(${numero})(?:\\s*,\\s*${numero})?\\s*\\]`, 'g');
+  const declarados = [...limpo.matchAll(entrada)].map((m) => ({ arquivo: m[2], decl: Number(m[3]) }));
+  const sobra = limpo.replace(entrada, '').replace(/[\s,]/g, '');
+  if (sobra || !declarados.length) {
+    throw new Error(`POSTER_FILES não foi lido por inteiro${sobra ? ` (trecho: ${sobra.slice(0, 40)})` : ''}`);
+  }
+  return declarados;
 }
 
-async function medir(mapa) {
+async function medir(declarados) {
   const linhas = [];
-  for (const [arquivo, decl] of mapa) {
+  for (const { arquivo, decl } of declarados) {
     const fp = path.join(POSTERS, arquivo);
     if (!existsSync(fp)) { linhas.push({ arquivo, decl, erro: 'arquivo ausente' }); continue; }
     const { width, height } = await sharp(fp).metadata();
+    if (!width || !height) { linhas.push({ arquivo, decl, erro: 'dimensões ilegíveis' }); continue; }
     const real = width / height;
     const desvio = Math.abs(real - decl) / decl;
     linhas.push({ arquivo, decl, real, width, height, desvio, fora: desvio > TOL });
@@ -67,23 +73,35 @@ async function medir(mapa) {
   return linhas;
 }
 
-const mapa = lerDeclarados();
-
-if (MUTATE) {
-  // Estraga um número declarado (o primeiro cartaz) e exige que a régua o pegue.
-  const [primeiro] = mapa.keys();
-  mapa.set(primeiro, mapa.get(primeiro) * 1.5);
-  const linhas = await medir(mapa);
-  const pego = linhas.find((l) => l.arquivo === primeiro)?.fora === true;
-  if (pego) {
-    console.log(`✓ mutação PEGA: '${primeiro}' declarado 1.5× foi reprovado — a régua morde.`);
-    process.exit(0);
-  }
-  console.error(`✗ mutação PASSOU: '${primeiro}' declarado 1.5× não foi pego. Régua cega.`);
+let declarados;
+try {
+  declarados = lerDeclarados();
+} catch (e) {
+  console.error(`✗ régua não soube medir: ${e.message}`);
   process.exit(1);
 }
 
-const linhas = await medir(mapa);
+if (MUTATE) {
+  // O bug real deduplicava por nome. Muta justamente a SEGUNDA ocorrência repetida.
+  const alvo = declarados.findIndex((e, i) => declarados.findIndex((x) => x.arquivo === e.arquivo) < i);
+  if (alvo < 0) { console.error('✗ mutação NÃO APLICOU: nenhuma entrada repetida.'); process.exit(1); }
+  declarados[alvo] = { ...declarados[alvo], decl: declarados[alvo].decl * 1.5 };
+  const linhas = await medir(declarados);
+  const aspectoPego = linhas[alvo]?.fora === true;
+
+  const src = readFileSync(path.join(ROOT, 'public', 'js', 'textures.js'), 'utf8');
+  let vazioPego = false;
+  try { lerDeclarados(src.replace('const POSTER_FILES', 'const POSTER_FILES_REMOVIDO')); }
+  catch { vazioPego = true; }
+  if (aspectoPego && vazioPego) {
+    console.log(`✓ mutações PEGAS: duplicata '${declarados[alvo].arquivo}' deformada e parser sem bloco reprovado.`);
+    process.exit(0);
+  }
+  console.error(`✗ mutação PASSOU: duplicata=${aspectoPego ? 'pega' : 'cega'}, parser-vazio=${vazioPego ? 'pego' : 'aceito'}.`);
+  process.exit(1);
+}
+
+const linhas = await medir(declarados);
 const fora = linhas.filter((l) => l.fora || l.erro);
 
 if (JSON_OUT) {

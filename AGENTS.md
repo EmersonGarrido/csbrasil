@@ -43,7 +43,7 @@ algo está errado e o quality gate está verde, o defeito é do quality gate.
 |---|---|---|---|
 | `public/` | o **jogo** | 31 arquivos `.js`, 27.069 linhas · Three.js `r160` vendorizado | ES modules servidos crus, **zero build**, sem dependência de runtime |
 | `src/` | o **site** | 17 páginas `.astro`, 17 rotas `/api` · Astro `^7.1.1` | framework é bem-vindo; `service_role` só no servidor |
-| `tools/` | o **arnês** | 170 scripts em `tools/eval/`, 46 em `tools/` | node puro: sobe o jogo real sem browser |
+| `tools/` | o **arnês** | 171 scripts em `tools/eval/`, 46 em `tools/` | node puro: sobe o jogo real sem browser |
 
 **Não existe `public/index.html`.** O HTML do jogo é `src/pages/index.astro`, servido na rota `/`. Servir `public/` estaticamente entrega os arnêses visuais, **não o jogo** — é a pegadinha que custa a primeira hora de todo mundo.
 
@@ -144,7 +144,7 @@ npm run check        # npm run syntax && npm run audio:check && npm run eval:ctf
 npm run check:fast   # node tools/eval/runner.mjs syntax eval:release docs:check arch:check audio:check feet:check eval:ctfhud eval:pause eval:ctfround eval:ctfwin eval:spawn eval:regen eval:pegada eval:ctflabels anims:check anims:merge:check walls:check media:check travessao:check eval:posters
 ```
 
-`package.json` tem **61 scripts**. Vários trazem uma chave `//nome` logo acima com o motivo de existirem — é onde mora o porquê.
+`package.json` tem **62 scripts**. Vários trazem uma chave `//nome` logo acima com o motivo de existirem — é onde mora o porquê.
 
 > Bloco gerado por `node tools/gen-docs.mjs`. Fonte: `node -p "Object.keys(require('./package.json').scripts)"`
 
