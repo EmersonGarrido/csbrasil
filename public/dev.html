@@ -56,6 +56,7 @@
   /* selects, botões, segmentado */
   .side select{flex:1;font-family:inherit;font-size:13px;background:#1b2029;color:#cfe;border:1px solid #2a3340;border-radius:6px;padding:6px 8px}
   .side label{display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .side label.chk{justify-content:flex-start;gap:7px;font-size:12px;color:#aeb9c4;cursor:pointer}
   .row{display:flex;gap:6px}
   .row>*{flex:1}
   .btn{font-family:inherit;font-size:12px;background:#1b2029;color:#cfe;border:1px solid #2a3340;border-radius:6px;padding:8px 6px;cursor:pointer;transition:background .1s,border-color .1s}
@@ -186,6 +187,7 @@
       <div class="cap">Jogo real <span class="muted" id="gstatus">carregando…</span></div>
       <label>Personagem <select id="gchar"></select></label>
       <label>Arma <select id="gwep"></select></label>
+      <label class="chk"><input type="checkbox" id="gvmlab" checked> viewmodel afinado (minhas poses)</label>
     </div>
     <div class="grp"><div class="cap">Config da arma <span class="muted">real</span></div><div id="gcfg"></div></div>
     <div class="grp"><div class="cap">Recuo <span class="muted" id="grecls">real</span></div><div id="grec"></div></div>
@@ -756,6 +758,7 @@ function initGame(side, host) {
   }
   $('gwep').onchange = () => { cur = $('gwep').value; const g = G(); if (g && g._switchWeapon) { g._switchWeapon(cur); if (g.player) g.player.drawUntil = 0; } loadCfg(); };
   $('gchar').onchange = () => boot();
+  $('gvmlab').onchange = () => boot();
   $('gcopy').onclick = () => {
     const g = G(); if (!g || !g._tuneGet) return;
     const t = g._tuneGet(cur);
@@ -772,7 +775,7 @@ function initGame(side, host) {
       setTimeout(poll, 250);
     })();
   }
-  function boot() { $('gstatus').textContent = 'carregando o jogo…'; iframe.src = `/?debug=1&auto=P,${$('gchar').value}`; waitLive(); }
+  function boot() { $('gstatus').textContent = 'carregando o jogo…'; const vl = ($('gvmlab') && $('gvmlab').checked) ? '&vmlab=1' : ''; iframe.src = `/?debug=1&auto=P,${$('gchar').value}${vl}`; waitLive(); }
   return { start() { if (!started) { started = true; boot(); } }, stop() { /* deixa o jogo rodando no iframe */ } };
 }
 
