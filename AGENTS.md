@@ -41,7 +41,7 @@ algo está errado e o quality gate está verde, o defeito é do quality gate.
 
 | Zona | O que é | Tamanho medido | Regra |
 |---|---|---|---|
-| `public/` | o **jogo** | 31 arquivos `.js`, 27.053 linhas · Three.js `r160` vendorizado | ES modules servidos crus, **zero build**, sem dependência de runtime |
+| `public/` | o **jogo** | 31 arquivos `.js`, 27.069 linhas · Three.js `r160` vendorizado | ES modules servidos crus, **zero build**, sem dependência de runtime |
 | `src/` | o **site** | 17 páginas `.astro`, 17 rotas `/api` · Astro `^7.1.1` | framework é bem-vindo; `service_role` só no servidor |
 | `tools/` | o **arnês** | 170 scripts em `tools/eval/`, 46 em `tools/` | node puro: sobe o jogo real sem browser |
 
@@ -67,9 +67,13 @@ O porquê completo de cada regra da fronteira está em
 
 ## As leis da casa
 
-Não são estilo. Cada uma custou dias, e cada uma está documentada no código com o caso real
-que a gerou — os casos completos estão em
+Não são estilo. Cada uma custou dias; os casos completos estão em
 [`docs/docs/quality-gates.md`](docs/docs/quality-gates.md).
+
+**Comentários no código têm orçamento quase zero.** Não narre o que a linha faz nem cole o
+histórico da investigação. Só comente uma invariante, compatibilidade ou risco que os nomes não
+consigam expressar, em no máximo duas linhas, apontando para a issue ou doc quando precisar de
+contexto. Evidência, antes/depois e cronologia ficam em `KNOWN-BUGS.md` ou `docs/`.
 
 **1 · Régua antes do conserto.** Escreva a medição, prove que ela **reprova** o estado atual,
 só então conserte. Intenção que não vira invariante é otimizada para fora: uma rodada levou o

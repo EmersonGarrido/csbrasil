@@ -32,10 +32,9 @@ critério de aceite.
 2. **Produção publica no MERGE** (auto-deploy da Vercel na `main`, decisão do dono em
    08/08); o Release/tag/bump saem juntos, automáticos, via `release.yml`. O caminho
    manual por tag (`deploy-prod.yml` via dispatch) continua de pé como fallback.
-3. **PR de fork ganha preview via bot**: o `cs-brasil-ai-bot` (`preview-bot.yml`) avalia
-   o diff sem executar seu código; PR pequeno e fora de área sensível (workflows, deps,
-   `src/pages/api/`, deploy) recebe `preview-autorizado` e o preview sobe sozinho.
-   Tocou área sensível? Um mantenedor aplica o label na mão depois de revisar.
+3. **Preview de fork exige revisão humana**: o `cs-brasil-ai-bot` (`preview-bot.yml`)
+   classifica o diff sem executá-lo. Um mantenedor revisa o SHA atual e aplica
+   `preview-autorizado`; qualquer push revoga a aprovação.
 4. **Quality gates locais antes de abrir**: `npm run check:fast` (segundos) e, se mexeu em
    jogo, `npm run check`. Vermelho novo no quality gate = PR volta.
 5. **Nada de travessão `—` no texto do site (`src/`)**. Use hífen com espaços (` - `). O
@@ -148,8 +147,11 @@ E teste à mão: o jogo abre, o console fica limpo, uma partida completa roda
 ## Regras de código
 
 - **Português** em nome, comentário, commit e doc.
-- Comentário explica **por quê**, não o quê. O padrão do repo é comentário que
-  conta a causa raiz e o número medido — siga ele.
+- **Código não é relatório.** Comentário novo só explica uma invariante, compatibilidade ou
+  risco que os nomes não expressem, em no máximo duas linhas. Histórico, causa raiz, números e
+  reprodução ficam na issue, em `KNOWN-BUGS.md` ou em `docs/`; o comentário apenas aponta.
+- Não narre o óbvio, não deixe diário de investigação e não use comentários para compensar nome
+  ruim. Ao tocar num trecho, remova comentários redundantes daquele mesmo trecho.
 - `arquivo:linha` em qualquer afirmação sobre código.
 - PRs pequenos e focados: uma feature ou um fix por PR.
 - **Sistema interconectado** (arma + mão + animação + ADS + mira + HUD) se mexe
