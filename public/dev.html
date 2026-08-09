@@ -53,21 +53,28 @@
   #wephud .slot .nm{flex:1;font-size:12px;letter-spacing:.5px;text-transform:uppercase}
   #wephud .slot .am{font-size:12px;color:#7fe;font-variant-numeric:tabular-nums}
   /* preview da LOJA (estilo CS) — abre no B */
-  #buymenu{position:absolute;inset:0;z-index:8;display:none;flex-direction:column;align-items:center;justify-content:center;background:rgba(6,8,11,.72);pointer-events:auto}
-  #buymenu .bm-top{color:#cfe;font-size:12px;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:14px}
-  #buymenu .bm-top b{color:#2fbf71}
+  #buymenu{position:absolute;inset:0;z-index:8;display:none;align-items:center;justify-content:center;background:rgba(6,8,11,.78);pointer-events:auto}
+  #buymenu .bm-panel{background:rgba(10,13,17,.95);border:1px solid #2a3340;border-radius:12px;padding:16px 20px 18px;max-height:94%;overflow:auto}
+  #buymenu .bm-title{text-align:center;color:#7fd;font-size:14px;letter-spacing:4px;text-transform:uppercase;font-weight:700}
+  #buymenu .bm-sub{text-align:center;color:#89a;font-size:11px;letter-spacing:1px;margin:4px 0 14px}
+  #buymenu .bm-sub b{color:#2fbf71}
   #buymenu .cols{display:flex;gap:12px;align-items:flex-start}
-  #buymenu .col{background:rgba(16,20,26,.92);border:1px solid #2a3340;border-radius:9px;padding:10px;width:180px}
-  #buymenu .col.sel{border-color:#2fbf71;box-shadow:0 0 0 1px #2fbf71}
-  #buymenu .col h4{margin:0 0 8px;font-size:12px;color:#7fd;letter-spacing:1px;text-transform:uppercase;display:flex;gap:8px;align-items:center}
+  #buymenu .col{display:flex;flex-direction:column;gap:7px;width:188px}
+  #buymenu .col h4{margin:0 0 2px;font-size:12px;color:#7fd;letter-spacing:1.5px;text-transform:uppercase;display:flex;gap:8px;align-items:center}
   #buymenu .col h4 .cn{background:#1b2029;border:1px solid #2a3340;border-radius:5px;padding:1px 7px;color:#cfe}
+  #buymenu .col.sel h4{color:#2fbf71}
   #buymenu .col.sel h4 .cn{background:#2fbf71;border-color:#2fbf71;color:#042012}
-  #buymenu .it{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;cursor:pointer;color:#9fb;font-size:12px}
-  #buymenu .it:hover{background:rgba(47,191,113,.16)}
-  #buymenu .it .n{min-width:16px;text-align:center;color:#7fd;opacity:.75}
-  #buymenu .it .nm{flex:1;text-transform:uppercase;letter-spacing:.4px}
-  #buymenu .it .pr{color:#7fe;opacity:.6}
-  #buymenu .bm-hint{margin-top:14px;color:#89a;font-size:11px}
+  #buymenu .card{background:rgba(28,34,43,.9);border:1px solid #2a3340;border-radius:8px;padding:6px 9px 5px;cursor:pointer;transition:border-color .1s,background .1s}
+  #buymenu .card:hover{border-color:#2fbf71;background:rgba(47,191,113,.15)}
+  #buymenu .card .ct{display:flex;align-items:center;gap:7px;font-size:11px}
+  #buymenu .card .ct .n{min-width:14px;text-align:center;color:#7fd;opacity:.7}
+  #buymenu .card .ct .nm{flex:1;color:#dfe8ef;text-transform:uppercase;letter-spacing:.4px}
+  #buymenu .card .ct .pr{color:#7fe;opacity:.6}
+  #buymenu .card .ic{height:28px;display:flex;align-items:center;justify-content:center;margin-top:3px}
+  #buymenu .card .ic svg{height:22px;width:auto;fill:#c7d3de}
+  #buymenu .card:hover .ic svg{fill:#eafff2}
+  #buymenu .card.empty{background:rgba(20,24,30,.4);border-style:dashed;border-color:#232c38;cursor:default;pointer-events:none;min-height:56px}
+  #buymenu .bm-hint{text-align:center;margin-top:14px;color:#89a;font-size:11px}
   .ctl input[type=range]{width:100%;min-width:0}
   .num{width:48px;font-family:inherit;font-size:12px;background:#0b0e12;color:#7fe;border:1px solid #2a3340;border-radius:5px;padding:3px 4px;text-align:right}
   .num:focus{outline:none;border-color:#2fbf71}
@@ -829,17 +836,39 @@ function initGame(side, host) {
     { t: 'Granadas', w: ['nade_smoke', 'nade_frag'] },
   ];
   const labelOf = (id) => (id === 'nade_smoke' ? 'fumaça' : (id === 'nade_frag' ? 'frag' : id.toUpperCase()));
+  const SHOP_ICON = {
+    pistol: '<svg viewBox="0 0 40 24"><rect x="4" y="5" width="26" height="6"/><rect x="9" y="11" width="8" height="11"/></svg>',
+    smg: '<svg viewBox="0 0 46 22"><rect x="4" y="6" width="26" height="5"/><rect x="30" y="5" width="9" height="2"/><rect x="10" y="11" width="6" height="9"/><rect x="4" y="5" width="4" height="7"/></svg>',
+    rifle: '<svg viewBox="0 0 54 20"><rect x="2" y="8" width="40" height="4"/><rect x="42" y="8.5" width="10" height="2"/><rect x="14" y="12" width="6" height="7"/><rect x="2" y="7" width="4" height="7"/></svg>',
+    sniper: '<svg viewBox="0 0 58 20"><rect x="2" y="9" width="46" height="3"/><rect x="48" y="9.5" width="8" height="2"/><rect x="20" y="5" width="14" height="3"/><rect x="6" y="8" width="4" height="7"/><rect x="16" y="12" width="5" height="6"/></svg>',
+    shotgun: '<svg viewBox="0 0 54 18"><rect x="2" y="7" width="44" height="3"/><rect x="2" y="10.5" width="32" height="2"/><rect x="9" y="6" width="5" height="8"/></svg>',
+    lmg: '<svg viewBox="0 0 54 24"><rect x="2" y="7" width="40" height="4"/><rect x="42" y="8" width="10" height="2"/><rect x="15" y="11" width="13" height="9"/><rect x="2" y="6" width="5" height="8"/></svg>',
+    nade: '<svg viewBox="0 0 22 24"><circle cx="11" cy="14" r="7"/><rect x="9" y="3" width="4" height="5"/></svg>',
+  };
+  function iconFor(id) {
+    if (id === 'nade_smoke' || id === 'nade_frag') return SHOP_ICON.nade;
+    if (['pistol', 'deagle', 'revolver38'].includes(id)) return SHOP_ICON.pistol;
+    if (['mp5', 'uzi', 'p90'].includes(id)) return SHOP_ICON.smg;
+    if (['awp', 'mosin', 'rem700', 'm400', 'svd', 'g3sg1', 'sks'].includes(id)) return SHOP_ICON.sniper;
+    if (id === 'shotgun') return SHOP_ICON.shotgun;
+    if (id === 'lmg') return SHOP_ICON.lmg;
+    return SHOP_ICON.rifle;
+  }
   let buyOpen = false, buyCol = 0;
   function buildBuy() {
+    const maxL = Math.max(...CATS.map((c) => c.w.length));
     buy.innerHTML =
-      '<div class="bm-top">LOJA — <b>B</b> abre/fecha · número escolhe a categoria e depois o item · Esc fecha</div>' +
+      '<div class="bm-panel"><div class="bm-title">Loja</div>' +
+      '<div class="bm-sub"><b>B</b> abre/fecha · número escolhe a categoria e depois o item · Esc fecha</div>' +
       '<div class="cols">' +
-      CATS.map((c, ci) => `<div class="col ${buyCol === ci + 1 ? 'sel' : ''}"><h4><span class="cn">${ci + 1}</span>${c.t}</h4>` +
-        c.w.map((id, ii) => `<div class="it" data-id="${id}"><span class="n">${ii + 1}</span><span class="nm">${labelOf(id)}</span><span class="pr">$—</span></div>`).join('') +
-        '</div>').join('') +
+      CATS.map((c, ci) => {
+        const cards = c.w.map((id, ii) => `<div class="card" data-id="${id}"><div class="ct"><span class="n">${ii + 1}</span><span class="nm">${labelOf(id)}</span><span class="pr">$—</span></div><div class="ic">${iconFor(id)}</div></div>`).join('');
+        const pad = Array(Math.max(0, maxL - c.w.length)).fill('<div class="card empty"></div>').join('');
+        return `<div class="col ${buyCol === ci + 1 ? 'sel' : ''}"><h4><span class="cn">${ci + 1}</span>${c.t}</h4>${cards}${pad}</div>`;
+      }).join('') +
       '</div>' +
-      '<div class="bm-hint">sem dinheiro por enquanto — comprar = equipa a arma (grátis). pronto pra ter preço depois.</div>';
-    buy.querySelectorAll('.it').forEach((el) => (el.onclick = () => buyItem(el.dataset.id)));
+      '<div class="bm-hint">sem dinheiro por enquanto — comprar = equipa a arma (grátis). pronto pra ter preço depois.</div></div>';
+    buy.querySelectorAll('.card[data-id]').forEach((el) => (el.onclick = () => buyItem(el.dataset.id)));
   }
   function buyItem(id) {
     const g = G(); if (!g || !g.player) return;
