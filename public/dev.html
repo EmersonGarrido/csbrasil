@@ -43,7 +43,7 @@
   #gcfg .ctl,#gfx .ctl{grid-template-columns:112px 1fr 56px}
   #host-game iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
   /* preview do HUD de armas (estilo CS) sobreposto ao jogo real */
-  #wephud{position:absolute;right:16px;top:50%;transform:translateY(-50%);z-index:6;display:flex;flex-direction:column;gap:6px;pointer-events:none}
+  #wephud{position:absolute;right:16px;bottom:104px;z-index:6;display:flex;flex-direction:column;gap:6px;pointer-events:none}
   #wephud .slot{display:flex;align-items:center;gap:10px;background:rgba(10,12,16,.55);border:1px solid #2a3340;border-left:3px solid #3a4658;border-radius:7px;padding:7px 13px 7px 9px;min-width:184px;color:#9fb}
   #wephud .slot.on{background:rgba(47,191,113,.18);border-color:#2fbf71;border-left-color:#2fbf71;color:#eafff2}
   #wephud .slot .k{font-size:13px;color:#7fd;min-width:14px;text-align:center;opacity:.75}
@@ -789,7 +789,8 @@ function initGame(side, host) {
     if (p.primary) slots.push({ k: 1, w: p.primary });
     slots.push({ k: 2, w: p.secondary || 'pistol' });
     slots.push({ k: 3, w: 'knife' });
-    if (p.smokes > 0) slots.push({ k: 4, w: 'nade', nm: 'granada', count: p.smokes });
+    if (p.smokes > 0) slots.push({ k: 4, w: 'nade', nm: 'fumaça', count: p.smokes });   // tecla 4 (lança na hora)
+    if (p.frags > 0) slots.push({ k: 5, w: 'nade', nm: 'frag', count: p.frags });        // tecla 5
     hud.innerHTML = slots.map((s) => {
       const on = s.w === p.weapon;
       const cat = s.w === 'nade' ? 'nade' : catOf(s.w);
