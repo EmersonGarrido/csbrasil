@@ -40,6 +40,8 @@
   .ctl{display:grid;grid-template-columns:74px 1fr 46px;align-items:center;gap:8px}
   .ctl>span{font-size:12px;color:#aeb9c4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   #fxTiro .ctl,#fxLuz .ctl,#fxRecuo .ctl{grid-template-columns:92px 1fr 42px}
+  #gcfg .ctl,#gfx .ctl{grid-template-columns:112px 1fr 56px}
+  #host-game iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
   .ctl input[type=range]{width:100%;min-width:0}
   .num{width:48px;font-family:inherit;font-size:12px;background:#0b0e12;color:#7fe;border:1px solid #2a3340;border-radius:5px;padding:3px 4px;text-align:right}
   .num:focus{outline:none;border-color:#2fbf71}
@@ -65,8 +67,8 @@
   .seg button:first-child{border-radius:6px 0 0 6px}
   .seg button:last-child{border-radius:0 6px 6px 0}
   .seg button.on{background:#2fbf71;border-color:#2fbf71;color:#042012;font-weight:700}
-  #vals{font-size:11px;color:#9fb;word-break:break-all;user-select:all;white-space:pre-wrap;max-height:110px;overflow:auto;background:#0b0e12;border:1px solid #222c38;border-radius:6px;padding:6px 7px;display:none}
-  #vals:not(:empty){display:block}
+  #vals,#gvals{font-size:11px;color:#9fb;word-break:break-all;user-select:all;white-space:pre-wrap;max-height:110px;overflow:auto;background:#0b0e12;border:1px solid #222c38;border-radius:6px;padding:6px 7px;display:none}
+  #vals:not(:empty),#gvals:not(:empty){display:block}
   #cfg{white-space:pre;font-size:12px;color:#9fb;line-height:1.6}
 
   /* ajuda em acordeão */
@@ -107,8 +109,9 @@
 <body>
 <div id="sidebar">
   <div id="devtabs">
-    <button data-tool="editor" class="on">Editor de viewmodel</button>
-    <button data-tool="cena">Personagem + arma</button>
+    <button data-tool="editor" class="on">Viewmodel</button>
+    <button data-tool="cena">Personagem</button>
+    <button data-tool="game">Testar no jogo</button>
   </div>
 
   <div class="side" id="side-editor">
@@ -177,6 +180,22 @@
       <div id="cfg"></div>
     </div>
   </div>
+
+  <div class="side" id="side-game" hidden>
+    <div class="grp">
+      <div class="cap">Jogo real <span class="muted" id="gstatus">carregando…</span></div>
+      <label>Personagem <select id="gchar"></select></label>
+      <label>Arma <select id="gwep"></select></label>
+    </div>
+    <div class="grp"><div class="cap">Config da arma <span class="muted">real</span></div><div id="gcfg"></div></div>
+    <div class="grp"><div class="cap">FX <span class="muted">global ×</span></div><div id="gfx"></div></div>
+    <div class="grp">
+      <div class="cap">Ações</div>
+      <button id="gcopy" class="btn">📋 copiar config</button>
+      <div id="gvals"></div>
+    </div>
+    <div class="leg">Clica na cena pra jogar/atirar · <b>Esc</b> solta o mouse pra ajustar · os sliders editam o <b>jogo real</b> ao vivo.</div>
+  </div>
 </div>
 
 <div id="stage">
@@ -193,6 +212,7 @@
   <div class="ov" id="ov-cena" hidden>
     <div class="hint">arrasta = girar · scroll = zoom · o cano deve seguir a seta VERDE (+Z)</div>
   </div>
+  <div class="host" id="host-game" hidden></div>
 </div>
 
 <script type="module">
@@ -678,21 +698,87 @@ function initCena(side, host) {
   };
 }
 
+// ============================================================================
+// FERRAMENTA 3 — TESTAR NO JOGO (réplica: roda o JOGO REAL num iframe e edita as
+//   configs de produção ao vivo via window.__game._tune / _fxSet). O que você
+//   testa É o jogo — nada reimplementado. "copiar config" exporta pra eu gravar.
+// ============================================================================
+function initGame(side, host) {
+  const $ = (id) => side.querySelector('#' + id);
+  const iframe = document.createElement('iframe');
+  iframe.setAttribute('allow', 'fullscreen'); host.appendChild(iframe);
+  const G = () => { try { return iframe.contentWindow.__game; } catch { return null; } };
+  let cur = 'ak', started = false;
+  // parâmetros REAIS por arma (WEAPONS/REC_DEG) + FX (multiplicadores globais)
+  const CFG = {
+    recDeg: { min: 0, max: 6, step: 0.05, cap: 'recuo (REC_DEG)' },
+    rpm: { min: 60, max: 1200, step: 10, cap: 'cadência RPM' },
+    spreadHip: { min: 0, max: 0.15, step: 0.002, cap: 'spread quadril' },
+    spreadScope: { min: 0, max: 0.03, step: 0.0005, cap: 'spread mira' },
+    dmg: { min: 1, max: 400, step: 1, cap: 'dano' },
+    mag: { min: 1, max: 120, step: 1, cap: 'pente' },
+  };
+  const FXC = { light: { min: 0, max: 3, step: 0.1, cap: 'luz ×' }, flash: { min: 0, max: 3, step: 0.1, cap: 'flash ×' }, spark: { min: 0, max: 3, step: 0.1, cap: 'faíscas ×' } };
+  const row = (id, d) => `<div class="ctl"><span title="${d.cap}">${d.cap}</span><input type="range" id="${id}" min="${d.min}" max="${d.max}" step="${d.step}"><input class="num" type="number" id="${id}_n" min="${d.min}" max="${d.max}" step="${d.step}"></div>`;
+  $('gcfg').innerHTML = Object.entries(CFG).map(([k, d]) => row('c_' + k, d)).join('');
+  $('gfx').innerHTML = Object.entries(FXC).map(([k, d]) => row('f_' + k, d)).join('');
+  $('gchar').innerHTML = CHARACTERS.map((c) => `<option value="${c.id}">${c.id}</option>`).join(''); $('gchar').value = 'mst';
+  $('gwep').innerHTML = WEAPON_IDS.map((id) => `<option value="${id}">${id}</option>`).join(''); $('gwep').value = cur;
+
+  function loadCfg() { const g = G(); if (!g || !g._tuneGet) return; const t = g._tuneGet(cur); for (const k in CFG) { $('c_' + k).value = t[k]; $('c_' + k + '_n').value = t[k]; } }
+  function loadFx() { const g = G(); if (!g || !g._tuneGet) return; const fx = g._tuneGet(cur).fx || {}; for (const k in FXC) { $('f_' + k).value = fx[k]; $('f_' + k + '_n').value = fx[k]; } }
+  for (const k in CFG) {
+    const r = $('c_' + k), n = $('c_' + k + '_n');
+    const set = (v) => { v = Math.max(+r.min, Math.min(+r.max, v)); r.value = v; n.value = v; const g = G(); if (g && g._tune) g._tune(cur, { [k]: +v }); };
+    r.addEventListener('input', () => set(+r.value));
+    n.addEventListener('input', () => { if (n.value !== '' && !isNaN(+n.value)) set(+n.value); });
+  }
+  for (const k in FXC) {
+    const r = $('f_' + k), n = $('f_' + k + '_n');
+    const set = (v) => { v = Math.max(+r.min, Math.min(+r.max, v)); r.value = v; n.value = v; const g = G(); if (g && g._fxSet) g._fxSet({ [k]: +v }); };
+    r.addEventListener('input', () => set(+r.value));
+    n.addEventListener('input', () => { if (n.value !== '' && !isNaN(+n.value)) set(+n.value); });
+  }
+  $('gwep').onchange = () => { cur = $('gwep').value; const g = G(); if (g && g._switchWeapon) { g._switchWeapon(cur); if (g.player) g.player.drawUntil = 0; } loadCfg(); };
+  $('gchar').onchange = () => boot();
+  $('gcopy').onclick = () => {
+    const g = G(); if (!g || !g._tuneGet) return;
+    const t = g._tuneGet(cur);
+    const out = `${cur} recDeg=${t.recDeg} rpm=${t.rpm} spreadHip=${t.spreadHip} spreadScope=${t.spreadScope} dmg=${t.dmg} mag=${t.mag}\nFX light=${t.fx.light} flash=${t.fx.flash} spark=${t.fx.spark}`;
+    $('gvals').textContent = out;
+    try { navigator.clipboard.writeText(out); $('gcopy').textContent = '✓ copiado!'; setTimeout(() => $('gcopy').textContent = '📋 copiar config', 1200); } catch {}
+  };
+  function waitLive() {
+    const t0 = performance.now();
+    (function poll() {
+      const g = G();
+      if (g && g.state === 'live') { $('gstatus').textContent = 'pronto · edite ao vivo'; g._switchWeapon(cur); if (g.player) g.player.drawUntil = 0; loadCfg(); loadFx(); return; }
+      if (performance.now() - t0 > 60000) { $('gstatus').textContent = 'demorou (recarregue)'; return; }
+      setTimeout(poll, 250);
+    })();
+  }
+  function boot() { $('gstatus').textContent = 'carregando o jogo…'; iframe.src = `/?debug=1&auto=P,${$('gchar').value}`; waitLive(); }
+  return { start() { if (!started) { started = true; boot(); } }, stop() { /* deixa o jogo rodando no iframe */ } };
+}
+
 // ── abas ────────────────────────────────────────────────────────────────────
 const sideEd = document.getElementById('side-editor'), hostEd = document.getElementById('host-editor'), ovEd = document.getElementById('ov-editor');
 const sideCn = document.getElementById('side-cena'), hostCn = document.getElementById('host-cena'), ovCn = document.getElementById('ov-cena');
-const editor = initEditor(sideEd, hostEd, ovEd);
-let cena = null;
+const sideGm = document.getElementById('side-game'), hostGm = document.getElementById('host-game');
+const TOOLS = {
+  editor: { side: sideEd, host: hostEd, ov: ovEd, inst: initEditor(sideEd, hostEd, ovEd) },
+  cena: { side: sideCn, host: hostCn, ov: ovCn, inst: null, make: () => initCena(sideCn, hostCn) },
+  game: { side: sideGm, host: hostGm, ov: null, inst: null, make: () => initGame(sideGm, hostGm) },
+};
 let currentName = 'editor';
-editor.start();
+TOOLS.editor.inst.start();
 function activate(name) {
-  if (name === currentName) return;
-  (currentName === 'editor' ? editor : cena).stop();
+  if (name === currentName || !TOOLS[name]) return;
+  const prev = TOOLS[currentName]; if (prev.inst) prev.inst.stop();
   document.querySelectorAll('#devtabs button').forEach((b) => b.classList.toggle('on', b.dataset.tool === name));
-  sideEd.hidden = name !== 'editor'; hostEd.hidden = name !== 'editor'; ovEd.hidden = name !== 'editor';
-  sideCn.hidden = name !== 'cena'; hostCn.hidden = name !== 'cena'; ovCn.hidden = name !== 'cena';
-  if (name === 'cena' && !cena) cena = initCena(sideCn, hostCn);
-  (name === 'editor' ? editor : cena).start();
+  for (const key in TOOLS) { const t = TOOLS[key], on = key === name; t.side.hidden = !on; t.host.hidden = !on; if (t.ov) t.ov.hidden = !on; }
+  const next = TOOLS[name]; if (!next.inst && next.make) next.inst = next.make();
+  next.inst.start();
   currentName = name;
 }
 document.querySelectorAll('#devtabs button').forEach((b) => (b.onclick = () => activate(b.dataset.tool)));

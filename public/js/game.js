@@ -984,6 +984,7 @@ export class Game {
       this._vmFlashLight.position.set(0.1, -0.06, -0.75);   // boca do cano em view space (pose GAUNTLET 2.0)
       this.vmScene.add(this._vmFlashLight);
       this._vmFlash = { t: 1, life: 0.045, peak: 1.6 };
+      this._fxTune = { light: 1, flash: 1, spark: 1 };   // multiplicadores de FX (dev.html game-backed)
     }
     this.scene.userData.vmPass = { scene: this.vmScene, camera: this.vmCamera };
 
@@ -2483,6 +2484,30 @@ export class Game {
       if (Math.abs(this.vmCamera.fov - fov) > 0.01) { this.vmCamera.fov = fov; this.vmCamera.updateProjectionMatrix(); }
     }
   }
+  // ── DEBUG: tuning ao vivo das CONFIGS por arma (usado pelo dev.html game-backed).
+  //    Muta as tabelas REAIS (WEAPONS/REC_DEG) e os multiplicadores de FX -> efeito 1:1 com
+  //    o jogo. Sem consumidor em produção (só o dev tool chama via window.__game). ──
+  _tuneGet(w) {
+    const W = WEAPONS[w] || {};
+    return {
+      recDeg: REC_DEG[w] ?? 1.4,
+      rpm: W.rate ? Math.round(60 / W.rate) : 600,
+      spreadHip: W.spreadHip ?? 0.02,
+      spreadScope: W.spreadScope ?? (W.spreadHip ?? 0.02) * 0.35,
+      dmg: W.dmg ?? 30, mag: W.mag ?? 30, auto: !!W.auto, scope: !!W.scope,
+      fx: { ...(this._fxTune || { light: 1, flash: 1, spark: 1 }) },
+    };
+  }
+  _tune(w, p) {
+    const W = WEAPONS[w]; if (!W || !p) return;
+    if (p.rpm != null) W.rate = 60 / Math.max(30, p.rpm);
+    if (p.spreadHip != null) W.spreadHip = Math.max(0, p.spreadHip);
+    if (p.spreadScope != null) W.spreadScope = Math.max(0, p.spreadScope);
+    if (p.dmg != null) W.dmg = Math.max(1, p.dmg);
+    if (p.mag != null) W.mag = Math.max(1, Math.round(p.mag));
+    if (p.recDeg != null) REC_DEG[w] = Math.max(0, p.recDeg);
+  }
+  _fxSet(p) { this._fxTune = { light: 1, flash: 1, spark: 1, ...(this._fxTune || {}), ...(p || {}) }; }
   _switchWeapon(w) {
     const p = this.player;
     if (p.weapon === w || !p.alive || !WEAPONS[w]) return;
@@ -3264,7 +3289,8 @@ export class Game {
         // com 26 armas de comprimentos diferentes ela iluminava o vazio ao lado do cano).
         if (this._vmFlashLight) this._vmFlashLight.position.copy(off);
         const s = 0.85 + Math.random() * 0.45;
-        m.jetS = 0.22 * s; m.coreS = 0.08 * s;              // boca a ~0.35m da lente: menor que o do mundo
+        const fxf = (this._fxTune && this._fxTune.flash) ?? 1;
+        m.jetS = 0.22 * s * fxf; m.coreS = 0.08 * s * fxf;   // boca a ~0.35m da lente: menor que o do mundo
         m.jet.scale.setScalar(m.jetS); m.core.scale.setScalar(m.coreS);
         m.jetMat.rotation = Math.random() * Math.PI * 2;
         m.jetMat.opacity = 1; m.coreMat.opacity = 1; m.grp.visible = true; m.t = 0;
@@ -3275,7 +3301,8 @@ export class Game {
       if (m) {
         m.grp.position.copy(pos).addScaledVector(d, 0.05);   // leve viés à frente da boca
         const s = 0.85 + Math.random() * 0.5;                // variação por tiro (0.36–0.57m no sprite)
-        m.jetS = 0.42 * s; m.coreS = 0.15 * s;
+        const fxf = (this._fxTune && this._fxTune.flash) ?? 1;
+        m.jetS = 0.42 * s * fxf; m.coreS = 0.15 * s * fxf;
         m.jet.scale.setScalar(m.jetS); m.core.scale.setScalar(m.coreS);
         m.jetMat.rotation = Math.random() * Math.PI * 2;     // estrela nunca repete o ângulo
         m.jetMat.opacity = 1; m.coreMat.opacity = 1; m.grp.visible = true; m.t = 0;
@@ -3283,14 +3310,14 @@ export class Game {
       }
     }
     const l = this._mzLights.pop();
-    if (l) { l.position.copy(pos).addScaledVector(d, 0.12); l.intensity = 18; this._mzLightActive.push({ l, t: 0, life: 0.05 }); }
+    if (l) { l.position.copy(pos).addScaledVector(d, 0.12); l.intensity = 18 * ((this._fxTune && this._fxTune.light) ?? 1); this._mzLightActive.push({ l, t: 0, life: 0.05 }); }
     // flash na CENA DO VM: pulso breve sincronizado (ilumina a arma em 1ª pessoa)
-    if (this._vmFlash) { this._vmFlash.t = 0; if (this._vmFlashLight) this._vmFlashLight.intensity = this._vmFlash.peak; }
+    if (this._vmFlash) { this._vmFlash.t = 0; if (this._vmFlashLight) this._vmFlashLight.intensity = this._vmFlash.peak * ((this._fxTune && this._fxTune.light) ?? 1); }
     // faíscas 3D (partículas com velocidade, encolhendo) + fumacinha. No tiro do PRÓPRIO
     // jogador a boca fica a ~0.35m da lente — velocidade/tamanho reduzidos pra não virar um
     // blob flutuante deslocado do cano (crítico R7.6).
     const sparkMul = fpCls ? 0.35 : 1;
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < Math.round(5 * ((this._fxTune && this._fxTune.spark) ?? 1)); i++) {
       const v = d.clone().multiplyScalar((6 + Math.random() * 7) * sparkMul).add(new THREE.Vector3((Math.random() - 0.5) * 4.5 * sparkMul, (Math.random() - 0.5) * 4.5 * sparkMul, (Math.random() - 0.5) * 4.5 * sparkMul));
       this.flashFx.spawn(pos, { vel: v, life: 0.06 + Math.random() * 0.05, size: fpCls ? 0.07 : 0.11, grow: -0.4 });
     }
@@ -3361,14 +3388,14 @@ export class Game {
     for (let i = this._mzLightActive.length - 1; i >= 0; i--) {
       const e = this._mzLightActive[i]; e.t += dt; const k = e.t / e.life;
       if (k >= 1) { e.l.intensity = 0; this._mzLightActive.splice(i, 1); this._mzLights.push(e.l); continue; }
-      e.l.intensity = 18 * (1 - k) * (1 - k);
+      e.l.intensity = 18 * ((this._fxTune && this._fxTune.light) ?? 1) * (1 - k) * (1 - k);
     }
     // pulso do flash na vmScene: decaimento quadrático, ~45ms (sincronizado com o jato 3D)
     if (this._vmFlash && this._vmFlashLight) {
       const f = this._vmFlash;
       if (f.t < f.life) {
         f.t += dt; const k = Math.min(1, f.t / f.life);
-        this._vmFlashLight.intensity = f.peak * (1 - k) * (1 - k);
+        this._vmFlashLight.intensity = f.peak * ((this._fxTune && this._fxTune.light) ?? 1) * (1 - k) * (1 - k);
       } else if (this._vmFlashLight.intensity !== 0) this._vmFlashLight.intensity = 0;
     }
   }
