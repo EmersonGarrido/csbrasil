@@ -131,6 +131,7 @@
   #hitmark::after{height:3px;width:16px;top:-1.5px;left:-8px}
   #reticle{position:absolute;inset:0;display:none}
   #reticle svg{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:60vmin;height:60vmin;filter:drop-shadow(0 0 1px rgba(255,255,255,.85))}
+  #reticle img.ret-pu{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:82vmin;height:82vmin;object-fit:contain;filter:drop-shadow(0 0 2px rgba(255,255,255,.55))}
   #scope{position:absolute;inset:0;display:none;background:radial-gradient(circle at 50% 50%, transparent 0 30%, #000 31%, #000 100%)}
   .hint{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);font-size:12px;color:#89a;background:rgba(10,12,16,.7);padding:6px 12px;border-radius:6px;white-space:nowrap}
   .hint b{color:#7fd}
@@ -360,7 +361,7 @@ function initEditor(side, host, ov) {
     const cap = 12; ln(C - cap, 50, C + cap, 50, 2.2); ln(C - cap, 350, C + cap, 350, 2.2); ln(50, C - cap, 50, C + cap, 2.2); ln(350, C - cap, 350, C + cap, 2.2);
     return `<svg viewBox="0 0 ${V} ${V}"><g stroke="#0a0a0a" fill="none">${L.join('')}</g></svg>`;
   })();
-  const PUSVG = '<svg viewBox="0 0 400 400"><g stroke="#0a0a0a" stroke-width="5" fill="none"><line x1="16" y1="200" x2="182" y2="200"/><line x1="218" y1="200" x2="384" y2="200"/><line x1="200" y1="384" x2="200" y2="232"/></g><path d="M200 205 L197 232 L203 232 Z" fill="#0a0a0a"/></svg>';
+  const PUSVG = '<img class="ret-pu" src="./img/reticle-pu.png" alt="">';   // usa a IMAGEM enviada (PNG transparente)
   function setReticle() { elRet.innerHTML = PU_RETICLE.has(wsel.value) ? PUSVG : MILDOT; }
   setReticle();
 
@@ -640,7 +641,7 @@ function initEditor(side, host, ov) {
     const wantFov = scopeAds ? CP.hip.fov * 0.35 : L(CP.hip.fov, CP.ads.fov);
     cam.fov += (wantFov - cam.fov) * Math.min(1, dt * 12); cam.updateProjectionMatrix();
     vmCam.fov = cam.fov; vmCam.aspect = cam.aspect; vmCam.rotation.set(0, 0, 0); vmCam.updateProjectionMatrix();   // VM cam fixa: quem se mexe é a ARMA (senão o coice faz a arma "descer")
-    elScope.style.display = scopeAds ? 'block' : 'none';
+    elScope.style.display = (scopeAds && !PU_RETICLE.has(wsel.value)) ? 'block' : 'none';   // mosin: a imagem PU já tem o anel
     elRet.style.display = scopeAds ? 'block' : 'none';
     elCross.style.display = scopeAds ? 'none' : 'block';
     renderer.render(scene, cam);
