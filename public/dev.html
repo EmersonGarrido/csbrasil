@@ -14,40 +14,68 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>modo dev — bancada de viewmodel</title>
 <style>
-  :root{--sb:300px}
+  :root{--sb:308px}
   *{box-sizing:border-box}
   html,body{margin:0;height:100%;overflow:hidden;background:#12151b;font-family:'ST Mono',Consolas,monospace;color:#cfe}
+  input[type=range]{accent-color:#2fbf71}
 
   /* ── SIDEBAR ──────────────────────────────────────────────────────────────── */
   #sidebar{position:fixed;left:0;top:0;bottom:0;width:var(--sb);z-index:10;background:#0e1116;border-right:1px solid #2a3340;
-    display:flex;flex-direction:column;overflow-y:auto;padding:12px;gap:10px;font-size:13px}
-  #devtabs{display:flex;gap:4px}
-  #devtabs button{flex:1;font-family:inherit;font-size:12px;background:#1b2029;color:#9fb;border:1px solid #2a3340;border-radius:6px;padding:8px 6px;cursor:pointer}
-  #devtabs button.on{background:#2a5;border-color:#2a5;color:#031;font-weight:700}
-  .side{display:flex;flex-direction:column;gap:7px}
+    display:flex;flex-direction:column;overflow-y:auto;padding:12px;gap:12px;font-size:13px}
+  #sidebar::-webkit-scrollbar{width:9px}
+  #sidebar::-webkit-scrollbar-thumb{background:#2a3340;border-radius:5px}
+  #devtabs{display:flex;gap:5px;position:sticky;top:-12px;background:#0e1116;padding-top:2px;z-index:2}
+  #devtabs button{flex:1;font-family:inherit;font-size:12px;background:#1b2029;color:#9fb;border:1px solid #2a3340;border-radius:7px;padding:9px 6px;cursor:pointer;transition:background .12s,color .12s}
+  #devtabs button:hover{border-color:#3a4658}
+  #devtabs button.on{background:#2fbf71;border-color:#2fbf71;color:#042012;font-weight:700}
+  .side{display:flex;flex-direction:column;gap:11px}
   .side[hidden]{display:none}
-  .side h1{font-size:12px;letter-spacing:2px;color:#7fd;margin:0;text-transform:uppercase}
+
+  /* seções em cartão */
+  .grp{display:flex;flex-direction:column;gap:8px;background:#131820;border:1px solid #222c38;border-radius:9px;padding:10px 11px}
+  .cap{display:flex;justify-content:space-between;align-items:center;font-size:10px;letter-spacing:1.6px;text-transform:uppercase;color:#7fd}
+  .cap .muted{color:#5f6f7e;font-weight:400;letter-spacing:.3px;text-transform:none}
+
+  /* controle: rótulo + slider + input numérico */
+  .ctl{display:grid;grid-template-columns:74px 1fr 46px;align-items:center;gap:8px}
+  .ctl>span{font-size:12px;color:#aeb9c4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ctl input[type=range]{width:100%;min-width:0}
+  .num{width:48px;font-family:inherit;font-size:12px;background:#0b0e12;color:#7fe;border:1px solid #2a3340;border-radius:5px;padding:3px 4px;text-align:right}
+  .num:focus{outline:none;border-color:#2fbf71}
+
+  /* lista de armas (chips) */
+  #wlist{display:flex;flex-wrap:wrap;gap:4px;max-height:150px;overflow:auto}
+  #wlist button{font-family:inherit;font-size:11px;background:#1b2029;color:#9fb;border:1px solid #2a3340;border-radius:5px;padding:4px 7px;cursor:pointer;transition:background .1s}
+  #wlist button:hover{border-color:#3a4658}
+  #wlist button.done{border-color:#3f7d5b;color:#8fe0b3}
+  #wlist button.on{background:#2fbf71;border-color:#2fbf71;color:#042012;font-weight:700}
+
+  /* selects, botões, segmentado */
+  .side select{flex:1;font-family:inherit;font-size:13px;background:#1b2029;color:#cfe;border:1px solid #2a3340;border-radius:6px;padding:6px 8px}
   .side label{display:flex;justify-content:space-between;align-items:center;gap:8px}
-  .side select{flex:1;font-family:inherit;font-size:13px;background:#1b2029;color:#cfe;border:1px solid #2a3340;border-radius:5px;padding:5px 7px}
-  .side input[type=range]{flex:1;min-width:0}
-  .side .v{flex:0 0 auto;min-width:38px;text-align:right;color:#7fe;font-size:12px}
   .row{display:flex;gap:6px}
-  .row button{flex:1}
-  .btn{font-family:inherit;font-size:12px;background:#1b2029;color:#cfe;border:1px solid #2a3340;border-radius:5px;padding:7px 6px;cursor:pointer}
-  #play{background:#2a5;border-color:#2a5;color:#031;font-weight:700}
-  #wlist{display:flex;flex-wrap:wrap;gap:3px;max-height:132px;overflow:auto;border:1px solid #2a3340;border-radius:6px;padding:5px}
-  #wlist button{font-family:inherit;font-size:11px;background:#1b2029;color:#9fb;border:1px solid #2a3340;border-radius:4px;padding:3px 6px;cursor:pointer}
-  #wlist button.on{background:#2a5;border-color:#2a5;color:#031;font-weight:700}
-  #wlist button.done{border-color:#7fd;color:#7fd}
-  #vals{font-size:11px;color:#9fb;word-break:break-all;user-select:all;white-space:pre-wrap;max-height:120px;overflow:auto}
-  .leg{border-top:1px solid #2a3340;padding-top:8px;margin-top:2px;font-size:11px;color:#9fb;line-height:1.6}
+  .row>*{flex:1}
+  .btn{font-family:inherit;font-size:12px;background:#1b2029;color:#cfe;border:1px solid #2a3340;border-radius:6px;padding:8px 6px;cursor:pointer;transition:background .1s,border-color .1s}
+  .btn:hover{border-color:#3a4658;background:#212936}
+  .btn.primary{background:#2fbf71;border-color:#2fbf71;color:#042012;font-weight:700}
+  .btn.primary:hover{background:#37d07e}
+  .seg{display:flex}
+  .seg button{flex:1;font-family:inherit;font-size:12px;background:#1b2029;color:#cfe;border:1px solid #2a3340;padding:7px 8px;cursor:pointer;border-radius:0}
+  .seg button:first-child{border-radius:6px 0 0 6px}
+  .seg button:last-child{border-radius:0 6px 6px 0}
+  .seg button.on{background:#2fbf71;border-color:#2fbf71;color:#042012;font-weight:700}
+  #vals{font-size:11px;color:#9fb;word-break:break-all;user-select:all;white-space:pre-wrap;max-height:110px;overflow:auto;background:#0b0e12;border:1px solid #222c38;border-radius:6px;padding:6px 7px;display:none}
+  #vals:not(:empty){display:block}
+  #cfg{white-space:pre;font-size:12px;color:#9fb;line-height:1.6}
+
+  /* ajuda em acordeão */
+  details.help{background:#131820;border:1px solid #222c38;border-radius:9px;padding:0 11px}
+  details.help summary{cursor:pointer;list-style:none;padding:10px 0;font-size:10px;letter-spacing:1.6px;text-transform:uppercase;color:#7fd}
+  details.help summary::-webkit-details-marker{display:none}
+  details.help summary::after{content:"▾";float:right;color:#5f6f7e}
+  details.help[open] summary::after{content:"▴"}
+  .leg{padding-bottom:11px;font-size:11px;color:#9fb;line-height:1.7}
   .leg b{color:#7fd}
-  .seg{display:flex;gap:0}
-  .seg button{flex:1;font-family:inherit;font-size:13px;background:#1b2029;color:#cfe;border:1px solid #2a3340;padding:6px 8px;cursor:pointer;border-radius:0}
-  .seg button:first-child{border-radius:5px 0 0 5px}
-  .seg button:last-child{border-radius:0 5px 5px 0}
-  .seg button.on{background:#2a5;border-color:#2a5;color:#031}
-  #cfg{white-space:pre;font-size:12px;color:#9fb;line-height:1.5;border-top:1px solid #2a3340;padding-top:8px}
 
   /* ── PALCO 3D (à direita da sidebar) ──────────────────────────────────────── */
   #stage{position:fixed;left:var(--sb);top:0;right:0;bottom:0;overflow:hidden;background:#12151b}
@@ -81,39 +109,67 @@
   </div>
 
   <div class="side" id="side-editor">
-    <h1>Editor de viewmodel</h1>
-    <div id="wlist"></div>
-    <label>Modo <select id="mode"><option value="hip">Normal (quadril)</option><option value="ads">Mirado</option></select></label>
-    <label>FOV <span class="v" id="fov_v"></span><input type="range" id="fov" min="30" max="100" value="55"></label>
-    <label>tamanho <span class="v" id="sz_v"></span><input type="range" id="sz" min="20" max="100" value="56"></label>
-    <label>arma X <span class="v" id="wx_v"></span><input type="range" id="wx" min="-40" max="40" value="5"></label>
-    <label>arma Y <span class="v" id="wy_v"></span><input type="range" id="wy" min="-40" max="10" value="-12"></label>
-    <label>arma Z <span class="v" id="wz_v"></span><input type="range" id="wz" min="-70" max="-16" value="-27"></label>
-    <label>pitch <span class="v" id="rx_v"></span><input type="range" id="rx" min="-30" max="30" value="-8"></label>
-    <label>yaw <span class="v" id="ry_v"></span><input type="range" id="ry" min="-30" max="30" value="7"></label>
-    <label>inclinação <span class="v" id="wt_v"></span><input type="range" id="wt" min="-30" max="30" value="10"></label>
-    <div class="row"><button id="play" class="btn">▶ jogar (testar)</button><button id="cop" class="btn">📋 copiar</button></div>
-    <div class="row"><button id="exp" class="btn">exportar tudo</button><button id="rst" class="btn">resetar arma</button></div>
-    <div id="vals"></div>
-    <div class="leg">
-      <b>WASD</b> andar · <b>Shift</b> correr · <b>Ctrl</b> abaixar<br>
-      <b>Espaço</b> pular · <b>ESQ</b> atirar · <b>DIR</b> mirar<br>
-      clique trava o mouse · <b>Esc</b> solta · <b>R</b> repõe bots
+    <div class="grp">
+      <div class="cap">Arma <span class="muted" id="tcount"></span></div>
+      <div id="wlist"></div>
     </div>
+    <div class="grp">
+      <div class="cap">Modo</div>
+      <div class="seg" id="mode"><button data-m="hip" class="on">Quadril</button><button data-m="ads">Mirado</button></div>
+    </div>
+    <div class="grp">
+      <div class="cap">Câmera</div>
+      <div class="ctl"><span>FOV</span><input type="range" id="fov" min="30" max="100" value="55"><input class="num" type="number" id="fov_n" min="30" max="100"></div>
+      <div class="ctl"><span>Tamanho</span><input type="range" id="sz" min="20" max="100" value="56"><input class="num" type="number" id="sz_n" min="20" max="100"></div>
+    </div>
+    <div class="grp">
+      <div class="cap">Posição</div>
+      <div class="ctl"><span>X</span><input type="range" id="wx" min="-40" max="40" value="5"><input class="num" type="number" id="wx_n" min="-40" max="40"></div>
+      <div class="ctl"><span>Y</span><input type="range" id="wy" min="-40" max="10" value="-12"><input class="num" type="number" id="wy_n" min="-40" max="10"></div>
+      <div class="ctl"><span>Z</span><input type="range" id="wz" min="-70" max="-16" value="-27"><input class="num" type="number" id="wz_n" min="-70" max="-16"></div>
+    </div>
+    <div class="grp">
+      <div class="cap">Rotação</div>
+      <div class="ctl"><span>pitch</span><input type="range" id="rx" min="-30" max="30" value="-8"><input class="num" type="number" id="rx_n" min="-30" max="30"></div>
+      <div class="ctl"><span>yaw</span><input type="range" id="ry" min="-30" max="30" value="7"><input class="num" type="number" id="ry_n" min="-30" max="30"></div>
+      <div class="ctl"><span>inclinação</span><input type="range" id="wt" min="-30" max="30" value="10"><input class="num" type="number" id="wt_n" min="-30" max="30"></div>
+    </div>
+    <div class="grp">
+      <div class="cap">Ações</div>
+      <button id="play" class="btn primary">▶ testar na cena</button>
+      <div class="row"><button id="cop" class="btn">📋 copiar</button><button id="rst" class="btn">↺ resetar</button></div>
+      <button id="exp" class="btn">exportar tudo</button>
+      <div id="vals"></div>
+    </div>
+    <details class="help">
+      <summary>Controles</summary>
+      <div class="leg">
+        <b>WASD</b> andar · <b>Shift</b> correr · <b>Ctrl</b> abaixar<br>
+        <b>Espaço</b> pular · <b>ESQ</b> atirar · <b>DIR</b> mirar<br>
+        clique trava o mouse · <b>Esc</b> solta · <b>R</b> repõe bots
+      </div>
+    </details>
   </div>
 
   <div class="side" id="side-cena" hidden>
-    <h1>Personagem + arma</h1>
-    <div class="seg" id="mode2">
-      <button data-mode="char" class="on">Personagem</button>
-      <button data-mode="gun">Só a arma</button>
+    <div class="grp">
+      <div class="cap">Visualização</div>
+      <div class="seg" id="mode2">
+        <button data-mode="char" class="on">Personagem</button>
+        <button data-mode="gun">Só a arma</button>
+      </div>
+      <label>Arma <select id="wsel"></select></label>
+      <label id="crow">Personagem <select id="csel"></select></label>
     </div>
-    <label>Arma <select id="wsel"></select></label>
-    <label id="crow">Personagem <select id="csel"></select></label>
-    <div>Girar 90° (só a arma)</div>
-    <div class="row"><button class="btn" data-axis="0">X</button><button class="btn" data-axis="1">Y</button><button class="btn" data-axis="2">Z</button><button class="btn" id="rreset">zerar</button></div>
-    <button id="shot" class="btn">📷 baixar PNG</button>
-    <div id="cfg"></div>
+    <div class="grp">
+      <div class="cap">Girar 90° (só a arma)</div>
+      <div class="row"><button class="btn" data-axis="0">X</button><button class="btn" data-axis="1">Y</button><button class="btn" data-axis="2">Z</button><button class="btn" id="rreset">zerar</button></div>
+      <button id="shot" class="btn">📷 baixar PNG</button>
+    </div>
+    <div class="grp">
+      <div class="cap">Config da arma</div>
+      <div id="cfg"></div>
+    </div>
   </div>
 </div>
 
@@ -184,9 +240,11 @@ function initEditor(side, host, ov) {
   const wsel = { value: 'ak' };
   const tuned = new Set();
   const wlist = $('wlist');
+  function updateCount() { const t = $('tcount'); if (t) t.textContent = `${tuned.size}/${WEAPON_IDS.length} afinadas`; }
   function renderList() {
-    wlist.innerHTML = WEAPON_IDS.map((id) => `<button data-w="${id}" class="${id === wsel.value ? 'on' : ''} ${tuned.has(id) ? 'done' : ''}">${id}</button>`).join('');
+    wlist.innerHTML = WEAPON_IDS.map((id) => `<button data-w="${id}" class="${id === wsel.value ? 'on' : ''} ${tuned.has(id) ? 'done' : ''}" title="${tuned.has(id) ? 'afinada' : 'no padrão'}">${id}</button>`).join('');
     wlist.querySelectorAll('button').forEach((b) => (b.onclick = () => selectWeapon(b.dataset.w)));
+    updateCount();
   }
   function selectWeapon(id) { wsel.value = id; buildVM(); loadSliders(); renderList(); }
 
@@ -251,10 +309,19 @@ function initEditor(side, host, ov) {
   function save() { try { localStorage.setItem(STORE, JSON.stringify({ pose: POSE, tuned: [...tuned] })); } catch {} }
   try { const d = JSON.parse(localStorage.getItem(STORE) || '{}'); if (d.pose) Object.assign(POSE, d.pose); (d.tuned || []).forEach((x) => tuned.add(x)); } catch {}
   for (const [id, f] of Object.entries(POSE_FIXED)) { if (!POSE[id]) POSE[id] = defaultPose(id); if (f.hip) POSE[id].hip = { ...f.hip }; if (f.ads) POSE[id].ads = { ...f.ads }; tuned.add(id); }
-  function syncVals() { for (const id of SLIDERS) { const v = $(id + '_v'); if (v) v.textContent = $(id).value; } }
+  function syncVals() { for (const id of SLIDERS) { const n = $(id + '_n'); if (n) n.value = $(id).value; } }
   function loadSliders() { const p = curPose()[mode]; for (const id of SLIDERS) $(id).value = p[id]; syncVals(); }
-  for (const id of SLIDERS) $(id).addEventListener('input', () => { curPose()[mode][id] = +$(id).value; tuned.add(wsel.value); syncVals(); save(); renderList(); });
-  $('mode').onchange = () => { mode = $('mode').value; loadSliders(); };
+  function setVal(id, v) {
+    const r = $(id); v = Math.max(+r.min, Math.min(+r.max, Math.round(v)));
+    r.value = v; $(id + '_n').value = v; curPose()[mode][id] = v;
+    const was = tuned.has(wsel.value); tuned.add(wsel.value); save();
+    if (!was) renderList(); else updateCount();
+  }
+  for (const id of SLIDERS) {
+    $(id).addEventListener('input', () => setVal(id, +$(id).value));
+    $(id + '_n').addEventListener('input', () => { const n = $(id + '_n'); if (n.value !== '' && !isNaN(+n.value)) setVal(id, +n.value); });
+  }
+  side.querySelectorAll('#mode button').forEach((b) => (b.onclick = () => { mode = b.dataset.m; side.querySelectorAll('#mode button').forEach((x) => x.classList.toggle('on', x === b)); loadSliders(); }));
   const fmt = (o) => SLIDERS.map((k) => `${k}=${o[k]}`).join(' ');
   $('play').onclick = () => { renderer.domElement.requestPointerLock(); sfx.ensure && sfx.ensure(); };
   $('cop').onclick = () => {
