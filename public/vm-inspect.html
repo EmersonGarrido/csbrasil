@@ -6,7 +6,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 const qp = new URLSearchParams(location.search);
-const SRC = qp.get('src') || 'models/fpvm/arms_pistol.glb';
+const SRC = qp.get('src') || 'models/fparms/arms.glb';   // era models/fpvm/arms_pistol.glb (Tripo, removido 07/08 — dava 404 no default)
 const ATT = qp.get('att');   // debug de attachments: ?att=kind,cls (ex: att=carryhandle,rifle)
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(innerWidth, innerHeight); document.body.appendChild(renderer.domElement);
