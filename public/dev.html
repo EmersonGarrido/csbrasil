@@ -487,8 +487,7 @@ function initEditor(side, host, ov) {
     if (!grounded) { vy -= 12 * dt; pos.y += vy * dt; if (pos.y <= 0) { pos.y = 0; vy = 0; grounded = true; } }
     bob += moving ? dt * (run ? 12 : 8) : 0;
     const eyeH = (crouch ? 1.1 : 1.6);
-    cam.position.set(pos.x, pos.y + eyeH, pos.z);
-    cam.rotation.set(look.pitch + recoil.pitch, look.yaw, recoil.side * 0.4);
+    cam.position.set(pos.x, pos.y + eyeH, pos.z);   // rotação da câmera é aplicada DEPOIS do tiro (ver abaixo)
     for (const b of bots) { if (b.dead) { b.tRespawn -= dt; if (b.tRespawn <= 0) { b.dead = false; b.hp = 3; if (b.ctrl && b.ctrl._to) b.ctrl._to('idle'); } } b.ctrl && b.ctrl.update(dt, 0, false, 0); }
     const rate = RATE[wsel.value] || 105, cap = magOf(wsel.value);
     if (reloading && now >= reloadEnd) { mag = cap; reloading = false; updateAmmo(); }
@@ -504,6 +503,9 @@ function initEditor(side, host, ov) {
     for (let i = sparksA.length - 1; i >= 0; i--) { const sp = sparksA[i]; sp.t -= dt; sp.s.position.addScaledVector(sp.v, dt); sp.s.material.opacity = Math.max(0, sp.t / 0.14); if (sp.t <= 0) { sp.s.visible = false; sparkPool.push(sp.s); sparksA.splice(i, 1); } }
     for (let i = tracers.length - 1; i >= 0; i--) { const t = tracers[i]; t.userData.t -= dt; t.material.opacity = Math.max(0, t.userData.t / 0.09) * (FX.trOpacity / 100); if (t.userData.t <= 0) { scene.remove(t); tracers.splice(i, 1); } }
     if (hitT > 0) { hitT -= dt; if (hitT <= 0) elHit.style.opacity = '0'; }
+    // MIRA em sync com a ARMA: aplica o recuo na câmera AQUI (depois do tiro/decay deste frame),
+    // com o MESMO recoil.pitch/side que a arma usa logo abaixo — senão a mira fica 1 frame atrás.
+    cam.rotation.set(look.pitch + recoil.pitch, look.yaw, recoil.side * 0.4);
     const scoped = SCOPED.has(wsel.value);
     const showAds = (aiming || mode === 'ads');
     const scopeAds = showAds && scoped;
