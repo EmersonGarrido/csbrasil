@@ -1,0 +1,337 @@
+<!doctype html>
+<!-- BANCADA — SÓ A ARMA (dev-only). Viewmodel FP no estilo do jogo (Rust/CS): APENAS a arma
+     presa na câmera, sem braços e sem personagem (decisão do dono: o corpo bugava). Campo de
+     teste: andar (WASD), correr, abaixar, pular, atirar (flash+tracer+recuo+áudio), bots pra
+     mirar, e os DOIS tipos de mira — QUADRIL (arma no lower-right) e MIRA DE FERRO/LUNETA no
+     botão direito. Sliders afinam a posição da arma no quadril. Clique trava o mouse. -->
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>bancada — só a arma (dev)</title>
+<style>
+  html,body{margin:0;height:100%;overflow:hidden;background:#12151b;font-family:'ST Mono',Consolas,monospace;color:#cfe}
+  #panel{position:fixed;top:10px;left:10px;z-index:9;background:rgba(10,12,16,.86);border:1px solid #2a3340;
+    padding:12px;border-radius:8px;display:flex;flex-direction:column;gap:7px;width:240px;font-size:13px}
+  #panel h1{font-size:12px;letter-spacing:2px;color:#7fd;margin:0;text-transform:uppercase}
+  #panel label{display:flex;justify-content:space-between;align-items:center;gap:8px}
+  #panel select{flex:1;font-family:inherit;font-size:13px;background:#1b2029;color:#cfe;border:1px solid #2a3340;border-radius:5px;padding:5px 7px}
+  #panel input[type=range]{flex:1}
+  #panel .v{flex:0 0 auto;min-width:38px;text-align:right;color:#7fe;font-size:12px}
+  #wlist{display:flex;flex-wrap:wrap;gap:3px;max-height:118px;overflow:auto;border:1px solid #2a3340;border-radius:6px;padding:5px}
+  #wlist button{font-family:inherit;font-size:11px;background:#1b2029;color:#9fb;border:1px solid #2a3340;border-radius:4px;padding:3px 6px;cursor:pointer}
+  #wlist button.on{background:#2a5;border-color:#2a5;color:#031;font-weight:700}
+  #wlist button.done{border-color:#7fd;color:#7fd}
+  .row{display:flex;gap:6px}
+  .row button{flex:1}
+  .btn{font-family:inherit;font-size:12px;background:#1b2029;color:#cfe;border:1px solid #2a3340;border-radius:5px;padding:6px;cursor:pointer}
+  #play{background:#2a5;border-color:#2a5;color:#031;font-weight:700}
+  #cop{font-family:inherit;font-size:12px;background:#1b2029;color:#cfe;border:1px solid #2a3340;border-radius:5px;padding:6px;cursor:pointer}
+  #vals{font-size:11px;color:#9fb;word-break:break-all;user-select:all;white-space:pre-wrap;max-height:120px;overflow:auto}
+  .leg{border-top:1px solid #2a3340;padding-top:7px;font-size:11px;color:#9fb;line-height:1.6}
+  .leg b{color:#7fd}
+  #cross{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:5;pointer-events:none}
+  #cross::before,#cross::after{content:"";position:absolute;background:#7fe;opacity:.85}
+  #cross::before{width:2px;height:14px;left:-1px;top:-7px}
+  #cross::after{height:2px;width:14px;top:-1px;left:-7px}
+  #hitmark{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%) rotate(45deg);z-index:6;pointer-events:none;opacity:0;transition:opacity .08s}
+  #hitmark::before,#hitmark::after{content:"";position:absolute;background:#f55}
+  #hitmark::before{width:3px;height:16px;left:-1.5px;top:-8px}
+  #hitmark::after{height:3px;width:16px;top:-1.5px;left:-8px}
+  #reticle{position:fixed;inset:0;z-index:3;pointer-events:none;display:none}
+  #reticle svg{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:60vmin;height:60vmin;filter:drop-shadow(0 0 1px rgba(255,255,255,.85))}
+  #scope{position:fixed;inset:0;z-index:4;pointer-events:none;display:none;background:radial-gradient(circle at 50% 50%, transparent 0 30%, #000 31%, #000 100%)}
+  #hint{position:fixed;bottom:10px;left:50%;transform:translateX(-50%);z-index:9;font-size:12px;color:#89a;background:rgba(10,12,16,.7);padding:6px 12px;border-radius:6px}
+</style>
+<script type="importmap">
+{ "imports": { "three": "./vendor/three.module.js", "three/addons/": "./vendor/addons/" } }
+</script>
+</head>
+<body>
+<div id="panel">
+  <h1>Editor de viewmodel</h1>
+  <div id="wlist"></div>
+  <label>Modo <select id="mode"><option value="hip">Normal (quadril)</option><option value="ads">Mirado</option></select></label>
+  <label>FOV <span class="v" id="fov_v"></span><input type="range" id="fov" min="30" max="100" value="55"></label>
+  <label>tamanho <span class="v" id="sz_v"></span><input type="range" id="sz" min="20" max="100" value="56"></label>
+  <label>arma X <span class="v" id="wx_v"></span><input type="range" id="wx" min="-40" max="40" value="5"></label>
+  <label>arma Y <span class="v" id="wy_v"></span><input type="range" id="wy" min="-40" max="10" value="-12"></label>
+  <label>arma Z <span class="v" id="wz_v"></span><input type="range" id="wz" min="-70" max="-16" value="-27"></label>
+  <label>pitch <span class="v" id="rx_v"></span><input type="range" id="rx" min="-30" max="30" value="-8"></label>
+  <label>yaw <span class="v" id="ry_v"></span><input type="range" id="ry" min="-30" max="30" value="7"></label>
+  <label>inclinação <span class="v" id="wt_v"></span><input type="range" id="wt" min="-30" max="30" value="10"></label>
+  <div class="row"><button id="play">▶ jogar (testar)</button><button id="cop">📋 copiar</button></div>
+  <div class="row"><button id="exp" class="btn">exportar tudo</button><button id="rst" class="btn">resetar arma</button></div>
+  <div id="vals"></div>
+  <div class="leg">
+    <b>WASD</b> andar · <b>Shift</b> correr · <b>Ctrl</b> abaixar<br>
+    <b>Espaço</b> pular · <b>ESQ</b> atirar · <b>DIR</b> mirar<br>
+    clique trava o mouse · <b>Esc</b> solta · <b>R</b> repõe bots
+  </div>
+</div>
+<div id="cross"></div>
+<div id="hitmark"></div>
+<div id="reticle"></div>
+<div id="scope"></div>
+<div id="hint">clique na cena pra jogar · atire nos bots · botão direito mira</div>
+<script type="module">
+import * as THREE from 'three';
+import { preloadCharacterAssets, buildCharacterModel } from './js/glbchars.js';
+import { CHARACTERS } from './js/characters.js';
+import { preloadWeapons, weaponModel, WEAPON_IDS, weaponCFG } from './js/weapons.js';
+import { Sfx } from './js/audio.js';
+
+const SCOPED = new Set(['awp', 'svd', 'g3sg1', 'sks', 'mosin', 'rem700', 'm400']);
+// mira de ferro que fica melhor POSICIONADA À MÃO (sem auto-alinhar a alça medida)
+const NO_ALIGN = new Set(['pistol']);
+// POSES gravadas no código (fonte da verdade p/ levar ao jogo). Sobrescrevem o localStorage.
+const POSE_FIXED = {
+  pistol: {
+    hip: { fov: 50, sz: 43, wx: 5, wy: -10, wz: -22, rx: 0, ry: 1, wt: 3 },
+    ads: { fov: 30, sz: 89, wx: 1, wy: -10, wz: -22, rx: 0, ry: 1, wt: 3 },
+  },
+};
+const RATE = { awp: 900, mosin: 1000, rem700: 900, deagle: 260, pistol: 200, knife: 400 };
+const sfx = new Sfx();
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setSize(innerWidth, innerHeight); renderer.setPixelRatio(Math.min(2, devicePixelRatio));
+document.body.appendChild(renderer.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x12151b);
+scene.add(new THREE.HemisphereLight(0xbcd3ff, 0x30281c, 1.15));
+const dl = new THREE.DirectionalLight(0xffffff, 1.7); dl.position.set(3, 6, 4); scene.add(dl);
+const fl = new THREE.DirectionalLight(0xafd0ff, 0.5); fl.position.set(-4, 2, -3); scene.add(fl);
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(120, 120), new THREE.MeshStandardMaterial({ color: 0x232833, roughness: 0.95 }));
+floor.rotation.x = -Math.PI / 2; scene.add(floor); scene.add(new THREE.GridHelper(120, 240, 0x39485c, 0x232b36));
+for (let i = 0; i < 12; i++) { const s = 0.6 + (i % 4) * 0.5; const box = new THREE.Mesh(new THREE.BoxGeometry(s, s * 2, s), new THREE.MeshStandardMaterial({ color: 0x3a4658 })); box.position.set(Math.cos(i) * (7 + i), s, Math.sin(i * 1.7) * (7 + i)); scene.add(box); }
+const cam = new THREE.PerspectiveCamera(80, innerWidth / innerHeight, 0.05, 400);
+cam.rotation.order = 'YXZ'; scene.add(cam);
+// VIEWMODEL EM PASSE SEPARADO (como o jogo): a arma vive numa CENA PRÓPRIA, desenhada POR
+// CIMA do mundo — assim ela NUNCA "vaza"/atravessa parede nem clipa no cenário.
+const vmScene = new THREE.Scene();
+const vmCam = new THREE.PerspectiveCamera(80, innerWidth / innerHeight, 0.001, 10);
+vmScene.add(new THREE.HemisphereLight(0xdfe8ff, 0x30281c, 1.2));
+const vmDL = new THREE.DirectionalLight(0xffffff, 1.5); vmDL.position.set(0.4, 0.6, 1); vmScene.add(vmDL);
+
+// flash + tracer
+const flash = new THREE.PointLight(0xffe08a, 0, 10, 2); scene.add(flash);
+const tracerGeo = new THREE.CylinderGeometry(0.01, 0.01, 1, 5, 1, true);
+const tracers = [];
+function tracer(from, to) { const m = new THREE.Mesh(tracerGeo, new THREE.MeshBasicMaterial({ color: 0xfff3d6, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false })); const d = new THREE.Vector3().subVectors(to, from); const len = d.length(); m.position.copy(from).addScaledVector(d, 0.5); m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.clone().normalize()); m.scale.set(1, len, 1); m.userData.t = 0.09; scene.add(m); tracers.push(m); }
+
+const $ = (id) => document.getElementById(id);
+const wsel = { value: 'ak' };   // arma atual (era <select>, virou a LISTA da lateral)
+const tuned = new Set();        // armas já ajustadas (marca ✓; persiste no navegador)
+const wlist = $('wlist');
+function renderList() {
+  wlist.innerHTML = WEAPON_IDS.map((id) => `<button data-w="${id}" class="${id === wsel.value ? 'on' : ''} ${tuned.has(id) ? 'done' : ''}">${id}</button>`).join('');
+  wlist.querySelectorAll('button').forEach((b) => (b.onclick = () => selectWeapon(b.dataset.w)));
+}
+function selectWeapon(id) { wsel.value = id; buildVM(); loadSliders(); renderList(); }
+
+// retículo mil-dot da luneta
+(function buildReticle() {
+  const V = 400, C = 200, L = [];
+  const ln = (x1, y1, x2, y2, w) => L.push(`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke-width="${w}"/>`);
+  ln(C, 34, C, 366, 1.4); ln(34, C, 366, C, 1.4);
+  for (let i = 1; i * 13 <= 150; i++) { const d = i * 13, mj = i % 4 === 0, t = mj ? 8 : 4.5, w = mj ? 1.4 : 1; ln(C - t, C - d, C + t, C - d, w); ln(C - t, C + d, C + t, C + d, w); ln(C - d, C - t, C - d, C + t, w); ln(C + d, C - t, C + d, C + t, w); }
+  const cap = 12; ln(C - cap, 50, C + cap, 50, 2.2); ln(C - cap, 350, C + cap, 350, 2.2); ln(50, C - cap, 50, C + cap, 2.2); ln(350, C - cap, 350, C + cap, 2.2);
+  $('reticle').innerHTML = `<svg viewBox="0 0 ${V} ${V}"><g stroke="#0a0a0a" fill="none">${L.join('')}</g></svg>`;
+})();
+
+// ── input ─────────────────────────────────────────────────────────────────
+const keys = {};
+const look = { yaw: Math.PI, pitch: 0 };   // começa virado pros bots (+Z)
+const recoil = { pitch: 0, kick: 0 };
+let locked = false, aiming = false, shootHeld = false, lastShot = 0, jumpQueued = false;
+addEventListener('keydown', (e) => { keys[e.code] = true; if (e.code === 'Space') { jumpQueued = true; e.preventDefault(); } if (e.code === 'KeyR') spawnBots(); });
+addEventListener('keyup', (e) => { keys[e.code] = false; });
+renderer.domElement.addEventListener('click', () => { if (!locked) { renderer.domElement.requestPointerLock(); sfx.ensure && sfx.ensure(); } });
+document.addEventListener('pointerlockchange', () => { locked = document.pointerLockElement === renderer.domElement; });
+addEventListener('mousemove', (e) => { if (!locked) return; look.yaw -= e.movementX * 0.0022; look.pitch = Math.max(-1.4, Math.min(1.4, look.pitch - e.movementY * 0.0022)); });
+addEventListener('mousedown', (e) => { if (!locked) return; if (e.button === 0) shootHeld = true; if (e.button === 2) aiming = true; });
+addEventListener('mouseup', (e) => { if (e.button === 0) shootHeld = false; if (e.button === 2) aiming = false; });
+addEventListener('contextmenu', (e) => e.preventDefault());
+
+// ── viewmodel (só a arma, filha da câmera) ──────────────────────────────────
+const vm = new THREE.Group(); vmScene.add(vm);   // arma na cena do viewmodel (passe separado)
+let gun = null;
+function buildVM() {
+  if (gun) { vm.remove(gun); gun = null; }
+  const wm = weaponModel(wsel.value);
+  if (wm) { wm.rotation.y = Math.PI; gun = wm; vm.add(gun); }   // +Z do modelo (cano) -> -Z (frente da câmera)
+}
+
+// AUTO-ALINHAR MIRA: posição do vm que leva a ALÇA DE MIRA medida (met.sight) ao centro da
+// tela, com o cano reto — é assim que se corrige a "mira torta" (medido, não no olho).
+// gun.rotation.y = PI espelha X e Z; depois a escala do vm. Profundidade da alça = POSE.ads.wz.
+function adsAligned() {
+  const met = gun && gun.userData && gun.userData.metrics;
+  if (!met || !met.sight) return null;
+  const A = curPose().ads;
+  const R = Math.PI / 180, S = A.sz * 0.01;
+  // alça -> espaço do vm: rotação do modelo (Y=PI) * escala * rotação do ADS (os nudges). Contar
+  // a rotação AQUI é o que mantém a mira no centro MESMO com inclinação/pitch/yaw (senão sai torta).
+  const p = met.sight.clone().divideScalar(met.norm || 1)
+    .applyEuler(new THREE.Euler(0, Math.PI, 0)).multiplyScalar(S)
+    .applyEuler(new THREE.Euler(A.rx * R, A.ry * R, A.wt * R));
+  const Z = A.wz * 0.01;   // profundidade da alça
+  // posiciona pra a alça cair em (0,0,Z); wx/wy = nudge fino do próprio ponto de mira
+  return new THREE.Vector3(-p.x + A.wx * 0.01, -p.y + A.wy * 0.01, Z - p.z);
+}
+
+// POSE POR ARMA (cada arma tem tamanho/grip/alça diferentes). BASE = valores do dono (AK). Ao
+// trocar de arma sem pose salva, o TAMANHO já começa normalizado pelo comprimento medido (não
+// fica gigante); o resto herda a base e você afina. O mirado auto-alinha a alça por arma.
+const SLIDERS = ['fov', 'sz', 'wx', 'wy', 'wz', 'rx', 'ry', 'wt'];
+const BASE = {
+  hip: { fov: 55, sz: 67, wx: 5, wy: -10, wz: -21, rx: 0, ry: 1, wt: 3 },
+  ads: { fov: 47, sz: 68, wx: 0, wy: 1, wz: -25, rx: 0, ry: 0, wt: 0 },
+};
+const AK_LEN = 0.88;
+const POSE = {};   // id da arma -> { hip, ads }
+function defaultPose(id) {
+  const len = (weaponCFG(id) && weaponCFG(id).len) || AK_LEN;
+  const k = Math.max(0.45, Math.min(1, AK_LEN / len));           // só ENCOLHE armas LONGAS; curtas ficam pequenas (realista)
+  const sc = (b) => Math.round(Math.max(20, Math.min(100, b * k)));
+  return { hip: { ...BASE.hip, sz: sc(BASE.hip.sz) }, ads: { ...BASE.ads, sz: sc(BASE.ads.sz) } };
+}
+function curPose() { const id = wsel.value; if (!POSE[id]) POSE[id] = defaultPose(id); return POSE[id]; }
+let mode = 'hip';
+// PERSISTÊNCIA: guarda as poses ajustadas no navegador, pra você fazer 1 por 1 sem perder nada.
+const STORE = 'bancadaViewmodel';
+function save() { try { localStorage.setItem(STORE, JSON.stringify({ pose: POSE, tuned: [...tuned] })); } catch {} }
+try { const d = JSON.parse(localStorage.getItem(STORE) || '{}'); if (d.pose) Object.assign(POSE, d.pose); (d.tuned || []).forEach((x) => tuned.add(x)); } catch {}
+// aplica as POSES fixas do código por cima (a pistol vem deste jeito, quadril + mirado)
+for (const [id, f] of Object.entries(POSE_FIXED)) { if (!POSE[id]) POSE[id] = defaultPose(id); if (f.hip) POSE[id].hip = { ...f.hip }; if (f.ads) POSE[id].ads = { ...f.ads }; tuned.add(id); }
+function syncVals() { for (const id of SLIDERS) { const v = $(id + '_v'); if (v) v.textContent = $(id).value; } }
+function loadSliders() { const p = curPose()[mode]; for (const id of SLIDERS) $(id).value = p[id]; syncVals(); }
+for (const id of SLIDERS) $(id).addEventListener('input', () => { curPose()[mode][id] = +$(id).value; tuned.add(wsel.value); syncVals(); save(); renderList(); });
+$('mode').onchange = () => { mode = $('mode').value; loadSliders(); };
+const fmt = (o) => SLIDERS.map((k) => `${k}=${o[k]}`).join(' ');
+$('play').onclick = () => { renderer.domElement.requestPointerLock(); sfx.ensure && sfx.ensure(); };
+$('cop').onclick = () => {
+  const id = wsel.value, P = curPose();
+  const str = `${id} QUADRIL ${fmt(P.hip)}\n${id} MIRADO  ${fmt(P.ads)}`;
+  $('vals').textContent = str;
+  try { navigator.clipboard.writeText(str); $('cop').textContent = '✓ copiado!'; setTimeout(() => $('cop').textContent = '📋 copiar', 1200); } catch {}
+};
+$('exp').onclick = () => {   // todas as armas AJUSTADAS, pra eu gravar de vez
+  const ids = [...tuned].sort();
+  const str = ids.length ? ids.map((id) => `${id} QUADRIL ${fmt(POSE[id].hip)}\n${id} MIRADO  ${fmt(POSE[id].ads)}`).join('\n') : '(nenhuma arma ajustada ainda)';
+  $('vals').textContent = str;
+  try { navigator.clipboard.writeText(str); $('exp').textContent = '✓ copiado!'; setTimeout(() => $('exp').textContent = 'exportar tudo', 1200); } catch {}
+};
+$('rst').onclick = () => { delete POSE[wsel.value]; tuned.delete(wsel.value); loadSliders(); renderList(); save(); };
+renderList();
+loadSliders();
+
+// ── bots ────────────────────────────────────────────────────────────────────
+const bots = [];
+const SPOTS = [[5, 12], [-4, 14], [8, 9], [-9, 11], [0, 18]];
+async function spawnBots() {
+  for (const b of bots) scene.remove(b.group); bots.length = 0;
+  const enemy = CHARACTERS.filter((c) => c.team === 'B'); const pool = enemy.length ? enemy : CHARACTERS;
+  for (let i = 0; i < SPOTS.length; i++) {
+    const d = pool[i % pool.length]; await preloadCharacterAssets([d.id]);
+    const bm = buildCharacterModel(d, { weapon: true, weaponId: 'ak' }); if (!bm || !bm.group) continue;
+    if (bm.ctrl && bm.ctrl._to) bm.ctrl._to('idle'); for (let k = 0; k < 6; k++) bm.ctrl && bm.ctrl.update(1 / 30, 0, false, 0);
+    bm.group.position.set(SPOTS[i][0], 0, SPOTS[i][1]); bm.group.rotation.y = Math.PI;
+    scene.add(bm.group); bots.push({ group: bm.group, ctrl: bm.ctrl, hp: 3, dead: false, tRespawn: 0 });
+  }
+}
+
+// ── tiro ──────────────────────────────────────────────────────────────────
+const ray = new THREE.Raycaster();
+function isDesc(o, root) { let p = o; while (p) { if (p === root) return true; p = p.parent; } return false; }
+let hitT = 0;
+function hitmark() { $('hitmark').style.opacity = '1'; hitT = 0.12; }
+function fireShot() {
+  const w = wsel.value;
+  sfx.shotWeapon && sfx.shotWeapon(w, 0, 0.9);
+  const k = SCOPED.has(w) ? 0.06 : (w === 'deagle' ? 0.05 : 0.022);
+  recoil.pitch += k * (aiming ? 0.5 : 1); recoil.kick += (SCOPED.has(w) ? 0.05 : 0.02);
+  const dir = new THREE.Vector3(); cam.getWorldDirection(dir);
+  const muzzle = cam.position.clone().addScaledVector(dir, 0.6).add(new THREE.Vector3(0, -0.05, 0));
+  flash.position.copy(muzzle); flash.intensity = 7;
+  ray.set(cam.position, dir);
+  const alive = bots.filter((b) => !b.dead);
+  const hits = ray.intersectObjects(alive.map((b) => b.group), true);
+  let end = cam.position.clone().addScaledVector(dir, 60);
+  if (hits.length) { end = hits[0].point; const b = alive.find((x) => isDesc(hits[0].object, x.group)); if (b) { b.hp--; hitmark(); if (b.hp <= 0) { b.dead = true; b.tRespawn = 2.2; if (b.ctrl && b.ctrl._to) b.ctrl._to('death'); } } }
+  tracer(muzzle, end);
+}
+
+// ── loop ──────────────────────────────────────────────────────────────────
+let pos = new THREE.Vector3(0, 0, 0), vy = 0, grounded = true, bob = 0, adsT = 0;
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  // movimento (câmera livre, sem corpo)
+  const fwd = new THREE.Vector3(-Math.sin(look.yaw), 0, -Math.cos(look.yaw));
+  const right = new THREE.Vector3(Math.cos(look.yaw), 0, -Math.sin(look.yaw));
+  const mv = new THREE.Vector3();
+  if (keys['KeyW']) mv.add(fwd); if (keys['KeyS']) mv.sub(fwd);
+  if (keys['KeyD']) mv.add(right); if (keys['KeyA']) mv.sub(right);
+  const moving = mv.lengthSq() > 0;
+  const crouch = !!keys['ControlLeft'] || !!keys['ControlRight'];
+  const run = (!!keys['ShiftLeft'] || !!keys['ShiftRight']) && !crouch;
+  const speed = crouch ? 2.2 : (run ? 6.0 : 3.9);
+  if (moving) { mv.normalize().multiplyScalar(speed * dt); pos.add(mv); }
+  if (jumpQueued && grounded && !crouch) { vy = 4.2; grounded = false; } jumpQueued = false;
+  if (!grounded) { vy -= 12 * dt; pos.y += vy * dt; if (pos.y <= 0) { pos.y = 0; vy = 0; grounded = true; } }
+  bob += moving ? dt * (run ? 12 : 8) : 0;
+  // câmera
+  const eyeH = (crouch ? 1.1 : 1.6);
+  cam.position.set(pos.x, pos.y + eyeH, pos.z);
+  cam.rotation.set(look.pitch + recoil.pitch, look.yaw, 0);
+  // bots
+  for (const b of bots) { if (b.dead) { b.tRespawn -= dt; if (b.tRespawn <= 0) { b.dead = false; b.hp = 3; if (b.ctrl && b.ctrl._to) b.ctrl._to('idle'); } } b.ctrl && b.ctrl.update(dt, 0, false, 0); }
+  // tiro (auto pro que não é sniper/deagle)
+  const rate = RATE[wsel.value] || 105;
+  if (shootHeld && now - lastShot > rate) { fireShot(); lastShot = now; if (SCOPED.has(wsel.value) || wsel.value === 'deagle') shootHeld = false; }
+  // decays
+  recoil.pitch *= Math.pow(0.0001, dt); recoil.kick *= Math.pow(0.0002, dt);
+  flash.intensity *= Math.pow(0.00001, dt); if (flash.intensity < 0.05) flash.intensity = 0;
+  for (let i = tracers.length - 1; i >= 0; i--) { const t = tracers[i]; t.userData.t -= dt; t.material.opacity = Math.max(0, t.userData.t / 0.09) * 0.9; if (t.userData.t <= 0) { scene.remove(t); tracers.splice(i, 1); } }
+  if (hitT > 0) { hitT -= dt; if (hitT <= 0) $('hitmark').style.opacity = '0'; }
+  // ── posição do viewmodel: QUADRIL (sliders) <-> MIRA (centro) ──
+  const scoped = SCOPED.has(wsel.value);
+  const showAds = (aiming || mode === 'ads');   // 'Mirado' no select força a vista mirada pra tunar
+  const scopeAds = showAds && scoped;           // sniper = luneta (esconde a arma)
+  const target = (showAds && !scoped) ? 1 : 0;  // ferro: interpola QUADRIL -> MIRADO
+  adsT += (target - adsT) * Math.min(1, dt * 14);
+  // QUADRIL = pose (por arma) dos sliders. MIRADO = alça AUTO-ALINHADA no centro + nudge fino.
+  const CP = curPose();
+  const hp = [CP.hip.wx * 0.01, CP.hip.wy * 0.01, CP.hip.wz * 0.01];
+  const al = NO_ALIGN.has(wsel.value) ? null : adsAligned();
+  const ap = al ? [al.x, al.y, al.z]   // nudge x/y já embutido no adsAligned
+                : [CP.ads.wx * 0.01, CP.ads.wy * 0.01, CP.ads.wz * 0.01];
+  const L = (a, b) => a + (b - a) * adsT;
+  vm.position.set(L(hp[0], ap[0]), L(hp[1], ap[1]), L(hp[2], ap[2]));
+  vm.position.z -= recoil.kick;                          // coice: arma recua
+  vm.scale.setScalar(L(CP.hip.sz, CP.ads.sz) * 0.01);
+  const R = Math.PI / 180;
+  vm.rotation.set(L(CP.hip.rx, CP.ads.rx) * R, L(CP.hip.ry, CP.ads.ry) * R, L(CP.hip.wt, CP.ads.wt) * R);
+  vm.position.x += Math.sin(bob) * 0.006 * (1 - adsT);   // balanço de passo (some ao mirar)
+  vm.position.y += Math.abs(Math.cos(bob)) * 0.004 * (1 - adsT);
+  vm.visible = !scopeAds;
+  const wantFov = scopeAds ? CP.hip.fov * 0.35 : L(CP.hip.fov, CP.ads.fov);
+  cam.fov += (wantFov - cam.fov) * Math.min(1, dt * 12); cam.updateProjectionMatrix();
+  vmCam.fov = cam.fov; vmCam.aspect = cam.aspect; vmCam.rotation.set(recoil.pitch, 0, 0); vmCam.updateProjectionMatrix();
+  // miras
+  $('scope').style.display = scopeAds ? 'block' : 'none';
+  $('reticle').style.display = scopeAds ? 'block' : 'none';
+  $('cross').style.display = scopeAds ? 'none' : 'block';
+  renderer.render(scene, cam);                                   // 1) mundo
+  renderer.autoClear = false; renderer.clearDepth(); renderer.render(vmScene, vmCam); renderer.autoClear = true;   // 2) arma POR CIMA
+  requestAnimationFrame(frame);
+}
+addEventListener('resize', () => { cam.aspect = innerWidth / innerHeight; cam.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
+
+await preloadWeapons();
+buildVM();
+await spawnBots();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
