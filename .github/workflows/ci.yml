@@ -95,8 +95,12 @@ jobs:
         run: |
           TAG="${GITHUB_REF_NAME#v}"
           awk "/^## \\[$TAG\\]/{f=1;next}/^## \\[/{f=0}f" CHANGELOG.md > release-body.md
-          [ -s release-body.md ] || echo "Ver commits abaixo." > release-body.md
       - name: Criar GitHub Release
-        run: gh release create "${{ github.ref_name }}" --notes-file release-body.md --title "CORO SOLTO ${{ github.ref_name }}"
+        run: |
+          EXTRA=()
+          if [ -s release-body.md ]; then
+            EXTRA=(--notes "$(cat release-body.md)")
+          fi
+          gh release create "${{ github.ref_name }}" --generate-notes "${EXTRA[@]}" --title "CSBR ${{ github.ref_name }}"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
