@@ -1,0 +1,190 @@
+<!doctype html>
+<!-- BANCADA DE ARMA (dev-only, não linkada do jogo). Cena isolada: chão + personagem + arma,
+     OU a arma sozinha com as setas de orientação (+Z frente / -Z coronha). Órbita com o mouse
+     (arrasta = gira, scroll = zoom) — SEM pointer lock e SEM pause, então dá pra printar à
+     vontade (era o problema de tirar print no jogo). Serve pra testar alinhamento/mecânica da
+     arma. Reaproveita weaponModel/buildCharacterModel — a mesma verdade do jogo. -->
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>bancada — personagem + arma (dev)</title>
+<style>
+  html,body{margin:0;height:100%;background:#12151b;overflow:hidden;font-family:'ST Mono',Consolas,monospace;color:#cfe}
+  #panel{position:fixed;top:10px;left:10px;z-index:9;background:rgba(10,12,16,.82);border:1px solid #2a3340;
+    padding:12px;border-radius:8px;display:flex;flex-direction:column;gap:8px;min-width:210px;font-size:13px}
+  #panel h1{font-size:12px;letter-spacing:2px;color:#7fd;margin:0 0 2px;text-transform:uppercase}
+  #panel label{display:flex;justify-content:space-between;align-items:center;gap:8px}
+  #panel select,#panel button{font-family:inherit;font-size:13px;background:#1b2029;color:#cfe;
+    border:1px solid #2a3340;border-radius:5px;padding:6px 8px;cursor:pointer}
+  #panel select{flex:1}
+  .row{display:flex;gap:6px}
+  .row button{flex:1}
+  .seg{display:flex;gap:0}
+  .seg button{flex:1;border-radius:0}
+  .seg button:first-child{border-radius:5px 0 0 5px}
+  .seg button:last-child{border-radius:0 5px 5px 0}
+  .seg button.on{background:#2a5;border-color:#2a5;color:#031}
+  #cfg{white-space:pre;font-size:12px;color:#9fb;line-height:1.5;border-top:1px solid #2a3340;padding-top:8px}
+  #hint{position:fixed;bottom:10px;left:10px;z-index:9;font-size:12px;color:#89a;background:rgba(10,12,16,.7);padding:6px 9px;border-radius:6px}
+</style>
+<script type="importmap">
+{ "imports": { "three": "./vendor/three.module.js", "three/addons/": "./vendor/addons/" } }
+</script>
+</head>
+<body>
+<div id="panel">
+  <h1>Bancada de arma</h1>
+  <div class="seg" id="mode">
+    <button data-mode="char" class="on">Personagem</button>
+    <button data-mode="gun">Só a arma</button>
+  </div>
+  <label>Arma <select id="wsel"></select></label>
+  <label id="crow">Personagem <select id="csel"></select></label>
+  <div>Girar 90° (só a arma)</div>
+  <div class="row"><button data-axis="0">X</button><button data-axis="1">Y</button><button data-axis="2">Z</button><button id="rreset">zerar</button></div>
+  <button id="shot">📷 baixar PNG</button>
+  <div id="cfg"></div>
+</div>
+<div id="hint">arrasta = girar · scroll = zoom · o cano deve seguir a seta VERDE (+Z)</div>
+<script type="module">
+import * as THREE from 'three';
+import { preloadCharacterAssets, buildCharacterModel } from './js/glbchars.js';
+import { CHARACTERS } from './js/characters.js';
+import { preloadWeapons, weaponModel, WEAPON_IDS, weaponCFG } from './js/weapons.js';
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(2, devicePixelRatio));
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x12151b);
+scene.add(new THREE.HemisphereLight(0xbcd3ff, 0x30281c, 1.15));
+const key = new THREE.DirectionalLight(0xffffff, 1.7); key.position.set(3, 6, 4); scene.add(key);
+const fill = new THREE.DirectionalLight(0xafd0ff, 0.5); fill.position.set(-4, 2, -3); scene.add(fill);
+// chão
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(20, 20), new THREE.MeshStandardMaterial({ color: 0x232833, roughness: 0.95 }));
+floor.rotation.x = -Math.PI / 2; scene.add(floor);
+scene.add(new THREE.GridHelper(20, 40, 0x39485c, 0x232b36));
+
+const cam = new THREE.PerspectiveCamera(42, innerWidth / innerHeight, 0.02, 200);
+
+/* órbita própria (o vendor não traz OrbitControls): esférica em torno de um alvo.
+   arrasta gira, scroll aproxima. Sem pointer lock — é o que deixa printar à vontade. */
+const orbit = { target: new THREE.Vector3(0, 1.05, 0), theta: 0.6, phi: 1.25, r: 3.4 };
+function applyCam() {
+  const { target: t, theta, phi, r } = orbit;
+  cam.position.set(
+    t.x + r * Math.sin(phi) * Math.sin(theta),
+    t.y + r * Math.cos(phi),
+    t.z + r * Math.sin(phi) * Math.cos(theta));
+  cam.lookAt(t);
+}
+let drag = null;
+renderer.domElement.addEventListener('pointerdown', (e) => { drag = { x: e.clientX, y: e.clientY }; });
+addEventListener('pointerup', () => { drag = null; });
+addEventListener('pointermove', (e) => {
+  if (!drag) return;
+  orbit.theta -= (e.clientX - drag.x) * 0.008;
+  orbit.phi = Math.max(0.15, Math.min(Math.PI - 0.15, orbit.phi - (e.clientY - drag.y) * 0.008));
+  drag = { x: e.clientX, y: e.clientY };
+});
+renderer.domElement.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  orbit.r = Math.max(0.4, Math.min(12, orbit.r + e.deltaY * 0.002));
+}, { passive: false });
+
+// ── estado ──────────────────────────────────────────────────────────────────
+const qp = new URLSearchParams(location.search);
+let mode = qp.get('mode') || 'char';
+let weaponId = qp.get('w') || 'ak';
+let charId = qp.get('char') || 'mst';
+const delta = [0, 0, 0];   // graus extras aplicados na arma (modo "só a arma"), passos de 90
+let current = null;        // grupo na cena
+
+const wsel = document.getElementById('wsel');
+wsel.innerHTML = WEAPON_IDS.map((id) => `<option value="${id}">${id}</option>`).join('');
+wsel.value = weaponId;
+const csel = document.getElementById('csel');
+csel.innerHTML = CHARACTERS.map((c) => `<option value="${c.id}">${c.id}</option>`).join('');
+csel.value = charId;
+
+function clearCurrent() { if (current) { scene.remove(current); current = null; } }
+function arrow(dir, len, color) {
+  return new THREE.ArrowHelper(new THREE.Vector3(...dir), new THREE.Vector3(0, 1.05, 0), len, color, len * 0.14, len * 0.08);
+}
+
+async function buildGun() {
+  clearCurrent();
+  const g = new THREE.Group();
+  g.add(arrow([0, 0, 1], 0.9, 0x00ff44));   // +Z = frente (o cano tem que seguir esta)
+  g.add(arrow([0, 0, -1], 0.55, 0xff3344));  // -Z = coronha
+  const wm = weaponModel(weaponId);
+  if (wm) { wm.position.set(0, 1.05, 0); wm.rotation.set(delta[0] * Math.PI / 180, delta[1] * Math.PI / 180, delta[2] * Math.PI / 180); g.add(wm); }
+  scene.add(g); current = g;
+  orbit.target.set(0, 1.05, 0);
+  refreshCfg();
+}
+
+async function buildChar() {
+  clearCurrent();
+  await preloadCharacterAssets([charId]);
+  const def = CHARACTERS.find((c) => c.id === charId) || { id: charId, team: 'E' };
+  const built = buildCharacterModel(def, { weapon: true, weaponId });
+  if (built && built.group) {
+    if (built.ctrl && built.ctrl._to) built.ctrl._to('idle');
+    for (let i = 0; i < 12; i++) if (built.ctrl) built.ctrl.update(1 / 30, 0, false, 0);
+    built.group.updateMatrixWorld(true);
+    scene.add(built.group); current = built.group;
+  }
+  scene.add(arrowChar());
+  orbit.target.set(0, 1.05, 0);
+  refreshCfg();
+}
+let _charArrow = null;
+function arrowChar() { if (_charArrow) scene.remove(_charArrow); _charArrow = arrow([0, 0, 1], 1.3, 0x00ff44); return _charArrow; }
+
+function refreshCfg() {
+  const c = weaponCFG(weaponId) || {};
+  const el = document.getElementById('cfg');
+  el.textContent =
+    `arma: ${weaponId}\n` +
+    `rot CFG: [${(c.rot || []).join(', ')}]\n` +
+    `len: ${c.len}  gripZ: ${c.gripZ}\n` +
+    `vm: ${c.vm ?? 1}\n` +
+    (mode === 'gun' ? `giro extra: [${delta.join(', ')}]` : `(modo personagem)`);
+}
+
+async function rebuild() { if (mode === 'gun') await buildGun(); else await buildChar(); }
+
+// ── UI ────────────────────────────────────────────────────────────────────
+document.querySelectorAll('#mode button').forEach((b) => b.onclick = async () => {
+  mode = b.dataset.mode;
+  document.querySelectorAll('#mode button').forEach((x) => x.classList.toggle('on', x === b));
+  document.getElementById('crow').style.display = mode === 'char' ? '' : 'none';
+  await rebuild();
+});
+wsel.onchange = async () => { weaponId = wsel.value; await rebuild(); };
+csel.onchange = async () => { charId = csel.value; await rebuild(); };
+document.querySelectorAll('[data-axis]').forEach((b) => b.onclick = async () => {
+  const a = +b.dataset.axis; delta[a] = (delta[a] + 90) % 360; if (mode === 'gun') await buildGun();
+});
+document.getElementById('rreset').onclick = async () => { delta[0] = delta[1] = delta[2] = 0; if (mode === 'gun') await buildGun(); };
+document.getElementById('shot').onclick = () => {
+  renderer.render(scene, cam);
+  const a = document.createElement('a');
+  a.download = `bancada-${mode}-${weaponId}${mode === 'char' ? '-' + charId : ''}.png`;
+  a.href = renderer.domElement.toDataURL('image/png'); a.click();
+};
+addEventListener('resize', () => { cam.aspect = innerWidth / innerHeight; cam.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
+
+// ── boot ────────────────────────────────────────────────────────────────────
+await preloadWeapons();
+document.getElementById('crow').style.display = mode === 'char' ? '' : 'none';
+document.querySelectorAll('#mode button').forEach((x) => x.classList.toggle('on', x.dataset.mode === mode));
+await rebuild();
+(function loop() { applyCam(); renderer.render(scene, cam); requestAnimationFrame(loop); })();
+</script>
+</body>
+</html>
