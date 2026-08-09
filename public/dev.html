@@ -287,6 +287,7 @@ function initEditor(side, host, ov) {
   const keys = {};
   const look = { yaw: Math.PI, pitch: 0 };
   const recoil = { pitch: 0, kick: 0, side: 0 };
+  let recHold = 0;   // segura o coice antes de recuperar (deixa VER o recuo)
   let locked = false, aiming = false, shootHeld = false, lastShot = 0, jumpQueued = false;
   addEventListener('keydown', (e) => { if (!running) return; keys[e.code] = true; if (e.code === 'Space') { jumpQueued = true; e.preventDefault(); } if (e.code === 'KeyR') spawnBots(); });
   addEventListener('keyup', (e) => { if (!running) return; keys[e.code] = false; });
@@ -426,9 +427,10 @@ function initEditor(side, host, ov) {
     // 3 · RECUO (base por arma × multiplicadores do FX)
     const bp = SCOPED.has(w) ? 0.06 : (w === 'deagle' ? 0.05 : 0.022);
     const bk = SCOPED.has(w) ? 0.05 : 0.02;
-    recoil.pitch += bp * (aiming ? 0.5 : 1) * (FX.rise / 100);
-    recoil.kick += bk * (FX.kick / 100);
-    recoil.side += (Math.random() * 2 - 1) * 0.03 * (FX.side / 100);
+    recoil.pitch = Math.min(0.7, recoil.pitch + bp * (aiming ? 0.5 : 1) * (FX.rise / 100));
+    recoil.kick = Math.min(0.12, recoil.kick + bk * (FX.kick / 100));
+    recoil.side += (Math.random() * 2 - 1) * 0.045 * (FX.side / 100);
+    recHold = 0.11;   // segura ~110ms: durante a rajada a tela SOBE e fica subida
     const dir = new THREE.Vector3(); cam.getWorldDirection(dir);
     const wMuzzle = cam.position.clone().addScaledVector(dir, 0.6).add(new THREE.Vector3(0, -0.05, 0));
     const col = warm();
@@ -482,8 +484,8 @@ function initEditor(side, host, ov) {
     for (const b of bots) { if (b.dead) { b.tRespawn -= dt; if (b.tRespawn <= 0) { b.dead = false; b.hp = 3; if (b.ctrl && b.ctrl._to) b.ctrl._to('idle'); } } b.ctrl && b.ctrl.update(dt, 0, false, 0); }
     const rate = RATE[wsel.value] || 105;
     if (shootHeld && now - lastShot > rate) { fireShot(); lastShot = now; if (SCOPED.has(wsel.value) || wsel.value === 'deagle') shootHeld = false; }
-    const rc = FX.recover / 100;
-    recoil.pitch *= Math.pow(0.0001, dt * rc); recoil.kick *= Math.pow(0.0002, dt * rc); recoil.side *= Math.pow(0.0001, dt * rc);
+    if (recHold > 0) recHold -= dt;   // hold: não recupera enquanto a rajada está viva
+    else { const kf = Math.pow(0.03, dt * (FX.recover / 100)); recoil.pitch *= kf; recoil.kick *= kf; recoil.side *= kf; }
     flash.intensity *= Math.pow(0.00001, dt); if (flash.intensity < 0.05) flash.intensity = 0;
     if (mzT > 0) { mzT -= dt; mzFlash.material.opacity = Math.max(0, mzT / (FX.flashLife / 1000)); if (mzT <= 0) mzFlash.visible = false; }
     if (vmFlashT > 0) { vmFlashT -= dt; vmFlashL.intensity = FX.lightInt * Math.max(0, vmFlashT / (FX.lightLife / 1000)); if (vmFlashT <= 0) vmFlashL.intensity = 0; }
@@ -504,7 +506,7 @@ function initEditor(side, host, ov) {
     vm.position.z -= recoil.kick;
     vm.scale.setScalar(L(CP.hip.sz, CP.ads.sz) * 0.01);
     const R = Math.PI / 180;
-    vm.rotation.set(L(CP.hip.rx, CP.ads.rx) * R, L(CP.hip.ry, CP.ads.ry) * R, L(CP.hip.wt, CP.ads.wt) * R + recoil.side * 0.6);
+    vm.rotation.set(L(CP.hip.rx, CP.ads.rx) * R - recoil.kick * 1.6, L(CP.hip.ry, CP.ads.ry) * R, L(CP.hip.wt, CP.ads.wt) * R + recoil.side * 0.6);
     vm.position.x += Math.sin(bob) * 0.006 * (1 - adsT);
     vm.position.y += Math.abs(Math.cos(bob)) * 0.004 * (1 - adsT);
     vm.visible = !scopeAds;
