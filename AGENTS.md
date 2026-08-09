@@ -67,9 +67,13 @@ O porquê completo de cada regra da fronteira está em
 
 ## As leis da casa
 
-Não são estilo. Cada uma custou dias, e cada uma está documentada no código com o caso real
-que a gerou — os casos completos estão em
+Não são estilo. Cada uma custou dias; os casos completos estão em
 [`docs/docs/quality-gates.md`](docs/docs/quality-gates.md).
+
+**Comentários no código têm orçamento quase zero.** Não narre o que a linha faz nem cole o
+histórico da investigação. Só comente uma invariante, compatibilidade ou risco que os nomes não
+consigam expressar, em no máximo duas linhas, apontando para a issue ou doc quando precisar de
+contexto. Evidência, antes/depois e cronologia ficam em `KNOWN-BUGS.md` ou `docs/`.
 
 **1 · Régua antes do conserto.** Escreva a medição, prove que ela **reprova** o estado atual,
 só então conserte. Intenção que não vira invariante é otimizada para fora: uma rodada levou o
