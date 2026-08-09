@@ -40,6 +40,16 @@ import path from 'node:path';
 const ALVOS = [
   'dist/client/models/fpvm',
   '.vercel/output/static/models/fpvm',
+  // BANCADAS de viewmodel (dev-only): ficam em public/ pra o `astro dev` servir na
+  // máquina de quem desenvolve, mas NÃO podem ir pro ar (seriam URLs públicas
+  // /bancada*.html). Mesmo tratamento do fpvm: poda do dist E do espelho da Vercel,
+  // então em produção dão 404. Continuam valendo em `npm run dev`.
+  'dist/client/bancada.html',
+  'dist/client/bancada-fp.html',
+  'dist/client/bancada-corpo.html',
+  '.vercel/output/static/bancada.html',
+  '.vercel/output/static/bancada-fp.html',
+  '.vercel/output/static/bancada-corpo.html',
 ];
 
 function tamanho(dir) {
@@ -60,7 +70,8 @@ if (process.env.KEEP_FPVM === '1') {
 let total = 0, podados = 0;
 for (const alvo of ALVOS) {
   if (!existsSync(alvo)) continue;
-  const b = tamanho(alvo);
+  const st = statSync(alvo);
+  const b = st.isDirectory() ? tamanho(alvo) : st.size;   // ALVOS tem pasta (fpvm) E arquivo (bancadas)
   rmSync(alvo, { recursive: true, force: true });
   total += b; podados++;
   console.log(`  poda: ${alvo} (${mb(b)})`);
