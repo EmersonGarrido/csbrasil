@@ -42,6 +42,16 @@
   #fxTiro .ctl,#fxLuz .ctl,#recEd .ctl{grid-template-columns:92px 1fr 48px}
   #gcfg .ctl,#gfx .ctl{grid-template-columns:112px 1fr 56px}
   #host-game iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+  /* preview do HUD de armas (estilo CS) sobreposto ao jogo real */
+  #wephud{position:absolute;right:16px;top:50%;transform:translateY(-50%);z-index:6;display:flex;flex-direction:column;gap:6px;pointer-events:none}
+  #wephud .slot{display:flex;align-items:center;gap:10px;background:rgba(10,12,16,.55);border:1px solid #2a3340;border-left:3px solid #3a4658;border-radius:7px;padding:7px 13px 7px 9px;min-width:184px;color:#9fb}
+  #wephud .slot.on{background:rgba(47,191,113,.18);border-color:#2fbf71;border-left-color:#2fbf71;color:#eafff2}
+  #wephud .slot .k{font-size:13px;color:#7fd;min-width:14px;text-align:center;opacity:.75}
+  #wephud .slot.on .k{color:#2fbf71;opacity:1}
+  #wephud .slot .ic{width:48px;height:20px;display:flex;align-items:center;justify-content:flex-end}
+  #wephud .slot .ic svg{width:100%;height:100%;fill:currentColor}
+  #wephud .slot .nm{flex:1;font-size:12px;letter-spacing:.5px;text-transform:uppercase}
+  #wephud .slot .am{font-size:12px;color:#7fe;font-variant-numeric:tabular-nums}
   .ctl input[type=range]{width:100%;min-width:0}
   .num{width:48px;font-family:inherit;font-size:12px;background:#0b0e12;color:#7fe;border:1px solid #2a3340;border-radius:5px;padding:3px 4px;text-align:right}
   .num:focus{outline:none;border-color:#2fbf71}
@@ -188,6 +198,7 @@
       <label>Personagem <select id="gchar"></select></label>
       <label>Arma <select id="gwep"></select></label>
       <label class="chk"><input type="checkbox" id="gvmlab" checked> viewmodel afinado (minhas poses)</label>
+      <label class="chk"><input type="checkbox" id="ghud" checked> preview do HUD de armas (CS)</label>
     </div>
     <div class="grp"><div class="cap">Config da arma <span class="muted">real</span></div><div id="gcfg"></div></div>
     <div class="grp"><div class="cap">Recuo <span class="muted" id="grecls">real</span></div><div id="grec"></div></div>
@@ -760,6 +771,35 @@ function initGame(side, host) {
   iframe.setAttribute('allow', 'fullscreen'); host.appendChild(iframe);
   const G = () => { try { return iframe.contentWindow.__game; } catch { return null; } };
   let cur = 'ak', started = false;
+  // ── PREVIEW do HUD de armas (estilo CS): slots 1/2/3/4 com ícone + número, lendo o loadout real
+  const hud = document.createElement('div'); hud.id = 'wephud'; host.appendChild(hud);
+  const PIST = new Set(['pistol', 'deagle', 'revolver38']);
+  const ICON = {
+    rifle: '<svg viewBox="0 0 48 18"><rect x="2" y="7" width="34" height="4"/><rect x="34" y="6.5" width="12" height="2"/><rect x="11" y="11" width="5" height="6"/><rect x="2" y="6" width="4" height="6"/></svg>',
+    pistol: '<svg viewBox="0 0 32 20"><rect x="4" y="4" width="22" height="5"/><rect x="8" y="9" width="7" height="9"/></svg>',
+    knife: '<svg viewBox="0 0 40 16"><path d="M2 8 L26 3 L30 8 L26 10 Z"/><rect x="30" y="6" width="8" height="4"/></svg>',
+    nade: '<svg viewBox="0 0 20 20"><circle cx="10" cy="12" r="6"/><rect x="8" y="2" width="4" height="4"/></svg>',
+  };
+  const catOf = (w) => (w === 'knife' ? 'knife' : (PIST.has(w) ? 'pistol' : 'rifle'));
+  function updateHud() {
+    const g = G();
+    if (!g || !g.player || !($('ghud') && $('ghud').checked)) { hud.style.display = 'none'; return; }
+    hud.style.display = 'flex';
+    const p = g.player, slots = [];
+    if (p.primary) slots.push({ k: 1, w: p.primary });
+    slots.push({ k: 2, w: p.secondary || 'pistol' });
+    slots.push({ k: 3, w: 'knife' });
+    if (p.smokes > 0) slots.push({ k: 4, w: 'nade', nm: 'granada', count: p.smokes });
+    hud.innerHTML = slots.map((s) => {
+      const on = s.w === p.weapon;
+      const cat = s.w === 'nade' ? 'nade' : catOf(s.w);
+      const nm = s.nm || s.w.toUpperCase();
+      const a = p.ammo && p.ammo[s.w];
+      const am = s.count != null ? ('×' + s.count) : (s.w === 'knife' ? '' : (a ? `${a.mag}/${a.res}` : ''));
+      return `<div class="slot ${on ? 'on' : ''}"><span class="k">${s.k}</span><span class="ic">${ICON[cat]}</span><span class="nm">${nm}</span><span class="am">${am}</span></div>`;
+    }).join('');
+  }
+  setInterval(updateHud, 250);
   // parâmetros REAIS por arma (WEAPONS/REC_DEG) + FX (multiplicadores globais)
   // config da arma (WEAPONS[w])
   const CFG = {
