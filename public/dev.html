@@ -360,7 +360,7 @@ function initEditor(side, host, ov) {
     const cap = 12; ln(C - cap, 50, C + cap, 50, 2.2); ln(C - cap, 350, C + cap, 350, 2.2); ln(50, C - cap, 50, C + cap, 2.2); ln(350, C - cap, 350, C + cap, 2.2);
     return `<svg viewBox="0 0 ${V} ${V}"><g stroke="#0a0a0a" fill="none">${L.join('')}</g></svg>`;
   })();
-  const PUSVG = '<svg viewBox="0 0 400 400"><g stroke="#0a0a0a" stroke-width="5" fill="none"><line x1="14" y1="200" x2="176" y2="200"/><line x1="224" y1="200" x2="386" y2="200"/><line x1="200" y1="386" x2="200" y2="216"/></g><path d="M200 200 L194 216 L206 216 Z" fill="#0a0a0a"/></svg>';
+  const PUSVG = '<svg viewBox="0 0 400 400"><g stroke="#0a0a0a" stroke-width="5" fill="none"><line x1="16" y1="200" x2="182" y2="200"/><line x1="218" y1="200" x2="384" y2="200"/><line x1="200" y1="384" x2="200" y2="232"/></g><path d="M200 205 L197 232 L203 232 Z" fill="#0a0a0a"/></svg>';
   function setReticle() { elRet.innerHTML = PU_RETICLE.has(wsel.value) ? PUSVG : MILDOT; }
   setReticle();
 
