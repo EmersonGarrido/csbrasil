@@ -39,7 +39,7 @@
   /* controle: rótulo + slider + input numérico */
   .ctl{display:grid;grid-template-columns:74px 1fr 46px;align-items:center;gap:8px}
   .ctl>span{font-size:12px;color:#aeb9c4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  #fxTiro .ctl,#fxLuz .ctl,#fxRecuo .ctl{grid-template-columns:92px 1fr 42px}
+  #fxTiro .ctl,#fxLuz .ctl,#recEd .ctl{grid-template-columns:92px 1fr 48px}
   #gcfg .ctl,#gfx .ctl{grid-template-columns:112px 1fr 56px}
   #host-game iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
   .ctl input[type=range]{width:100%;min-width:0}
@@ -141,9 +141,9 @@
       <div class="ctl"><span>yaw</span><input type="range" id="ry" min="-30" max="30" value="7"><input class="num" type="number" id="ry_n" min="-30" max="30"></div>
       <div class="ctl"><span>inclinação</span><input type="range" id="wt" min="-30" max="30" value="10"><input class="num" type="number" id="wt_n" min="-30" max="30"></div>
     </div>
+    <div class="grp"><div class="cap">Recuo <span class="muted" id="recEdCls">real (jogo)</span></div><div id="recEd"></div></div>
     <div class="grp"><div class="cap">Efeito do tiro <span class="muted">FX</span></div><div id="fxTiro"></div></div>
     <div class="grp"><div class="cap">Fogo / luz <span class="muted">FX</span></div><div id="fxLuz"></div></div>
-    <div class="grp"><div class="cap">Recuo <span class="muted">FX</span></div><div id="fxRecuo"></div></div>
     <div class="grp">
       <div class="cap">Ações</div>
       <button id="play" class="btn primary">▶ testar na cena</button>
@@ -224,6 +224,7 @@ import { preloadCharacterAssets, buildCharacterModel } from './js/glbchars.js';
 import { CHARACTERS } from './js/characters.js';
 import { preloadWeapons, weaponModel, WEAPON_IDS, weaponCFG } from './js/weapons.js';
 import { Sfx } from './js/audio.js';
+import { REC_DEG, RECOIL_CLASS, RECOIL_PATTERN, RECOIL_PARAMS, REC, buildRecoilPattern, vmKickAmp } from './js/recoil.js';   // recuo REAL do jogo
 
 await preloadWeapons();
 
@@ -258,12 +259,21 @@ function initEditor(side, host, ov) {
     lightInt: { min: 0, max: 24, val: 8, cap: 'luz forte' },          // intensidade
     warmth: { min: 0, max: 100, val: 60, cap: 'luz calor' },          // 0=frio(branco) 100=quente(laranja)
     lightLife: { min: 20, max: 220, val: 55, cap: 'luz dur.' },       // ms
-    kick: { min: 0, max: 300, val: 100, cap: 'kick' },               // % do recuo pra trás
-    rise: { min: 0, max: 300, val: 100, cap: 'subida' },             // % da subida do cano (pitch)
-    side: { min: 0, max: 300, val: 100, cap: 'lateral' },            // % do jolt lateral
-    recover: { min: 20, max: 400, val: 100, cap: 'recuperar' },      // % da velocidade de volta
   };
-  const FXGROUPS = { fxTiro: ['flashSize', 'flashLife', 'sparks', 'trThick', 'trOpacity'], fxLuz: ['lightInt', 'warmth', 'lightLife'], fxRecuo: ['kick', 'rise', 'side', 'recover'] };
+  const FXGROUPS = { fxTiro: ['flashSize', 'flashLife', 'sparks', 'trThick', 'trOpacity'], fxLuz: ['lightInt', 'warmth', 'lightLife'] };
+  // RECUO REAL (dados de recoil.js): editar aqui muda o recuo do editor NA HORA (é o mesmo
+  // modelo do jogo). força por arma + padrão da classe + timing global.
+  const RECED = {
+    recDeg: { min: 0, max: 6, step: 0.05, cap: 'força (graus)' },
+    up: { min: 0, max: 1, step: 0.02, cap: 'subida meio' },
+    cauda: { min: 0, max: 1, step: 0.02, cap: 'subida fim' },
+    left: { min: 0, max: 1, step: 0.02, cap: 'p/ esquerda' },
+    right: { min: 0, max: 1, step: 0.02, cap: 'p/ direita' },
+    wig: { min: 0, max: 1, step: 0.02, cap: 'aleatório' },
+    recover: { min: 0.03, max: 1, step: 0.01, cap: 'recuperação s' },
+    hold: { min: 0, max: 1, step: 0.02, cap: 'segura s' },
+    perm: { min: 0, max: 1, step: 0.02, cap: 'permanente' },
+  };
   const FX = {}; for (const k in FXDEF) FX[k] = FXDEF[k].val;
   try { Object.assign(FX, JSON.parse(localStorage.getItem('devFX') || '{}')); } catch {}
   function saveFX() { try { localStorage.setItem('devFX', JSON.stringify(FX)); } catch {} }
@@ -303,7 +313,7 @@ function initEditor(side, host, ov) {
     wlist.querySelectorAll('button').forEach((b) => (b.onclick = () => selectWeapon(b.dataset.w)));
     updateCount();
   }
-  function selectWeapon(id) { wsel.value = id; mag = magOf(id); reloading = false; buildVM(); loadSliders(); renderList(); updateAmmo(); }
+  function selectWeapon(id) { wsel.value = id; mag = magOf(id); reloading = false; buildVM(); loadSliders(); renderList(); updateAmmo(); if (typeof loadRec === 'function') loadRec(); }
 
   (function buildReticle() {
     const V = 400, C = 200, L = [];
@@ -317,8 +327,10 @@ function initEditor(side, host, ov) {
   let running = false, raf = 0;
   const keys = {};
   const look = { yaw: Math.PI, pitch: 0 };
-  const recoil = { pitch: 0, kick: 0, side: 0 };
-  let recHold = 0;   // segura o coice antes de recuperar (deixa VER o recuo)
+  // RECUO REAL (dados de recoil.js — mesmo modelo do jogo): view-punch que serpenteia/aleatório/recupera
+  let gTime = 0, rSpray = 0, rLast = -9, wkick = 0;
+  const rp = { ty: 0, tx: 0, y: 0, x: 0, sh: 0 };
+  const PISTOLISH = new Set(['pistol', 'deagle', 'revolver38']);
   let locked = false, aiming = false, shootHeld = false, lastShot = 0, jumpQueued = false;
   addEventListener('keydown', (e) => { if (!running) return; keys[e.code] = true; if (e.code === 'Space') { jumpQueued = true; e.preventDefault(); } if (e.code === 'KeyR') { mag = magOf(wsel.value); reloading = false; updateAmmo(); spawnBots(); } });
   addEventListener('keyup', (e) => { if (!running) return; keys[e.code] = false; });
@@ -410,6 +422,29 @@ function initEditor(side, host, ov) {
     r.addEventListener('input', () => setf(+r.value));
     n.addEventListener('input', () => { if (n.value !== '' && !isNaN(+n.value)) setf(+n.value); });
   }
+  // RECUO REAL: os controles editam recoil.js (REC_DEG/RECOIL_PARAMS/REC) — muda o recuo do editor na hora
+  $('recEd').innerHTML = Object.entries(RECED).map(([k, d]) => `<div class="ctl"><span title="${d.cap}">${d.cap}</span><input type="range" id="rc_${k}" min="${d.min}" max="${d.max}" step="${d.step}"><input class="num" type="number" id="rc_${k}_n" min="${d.min}" max="${d.max}" step="${d.step}"></div>`).join('');
+  const RCMAP = { up: 'mid', cauda: 'tail', left: 'left', right: 'right', wig: 'wig' };
+  function recGet() {
+    const w = wsel.value, cls = RECOIL_CLASS[w] || 'semi', P = RECOIL_PARAMS[cls] || {};
+    return { recDeg: REC_DEG[w] ?? 1.4, up: P.mid ?? 0.42, cauda: P.tail ?? 0.2, left: P.left ?? 0.56, right: P.right ?? 0.68, wig: P.wig ?? 0.3, recover: REC.tau, hold: REC.hold, perm: REC.perm };
+  }
+  function recSet(k, v) {
+    const w = wsel.value, cls = RECOIL_CLASS[w] || 'semi';
+    if (k === 'recDeg') REC_DEG[w] = v;
+    else if (k === 'recover') REC.tau = v;
+    else if (k === 'hold') REC.hold = v;
+    else if (k === 'perm') REC.perm = v;
+    else { const P = RECOIL_PARAMS[cls] || (RECOIL_PARAMS[cls] = {}); P[RCMAP[k]] = v; RECOIL_PATTERN[cls] = buildRecoilPattern(P); }
+  }
+  function loadRec() { const t = recGet(); for (const k in RECED) { const r = $('rc_' + k); if (r) { r.value = t[k]; $('rc_' + k + '_n').value = t[k]; } } const cl = $('recEdCls'); if (cl) cl.textContent = `real · classe ${RECOIL_CLASS[wsel.value] || 'semi'}`; }
+  for (const k in RECED) {
+    const r = $('rc_' + k), n = $('rc_' + k + '_n');
+    const set = (v) => { v = Math.max(+r.min, Math.min(+r.max, v)); r.value = v; n.value = v; recSet(k, v); };
+    r.addEventListener('input', () => set(+r.value));
+    n.addEventListener('input', () => { if (n.value !== '' && !isNaN(+n.value)) set(+n.value); });
+  }
+  loadRec();
   const fmt = (o) => SLIDERS.map((k) => `${k}=${o[k]}`).join(' ');
   $('play').onclick = () => { renderer.domElement.requestPointerLock(); sfx.ensure && sfx.ensure(); };
   $('cop').onclick = () => {
@@ -425,7 +460,10 @@ function initEditor(side, host, ov) {
     try { navigator.clipboard.writeText(str); $('exp').textContent = '✓ copiado!'; setTimeout(() => $('exp').textContent = 'exportar tudo', 1200); } catch {}
   };
   $('cfx').onclick = () => {
-    const str = 'FX ' + Object.keys(FXDEF).map((k) => `${k}=${FX[k]}`).join(' ');
+    const t = recGet(), w = wsel.value, cls = RECOIL_CLASS[w] || 'semi';
+    const rec = `${w} RECUO(classe ${cls}) recDeg=${t.recDeg} up=${t.up} cauda=${t.cauda} left=${t.left} right=${t.right} wig=${t.wig} recover=${t.recover} hold=${t.hold} perm=${t.perm}`;
+    const fx = 'FX ' + Object.keys(FXDEF).map((k) => `${k}=${FX[k]}`).join(' ');
+    const str = rec + '\n' + fx;
     $('vals').textContent = str;
     try { navigator.clipboard.writeText(str); $('cfx').textContent = '✓ copiado!'; setTimeout(() => $('cfx').textContent = '📋 copiar FX', 1200); } catch {}
   };
@@ -455,13 +493,18 @@ function initEditor(side, host, ov) {
   function fireShot() {
     const w = wsel.value;
     sfx.shotWeapon && sfx.shotWeapon(w, 0, 0.9);
-    // 3 · RECUO (base por arma × multiplicadores do FX)
-    const bp = SCOPED.has(w) ? 0.06 : (w === 'deagle' ? 0.05 : 0.022);
-    const bk = SCOPED.has(w) ? 0.05 : 0.02;
-    recoil.pitch = Math.min(0.2, recoil.pitch + bp * (aiming ? 0.5 : 1) * (FX.rise / 100));   // TETO ~11°: não sobe pro infinito
-    recoil.kick = Math.min(0.09, recoil.kick + bk * (FX.kick / 100));
-    recoil.side += (Math.random() * 2 - 1) * 0.045 * (FX.side / 100);
-    recHold = 0.11;   // segura ~110ms: durante a rajada a tela SOBE e fica subida
+    // 3 · RECUO REAL (mesmo modelo do jogo: padrão da classe + REC_DEG + timing — tudo de recoil.js)
+    if (gTime - rLast > REC.hold) rSpray = 0;
+    const pat = RECOIL_PATTERN[RECOIL_CLASS[w] || 'semi'];
+    const [px, py] = pat[Math.min(29, rSpray)];
+    const g = (REC_DEG[w] ?? 1.4) * (Math.PI / 180) * (aiming ? 0.68 : 1);
+    const vy = g * py * (1 + (Math.random() - 0.5) * 0.6);
+    const hx = g * px * (1 + (Math.random() - 0.5) * 0.6);
+    rp.ty += vy * (1 - REC.perm); rp.tx += hx * (1 - REC.perm);
+    look.pitch = Math.max(-1.4, Math.min(1.4, look.pitch + vy * REC.perm));   // deriva PERMANENTE na mira (corrige com o mouse)
+    look.yaw -= hx * REC.perm;
+    rLast = gTime; rp.sh = Math.min(0.013, rp.sh + g * 0.16); rSpray++;
+    wkick = Math.min(0.14, wkick + vmKickAmp(w, { scoped: aiming, pistol: PISTOLISH.has(w) }) * 0.03);   // kick da arma (animação do tiro)
     const dir = new THREE.Vector3(); cam.getWorldDirection(dir);
     const wMuzzle = cam.position.clone().addScaledVector(dir, 0.6).add(new THREE.Vector3(0, -0.05, 0));
     const col = warm();
@@ -518,17 +561,22 @@ function initEditor(side, host, ov) {
       if (cap > 0 && mag <= 0) { reloading = true; reloadEnd = now + 1100; updateAmmo(); }   // pente vazio → recarrega
       else { fireShot(); if (cap > 0) { mag--; updateAmmo(); } lastShot = now; if (SCOPED.has(wsel.value) || wsel.value === 'deagle') shootHeld = false; }
     }
-    if (recHold > 0) recHold -= dt;   // hold: não recupera enquanto a rajada está viva
-    else { const kf = Math.pow(0.03, dt * (FX.recover / 100)); recoil.pitch *= kf; recoil.kick *= kf; recoil.side *= kf; }
+    gTime += dt;
+    // view-punch REAL (mesma matemática do game.js): segura na rajada, recupera com mola tau, sobe com rise
+    if (gTime - rLast > REC.hold) { const k = Math.exp(-dt / REC.tau); rp.ty *= k; rp.tx *= k; }
+    const rr = Math.min(1, dt / REC.rise);
+    rp.y += (rp.ty - rp.y) * rr; rp.x += (rp.tx - rp.x) * rr;
+    rp.sh = Math.max(0, rp.sh - dt * 9);
+    wkick *= Math.pow(0.02, dt);   // kick da arma recupera
+    const punchP = rp.y + rp.sh * Math.sin(gTime * 78), punchY = rp.x;   // view-punch: pitch (com shake) e yaw
     flash.intensity *= Math.pow(0.00001, dt); if (flash.intensity < 0.05) flash.intensity = 0;
     if (mzT > 0) { mzT -= dt; mzFlash.material.opacity = Math.max(0, mzT / (FX.flashLife / 1000)); if (mzT <= 0) mzFlash.visible = false; }
     if (vmFlashT > 0) { vmFlashT -= dt; vmFlashL.intensity = FX.lightInt * Math.max(0, vmFlashT / (FX.lightLife / 1000)); if (vmFlashT <= 0) vmFlashL.intensity = 0; }
     for (let i = sparksA.length - 1; i >= 0; i--) { const sp = sparksA[i]; sp.t -= dt; sp.s.position.addScaledVector(sp.v, dt); sp.s.material.opacity = Math.max(0, sp.t / 0.14); if (sp.t <= 0) { sp.s.visible = false; sparkPool.push(sp.s); sparksA.splice(i, 1); } }
     for (let i = tracers.length - 1; i >= 0; i--) { const t = tracers[i]; t.userData.t -= dt; t.material.opacity = Math.max(0, t.userData.t / 0.09) * (FX.trOpacity / 100); if (t.userData.t <= 0) { scene.remove(t); tracers.splice(i, 1); } }
     if (hitT > 0) { hitT -= dt; if (hitT <= 0) elHit.style.opacity = '0'; }
-    // MIRA em sync com a ARMA: aplica o recuo na câmera AQUI (depois do tiro/decay deste frame),
-    // com o MESMO recoil.pitch/side que a arma usa logo abaixo — senão a mira fica 1 frame atrás.
-    cam.rotation.set(look.pitch + recoil.pitch, look.yaw, recoil.side * 0.4);
+    // MIRA em sync com a ARMA: recuo aplicado na câmera aqui (depois do tiro/integração deste frame)
+    cam.rotation.set(look.pitch + punchP, look.yaw + punchY, 0);
     const scoped = SCOPED.has(wsel.value);
     const showAds = (aiming || mode === 'ads');
     const scopeAds = showAds && scoped;
@@ -540,12 +588,12 @@ function initEditor(side, host, ov) {
     const ap = al ? [al.x, al.y, al.z] : [CP.ads.wx * 0.01, CP.ads.wy * 0.01, CP.ads.wz * 0.01];
     const L = (a, b) => a + (b - a) * adsT;
     vm.position.set(L(hp[0], ap[0]), L(hp[1], ap[1]), L(hp[2], ap[2]));
-    vm.position.z += recoil.kick;              // tranco: a arma recua PRA TRÁS (em direção ao olho)
-    vm.position.y += recoil.kick * 0.4;        // e sobe um pouco
+    vm.position.z += wkick;                    // tranco: a arma recua PRA TRÁS (em direção ao olho)
+    vm.position.y += wkick * 0.4;              // e sobe um pouco
     vm.scale.setScalar(L(CP.hip.sz, CP.ads.sz) * 0.01);
     const R = Math.PI / 180;
-    // cano SOBE junto com a mira (mesma direção do view-punch) + inclinação lateral do jolt
-    vm.rotation.set(L(CP.hip.rx, CP.ads.rx) * R + recoil.pitch * 0.55, L(CP.hip.ry, CP.ads.ry) * R, L(CP.hip.wt, CP.ads.wt) * R + recoil.side * 0.6);
+    // cano acompanha o view-punch (sobe com o pitch, tilta com o yaw) — mesma direção da mira
+    vm.rotation.set(L(CP.hip.rx, CP.ads.rx) * R + punchP * 0.5, L(CP.hip.ry, CP.ads.ry) * R + punchY * 0.4, L(CP.hip.wt, CP.ads.wt) * R);
     vm.position.x += Math.sin(bob) * 0.006 * (1 - adsT);
     vm.position.y += Math.abs(Math.cos(bob)) * 0.004 * (1 - adsT);
     vm.visible = !scopeAds;

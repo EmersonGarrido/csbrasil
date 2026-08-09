@@ -7,6 +7,7 @@ import { weaponModel, weaponCFG, ONE_HANDED, WEAPON_IDS, PISTOLS, gripPoints } f
 import { buildFPArms, poseToWeapon, FP_OFF } from './fparms.js';
 import { VM_FRAME } from './vmattach.js';
 import { vmlabPose, VMLAB_SCOPED, VMLAB_NO_ALIGN } from './vmlab.js';   // ?vmlab=1: viewmodel do editor
+import { buildRecoilPattern, RECOIL_PARAMS, RECOIL_PATTERN, RECOIL_CLASS, REC_DEG, REC } from './recoil.js';   // recuo: fonte única (compartilhada c/ dev.html)
 import { GPUParticles } from './gpuparticles.js';
 // radiância do céu MEDIDA por mapa (r3_fog.py) — teto de brilho da fumaça, ver _corDaFumaca
 import { skyRadiance } from './bloom.js';
@@ -326,53 +327,9 @@ const MK_LABELS = { doublekill: 'DOUBLE KILL', triplekill: 'TRIPLE KILL', multik
    armas de uma vez — se algo ficar ruim em produção o dono tem o A/B na querystring. */
 const GUNFEEL = new URLSearchParams(location.search).get('gunfeel') !== '0';
 const D2R = Math.PI / 180;
-// PADRÃO DETERMINÍSTICO de spray (CS2-like). Medição do crítico: a AK acumulava 0.57° de
-// estado estacionário numa rajada INTEIRA — a tela não saía do lugar e duas rajadas de 30
-// eram idênticas (nenhuma forma). Aqui cada tiro tem [dx, dy] NORMALIZADO (1.0 = kick do
-// 1º tiro; a amplitude em graus vem de REC_DEG por arma): sobe reto nos 8 primeiros, puxa
-// pra ESQUERDA no miolo, pra DIREITA depois e serpenteia no fim. É a FORMA que ensina
-// spray control; ±30% de aleatoriedade entra em cima (equivalente ao weapon_recoil_seed).
-function buildRecoilPattern({ mid = 0.42, tail = 0.2, left = 0.56, right = 0.68, wig = 0.3 } = {}) {
-  const a = [];
-  for (let i = 0; i < 30; i++) {
-    let dy, dx;
-    if (i < 8) { dy = 1 - 0.31 * (i / 7); dx = (i % 2 ? 0.06 : -0.05); }        // subida quase reta
-    else if (i < 16) { dy = mid; dx = -left; }                                   // esquerda
-    else if (i < 25) { dy = mid * 0.72; dx = right; }                            // direita
-    else { dy = tail; dx = (i % 2 ? 1 : -1) * wig; }                             // serpenteia
-    a.push([dx, dy]);
-  }
-  return a;
-}
-// PARÂMETROS do padrão por classe (o dev.html game-backed edita e regenera o pattern ao vivo).
-const RECOIL_PARAMS = {
-  ak:   { mid: 0.44, tail: 0.22, left: 0.56, right: 0.69, wig: 0.3 },   // 7.62: braço largo
-  ar:   { mid: 0.40, tail: 0.19, left: 0.40, right: 0.48, wig: 0.3 },   // 5.56: mais controlável
-  smg:  { mid: 0.46, tail: 0.26, left: 0.30, right: 0.36, wig: 0.36 },
-  lmg:  { mid: 0.52, tail: 0.30, left: 0.60, right: 0.72, wig: 0.3 },
-  semi: { mid: 0.55, tail: 0.40, left: 0.16, right: 0.20, wig: 0.2 },   // 1 tiro por clique: quase só vertical
-};
-const RECOIL_PATTERN = {};
-for (const c in RECOIL_PARAMS) RECOIL_PATTERN[c] = buildRecoilPattern(RECOIL_PARAMS[c]);
-const RECOIL_CLASS = {};
-for (const w of ['ak', 'akm', 'g3', 'm92', 'md97']) RECOIL_CLASS[w] = 'ak';
-for (const w of ['m4', 'scar', 'tavor', 'famas', 'carbine']) RECOIL_CLASS[w] = 'ar';
-for (const w of ['mp5', 'uzi', 'p90']) RECOIL_CLASS[w] = 'smg';
-RECOIL_CLASS.lmg = 'lmg';
-// Kick VERTICAL do 1º tiro em GRAUS (o crítico pediu 1.6° na AK, 1.35 na M4, 2.3 no Deagle,
-// 4.9 na AWP — era 0.458° na AK e nem isso chegava na tela).
-const REC_DEG = {
-  awp: 4.9, mosin: 4.7, rem700: 4.8, shotgun: 3.4, md97: 1.65,   // md97 = 5,56 automático: coice de fuzil, não de espingarda (era 3.0)
-  m400: 1.5, svd: 1.9, g3sg1: 1.7, sks: 1.5, carbine: 1.9,
-  ak: 1.6, akm: 1.72, m92: 1.5, g3: 1.75, scar: 1.45, m4: 1.35, tavor: 1.3, famas: 1.25, lmg: 1.5,
-  mp5: 0.95, uzi: 0.9, p90: 0.85,
-  deagle: 2.3, revolver38: 2.0, pistol: 1.15, knife: 0.5,
-};
-// Curva de recuperação do view punch: NÃO recupera enquanto a rajada está viva (é isso que
-// faz a tela subir de verdade); passado REC_HOLD volta com mola tau=REC_TAU. REC_PERM fica
-// como deriva permanente na mira — o jogador corrige com o mouse (spray control).
-// mutável (o dev.html game-backed edita hold/tau/perm ao vivo); valores originais preservados.
-const REC = { hold: 0.30, tau: 0.22, rise: 0.035, perm: 0.25 };
+// RECUO: definições (buildRecoilPattern, RECOIL_PARAMS/PATTERN/CLASS, REC_DEG, REC) movidas p/
+// ./recoil.js — FONTE ÚNICA compartilhada com o editor (public/dev.html), pra o editor não
+// reinventar e divergir. Chegam pelo import no topo. _tune muta esses mesmos objetos ao vivo.
 // Queda de dano por distância: hoje o raycast vai a 200 m com dano constante (P90 a 40 m
 // mata igual à AWP). start/end em metros, min = multiplicador no fim. Sniper: sem falloff.
 const DMG_FALLOFF = {
