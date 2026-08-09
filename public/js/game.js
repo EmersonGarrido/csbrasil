@@ -6,6 +6,7 @@ import { buildCharacterModel } from './glbchars.js';
 import { weaponModel, weaponCFG, ONE_HANDED, WEAPON_IDS, PISTOLS, gripPoints } from './weapons.js';
 import { buildFPArms, poseToWeapon, FP_OFF } from './fparms.js';
 import { VM_FRAME } from './vmattach.js';
+import { vmlabPose, VMLAB_SCOPED, VMLAB_NO_ALIGN } from './vmlab.js';   // ?vmlab=1: viewmodel do editor
 import { GPUParticles } from './gpuparticles.js';
 // radiância do céu MEDIDA por mapa (r3_fog.py) — teto de brilho da fumaça, ver _corDaFumaca
 import { skyRadiance } from './bloom.js';
@@ -63,6 +64,9 @@ export const WEAPONS = {
    ?killcam=0 -> sem painel/câmera de morte
    Motivo: as três mudam COMPORTAMENTO sentido pelo jogador; o dono precisa do A/B. */
 const QS = new URLSearchParams(location.search);
+// ?vmlab=1 — desenha o viewmodel afinado na bancada (public/js/vmlab.js) no lugar do
+// calibrado. Modo de comparação: sem a flag, NADA muda. Ver _vmlabFrame.
+const VMLAB = QS.get('vmlab') === '1';
 /* KILL-SWITCH DA RODADA DE MATERIAL: ?vmmat=legacy devolve, de uma vez, o clamp
    `min(metalness, 0.55)` do viewmodel E o orçamento fixo de 7,60 unidades de luz da vmScene.
    Está aqui em cima, num lugar só, porque as duas coisas são UMA correção (ver o bloco do
@@ -472,8 +476,10 @@ const VM_KNOB = (() => {
   // ?vmpitch= / ?vmyaw= (RODADA DO GRIP + PITCH): inclinação própria da arma em GRAUS,
   // sobrescrevendo TODAS as classes de uma vez — mesmo espírito do ?vmtanh=. Em graus e não
   // em rad porque este knob é para olhar na tela e comparar com a foto, não para a matemática.
+  // ?vmroll= completa o trio: roll é a inclinação LATERAL da arma (girar em torno do cano),
+  // que é o "tá muito inclinada pro lado" — pitch/yaw sozinhos não a alcançavam.
   return { zmul: num('vmzmul'), nearx: num('vmnearx'), tanh: num('vmtanh'), tanb: num('vmtanb'),
-    pitch: num('vmpitch'), yaw: num('vmyaw') };
+    pitch: num('vmpitch'), yaw: num('vmyaw'), roll: num('vmroll') };
 })();
 /* PITCH/YAW DO VIEWMODEL SOB ADS (RODADA DO GRIP + PITCH) — ver VM_FRAME.cls em vmattach.js.
    A arma ganhou inclinação própria para o look CS 1.6 (a boca sobe sem o grip subir), e
@@ -1522,8 +1528,9 @@ export class Game {
            A faca não tem cano e mantém a pose CS própria (knifeRot). */
         const pit = VM_KNOB.pitch != null ? VM_KNOB.pitch * Math.PI / 180 : (t.pitch || 0);
         const yaw = VM_KNOB.yaw != null ? VM_KNOB.yaw * Math.PI / 180 : (t.yaw || 0);
+        const rol = VM_KNOB.roll != null ? VM_KNOB.roll * Math.PI / 180 : (t.roll || 0);
         if (id === 'knife') g.rotation.set(VM_FRAME.knifeRot[0], VM_FRAME.knifeRot[1], VM_FRAME.knifeRot[2]);
-        else g.rotation.set(pit, yaw, t.roll || 0);
+        else g.rotation.set(pit, yaw, rol);
         // guardado por arma para o ADS conseguir zerar pitch/yaw por frame (vmAdsRot).
         // `ads:false` na faca: a pose dela é identidade, não inclinação de cano.
         vmRot[id] = { pitch: g.rotation.x, yaw: g.rotation.y, roll: g.rotation.z, ads: id !== 'knife' };
@@ -2430,6 +2437,51 @@ export class Game {
     const w = this.player.weapon;
     if (this.vm.arms) this.vm.arms.group.visible = true;
     for (const k in this.vm.models) this.vm.models[k].visible = k === w;
+  }
+  // ===== VMLAB (?vmlab=1) — viewmodel afinado no editor, por cima do jogo =====
+  // Constrói um viewmodel PARALELO (weaponModel puro, igual à bancada) na vmScene e o
+  // desenha no lugar do vm.root calibrado. Isolado: só roda com a flag; o caminho normal
+  // fica intocado. Lazy — cada arma é montada na 1ª vez que aparece.
+  _vmlabEnsure(id) {
+    if (!this._vmlab) {
+      this._vmlab = { group: new THREE.Group(), models: {} };
+      this.vmScene.add(this._vmlab.group);
+    }
+    if (this._vmlab.models[id]) return this._vmlab.models[id];
+    const wm = weaponModel(id);
+    const holder = new THREE.Group();
+    if (wm) { wm.rotation.y = Math.PI; holder.add(wm); holder.userData.gun = wm; }   // +Z(cano) -> -Z(frente)
+    holder.visible = false;
+    this._vmlab.group.add(holder);
+    this._vmlab.models[id] = holder;
+    return holder;
+  }
+  _vmlabFrame(p, a) {
+    const id = p.weapon;
+    const holder = this._vmlabEnsure(id);
+    if (this.vm && this.vm.root) this.vm.root.visible = false;          // esconde o calibrado (é forçado true no frame)
+    if (this.vm && this.vm.arms) this.vm.arms.group.visible = false;    // editor é só-a-arma, sem braços
+    for (const k in this._vmlab.models) this._vmlab.models[k].visible = (k === id);
+    const scoped = VMLAB_SCOPED.has(id) && p.scoped && WEAPONS[id] && WEAPONS[id].scope;
+    if (scoped) { holder.visible = false; return; }                    // sniper: some no ADS, a luneta cobre
+    const P = vmlabPose(id), H = P.hip, A = P.ads;
+    const R = Math.PI / 180, S = A.sz * 0.01, L = (x, y) => x + (y - x) * a;
+    // MIRADO: alça auto-centrada no eixo (met.sight), salvo NO_ALIGN (posição à mão).
+    const gun = holder.userData.gun, met = gun && gun.userData && gun.userData.metrics;
+    let ax, ay, az;
+    if (met && met.sight && !VMLAB_NO_ALIGN.has(id)) {
+      const pt = met.sight.clone().divideScalar(met.norm || 1)
+        .applyEuler(new THREE.Euler(0, Math.PI, 0)).multiplyScalar(S)
+        .applyEuler(new THREE.Euler(A.rx * R, A.ry * R, A.wt * R));
+      ax = -pt.x + A.wx * 0.01; ay = -pt.y + A.wy * 0.01; az = (A.wz * 0.01) - pt.z;
+    } else { ax = A.wx * 0.01; ay = A.wy * 0.01; az = A.wz * 0.01; }
+    holder.position.set(L(H.wx * 0.01, ax), L(H.wy * 0.01, ay), L(H.wz * 0.01, az));
+    holder.scale.setScalar(L(H.sz, A.sz) * 0.01);
+    holder.rotation.set(L(H.rx, A.rx) * R, L(H.ry, A.ry) * R, L(H.wt, A.wt) * R);
+    if (this.vmCamera) {
+      const fov = L(H.fov, A.fov);
+      if (Math.abs(this.vmCamera.fov - fov) > 0.01) { this.vmCamera.fov = fov; this.vmCamera.updateProjectionMatrix(); }
+    }
   }
   _switchWeapon(w) {
     const p = this.player;
@@ -4643,6 +4695,7 @@ export class Game {
       const wg = this.vm.models[p.weapon];
       if (wg) poseToWeapon(this.vm.arms, wg, p.weapon);
     }
+    if (VMLAB) this._vmlabFrame(p, a);   // ?vmlab=1: troca pelo viewmodel do editor (isolado)
   }
   // fy_pool_day ground weapons: anyone who runs over one grabs it (CS-1.6 style).
   // The gun vanishes and respawns after PICKUP_RESPAWN. No-op on maps without
