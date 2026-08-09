@@ -1,91 +1,86 @@
 <!doctype html>
 <!-- MODO DEV (dev-only, não linkado do jogo, PODADO do build de produção — ver
-     scripts/prune-dist.mjs). Unifica as antigas bancadas numa página só, com abas:
+     scripts/prune-dist.mjs). SIDEBAR à esquerda (abas + controles) e o palco 3D à direita.
+     Abas:
        · Editor de viewmodel — SÓ a arma presa na câmera (estilo do jogo): 26 armas,
          sliders de quadril/mirado por arma, tiro (flash+tracer+recuo+áudio), bots pra
          mirar, quadril × mira de ferro/luneta. Persiste no navegador (localStorage).
        · Personagem + arma — cena isolada (chão + personagem + arma) com órbita de mouse
          pra conferir alinhamento/mecânica de cada GLB (o cano segue a seta +Z).
-     A antiga bancada-fp foi removida. Reaproveita weaponModel/buildCharacterModel — a
-     mesma verdade do jogo. Print: Cmd+Shift+4. -->
+     Reaproveita weaponModel/buildCharacterModel — a mesma verdade do jogo. Print: Cmd+Shift+4. -->
 <html lang="pt-br">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>modo dev — bancada de viewmodel</title>
 <style>
+  :root{--sb:300px}
+  *{box-sizing:border-box}
   html,body{margin:0;height:100%;overflow:hidden;background:#12151b;font-family:'ST Mono',Consolas,monospace;color:#cfe}
-  /* abas */
-  #devtabs{position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:20;display:flex;gap:4px;background:rgba(10,12,16,.9);border:1px solid #2a3340;padding:4px;border-radius:9px}
-  #devtabs button{font-family:inherit;font-size:12px;background:#1b2029;color:#9fb;border:1px solid #2a3340;border-radius:6px;padding:6px 12px;cursor:pointer}
+
+  /* ── SIDEBAR ──────────────────────────────────────────────────────────────── */
+  #sidebar{position:fixed;left:0;top:0;bottom:0;width:var(--sb);z-index:10;background:#0e1116;border-right:1px solid #2a3340;
+    display:flex;flex-direction:column;overflow-y:auto;padding:12px;gap:10px;font-size:13px}
+  #devtabs{display:flex;gap:4px}
+  #devtabs button{flex:1;font-family:inherit;font-size:12px;background:#1b2029;color:#9fb;border:1px solid #2a3340;border-radius:6px;padding:8px 6px;cursor:pointer}
   #devtabs button.on{background:#2a5;border-color:#2a5;color:#031;font-weight:700}
-  .tool{position:fixed;inset:0}
-  .tool[hidden]{display:none}
-  .tool canvas{position:fixed;inset:0;z-index:0}
+  .side{display:flex;flex-direction:column;gap:7px}
+  .side[hidden]{display:none}
+  .side h1{font-size:12px;letter-spacing:2px;color:#7fd;margin:0;text-transform:uppercase}
+  .side label{display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .side select{flex:1;font-family:inherit;font-size:13px;background:#1b2029;color:#cfe;border:1px solid #2a3340;border-radius:5px;padding:5px 7px}
+  .side input[type=range]{flex:1;min-width:0}
+  .side .v{flex:0 0 auto;min-width:38px;text-align:right;color:#7fe;font-size:12px}
+  .row{display:flex;gap:6px}
+  .row button{flex:1}
+  .btn{font-family:inherit;font-size:12px;background:#1b2029;color:#cfe;border:1px solid #2a3340;border-radius:5px;padding:7px 6px;cursor:pointer}
+  #play{background:#2a5;border-color:#2a5;color:#031;font-weight:700}
+  #wlist{display:flex;flex-wrap:wrap;gap:3px;max-height:132px;overflow:auto;border:1px solid #2a3340;border-radius:6px;padding:5px}
+  #wlist button{font-family:inherit;font-size:11px;background:#1b2029;color:#9fb;border:1px solid #2a3340;border-radius:4px;padding:3px 6px;cursor:pointer}
+  #wlist button.on{background:#2a5;border-color:#2a5;color:#031;font-weight:700}
+  #wlist button.done{border-color:#7fd;color:#7fd}
+  #vals{font-size:11px;color:#9fb;word-break:break-all;user-select:all;white-space:pre-wrap;max-height:120px;overflow:auto}
+  .leg{border-top:1px solid #2a3340;padding-top:8px;margin-top:2px;font-size:11px;color:#9fb;line-height:1.6}
+  .leg b{color:#7fd}
+  .seg{display:flex;gap:0}
+  .seg button{flex:1;font-family:inherit;font-size:13px;background:#1b2029;color:#cfe;border:1px solid #2a3340;padding:6px 8px;cursor:pointer;border-radius:0}
+  .seg button:first-child{border-radius:5px 0 0 5px}
+  .seg button:last-child{border-radius:0 5px 5px 0}
+  .seg button.on{background:#2a5;border-color:#2a5;color:#031}
+  #cfg{white-space:pre;font-size:12px;color:#9fb;line-height:1.5;border-top:1px solid #2a3340;padding-top:8px}
 
-  /* ── EDITOR DE VIEWMODEL ─────────────────────────────────────────────────── */
-  #tool-editor #panel{position:fixed;top:56px;left:10px;z-index:9;background:rgba(10,12,16,.86);border:1px solid #2a3340;
-    padding:12px;border-radius:8px;display:flex;flex-direction:column;gap:7px;width:240px;font-size:13px}
-  #tool-editor #panel h1{font-size:12px;letter-spacing:2px;color:#7fd;margin:0;text-transform:uppercase}
-  #tool-editor #panel label{display:flex;justify-content:space-between;align-items:center;gap:8px}
-  #tool-editor #panel select{flex:1;font-family:inherit;font-size:13px;background:#1b2029;color:#cfe;border:1px solid #2a3340;border-radius:5px;padding:5px 7px}
-  #tool-editor #panel input[type=range]{flex:1}
-  #tool-editor #panel .v{flex:0 0 auto;min-width:38px;text-align:right;color:#7fe;font-size:12px}
-  #tool-editor #wlist{display:flex;flex-wrap:wrap;gap:3px;max-height:118px;overflow:auto;border:1px solid #2a3340;border-radius:6px;padding:5px}
-  #tool-editor #wlist button{font-family:inherit;font-size:11px;background:#1b2029;color:#9fb;border:1px solid #2a3340;border-radius:4px;padding:3px 6px;cursor:pointer}
-  #tool-editor #wlist button.on{background:#2a5;border-color:#2a5;color:#031;font-weight:700}
-  #tool-editor #wlist button.done{border-color:#7fd;color:#7fd}
-  #tool-editor .row{display:flex;gap:6px}
-  #tool-editor .row button{flex:1}
-  #tool-editor .btn{font-family:inherit;font-size:12px;background:#1b2029;color:#cfe;border:1px solid #2a3340;border-radius:5px;padding:6px;cursor:pointer}
-  #tool-editor #play{background:#2a5;border-color:#2a5;color:#031;font-weight:700}
-  #tool-editor #cop{font-family:inherit;font-size:12px;background:#1b2029;color:#cfe;border:1px solid #2a3340;border-radius:5px;padding:6px;cursor:pointer}
-  #tool-editor #vals{font-size:11px;color:#9fb;word-break:break-all;user-select:all;white-space:pre-wrap;max-height:120px;overflow:auto}
-  #tool-editor .leg{border-top:1px solid #2a3340;padding-top:7px;font-size:11px;color:#9fb;line-height:1.6}
-  #tool-editor .leg b{color:#7fd}
-  #tool-editor #cross{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:5;pointer-events:none}
-  #tool-editor #cross::before,#tool-editor #cross::after{content:"";position:absolute;background:#7fe;opacity:.85}
-  #tool-editor #cross::before{width:2px;height:14px;left:-1px;top:-7px}
-  #tool-editor #cross::after{height:2px;width:14px;top:-1px;left:-7px}
-  #tool-editor #hitmark{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%) rotate(45deg);z-index:6;pointer-events:none;opacity:0;transition:opacity .08s}
-  #tool-editor #hitmark::before,#tool-editor #hitmark::after{content:"";position:absolute;background:#f55}
-  #tool-editor #hitmark::before{width:3px;height:16px;left:-1.5px;top:-8px}
-  #tool-editor #hitmark::after{height:3px;width:16px;top:-1.5px;left:-8px}
-  #tool-editor #reticle{position:fixed;inset:0;z-index:3;pointer-events:none;display:none}
-  #tool-editor #reticle svg{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:60vmin;height:60vmin;filter:drop-shadow(0 0 1px rgba(255,255,255,.85))}
-  #tool-editor #scope{position:fixed;inset:0;z-index:4;pointer-events:none;display:none;background:radial-gradient(circle at 50% 50%, transparent 0 30%, #000 31%, #000 100%)}
-  #tool-editor #hint{position:fixed;bottom:10px;left:50%;transform:translateX(-50%);z-index:9;font-size:12px;color:#89a;background:rgba(10,12,16,.7);padding:6px 12px;border-radius:6px}
-
-  /* ── PERSONAGEM + ARMA (órbita) ──────────────────────────────────────────── */
-  #tool-cena #panel{position:fixed;top:56px;left:10px;z-index:9;background:rgba(10,12,16,.82);border:1px solid #2a3340;
-    padding:12px;border-radius:8px;display:flex;flex-direction:column;gap:8px;min-width:210px;font-size:13px}
-  #tool-cena #panel h1{font-size:12px;letter-spacing:2px;color:#7fd;margin:0 0 2px;text-transform:uppercase}
-  #tool-cena #panel label{display:flex;justify-content:space-between;align-items:center;gap:8px}
-  #tool-cena #panel select,#tool-cena #panel button{font-family:inherit;font-size:13px;background:#1b2029;color:#cfe;
-    border:1px solid #2a3340;border-radius:5px;padding:6px 8px;cursor:pointer}
-  #tool-cena #panel select{flex:1}
-  #tool-cena .row{display:flex;gap:6px}
-  #tool-cena .row button{flex:1}
-  #tool-cena .seg{display:flex;gap:0}
-  #tool-cena .seg button{flex:1;border-radius:0}
-  #tool-cena .seg button:first-child{border-radius:5px 0 0 5px}
-  #tool-cena .seg button:last-child{border-radius:0 5px 5px 0}
-  #tool-cena .seg button.on{background:#2a5;border-color:#2a5;color:#031}
-  #tool-cena #cfg{white-space:pre;font-size:12px;color:#9fb;line-height:1.5;border-top:1px solid #2a3340;padding-top:8px}
-  #tool-cena #hint{position:fixed;bottom:10px;left:10px;z-index:9;font-size:12px;color:#89a;background:rgba(10,12,16,.7);padding:6px 9px;border-radius:6px}
+  /* ── PALCO 3D (à direita da sidebar) ──────────────────────────────────────── */
+  #stage{position:fixed;left:var(--sb);top:0;right:0;bottom:0;overflow:hidden;background:#12151b}
+  .host{position:absolute;inset:0}
+  .host[hidden]{display:none}
+  .host canvas{position:absolute;inset:0;width:100%!important;height:100%!important}
+  .ov{position:absolute;inset:0;pointer-events:none}
+  .ov[hidden]{display:none}
+  #cross{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%)}
+  #cross::before,#cross::after{content:"";position:absolute;background:#7fe;opacity:.85}
+  #cross::before{width:2px;height:14px;left:-1px;top:-7px}
+  #cross::after{height:2px;width:14px;top:-1px;left:-7px}
+  #hitmark{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) rotate(45deg);opacity:0;transition:opacity .08s}
+  #hitmark::before,#hitmark::after{content:"";position:absolute;background:#f55}
+  #hitmark::before{width:3px;height:16px;left:-1.5px;top:-8px}
+  #hitmark::after{height:3px;width:16px;top:-1.5px;left:-8px}
+  #reticle{position:absolute;inset:0;display:none}
+  #reticle svg{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:60vmin;height:60vmin;filter:drop-shadow(0 0 1px rgba(255,255,255,.85))}
+  #scope{position:absolute;inset:0;display:none;background:radial-gradient(circle at 50% 50%, transparent 0 30%, #000 31%, #000 100%)}
+  .hint{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);font-size:12px;color:#89a;background:rgba(10,12,16,.7);padding:6px 12px;border-radius:6px;white-space:nowrap}
 </style>
 <script type="importmap">
 { "imports": { "three": "./vendor/three.module.js", "three/addons/": "./vendor/addons/" } }
 </script>
 </head>
 <body>
-<div id="devtabs">
-  <button data-tool="editor" class="on">Editor de viewmodel</button>
-  <button data-tool="cena">Personagem + arma</button>
-</div>
+<div id="sidebar">
+  <div id="devtabs">
+    <button data-tool="editor" class="on">Editor de viewmodel</button>
+    <button data-tool="cena">Personagem + arma</button>
+  </div>
 
-<div class="tool" id="tool-editor">
-  <div id="panel">
+  <div class="side" id="side-editor">
     <h1>Editor de viewmodel</h1>
     <div id="wlist"></div>
     <label>Modo <select id="mode"><option value="hip">Normal (quadril)</option><option value="ads">Mirado</option></select></label>
@@ -97,7 +92,7 @@
     <label>pitch <span class="v" id="rx_v"></span><input type="range" id="rx" min="-30" max="30" value="-8"></label>
     <label>yaw <span class="v" id="ry_v"></span><input type="range" id="ry" min="-30" max="30" value="7"></label>
     <label>inclinação <span class="v" id="wt_v"></span><input type="range" id="wt" min="-30" max="30" value="10"></label>
-    <div class="row"><button id="play">▶ jogar (testar)</button><button id="cop">📋 copiar</button></div>
+    <div class="row"><button id="play" class="btn">▶ jogar (testar)</button><button id="cop" class="btn">📋 copiar</button></div>
     <div class="row"><button id="exp" class="btn">exportar tudo</button><button id="rst" class="btn">resetar arma</button></div>
     <div id="vals"></div>
     <div class="leg">
@@ -106,28 +101,35 @@
       clique trava o mouse · <b>Esc</b> solta · <b>R</b> repõe bots
     </div>
   </div>
-  <div id="cross"></div>
-  <div id="hitmark"></div>
-  <div id="reticle"></div>
-  <div id="scope"></div>
-  <div id="hint">clique na cena pra jogar · atire nos bots · botão direito mira</div>
-</div>
 
-<div class="tool" id="tool-cena" hidden>
-  <div id="panel">
+  <div class="side" id="side-cena" hidden>
     <h1>Personagem + arma</h1>
-    <div class="seg" id="mode">
+    <div class="seg" id="mode2">
       <button data-mode="char" class="on">Personagem</button>
       <button data-mode="gun">Só a arma</button>
     </div>
     <label>Arma <select id="wsel"></select></label>
     <label id="crow">Personagem <select id="csel"></select></label>
     <div>Girar 90° (só a arma)</div>
-    <div class="row"><button data-axis="0">X</button><button data-axis="1">Y</button><button data-axis="2">Z</button><button id="rreset">zerar</button></div>
-    <button id="shot">📷 baixar PNG</button>
+    <div class="row"><button class="btn" data-axis="0">X</button><button class="btn" data-axis="1">Y</button><button class="btn" data-axis="2">Z</button><button class="btn" id="rreset">zerar</button></div>
+    <button id="shot" class="btn">📷 baixar PNG</button>
     <div id="cfg"></div>
   </div>
-  <div id="hint">arrasta = girar · scroll = zoom · o cano deve seguir a seta VERDE (+Z)</div>
+</div>
+
+<div id="stage">
+  <div class="host" id="host-editor"></div>
+  <div class="host" id="host-cena" hidden></div>
+  <div class="ov" id="ov-editor">
+    <div id="cross"></div>
+    <div id="hitmark"></div>
+    <div id="reticle"></div>
+    <div id="scope"></div>
+    <div class="hint">clique na cena pra jogar · atire nos bots · botão direito mira</div>
+  </div>
+  <div class="ov" id="ov-cena" hidden>
+    <div class="hint">arrasta = girar · scroll = zoom · o cano deve seguir a seta VERDE (+Z)</div>
+  </div>
 </div>
 
 <script type="module">
@@ -141,13 +143,15 @@ await preloadWeapons();
 
 // ============================================================================
 // FERRAMENTA 1 — EDITOR DE VIEWMODEL (só a arma presa na câmera)
+//   side = painel na sidebar · host = onde vai o canvas · ov = overlays (mira/hint)
 // ============================================================================
-function initEditor(root) {
-  const $ = (id) => root.querySelector('#' + id);
+function initEditor(side, host, ov) {
+  const $ = (id) => side.querySelector('#' + id);
+  const elCross = ov.querySelector('#cross'), elHit = ov.querySelector('#hitmark');
+  const elRet = ov.querySelector('#reticle'), elScope = ov.querySelector('#scope');
   const SCOPED = new Set(['awp', 'svd', 'g3sg1', 'sks', 'mosin', 'rem700', 'm400']);
   const NO_ALIGN = new Set(['pistol']);   // mira de ferro posicionada à mão (sem auto-alinhar)
-  // POSES gravadas no código (fonte da verdade p/ o jogo). Sobrescrevem o localStorage.
-  const POSE_FIXED = {
+  const POSE_FIXED = {   // poses gravadas no código (fonte da verdade p/ o jogo)
     pistol: {
       hip: { fov: 50, sz: 43, wx: 5, wy: -10, wz: -22, rx: 0, ry: 1, wt: 3 },
       ads: { fov: 30, sz: 89, wx: 1, wy: -10, wz: -22, rx: 0, ry: 1, wt: 3 },
@@ -156,8 +160,8 @@ function initEditor(root) {
   const RATE = { awp: 900, mosin: 1000, rem700: 900, deagle: 260, pistol: 200, knife: 400 };
   const sfx = new Sfx();
   const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
-  renderer.setSize(innerWidth, innerHeight); renderer.setPixelRatio(Math.min(2, devicePixelRatio));
-  root.appendChild(renderer.domElement);
+  renderer.setPixelRatio(Math.min(2, devicePixelRatio));
+  host.appendChild(renderer.domElement);
   const scene = new THREE.Scene(); scene.background = new THREE.Color(0x12151b);
   scene.add(new THREE.HemisphereLight(0xbcd3ff, 0x30281c, 1.15));
   const dl = new THREE.DirectionalLight(0xffffff, 1.7); dl.position.set(3, 6, 4); scene.add(dl);
@@ -165,22 +169,20 @@ function initEditor(root) {
   const floor = new THREE.Mesh(new THREE.PlaneGeometry(120, 120), new THREE.MeshStandardMaterial({ color: 0x232833, roughness: 0.95 }));
   floor.rotation.x = -Math.PI / 2; scene.add(floor); scene.add(new THREE.GridHelper(120, 240, 0x39485c, 0x232b36));
   for (let i = 0; i < 12; i++) { const s = 0.6 + (i % 4) * 0.5; const box = new THREE.Mesh(new THREE.BoxGeometry(s, s * 2, s), new THREE.MeshStandardMaterial({ color: 0x3a4658 })); box.position.set(Math.cos(i) * (7 + i), s, Math.sin(i * 1.7) * (7 + i)); scene.add(box); }
-  const cam = new THREE.PerspectiveCamera(80, innerWidth / innerHeight, 0.05, 400);
+  const cam = new THREE.PerspectiveCamera(80, 1, 0.05, 400);
   cam.rotation.order = 'YXZ'; scene.add(cam);
-  // viewmodel em passe separado (como o jogo): a arma vive numa cena própria, desenhada por cima.
   const vmScene = new THREE.Scene();
-  const vmCam = new THREE.PerspectiveCamera(80, innerWidth / innerHeight, 0.001, 10);
+  const vmCam = new THREE.PerspectiveCamera(80, 1, 0.001, 10);
   vmScene.add(new THREE.HemisphereLight(0xdfe8ff, 0x30281c, 1.2));
   const vmDL = new THREE.DirectionalLight(0xffffff, 1.5); vmDL.position.set(0.4, 0.6, 1); vmScene.add(vmDL);
 
-  // flash + tracer
   const flash = new THREE.PointLight(0xffe08a, 0, 10, 2); scene.add(flash);
   const tracerGeo = new THREE.CylinderGeometry(0.01, 0.01, 1, 5, 1, true);
   const tracers = [];
   function tracer(from, to) { const m = new THREE.Mesh(tracerGeo, new THREE.MeshBasicMaterial({ color: 0xfff3d6, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false })); const d = new THREE.Vector3().subVectors(to, from); const len = d.length(); m.position.copy(from).addScaledVector(d, 0.5); m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.clone().normalize()); m.scale.set(1, len, 1); m.userData.t = 0.09; scene.add(m); tracers.push(m); }
 
-  const wsel = { value: 'ak' };   // arma atual (é a LISTA da lateral)
-  const tuned = new Set();        // armas já ajustadas (marca ✓; persiste no navegador)
+  const wsel = { value: 'ak' };
+  const tuned = new Set();
   const wlist = $('wlist');
   function renderList() {
     wlist.innerHTML = WEAPON_IDS.map((id) => `<button data-w="${id}" class="${id === wsel.value ? 'on' : ''} ${tuned.has(id) ? 'done' : ''}">${id}</button>`).join('');
@@ -188,20 +190,18 @@ function initEditor(root) {
   }
   function selectWeapon(id) { wsel.value = id; buildVM(); loadSliders(); renderList(); }
 
-  // retículo mil-dot da luneta
   (function buildReticle() {
     const V = 400, C = 200, L = [];
     const ln = (x1, y1, x2, y2, w) => L.push(`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke-width="${w}"/>`);
     ln(C, 34, C, 366, 1.4); ln(34, C, 366, C, 1.4);
     for (let i = 1; i * 13 <= 150; i++) { const d = i * 13, mj = i % 4 === 0, t = mj ? 8 : 4.5, w = mj ? 1.4 : 1; ln(C - t, C - d, C + t, C - d, w); ln(C - t, C + d, C + t, C + d, w); ln(C - d, C - t, C - d, C + t, w); ln(C + d, C - t, C + d, C + t, w); }
     const cap = 12; ln(C - cap, 50, C + cap, 50, 2.2); ln(C - cap, 350, C + cap, 350, 2.2); ln(50, C - cap, 50, C + cap, 2.2); ln(350, C - cap, 350, C + cap, 2.2);
-    $('reticle').innerHTML = `<svg viewBox="0 0 ${V} ${V}"><g stroke="#0a0a0a" fill="none">${L.join('')}</g></svg>`;
+    elRet.innerHTML = `<svg viewBox="0 0 ${V} ${V}"><g stroke="#0a0a0a" fill="none">${L.join('')}</g></svg>`;
   })();
 
-  // input (guardado por `running`: só reage quando esta aba está ativa)
   let running = false, raf = 0;
   const keys = {};
-  const look = { yaw: Math.PI, pitch: 0 };   // começa virado pros bots (+Z)
+  const look = { yaw: Math.PI, pitch: 0 };
   const recoil = { pitch: 0, kick: 0 };
   let locked = false, aiming = false, shootHeld = false, lastShot = 0, jumpQueued = false;
   addEventListener('keydown', (e) => { if (!running) return; keys[e.code] = true; if (e.code === 'Space') { jumpQueued = true; e.preventDefault(); } if (e.code === 'KeyR') spawnBots(); });
@@ -213,15 +213,13 @@ function initEditor(root) {
   addEventListener('mouseup', (e) => { if (!running) return; if (e.button === 0) shootHeld = false; if (e.button === 2) aiming = false; });
   addEventListener('contextmenu', (e) => { if (running) e.preventDefault(); });
 
-  // viewmodel (só a arma, filha da câmera do passe)
   const vm = new THREE.Group(); vmScene.add(vm);
   let gun = null;
   function buildVM() {
     if (gun) { vm.remove(gun); gun = null; }
     const wm = weaponModel(wsel.value);
-    if (wm) { wm.rotation.y = Math.PI; gun = wm; vm.add(gun); }   // +Z(cano) -> -Z(frente da câmera)
+    if (wm) { wm.rotation.y = Math.PI; gun = wm; vm.add(gun); }   // +Z(cano) -> -Z(frente)
   }
-  // auto-alinhar mira: leva a alça medida (met.sight) ao centro, com o cano reto.
   function adsAligned() {
     const met = gun && gun.userData && gun.userData.metrics;
     if (!met || !met.sight) return null;
@@ -234,18 +232,16 @@ function initEditor(root) {
     return new THREE.Vector3(-p.x + A.wx * 0.01, -p.y + A.wy * 0.01, Z - p.z);
   }
 
-  // pose por arma. BASE = valores do dono (AK). Sem pose salva, o TAMANHO já começa
-  // normalizado pelo comprimento medido; o resto herda a base.
   const SLIDERS = ['fov', 'sz', 'wx', 'wy', 'wz', 'rx', 'ry', 'wt'];
   const BASE = {
     hip: { fov: 55, sz: 67, wx: 5, wy: -10, wz: -21, rx: 0, ry: 1, wt: 3 },
     ads: { fov: 47, sz: 68, wx: 0, wy: 1, wz: -25, rx: 0, ry: 0, wt: 0 },
   };
   const AK_LEN = 0.88;
-  const POSE = {};   // id -> { hip, ads }
+  const POSE = {};
   function defaultPose(id) {
     const len = (weaponCFG(id) && weaponCFG(id).len) || AK_LEN;
-    const k = Math.max(0.45, Math.min(1, AK_LEN / len));           // só ENCOLHE armas longas
+    const k = Math.max(0.45, Math.min(1, AK_LEN / len));
     const sc = (b) => Math.round(Math.max(20, Math.min(100, b * k)));
     return { hip: { ...BASE.hip, sz: sc(BASE.hip.sz) }, ads: { ...BASE.ads, sz: sc(BASE.ads.sz) } };
   }
@@ -277,7 +273,6 @@ function initEditor(root) {
   renderList();
   loadSliders();
 
-  // bots
   const bots = [];
   const SPOTS = [[5, 12], [-4, 14], [8, 9], [-9, 11], [0, 18]];
   let botsReady = false;
@@ -293,11 +288,10 @@ function initEditor(root) {
     }
   }
 
-  // tiro
   const ray = new THREE.Raycaster();
   function isDesc(o, r) { let p = o; while (p) { if (p === r) return true; p = p.parent; } return false; }
   let hitT = 0;
-  function hitmark() { $('hitmark').style.opacity = '1'; hitT = 0.12; }
+  function hitmark() { elHit.style.opacity = '1'; hitT = 0.12; }
   function fireShot() {
     const w = wsel.value;
     sfx.shotWeapon && sfx.shotWeapon(w, 0, 0.9);
@@ -314,9 +308,12 @@ function initEditor(root) {
     tracer(muzzle, end);
   }
 
-  // loop
   let pos = new THREE.Vector3(0, 0, 0), vy = 0, grounded = true, bob = 0, adsT = 0;
   let last = performance.now();
+  function fit() {
+    const w = host.clientWidth || 1, h = host.clientHeight || 1;
+    renderer.setSize(w, h, false); cam.aspect = w / h; cam.updateProjectionMatrix();
+  }
   function frame(now) {
     if (!running) return;
     const dt = Math.min(0.05, (now - last) / 1000); last = now;
@@ -342,7 +339,7 @@ function initEditor(root) {
     recoil.pitch *= Math.pow(0.0001, dt); recoil.kick *= Math.pow(0.0002, dt);
     flash.intensity *= Math.pow(0.00001, dt); if (flash.intensity < 0.05) flash.intensity = 0;
     for (let i = tracers.length - 1; i >= 0; i--) { const t = tracers[i]; t.userData.t -= dt; t.material.opacity = Math.max(0, t.userData.t / 0.09) * 0.9; if (t.userData.t <= 0) { scene.remove(t); tracers.splice(i, 1); } }
-    if (hitT > 0) { hitT -= dt; if (hitT <= 0) $('hitmark').style.opacity = '0'; }
+    if (hitT > 0) { hitT -= dt; if (hitT <= 0) elHit.style.opacity = '0'; }
     const scoped = SCOPED.has(wsel.value);
     const showAds = (aiming || mode === 'ads');
     const scopeAds = showAds && scoped;
@@ -364,18 +361,18 @@ function initEditor(root) {
     const wantFov = scopeAds ? CP.hip.fov * 0.35 : L(CP.hip.fov, CP.ads.fov);
     cam.fov += (wantFov - cam.fov) * Math.min(1, dt * 12); cam.updateProjectionMatrix();
     vmCam.fov = cam.fov; vmCam.aspect = cam.aspect; vmCam.rotation.set(recoil.pitch, 0, 0); vmCam.updateProjectionMatrix();
-    $('scope').style.display = scopeAds ? 'block' : 'none';
-    $('reticle').style.display = scopeAds ? 'block' : 'none';
-    $('cross').style.display = scopeAds ? 'none' : 'block';
+    elScope.style.display = scopeAds ? 'block' : 'none';
+    elRet.style.display = scopeAds ? 'block' : 'none';
+    elCross.style.display = scopeAds ? 'none' : 'block';
     renderer.render(scene, cam);
     renderer.autoClear = false; renderer.clearDepth(); renderer.render(vmScene, vmCam); renderer.autoClear = true;
     raf = requestAnimationFrame(frame);
   }
-  addEventListener('resize', () => { cam.aspect = innerWidth / innerHeight; cam.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
+  addEventListener('resize', () => { if (running) fit(); });
 
   buildVM();
   return {
-    start() { if (running) return; running = true; if (!botsReady) { botsReady = true; spawnBots(); } last = performance.now(); raf = requestAnimationFrame(frame); },
+    start() { if (running) return; running = true; fit(); if (!botsReady) { botsReady = true; spawnBots(); } last = performance.now(); raf = requestAnimationFrame(frame); },
     stop() { running = false; if (raf) cancelAnimationFrame(raf); raf = 0; if (document.pointerLockElement === renderer.domElement) document.exitPointerLock(); },
   };
 }
@@ -383,10 +380,11 @@ function initEditor(root) {
 // ============================================================================
 // FERRAMENTA 2 — PERSONAGEM + ARMA (cena isolada com órbita)
 // ============================================================================
-function initCena(root) {
+function initCena(side, host) {
+  const $ = (id) => side.querySelector('#' + id);
   const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
-  renderer.setSize(innerWidth, innerHeight); renderer.setPixelRatio(Math.min(2, devicePixelRatio));
-  root.appendChild(renderer.domElement);
+  renderer.setPixelRatio(Math.min(2, devicePixelRatio));
+  host.appendChild(renderer.domElement);
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x12151b);
@@ -397,8 +395,7 @@ function initCena(root) {
   floor.rotation.x = -Math.PI / 2; scene.add(floor);
   scene.add(new THREE.GridHelper(20, 40, 0x39485c, 0x232b36));
 
-  const cam = new THREE.PerspectiveCamera(42, innerWidth / innerHeight, 0.02, 200);
-  // órbita própria (o vendor não traz OrbitControls): esférica em torno de um alvo.
+  const cam = new THREE.PerspectiveCamera(42, 1, 0.02, 200);
   const orbit = { target: new THREE.Vector3(0, 1.05, 0), theta: 0.6, phi: 1.25, r: 3.4 };
   function applyCam() {
     const { target: t, theta, phi, r } = orbit;
@@ -427,10 +424,9 @@ function initCena(root) {
   let mode = qp.get('mode') || 'char';
   let weaponId = qp.get('w') || 'ak';
   let charId = qp.get('char') || 'mst';
-  const delta = [0, 0, 0];   // graus extras na arma (modo "só a arma"), passos de 90
+  const delta = [0, 0, 0];
   let current = null;
 
-  const $ = (id) => root.querySelector('#' + id);
   const wsel = $('wsel');
   wsel.innerHTML = WEAPON_IDS.map((id) => `<option value="${id}">${id}</option>`).join('');
   wsel.value = weaponId;
@@ -445,8 +441,8 @@ function initCena(root) {
   async function buildGun() {
     clearCurrent();
     const g = new THREE.Group();
-    g.add(arrow([0, 0, 1], 0.9, 0x00ff44));   // +Z = frente (o cano segue esta)
-    g.add(arrow([0, 0, -1], 0.55, 0xff3344));  // -Z = coronha
+    g.add(arrow([0, 0, 1], 0.9, 0x00ff44));
+    g.add(arrow([0, 0, -1], 0.55, 0xff3344));
     const wm = weaponModel(weaponId);
     if (wm) { wm.position.set(0, 1.05, 0); wm.rotation.set(delta[0] * Math.PI / 180, delta[1] * Math.PI / 180, delta[2] * Math.PI / 180); g.add(wm); }
     scene.add(g); current = g;
@@ -482,15 +478,15 @@ function initCena(root) {
   }
   async function rebuild() { if (mode === 'gun') await buildGun(); else await buildChar(); }
 
-  root.querySelectorAll('#mode button').forEach((b) => b.onclick = async () => {
+  side.querySelectorAll('#mode2 button').forEach((b) => b.onclick = async () => {
     mode = b.dataset.mode;
-    root.querySelectorAll('#mode button').forEach((x) => x.classList.toggle('on', x === b));
+    side.querySelectorAll('#mode2 button').forEach((x) => x.classList.toggle('on', x === b));
     $('crow').style.display = mode === 'char' ? '' : 'none';
     await rebuild();
   });
   wsel.onchange = async () => { weaponId = wsel.value; await rebuild(); };
   csel.onchange = async () => { charId = csel.value; await rebuild(); };
-  root.querySelectorAll('[data-axis]').forEach((b) => b.onclick = async () => {
+  side.querySelectorAll('[data-axis]').forEach((b) => b.onclick = async () => {
     const a = +b.dataset.axis; delta[a] = (delta[a] + 90) % 360; if (mode === 'gun') await buildGun();
   });
   $('rreset').onclick = async () => { delta[0] = delta[1] = delta[2] = 0; if (mode === 'gun') await buildGun(); };
@@ -500,32 +496,33 @@ function initCena(root) {
     a.download = `bancada-${mode}-${weaponId}${mode === 'char' ? '-' + charId : ''}.png`;
     a.href = renderer.domElement.toDataURL('image/png'); a.click();
   };
-  addEventListener('resize', () => { cam.aspect = innerWidth / innerHeight; cam.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
+  function fit() { const w = host.clientWidth || 1, h = host.clientHeight || 1; renderer.setSize(w, h, false); cam.aspect = w / h; cam.updateProjectionMatrix(); }
+  addEventListener('resize', () => { if (running) fit(); });
 
   $('crow').style.display = mode === 'char' ? '' : 'none';
-  root.querySelectorAll('#mode button').forEach((x) => x.classList.toggle('on', x.dataset.mode === mode));
+  side.querySelectorAll('#mode2 button').forEach((x) => x.classList.toggle('on', x.dataset.mode === mode));
   rebuild();
   function loop() { if (!running) return; applyCam(); renderer.render(scene, cam); raf = requestAnimationFrame(loop); }
   return {
-    start() { if (running) return; running = true; raf = requestAnimationFrame(loop); },
+    start() { if (running) return; running = true; fit(); raf = requestAnimationFrame(loop); },
     stop() { running = false; if (raf) cancelAnimationFrame(raf); raf = 0; },
   };
 }
 
 // ── abas ────────────────────────────────────────────────────────────────────
-const rootEd = document.getElementById('tool-editor');
-const rootCn = document.getElementById('tool-cena');
-const editor = initEditor(rootEd);
-let cena = null;              // lazy: só monta a 2ª cena (e o 2º contexto GL) quando abrir a aba
+const sideEd = document.getElementById('side-editor'), hostEd = document.getElementById('host-editor'), ovEd = document.getElementById('ov-editor');
+const sideCn = document.getElementById('side-cena'), hostCn = document.getElementById('host-cena'), ovCn = document.getElementById('ov-cena');
+const editor = initEditor(sideEd, hostEd, ovEd);
+let cena = null;
 let currentName = 'editor';
 editor.start();
 function activate(name) {
   if (name === currentName) return;
   (currentName === 'editor' ? editor : cena).stop();
   document.querySelectorAll('#devtabs button').forEach((b) => b.classList.toggle('on', b.dataset.tool === name));
-  rootEd.hidden = name !== 'editor';
-  rootCn.hidden = name !== 'cena';
-  if (name === 'cena' && !cena) cena = initCena(rootCn);
+  sideEd.hidden = name !== 'editor'; hostEd.hidden = name !== 'editor'; ovEd.hidden = name !== 'editor';
+  sideCn.hidden = name !== 'cena'; hostCn.hidden = name !== 'cena'; ovCn.hidden = name !== 'cena';
+  if (name === 'cena' && !cena) cena = initCena(sideCn, hostCn);
   (name === 'editor' ? editor : cena).start();
   currentName = name;
 }
