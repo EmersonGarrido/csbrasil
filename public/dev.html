@@ -348,16 +348,21 @@ function initEditor(side, host, ov) {
     wlist.querySelectorAll('button').forEach((b) => (b.onclick = () => selectWeapon(b.dataset.w)));
     updateCount();
   }
-  function selectWeapon(id) { wsel.value = id; mag = magOf(id); reloading = false; buildVM(); loadSliders(); renderList(); updateAmmo(); if (typeof loadRec === 'function') loadRec(); }
+  function selectWeapon(id) { wsel.value = id; mag = magOf(id); reloading = false; buildVM(); loadSliders(); renderList(); updateAmmo(); if (typeof loadRec === 'function') loadRec(); if (typeof setReticle === 'function') setReticle(); }
 
-  (function buildReticle() {
+  // retículos da luneta: mil-dot (padrão) e PU (mosin russa: 3 postes + ponta em seta, topo aberto)
+  const PU_RETICLE = new Set(['mosin']);
+  const MILDOT = (() => {
     const V = 400, C = 200, L = [];
     const ln = (x1, y1, x2, y2, w) => L.push(`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke-width="${w}"/>`);
     ln(C, 34, C, 366, 1.4); ln(34, C, 366, C, 1.4);
     for (let i = 1; i * 13 <= 150; i++) { const d = i * 13, mj = i % 4 === 0, t = mj ? 8 : 4.5, w = mj ? 1.4 : 1; ln(C - t, C - d, C + t, C - d, w); ln(C - t, C + d, C + t, C + d, w); ln(C - d, C - t, C - d, C + t, w); ln(C + d, C - t, C + d, C + t, w); }
     const cap = 12; ln(C - cap, 50, C + cap, 50, 2.2); ln(C - cap, 350, C + cap, 350, 2.2); ln(50, C - cap, 50, C + cap, 2.2); ln(350, C - cap, 350, C + cap, 2.2);
-    elRet.innerHTML = `<svg viewBox="0 0 ${V} ${V}"><g stroke="#0a0a0a" fill="none">${L.join('')}</g></svg>`;
+    return `<svg viewBox="0 0 ${V} ${V}"><g stroke="#0a0a0a" fill="none">${L.join('')}</g></svg>`;
   })();
+  const PUSVG = '<svg viewBox="0 0 400 400"><g stroke="#0a0a0a" stroke-width="5" fill="none"><line x1="14" y1="200" x2="176" y2="200"/><line x1="224" y1="200" x2="386" y2="200"/><line x1="200" y1="386" x2="200" y2="216"/></g><path d="M200 200 L194 216 L206 216 Z" fill="#0a0a0a"/></svg>';
+  function setReticle() { elRet.innerHTML = PU_RETICLE.has(wsel.value) ? PUSVG : MILDOT; }
+  setReticle();
 
   let running = false, raf = 0;
   const keys = {};
