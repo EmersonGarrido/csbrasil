@@ -188,6 +188,7 @@
       <label>Arma <select id="gwep"></select></label>
     </div>
     <div class="grp"><div class="cap">Config da arma <span class="muted">real</span></div><div id="gcfg"></div></div>
+    <div class="grp"><div class="cap">Recuo <span class="muted" id="grecls">real</span></div><div id="grec"></div></div>
     <div class="grp"><div class="cap">FX <span class="muted">global ×</span></div><div id="gfx"></div></div>
     <div class="grp">
       <div class="cap">Ações</div>
@@ -710,24 +711,38 @@ function initGame(side, host) {
   const G = () => { try { return iframe.contentWindow.__game; } catch { return null; } };
   let cur = 'ak', started = false;
   // parâmetros REAIS por arma (WEAPONS/REC_DEG) + FX (multiplicadores globais)
+  // config da arma (WEAPONS[w])
   const CFG = {
-    recDeg: { min: 0, max: 6, step: 0.05, cap: 'recuo (REC_DEG)' },
     rpm: { min: 60, max: 1200, step: 10, cap: 'cadência RPM' },
     spreadHip: { min: 0, max: 0.15, step: 0.002, cap: 'spread quadril' },
     spreadScope: { min: 0, max: 0.03, step: 0.0005, cap: 'spread mira' },
     dmg: { min: 1, max: 400, step: 1, cap: 'dano' },
     mag: { min: 1, max: 120, step: 1, cap: 'pente' },
   };
+  // RECUO REAL: força por arma (REC_DEG) + padrão da classe (RECOIL_PATTERN) + timing global (REC)
+  const REC = {
+    recDeg: { min: 0, max: 6, step: 0.05, cap: 'força (graus)' },
+    up: { min: 0, max: 1, step: 0.02, cap: 'subida meio' },
+    cauda: { min: 0, max: 1, step: 0.02, cap: 'subida fim' },
+    left: { min: 0, max: 1, step: 0.02, cap: 'p/ esquerda' },
+    right: { min: 0, max: 1, step: 0.02, cap: 'p/ direita' },
+    wig: { min: 0, max: 1, step: 0.02, cap: 'aleatório' },
+    recover: { min: 0.03, max: 1, step: 0.01, cap: 'recuperação s' },
+    hold: { min: 0, max: 1, step: 0.02, cap: 'segura s' },
+    perm: { min: 0, max: 1, step: 0.02, cap: 'permanente' },
+  };
   const FXC = { light: { min: 0, max: 3, step: 0.1, cap: 'luz ×' }, flash: { min: 0, max: 3, step: 0.1, cap: 'flash ×' }, spark: { min: 0, max: 3, step: 0.1, cap: 'faíscas ×' } };
+  const CFGREC = { ...CFG, ...REC };   // ambos são aplicados via _tune
   const row = (id, d) => `<div class="ctl"><span title="${d.cap}">${d.cap}</span><input type="range" id="${id}" min="${d.min}" max="${d.max}" step="${d.step}"><input class="num" type="number" id="${id}_n" min="${d.min}" max="${d.max}" step="${d.step}"></div>`;
   $('gcfg').innerHTML = Object.entries(CFG).map(([k, d]) => row('c_' + k, d)).join('');
+  $('grec').innerHTML = Object.entries(REC).map(([k, d]) => row('c_' + k, d)).join('');
   $('gfx').innerHTML = Object.entries(FXC).map(([k, d]) => row('f_' + k, d)).join('');
   $('gchar').innerHTML = CHARACTERS.map((c) => `<option value="${c.id}">${c.id}</option>`).join(''); $('gchar').value = 'mst';
   $('gwep').innerHTML = WEAPON_IDS.map((id) => `<option value="${id}">${id}</option>`).join(''); $('gwep').value = cur;
 
-  function loadCfg() { const g = G(); if (!g || !g._tuneGet) return; const t = g._tuneGet(cur); for (const k in CFG) { $('c_' + k).value = t[k]; $('c_' + k + '_n').value = t[k]; } }
+  function loadCfg() { const g = G(); if (!g || !g._tuneGet) return; const t = g._tuneGet(cur); for (const k in CFGREC) { const r = $('c_' + k); if (r) { r.value = t[k]; $('c_' + k + '_n').value = t[k]; } } const cl = $('grecls'); if (cl) cl.textContent = `real · classe ${t.cls}`; }
   function loadFx() { const g = G(); if (!g || !g._tuneGet) return; const fx = g._tuneGet(cur).fx || {}; for (const k in FXC) { $('f_' + k).value = fx[k]; $('f_' + k + '_n').value = fx[k]; } }
-  for (const k in CFG) {
+  for (const k in CFGREC) {
     const r = $('c_' + k), n = $('c_' + k + '_n');
     const set = (v) => { v = Math.max(+r.min, Math.min(+r.max, v)); r.value = v; n.value = v; const g = G(); if (g && g._tune) g._tune(cur, { [k]: +v }); };
     r.addEventListener('input', () => set(+r.value));
@@ -744,7 +759,7 @@ function initGame(side, host) {
   $('gcopy').onclick = () => {
     const g = G(); if (!g || !g._tuneGet) return;
     const t = g._tuneGet(cur);
-    const out = `${cur} recDeg=${t.recDeg} rpm=${t.rpm} spreadHip=${t.spreadHip} spreadScope=${t.spreadScope} dmg=${t.dmg} mag=${t.mag}\nFX light=${t.fx.light} flash=${t.fx.flash} spark=${t.fx.spark}`;
+    const out = `${cur} recDeg=${t.recDeg} rpm=${t.rpm} spreadHip=${t.spreadHip} spreadScope=${t.spreadScope} dmg=${t.dmg} mag=${t.mag}\nRECUO(classe ${t.cls}) up=${t.up} cauda=${t.cauda} left=${t.left} right=${t.right} wig=${t.wig} recover=${t.recover} hold=${t.hold} perm=${t.perm}\nFX light=${t.fx.light} flash=${t.fx.flash} spark=${t.fx.spark}`;
     $('gvals').textContent = out;
     try { navigator.clipboard.writeText(out); $('gcopy').textContent = '✓ copiado!'; setTimeout(() => $('gcopy').textContent = '📋 copiar config', 1200); } catch {}
   };

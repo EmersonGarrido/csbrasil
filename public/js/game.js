@@ -344,13 +344,16 @@ function buildRecoilPattern({ mid = 0.42, tail = 0.2, left = 0.56, right = 0.68,
   }
   return a;
 }
-const RECOIL_PATTERN = {
-  ak:   buildRecoilPattern({ mid: 0.44, tail: 0.22, left: 0.56, right: 0.69 }),  // 7.62: braço largo
-  ar:   buildRecoilPattern({ mid: 0.40, tail: 0.19, left: 0.40, right: 0.48 }),  // 5.56: mais controlável
-  smg:  buildRecoilPattern({ mid: 0.46, tail: 0.26, left: 0.30, right: 0.36, wig: 0.36 }),
-  lmg:  buildRecoilPattern({ mid: 0.52, tail: 0.30, left: 0.60, right: 0.72 }),
-  semi: buildRecoilPattern({ mid: 0.55, tail: 0.40, left: 0.16, right: 0.20, wig: 0.2 }),  // 1 tiro por clique: quase só vertical
+// PARÂMETROS do padrão por classe (o dev.html game-backed edita e regenera o pattern ao vivo).
+const RECOIL_PARAMS = {
+  ak:   { mid: 0.44, tail: 0.22, left: 0.56, right: 0.69, wig: 0.3 },   // 7.62: braço largo
+  ar:   { mid: 0.40, tail: 0.19, left: 0.40, right: 0.48, wig: 0.3 },   // 5.56: mais controlável
+  smg:  { mid: 0.46, tail: 0.26, left: 0.30, right: 0.36, wig: 0.36 },
+  lmg:  { mid: 0.52, tail: 0.30, left: 0.60, right: 0.72, wig: 0.3 },
+  semi: { mid: 0.55, tail: 0.40, left: 0.16, right: 0.20, wig: 0.2 },   // 1 tiro por clique: quase só vertical
 };
+const RECOIL_PATTERN = {};
+for (const c in RECOIL_PARAMS) RECOIL_PATTERN[c] = buildRecoilPattern(RECOIL_PARAMS[c]);
 const RECOIL_CLASS = {};
 for (const w of ['ak', 'akm', 'g3', 'm92', 'md97']) RECOIL_CLASS[w] = 'ak';
 for (const w of ['m4', 'scar', 'tavor', 'famas', 'carbine']) RECOIL_CLASS[w] = 'ar';
@@ -368,7 +371,8 @@ const REC_DEG = {
 // Curva de recuperação do view punch: NÃO recupera enquanto a rajada está viva (é isso que
 // faz a tela subir de verdade); passado REC_HOLD volta com mola tau=REC_TAU. REC_PERM fica
 // como deriva permanente na mira — o jogador corrige com o mouse (spray control).
-const REC_HOLD = 0.30, REC_TAU = 0.22, REC_RISE = 0.035, REC_PERM = 0.25;
+// mutável (o dev.html game-backed edita hold/tau/perm ao vivo); valores originais preservados.
+const REC = { hold: 0.30, tau: 0.22, rise: 0.035, perm: 0.25 };
 // Queda de dano por distância: hoje o raycast vai a 200 m com dano constante (P90 a 40 m
 // mata igual à AWP). start/end em metros, min = multiplicador no fim. Sniper: sem falloff.
 const DMG_FALLOFF = {
@@ -2489,12 +2493,16 @@ export class Game {
   //    o jogo. Sem consumidor em produção (só o dev tool chama via window.__game). ──
   _tuneGet(w) {
     const W = WEAPONS[w] || {};
+    const cls = RECOIL_CLASS[w] || 'semi', P = RECOIL_PARAMS[cls] || {};
     return {
       recDeg: REC_DEG[w] ?? 1.4,
       rpm: W.rate ? Math.round(60 / W.rate) : 600,
       spreadHip: W.spreadHip ?? 0.02,
       spreadScope: W.spreadScope ?? (W.spreadHip ?? 0.02) * 0.35,
       dmg: W.dmg ?? 30, mag: W.mag ?? 30, auto: !!W.auto, scope: !!W.scope,
+      cls,                                        // RECUO REAL: padrão da classe + timing global
+      up: P.mid ?? 0.42, cauda: P.tail ?? 0.2, left: P.left ?? 0.56, right: P.right ?? 0.68, wig: P.wig ?? 0.3,
+      recover: REC.tau, hold: REC.hold, perm: REC.perm,
       fx: { ...(this._fxTune || { light: 1, flash: 1, spark: 1 }) },
     };
   }
@@ -2506,6 +2514,20 @@ export class Game {
     if (p.dmg != null) W.dmg = Math.max(1, p.dmg);
     if (p.mag != null) W.mag = Math.max(1, Math.round(p.mag));
     if (p.recDeg != null) REC_DEG[w] = Math.max(0, p.recDeg);
+    // timing GLOBAL do view-punch
+    if (p.recover != null) REC.tau = Math.max(0.03, p.recover);
+    if (p.hold != null) REC.hold = Math.max(0, p.hold);
+    if (p.perm != null) REC.perm = Math.max(0, Math.min(1, p.perm));
+    // padrão da CLASSE da arma (regenera o pattern real; afeta todas as armas da classe)
+    if (['up', 'cauda', 'left', 'right', 'wig'].some((k) => p[k] != null)) {
+      const cls = RECOIL_CLASS[w] || 'semi', P = RECOIL_PARAMS[cls] || (RECOIL_PARAMS[cls] = {});
+      if (p.up != null) P.mid = p.up;
+      if (p.cauda != null) P.tail = p.cauda;
+      if (p.left != null) P.left = p.left;
+      if (p.right != null) P.right = p.right;
+      if (p.wig != null) P.wig = p.wig;
+      RECOIL_PATTERN[cls] = buildRecoilPattern(P);
+    }
   }
   _fxSet(p) { this._fxTune = { light: 1, flash: 1, spark: 1, ...(this._fxTune || {}), ...(p || {}) }; }
   _switchWeapon(w) {
@@ -2624,8 +2646,8 @@ export class Game {
           st.t = now;
           // NÃO recupera enquanto a rajada está viva: é isso que faz a tela subir de verdade
           // (o crítico mediu 0.57° de estado estacionário na rajada inteira da AK).
-          if (now - st.last > REC_HOLD) { const k = Math.exp(-dt / REC_TAU); st.ty *= k; st.tx *= k; }
-          const r = Math.min(1, dt / REC_RISE);
+          if (now - st.last > REC.hold) { const k = Math.exp(-dt / REC.tau); st.ty *= k; st.tx *= k; }
+          const r = Math.min(1, dt / REC.rise);
           st.y += (st.ty - st.y) * r;
           const nx = st.x + (st.tx - st.x) * r;
           p.yaw -= nx - st.x;       // + = punch pra DIREITA (yaw diminui, igual ao mouse)
@@ -2648,9 +2670,9 @@ export class Game {
     const g = (REC_DEG[wid] ?? 1.4) * D2R * (p.scoped ? 0.68 : 1) * (1 - 0.25 * p.crouchF);
     const vy = g * py * (1 + (Math.random() - 0.5) * 0.6);
     const hx = g * px * (1 + (Math.random() - 0.5) * 0.6);
-    st.ty += vy * (1 - REC_PERM); st.tx += hx * (1 - REC_PERM);
-    p.pitch = Math.max(-1.45, Math.min(1.45, p.pitch + vy * REC_PERM));   // mesmo clamp do mouse-look
-    p.yaw -= hx * REC_PERM;
+    st.ty += vy * (1 - REC.perm); st.tx += hx * (1 - REC.perm);
+    p.pitch = Math.max(-1.45, Math.min(1.45, p.pitch + vy * REC.perm));   // mesmo clamp do mouse-look
+    p.yaw -= hx * REC.perm;
     st.last = this.time;
     st.sh = Math.min(0.013, st.sh + g * 0.16);
   }
@@ -2713,7 +2735,7 @@ export class Game {
     // do RecoilAxis) são independentes de propósito — a arma pode coicear forte sem arrancar
     // a mira, e vice-versa.
     if (GUNFEEL) {
-      if (this.time - (p.lastShotAt || -9) > REC_HOLD) p.sprayI = 0;   // parou de atirar = rajada nova
+      if (this.time - (p.lastShotAt || -9) > REC.hold) p.sprayI = 0;   // parou de atirar = rajada nova
       this._shotRecoil(p, p.weapon);
       p.sprayI = (p.sprayI || 0) + 1;
       p.lastShotAt = this.time;
