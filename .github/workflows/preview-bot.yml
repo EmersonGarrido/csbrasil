@@ -45,16 +45,10 @@ jobs:
 
   preview:
     needs: avaliar
-    if: contains(github.event.pull_request.labels.*.name, 'preview-autorizado') || success()
+    if: contains(github.event.pull_request.labels.*.name, 'preview-autorizado')
     runs-on: ubuntu-latest
     environment: preview-forks
     steps:
-      - name: só continua com o label
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          TEM=$(gh api "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/labels" --jq '[.[].name] | index("preview-autorizado") != null')
-          [ "$TEM" = "true" ] || { echo "sem label — nada a fazer"; exit 0; }
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha }}   # código do FORK: roda SÓ aqui, com environment gated
