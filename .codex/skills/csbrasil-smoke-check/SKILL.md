@@ -23,4 +23,3 @@ Use this skill when a PR changes UI, menu flow, HUD, runtime boot, or site/game 
 - Prefer stable selectors by `id`.
 - For automated runs, use `?debug=1` when useful.
 - If the game boot path is flaky, at least prove the menu→team→character flow remains intact.
-

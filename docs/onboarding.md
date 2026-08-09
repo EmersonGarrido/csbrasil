@@ -38,4 +38,3 @@ Precisam de revisão humana mesmo quando os checks passam:
 - `src/pages/api/*`
 - `supabase/schema.sql`
 - anti-cheat / submit-match
-

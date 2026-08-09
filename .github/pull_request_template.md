@@ -1,6 +1,6 @@
 ## Summary
 
-- 
+-
 
 ## Issue
 
@@ -24,4 +24,3 @@
 - [ ] needs `needs-staging`
 - [ ] needs `needs-human-gameplay`
 - [ ] needs `needs-human-backend`
-
