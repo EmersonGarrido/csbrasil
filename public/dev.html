@@ -97,6 +97,8 @@
   #reticle svg{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:60vmin;height:60vmin;filter:drop-shadow(0 0 1px rgba(255,255,255,.85))}
   #scope{position:absolute;inset:0;display:none;background:radial-gradient(circle at 50% 50%, transparent 0 30%, #000 31%, #000 100%)}
   .hint{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);font-size:12px;color:#89a;background:rgba(10,12,16,.7);padding:6px 12px;border-radius:6px;white-space:nowrap}
+  .hint b{color:#7fd}
+  .ammo{position:absolute;right:16px;bottom:14px;font-size:22px;letter-spacing:1px;color:#cfe;background:rgba(10,12,16,.6);padding:5px 12px;border-radius:7px;min-width:96px;text-align:center}
 </style>
 <script type="importmap">
 { "imports": { "three": "./vendor/three.module.js", "three/addons/": "./vendor/addons/" } }
@@ -185,7 +187,8 @@
     <div id="hitmark"></div>
     <div id="reticle"></div>
     <div id="scope"></div>
-    <div class="hint">clique na cena pra jogar · atire nos bots · botão direito mira</div>
+    <div id="ammo" class="ammo"></div>
+    <div class="hint">clique na cena pra jogar · atire nos bots · botão direito mira · <b>R</b> recarrega/repõe</div>
   </div>
   <div class="ov" id="ov-cena" hidden>
     <div class="hint">arrasta = girar · scroll = zoom · o cano deve seguir a seta VERDE (+Z)</div>
@@ -208,7 +211,7 @@ await preloadWeapons();
 function initEditor(side, host, ov) {
   const $ = (id) => side.querySelector('#' + id);
   const elCross = ov.querySelector('#cross'), elHit = ov.querySelector('#hitmark');
-  const elRet = ov.querySelector('#reticle'), elScope = ov.querySelector('#scope');
+  const elRet = ov.querySelector('#reticle'), elScope = ov.querySelector('#scope'), elAmmo = ov.querySelector('#ammo');
   const SCOPED = new Set(['awp', 'svd', 'g3sg1', 'sks', 'mosin', 'rem700', 'm400']);
   const NO_ALIGN = new Set(['pistol']);   // mira de ferro posicionada à mão (sem auto-alinhar)
   const POSE_FIXED = {   // poses gravadas no código (fonte da verdade p/ o jogo)
@@ -218,6 +221,9 @@ function initEditor(side, host, ov) {
     },
   };
   const RATE = { awp: 900, mosin: 1000, rem700: 900, deagle: 260, pistol: 200, knife: 400 };
+  // pente por arma (aprox. do jogo) — dá fim à rajada: acaba → recarrega → o recuo volta.
+  const MAG = { awp: 5, mosin: 5, rem700: 5, sks: 10, m400: 20, svd: 10, g3sg1: 20, deagle: 7, revolver38: 6, pistol: 12, shotgun: 7, carbine: 10, g3: 20, md97: 20, m92: 30, akm: 30, scar: 20, tavor: 30, famas: 25, uzi: 25, p90: 50, lmg: 100, knife: 0 };
+  const magOf = (id) => MAG[id] ?? 30;   // fallback fuzil
   // ── FX / RECUO (playground): valores globais afináveis ao vivo. Persistem no navegador.
   // Portáveis pro engine depois (é a mesma ideia das poses). Unidades: ver .cap de cada um.
   const FXDEF = {
@@ -264,6 +270,8 @@ function initEditor(side, host, ov) {
   function tracer(from, to) { const m = new THREE.Mesh(tracerGeo, new THREE.MeshBasicMaterial({ color: 0xfff3d6, transparent: true, opacity: FX.trOpacity / 100, blending: THREE.AdditiveBlending, depthWrite: false })); const d = new THREE.Vector3().subVectors(to, from); const len = d.length(); m.position.copy(from).addScaledVector(d, 0.5); m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.clone().normalize()); m.scale.set(FX.trThick, len, FX.trThick); m.userData.t = 0.09; scene.add(m); tracers.push(m); }
 
   const wsel = { value: 'ak' };
+  let mag = 0, reloading = false, reloadEnd = 0;   // munição do pente + recarga
+  function updateAmmo() { const cap = magOf(wsel.value); elAmmo.textContent = cap <= 0 ? '∞' : (reloading ? 'RECARREGANDO…' : mag + ' / ' + cap); }
   const tuned = new Set();
   const wlist = $('wlist');
   function updateCount() { const t = $('tcount'); if (t) t.textContent = `${tuned.size}/${WEAPON_IDS.length} afinadas`; }
@@ -272,7 +280,7 @@ function initEditor(side, host, ov) {
     wlist.querySelectorAll('button').forEach((b) => (b.onclick = () => selectWeapon(b.dataset.w)));
     updateCount();
   }
-  function selectWeapon(id) { wsel.value = id; buildVM(); loadSliders(); renderList(); }
+  function selectWeapon(id) { wsel.value = id; mag = magOf(id); reloading = false; buildVM(); loadSliders(); renderList(); updateAmmo(); }
 
   (function buildReticle() {
     const V = 400, C = 200, L = [];
@@ -289,7 +297,7 @@ function initEditor(side, host, ov) {
   const recoil = { pitch: 0, kick: 0, side: 0 };
   let recHold = 0;   // segura o coice antes de recuperar (deixa VER o recuo)
   let locked = false, aiming = false, shootHeld = false, lastShot = 0, jumpQueued = false;
-  addEventListener('keydown', (e) => { if (!running) return; keys[e.code] = true; if (e.code === 'Space') { jumpQueued = true; e.preventDefault(); } if (e.code === 'KeyR') spawnBots(); });
+  addEventListener('keydown', (e) => { if (!running) return; keys[e.code] = true; if (e.code === 'Space') { jumpQueued = true; e.preventDefault(); } if (e.code === 'KeyR') { mag = magOf(wsel.value); reloading = false; updateAmmo(); spawnBots(); } });
   addEventListener('keyup', (e) => { if (!running) return; keys[e.code] = false; });
   renderer.domElement.addEventListener('click', () => { if (!running) return; if (!locked) { renderer.domElement.requestPointerLock(); sfx.ensure && sfx.ensure(); } });
   document.addEventListener('pointerlockchange', () => { locked = document.pointerLockElement === renderer.domElement; });
@@ -427,8 +435,8 @@ function initEditor(side, host, ov) {
     // 3 · RECUO (base por arma × multiplicadores do FX)
     const bp = SCOPED.has(w) ? 0.06 : (w === 'deagle' ? 0.05 : 0.022);
     const bk = SCOPED.has(w) ? 0.05 : 0.02;
-    recoil.pitch = Math.min(0.7, recoil.pitch + bp * (aiming ? 0.5 : 1) * (FX.rise / 100));
-    recoil.kick = Math.min(0.12, recoil.kick + bk * (FX.kick / 100));
+    recoil.pitch = Math.min(0.2, recoil.pitch + bp * (aiming ? 0.5 : 1) * (FX.rise / 100));   // TETO ~11°: não sobe pro infinito
+    recoil.kick = Math.min(0.09, recoil.kick + bk * (FX.kick / 100));
     recoil.side += (Math.random() * 2 - 1) * 0.045 * (FX.side / 100);
     recHold = 0.11;   // segura ~110ms: durante a rajada a tela SOBE e fica subida
     const dir = new THREE.Vector3(); cam.getWorldDirection(dir);
@@ -482,8 +490,12 @@ function initEditor(side, host, ov) {
     cam.position.set(pos.x, pos.y + eyeH, pos.z);
     cam.rotation.set(look.pitch + recoil.pitch, look.yaw, recoil.side * 0.4);
     for (const b of bots) { if (b.dead) { b.tRespawn -= dt; if (b.tRespawn <= 0) { b.dead = false; b.hp = 3; if (b.ctrl && b.ctrl._to) b.ctrl._to('idle'); } } b.ctrl && b.ctrl.update(dt, 0, false, 0); }
-    const rate = RATE[wsel.value] || 105;
-    if (shootHeld && now - lastShot > rate) { fireShot(); lastShot = now; if (SCOPED.has(wsel.value) || wsel.value === 'deagle') shootHeld = false; }
+    const rate = RATE[wsel.value] || 105, cap = magOf(wsel.value);
+    if (reloading && now >= reloadEnd) { mag = cap; reloading = false; updateAmmo(); }
+    if (shootHeld && !reloading && now - lastShot > rate) {
+      if (cap > 0 && mag <= 0) { reloading = true; reloadEnd = now + 1100; updateAmmo(); }   // pente vazio → recarrega
+      else { fireShot(); if (cap > 0) { mag--; updateAmmo(); } lastShot = now; if (SCOPED.has(wsel.value) || wsel.value === 'deagle') shootHeld = false; }
+    }
     if (recHold > 0) recHold -= dt;   // hold: não recupera enquanto a rajada está viva
     else { const kf = Math.pow(0.03, dt * (FX.recover / 100)); recoil.pitch *= kf; recoil.kick *= kf; recoil.side *= kf; }
     flash.intensity *= Math.pow(0.00001, dt); if (flash.intensity < 0.05) flash.intensity = 0;
@@ -523,6 +535,7 @@ function initEditor(side, host, ov) {
   addEventListener('resize', () => { if (running) fit(); });
 
   buildVM();
+  mag = magOf(wsel.value); updateAmmo();
   return {
     start() { if (running) return; running = true; fit(); if (!botsReady) { botsReady = true; spawnBots(); } last = performance.now(); raf = requestAnimationFrame(frame); },
     stop() { running = false; if (raf) cancelAnimationFrame(raf); raf = 0; if (document.pointerLockElement === renderer.domElement) document.exitPointerLock(); },
