@@ -23,13 +23,17 @@ jobs:
   avaliar:
     if: github.event.pull_request.head.repo.full_name != github.repository
     runs-on: ubuntu-latest
+    outputs:
+      preview_autorizado: ${{ steps.decide.outputs.preview_autorizado }}
     steps:
       - name: avalia o diff pela API (sem checkout do fork)
+        id: decide
         env:
           GH_TOKEN: ${{ github.token }}
           PR: ${{ github.event.pull_request.number }}
           REPO: ${{ github.repository }}
         run: |
+          echo "preview_autorizado=false" >> "$GITHUB_OUTPUT"
           gh api "repos/$REPO/pulls/$PR/files" --paginate \
             --jq '.[] | .filename + " +" + (.additions|tostring) + " -" + (.deletions|tostring)' > /tmp/arquivos.txt
           cat /tmp/arquivos.txt
@@ -41,27 +45,34 @@ jobs:
             exit 0
           fi
           gh pr edit "$PR" --repo "$REPO" --add-label "preview-autorizado"
+          echo "preview_autorizado=true" >> "$GITHUB_OUTPUT"
           gh pr comment "$PR" --repo "$REPO" --body "🤖 **cs-brasil-ai-bot**: diff de baixo risco ($TOTAL linhas, sem arquivo sensível) — label \`preview-autorizado\` aplicado; o preview sobe no job seguinte. Regras: CONTRIBUTING.md."
 
   preview:
     needs: avaliar
-    if: contains(github.event.pull_request.labels.*.name, 'preview-autorizado') || success()
+    if: needs.avaliar.outputs.preview_autorizado == 'true'
     runs-on: ubuntu-latest
     environment: preview-forks
     steps:
-      - name: só continua com o label
+      - name: confirma que o label ainda existe
+        id: gate
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           TEM=$(gh api "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/labels" --jq '[.[].name] | index("preview-autorizado") != null')
-          [ "$TEM" = "true" ] || { echo "sem label — nada a fazer"; exit 0; }
+          echo "preview_autorizado_atual=$TEM" >> "$GITHUB_OUTPUT"
+          [ "$TEM" = "true" ] || { echo "label removido — preview cancelado"; exit 0; }
       - uses: actions/checkout@v4
+        if: steps.gate.outputs.preview_autorizado_atual == 'true'
         with:
           ref: ${{ github.event.pull_request.head.sha }}   # código do FORK: roda SÓ aqui, com environment gated
       - uses: actions/setup-node@v4
+        if: steps.gate.outputs.preview_autorizado_atual == 'true'
         with: { node-version: 22 }
       - run: npm i -g vercel@latest
+        if: steps.gate.outputs.preview_autorizado_atual == 'true'
       - name: preview na Vercel
+        if: steps.gate.outputs.preview_autorizado_atual == 'true'
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
