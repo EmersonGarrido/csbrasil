@@ -30,9 +30,9 @@ sem cadastro.
 
 | O que | Quanto | Onde confere |
 |---|---:|---|
-| Código do jogo | 27.037 linhas em 31 arquivos | `cat public/js/*.js \| wc -l` |
+| Código do jogo | 27.069 linhas em 31 arquivos | `cat public/js/*.js \| wc -l` |
 | `game.js` | **6.203** linhas | `wc -l public/js/game.js` |
-| `main.js` | 1.860 linhas | `wc -l public/js/main.js` |
+| `main.js` | 1.892 linhas | `wc -l public/js/main.js` |
 | Armas com GLB | 26 | `ls public/models/weapons/*.glb \| wc -l` |
 | GLBs de personagem | 45 | `ls public/models/characters/*.glb \| wc -l` |
 | Props em GLB | 108 | `ls public/models/props/*.glb \| wc -l` |
@@ -40,10 +40,10 @@ sem cadastro.
 | Personagens jogáveis | 44, em 5 facções | array `CHARACTERS` de `characters.js` |
 | Mapas no registro | 5 | objeto `MAPS` de `maps.js` |
 | Arnêses visuais em HTML | 12 | `ls public/*.html \| wc -l` |
-| Scripts do arnês | 167 | `ls tools/eval/*.mjs tools/eval/*.py \| wc -l` |
-| Scripts de pipeline | 45 | `ls tools/*.mjs \| wc -l` |
+| Scripts do arnês | 170 | `ls tools/eval/*.mjs tools/eval/*.py \| wc -l` |
+| Scripts de pipeline | 46 | `ls tools/*.mjs \| wc -l` |
 | Tarefas de entrada escritas | 26 | `ls docs/issues/[0-9]*.md \| wc -l` |
-| Versão | `2.0.0-alpha.41` | `public/js/version.js` e `package.json` (batem) |
+| Versão | `2.0.0-alpha.52` | `public/js/version.js` e `package.json` (batem) |
 
 > Bloco gerado por `node tools/gen-docs.mjs`. Fonte: `o comando da coluna direita de cada linha`
 
@@ -192,10 +192,10 @@ está lá. Use `npm run dev`.
 
 ```bash
 npm run check        # npm run syntax && npm run audio:check && npm run eval:ctfhud && npm run eval:vm && npm run eval:invariants && npm run eval:kick && npm run eval:bots
-npm run check:fast   # node tools/eval/runner.mjs syntax docs:check arch:check audio:check feet:check eval:ctfhud eval:pause eval:ctfround eval:ctfwin eval:spawn eval:regen eval:pegada eval:ctflabels anims:check anims:merge:check walls:check
+npm run check:fast   # node tools/eval/runner.mjs syntax eval:release docs:check arch:check audio:check feet:check eval:ctfhud eval:pause eval:ctfround eval:ctfwin eval:spawn eval:regen eval:pegada eval:ctflabels anims:check anims:merge:check walls:check media:check travessao:check
 ```
 
-`package.json` tem **56 scripts**. Vários trazem uma chave `//nome` logo acima com o motivo de existirem — é onde mora o porquê.
+`package.json` tem **61 scripts**. Vários trazem uma chave `//nome` logo acima com o motivo de existirem — é onde mora o porquê.
 
 > Bloco gerado por `node tools/gen-docs.mjs`. Fonte: `node -p "Object.keys(require('./package.json').scripts)"`
 
@@ -217,6 +217,49 @@ dobrar de tamanho.
 > `npm run check` lê GLBs de `public/models/`. Numa árvore sem os assets
 > baixados, `eval:invariants` e `eval:vm` falham com `ENOENT` — é ambiente, não
 > regressão.
+
+## Knowledge graph com Graphify
+
+O repo agora inclui integração project-scoped do [Graphify](https://github.com/Graphify-Labs/graphify)
+para múltiplos adapters:
+
+- Claude Code
+- Codex
+- OpenCode
+- Kimi
+- adapters compatíveis com `agent skills` via `.agents/`
+
+Arquivos principais:
+
+- `AGENTS.md` e `CLAUDE.md`: instruções de uso do grafo
+- `.codex/`, `.claude/`, `.opencode/`, `.kimi/`, `.agents/`: skills/config por adapter
+- `graphify-out/graph.json`: grafo consultável
+- `graphify-out/GRAPH_REPORT.md`: resumo navegável
+- `graphify-out/graph.html`: visualização local do grafo
+
+Build inicial do grafo:
+
+- foi gerado em modo `code-only`, local e determinístico
+- inclui SQL (`supabase/schema.sql` e migrations)
+- não usa API externa
+
+Atualizar depois de mudanças de código:
+
+```bash
+./scripts/graphify update .
+./scripts/graphify cluster-only . --graph ./graphify-out/graph.json --no-label
+```
+
+Regenerar do zero:
+
+```bash
+./scripts/graphify extract . --code-only --out . --force
+./scripts/graphify cluster-only . --graph ./graphify-out/graph.json --no-label
+```
+
+Observação: a versão atual do Graphify extrai este repo muito bem em JS/TS/SQL, mas ainda
+reporta parsing parcial em arquivos `.astro`. Isso é limitação do extrator atual, não do
+projeto.
 
 ## Controles
 

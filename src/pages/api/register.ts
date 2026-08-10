@@ -1,10 +1,11 @@
-// POST /api/register — registra nick (único) + token do jogador.
+// POST /api/register - registra nick (único) + token do jogador.
 import type { APIRoute } from 'astro';
 import { supabaseAdmin, NOT_CONFIGURED } from '../../lib/supabase';
 import { buildSocialUrl } from '../../lib/social';
 import { isAllowedAvatarUrl } from '../../lib/safe-url';
 import { rateLimit } from '../../lib/ratelimit';
 import { isValidNick, NICK_HINT } from '../../lib/nick';
+import { jsonError, logInternalError } from '../../lib/api-error';
 
 export const prerender = false;
 
@@ -13,7 +14,7 @@ export const POST: APIRoute = async ({ request }) => {
     return new Response(NOT_CONFIGURED, { status: 503, headers: { 'content-type': 'application/json' } });
 
   // rate limit de registro: 10/min por IP (anti nick-farming).
-  // ERA um `new Map()` de módulo — que na Vercel vive só dentro de UMA instância
+  // ERA um `new Map()` de módulo - que na Vercel vive só dentro de UMA instância
   // de lambda e some no cold start; quem abrisse requests em paralelo ganhava um
   // orçamento novo por instância. Agora conta no Postgres (RPC rl_take), que é
   // memória compartilhada de verdade. Ver supabase/migrations/011.
@@ -33,7 +34,7 @@ export const POST: APIRoute = async ({ request }) => {
   // docs/seguranca.md §8); isto aqui é o espelho, e existe por dois motivos:
   // devolver erro legível em vez do 409 genérico de constraint violada, e recusar
   // ANTES de gastar uma chamada de RPC. Valida o nick já cortado em 14, que é o
-  // que de fato vai pro banco — validar o original e gravar o truncado deixaria
+  // que de fato vai pro banco - validar o original e gravar o truncado deixaria
   // passar lixo depois do 14º caractere.
   const nickLimpo = nick.trim().slice(0, 14);
   if (!isValidNick(nickLimpo))
@@ -43,8 +44,10 @@ export const POST: APIRoute = async ({ request }) => {
     p_nick: nickLimpo, p_token: token,
     p_social: typeof social === 'string' ? social.slice(0, 60) : null,
   });
-  if (error)
-    return new Response(JSON.stringify({ error: error.message }), { status: 409, headers: { 'content-type': 'application/json' } });
+  if (error) {
+    logInternalError('api/register', error, { nick: nick.trim().slice(0, 14) });
+    return jsonError(409, 'register_conflict', 'não foi possível registrar este nick');
+  }
 
   // multi-redes: [{net, handle}] → [{net, url}] + social_link = primeira
   if (Array.isArray(socials) && socials.length) {
@@ -61,7 +64,7 @@ export const POST: APIRoute = async ({ request }) => {
   }
 
   // ANTI-SSRF NA ORIGEM: avatar_url é lido de volta e BUSCADO pelo servidor em
-  // /api/badge. Guardar uma URL arbitrária aqui é o que armava o gatilho —
+  // /api/badge. Guardar uma URL arbitrária aqui é o que armava o gatilho -
   // por isso a validação (https + host de avatar conhecido) acontece nos dois
   // lados: na escrita, aqui, e na leitura, no fetchAvatar. Ver src/lib/safe-url.ts.
   const safeAvatar = (v: unknown) =>

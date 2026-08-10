@@ -1603,6 +1603,44 @@ publicação em potencial, e o `.gitignore` não protege de um deploy local.
 
 ## Relatados, ainda não reproduzidos
 
+- **BUG-41 · `crypto.randomUUID` derruba presença em navegador incompatível (#143).**
+  O cliente chamava o método diretamente ao criar `cs_anon` e `awpbr_token`; quando
+  `crypto` existia sem `randomUUID`, `getAnonId()` lançava antes do primeiro ping.
+  `npm run eval:uuid` reproduz esse ambiente e exige UUID v4 nos caminhos nativo,
+  `getRandomValues` e sem Web Crypto (este último reprova em vez de gerar token
+  previsível com `Math.random`). Medição: **0/3 → 3/3**; a mutação
+  `--mutante=chamada-direta` devolve o erro.
+
+- **~~BUG-40 · Release atribui ao bot uma contribuição externa e usa o nome antigo~~ ·
+  RESOLVIDO 09/08.** Palavras do dono: *"o nosso bot deu squash merge e tirou a
+  contribuicao do emerson garrido. isso é errado"* · *"queriamos todos RELEASES
+  renomeados pra CSBR"*.
+
+  **Reprodução.** Não houve squash: os PRs #118 e #119 tinham merge commit com o commit
+  reconstruído como segundo pai. O defeito estava nesses dois commits: Ruben era o autor
+  principal e o trailer `Co-authored-by` do Emerson usava
+  `emersongarridohotmail.com.br@MacBook-Pro-de-Emerson.local`, e-mail que nenhuma conta do
+  GitHub pode verificar. Antes, **0 dos 2** trailers ligavam a `@EmersonGarrido`.
+
+  **Conserto histórico.** Os dois trailers agora usam o noreply oficial
+  `7999450+EmersonGarrido@users.noreply.github.com`; **2 dos 2** são associáveis. A
+  reescrita foi atômica e com lease, e `git diff` entre as árvores finais antes/depois deu
+  vazio: só os trailers e os hashes descendentes mudaram. `main` passou de `2cd8a4b` para
+  `fc8e431`; as tags alpha.46/47 foram movidas junto. As notas desses dois releases citam
+  explicitamente `@EmersonGarrido` e os PRs #118/#119. Releases de versão medidos em 09/08:
+  **47 de 47** titulados `CSBR <tag>`; os pacotes de áudio/decalque mantêm nomes próprios.
+
+  **Conserto futuro e régua.** Os dois caminhos de criação agora usam
+  `gh release create --generate-notes --title "CSBR …"`; as notas nativas do GitHub incluem
+  PRs e contribuidores. `npm run eval:release`: RLS1 **0/2 → 2/2**, RLS2 **0/2 → 2/2**.
+  Mutações `--mutante=nome-antigo` e `--mutante=semcreditos`: a cláusula correspondente
+  cai para **1/2** e o comando sai 1.
+
+  **Custo declarado / não verificado.** Seis hashes mudaram e os dois merge commits
+  reconstruídos perderam a assinatura `Verified` do GitHub. O GitHub documenta que o
+  gráfico de contribuidores pode levar até 24 h para refletir uma reescrita; as notas dos
+  releases e os trailers já são verificáveis imediatamente.
+
 - **BUG-37 · Tarja vermelha de CRASH por um erro que não é crash.** Print do dono, 07/08,
   com o menu de pausa aberto (`RESUME ▶` no canto):
   *"⚠ CRASH (promise): The fetching process for the media resource was aborted by the user

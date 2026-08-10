@@ -164,12 +164,9 @@ const $ = id => document.getElementById(id);
 /* Wallpapers rotativos (wall-1..9): 1 por tela no fluxo home→setup→lado→personagem, sem
    repetir; o offset rotaciona a cada acesso (localStorage) pra variar entre visitas.
 
-   ESTAS LISTAS SÃO HARDCODED E JÁ ENGOLIRAM ARTE NOVA EM SILÊNCIO: o dono jogou wall-9.png e
-   loading-6.png na pasta em 04/08 e nenhum dos dois aparecia, porque o array parava em 8 e em
-   5 (mesmo defeito de MENU_TRACKS abaixo, que ignora a 27ª faixa). Página estática não lista
-   diretório pelo browser, então o conserto de verdade é um manifesto GERADO em build
-   (`tools/` → `public/img/walls.json`) e lido daqui com fallback. Ver KNOWN-BUGS.md BUG-08.
-   Enquanto isso: ARQUIVO NOVO NA PASTA = ENTRADA NOVA AQUI.
+   Estes arrays são fallback do primeiro quadro. A fonte de verdade é
+   public/img/walls.json, gerado por `npm run media` a partir do disco. O manifesto
+   recalcula a rotação quando chega; falha de rede mantém este fallback.
 
    Servidos em .webp desde 07/08: os PNG de 2–2,6 MB viraram ~250 KB (ffmpeg libwebp q85,
    comparado lado a lado antes da troca — texto do cartaz e grão idênticos). Os .png ficam
@@ -177,10 +174,15 @@ const $ = id => document.getElementById(id);
 const WALLS = ['/img/wall-1.webp', '/img/wall-2.webp', '/img/wall-3.webp', '/img/wall-4.webp',
   '/img/wall-5.webp', '/img/wall-6.webp', '/img/wall-7.webp', '/img/wall-8.webp',
   '/img/wall-9.webp'];
-let _wallK = 0;
-try { _wallK = (parseInt(localStorage.getItem('cs_wallK') || '-1', 10) + 1) % WALLS.length; localStorage.setItem('cs_wallK', String(_wallK)); } catch {}
+let _wallVisit = 0;
+try {
+  _wallVisit = parseInt(localStorage.getItem('cs_wallK') || '-1', 10) + 1;
+  if (!Number.isFinite(_wallVisit)) _wallVisit = 0;
+  localStorage.setItem('cs_wallK', String(_wallVisit));
+} catch {}
+let _wallK = _wallVisit % WALLS.length;
 const wallUrl = (i) => `url('${WALLS[(_wallK + i) % WALLS.length]}')`;
-const HOME_WALL = wallUrl(0), SETUP_WALL = wallUrl(1), TEAM_WALL = wallUrl(2), CHAR_WALL = wallUrl(3);
+let HOME_WALL = wallUrl(0), SETUP_WALL = wallUrl(1), TEAM_WALL = wallUrl(2), CHAR_WALL = wallUrl(3);
 // loading-1..6: wallpaper rotativo SÓ da splash inicial (a msg "clique pra começar" fica por cima).
 // O overlay de carregamento de MAPA usa os wall-* (mesmo fluxo rotativo) — ver showLoading/_loadWallI.
 // Hardcoded pelo mesmo motivo (e com o mesmo defeito) do WALLS acima — ver KNOWN-BUGS.md BUG-08.
@@ -188,6 +190,20 @@ const LOADING_WALLS = ['/img/loading-1.webp', '/img/loading-2.webp', '/img/loadi
   '/img/loading-4.webp', '/img/loading-5.webp', '/img/loading-6.webp'];
 let _loadWallI = 4;
 { const bs = document.getElementById('boot-splash'); if (bs) bs.style.backgroundImage = `url('${LOADING_WALLS[_wallK % LOADING_WALLS.length]}')`; }
+fetch(`/img/walls.json?v=${VERSION}`)
+  .then((response) => (response.ok ? response.json() : null))
+  .then((manifest) => {
+    if (!manifest) return;
+    if (Array.isArray(manifest.walls) && manifest.walls.length) WALLS.splice(0, WALLS.length, ...manifest.walls);
+    if (Array.isArray(manifest.loading) && manifest.loading.length) LOADING_WALLS.splice(0, LOADING_WALLS.length, ...manifest.loading);
+    _wallK = _wallVisit % WALLS.length;
+    HOME_WALL = wallUrl(0); SETUP_WALL = wallUrl(1); TEAM_WALL = wallUrl(2); CHAR_WALL = wallUrl(3);
+    applyHomeWall();
+    const team = $('team-select'); if (team) team.style.setProperty('--wall', TEAM_WALL);
+    const character = $('char-select'); if (character) character.style.setProperty('--wall', CHAR_WALL);
+    const splash = $('boot-splash'); if (splash) splash.style.backgroundImage = `url('${LOADING_WALLS[_wallK % LOADING_WALLS.length]}')`;
+  })
+  .catch(() => {});
 function applyHomeWall() { const w = document.querySelector('#main-menu .cs-wallpaper'); if (w) w.style.backgroundImage = HOME_WALL; }
 function applySetupWall() { const w = document.querySelector('#main-menu .cs-wallpaper'); if (w) w.style.backgroundImage = SETUP_WALL; }
 applyHomeWall();
@@ -420,9 +436,20 @@ let submitted = true;   // stats da partida atual já enviados?
    sendBeacon porque isto costuma sair junto com o fim da partida ou com a aba
    fechando — `fetch` normal é cancelado no unload, sendBeacon não. */
 const ANON_KEY = 'cs_anon';
+function clientUuid() {
+  const c = globalThis.crypto;
+  if (typeof c?.randomUUID === 'function') return c.randomUUID();
+  if (typeof c?.getRandomValues !== 'function') throw new Error('Web Crypto indisponível');
+  const bytes = new Uint8Array(16);
+  c.getRandomValues(bytes);
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = [...bytes].map(value => value.toString(16).padStart(2, '0')).join('');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
 function getAnonId() {
   let a = localStorage.getItem(ANON_KEY);
-  if (!a) { a = crypto.randomUUID(); localStorage.setItem(ANON_KEY, a); }
+  if (!a) { a = clientUuid(); localStorage.setItem(ANON_KEY, a); }
   return a;
 }
 let telemetrySent = true;
@@ -1366,7 +1393,7 @@ renderSocials();
 const TOKEN_KEY = 'awpbr_token';
 function getToken() {
   let t = localStorage.getItem(TOKEN_KEY);
-  if (!t) { t = crypto.randomUUID(); localStorage.setItem(TOKEN_KEY, t); }
+  if (!t) { t = clientUuid(); localStorage.setItem(TOKEN_KEY, t); }
   return t;
 }
 async function api(path, body) {
@@ -1375,7 +1402,7 @@ async function api(path, body) {
       ? { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }
       : undefined);
     const j = await r.json().catch(() => ({}));
-    return r.ok ? j : { error: j.error || `http_${r.status}` };
+    return r.ok ? j : { error: j.error || `http_${r.status}`, message: j.message };
   } catch { return null; }
 }
 function submitNote(msg) {
@@ -1443,9 +1470,14 @@ addEventListener('beforeunload', (e) => {
 
 /* ---------------- fila de reenvio (rate limit do servidor) ---------------- */
 const PENDING_KEY = 'awpbr_pending_submit';
+function isSubmitCooldown(res) {
+  const error = typeof res?.error === 'string' ? res.error : '';
+  const message = typeof res?.message === 'string' ? res.message : '';
+  return error === 'submit_cooldown' || /aguarde/i.test(error) || /aguarde/i.test(message);
+}
 async function submitGlobal(pl) {
   const res = await api('/api/submit-match', pl);
-  if (res?.error && /aguarde/i.test(res.error)) {
+  if (isSubmitCooldown(res)) {
     localStorage.setItem(PENDING_KEY, JSON.stringify(pl));
     setTimeout(retryPending, 95_000);   // reenvia sozinho quando a janela abrir
   }
@@ -1456,7 +1488,7 @@ async function retryPending() {
   if (!raw) return;
   const res = await api('/api/submit-match', JSON.parse(raw));
   if (res && !res.error) localStorage.removeItem(PENDING_KEY);
-  else if (res?.error && /aguarde/i.test(res.error)) setTimeout(retryPending, 95_000);
+  else if (isSubmitCooldown(res)) setTimeout(retryPending, 95_000);
 }
 
 /* ---------------- local stats (espelhados pro ranking global) ----------------
@@ -1487,7 +1519,7 @@ async function recordMatchStats(s) {
       character: s.character, mode: matchMode,
     });
     if (!res) submitNote('ranking global indisponível');
-    else if (res.error) submitNote(traduErroSubmit(res.error));
+    else if (res.error) submitNote(res.message || traduErroSubmit(res.error));
   }
   renderPlayerPlate();   // XP/nível do card do menu sobem junto com os stats
 }
