@@ -37,9 +37,12 @@ import path from 'node:path';
 /* Lista fechada e literal. Poda dirigida por padrão (glob, regex) num script que
    roda `rmSync(recursive)` é como se apaga a pasta errada — o alvo tem que ser
    legível numa olhada. */
+const KEEP_FPVM = process.env.KEEP_FPVM === '1';
 const ALVOS = [
-  'dist/client/models/fpvm',
-  '.vercel/output/static/models/fpvm',
+  ...(KEEP_FPVM ? [] : [
+    'dist/client/models/fpvm',
+    '.vercel/output/static/models/fpvm',
+  ]),
   // MODO DEV (dev.html): fica em public/ pra o `astro dev` servir na máquina de quem
   // desenvolve, mas NÃO pode ir pro ar (seria URL pública /dev.html). Mesmo tratamento
   // do fpvm: poda do dist E do espelho da Vercel, então em produção dá 404. Continua
@@ -58,9 +61,8 @@ function tamanho(dir) {
 }
 const mb = (b) => (b / 1024 / 1024).toFixed(1) + ' MB';
 
-if (process.env.KEEP_FPVM === '1') {
+if (KEEP_FPVM) {
   console.log('  poda: KEEP_FPVM=1 — models/fpvm mantido no publicado.');
-  process.exit(0);
 }
 
 let total = 0, podados = 0;
@@ -75,5 +77,5 @@ for (const alvo of ALVOS) {
 if (!podados) {
   console.log('  poda: nada a podar (models/fpvm não está no build).');
 } else {
-  console.log(`  poda: ${mb(total)} fora do publicado. \`?tripovm=1\` e \`?tvm=1\` só valem em dev.`);
+  console.log(`  poda: ${mb(total)} fora do publicado.`);
 }
