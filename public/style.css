@@ -1472,6 +1472,31 @@ html[data-ui="legacy"] .cs-vignette{
 .lo-bar{width:min(440px,78vw)}
 .lo-bar+.splash-status{width:min(440px,78vw)}
 
+/* Falha de abertura: modal central, curto e acionável. Erro bruto/stack nunca aparece
+   aqui; quem está depurando usa ?debug=1 e recebe o painel técnico separado. */
+#launch-error{position:fixed;inset:0;z-index:2147483646;display:flex;align-items:center;justify-content:center;
+  padding:24px;background:rgba(var(--bg-900-rgb),.9);backdrop-filter:blur(8px)}
+#launch-error.hidden{display:none}
+.launch-error-card{width:min(560px,calc(100vw - 32px));padding:clamp(26px,5vw,48px);text-align:center;
+  background:linear-gradient(155deg,rgba(var(--bg-700-rgb),.98),rgba(var(--bg-900-rgb),.99));
+  border:1px solid var(--line-2);border-top:4px solid var(--br-faixa);clip-path:var(--cut);
+  box-shadow:0 28px 90px rgba(0,0,0,.62)}
+.launch-error-kicker{font-family:var(--mono);font-size:var(--fs-50);letter-spacing:var(--tr-4);
+  color:var(--br-faixa);text-transform:uppercase}
+.launch-error-card h2{margin:var(--s-3) 0 var(--s-3);font-family:var(--font);font-size:clamp(30px,5vw,48px);
+  line-height:var(--lh-tight);letter-spacing:var(--tr-3);color:var(--ink-100)}
+.launch-error-card p{max-width:46ch;margin:0 auto;color:var(--ink-300);font:600 var(--fs-200)/var(--lh-base) var(--font)}
+.launch-error-code{display:inline-block;margin:var(--s-4) 0;padding:7px 12px;font-family:var(--mono);
+  font-size:var(--fs-50);letter-spacing:var(--tr-3);color:var(--ink-200);background:var(--bg-900);border:1px solid var(--line)}
+.launch-error-actions{display:flex;justify-content:center;gap:var(--s-3);flex-wrap:wrap;margin-bottom:var(--s-3)}
+.launch-error-actions .btn{min-width:190px}
+.launch-error-actions .btn:disabled{opacity:.68;cursor:default;transform:skewX(-6deg)}
+.launch-error-status{min-height:1.5em;font-size:var(--fs-50)!important;color:var(--ink-400)!important}
+@media(max-width:560px){
+  .launch-error-actions{flex-direction:column}
+  .launch-error-actions .btn{width:100%;min-width:0}
+}
+
 /* menu principal: respiro extra em telas baixas (1280×800 etc.) */
 @media(max-height:860px){
   .cs-left{bottom:4vh;gap:8px}

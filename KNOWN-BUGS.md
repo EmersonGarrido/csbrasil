@@ -44,6 +44,49 @@ lista de "balão" do CHR1 tem os mesmos 13 antes e depois).
 
 ## P0 — quebram o jogo ou mentem para quem mede
 
+### ~~BUG-42 · Erro bruto na abertura não dava saída para o jogador~~ · RESOLVIDO 10/08
+
+**Como aparecia.** O coletor global de `src/pages/index.astro` usava a mesma tarja vermelha
+para telemetria, diagnóstico e mensagem ao jogador. Qualquer `error` ou promise rejeitada
+expunha mensagem e stack, mas não oferecia nova tentativa nem confirmação de envio. Uma exceção
+durante `startGame()` também não tinha fronteira própria para limpar loading, jogo parcial,
+pointer lock e tela cheia antes de voltar ao menu.
+
+**Causa raiz.** O código sabia registrar a falha, mas não sabia distinguir três perguntas:
+*o erro deve ser coletado?*, *um debugger pediu o detalhe?* e *uma ação explícita do jogador
+deixou de avançar?* O primeiro `show()` respondia “sim” às três. Além disso, `startGame()`
+executava a abertura inteira sem `try/catch`, então não existia dono para recuperar estado.
+
+**Régua no navegador real:** `npm run eval:boot` (`tools/eval/boot-check.mjs`), viewport
+1200×800. Ela injeta uma exceção no início de `_startGame`, sem editar o arquivo em disco.
+
+| cláusula | antes/mutação | depois |
+|---|---|---|
+| volta ao menu com loading fechado | sem dono da recuperação | sim |
+| modal amigável e dentro da tela | **não** (`--mutante=sem-amigavel`) | sim |
+| mensagem/stack técnica no modo normal | **vaza** (`--mutante=vaza-detalhe`) | não |
+| relatório automático + confirmação manual | botão não confirma | **2 automáticos + 1 confirmação** |
+| painel técnico com `?debug=1` | sim | sim |
+
+As duas mutações saem 1 na cláusula B3; `sem-amigavel` também derruba B4, e
+`vaza-detalhe` prova o risco adicional: a tarja técnica fica acima do modal e bloqueia o botão
+de relatório. A captura servida pode ser regenerada com
+`npm run eval:boot -- --foto=/tmp/coro-solto-launch-error-1200x800.png`.
+
+**Conserto.** `src/pages/index.astro` separa coleta silenciosa, painel de `?debug=1` e modal
+acionável; o modal guarda o corpo exato ligado ao código mostrado, para o botão não reenviar um
+erro anterior. `public/js/main.js` tornou a abertura uma fronteira de erro, desfaz estado parcial
+e marca o fim do boot. Watchdogs cobrem entrada, menu e partida que ficam pendurados sem lançar.
+`public/style.css` serve o modal responsivo no topo da UI.
+
+**Custo declarado / limite.** O watchdog da partida espera até 60 s para não acusar conexão
+lenta como crash. Travamento do processo de GPU/aba inteira não executa JavaScript e continua
+fora do alcance; o fallback operacional permanece `?bloom=0`. O botão TENTAR DE NOVO recarrega
+a página inteira, preservando simplicidade em vez de tentar retomar um renderer possivelmente
+corrompido.
+
+---
+
 ### BUG-39 · site fora do ar: edge servindo main.js de um deploy com fparms.js de outro
 
 **Evidência (08/08, ~03:14, print do jogador + curl).** Boot morto em
@@ -237,8 +280,8 @@ quatro acusaram código inocente):
 ### ~~BUG-29 · "o jogo tá reiniciando do nada, estava num CTF no ferro velho do Zé"~~ · RESOLVIDO 05/08
 
 **NÃO era o BUG-00 de volta.** O menu de pausa continua consertado: `pause-check.mjs`
-passa 6/6 e a `PAUSA5` (nenhum caminho automático pro menu) segue verde. É defeito novo,
-e é **do modo CAPTURA**.
+passa 6/6 e a `PAUSA5` (nenhum caminho automático tira uma partida ativa do jogo) segue
+verde. É defeito novo, e é **do modo CAPTURA**.
 
 **Causa raiz — confirmada.** O bloco de doutrina do modo (`game.js:84-104`) declara que
 *"a RODADA fecha por ALVO DE CAPTURAS (`CTF_CAPS_TO_WIN`) ou por dominação — **nunca por
@@ -498,9 +541,9 @@ sempre em 5 rodadas / 530,7 s, sem transição espúria. `dispose()` só é cham
 
 **Régua: `tools/eval/pause-check.mjs`** (node puro, ~5 s, no `check:fast` e no quality gate como
 invariante `PAUSA`). 6 cláusulas, **7 mutações medidas, todas fazem a cláusula certa ficar
-vermelha** — inclusive `PAUSA5`, que reprova qualquer caminho automático novo (um
-`setTimeout(quitToMenu, 1000)` deixa o quality gate vermelho). Duas armadilhas achadas escrevendo
-a própria régua e consertadas: a isenção do corpo de `quitToMenu` era por "tem `function
+vermelha** — inclusive `PAUSA5`, que reprova caminho automático novo fora da fronteira
+delimitada de abertura (um `setTimeout(quitToMenu, 1000)` deixa o quality gate vermelho).
+Duas armadilhas achadas escrevendo a própria régua e consertadas: a isenção do corpo de `quitToMenu` era por "tem `function
 quitToMenu` por perto" (passava verde com a mutação colada logo abaixo da função) e a busca
 era por `quitToMenu(` (não pegava `setTimeout(quitToMenu, …)`, que é justamente como se
 cria um caminho automático sem escrever parênteses).
