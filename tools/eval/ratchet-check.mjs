@@ -31,12 +31,9 @@ const entradas = baseIDs ? baseIDs.filter((id) => !atuais.has(id)) : [];   // qu
 const novas = baseIDs ? [...atuais].filter((id) => !baseIDs.includes(id)) : [];   // novas dívidas
 
 const body = process.env.PR_BODY || '';
-const linhaRatchet = /^\s*ratchet:\s*(.+)$/m.exec(body);
 const motivos = new Map();
-if (linhaRatchet) {
-  for (const m of body.matchAll(/ratchet:\s*([+-]?)([A-Z0-9_]+)(?:\s+porque\s+(.+))?/gim)) {
-    motivos.set(m[2].toUpperCase(), { libera: m[1] === '+', motivo: m[3] || '' });
-  }
+for (const m of body.matchAll(/^\s*ratchet:\s*([+-]?)([A-Z0-9_]+)(?:\s+porque\s+(.+))?\s*$/gim)) {
+  motivos.set(m[2].toUpperCase(), { libera: m[1] === '+', motivo: m[3] || '' });
 }
 
 console.log(`RÉGUA DE RATCHET   base ${BASE}\n`);
