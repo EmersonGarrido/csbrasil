@@ -83,8 +83,7 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
     if (factionError) logInternalError('api/submit-match-faction', factionError, { nick: n, faction: factionId });
   }
 
-  // geo: presença do nick. O histórico de cidade é contado pela telemetria
-  // anônima via track_city_match, cobrindo registrados e não registrados uma vez só.
+  // Cidade é contada só por /api/telemetry, inclusive para anônimos.
   const g = geoFrom(request);
   if (g) {
     await supabaseAdmin.from('presence').upsert({

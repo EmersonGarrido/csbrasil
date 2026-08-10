@@ -38,8 +38,6 @@ export const POST: APIRoute = async ({ request }) => {
   if (typeof anonId !== 'string' || !UUID_RE.test(anonId))
     return json({ error: 'bad_anon_id' }, 400);
 
-  // weaponKills tem que ser objeto pequeno {arma: n}; chaves/valores livres fariam
-  // JSON sem teto crescer e poluiriam a dimensão de armas do painel.
   const wk = Object.fromEntries(
     Object.entries(
       weaponKills && typeof weaponKills === 'object' && !Array.isArray(weaponKills) ? weaponKills : {},

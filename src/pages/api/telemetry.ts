@@ -65,8 +65,7 @@ export const POST: APIRoute = async ({ request }) => {
       return json({ ok: true, stored: false });
     }
 
-    /* Cidade passa pelo mesmo evento anônimo que já cobre TODA partida. O RPC
-       incrementa atomicamente; o submit registrado não deve contar de novo. */
+    // Este evento anônimo é a única fonte de city_daily; submit não duplica.
     const g = geoFrom(request);
     if (g?.city) {
       const { error: cityError } = await supabaseAdmin.rpc('track_city_match', {

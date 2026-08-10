@@ -1,7 +1,5 @@
-// GET /api/health - saúde do banco e frescor dos pipelines de telemetria.
-// Não expõe contagens, nicks ou timestamps exatos: o detalhe continua privado
-// no admin (`telemetry_ingest_health`). O prod-watch usa este contrato para
-// separar "site responde" de "site consegue gravar no Supabase".
+// GET /api/health - banco e frescor da ingestão, sem contagens/timestamps exatos.
+// O detalhe permanece privado em telemetry_ingest_health.
 import type { APIRoute } from 'astro';
 import { supabaseAdmin } from '../../lib/supabase';
 

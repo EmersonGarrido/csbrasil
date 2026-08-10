@@ -50,8 +50,7 @@ export const POST: APIRoute = async ({ request }) => {
     return jsonError(409, 'register_conflict', 'não foi possível registrar este nick');
   }
 
-  /* Liga first-touch anônimo ao nick sem sobrescrever uma associação anterior.
-     O UUID identifica navegador, não pessoa, e já existe em acquisition. */
+  // Completa a atribuição anônima existente sem criar nem sobrescrever vínculo.
   if (typeof anonId === 'string' && UUID_RE.test(anonId)) {
     const { error: acquisitionError } = await supabaseAdmin
       .from('acquisition')
