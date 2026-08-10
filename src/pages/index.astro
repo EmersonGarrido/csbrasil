@@ -61,16 +61,8 @@ const IMPORTMAP = JSON.stringify({
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<!-- Captura de erro: reporta silenciosamente para /api/jserror.
-     O overlay existia e não bastava: em 07/08 o botão JOGAR ficou INERTE em produção
-     (BUG-34, TDZ no main.js) e o banner vermelho pintou na tela de alguém e MORREU ALI,
-     porque não ia para lugar nenhum. Site respondendo 200, build passando, check:fast
-     verde. Erro no navegador de quem joga é o único sinal que portão nenhum alcança.
-     Script clássico inline roda ANTES dos módulos (deferidos), então pega até erro em
-     tempo de execução dos módulos - que foi exatamente o caso do BUG-34.
-     O jogador só vê detalhe técnico com ?debug=1. Sem a flag, uma tela amigável aparece
-     apenas quando uma tentativa explícita de entrar/iniciar a partida não avança.
-     Crash de GPU/renderer não dispara 'error' - pra esse caso use ?bloom=0. -->
+<!-- Deve rodar antes dos módulos para capturar falhas de boot; detalhes técnicos só
+     aparecem com ?debug=1. Contexto e limites: KNOWN-BUGS.md, BUG-42. -->
 <script is:inline>
 (function(){
   var TETO_SESSAO = 10;      // no máximo 10 erros DISTINTOS por carregamento de página
@@ -497,8 +489,7 @@ const IMPORTMAP = JSON.stringify({
   </div>
 </div>
 
-<!-- Erro para gente, não para debugger. Só abre quando o watchdog confirma que uma
-     tentativa de entrada/partida não avançou; os detalhes técnicos ficam em ?debug=1. -->
+<!-- Exiba apenas quando uma tentativa explícita de abrir a arena falhar (BUG-42). -->
 <div id="launch-error" class="hidden" role="alertdialog" aria-modal="true" aria-labelledby="launch-error-title">
   <div class="launch-error-card">
     <div class="launch-error-kicker">A TRETA DEU UMA PAUSA</div>
@@ -963,6 +954,7 @@ const IMPORTMAP = JSON.stringify({
     <div id="hp-row"><span id="hp-num">100</span></div>
     <div id="hp-bar"><div id="hp-fill"></div></div>
   </div>
+  <div id="weapon-hud" class="hidden" aria-label="Armas e utilitários"></div>
   <div id="hud-bottom-right">
     <div id="weapon-name">AWP "DELIBERADOR"</div>
     <div id="ammo"><span id="ammo-mag">5</span><span class="ammo-sep">|</span><span id="ammo-reserve">25</span></div>

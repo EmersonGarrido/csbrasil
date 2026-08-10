@@ -860,6 +860,22 @@ body:has(#pause-menu:not(.hidden)) #hud{opacity:.12;transition:opacity var(--t) 
 #hp-bar{width:200px;height:6px;background:rgba(var(--bg-900-rgb),.8);border:1px solid var(--line);overflow:hidden;margin-top:var(--s-1);clip-path:var(--cut-sm)}
 #hp-fill{height:100%;width:100%;background:var(--br-faixa);transition:width var(--t),background var(--t-fast)}
 #hp-fill.low{background:var(--crit)}
+#weapon-hud{position:absolute;right:48px;bottom:168px;display:flex;flex-direction:column;
+  align-items:flex-end;gap:6px;width:min(270px,34vw)}
+.weapon-slot{display:grid;grid-template-columns:16px 38px minmax(0,1fr) auto;align-items:center;
+  gap:9px;width:100%;min-height:34px;padding:6px 10px;color:var(--ink-200);
+  background:rgba(var(--bg-900-rgb),.62);border-left:3px solid var(--line-2);
+  clip-path:var(--cut-sm);text-shadow:var(--sh-hud)}
+.weapon-slot.on{color:var(--ink-100);background:rgba(var(--bg-700-rgb),.82);
+  border-left-color:var(--br-faixa)}
+.weapon-key{font-family:var(--mono);font-size:var(--fs-100);color:var(--ink-300);text-align:center}
+.weapon-slot.on .weapon-key{color:var(--br-faixa)}
+.weapon-icon{display:flex;align-items:center;justify-content:flex-end;color:currentColor}
+.weapon-icon .kf-ic{width:38px;height:21px;margin:0}
+.weapon-label{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  font-size:var(--fs-100);font-weight:700;letter-spacing:var(--tr-1);text-transform:uppercase}
+.weapon-amount{font-family:var(--mono);font-size:var(--fs-100);color:var(--cs);
+  font-variant-numeric:tabular-nums;white-space:nowrap}
 /* MUNIÇÃO EM CIMA, NOME DA ARMA EMBAIXO (referência 05: "30 | 90" e só então "AK-47").
    O DOM vem na ordem contrária e é escrito pelo game.js — `column-reverse` inverte a
    leitura sem tocar em uma linha de JS, a mesma manobra que virou o placar da tela 08. */
@@ -1830,6 +1846,9 @@ html[data-ui="legacy"] .cs-vignette{
   #hp-cross{font-size:18px}
   #hp-num{font-size:30px}
   #hp-bar{width:150px}
+  #weapon-hud{right:12px;bottom:112px;width:min(230px,58vw);gap:3px}
+  .weapon-slot{grid-template-columns:14px 32px minmax(0,1fr) auto;gap:6px;min-height:28px;padding:4px 7px}
+  .weapon-icon .kf-ic{width:32px;height:18px}
   #hud-bottom-right{right:12px;bottom:14px;max-width:45vw}
   #weapon-name{font-size:10px;letter-spacing:1px;line-height:1.2}
   #ammo{font-size:30px}

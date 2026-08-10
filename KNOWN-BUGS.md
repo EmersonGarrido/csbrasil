@@ -645,6 +645,46 @@ mudar.
 
 ## P1 — o jogador vê
 
+### ~~BUG-43 · "o menu de HUD não está mostrando com vmlab=1 em produção"~~ · RESOLVIDO 10/08
+
+**Sintoma (do dono):** *"o menu de hud nao esta mostrando com vmlab=1 em producao"*.
+
+**Reprodução em produção (10/08):** abrir `https://www.csbrasil.online/?vmlab=1`.
+O parâmetro chega como `vmlab=1`, mas o DOM publicado contém **zero** elemento
+`#weapon-hud`/`#wephud` e nenhum script cujo `src` contenha `vmlab`.
+
+**Causa raiz - confirmada.** O HUD de slots do #131 nasceu como um mock sobreposto à aba
+"Testar no jogo" de `public/dev.html` (commits `78cf645`, `76f730d` e `10270bd`), com a
+própria mensagem de commit dizendo que ainda precisaria ser levado ao HUD real. O #154
+extraiu somente a bancada local e, corretamente, manteve `dev.html` fora do build publicado.
+Na `main`, `src/pages/index.astro` não declara o menu de armas e `public/js/game.js` não lê
+`vmlab`; portanto a query string não tem como materializar o protótipo em produção.
+
+**Régua:** `tools/eval/vmlab-hud-check.mjs` (`npm run eval:vmlabhud`). Mede o método de
+produção em três estados de loadout e exige que `vmlab=0` continue sem o menu. Mutação:
+`--mutante=semflag` reintroduz a ausência sob `vmlab=1` e tem que deixar a cláusula HUD2
+vermelha.
+
+**Correção.** O host `#weapon-hud` foi promovido para `src/pages/index.astro` e o método
+`_updateWeaponHud()` passou a desenhar, no HUD real, os slots presentes no loadout vivo:
+primária, secundária, faca, fumaça e frag. O caminho é estritamente experimental: sem
+`?vmlab=1`, o elemento permanece escondido e vazio. A régua também entrou em
+`check:deploy`, para que a Vercel não possa publicar novamente um artefato sem esse HUD.
+
+**Antes/depois medido.** Antes da correção: **0/4** cláusulas verdes e nenhum host no
+artefato publicado. Depois: **4/4** — slots `1,2,3,4,5` no loadout completo, `1,2,3` sem
+granadas, exatamente um slot ativo e menu vazio/escondido sem a flag. A mutação
+`--mutante=semflag` derruba HUD2 e HUD3, provando que a régua morde.
+
+**Visual real do build.** Em `1536×1024` (3:2), o painel mediu `270×194 px` em
+`x=1218, y=662`; em `1280×720` (16:9), mediu `270×194 px` em `x=962, y=358`, com
+**0 px de sobreposição** sobre o bloco de munição. Os cinco slots, ícones, munição e faixa
+ativa ficaram legíveis nas duas proporções.
+
+**Crédito/proveniência.** A direção visual vem do protótipo de Emerson Garrido no #131
+(commits `78cf645`, `76f730d` e `10270bd`). A correção preserva esse crédito no commit e
+no PR; ela promove apenas o menu de armas, sem trazer de volta o pacote inteiro do #131.
+
 ### ~~BUG-34 · O botão JOGAR estava INERTE em produção — o jogo não abria~~ · RESOLVIDO 07/08
 
 **Como apareceu.** Não foi reportado: caiu no colo enquanto se media outra coisa. A régua das
