@@ -49,6 +49,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { initTextures } from './harness.mjs';
+import { GRAFITE } from '../../public/js/graffiti_layout.js';
 
 const PISO_AUDIO = 250;          // real 308 · exemplo 62 — ver o bloco de medição acima
 const MANIFEST = 'public/audio/manifest.json';
@@ -96,8 +97,11 @@ if (!existsSync(MANIFEST)) {
 }
 
 /* -------------------------------- DECALQUES -------------------------------- */
-try {
-  const T = initTextures();
+let T;
+try { T = initTextures(); } catch (e) {
+  erros.push(`decalques: não deu pra importar o textures.js em node (${e.message}).`);
+}
+if (T) try {
   const files = T.decalFiles || [];
   if (!files.length) {
     erros.push('decalques: `T.decalFiles` veio vazio — textures.js não expôs a lista.');
@@ -126,6 +130,68 @@ try {
   }
 } catch (e) {
   erros.push(`decalques: não deu pra importar o textures.js em node (${e.message}).`);
+}
+
+/* ------------------------- LAYOUT DE GRAFITE ↔ PACOTE -------------------------
+   O OUTRO LADO do contrato que o bloco acima cobra. O assets-check confere que todo
+   arquivo do DECAL_FILES existe no disco; este bloco confere que todo NOME citado
+   pelo `graffiti_layout.js` ainda existe nas listas do pacote. São direções opostas
+   do mesmo fio.
+
+   DEFEITO QUE FECHA (issue #77): `graffiti_layout.js` é GERADO e guarda por mapa uma
+   lista `arquivos` com nomes de PNG; cada peça aponta pra ela por índice. Se alguém
+   tirar um decalque do pacote, o layout continua citando o nome e `aplicarGrafite`
+   cai em `public/js/graffiti_pass.js:467`:
+
+       if (i === undefined) { console.warn('[grafite] layout cita "' + nome + '", que saiu do pacote'); continue; }
+
+   Um console.warn que ninguém lê e peças que somem da parede sem nenhum portão
+   reclamar — a mesma classe de defeito que fez o dono ver parede pelada enquanto a
+   régua anterior jurava 334 peças.
+
+   RESOLUÇÃO DE NOME — a mesma do jogo (graffiti_pass.js:466): nome com prefixo
+   `poster:` casa com `T.posterFiles` (sem o prefixo); o resto casa com
+   `T.decalFiles`. Se a régua discordar disso, os falsos positivos aparecem aqui.
+
+   MUTAÇÃO QUE PROVA: tirar de `DECAL_FILES` (textures.js) um nome que o layout usa.
+   Documentada no bloco do evidenciador (README §testes). Sem este bloco o check
+   passava verde com o layout citando arquivo que não existe.
+   ---------------------------------------------------------------------------- */
+if (T) {
+  const decal = new Set(T.decalFiles || []);
+  const poster = new Set(T.posterFiles || []);
+  const orfaos = [];            // { mapa, nome, pecas } — peças que somem da parede
+  let totalPecas = 0;
+  for (const [mapa, dados] of Object.entries(GRAFITE)) {
+    const arq = dados.arquivos || [];
+    // nome citado pelo layout que não existe mais no pacote
+    const sem = new Set();
+    for (const f of arq) {
+      const ok = f.startsWith('poster:') ? poster.has(f.slice(7)) : decal.has(f);
+      if (!ok) sem.add(f);
+    }
+    if (!sem.size) continue;
+    // quantas PEÇAS seriam perdidas, não só quantos arquivos — "1 arquivo faltando"
+    // e "1 arquivo faltando = 458 peças" pedem urgências diferentes (issue #77).
+    for (const [a] of (dados.pecas || [])) {
+      const nome = arq[a];
+      if (nome !== undefined && sem.has(nome)) {
+        if (!orfaos.length || orfaos[orfaos.length - 1].mapa !== mapa || orfaos[orfaos.length - 1].nome !== nome) {
+          orfaos.push({ mapa, nome, pecas: 0 });
+        }
+        orfaos[orfaos.length - 1].pecas++;
+        totalPecas++;
+      }
+    }
+  }
+  if (orfaos.length) {
+    const ex = orfaos.slice(0, 4).map((o) => `${o.mapa}:${o.nome} (=${o.pecas} peças)`).join(', ');
+    erros.push(`grafite layout: ${orfaos.length} nome(s) citado(s) pelo layout saíram do pacote = `
+      + `${totalPecas} peça(s) que sumiriam da parede (ex.: ${ex}) — `
+      + 'regenere com `npm run grafite`.');
+  } else {
+    avisos.push(`grafite layout ok: todos os nomes citados existem no pacote.`);
+  }
 }
 
 /* --------------------------------- veredito -------------------------------- */
