@@ -1,10 +1,5 @@
 #!/usr/bin/env node
-/* Mutation testing do viewmodel. `tools/eval/mutantes.json` é o catálogo:
-   cada mutante é um patch (de/para) + a régua que deveria ficar vermelha.
-   O motor aplica, roda a régua, restaura no finally e reporta MATOU/SOBREVIVEU.
-   Ctrl-C/SIGTERM no meio restauram imediatamente — a prova é feita com
-   `--demo-interrompe` (aplica e espera; mande `kill -INT PID` e veja o git limpo).
-   Mutante novo = edit só no JSON. */
+/* Executa o catálogo descrito em docs/issues/26-mutation-testing-automatizado.md. */
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { spawn } from 'node:child_process';
@@ -57,10 +52,24 @@ function rodarRegua(comando, alvo) {
   });
 }
 
+function preparar(comando) {
+  return new Promise((resolve, reject) => {
+    const [cmd, ...args] = comando.split(/\s+/).filter(Boolean);
+    const child = spawn(cmd, args, { cwd: ROOT, stdio: 'inherit' });
+    childAtivo = child;
+    child.on('close', (code) => {
+      childAtivo = null;
+      if (code === 0) resolve();
+      else reject(new Error(`${comando} saiu com código ${code} durante a preparação`));
+    });
+  });
+}
+
 async function main() {
   const mutantes = SO ? CAT.mutantes.filter((m) => m.id === SO) : CAT.mutantes;
   if (!mutantes.length) throw new Error(`nenhum mutante (--so=${SO}) no catálogo`);
-  let sobrev = 0, falhas = 0;
+  if (CAT.prepara) await preparar(CAT.prepara);
+  let sobrev = 0, pulados = 0, falhas = 0;
 
   for (const m of mutantes) {
     const caminho = join(ROOT, m.arquivo);
@@ -87,7 +96,8 @@ async function main() {
           : alvoR.ok === true ? 'SOBREVIVEU'
           : `PULADO (${alvoR.evid || 'sem evidência'})`;
         console.log(`[${m.id}] ${v} ${regua.alvo}`);
-        if (alvoR.ok !== false) sobrev++;
+        if (alvoR.ok === true) sobrev++;
+        else if (alvoR.ok == null) pulados++;
       }
     } catch (e) {
       console.log(`ERRO  ${m.id}: ${e.message}`);
@@ -97,9 +107,11 @@ async function main() {
     }
   }
 
-  if (sobrev || falhas) {
+  if (sobrev || pulados || falhas) {
     const motivos = (sobrev ? `${sobrev} sobreviveram (invariante cega — achado)` : '') +
-      (sobrev && falhas ? ' + ' : '') + (falhas ? `${falhas} erros` : '');
+      (sobrev && (pulados || falhas) ? ' + ' : '') +
+      (pulados ? `${pulados} pulados (avaliação inconclusiva)` : '') +
+      (pulados && falhas ? ' + ' : '') + (falhas ? `${falhas} erros` : '');
     console.error(`\nFALHOU: ${mutantes.length} mutantes → ${motivos}`);
     process.exit(1);
   }

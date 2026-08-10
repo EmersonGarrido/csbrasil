@@ -1,4 +1,5 @@
 {
+  "prepara": "node tools/eval/vm-mint-audit.mjs",
   "regua": {
     "comando": "node tools/eval/invariants.mjs --json",
     "alvo": "AUD1"
