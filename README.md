@@ -40,7 +40,7 @@ sem cadastro.
 | Personagens jogáveis | 44, em 5 facções | array `CHARACTERS` de `characters.js` |
 | Mapas no registro | 5 | objeto `MAPS` de `maps.js` |
 | Arnêses visuais em HTML | 12 | `ls public/*.html \| wc -l` |
-| Scripts do arnês | 172 | `ls tools/eval/*.mjs tools/eval/*.py \| wc -l` |
+| Scripts do arnês | 167 | `ls tools/eval/*.mjs tools/eval/*.py \| wc -l` |
 | Scripts de pipeline | 46 | `ls tools/*.mjs \| wc -l` |
 | Tarefas de entrada escritas | 26 | `ls docs/issues/[0-9]*.md \| wc -l` |
 | Versão | `2.0.0-alpha.54` | `public/js/version.js` e `package.json` (batem) |
