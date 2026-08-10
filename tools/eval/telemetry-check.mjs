@@ -89,6 +89,8 @@ if (/from\(['"]city_daily['"]\)[\s\S]{0,300}select\(/.test(submitRoute))
 // TL8 — observabilidade precisa medir produção, não só existir no repositório.
 if (!existsSync('src/pages/api/health.ts') || !prodWatch.includes('/api/health'))
   falhas.push('TL8 health ausente ou fora do prod-watch');
+if (!prodWatch.includes('node --input-type=module -'))
+  falhas.push('TL8 probe usa top-level await sem modo ESM');
 
 for (const f of falhas) console.log(`  \x1b[31m✗\x1b[0m ${f}`);
 if (!falhas.length) console.log('  \x1b[32m✓\x1b[0m TL1–TL8 ingestão wired, idempotente, atômica e monitorada');
