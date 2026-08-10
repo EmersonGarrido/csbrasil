@@ -466,6 +466,7 @@ export function initTextures() {
 
   // --- real poster art (public/posters) — curated satirical posters for the map walls.
   // [file, aspect w/h]. Priority first (DOLLYNHO + New Project), then the rest.
+  // Reproduz dimensões, aspecto real e desvio: node tools/eval/poster-aspect-check.mjs --json
   const POSTER_FILES = [
     ['ashtar.png', 0.5625, 1.35], ['ashtar.png', 0.5625, 1.35],
     ['ashtar-meme.jpg', 0.98, 1.2],   // o MEME original — o dono mandou voltar ('estava bom tb')
