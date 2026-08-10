@@ -1,12 +1,7 @@
 import { test, expect } from '@playwright/test';
 
-// Navegação funcional menu → ranking → setup → time → personagem → partida.
-// Corre com ?nav=1 (kill-switch do main.js): o preload 3D do elenco é PU LADO e o
-// fluxo prova a transição de telas sem depender de render/SwiftShader. A régua
-// visual de GLBs/thumbnails reais é o web-assets.spec.js, separada.
-//
-// SMOKE_MUTANTE=nocharselect: intercepta o main.js servido e remove a transição
-// `show('char-select')` — a régua DEVE reprovar (é a prova que ela morde).
+// ?nav=1 mede somente as transições; web-assets.spec.js cobre GLBs reais.
+// SMOKE_MUTANTE=nocharselect deve reprovar a transição para char-select.
 
 const MUTANTE = process.env.SMOKE_MUTANTE || '';
 

@@ -385,8 +385,7 @@ function pvSetChar(def) {
     p.model.rotation.y = 0.4;
     p.scene.add(p.model);
   };
-  // ?nav=1 (smoke de navegação) pula o pré-carrega do GLB — o preview fica procedural,
-  // sem depender do download/model 3D. A régua de assets roda isso separado.
+  // ?nav=1 mantém o preview procedural; web-assets.spec.js cobre o GLB real.
   if (navOnly) { showBox(); return; }
   if (GLB_CHARS.has(def.id)) {
     // Keep the PREVIOUS model visible while the real GLB streams in — never flash the
@@ -400,8 +399,7 @@ function pvSetChar(def) {
       const m = hasModel(def.id) ? buildCharacterModel(def, { weaponId: charWeapon(def.id), preview: true }) : null;
       if (!m) { showBox(); return; }
       if (p.model) p.scene.remove(p.model);
-      // dataset real = efeito observável p/ a régua visual (web-assets.spec.js): só o
-      // GLB de verdade marca o canvas; fallback procedural (showBox) nunca marca.
+      // Somente o GLB real marca o canvas para web-assets.spec.js.
       $('char-preview').dataset.glb = '1';
       m.group.rotation.y = 0.4;
       p.model = m.group; p.mixer = m.mixer; p.ctrl = m.ctrl;
@@ -651,9 +649,7 @@ _refreshOnline();
 setInterval(_refreshOnline, 60000);
 const params = new URLSearchParams(location.search);
 const testMode = params.get('debug') === '1';
-// ?nav=1 — smoke de NAVEGAÇÃO (web-smoke.spec.js): prova menu→time→personagem→partida
-// SEM depender do preload 3D lento nem do render do elenco. Nunca dispara GLB (pvThumb/
-// showBox/fallback procedural); a régua visual de assets roda separada (web-assets.spec.js).
+// ?nav=1 isola transições de tela; web-assets.spec.js cobre preload e render 3D.
 const navOnly = params.get('nav') === '1';
 
 /* Presença: as chamadas descem para CÁ, depois de `testMode` existir (ver o comentário na
@@ -712,9 +708,7 @@ async function startGame(team, charId, enemyFaction) {
   // sorteia os carros da Havan desta partida ANTES do preload (seleção = props do mapa)
   setHavanCarSeed((Math.random() * 1e9) | 0);
   try {
-    if (navOnly) {
-      await preloadMapProps([...MAP_PROPS, ...((MAPS[currentMap] && MAPS[currentMap].props) || [])]);   // props são opcionais (fail → mapa roda sem)
-    } else {
+    if (!navOnly) {
       await Promise.all([
         preloadCharacterAssets([...GLB_CHARS]),
         preloadMapProps([...MAP_PROPS, ...((MAPS[currentMap] && MAPS[currentMap].props) || [])]),   // + props do mapa (Havan: carros/estátua)
