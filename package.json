@@ -1,6 +1,6 @@
 {
   "name": "coro-solto",
-  "version": "2.0.0-alpha.58",
+  "version": "2.0.0-alpha.59",
   "license": "AGPL-3.0-only",
   "description": "CORO SOLTO: Treta Suprema (ex-CS BRASIL) — FPS de navegador estilo CS 1.6 (site Astro + jogo vanilla em Three.js)",
   "scripts": {
@@ -42,7 +42,7 @@
     "eval:submitguard": "node tools/eval/submit-guard-check.mjs",
     "//eval:ctrlw": "Agachar andando pra frente não pode fechar a aba. Relato do Daniel Diniz (07/08): 'quando fica muito tempo com a tecla Control pressionada a página fecha' — no Windows, não no Mac. Não é o Control: agachar é ControlLeft/Right e andar pra frente é W, então agachar avançando É Ctrl+W (no Mac o atalho é Cmd+W, por isso não reproduzia aqui). preventDefault não alcança atalho reservado; quem resolve é a Keyboard Lock API em tela cheia, com a confirmação de saída do beforeunload como segunda camada pra Firefox/Safari. CW3 cobra o SILÊNCIO no menu — confirmação que aparece sempre vira praga e é arrancada inteira depois, levando o conserto junto. EXIGE BROWSER: fora do `check`, passo de pré-deploy. `--mutante=semlock|semprompt|promptsempre` provam que morde, e a régua morre se o mutante não casar o texto.",
     "eval:ctrlw": "node tools/eval/ctrlw-check.mjs",
-    "//eval:boot": "O JOGO ABRE? Sobe o astro dev, abre a rota `/` num Chrome de verdade e exige zero pageerror MAIS o `onclick` do #btn-jogar ligado (prova de que o main.js avaliou até o fim). Nasceu de 07/08: `_pingPresenca()` rodava no escopo do módulo antes do `const testMode`, o TDZ matava a avaliação de main.js na linha 483 e o botão JOGAR ficava INERTE — em produção, com o site respondendo 200 e o check:fast inteiro verde. EXIGE BROWSER: fica fora do `check` (que roda sem browser) e é o passo obrigatório antes de deploy. `--mutante=tdz` reproduz o defeito interceptando o main.js servido.",
+    "//eval:boot": "O JOGO ABRE E FALHA DE FORMA ACIONÁVEL? No Chrome real, exige zero pageerror, o `onclick` do #btn-jogar ligado e uma falha injetada no início da partida voltando ao menu com modal amigável, telemetria automática/manual e detalhe técnico só em ?debug=1. Nasceu do BUG-34 (TDZ deixava JOGAR inerte) e do BUG-42 (erro bruto assustava o jogador sem dar recuperação). EXIGE BROWSER: fica fora do `check` e é passo obrigatório antes de deploy. `--mutante=tdz|sem-amigavel|vaza-detalhe` prova as cláusulas.",
     "eval:boot": "node tools/eval/boot-check.mjs",
     "eval:vm": "node tools/eval/vm-mint-audit.mjs",
     "eval:kick": "node tools/eval/vm-kick-sim.mjs",
@@ -55,7 +55,7 @@
     "//eval:sitemap": "Prova o fatiamento do sitemap com totais falsos (0, 5000, 5001, 12000). O modo índice é código que NINGUÉM alcança pedindo a URL — perfis só entram com RANKING_ON e precisariam de 5000+ jogadores. Checa páginas contíguas sem buraco, teto por página, XML bem formado nos dois modos e escape de & no nick.",
     "eval:sitemap": "node --experimental-strip-types tools/eval/sitemap-check.mjs",
     "eval:ctfhud": "node tools/eval/ctfhud-check.mjs",
-    "//eval:vmlabhud": "O menu de armas do protótipo do #131 precisa existir no HUD real quando ?vmlab=1 e continuar ausente sem a flag. Nasceu do relato do dono em produção (BUG-42). Executa _updateWeaponHud de game.js em três estados; --mutante=semflag reintroduz a ausência.",
+    "//eval:vmlabhud": "O menu de armas do protótipo do #131 precisa existir no HUD real quando ?vmlab=1 e continuar ausente sem a flag. Nasceu do relato do dono em produção (BUG-43). Executa _updateWeaponHud de game.js em três estados; --mutante=semflag reintroduz a ausência.",
     "eval:vmlabhud": "node tools/eval/vmlab-hud-check.mjs",
     "//eval:posters": "O aspecto declarado de cada cartaz em POSTER_FILES (textures.js) bate com o pixel do arquivo em public/posters/? Erro >6% = arte esticada na parede (issue #79). `--mutate` estraga um número e prova que a régua morde.",
     "eval:posters": "node tools/eval/poster-aspect-check.mjs",

@@ -677,6 +677,22 @@ addEventListener('pointerdown', _menuOnce);
 addEventListener('keydown', _menuOnce);
 
 async function startGame(team, charId, enemyFaction) {
+  window.__gameLaunch?.begin('partida', 60000);
+  try {
+    await _startGame(team, charId, enemyFaction);
+    window.__gameLaunch?.ready('partida');
+  } catch (e) {
+    try { hideLoading(); } catch {}
+    try { if (game) game.dispose(); } catch {}
+    game = null; window.__game = null;
+    try { if (document.pointerLockElement) document.exitPointerLock(); } catch {}
+    try { if (document.fullscreenElement) document.exitFullscreen()?.catch?.(() => {}); } catch {}
+    try { show('main-menu'); } catch {}
+    console.error('falha ao abrir a partida', e);
+    window.__gameLaunch?.fail(e, 'main.js:startGame');
+  }
+}
+async function _startGame(team, charId, enemyFaction) {
   if (isMobile && !testMode) { show('mobile-warning'); return; }
   // facção = time do personagem ('E'/'B'/'U'). O jogador ESCOLHE o adversário (enemyFaction);
   // default = oposto político. Mesma facção dos dois lados = mirror (inimigo roxo no HUD).
@@ -1902,6 +1918,8 @@ document.querySelector('.footnote').textContent =
   `v${VERSION} · Sátira política fictícia. Nenhum político real foi consultado (ou poupado).`;
 { const sv = document.getElementById('splash-ver'); if (sv) sv.textContent = `v${VERSION}`; }
 show(isMobile && !testMode ? 'mobile-warning' : 'main-menu');
+window.__CS_MAIN_READY__ = true;
+window.__gameLaunch?.ready('boot');
 if (testMode && params.get('auto')) {
   const [team, char] = params.get('auto').split(',');
   startGame(team || 'E', char || CHARACTERS[0].id);
