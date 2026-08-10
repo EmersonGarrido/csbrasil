@@ -11,6 +11,8 @@
     "release": "node scripts/release.mjs",
     "//setup": "T26. UM comando do `git clone` ao jogo inteiro: deps, wasm, pacote de áudio, acervo de decalques, e a asserção do T1 por cima. NÃO é cadeia de && — cada passo roda, o estado de todos é impresso junto, e a mensagem final diz o que fazer. Existe porque quem clona pega jogo mudo e com parede pelada (public/audio, public/img/decals e references ficam fora do git por procedência), e quem a gente quer atrair não debuga setup: fecha a aba.",
     "setup": "node scripts/setup.mjs",
+    "//prepare": "Ativa o hook nativo que acrescenta Signed-off-by com user.name/user.email em todo commit. Evita DCO vermelho por esquecimento sem trazer Husky; o CI continua sendo o portão para clones sem npm install.",
+    "prepare": "git config core.hooksPath .githooks",
     "copy-wasm": "node scripts/copy-wasm.mjs",
     "preview": "python3 -m http.server 4321 -d dist/client",
     "fetch-audio": "bash scripts/fetch-audio.sh",
