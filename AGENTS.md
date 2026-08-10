@@ -41,9 +41,9 @@ algo está errado e o quality gate está verde, o defeito é do quality gate.
 
 | Zona | O que é | Tamanho medido | Regra |
 |---|---|---|---|
-| `public/` | o **jogo** | 31 arquivos `.js`, 27.053 linhas · Three.js `r160` vendorizado | ES modules servidos crus, **zero build**, sem dependência de runtime |
+| `public/` | o **jogo** | 31 arquivos `.js`, 27.069 linhas · Three.js `r160` vendorizado | ES modules servidos crus, **zero build**, sem dependência de runtime |
 | `src/` | o **site** | 17 páginas `.astro`, 17 rotas `/api` · Astro `^7.1.1` | framework é bem-vindo; `service_role` só no servidor |
-| `tools/` | o **arnês** | 169 scripts em `tools/eval/`, 46 em `tools/` | node puro: sobe o jogo real sem browser |
+| `tools/` | o **arnês** | 170 scripts em `tools/eval/`, 46 em `tools/` | node puro: sobe o jogo real sem browser |
 
 **Não existe `public/index.html`.** O HTML do jogo é `src/pages/index.astro`, servido na rota `/`. Servir `public/` estaticamente entrega os arnêses visuais, **não o jogo** — é a pegadinha que custa a primeira hora de todo mundo.
 
@@ -67,9 +67,13 @@ O porquê completo de cada regra da fronteira está em
 
 ## As leis da casa
 
-Não são estilo. Cada uma custou dias, e cada uma está documentada no código com o caso real
-que a gerou — os casos completos estão em
+Não são estilo. Cada uma custou dias; os casos completos estão em
 [`docs/docs/quality-gates.md`](docs/docs/quality-gates.md).
+
+**Comentários no código têm orçamento quase zero.** Não narre o que a linha faz nem cole o
+histórico da investigação. Só comente uma invariante, compatibilidade ou risco que os nomes não
+consigam expressar, em no máximo duas linhas, apontando para a issue ou doc quando precisar de
+contexto. Evidência, antes/depois e cronologia ficam em `KNOWN-BUGS.md` ou `docs/`.
 
 **1 · Régua antes do conserto.** Escreva a medição, prove que ela **reprova** o estado atual,
 só então conserte. Intenção que não vira invariante é otimizada para fora: uma rodada levou o
@@ -140,7 +144,7 @@ npm run check        # npm run syntax && npm run audio:check && npm run eval:ctf
 npm run check:fast   # node tools/eval/runner.mjs syntax eval:release docs:check arch:check audio:check feet:check eval:ctfhud eval:pause eval:ctfround eval:ctfwin eval:spawn eval:regen eval:pegada eval:ctflabels anims:check anims:merge:check walls:check media:check travessao:check
 ```
 
-`package.json` tem **60 scripts**. Vários trazem uma chave `//nome` logo acima com o motivo de existirem — é onde mora o porquê.
+`package.json` tem **61 scripts**. Vários trazem uma chave `//nome` logo acima com o motivo de existirem — é onde mora o porquê.
 
 > Bloco gerado por `node tools/gen-docs.mjs`. Fonte: `node -p "Object.keys(require('./package.json').scripts)"`
 
