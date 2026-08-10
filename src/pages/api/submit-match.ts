@@ -42,7 +42,7 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
   try { body = await request.json(); } catch {
     return new Response(JSON.stringify({ error: 'bad_json' }), { status: 400, headers: { 'content-type': 'application/json' } });
   }
-  const { nick, token, won, kills, deaths, headshots, bestStreak, rounds, team, seconds, character, mode } = body ?? {};
+  const { nick, token, won, kills, deaths, headshots, bestStreak, rounds, team, faction, seconds, character, mode } = body ?? {};
   if (typeof nick !== 'string' || typeof token !== 'string')
     return new Response(JSON.stringify({ error: 'missing_fields' }), { status: 400, headers: { 'content-type': 'application/json' } });
 
@@ -74,22 +74,23 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
     return jsonError(403, safe.error, safe.message);
   }
 
-  // geo: presença + histórico agregado por cidade (nunca IP bruto)
+  const factionId = typeof faction === 'string' && /^(E|B|U|C|F)$/.test(faction) ? faction : null;
+  if (factionId) {
+    const { error: factionError } = await supabaseAdmin.rpc('track_player_faction', {
+      p_nick: n,
+      p_faction: factionId,
+    });
+    if (factionError) logInternalError('api/submit-match-faction', factionError, { nick: n, faction: factionId });
+  }
+
+  // geo: presença do nick. O histórico de cidade é contado pela telemetria
+  // anônima via track_city_match, cobrindo registrados e não registrados uma vez só.
   const g = geoFrom(request);
-  if (g) {    const today = new Date().toISOString().slice(0, 10);
+  if (g) {
     await supabaseAdmin.from('presence').upsert({
       nick: nick.slice(0, 14), last_seen: new Date().toISOString(),
       city: g.city, country: g.country, lat: g.lat, lon: g.lon,
     });
-    if (g.city) {
-      const { data: row } = await supabaseAdmin
-        .from('city_daily').select('matches, rounds').eq('day', today).eq('city', g.city).maybeSingle();
-      await supabaseAdmin.from('city_daily').upsert({
-        day: today, city: g.city, country: g.country,
-        matches: (row?.matches ?? 0) + 1,
-        rounds: (row?.rounds ?? 0) + (rounds | 0),
-      });
-    }
   }
   return new Response(JSON.stringify(degraded
     ? { ok: true, warn: 'banco desatualizado - rode supabase/schema.sql (perdeu rounds/time/tempo desta partida)' }

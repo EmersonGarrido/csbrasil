@@ -436,6 +436,7 @@ let submitted = true;   // stats da partida atual já enviados?
    sendBeacon porque isto costuma sair junto com o fim da partida ou com a aba
    fechando — `fetch` normal é cancelado no unload, sendBeacon não. */
 const ANON_KEY = 'cs_anon';
+const SESSION_KEY = 'cs_session';
 function clientUuid() {
   const c = globalThis.crypto;
   if (typeof c?.randomUUID === 'function') return c.randomUUID();
@@ -451,6 +452,11 @@ function getAnonId() {
   let a = localStorage.getItem(ANON_KEY);
   if (!a) { a = clientUuid(); localStorage.setItem(ANON_KEY, a); }
   return a;
+}
+function getSessionId() {
+  let s = sessionStorage.getItem(SESSION_KEY);
+  if (!s) { s = clientUuid(); sessionStorage.setItem(SESSION_KEY, s); }
+  return s;
 }
 let telemetrySent = true;
 function sendTelemetry() {
@@ -535,7 +541,11 @@ function _pingPresenca() {
 // FUNIL (017): land → menu → match_start → match_end → quit. Converte "chegou a jogar?".
 function _funnel(step) {
   if (testMode) return;
-  try { navigator.sendBeacon('/api/funnel', new Blob([JSON.stringify({ step })], { type: 'application/json' })); } catch { /* fail-silent */ }
+  try {
+    navigator.sendBeacon('/api/funnel', new Blob([
+      JSON.stringify({ step, sessionId: getSessionId() }),
+    ], { type: 'application/json' }));
+  } catch { /* fail-silent */ }
 }
 // AQUISIÇÃO (019): 1x por navegador. referrer vira host (URL inteira pode carregar query
 // sensível); UTM e ?ref= lidos da URL de entrada. first-touch-wins no servidor.
@@ -604,6 +614,7 @@ function _perfFinish(bootMs, frames) {
 // resultado. Complementa o submit-match (só registrado) e a telemetria agregada (012).
 // _wperf vem do game.js (abates por arma, zerado por partida no construtor).
 let _matchEventSent = false;
+let _matchEventId = null;
 function sendMatchEvent(result) {
   if (_matchEventSent || testMode || !game) return;
   _matchEventSent = true;
@@ -611,8 +622,10 @@ function sendMatchEvent(result) {
   const top = Object.entries(wk).sort((a, b) => b[1] - a[1])[0]?.[0] || null;
   const payload = {
     anonId: getAnonId(),
+    sessionId: getSessionId(), eventId: _matchEventId, version: VERSION,
     map: currentMap, mode: matchMode === 'ctf' ? 'ctf' : 'rounds',
     character: currentChar, team: g.playerTeam,
+    faction: g.playerFaction || currentFaction,
     result: result || 'quit',
     kills: p.kills || 0, deaths: p.deaths || 0, headshots: p.headshots || 0,
     bestStreak: g.mk?.best || 0,
@@ -720,6 +733,7 @@ async function startGame(team, charId, enemyFaction) {
   submitted = false;
   telemetrySent = false;   // partida nova = uma linha nova de telemetria
   _matchEventSent = false;   // partida nova = um evento rico novo (feat/telemetria)
+  _matchEventId = clientUuid(); // idempotência no banco se o beacon for repetido
   _funnel('match_start');    // funil: começou a jogar (017)
   retryPending();
   armSwitchHook();
@@ -749,6 +763,7 @@ async function startGame(team, charId, enemyFaction) {
        A resposta agora fica guardada e o aviso do fim da partida diz o porquê. */
     api('/api/register', {
       nick, token: getToken(),
+      anonId: getAnonId(),
       socials: socials.filter(s => s.handle),
     }).then((reg) => { if (reg && reg.error) rankingBloqueado = String(reg.error); });
   }
@@ -1446,6 +1461,7 @@ function partialPayload() {
   return {
     nick, token: getToken(), won: false, kills: p.kills, deaths: p.deaths,
     headshots: p.headshots || 0, bestStreak: g.mk.best || 0, rounds, team: g.playerTeam,
+    faction: g.playerFaction || currentFaction,
     seconds: Math.round(g.time), character: currentChar, mode: matchMode,
   };
 }
@@ -1515,7 +1531,7 @@ async function recordMatchStats(s) {
     const res = await submitGlobal({
       nick, token: getToken(), won: s.won, kills: s.kills, deaths: s.deaths,
       headshots: s.headshots, bestStreak: s.bestStreak,
-      rounds: s.roundsP + s.roundsB, team: s.team, seconds: s.seconds || 0,
+      rounds: s.roundsP + s.roundsB, team: s.team, faction: currentFaction, seconds: s.seconds || 0,
       character: s.character, mode: matchMode,
     });
     if (!res) submitNote('ranking global indisponível');
