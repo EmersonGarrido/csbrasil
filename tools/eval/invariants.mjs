@@ -2159,7 +2159,7 @@ function runNode(script, env = {}, args = []) {
 }
 
 // ── 9. HUD EXPERIMENTAL ─────────────────────────────────────────────────────
-// BUG-42: o protótipo do menu de armas existia apenas em dev.html, podado da
+// BUG-43: o protótipo do menu de armas existia apenas em dev.html, podado da
 // produção. A régua executa o método real com e sem ?vmlab=1.
 {
   const out = runNode('vmlab-hud-check.mjs', {}, ['--json']);

@@ -5,7 +5,7 @@
    POR QUE EXISTE
      "o menu de hud nao esta mostrando com vmlab=1 em producao"
 
-   CAUSA RAIZ (KNOWN-BUGS.md BUG-42)
+   CAUSA RAIZ (KNOWN-BUGS.md BUG-43)
      O protótipo do #131 vivia em public/dev.html, que é podado de produção. O jogo
      publicado não tinha host nem método para desenhar os slots.
 
