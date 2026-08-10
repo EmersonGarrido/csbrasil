@@ -39,12 +39,12 @@ esta página envelhecia no primeiro commit — ver
 
 | O que | Quanto | Onde confere |
 |---|---:|---|
-| Código do jogo | 27.070 linhas em 31 arquivos | `cat public/js/*.js \| wc -l` |
+| Código do jogo | 27.088 linhas em 31 arquivos | `cat public/js/*.js \| wc -l` |
 | `game.js` | **6.203** linhas | `wc -l public/js/game.js` |
-| `main.js` | 1.892 linhas | `wc -l public/js/main.js` |
+| `main.js` | 1.910 linhas | `wc -l public/js/main.js` |
 | Armas com GLB | 26 | `ls public/models/weapons/*.glb \| wc -l` |
 | GLBs de personagem | 45 | `ls public/models/characters/*.glb \| wc -l` |
-| Props em GLB | 108 | `ls public/models/props/*.glb \| wc -l` |
+| Props em GLB | 109 | `ls public/models/props/*.glb \| wc -l` |
 | Clipes de animação versionados | 573 | `git ls-files public/models/anims \| wc -l` |
 | Personagens jogáveis | 44, em 5 facções | array `CHARACTERS` de `characters.js` |
 | Mapas no registro | 5 | objeto `MAPS` de `maps.js` |

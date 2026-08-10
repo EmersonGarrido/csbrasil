@@ -385,6 +385,9 @@ function pvSetChar(def) {
     p.model.rotation.y = 0.4;
     p.scene.add(p.model);
   };
+  // ?nav=1 (smoke de navegação) pula o pré-carrega do GLB — o preview fica procedural,
+  // sem depender do download/model 3D. A régua de assets roda isso separado.
+  if (navOnly) { showBox(); return; }
   if (GLB_CHARS.has(def.id)) {
     // Keep the PREVIOUS model visible while the real GLB streams in — never flash the
     // blocky placeholder for a character that has a real model (the pop-in bug).
@@ -397,6 +400,9 @@ function pvSetChar(def) {
       const m = hasModel(def.id) ? buildCharacterModel(def, { weaponId: charWeapon(def.id), preview: true }) : null;
       if (!m) { showBox(); return; }
       if (p.model) p.scene.remove(p.model);
+      // dataset real = efeito observável p/ a régua visual (web-assets.spec.js): só o
+      // GLB de verdade marca o canvas; fallback procedural (showBox) nunca marca.
+      $('char-preview').dataset.glb = '1';
       m.group.rotation.y = 0.4;
       p.model = m.group; p.mixer = m.mixer; p.ctrl = m.ctrl;
       p.scene.add(m.group);
@@ -645,6 +651,10 @@ _refreshOnline();
 setInterval(_refreshOnline, 60000);
 const params = new URLSearchParams(location.search);
 const testMode = params.get('debug') === '1';
+// ?nav=1 — smoke de NAVEGAÇÃO (web-smoke.spec.js): prova menu→time→personagem→partida
+// SEM depender do preload 3D lento nem do render do elenco. Nunca dispara GLB (pvThumb/
+// showBox/fallback procedural); a régua visual de assets roda separada (web-assets.spec.js).
+const navOnly = params.get('nav') === '1';
 
 /* Presença: as chamadas descem para CÁ, depois de `testMode` existir (ver o comentário na
    linha em que elas moravam). O intervalo e o comportamento são os mesmos — o que muda é
@@ -702,11 +712,15 @@ async function startGame(team, charId, enemyFaction) {
   // sorteia os carros da Havan desta partida ANTES do preload (seleção = props do mapa)
   setHavanCarSeed((Math.random() * 1e9) | 0);
   try {
-    await Promise.all([
-      preloadCharacterAssets([...GLB_CHARS]),
-      preloadMapProps([...MAP_PROPS, ...((MAPS[currentMap] && MAPS[currentMap].props) || [])]),   // + props do mapa (Havan: carros/estátua)
-      preloadFPArms(),   // braços FP dedicados (falha → fallback procedural, sem bloquear)
-    ]);
+    if (navOnly) {
+      await preloadMapProps([...MAP_PROPS, ...((MAPS[currentMap] && MAPS[currentMap].props) || [])]);   // props são opcionais (fail → mapa roda sem)
+    } else {
+      await Promise.all([
+        preloadCharacterAssets([...GLB_CHARS]),
+        preloadMapProps([...MAP_PROPS, ...((MAPS[currentMap] && MAPS[currentMap].props) || [])]),   // + props do mapa (Havan: carros/estátua)
+        preloadFPArms(),   // braços FP dedicados (falha → fallback procedural, sem bloquear)
+      ]);
+    }
   } catch (e) { console.error('preload da partida falhou parcialmente', e); }
   if (_lstat.phase) _lstat.phase.set(1);
   game = new Game({
@@ -1641,10 +1655,9 @@ function pickTeam(faction) {
     if (b) b.setAttribute('aria-pressed', String(f.toUpperCase() === faction));
   }
   const chars = CHARACTERS.filter(c => c.team === faction);   // roster da facção escolhida
-  // LOADING REAL da seleção de personagem: os GLBs do roster entram ANTES da tela abrir —
-  // nada de thumbnails de caixa montando aos poucos (o "minecraft" que o dono viu)
-  showLoading('CARREGANDO PERSONAGENS…');
-  preloadCharacterAssets(chars.map(c => c.id)).catch(() => {}).then(() => {
+  // ?nav=1 pula o preload 3D do roster (lento) — thumbnails caem no fallback pvThumb, que
+  // nunca dispara GLB. A transição #char-select é o que o smoke de navegação quer provar.
+  const mountCharList = () => {
     hideLoading();
     const list = $('char-list');
     list.innerHTML = '';
@@ -1674,7 +1687,12 @@ function pickTeam(faction) {
     // seleciona DEPOIS de gerar todos os thumbs — senão o preview fica com o último
     if (firstRow) selectChar(chars[0], firstRow);
     show('char-select');
-  });
+  };
+  if (navOnly) { mountCharList(); return; }
+  // LOADING REAL da seleção de personagem: os GLBs do roster entram ANTES da tela abrir —
+  // nada de thumbnails de caixa montando aos poucos (o "minecraft" que o dono viu)
+  showLoading('CARREGANDO PERSONAGENS…');
+  preloadCharacterAssets(chars.map(c => c.id)).catch(() => {}).then(mountCharList);
 }
 /* Ficha do personagem (tela de seleção): raridade + atributos derivados da arma inicial
    (charWeapon) e de um hash estável do id. É FLAVOR de apresentação no estilo CS2/Valorant —
