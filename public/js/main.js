@@ -20,6 +20,9 @@ const settings = Object.assign({ sens: 1, vol: 0.7, quality: 'med', speech: true
   JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}'));
 const saveSettings = () => localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
 const NICK_KEY = 'awpbr_nick';
+// A coleta de jogadas exige consentimento explícito e persistente.
+const TRAIN_CONSENT_KEY = 'csbr_training_consent';
+const trainingEnabled = () => { try { return localStorage.getItem(TRAIN_CONSENT_KEY) === '1'; } catch { return false; } };
 const SOCIAL_KEY = 'awpbr_social';
 const STATS_KEY = 'awpbr_stats';   // declarado no bloco de storage: syncPlayState→renderPlayerPlate→loadStats roda ANTES da definição antiga (TDZ)
 
@@ -623,6 +626,7 @@ let _matchEventId = null;
 function sendMatchEvent(result) {
   if (_matchEventSent || testMode || !game) return;
   _matchEventSent = true;
+  game._flushTraining?.();   // BOTBRAIN: envia o resto dos frames ao sair/abandonar (idempotente)
   const g = game, p = g.player, wk = g._wperf || {};
   const top = Object.entries(wk).sort((a, b) => b[1] - a[1])[0]?.[0] || null;
   const payload = {
@@ -640,6 +644,14 @@ function sendMatchEvent(result) {
     nick: registeredNick || null,
   };
   try { navigator.sendBeacon('/api/match', new Blob([JSON.stringify(payload)], { type: 'application/json' })); } catch { /* fail-silent */ }
+}
+function sendTrainingFrames(blob) {
+  if (testMode || !blob || !registeredNick || !trainingEnabled()) return;
+  try {
+    api('/api/train-frames', {
+      uid: getAnonId(), token: getToken(), ...blob,
+    });
+  } catch { /* coleta nunca interrompe a partida */ }
 }
 /* AS CHAMADAS MORAM DEPOIS DO `const testMode` — e isto não é estilo, é o que fazia o jogo
    não abrir (07/08, medido em produção). `_pingPresenca` lê `testMode` na primeira linha;
@@ -753,6 +765,8 @@ async function _startGame(team, charId, enemyFaction) {
     nickname: $('nick-input').value, testMode,
     ctf: matchMode === 'ctf',   // o modo agora é 100% escolha do jogador (ctfMode só define o PADRÃO ao trocar de mapa)
     onMatchEnd: recordMatchStats,
+    recordTraining: trainingEnabled(),
+    onTrainingFrames: sendTrainingFrames,
   });
   window.__game = game;
   submitted = false;
@@ -1820,6 +1834,15 @@ speechEl.onchange = () => {
   saveSettings();
   if (game?.el?.hudSpeech) game.el.hudSpeech.textContent = settings.speech ? '🔊' : '🔇';
 };
+// Consentimento da coleta persiste separado das preferências visuais.
+const trainEl = $('set-training');
+if (trainEl) {
+  trainEl.checked = trainingEnabled();
+  trainEl.onchange = () => {
+    try { localStorage.setItem(TRAIN_CONSENT_KEY, trainEl.checked ? '1' : '0'); } catch { /* paciência */ }
+    if (game) game._recordEnabled = trainEl.checked && !testMode && !!game._recorder;
+  };
+}
 updLabels();
 
 /* ---------------- logo ---------------- */

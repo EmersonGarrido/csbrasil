@@ -30,7 +30,11 @@ const MODULOS = [
   "version.js",
   "i18n.js",
   "handik.js",
-  "springs.js"
+  "springs.js",
+  "botbrain/brain.js",
+  "botbrain/features.js",
+  "botbrain/recorder.js",
+  "botbrain/sense.js"
 ];
 const IMPORTMAP = JSON.stringify({
   imports: {
@@ -249,6 +253,9 @@ const IMPORTMAP = JSON.stringify({
   window.addEventListener('error', function(e){
     var loc = e.filename ? (e.filename + ':' + e.lineno + ':' + e.colno) : '';
     var msg = (e.message || e.error || '?');
+    if (consoleErroNativo) {
+      try { consoleErroNativo('Erro global não tratado', e.error || msg); } catch(_) {}
+    }
     showDebug('error', msg + (loc ? ('  @ ' + loc) : ''), e.error && e.error.stack);
     reporta('error', msg, loc, e.error && e.error.stack);
     if (!window.__CS_MAIN_READY__ && origemDoJogo(loc)) erroDoBoot = e.error || new Error(String(msg));
@@ -256,6 +263,9 @@ const IMPORTMAP = JSON.stringify({
   });
   window.addEventListener('unhandledrejection', function(e){
     var r = e.reason;
+    if (consoleErroNativo) {
+      try { consoleErroNativo('Promise rejeitada sem tratamento', r); } catch(_) {}
+    }
     showDebug('promise', (r && r.message) || String(r), r && r.stack);
     reporta('promise', (r && r.message) || String(r), null, r && r.stack);
     if (lancamento.ativo && !erroIgnoravel(r)) lancamento.fail(r instanceof Error ? r : new Error(String(r)), 'promise');
@@ -776,6 +786,7 @@ const IMPORTMAP = JSON.stringify({
       <button class="set-tab" data-tab="audio" role="tab" aria-selected="false">ÁUDIO</button>
       <button class="set-tab" data-tab="mouse" role="tab" aria-selected="false">MOUSE</button>
       <button class="set-tab" data-tab="interface" role="tab" aria-selected="false">INTERFACE</button>
+      <button class="set-tab" data-tab="privacidade" role="tab" aria-selected="false">PRIVACIDADE</button>
     </div>
     <!-- DUAS COLUNAS (referência telas/07): lista de ajustes à esquerda, painel de
          pré-visualização à direita. Os .set-pane continuam sendo filhos diretos de um
@@ -828,6 +839,13 @@ const IMPORTMAP = JSON.stringify({
           <option value="#e9f1f3">Branca</option>
         </select>
       </label>
+    </div>
+    <!-- BOTBRAIN: consentimento de coleta (LGPD). Aba própria, não em "interface". -->
+    <div class="set-pane hidden" data-pane="privacidade" role="tabpanel">
+      <label class="set-row">Ajudar a treinar os bots
+        <input id="set-training" type="checkbox">
+      </label>
+      <p>Com sua autorização, o jogo envia como você anda, mira e atira para treinar os bots. O lote usa seu identificador técnico de jogador; o IP não é armazenado. Você pode desligar quando quiser.</p>
     </div>
     </div>
     <!-- painel de amostra: é uma captura real de mapa do jogo (a mesma família de
