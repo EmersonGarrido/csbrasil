@@ -31,8 +31,22 @@ const entradas = baseIDs ? baseIDs.filter((id) => !atuais.has(id)) : [];   // qu
 const novas = baseIDs ? [...atuais].filter((id) => !baseIDs.includes(id)) : [];   // novas dívidas
 
 const body = process.env.PR_BODY || '';
+let cerca = null;
+const declaracoes = body.split(/\r?\n/).map((linha) => {
+  const marcador = linha.match(/^ {0,3}(`{3,}|~{3,})/)?.[1];
+  if (!cerca && marcador) {
+    cerca = { caractere: marcador[0], tamanho: marcador.length };
+    return '';
+  }
+  if (cerca) {
+    const fechamento = linha.trim().match(/^(`+|~+)$/)?.[1];
+    if (fechamento?.[0] === cerca.caractere && fechamento.length >= cerca.tamanho) cerca = null;
+    return '';
+  }
+  return linha;
+}).join('\n');
 const motivos = new Map();
-for (const m of body.matchAll(/^\s*ratchet:\s*([+-]?)([A-Z0-9_]+)(?:\s+porque\s+(.+))?\s*$/gim)) {
+for (const m of declaracoes.matchAll(/^ratchet:\s*([+-]?)([A-Z0-9_]+)(?:\s+porque\s+(.+))?\s*$/gim)) {
   motivos.set(m[2].toUpperCase(), { libera: m[1] === '+', motivo: m[3] || '' });
 }
 
