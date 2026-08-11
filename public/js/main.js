@@ -1483,7 +1483,7 @@ function partialPayload() {
      dominação e fechar a aba manda `rounds: 1` com `seconds` de poucas dezenas. Sem o
      modo, o servidor aplicava o piso do ABATE (80 s/rodada) e recusava. */
   return {
-    nick, token: getToken(), won: false, kills: p.kills, deaths: p.deaths,
+    uid: getAnonId(), nick, token: getToken(), won: false, kills: p.kills, deaths: p.deaths,
     headshots: p.headshots || 0, bestStreak: g.mk.best || 0, rounds, team: g.playerTeam,
     faction: g.playerFaction || currentFaction,
     seconds: Math.round(g.time), character: currentChar, mode: matchMode,
@@ -1553,7 +1553,7 @@ async function recordMatchStats(s) {
   const nick = registeredNick || (nickEl.value || '').trim();
   if (nick && !testMode) {
     const res = await submitGlobal({
-      nick, token: getToken(), won: s.won, kills: s.kills, deaths: s.deaths,
+      uid: getAnonId(), nick, token: getToken(), won: s.won, kills: s.kills, deaths: s.deaths,
       headshots: s.headshots, bestStreak: s.bestStreak,
       rounds: s.roundsP + s.roundsB, team: s.team, faction: currentFaction, seconds: s.seconds || 0,
       character: s.character, mode: matchMode,
