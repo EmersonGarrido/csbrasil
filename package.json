@@ -1,6 +1,6 @@
 {
   "name": "coro-solto",
-  "version": "2.0.0-alpha.60",
+  "version": "2.0.0-alpha.61",
   "license": "AGPL-3.0-only",
   "description": "CORO SOLTO: Treta Suprema (ex-CS BRASIL) — FPS de navegador estilo CS 1.6 (site Astro + jogo vanilla em Three.js)",
   "scripts": {
@@ -42,7 +42,7 @@
     "eval:submitguard": "node tools/eval/submit-guard-check.mjs",
     "//eval:ctrlw": "Agachar andando pra frente não pode fechar a aba. Relato do Daniel Diniz (07/08): 'quando fica muito tempo com a tecla Control pressionada a página fecha' — no Windows, não no Mac. Não é o Control: agachar é ControlLeft/Right e andar pra frente é W, então agachar avançando É Ctrl+W (no Mac o atalho é Cmd+W, por isso não reproduzia aqui). preventDefault não alcança atalho reservado; quem resolve é a Keyboard Lock API em tela cheia, com a confirmação de saída do beforeunload como segunda camada pra Firefox/Safari. CW3 cobra o SILÊNCIO no menu — confirmação que aparece sempre vira praga e é arrancada inteira depois, levando o conserto junto. EXIGE BROWSER: fora do `check`, passo de pré-deploy. `--mutante=semlock|semprompt|promptsempre` provam que morde, e a régua morre se o mutante não casar o texto.",
     "eval:ctrlw": "node tools/eval/ctrlw-check.mjs",
-    "//eval:boot": "O JOGO ABRE E FALHA DE FORMA ACIONÁVEL? No Chrome real, exige zero pageerror, o `onclick` do #btn-jogar ligado e uma falha injetada no início da partida voltando ao menu com modal amigável, telemetria automática/manual e detalhe técnico só em ?debug=1. Nasceu do BUG-34 (TDZ deixava JOGAR inerte) e do BUG-42 (erro bruto assustava o jogador sem dar recuperação). EXIGE BROWSER: fica fora do `check` e é passo obrigatório antes de deploy. `--mutante=tdz|sem-amigavel|vaza-detalhe` prova as cláusulas.",
+    "//eval:boot": "O JOGO ABRE E FALHA DE FORMA ACIONÁVEL? No Chrome real, exige zero pageerror, o `onclick` do #btn-jogar ligado e uma falha injetada no início da partida voltando ao menu com modal amigável, telemetria automática/manual, erro preservado no console e detalhe técnico só em ?debug=1. Nasceu do BUG-34 (TDZ deixava JOGAR inerte) e do BUG-42 (erro bruto assustava o jogador sem dar recuperação). EXIGE BROWSER: fica fora do `check` e é passo obrigatório antes de deploy. `--mutante=tdz|sem-amigavel|vaza-detalhe|sem-console-watchdog` prova as cláusulas.",
     "eval:boot": "node tools/eval/boot-check.mjs",
     "eval:vm": "node tools/eval/vm-mint-audit.mjs",
     "eval:kick": "node tools/eval/vm-kick-sim.mjs",

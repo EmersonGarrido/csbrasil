@@ -40,6 +40,7 @@ let funnelRoute = read('src/pages/api/funnel.ts');
 let matchRoute = read('src/pages/api/match.ts');
 let telemetryRoute = read('src/pages/api/telemetry.ts');
 let submitRoute = read('src/pages/api/submit-match.ts');
+let registerRoute = read('src/pages/api/register.ts');
 let prodWatch = read('.github/workflows/prod-watch.yml');
 
 /* MUTAÇÃO in-memory: simula o defeito sem tocar no disco (o contrário seria o
@@ -49,6 +50,7 @@ if (MUT === 'sem-funil')  main = main.replaceAll("_funnel('match_start')", "/* r
 if (MUT === 'sem-arma')   game = game.replaceAll('this._wperf[weap]', '/* removido */');
 if (MUT === 'sem-sessao') main = main.replaceAll('sessionId', 'sessaoRemovida');
 if (MUT === 'sem-saude')  prodWatch = prodWatch.replaceAll('/api/health', '/api/REMOVIDO');
+if (MUT === 'sem-uid')    main = main.replaceAll('uid: getAnonId()', 'uid: null');
 
 const falhas = [];
 
@@ -92,8 +94,15 @@ if (!existsSync('src/pages/api/health.ts') || !prodWatch.includes('/api/health')
 if (!prodWatch.includes('node --input-type=module -'))
   falhas.push('TL8 probe usa top-level await sem modo ESM');
 
+// TL9 - erros internos usam o UUID anônimo; nick não deve aparecer no log.
+const submitComUid = (main.match(/uid: getAnonId\(\),\s*nick, token/g) || []).length >= 2;
+if (!submitComUid || !submitRoute.includes("{ uid }") || !registerRoute.includes("{ uid }"))
+  falhas.push('TL9 uid não acompanha register/submit até o log interno');
+if (/logInternalError\([^\n]+\{[^\n]*nick/.test(submitRoute + registerRoute))
+  falhas.push('TL9 log interno voltou a expor nick');
+
 for (const f of falhas) console.log(`  \x1b[31m✗\x1b[0m ${f}`);
-if (!falhas.length) console.log('  \x1b[32m✓\x1b[0m TL1–TL8 ingestão wired, idempotente, atômica e monitorada');
+if (!falhas.length) console.log('  \x1b[32m✓\x1b[0m TL1–TL9 ingestão wired, idempotente, atômica e monitorada');
 
 // prova que a mutação morde: se veio --mutante e NÃO acendeu, o portão é cego.
 if (MUT && !falhas.length) {

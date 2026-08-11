@@ -30,6 +30,7 @@ export const POST: APIRoute = async ({ request }) => {
   const { nick, token, social, socials, accessToken, avatarUrl, anonId } = body ?? {};
   if (typeof nick !== 'string' || typeof token !== 'string' || nick.trim().length < 2)
     return new Response(JSON.stringify({ error: 'missing_fields' }), { status: 400, headers: { 'content-type': 'application/json' } });
+  const uid = typeof anonId === 'string' && UUID_RE.test(anonId) ? anonId : null;
 
   // Charset do nick. O check no banco é a fonte da verdade (players_nick_charset,
   // docs/seguranca.md §8); isto aqui é o espelho, e existe por dois motivos:
@@ -46,7 +47,7 @@ export const POST: APIRoute = async ({ request }) => {
     p_social: typeof social === 'string' ? social.slice(0, 60) : null,
   });
   if (error) {
-    logInternalError('api/register', error, { nick: nick.trim().slice(0, 14) });
+    logInternalError('api/register', error, { uid });
     return jsonError(409, 'register_conflict', 'não foi possível registrar este nick');
   }
 
@@ -57,7 +58,7 @@ export const POST: APIRoute = async ({ request }) => {
       .update({ nick: nickLimpo })
       .eq('anon_id', anonId)
       .is('nick', null);
-    if (acquisitionError) logInternalError('api/register-acquisition', acquisitionError, { nick: nickLimpo });
+    if (acquisitionError) logInternalError('api/register-acquisition', acquisitionError, { uid });
   }
 
   // multi-redes: [{net, handle}] → [{net, url}] + social_link = primeira

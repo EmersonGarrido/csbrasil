@@ -71,6 +71,8 @@ const IMPORTMAP = JSON.stringify({
   var enviados = {}, corpos = {}, nEnviados = 0, migalhas = [], reportando = false;
   var relatorioFalha = null, falhaPendente = null, erroDoBoot = null;
   var inicio = Date.now();
+  var consoleErroNativo = null;
+  try { consoleErroNativo = console.error && console.error.bind(console); } catch(_) {}
 
   function showDebug(kind, msg, extra){
     if (!DEBUG) return;
@@ -236,6 +238,9 @@ const IMPORTMAP = JSON.stringify({
       this.ready();
       var msg = (err && err.message) || String(err || 'falha desconhecida');
       var stack = err && err.stack;
+      if (/watchdog$/.test(source || '') && consoleErroNativo) {
+        try { consoleErroNativo('Falha ao abrir ' + etapa, err); } catch(_) {}
+      }
       var registro = reporta('error', 'Falha ao abrir ' + etapa + ': ' + msg, source || 'launch', stack);
       relatorioFalha = registro && registro.corpo;
       mostraFalha({ fp: registro && registro.fp });
@@ -297,9 +302,9 @@ const IMPORTMAP = JSON.stringify({
         }
       } else {
         lancamento.begin('menu', 3000, function(){
-          var time = document.getElementById('team-select');
+          var menu = document.getElementById('main-menu');
           var setup = document.getElementById('menu-setup');
-          return !!(time && !time.classList.contains('hidden')) || !!(setup && setup.dataset.step === 'profile');
+          return !!(menu && menu.classList.contains('hidden')) || !!(setup && setup.dataset.step === 'profile');
         });
       }
     }catch(_){}
@@ -310,7 +315,7 @@ const IMPORTMAP = JSON.stringify({
      flag ele apenas é reportado e agrupado igual aos outros.
      O original é chamado PRIMEIRO: se o relatório explodir, o log dele não se perde. */
   try{
-    var orig = console.error;
+    var orig = consoleErroNativo || console.error;
     console.error = function(){
       try{ orig.apply(console, arguments); }catch(_){}
       try{

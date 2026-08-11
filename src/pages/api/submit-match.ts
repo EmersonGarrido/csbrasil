@@ -7,6 +7,7 @@ import { rateLimit } from '../../lib/ratelimit';
 import { jsonError, logInternalError } from '../../lib/api-error';
 
 export const prerender = false;
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // Rate limit por IP: 1 submit/30 s. ERA um `new Map()` de módulo - que na
 // Vercel some no cold start e dá um orçamento novo por instância de lambda
@@ -42,11 +43,12 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
   try { body = await request.json(); } catch {
     return new Response(JSON.stringify({ error: 'bad_json' }), { status: 400, headers: { 'content-type': 'application/json' } });
   }
-  const { nick, token, won, kills, deaths, headshots, bestStreak, rounds, team, faction, seconds, character, mode } = body ?? {};
+  const { nick, token, won, kills, deaths, headshots, bestStreak, rounds, team, faction, seconds, character, mode, uid: rawUid } = body ?? {};
   if (typeof nick !== 'string' || typeof token !== 'string')
     return new Response(JSON.stringify({ error: 'missing_fields' }), { status: 400, headers: { 'content-type': 'application/json' } });
 
   const n = nick.slice(0, 14);
+  const uid = typeof rawUid === 'string' && UUID_RE.test(rawUid) ? rawUid : null;
   /* MODO DA PARTIDA (issue #87). A trava de tempo do RPC aplica um piso de segundos por
      rodada, e o piso do ABATE (80 s, rodada de 99 s) não vale pro CAPTURA, onde a rodada
      não tem janela de tempo - era isso que recusava partida legítima e ainda marcava o
@@ -69,7 +71,7 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
     if (!/could not find the function|schema cache/i.test(r.error.message)) break; // erro real (token, rate limit…)
   }
   if (error) {
-    logInternalError('api/submit-match', error, { nick: n });
+    logInternalError('api/submit-match', error, { uid });
     const safe = submitErrorPayload(error.message || '');
     return jsonError(403, safe.error, safe.message);
   }
@@ -80,7 +82,7 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
       p_nick: n,
       p_faction: factionId,
     });
-    if (factionError) logInternalError('api/submit-match-faction', factionError, { nick: n, faction: factionId });
+    if (factionError) logInternalError('api/submit-match-faction', factionError, { uid, faction: factionId });
   }
 
   // Cidade é contada só por /api/telemetry, inclusive para anônimos.
