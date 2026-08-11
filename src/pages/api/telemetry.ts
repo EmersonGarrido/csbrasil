@@ -19,7 +19,9 @@
 // Postgres do `rl_take`, e nunca entra nas tabelas de telemetria.
 import type { APIRoute } from 'astro';
 import { supabaseAdmin, NOT_CONFIGURED } from '../../lib/supabase';
+import { geoFrom } from '../../lib/geo';
 import { rateLimit } from '../../lib/ratelimit';
+import { logInternalError } from '../../lib/api-error';
 
 export const prerender = false;
 
@@ -58,8 +60,23 @@ export const POST: APIRoute = async ({ request }) => {
       p_rounds: Number.isFinite(+rounds) ? Math.round(+rounds) : 0,
       p_nick: typeof nick === 'string' && nick ? nick.slice(0, 32) : null,
     });
-    if (error) return json({ ok: true, stored: false });
-  } catch {
+    if (error) {
+      logInternalError('api/telemetry', error);
+      return json({ ok: true, stored: false });
+    }
+
+    // Este evento anônimo é a única fonte de city_daily; submit não duplica.
+    const g = geoFrom(request);
+    if (g?.city) {
+      const { error: cityError } = await supabaseAdmin.rpc('track_city_match', {
+        p_city: g.city,
+        p_country: g.country,
+        p_rounds: Number.isFinite(+rounds) ? Math.max(0, Math.round(+rounds)) : 0,
+      });
+      if (cityError) logInternalError('api/telemetry-city', cityError, { country: g.country });
+    }
+  } catch (error) {
+    logInternalError('api/telemetry', error);
     return json({ ok: true, stored: false });
   }
   return json({ ok: true, stored: true });

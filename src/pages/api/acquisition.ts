@@ -11,6 +11,7 @@
 import type { APIRoute } from 'astro';
 import { supabaseAdmin, NOT_CONFIGURED } from '../../lib/supabase';
 import { rateLimit } from '../../lib/ratelimit';
+import { logInternalError } from '../../lib/api-error';
 
 export const prerender = false;
 
@@ -48,8 +49,12 @@ export const POST: APIRoute = async ({ request }) => {
       p_utm_campaign: str(body.utmCampaign, 60), p_ref_code: str(body.ref, 32),
       p_landing: str(body.landing, 60),
     });
-    if (error) return json({ ok: true, stored: false });
-  } catch {
+    if (error) {
+      logInternalError('api/acquisition', error);
+      return json({ ok: true, stored: false });
+    }
+  } catch (error) {
+    logInternalError('api/acquisition', error);
     return json({ ok: true, stored: false });
   }
   return json({ ok: true, stored: true });
