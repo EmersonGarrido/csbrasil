@@ -1,18 +1,25 @@
 /* Logs WebGL anuláveis não podem esconder o diagnóstico real do shader. */
-import { readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { readFileSync, readdirSync } from 'node:fs';
 
 const mutant = (process.argv.find((arg) => arg.startsWith('--mutante=')) || '').split('=')[1] || '';
 if (mutant && !['sem-guardas', 'sem-cache-bust'].includes(mutant)) {
   throw new Error(`mutante desconhecido: ${mutant}`);
 }
 
-let vendor = readFileSync('public/vendor/three.module.js', 'utf8');
+const vendorOriginal = readFileSync('public/vendor/three.module.js', 'utf8');
+const vendorHash = createHash('sha256').update(vendorOriginal).digest('hex').slice(0, 12);
+let vendor = vendorOriginal;
 const productFiles = [
   'src/pages/index.astro',
   'src/layouts/Layout.astro',
   'src/pages/editor.astro',
 ];
 let productSources = productFiles.map((file) => [file, readFileSync(file, 'utf8')]);
+let harnessSources = readdirSync('public')
+  .filter((file) => file.endsWith('.html'))
+  .map((file) => [`public/${file}`, readFileSync(`public/${file}`, 'utf8')])
+  .filter(([, source]) => source.includes('./vendor/three.module.js'));
 
 if (mutant === 'sem-guardas') {
   vendor = vendor.replace(
@@ -22,6 +29,7 @@ if (mutant === 'sem-guardas') {
 }
 if (mutant === 'sem-cache-bust') {
   productSources = productSources.map(([file, source]) => [file, source.replace('?v=${V}', '')]);
+  harnessSources = harnessSources.map(([file, source]) => [file, source.replace(/\?h=[a-f0-9]+/, '')]);
 }
 
 const failures = [];
@@ -67,6 +75,11 @@ if (immutableVendor) {
   for (const [file, source] of productSources) {
     if (!/["'`]\/?\.??\/vendor\/three\.module\.js\?v=\$\{V\}["'`]/.test(source)) {
       failures.push(`SL4 ${file} não versiona o Three com cache imutável`);
+    }
+  }
+  for (const [file, source] of harnessSources) {
+    if (!source.includes(`./vendor/three.module.js?h=${vendorHash}`)) {
+      failures.push(`SL5 ${file} não usa o hash atual do Three (${vendorHash})`);
     }
   }
 }

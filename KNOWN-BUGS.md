@@ -57,15 +57,16 @@ corrigiu a mesma falha no r179.
 
 **Correção.** Foi portado apenas o fallback oficial `|| ''` nos quatro acessos; atualizar
 todo o Three removeria a compatibilidade WebGL1 que este jogo ainda precisa. Como `/vendor/`
-tem cache imutável por um ano, os import maps de jogo, site e editor agora acrescentam a
-versão do pacote ao core. Isso faz o patch chegar a navegadores que já tinham o r160 em cache.
+tem cache imutável por um ano, jogo, site e editor acrescentam a versão do pacote ao core;
+os 13 arnêses HTML usam o hash do conteúdo. Isso faz o patch chegar a navegadores que já
+tinham o r160 em cache e impede que diagnósticos manuais rodem um bundle antigo.
 
 **Limite.** A guarda preserva o diagnóstico e o loop, mas não torna um shader inválido válido.
 #115, #120, #121, #127 e #130 continuam sendo a família canônica de compilação/link.
 
 **Régua: `tools/eval/shader-log-check.mjs`** (`npm run eval:shaderlog`, em
 `check:fast` e `check:deploy`). SL1–SL3 executam as quatro expressões reais com `null` e texto;
-SL4 exige URL versionada quando `/vendor/` é imutável. Os mutantes `sem-guardas` e
+SL4 exige URL versionada e SL5 confere o hash dos arnêses quando `/vendor/` é imutável. Os mutantes `sem-guardas` e
 `sem-cache-bust` deixam a régua vermelha.
 
 ### ~~BUG-44 · Linux não consegue abrir o WebGL~~ · RESOLVIDO NO APP 11/08
