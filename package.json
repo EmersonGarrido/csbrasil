@@ -55,6 +55,8 @@
     "//eval:sitemap": "Prova o fatiamento do sitemap com totais falsos (0, 5000, 5001, 12000). O modo índice é código que NINGUÉM alcança pedindo a URL — perfis só entram com RANKING_ON e precisariam de 5000+ jogadores. Checa páginas contíguas sem buraco, teto por página, XML bem formado nos dois modos e escape de & no nick.",
     "eval:sitemap": "node --experimental-strip-types tools/eval/sitemap-check.mjs",
     "eval:ctfhud": "node tools/eval/ctfhud-check.mjs",
+    "//eval:ratchet": "O ratchet de dívidas (KNOWN-RED.json) só anda pra frente: entrada NOVA reprova o PR, a menos que o corpo justifique com `ratchet: +ID porque <motivo>`; entrada REMOVIDA é quitação e passa. Sem régua, quebrar uma invariante nova e pingar o ID na lista era a forma de deixar o portão verde — virou lista de desculpas.",
+    "eval:ratchet": "node tools/eval/ratchet-check.mjs",
     "//eval:mutate": "Mutation testing do viewmodel: regenera a auditoria, aplica cada mutante de tools/eval/mutantes.json, roda a régua alvo e restaura. MATOU = régua morde; SOBREVIVEU = invariante cega; PULADO = avaliação inconclusiva. Ctrl-C/SIGTERM restauram na hora.",
     "eval:mutate": "node tools/eval/mutate.mjs",
     "//eval:vmlabhud": "O menu de armas do protótipo do #131 precisa existir no HUD real quando ?vmlab=1 e continuar ausente sem a flag. Nasceu do relato do dono em produção (BUG-43). Executa _updateWeaponHud de game.js em três estados; --mutante=semflag reintroduz a ausência.",
@@ -136,6 +138,7 @@
     "@gltf-transform/extensions": "^4.4.1",
     "@gltf-transform/functions": "^4.4.1",
     "@playwright/test": "^1.62.1",
+    "@types/node": "^26.2.0",
     "aeo.js": "^0.0.16",
     "meshoptimizer": "^1.2.0",
     "playwright": "^1.62.1"
