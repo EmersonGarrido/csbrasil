@@ -1,7 +1,7 @@
 // Boot, menus, settings, logo, main loop.
 import * as THREE from 'three';
 import { initTextures } from './textures.js';
-import { CHARACTERS, buildCharacter, charWeapon } from './characters.js';
+import { CHARACTERS, buildCharacter, charWeapon, setCharacterRendererCapabilities } from './characters.js';
 import { preloadCharacterAssets, buildCharacterModel, hasModel, GLB_CHARS } from './glbchars.js';
 import { preloadFPArms } from './fparms.js';
 import { preloadMapProps } from './mapprops.js';
@@ -18,7 +18,11 @@ import { enableStylize } from './stylize.js';
 const SETTINGS_KEY = 'awpbr_settings';
 const settings = Object.assign({ sens: 1, vol: 0.7, quality: 'med', speech: true, map: DEFAULT_MAP, wpnMode: 'all', bots: 4, difficulty: 'normal' },
   JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}'));
-const saveSettings = () => localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+let preferredQuality = null;
+const saveSettings = () => localStorage.setItem(SETTINGS_KEY, JSON.stringify({
+  ...settings,
+  quality: preferredQuality ?? settings.quality,
+}));
 const NICK_KEY = 'awpbr_nick';
 // A coleta de jogadas exige consentimento explícito e persistente.
 const TRAIN_CONSENT_KEY = 'csbr_training_consent';
@@ -32,23 +36,19 @@ const STATS_KEY = 'awpbr_stats';   // declarado no bloco de storage: syncPlaySta
 import { applyNoPostTone } from './bloom.js';
 import { criaRenderer, avisaSemWebgl } from './glcontext.js';
 const container = document.getElementById('game-container');
-/* SEM WEBGL O MÓDULO NÃO PODE MORRER AQUI — 07/08, relatado por jogador em Arch Linux
-   com Firefox e Brave (Mesa/llvmpipe, `BindToCurrentSequence failed`). A construção é
-   TOPO DE MÓDULO: a exceção matava a avaliação inteira de `main.js` e o menu ficava
-   inerte — a MESMA classe do BUG-34, causa diferente. E o pedido era o mais exigente
-   possível (`high-performance` + MSAA), que em Linux híbrido é justamente o que falha.
-   A escada de degradação e o porquê de cada degrau moram no `glcontext.js`. */
-const renderer = criaRenderer();
+const SAFE_MODE = new URLSearchParams(location.search).get('safe') === '1';
+const renderer = criaRenderer({}, { compatibility: SAFE_MODE });
 if (!renderer) {
   avisaSemWebgl('WebGL indisponível neste navegador/driver');
-  /* A exceção continua: sem renderer não há o que ligar, e seguir daqui só produziria
-     uma cascata de `null.setSize is not a function` que esconde a causa real. O que
-     mudou é que o jogador já está lendo uma explicação — e o `__semWebgl` cala o
-     overlay vermelho, que aqui só empilharia stack por cima da mensagem. */
   throw new Error('sem_webgl');
 }
+const COMPAT_MODE = SAFE_MODE || renderer.__csWebgl?.degraded === true;
+if (COMPAT_MODE) { preferredQuality = settings.quality; settings.quality = 'low'; }
+let staticPreviews = COMPAT_MODE;
+setCharacterRendererCapabilities(renderer);
 renderer.setSize(innerWidth, innerHeight);
-renderer.shadowMap.enabled = true;
+renderer.setPixelRatio(COMPAT_MODE ? 0.75 : 1);
+renderer.shadowMap.enabled = !COMPAT_MODE;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 // Tonemap. Com o composer ligado three já força NoToneMapping nos materiais (só aplica
 // tonemap quando o alvo é null) e quem faz a curva é o AgX do bloom.js — deixamos
@@ -58,13 +58,24 @@ renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.25;
 container.appendChild(renderer.domElement);
+let contextLossTimer = null;
+renderer.domElement.addEventListener('webglcontextlost', (event) => {
+  event.preventDefault();
+  clearTimeout(contextLossTimer);
+  contextLossTimer = setTimeout(() => window.__gameLaunch?.fail(new Error('contexto WebGL perdido'), 'webgl-context-lost'), 1500);
+});
+renderer.domElement.addEventListener('webglcontextrestored', () => {
+  clearTimeout(contextLossTimer);
+  contextLossTimer = null;
+  console.warn('[webgl] contexto restaurado');
+});
 // bloom leve (FASE 4) — ligado por padrão, pulado na qualidade 'low' ou com ?bloom=0
 // (escape hatch p/ GPUs/extensões que derrubam a aba — suspeita do "jogo fechar sozinho")
 {
   const _qp = new URLSearchParams(location.search);
-  const _bloomOn = settings.quality !== 'low' && _qp.get('bloom') !== '0';
+  const _bloomOn = !COMPAT_MODE && settings.quality !== 'low' && _qp.get('bloom') !== '0';
   // pipeline estilizado (cel+contorno) atrás de ?style=1 — prova de conceito reversível.
-  if (_qp.get('style') === '1') enableStylize(renderer, { bloom: _bloomOn, quality: settings.quality });
+  if (!COMPAT_MODE && _qp.get('style') === '1') enableStylize(renderer, { bloom: _bloomOn, quality: settings.quality });
   else if (_bloomOn) {
     enableLightBloom(renderer, { quality: settings.quality });
     if (_qp.get('post') !== 'output') renderer.toneMapping = THREE.NoToneMapping;   // AgX manda
@@ -295,10 +306,19 @@ let howtoReturn = 'main-menu';   // CONTROLES aberto pelo pause volta pro pause,
 
 /* ---------------- 3D character preview ---------------- */
 let pv = null, pvDrag = null;
+const portraitUrl = (def) => `/img/chars/${def.id}.webp?v=${VERSION}`;
+function showStaticPreview(def) {
+  const canvas = $('char-preview'), image = $('char-preview-static'), hints = document.querySelector('.pv-hints');
+  if (canvas) canvas.classList.add('hidden');
+  if (image) { image.src = portraitUrl(def); image.alt = def.name; image.classList.remove('hidden'); }
+  if (hints) hints.classList.add('hidden');
+}
 function ensurePreview() {
+  if (staticPreviews) return null;
   if (pv) return pv;
   const canvas = $('char-preview');
-  const r = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+  const r = criaRenderer({ canvas, alpha: true }, { optional: true });
+  if (!r) { staticPreviews = true; return null; }
   // 640² de backing pro preview GIGANTE da tela nova (era 400² pra 380 CSS px).
   // O downscale continua dando borda limpa em qualquer tamanho de exibição.
   r.setSize(640, 640, false);
@@ -358,8 +378,9 @@ function thumbCam() {
   _thumbCam = c;
   return c;
 }
-function snapThumb(obj) {
+function snapThumb(obj, fallbackUrl) {
   const p = ensurePreview();
+  if (!p) return fallbackUrl;
   const prevVis = p.model ? p.model.visible : false;
   if (p.model) p.model.visible = false;
   if (p.disc) p.disc.visible = false;   // o disco entra no quadro do retrato e só rouba contraste
@@ -379,7 +400,9 @@ function snapThumb(obj) {
 // CHAR_WEAPON/charWeapon live in characters.js, shared with game.js (initial loadout).
 let pvToken = 0;
 function pvSetChar(def) {
+  if (staticPreviews) { showStaticPreview(def); return; }
   const p = ensurePreview();
+  if (!p) { showStaticPreview(def); return; }
   // Swap to the real rigged GLB (idle) once loaded, if this is still the selection.
   const my = ++pvToken;
   const showBox = () => {   // procedural fallback (only when there's no GLB at all)
@@ -414,12 +437,13 @@ function pvSetChar(def) {
   }
 }
 function pvThumb(def) {
+  if (staticPreviews) return portraitUrl(def);
   // Box-only thumbnail (tiny icon) — never triggers a GLB load.
   // Passa pelo MESMO snapThumb do GLB: antes esta versão ainda destruía o preview
   // grande (p.model = null) e gravava com outro enquadramento — duas miniaturas com
   // duas aparências na mesma lista é exatamente o tipo de inconsistência que o dono vê.
   const box = buildCharacter(def).group; box.rotation.y = 0.55;
-  return snapThumb(box);
+  return snapThumb(box, portraitUrl(def));
 }
 
 /* ---------------- game lifecycle ---------------- */
@@ -599,8 +623,7 @@ function _sendPerf() {
 function _perfFinish(bootMs, frames) {
   let rendererStr = null;
   try {
-    const c = document.createElement('canvas');
-    const gl = c.getContext('webgl2') || c.getContext('webgl');
+    const gl = renderer.getContext();
     const dbg = gl && gl.getExtension('WEBGL_debug_renderer_info');
     rendererStr = dbg ? gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : null;
   } catch { /* GPU info é melhor-esforço */ }
@@ -1660,12 +1683,13 @@ async function renderGlobal(nick) {
 
 // GLB idle thumbnail (no weapon), rendered off the shared preview renderer.
 function glbThumb(def) {
+  if (staticPreviews) return portraitUrl(def);
   if (!hasModel(def.id)) return null;
   const m = buildCharacterModel(def, { weapon: false });
   if (!m) return null;
   m.group.rotation.y = 0.5;
   for (let i = 0; i < 42; i++) m.mixer.update(1 / 60); // settle into the idle pose
-  return snapThumb(m.group);
+  return snapThumb(m.group, portraitUrl(def));
 }
 /* ---------------- previews 3D dos times nos cards (pedido do dono: "uma imagem
    preview dos models, tipo um time") — renderiza 4 GLBs reais de cada facção no
@@ -1681,7 +1705,8 @@ function ensureTeamPreviews() {
     if (!chars.length) continue;
     box.innerHTML = chars.map(() => '<span class="tc-slot"></span>').join('');
     const slots = [...box.children];
-    preloadCharacterAssets(chars.map(c => c.id)).then(() => {
+    const ready = staticPreviews ? Promise.resolve() : preloadCharacterAssets(chars.map(c => c.id));
+    ready.then(() => {
       chars.forEach((c, i) => {
         const url = glbThumb(c);
         if (url && slots[i]) slots[i].innerHTML = `<img src="${url}" alt="${c.name}" title="${c.name}">`;
@@ -1741,7 +1766,7 @@ function pickTeam(faction) {
     if (firstRow) selectChar(chars[0], firstRow);
     show('char-select');
   };
-  if (navOnly) { mountCharList(); return; }
+  if (navOnly || staticPreviews) { mountCharList(); return; }
   // LOADING REAL da seleção de personagem: os GLBs do roster entram ANTES da tela abrir —
   // nada de thumbnails de caixa montando aos poucos (o "minecraft" que o dono viu)
   showLoading('CARREGANDO PERSONAGENS…');
@@ -1803,6 +1828,7 @@ function selectChar(c, row) {
 /* ---------------- settings wiring ---------------- */
 const sensEl = $('set-sens'), volEl = $('set-vol'), qualEl = $('set-quality');
 sensEl.value = settings.sens; volEl.value = settings.vol; qualEl.value = settings.quality;
+if (COMPAT_MODE) { qualEl.disabled = true; qualEl.title = 'Modo compatibilidade usa qualidade baixa nesta sessão'; }
 const updLabels = () => {
   $('set-sens-val').textContent = Number(settings.sens).toFixed(1);
   $('set-vol-val').textContent = Math.round(settings.vol * 100) + '%';

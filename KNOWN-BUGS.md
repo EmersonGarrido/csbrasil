@@ -44,6 +44,44 @@ lista de "balão" do CHR1 tem os mesmos 13 antes e depois).
 
 ## P0 — quebram o jogo ou mentem para quem mede
 
+### ~~BUG-44 · Linux não consegue abrir o WebGL~~ · RESOLVIDO NO APP 11/08
+
+**Sintoma (do dono):** *"ok tem um erro de webgl, meu colega tem linux e nao consegue rodar, tem como consertar isso?"*
+
+**Causa raiz confirmada.** `public/js/glcontext.js` começava por `high-performance` com
+MSAA, a combinação mais frágil em Linux híbrido, e cada tentativa do Three virava
+`console.error`/issue antes do próximo degrau. Mesmo depois do boot, `main.js` abria um
+segundo renderer no preview e outro contexto para performance; #129 prova a falha na seleção.
+
+**Reprodução e medição** (`npm run eval:webgl`):
+
+| | antes | depois |
+|---|---:|---:|
+| cláusulas WebGL vermelhas | 7 | 0 |
+| contextos descartáveis no boot | 2 | 0 |
+| erros canônicos numa falha total | 3 classes | 1 |
+
+**Descartado com medição:** não faltava WebGL1. O Three r160 já tentava
+WebGL2, WebGL1 e `experimental-webgl`; repetir a mesma chamada não alcançaria outro driver.
+A #181 isolada também não prova falha total: ela tem só o erro provisório, sem o
+`sem_webgl` que acompanha as falhas fatais antigas.
+
+**Correção.** A factory sonda contexto padrão primeiro, degrada MSAA/GPU e passa o contexto
+real ao Three. `?safe=1` prioriza WebGL1, força qualidade baixa só na sessão e usa os 44
+retratos estáticos sem renderer secundário. Capacidade de shader e telemetria reutilizam o
+contexto principal; perda persistente de contexto abre recuperação acionável; fundos 3D
+decorativos falham sem derrubar a página.
+
+**Custo declarado.** WebGL1, llvmpipe e modo seguro usam DPR 0,75, sem bloom/sombras e sem
+preview 3D giratório. Isso compra alcance com qualidade visual menor. Se o navegador não
+criar nem WebGL1, JavaScript não consegue substituir o driver: o painel orienta driver,
+aceleração e outro navegador. O hardware Linux do colega não foi acessado nesta medição.
+
+**Régua: `tools/eval/webgl-compat-check.mjs`** (`npm run eval:webgl`, no `check:fast` e
+`check:deploy`). Dez cláusulas e nove mutações: `alto-primeiro`, `sem-webgl1`,
+`erro-provisorio`, `contexto-extra`, `fundo-fatal`, `sem-context-loss`,
+`qualidade-persistida`, `canvas-reusado` e `preview-null` acendem WG1-WG10.
+
 ### ~~BUG-42 · Erro bruto na abertura não dava saída para o jogador~~ · RESOLVIDO 10/08
 
 **Como aparecia.** O coletor global de `src/pages/index.astro` usava a mesma tarja vermelha
