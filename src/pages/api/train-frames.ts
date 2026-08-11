@@ -1,4 +1,4 @@
-// POST /api/train-frames — frames de behavioral cloning (anônimos), um lote por partida.
+// POST /api/train-frames - frames de behavioral cloning (anônimos), um lote por partida.
 // Ver docs/db/bot_training_frames.sql (fonte da tabela + RPC; aplicar no Supabase).
 //
 // Guarda pares (estado→ação) do JOGADOR gravados pelo public/js/botbrain/recorder.js.
@@ -27,7 +27,7 @@ const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
 
 // SINK LOCAL (dev): sem Supabase configurado, em `astro dev` os lotes vão pra um arquivo
-// ndjson que o bot-train.mjs lê — fecha o loop "jogar → coletar → treinar" na sua máquina,
+// ndjson que o bot-train.mjs lê - fecha o loop "jogar, coletar, treinar" na sua máquina,
 // sem montar banco. Em produção (build) `import.meta.env.DEV` é false: continua exigindo
 // Supabase, nunca grava em disco no servidor.
 const LOCAL_ENABLED = !supabaseAdmin && import.meta.env.DEV;
