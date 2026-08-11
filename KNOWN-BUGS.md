@@ -1606,6 +1606,24 @@ invisível hoje, porque `WEAPON_ONLY` é o padrão.
 
 ## P2 — infra, repo e deploy
 
+### ~~BUG-46 · Todo release abria um deploy de produção vermelho e redundante~~ · RESOLVIDO 11/08
+
+**Evidência.** Os releases alpha.75, alpha.77 e alpha.78 dispararam `deploy-prod.yml` e
+falharam no primeiro `vercel pull` com `Could not retrieve Project Settings`. Ao mesmo tempo,
+a integração Git da Vercel publicou cada push de `main` com sucesso; a alpha.78 foi medida
+em produção com health verde e import map atualizado.
+
+**Causa.** `vercel.json` declara `deploymentEnabled.main: true`, mas o workflow descrito como
+fallback manual também escutava `release.published`. Cada release criava um segundo caminho
+automático dependente de credenciais CLI que não recuperam o projeto.
+
+**Correção.** A integração Git permanece como único caminho automático. O workflow CLI
+continua disponível por `workflow_dispatch` com tag explícita, sem marcar releases saudáveis
+como falhos. A autenticação do fallback continua sendo validada somente quando ele é invocado.
+
+**Régua: `tools/eval/release-check.mjs`** (`npm run eval:release`). RLS6 exige auto-deploy
+da `main`, dispatch manual e ausência do gatilho de release; `--mutante=deploy-duplo` fica vermelho.
+
 ### BUG-12 · `issues/` tem 2,5 GB fora do git e fora do `.gitignore`
 
 `du -sh issues` → **2,5 GB**; `git ls-files issues | wc -l` → **0**. Não está versionado nem
