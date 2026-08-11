@@ -61,21 +61,19 @@ const IMPORTMAP = JSON.stringify({
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<!-- Captura de crash: mostra o erro NA TELA **e reporta** para /api/jserror.
-     O overlay existia e não bastava: em 07/08 o botão JOGAR ficou INERTE em produção
-     (BUG-34, TDZ no main.js) e o banner vermelho pintou na tela de alguém e MORREU ALI,
-     porque não ia para lugar nenhum. Site respondendo 200, build passando, check:fast
-     verde. Erro no navegador de quem joga é o único sinal que portão nenhum alcança.
-     Script clássico inline roda ANTES dos módulos (deferidos), então pega até erro em
-     tempo de execução dos módulos - que foi exatamente o caso do BUG-34.
-     Crash de GPU/renderer não dispara 'error' - pra esse caso use ?bloom=0. -->
+<!-- Deve rodar antes dos módulos para capturar falhas de boot; detalhes técnicos só
+     aparecem com ?debug=1. Contexto e limites: KNOWN-BUGS.md, BUG-42. -->
 <script is:inline>
 (function(){
   var TETO_SESSAO = 10;      // no máximo 10 erros DISTINTOS por carregamento de página
   var MIGALHAS = 20;         // últimas ações guardadas
-  var enviados = {}, nEnviados = 0, migalhas = [], reportando = false;
+  var DEBUG = new URLSearchParams(location.search).get('debug') === '1';
+  var enviados = {}, corpos = {}, nEnviados = 0, migalhas = [], reportando = false;
+  var relatorioFalha = null, falhaPendente = null, erroDoBoot = null;
+  var inicio = Date.now();
 
-  function show(kind, msg, extra){
+  function showDebug(kind, msg, extra){
+    if (!DEBUG) return;
     /* SEM WEBGL O OVERLAY SE CALA. `glcontext.js` marca `__semWebgl` quando nenhum degrau
        criou contexto, e nesse caso o jogador JÁ está lendo uma explicação em português -
        empilhar `three.module.js:28672` por cima dela não informa, atrapalha. O erro
@@ -90,7 +88,7 @@ const IMPORTMAP = JSON.stringify({
         el.onclick = function(){ el.remove(); };
         (document.body || document.documentElement).appendChild(el);
       }
-      el.textContent = '⚠ CRASH (' + kind + '): ' + msg + (extra ? ('\n\n' + extra) : '') + '\n\n(clique pra fechar - tire um print e me mande)';
+      el.textContent = 'DEBUG (' + kind + '): ' + msg + (extra ? ('\n\n' + extra) : '') + '\n\n(clique para fechar)';
     }catch(_){}
   }
 
@@ -142,11 +140,14 @@ const IMPORTMAP = JSON.stringify({
   }
 
   function reporta(kind, msg, source, stack){
-    if (reportando || nEnviados >= TETO_SESSAO) return;   // guarda de laço + teto
+    if (reportando) return null;                           // guarda de laço
     try{
       var fp = digital(kind + '|' + (msg || '') + '|' + (source || ''));
-      if (enviados[fp]) return;                            // 1 envio por erro distinto
-      enviados[fp] = 1; nEnviados++;
+      if (enviados[fp]) return { fp: fp, corpo: corpos[fp] || null }; // 1 envio automático por erro distinto
+      if (!enviados[fp]) {
+        if (nEnviados >= TETO_SESSAO) return null;
+        enviados[fp] = 1; nEnviados++;
+      }
       reportando = true;
       var c = contexto();
       c.fingerprint = fp; c.kind = kind;
@@ -154,13 +155,98 @@ const IMPORTMAP = JSON.stringify({
       c.source = source || null;
       c.stack = stack ? String(stack).slice(0, 4000) : null;
       var corpo = JSON.stringify(c);
+      corpos[fp] = corpo;
       /* sendBeacon sobrevive à aba fechando, que é justamente quando o jogador some
-         depois de um crash. Sem ele, o erro que mata a página não chega nunca. */
+         depois de um crash. O clique manual usa fetch para poder confirmar o envio. */
       if (!(navigator.sendBeacon && navigator.sendBeacon('/api/jserror', new Blob([corpo], {type:'application/json'}))))
         fetch('/api/jserror', { method:'POST', headers:{'content-type':'application/json'}, body: corpo, keepalive: true }).catch(function(){});
+      reportando = false;
+      return { fp: fp, corpo: corpo };
     }catch(_){ /* coletor NUNCA atrapalha o jogo */ }
     reportando = false;
+    return null;
   }
+
+  function erroIgnoravel(r){
+    var nome = r && r.name;
+    var msg = String((r && r.message) || r || '');
+    return nome === 'AbortError' || /media resource was aborted|fetching process.*aborted/i.test(msg);
+  }
+  function origemDoJogo(source){
+    if (!source) return true;
+    if (/^(chrome|moz|safari-web)-extension:\/\//i.test(source)) return false;
+    try { return new URL(source, location.href).origin === location.origin; } catch(_) { return true; }
+  }
+
+  function ligaFalha(){
+    var el = document.getElementById('launch-error');
+    if (!el || el.dataset.ready) return el;
+    el.dataset.ready = '1';
+    var retry = document.getElementById('launch-error-retry');
+    var send = document.getElementById('launch-error-report');
+    var status = document.getElementById('launch-error-status');
+    if (retry) retry.onclick = function(){ location.reload(); };
+    if (send) send.onclick = function(){
+      send.disabled = true;
+      send.textContent = 'ENVIANDO…';
+      var envio;
+      try {
+        var corpo = relatorioFalha;
+        envio = corpo
+          ? fetch('/api/jserror', { method:'POST', headers:{'content-type':'application/json'}, body: corpo, keepalive: true })
+              .then(function(r){ return r.ok; }, function(){ return false; })
+          : Promise.resolve(false);
+      } catch(_) { envio = Promise.resolve(false); }
+      envio.then(function(ok){
+        send.textContent = ok ? 'RELATÓRIO ENVIADO ✓' : 'TENTAR ENVIAR DE NOVO';
+        send.disabled = !!ok;
+        if (status) status.textContent = ok ? 'Valeu. Isso ajuda a gente a corrigir mais rápido.' : 'Não deu para enviar agora. Você ainda pode tentar novamente.';
+      });
+    };
+    return el;
+  }
+
+  function mostraFalha(dados){
+    var el = ligaFalha();
+    if (!el) { falhaPendente = dados; return; }
+    var code = document.getElementById('launch-error-code');
+    if (code) code.textContent = dados.fp ? ('CÓDIGO ' + dados.fp.toUpperCase()) : 'RELATÓRIO LOCAL';
+    el.classList.remove('hidden');
+    try { document.getElementById('launch-error-retry').focus(); } catch(_){}
+  }
+
+  var lancamento = {
+    ativo: false, etapa: null, timer: null,
+    begin: function(etapa, timeout, concluiu){
+      if (this.timer) clearTimeout(this.timer);
+      this.ativo = true; this.etapa = etapa;
+      var self = this;
+      this.timer = setTimeout(function(){
+        if (concluiu && concluiu()) { self.ready(etapa); return; }
+        self.fail(new Error('tempo limite ao abrir ' + etapa), 'launch-watchdog');
+      }, timeout || 12000);
+    },
+    ready: function(etapa){
+      if (etapa && this.etapa && etapa !== this.etapa) return;
+      if (this.timer) clearTimeout(this.timer);
+      this.timer = null; this.ativo = false; this.etapa = null;
+    },
+    fail: function(err, source){
+      var etapa = this.etapa || 'a arena';
+      this.ready();
+      var msg = (err && err.message) || String(err || 'falha desconhecida');
+      var stack = err && err.stack;
+      var registro = reporta('error', 'Falha ao abrir ' + etapa + ': ' + msg, source || 'launch', stack);
+      relatorioFalha = registro && registro.corpo;
+      mostraFalha({ fp: registro && registro.fp });
+    }
+  };
+  window.__gameLaunch = lancamento;
+
+  document.addEventListener('DOMContentLoaded', function(){
+    ligaFalha();
+    if (falhaPendente) { var f = falhaPendente; falhaPendente = null; mostraFalha(f); }
+  });
 
   /* Migalhas: o que o jogador FEZ, nunca o que ele ESCREVEU. Clique em elemento com id
      ou em botão cobre o menu inteiro sem precisar instrumentar main.js linha a linha -
@@ -180,18 +266,48 @@ const IMPORTMAP = JSON.stringify({
   window.addEventListener('error', function(e){
     var loc = e.filename ? (e.filename + ':' + e.lineno + ':' + e.colno) : '';
     var msg = (e.message || e.error || '?');
-    show('error', msg + (loc ? ('  @ ' + loc) : ''), e.error && e.error.stack);
+    showDebug('error', msg + (loc ? ('  @ ' + loc) : ''), e.error && e.error.stack);
     reporta('error', msg, loc, e.error && e.error.stack);
+    if (!window.__CS_MAIN_READY__ && origemDoJogo(loc)) erroDoBoot = e.error || new Error(String(msg));
+    if (lancamento.ativo && origemDoJogo(loc)) lancamento.fail(e.error || new Error(String(msg)), loc);
   });
   window.addEventListener('unhandledrejection', function(e){
     var r = e.reason;
-    show('promise', (r && r.message) || String(r), r && r.stack);
+    showDebug('promise', (r && r.message) || String(r), r && r.stack);
     reporta('promise', (r && r.message) || String(r), null, r && r.stack);
+    if (lancamento.ativo && !erroIgnoravel(r)) lancamento.fail(r instanceof Error ? r : new Error(String(r)), 'promise');
   });
 
-  /* console.error NÃO ganha overlay de propósito: nem todo console.error é crash, e
-     tapar a tela do jogador com aviso de textura faltando seria pior que o aviso. Ele
-     é reportado (o dono pediu "trackear console errors") e agrupado igual aos outros.
+  /* Um erro global sozinho não prova que o jogo parou (extensões de carteira injetam
+     vários). A tela amigável nasce só de uma ação que prometia avançar e não avançou. */
+  window.addEventListener('pointerdown', function(e){
+    try{
+      var alvo = e.target && e.target.closest ? e.target.closest('#boot-splash,#btn-jogar') : null;
+      if (!alvo) return;
+      if (alvo.id === 'boot-splash') {
+        var prompt = document.getElementById('splash-enter');
+        var pronto = prompt && !prompt.classList.contains('hidden');
+        if (!window.__CS_MAIN_READY__ && (erroDoBoot || Date.now() - inicio > 22000)) {
+          lancamento.fail(erroDoBoot || new Error('carregamento inicial não respondeu'), 'boot-watchdog');
+        } else if (window.__CS_MAIN_READY__ || pronto) {
+          lancamento.begin('entrada', 3000, function(){
+            var splash = document.getElementById('boot-splash');
+            return !splash || splash.classList.contains('gone');
+          });
+        }
+      } else {
+        lancamento.begin('menu', 3000, function(){
+          var time = document.getElementById('team-select');
+          var setup = document.getElementById('menu-setup');
+          return !!(time && !time.classList.contains('hidden')) || !!(setup && setup.dataset.step === 'profile');
+        });
+      }
+    }catch(_){}
+  }, true);
+
+  /* console.error só ganha overlay em ?debug=1: nem todo console.error é crash, e
+     tapar a tela do jogador com aviso de textura faltando seria pior que o aviso. Sem a
+     flag ele apenas é reportado e agrupado igual aos outros.
      O original é chamado PRIMEIRO: se o relatório explodir, o log dele não se perde. */
   try{
     var orig = console.error;
@@ -204,6 +320,7 @@ const IMPORTMAP = JSON.stringify({
           partes.push(a && a.message ? a.message : String(a));
         }
         var m = partes.join(' ');
+        showDebug('console', m, (arguments[0] && arguments[0].stack) || null);
         reporta('console', m, null, (arguments[0] && arguments[0].stack) || null);
       }catch(_){}
     };
@@ -369,6 +486,21 @@ const IMPORTMAP = JSON.stringify({
     <div id="load-label">CARREGANDO…</div>
     <div class="splash-bar lo-bar"><div id="load-bar-fill"></div></div>
     <div class="splash-status"><span id="load-status">CARREGANDO MODELOS 3D…</span><span id="load-pct">0%</span></div>
+  </div>
+</div>
+
+<!-- Exiba apenas quando uma tentativa explícita de abrir a arena falhar (BUG-42). -->
+<div id="launch-error" class="hidden" role="alertdialog" aria-modal="true" aria-labelledby="launch-error-title">
+  <div class="launch-error-card">
+    <div class="launch-error-kicker">A TRETA DEU UMA PAUSA</div>
+    <h2 id="launch-error-title">A ARENA NÃO ABRIU</h2>
+    <p>Alguma coisa travou durante o carregamento. O erro já foi registrado automaticamente, sem pedir senha.</p>
+    <div id="launch-error-code" class="launch-error-code">RELATÓRIO LOCAL</div>
+    <div class="launch-error-actions">
+      <button id="launch-error-retry" class="btn btn-big" type="button">TENTAR DE NOVO</button>
+      <button id="launch-error-report" class="btn" type="button">REPORTAR ERRO</button>
+    </div>
+    <p id="launch-error-status" class="launch-error-status" aria-live="polite">Se quiser, confirme o envio pelo botão acima.</p>
   </div>
 </div>
 
@@ -822,6 +954,7 @@ const IMPORTMAP = JSON.stringify({
     <div id="hp-row"><span id="hp-num">100</span></div>
     <div id="hp-bar"><div id="hp-fill"></div></div>
   </div>
+  <div id="weapon-hud" class="hidden" aria-label="Armas e utilitários"></div>
   <div id="hud-bottom-right">
     <div id="weapon-name">AWP "DELIBERADOR"</div>
     <div id="ammo"><span id="ammo-mag">5</span><span class="ammo-sep">|</span><span id="ammo-reserve">25</span></div>
