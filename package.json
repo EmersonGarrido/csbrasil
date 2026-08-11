@@ -55,6 +55,8 @@
     "//eval:sitemap": "Prova o fatiamento do sitemap com totais falsos (0, 5000, 5001, 12000). O modo índice é código que NINGUÉM alcança pedindo a URL — perfis só entram com RANKING_ON e precisariam de 5000+ jogadores. Checa páginas contíguas sem buraco, teto por página, XML bem formado nos dois modos e escape de & no nick.",
     "eval:sitemap": "node --experimental-strip-types tools/eval/sitemap-check.mjs",
     "eval:ctfhud": "node tools/eval/ctfhud-check.mjs",
+    "//eval:mutate": "Mutation testing do viewmodel: regenera a auditoria, aplica cada mutante de tools/eval/mutantes.json, roda a régua alvo e restaura. MATOU = régua morde; SOBREVIVEU = invariante cega; PULADO = avaliação inconclusiva. Ctrl-C/SIGTERM restauram na hora.",
+    "eval:mutate": "node tools/eval/mutate.mjs",
     "//eval:vmlabhud": "O menu de armas do protótipo do #131 precisa existir no HUD real quando ?vmlab=1 e continuar ausente sem a flag. Nasceu do relato do dono em produção (BUG-43). Executa _updateWeaponHud de game.js em três estados; --mutante=semflag reintroduz a ausência.",
     "eval:vmlabhud": "node tools/eval/vmlab-hud-check.mjs",
     "//eval:posters": "O aspecto declarado de cada cartaz em POSTER_FILES (textures.js) bate com o pixel do arquivo em public/posters/? Erro >6% = arte esticada na parede (issue #79). `--mutate` estraga um número e prova que a régua morde.",
