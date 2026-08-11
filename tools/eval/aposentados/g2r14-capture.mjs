@@ -3,7 +3,7 @@
 // Igual ao g2-capture, mas com espera ADAPTATIVA: o lazy-load (G2-R14A) pode levar
 // alguns segundos pra construir o VM estático de uma classe nova — espera o VM visível
 // (ou timeout) antes de fotografar, senão a captura pegaria o fallback procedural.
-// Uso: node tools/eval/g2r14-capture.mjs <outDir> <W,H> [arma1,arma2,...]
+// Uso: node tools/eval/aposentados/g2r14-capture.mjs <outDir> <W,H> [arma1,arma2,...]
 import { execSync } from 'node:child_process';
 import { mkdirSync, rmSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';

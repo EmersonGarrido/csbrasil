@@ -51,7 +51,7 @@ this page was aging at the very first commit — see
 | Playable characters | 44, in 5 factions | `CHARACTERS` array in `characters.js` |
 | Maps in the registry | 5 | `MAPS` object in `maps.js` |
 | Visual harnesses in HTML | 13 | `ls public/*.html \| wc -l` |
-| Harness scripts | 172 | `ls tools/eval/*.mjs tools/eval/*.py \| wc -l` |
+| Harness scripts | 143 | `ls tools/eval/*.mjs tools/eval/*.py \| wc -l` |
 | Pipeline scripts | 46 | `ls tools/*.mjs \| wc -l` |
 | Written entry tasks | 26 | `ls docs/issues/[0-9]*.md \| wc -l` |
 | Version | `2.0.0-alpha.72` | `public/js/version.js` and `package.json` (match) |

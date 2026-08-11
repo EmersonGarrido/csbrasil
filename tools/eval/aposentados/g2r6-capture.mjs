@@ -1,11 +1,12 @@
-// G2-R6A: captura FRAME A FRAME durante troca de armas (caça à "faixa preta").
-// Simula (1) _switchWeapon direto e (2) _grabPickup de um rifle do chão, gravando cada
-// frame por ~0.9s. Uso: node tools/eval/g2r6-switch-capture.mjs <outDir>
+// G2-R6A capture: ambiente do dono (1512×982 @ dsf=2, MacBook 3024×1964).
+// Troca de arma via _switchWeapon e captura cada viewmodel. Falha em erro de console.
+// Uso: node tools/eval/aposentados/g2r6-capture.mjs <outDir> [arma1,arma2,...]
 import { execSync } from 'node:child_process';
 import { mkdirSync, rmSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 
-const OUT = process.argv[2] || '/tmp/gauntlet/g2r6-switch';
+const OUT = process.argv[2] || '/tmp/gauntlet/g2r6-now';
+const LIST = (process.argv[3] || 'ak,akm,m4,mp5,g3,scar,famas,p90,uzi,tavor,lmg,m92,carbine,shotgun,md97,awp,mosin,rem700,m400,svd,g3sg1,sks,pistol,deagle,revolver38,knife').split(',');
 const BASE = process.env.BASE || 'http://127.0.0.1:8123';
 const gRoot = execSync('npm root -g').toString().trim();
 const _pw = await import(pathToFileURL(`${gRoot}/playwright/index.js`).href);
@@ -29,30 +30,26 @@ await page.evaluate(() => {
   const g = window.__game;
   for (const b of g.bots) { b.pos.set(0, -60, 0); b.hp = 1e9; }
   g.player.hp = 1e9;
-  g._switchWeapon('pistol'); g.player.drawUntil = 0;
 });
-await page.waitForTimeout(300);
 
-// Congela o relógio do jogo? Não — queremos o draw animando. Captura frames em rajada.
-async function burst(tag, fn, frames = 22, gapMs = 40) {
-  await page.evaluate(fn);
-  for (let i = 0; i < frames; i++) {
-    await page.screenshot({ path: `${OUT}/${tag}-f${String(i).padStart(2, '0')}.png` });
-    await page.waitForTimeout(gapMs);
-  }
-  console.log('burst', tag, 'done');
+for (const id of LIST) {
+  const ok = await page.evaluate((wid) => {
+    const g = window.__game;
+    if (!g._switchWeapon) return false;
+    g._switchWeapon(wid); g.player.drawUntil = 0;
+    g.player.pitch = 0; g.player.vel?.set?.(0, 0, 0);
+    return true;
+  }, id);
+  await page.waitForTimeout(450);
+  await page.evaluate(() => { const g = window.__game; g.player.drawUntil = 0; g.player.reloadUntil = 0; g.player.pitch = 0; });
+  await page.screenshot({ path: `${OUT}/${id}.png` });
+  console.log(ok ? 'shot' : 'NO MODEL', id);
 }
-
-// 1) troca pistol -> ak (rifle com static VM)
-await burst('sw-ak', () => { const g = window.__game; g._switchWeapon('ak'); });
-// 2) troca ak -> m400 (classe awp)
-await burst('sw-m400', () => { const g = window.__game; g._switchWeapon('m400'); });
-// 3) pickup real do chão: dropa um g3 nos pés e pega
-await burst('pk-g3', () => {
+const meta = await page.evaluate(() => {
   const g = window.__game;
-  g._switchWeapon('pistol'); g.player.drawUntil = 0;
-  g._dropWeapon(g.player.pos.x + 0.4, g.player.pos.z + 0.4, 'g3');
+  return { aspect: innerWidth / innerHeight, dpr: devicePixelRatio, vmFov: g.vmCamera?.fov, camFov: g.camera?.fov };
 });
+console.log('meta', JSON.stringify(meta));
 console.log(errors ? `FALHOU: ${errors} erro(s) de console` : '0 erros de console');
 await browser.close();
 process.exit(errors ? 1 : 0);

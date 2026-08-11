@@ -3,7 +3,7 @@
 // #load-overlay ainda cobre a tela, os 4 primeiros itens do menu davam timeout.
 // Aqui o clique é disparado por .click() do DOM (não espera hit-test) e só depois
 // de o overlay sumir de verdade.
-// Uso: node tools/eval/p1-menu2.mjs <outDir>
+// Uso: node tools/eval/aposentados/p1-menu2.mjs <outDir>
 import { execSync } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';

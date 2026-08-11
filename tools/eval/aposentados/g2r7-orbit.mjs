@@ -1,5 +1,5 @@
 // G2-R7 — órbita de validação de uma GLB de viewmodel via public/vm-inspect.html.
-// Uso: node tools/eval/g2r7-orbit.mjs <src> <prefixo> [views]
+// Uso: node tools/eval/aposentados/g2r7-orbit.mjs <src> <prefixo> [views]
 // views default: right(1.6,0.3,0) left(-1.6,0.3,0) top(0,1.8,0.3) behind-right(0.9,0.6,-1.2)
 import { execSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';

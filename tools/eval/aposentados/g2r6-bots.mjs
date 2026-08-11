@@ -2,7 +2,7 @@
 // mede: (1) reversões de velocidade LATERAL (zigzag "anda pro lado e pro outro"),
 // (2) reversões de velocidade frontal, (3) eficiência de deslocamento (path/net),
 // (4) oscilação de alvo CTF (trocas de ctfPt). + 6 screenshots. Uso:
-//   node tools/eval/g2r6-bots.mjs <mapId> <outPrefix> [segundos]
+//   node tools/eval/aposentados/g2r6-bots.mjs <mapId> <outPrefix> [segundos]
 import { execSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 

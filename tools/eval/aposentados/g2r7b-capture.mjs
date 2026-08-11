@@ -1,5 +1,5 @@
 // G2-R7B — captura de UMA arma (herói ou via kill-switch): hip full-frame, crop das
-// mãos, flash na boca. Uso: node tools/eval/g2r7b-capture.mjs <arma> <prefixo> [WxH] [extraQS]
+// mãos, flash na boca. Uso: node tools/eval/aposentados/g2r7b-capture.mjs <arma> <prefixo> [WxH] [extraQS]
 // Sai 2 se houver erro de console/pageerror.
 import { execSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';

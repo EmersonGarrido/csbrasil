@@ -1,5 +1,5 @@
 // G2-R7 — captura comparativa da AK-herói Tripo vs AK atual (classe rifle + kit).
-// Uso: node tools/eval/g2r7-capture.mjs <prefixo> [WxH] [extraQS]
+// Uso: node tools/eval/aposentados/g2r7-capture.mjs <prefixo> [WxH] [extraQS]
 // Captura em fy_pool_day (outdoor claro): hip full-frame, flash na boca, crop das mãos.
 // Sai com código 2 se houver QUALQUER erro de console/pageerror.
 import { execSync } from 'node:child_process';

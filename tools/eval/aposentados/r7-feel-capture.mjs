@@ -1,6 +1,6 @@
 // R7 FEEL/GUNPLAY capture v2 — stepping MANUAL do loop (pausa o rAF e avança dt=16ms por
 // passo), assim os frames provam timing real: tracer some <100ms, flash ~45ms, ADS gradual.
-// Uso: node tools/eval/r7-feel-capture.mjs   (serve.mjs em :8123)
+// Uso: node tools/eval/aposentados/r7-feel-capture.mjs   (serve.mjs em :8123)
 import { execSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 import { mkdirSync } from 'node:fs';

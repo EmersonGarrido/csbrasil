@@ -4,7 +4,7 @@
 // saíram como foto do splash. Aqui: mouse.click de verdade pra sair do splash e
 // mouse.click na caixa do botão (sem a espera de "actionability" do page.click, que
 // era o que dava timeout na passada 1).
-// Uso: node tools/eval/p1-menu3.mjs <outDir>
+// Uso: node tools/eval/aposentados/p1-menu3.mjs <outDir>
 import { execSync } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';

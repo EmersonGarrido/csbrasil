@@ -1,6 +1,6 @@
 // G2-R8 — sweep de framing de QUALQUER staticVm (classe ou variante): aplica candidatos
 // de (pitch,yaw,roll,pos,scale) ao vivo via userData.qAlign (salvo no build p/ todas as
-// entradas) e captura. Uso: node tools/eval/g2r8-sweep.mjs <vmKey> <armaPraMostrar> [WxH]
+// entradas) e captura. Uso: node tools/eval/aposentados/g2r8-sweep.mjs <vmKey> <armaPraMostrar> [WxH]
 // vmKey = chave no staticVms (ex: g3, shotgun, mosin); arma = id p/ _switchWeapon.
 import { execSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';

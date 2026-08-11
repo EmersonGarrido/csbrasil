@@ -3,7 +3,7 @@
 // real). Amostra pos/yaw dos bots a cada 9 steps (~150ms) e mede:
 //   latFlips/fwdFlips por min (zigzag), eficiência (net/path — milling), ctfSwitches,
 //   stuckRate (% do tempo quase parado com alvo roam longe).
-// Uso: node tools/eval/g2r6-bots2.mjs <mapId> <outPrefix> [gameSegundos]
+// Uso: node tools/eval/aposentados/g2r6-bots2.mjs <mapId> <outPrefix> [gameSegundos]
 import { execSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 

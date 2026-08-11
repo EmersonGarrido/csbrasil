@@ -1,7 +1,7 @@
 // G2-R6A pose tuning: aplica transforms candidatos nos viewmodels estáticos AO VIVO
 // e captura uma grade por classe. O objetivo: cano apontando PRA FRENTE (pose clássica
 // de hip, como a era r55), mãos no quadro, modelo Tripo legível.
-// Uso: node tools/eval/g2r6-pose-tune.mjs <outDir> [cls,arma]...
+// Uso: node tools/eval/aposentados/g2r6-pose-tune.mjs <outDir> [cls,arma]...
 import { execSync } from 'node:child_process';
 import { mkdirSync, rmSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';

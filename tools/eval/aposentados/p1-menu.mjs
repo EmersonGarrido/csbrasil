@@ -3,7 +3,7 @@
 // screenshot do splash estoura o timeout padrão de 30 s do Playwright e derruba o
 // processo inteiro, perdendo todas as telas seguintes. Aqui cada screenshot tem
 // timeout longo e é embrulhado em try/catch, então uma tela lenta não custa as outras.
-// Uso: node tools/eval/p1-menu.mjs <outDir>
+// Uso: node tools/eval/aposentados/p1-menu.mjs <outDir>
 import { execSync } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';

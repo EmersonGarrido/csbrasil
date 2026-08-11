@@ -1,7 +1,7 @@
 // G2-R6A: detector de FAIXA PRETA — hook no renderer: após cada frame renderizado,
 // lê o framebuffer (amostragem de linhas) e detecta (a) frames quase pretos e
 // (b) bandas horizontais pretas contíguas. Roda durante trocas de arma repetidas.
-// Uso: node tools/eval/g2r6-blackband.mjs [segundosPorCenario]
+// Uso: node tools/eval/aposentados/g2r6-blackband.mjs [segundosPorCenario]
 import { execSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 

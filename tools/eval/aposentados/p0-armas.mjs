@@ -14,7 +14,7 @@
    toda arma que ja tem os 4 PNG no disco — e (2) se a pagina morrer, abre outra e continua
    de onde parou, ate MAX_TRY tentativas por aspecto.
 
-   Uso: node tools/eval/p0-armas.mjs [outDir] [lista,de,armas] [aspecto]
+   Uso: node tools/eval/aposentados/p0-armas.mjs [outDir] [lista,de,armas] [aspecto]
 */
 import { execSync } from 'node:child_process';
 import { mkdirSync, writeFileSync, existsSync, readFileSync } from 'node:fs';

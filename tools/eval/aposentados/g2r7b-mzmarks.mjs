@@ -1,5 +1,5 @@
 // G2-R7B — mzmarks genérico: anota landmarks do model space de uma arma-herói num
-// screenshot pra calibrar o `tip` do muzzle. Uso: node tools/eval/g2r7b-mzmarks.mjs <arma> "nome:x,y,z;nome2:x,y,z;..."
+// screenshot pra calibrar o `tip` do muzzle. Uso: node tools/eval/aposentados/g2r7b-mzmarks.mjs <arma> "nome:x,y,z;nome2:x,y,z;..."
 import { execSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 const WEAPON = process.argv[2] || 'm4';
