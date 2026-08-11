@@ -606,17 +606,22 @@ const IMPORTMAP = JSON.stringify({
           </div>
         </label>
         <label class="map-label">BOTS / LADO
-          <select id="bots-select"></select>
+          <div class="dd" id="bots-dd">
+            <button class="dd-btn" id="bots-dd-btn" type="button"><span id="bots-dd-label"></span><span class="dd-arrow">▾</span></button>
+            <div class="dd-list hidden" id="bots-dd-list"></div>
+          </div>
         </label>
         <!-- Dificuldade agora é RANDÔMICA por bot (50% ruins / 20% médios / 20% bons /
              10% muito bons) - seletor removido. -->
       </div>
       <div class="cs-setup-actions">
-        <button id="setup-back" class="btn btn-back" type="button">◀ VOLTAR</button>
         <button id="btn-profile" class="btn btn-profile" type="button">
-          <small>SEU PERFIL</small><span id="profile-name">SEM NICK</span>
+          <span id="profile-name">SEM NICK</span>
         </button>
-        <button id="btn-jogar" class="btn btn-big">▶ JOGAR</button>
+        <div class="cs-setup-row">
+          <button id="setup-back" class="btn btn-back" type="button">◀ VOLTAR</button>
+          <button id="btn-jogar" class="btn btn-big">▶ JOGAR</button>
+        </div>
       </div>
     </section>
 

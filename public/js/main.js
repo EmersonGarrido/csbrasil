@@ -1186,18 +1186,26 @@ function wpnLabel(id) {
 wpnDdList.innerHTML = WPN_MODES.map(m =>
   `<button class="dd-item" data-id="${m.id}" type="button">${WPN_ICONS[m.id]}<span>${tr(m.label)}</span></button>`).join('');
 wpnLabel(wpnSel.value);
-wpnDdBtn.onclick = e => { e.stopPropagation(); wpnDdList.classList.toggle('hidden'); wpnDdBtn.classList.toggle('open'); };
+wpnDdBtn.onclick = e => { e.stopPropagation(); botsDdList?.classList.add('hidden'); botsDdBtn?.classList.remove('open'); wpnDdList.classList.toggle('hidden'); wpnDdBtn.classList.toggle('open'); };
 document.addEventListener('click', () => { wpnDdList.classList.add('hidden'); wpnDdBtn.classList.remove('open'); });
 wpnDdList.querySelectorAll('.dd-item').forEach(b => b.onclick = () => {
   settings.wpnMode = b.dataset.id; saveSettings();
   wpnLabel(settings.wpnMode); setMapMeta(); sfx.uiClick();
 });
-// bots-per-side + difficulty selectors (custom match)
-const botsSel = $('bots-select');
-if (botsSel) {
-  [2, 3, 4, 5, 6, 7, 8].forEach(n => { const o = document.createElement('option'); o.value = n; o.textContent = `${n} vs ${n}`; botsSel.appendChild(o); });
-  botsSel.value = settings.bots || 4;
-  botsSel.onchange = () => { settings.bots = +botsSel.value; saveSettings(); setMapMeta(); sfx.uiClick(); };
+// bots-per-side: dropdown custom (mesma cara do de armas — o <select> nativo abria o
+// menu default do navegador, fora do estilo do resto do setup)
+const botsDdBtn = $('bots-dd-btn'), botsDdList = $('bots-dd-list'), botsDdLabel = $('bots-dd-label');
+if (botsDdBtn && botsDdList && botsDdLabel) {
+  const botsLabel = n => { botsDdLabel.innerHTML = `<span class="dd-cur"><span>${n} vs ${n}</span></span>`; };
+  botsDdList.innerHTML = [2, 3, 4, 5, 6, 7, 8].map(n =>
+    `<button class="dd-item" data-n="${n}" type="button"><span>${n} vs ${n}</span></button>`).join('');
+  botsLabel(settings.bots || 4);
+  botsDdBtn.onclick = e => { e.stopPropagation(); wpnDdList.classList.add('hidden'); wpnDdBtn.classList.remove('open'); botsDdList.classList.toggle('hidden'); botsDdBtn.classList.toggle('open'); };
+  document.addEventListener('click', () => { botsDdList.classList.add('hidden'); botsDdBtn.classList.remove('open'); });
+  botsDdList.querySelectorAll('.dd-item').forEach(b => b.onclick = () => {
+    settings.bots = +b.dataset.n; saveSettings();
+    botsLabel(settings.bots); setMapMeta(); sfx.uiClick();
+  });
 }
 const diffSel = $('diff-select');
 if (diffSel) {

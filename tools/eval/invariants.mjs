@@ -1004,7 +1004,8 @@ function runNode(script, env = {}, args = []) {
     // pitch/yaw/roll saem da tabela por CLASSE (t.pitch/t.yaw/t.roll), não de literais
     vmPitch: !!argsRotVm && /\bt\.pitch\b/.test(gsrc) && /\bpit\b/.test(argsRotVm[0]),
     vmYaw: !!argsRotVm && /\bt\.yaw\b/.test(gsrc) && /\byaw\b/.test(argsRotVm[1]),
-    vmRoll: !!argsRotVm && /\bt\.roll\b/.test(argsRotVm[2]),
+    vmRoll: !!argsRotVm && /\brol\b/.test(argsRotVm[2])
+      && /const\s+rol\s*=.*\bVM_KNOB\.roll\b.*\bt\.roll\b/.test(gsrc),
     // e o ADS chama a rampa nos eixos X e Y (o Z, o roll, fica de fora de propósito)
     vmAdsRotChamado: !!argsRotAds && /\bvmAdsRot\s*\(/.test(argsRotAds[0]) && /\bvmAdsRot\s*\(/.test(argsRotAds[1]),
     /* AS DUAS ETAPAS DA POSE DE MIRA (RODADA DA LEGIBILIDADE). O vm-mint-audit passou a

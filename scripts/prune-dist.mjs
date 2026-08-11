@@ -43,12 +43,15 @@ const ALVOS = [
     'dist/client/models/fpvm',
     '.vercel/output/static/models/fpvm',
   ]),
-  // MODO DEV (dev.html): fica em public/ pra o `astro dev` servir na máquina de quem
-  // desenvolve, mas NÃO pode ir pro ar (seria URL pública /dev.html). Mesmo tratamento
-  // do fpvm: poda do dist E do espelho da Vercel, então em produção dá 404. Continua
-  // valendo em `npm run dev`.
+  // Bancadas locais não fazem parte do site publicado.
   'dist/client/dev.html',
   '.vercel/output/static/dev.html',
+  'dist/client/editor',
+  '.vercel/output/static/editor',
+  'dist/client/js/editor',
+  '.vercel/output/static/js/editor',
+  'dist/client/img/reticle-pu.png',
+  '.vercel/output/static/img/reticle-pu.png',
 ];
 
 function tamanho(dir) {
@@ -75,7 +78,7 @@ for (const alvo of ALVOS) {
   console.log(`  poda: ${alvo} (${mb(b)})`);
 }
 if (!podados) {
-  console.log('  poda: nada a podar (models/fpvm não está no build).');
+  console.log('  poda: nada a podar.');
 } else {
   console.log(`  poda: ${mb(total)} fora do publicado.`);
 }
