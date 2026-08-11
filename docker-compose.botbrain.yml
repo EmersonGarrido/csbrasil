@@ -2,7 +2,7 @@
 #
 #   docker compose -f docker-compose.botbrain.yml up game        # sobe o jogo em :4321
 #     → abra http://localhost:4321/?botbrain=1  (bots dirigidos pela rede)
-#     → jogue com a coleta ligada; os frames caem em tools/eval/data/collected.ndjson
+#     → autorize a coleta em Privacidade; os frames caem em tools/eval/data/collected.ndjson
 #
 #   docker compose -f docker-compose.botbrain.yml run --rm train # treina com o que houver
 #     → gera public/models/bot-brain/ (recarregue o jogo pra usar o modelo novo)
@@ -31,10 +31,9 @@ services:
     volumes:
       - .:/app
       - /app/node_modules
-    # 1) tfjs-node (fora das deps do projeto, pesado) 2) bootstrap se não houver dado
-    # 3) treina com bootstrap + seus frames coletados → escreve o modelo no volume montado
+    # Instala a dependência pesada só no volume do container, sem alterar o lockfile.
     command: >
-      sh -c "npm i -D @tensorflow/tfjs-node --no-audit --no-fund &&
+      sh -c "npm install --no-save --package-lock=false @tensorflow/tfjs-node --no-audit --no-fund &&
              ([ -f tools/eval/data/bootstrap.ndjson ] || node tools/eval/bot-record.mjs 60 all) &&
              node tools/eval/bot-train.mjs --epochs=40 &&
              node tools/eval/bot-brain-check.mjs"

@@ -99,6 +99,25 @@ function runMatch(mapId, textures, seed) {
   return { deathsE, deathsB, shotsNN, avgMove: moveN ? moveNN / moveN : 0 };
 }
 
+function countCtfObjectiveCalls() {
+  h.seedRandom(7);
+  const g = new h.Game({
+    renderer: h.makeRenderer(), textures: h.initTextures(h.makeRenderer()), sfx: h.sfx,
+    settings: { bots: 4, quality: 'low', difficulty: 'hard', sens: 1 },
+    playerCharId: h.PCHAR, playerTeam: 'E', playerFaction: 'E', enemyFaction: 'B',
+    nickname: 'CTF', mapId: 'dust2', ctf: true, testMode: true, onQuit() {}, onMatchEnd() {},
+  });
+  g._ensureDolly = () => {};
+  g.start ? g.start() : g._startRound();
+  g.player.pos.set(0, -400, 0); g.player.hp = 1e9; g.player.alive = true;
+  g._botBrain = loadBrain(); g.botBrainMix = 1; g._botBrainTeam = 'E';
+  let calls = 0;
+  const ctf = g._botCtf.bind(g);
+  g._botCtf = (bot, dt) => { if (bot.team === 'E') calls++; return ctf(bot, dt); };
+  for (let i = 0; i < 10 * 60; i++) g.update(1 / 60);
+  return calls;
+}
+
 let DE = 0, DB = 0, shots = 0, moveSum = 0, moveCnt = 0;
 for (const mapId of MAPS) {
   const textures = h.initTextures(h.makeRenderer());
@@ -112,12 +131,14 @@ for (const mapId of MAPS) {
 const total = DE + DB;
 const shareB = total ? DB / total : 0;
 const avgMove = moveCnt ? moveSum / moveCnt : 0;
+const ctfCalls = countCtfObjectiveCalls();
 const alive = shots > 0 && avgMove > 0.05;
-const passRede = shareB >= SHARE_MIN && alive;
+const passRede = shareB >= SHARE_MIN && alive && ctfCalls > 0;
 
 console.error(`\n=== BOT-BRAIN CHECK ${MUT ? '(mutante=' + MUT + ')' : ''} ===`);
 console.error(`mortes: E(rede) ${DE}  B(roteiro) ${DB}  | shareB ${shareB.toFixed(3)} (min ${SHARE_MIN})`);
 console.error(`rede viva: tiros ${shots}, deslocamento médio ${avgMove.toFixed(3)} → ${alive ? 'sim' : 'NÃO'}`);
+console.error(`objetivo CTF sem alvo: ${ctfCalls} chamadas → ${ctfCalls > 0 ? 'sim' : 'NÃO'}`);
 
 if (MUT) {
   // mutação DEVE reprovar: rede zerada não mira/atira, shareB desaba

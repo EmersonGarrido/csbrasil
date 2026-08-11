@@ -575,13 +575,11 @@ export class Game {
     this.testMode = testMode;
     this.onQuit = onQuit;
     this.onMatchEnd = onMatchEnd;
-    // BOTBRAIN (coleta): grava (estado→ação) do jogador p/ treinar a rede dos bots.
-    // Só liga se o dono não deu opt-out (recordTraining) e fora do modo de teste.
+    // A coleta só amostra quando recordTraining veio do consentimento persistido.
     this.onTrainingFrames = onTrainingFrames;
     this._recordEnabled = !!recordTraining && !testMode;
-    this._recorder = this._recordEnabled ? new PlayerRecorder(this) : null;
-    // BOTBRAIN (inferência): ?botbrain=1 liga a rede nos bots. Lazy: baixa o modelo (~29 KB)
-    // e só então _updateBot delega pra rede. Em node/régua o harness seta _botBrain à mão.
+    this._recorder = testMode ? null : new PlayerRecorder(this);
+    // A inferência neural é experimental e só liga com ?botbrain=1.
     this._botBrain = null;
     this.botBrainMix = 0;
     if (QS.get('botbrain') === '1' && !testMode) {
@@ -5139,11 +5137,10 @@ export class Game {
   }
   _updateBot(b, dt) {
     const g = b.mesh.group;
-    // BOTBRAIN: com a rede ligada e o bot vivo em jogo, a REDE controla o bot (mira/movimento/
-    // tiro). Caminho 100% isolado atrás da flag — com ela desligada, é só este boolean e o
-    // path roteirizado abaixo fica byte-a-byte intacto (zero regressão no jogo normal).
+    // Sem alvo no CTF, mantém a navegação roteirizada até o objetivo.
     if (this._botBrain && this._botBrain.ready && this.botBrainMix > 0 && b.alive && this.state === 'live'
-        && (!this._botBrainTeam || b.team === this._botBrainTeam)) {   // _botBrainTeam: régua pita NN×roteirizado
+        && (!this.ctf || b.target)
+        && (!this._botBrainTeam || b.team === this._botBrainTeam)) {   // régua NN contra roteiro
       return this._updateBotNN(b, dt);
     }
     if (!b.alive) {
@@ -5947,12 +5944,7 @@ export class Game {
     } catch {}
   }
 
-  /* ================= BOTBRAIN: bot dirigido pela rede neural =================
-     Caminho isolado (só roda com a rede ligada). A rede decide a ~10 Hz (mesma cadência do
-     treino) e a decisão é APLICADA todo frame: mira (dyaw), movimento (moveFwd/strafe) e o
-     GATE de tiro (fire). O alvo/percepção sai de sense() — a MESMA fonte do dataset. Reusa
-     as primitivas do jogo (_collide, _damage, _botEye, _losClear): o tiro é honesto (dano da
-     arma real, falloff, teto de dano no jogador, sem acerto atrás de parede). */
+  // A rede decide a 10 Hz; movimento, colisão e dano continuam usando as regras do jogo.
   _updateBotNN(b, dt) {
     const g = b.mesh.group;
     if (this.time < b.protUntil) g.visible = Math.floor(this.time * 12) % 2 === 0;

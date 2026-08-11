@@ -1,15 +1,5 @@
-// BOTBRAIN — VETOR DE FEATURES (fonte única, compartilhada por recorder e brain).
-//
-// A clonagem de comportamento exige que o vetor de ESTADO gravado do jogador seja
-// IDÊNTICO em forma ao vetor que o bot monta na inferência — senão a rede recebe na
-// hora de jogar um espaço diferente do que treinou. Por isso montar o estado mora aqui,
-// num lugar só: o recorder (public/js/botbrain/recorder.js) e o brain
-// (public/js/botbrain/brain.js) chamam `buildState` com o MESMO contrato.
-//
-// Tudo é EGOCÊNTRICO (referencial local de quem age, rotacionado por -yaw) e escalado
-// para ~[-1,1] por constantes fixas (SCALE). O treino (tools/eval/bot-train.mjs) pode
-// padronizar ainda mais por cima (norm.json), mas a escala grosseira já sai daqui — assim
-// a Fase A (coleta) não depende de nenhum modelo treinado para gravar dados úteis.
+// Fonte única do vetor usado por coleta e inferência. Features ficam em referencial local
+// e aproximadamente em [-1,1]; dimensões e ordem são parte do formato persistido.
 
 export const STATE_DIM = 27;
 export const ACTION_DIM = 7;

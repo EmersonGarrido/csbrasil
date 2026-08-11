@@ -26,7 +26,7 @@ npm run bot:brain:check                  # régua: a rede é funcional? (verde/v
 ```bash
 npm run dev                              # sem SUPABASE_URL/KEY, o /api/train-frames
                                          # grava seus frames em tools/eval/data/collected.ndjson
-# jogue algumas partidas em http://localhost:4321/  (coleta ligada por padrão nas config.)
+# autorize a coleta em Configurações > Privacidade e jogue em http://localhost:4321/
 npm run bot:train -- --epochs=40          # treina com bootstrap + SEUS frames juntos
 ```
 > `bot:train` lê **todos** os `.ndjson` de `tools/eval/data/` por padrão — seus dados
@@ -43,14 +43,23 @@ docker compose -f docker-compose.botbrain.yml up game
 docker compose -f docker-compose.botbrain.yml run --rm train
 #   → recarregue o jogo pra usar o modelo novo
 ```
+O contêiner executa como o usuário não-root `node`; os artefatos gerados não pertencem ao
+root. A instalação do TensorFlow fica no volume isolado de `node_modules` e não altera
+`package.json` nem o lockfile do host.
 > Em Apple Silicon o `tfjs-node` pode não ter binário prebuilt pro Linux ARM do container;
 > se o `train` falhar na instalação, treine no host (seção 1) — o resultado é o mesmo.
 
 ## 3. Produção (Supabase) — coleta de muitos jogadores
 
-O sink local é só de dev. Em produção, defina `SUPABASE_URL` e `SUPABASE_SERVICE_ROLE_KEY`
-e aplique `docs/db/bot_training_frames.sql`. Aí o `/api/train-frames` grava no banco e o
-treino puxa com `npm run bot:train -- --from-supabase`.
+O sink local é só de desenvolvimento. Em produção, a manutenção aplica a migration privada
+`023_bot_training_frames.sql`. O endpoint autentica UID + token, limita escrita por IP e
+por jogador, e o treino limita quantos lotes cada jogador pode fornecer. A importação é
+sempre manual com `npm run bot:train -- --from-supabase`; ela nunca publica um modelo.
+
+A coleta começa desligada. Ao autorizá-la, o lote inclui o identificador técnico do jogador
+para autenticação e balanceamento; o IP é usado somente no rate limit e não é armazenado no
+corpus. Trate todo frame remoto como entrada não confiável e valide o modelo antes de trocar
+os arquivos publicados.
 
 ## Como as peças se encaixam
 | Arquivo | Papel |

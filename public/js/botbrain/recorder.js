@@ -1,12 +1,4 @@
-// BOTBRAIN — GRAVADOR DE JOGADAS DO JOGADOR (behavioral cloning, lado da coleta).
-//
-// A cada amostra (~10 Hz), grava o par (ESTADO que o jogador via → AÇÃO que ele fez).
-// Esse par é o dado de treino: a rede aprende o mapeamento estado→ação de gente de
-// verdade. O ESTADO vem de sense() (mesma fonte da inferência do bot); a AÇÃO vem das
-// teclas/mouse do jogador, lidas do próprio game.
-//
-// Respeita opt-out: quem instancia (game.js) só chama sample() quando _recordEnabled.
-// O buffer é limitado (MAX_FRAMES) e quantizado em Int8 no flush() — leve pro beacon.
+// Grava estado e ação a 10 Hz somente após opt-in. O buffer é limitado e quantizado.
 import { buildState, buildAction, STATE_DIM, ACTION_DIM } from './features.js';
 import { sense } from './sense.js';
 

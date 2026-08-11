@@ -42,6 +42,8 @@ const DATA_FILES = args.data
   ? [path.resolve(process.cwd(), args.data)]
   : (fs.existsSync(DATA_DIR) ? fs.readdirSync(DATA_DIR).filter((f) => f.endsWith('.ndjson')).map((f) => path.join(DATA_DIR, f)) : []);
 const MIN_FRAMES = parseInt(args['min-frames'] || '2000', 10);
+const MAX_BATCHES_PER_PLAYER = 4;
+const MAX_REMOTE_BATCHES = 500;
 
 // ---- carregar lotes (mesmo shape do /api/train-frames: {dims,n,data(base64 Int8)}) ----
 function decodeBatch(b) {
@@ -92,9 +94,27 @@ if (args['from-supabase']) {
   else {
     const { createClient } = await import('@supabase/supabase-js');
     const sb = createClient(url, key, { auth: { persistSession: false } });
-    const { data, error } = await sb.from('bot_training_frames').select('n,schema,map,mode,weapon,data,state_dim,action_dim').eq('schema', 1).limit(5000);
+    const { data, error } = await sb.from('bot_training_frames')
+      .select('player_id,n,schema,map,mode,weapon,data,state_dim,action_dim,created_at')
+      .eq('schema', 1)
+      .not('player_id', 'is', null)
+      .order('created_at', { ascending: false })
+      .limit(5000);
     if (error) console.error('  supabase erro:', error.message);
-    else ingest((data || []).map((r) => JSON.stringify({ dims: { s: r.state_dim, a: r.action_dim }, n: r.n, data: r.data })), 'supabase');
+    else {
+      // O corpus remoto é dado não confiável: limita cada identidade autenticada para
+      // impedir que volume de um jogador domine o modelo.
+      const perPlayer = new Map(), balanced = [];
+      for (const row of data || []) {
+        const count = perPlayer.get(row.player_id) || 0;
+        if (count >= MAX_BATCHES_PER_PLAYER) continue;
+        perPlayer.set(row.player_id, count + 1);
+        balanced.push(row);
+        if (balanced.length >= MAX_REMOTE_BATCHES) break;
+      }
+      ingest(balanced.map((r) => JSON.stringify({ dims: { s: r.state_dim, a: r.action_dim }, n: r.n, data: r.data })),
+        `supabase balanceado (${perPlayer.size} jogadores, até ${MAX_BATCHES_PER_PLAYER} lotes cada)`);
+    }
   }
 }
 

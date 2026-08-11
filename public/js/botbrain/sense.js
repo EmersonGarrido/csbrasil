@@ -1,10 +1,4 @@
-// BOTBRAIN — PERCEPÇÃO (ponte entre o mundo do jogo e o vetor de features).
-//
-// Monta o objeto `raw` que features.buildState consome, para QUALQUER combatente
-// (jogador ou bot). Fica separado de features.js porque aqui há dependência do jogo
-// (THREE, raycasts, _losClear, _enemyOf) — features.js é puro e testável em node.
-// Recorder (jogador) e brain (bot) chamam a MESMA `sense()` para que o estado gravado
-// e o estado de inferência sejam idênticos em forma e semântica.
+// Recorder e inferência compartilham esta percepção para manter o vetor idêntico.
 import * as THREE from 'three';
 import { WEAPONS } from '../game.js';
 
