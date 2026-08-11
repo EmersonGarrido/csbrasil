@@ -133,6 +133,8 @@ try {
   if (forbidden) failures.push(`WG5 boot ainda abre ${forbidden} contexto(s) de sonda`);
   if (/new THREE\.WebGLRenderer\(\{ canvas, antialias: true, alpha: true \}\)/.test(main))
     failures.push('WG5 preview ainda abre renderer sem a factory de compatibilidade');
+  if (!main.includes("staticPreviews = COMPAT_MODE && !ASSET_CHECK"))
+    failures.push('WG5 modo degradado não desliga o renderer secundário fora do smoke de assets');
   if (!site.includes('{ optional: true }') || /throw new Error\(['\"]site-bg/.test(site))
     failures.push('WG6 fundo WebGL decorativo ainda pode derrubar a rota');
   if (!main.includes("addEventListener('webglcontextlost'") || !main.includes("addEventListener('webglcontextrestored'") || !main.includes("'webgl-context-lost'"))

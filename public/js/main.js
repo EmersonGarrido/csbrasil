@@ -44,7 +44,8 @@ if (!renderer) {
 }
 const COMPAT_MODE = SAFE_MODE || renderer.__csWebgl?.degraded === true;
 if (COMPAT_MODE) { preferredQuality = settings.quality; settings.quality = 'low'; }
-let staticPreviews = COMPAT_MODE;
+const ASSET_CHECK = new URLSearchParams(location.search).get('assetcheck') === '1';
+let staticPreviews = COMPAT_MODE && !ASSET_CHECK;
 setCharacterRendererCapabilities(renderer);
 renderer.setSize(innerWidth, innerHeight);
 renderer.setPixelRatio(COMPAT_MODE ? 0.75 : 1);
