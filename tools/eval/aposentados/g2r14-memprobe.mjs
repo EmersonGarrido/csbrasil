@@ -1,7 +1,7 @@
 // G2-R14A — prova do crash CTF na Havan: mede memória (JS heap, renderer.info, GPU
 // estimada por textura) e simula a captura de bandeira (teleporta o player pra zona,
 // espera os 3s de captura). Detecta crash do renderer (page.on('crash')).
-// Uso: node tools/eval/g2r14-memprobe.mjs [segundosPosCaptura]
+// Uso: node tools/eval/aposentados/g2r14-memprobe.mjs [segundosPosCaptura]
 import { execSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 

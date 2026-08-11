@@ -1,6 +1,6 @@
 // G2-R6A capture: ambiente do dono (1512×982 @ dsf=2, MacBook 3024×1964).
 // Troca de arma via _switchWeapon e captura cada viewmodel. Falha em erro de console.
-// Uso: node tools/eval/g2r6-capture.mjs <outDir> [arma1,arma2,...]
+// Uso: node tools/eval/aposentados/g2r6-capture.mjs <outDir> [arma1,arma2,...]
 import { execSync } from 'node:child_process';
 import { mkdirSync, rmSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';

@@ -4,7 +4,7 @@
 // (b) esta rodada precisa de PROVAS numéricas específicas — o jogador não cair fora
 // do mundo em fy_pool_day e o armário estar em cima de mesa ATRÁS do spawn — que
 // nenhuma captura de tela sozinha demonstra.
-// Uso: node tools/eval/p1-game.mjs <outDir> [alvo1,alvo2...]
+// Uso: node tools/eval/aposentados/p1-game.mjs <outDir> [alvo1,alvo2...]
 //   alvo = <mapa>@<aspecto>, aspecto = 169 | 32
 import { execSync } from 'node:child_process';
 import { mkdirSync, writeFileSync, existsSync, readFileSync } from 'node:fs';

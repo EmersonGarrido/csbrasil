@@ -1,6 +1,6 @@
 // G2-R6A: rajada de frames durante troca de rifles + ADS (caça à faixa preta) — dsf=1
 // pra velocidade (SwiftShader), aspect 1512×982 (3:2 do dono). Troca ak→m4→m400→svd
-// com e sem ADS no meio. Uso: node tools/eval/g2r6-switch2.mjs <outDir>
+// com e sem ADS no meio. Uso: node tools/eval/aposentados/g2r6-switch2.mjs <outDir>
 import { execSync } from 'node:child_process';
 import { mkdirSync, rmSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';

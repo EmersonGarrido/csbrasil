@@ -1,6 +1,6 @@
 // G2-R6A: captura FRAME A FRAME durante troca de armas (caça à "faixa preta").
 // Simula (1) _switchWeapon direto e (2) _grabPickup de um rifle do chão, gravando cada
-// frame por ~0.9s. Uso: node tools/eval/g2r6-switch-capture.mjs <outDir>
+// frame por ~0.9s. Uso: node tools/eval/aposentados/g2r6-switch-capture.mjs <outDir>
 import { execSync } from 'node:child_process';
 import { mkdirSync, rmSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';

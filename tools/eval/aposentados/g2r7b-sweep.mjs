@@ -1,6 +1,6 @@
 // G2-R7B — sweep de framing genérico das armas-herói dedicadas (m4/mp5/awp): aplica
 // candidatos de (pitch,yaw,roll,pos,scale) ao vivo no staticVms[arma] (userData.qAlign
-// salvo no build) e captura cada um. Uso: node tools/eval/g2r7b-sweep.mjs <arma> [WxH]
+// salvo no build) e captura cada um. Uso: node tools/eval/aposentados/g2r7b-sweep.mjs <arma> [WxH]
 import { execSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 import { mkdirSync } from 'node:fs';

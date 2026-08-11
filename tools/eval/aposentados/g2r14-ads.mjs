@@ -1,7 +1,7 @@
 // G2-R14A — prova do ADS da shotgun (dono: "shotgun não mira"): entra em partida debug,
 // equipa a M3, segura o botão direito (scope) e captura hip → ADS. Verifica também o
 // estado interno (scoped, adsF, _adsSlide, FOV) e a crosshair de precisão.
-// Uso: node tools/eval/g2r14-ads.mjs <outPngPrefix> <W,H>
+// Uso: node tools/eval/aposentados/g2r14-ads.mjs <outPngPrefix> <W,H>
 import { execSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 

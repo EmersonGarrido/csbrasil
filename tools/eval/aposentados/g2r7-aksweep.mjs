@@ -1,6 +1,6 @@
 // G2-R7 — sweep de framing da AK dedicada EM UMA SESSÃO: aplica candidatos de
 // (pitch,yaw,roll,pos,scale) ao vivo no staticVms.ak (userData.qAlign salvo no build)
-// e captura cada um. Uso: node tools/eval/g2r7-aksweep.mjs [WxH]
+// e captura cada um. Uso: node tools/eval/aposentados/g2r7-aksweep.mjs [WxH]
 import { execSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 import { mkdirSync } from 'node:fs';
