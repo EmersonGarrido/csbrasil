@@ -14,6 +14,7 @@
    100+ MB usada só aqui, no treino offline; instale com `npm i -D @tensorflow/tfjs-node`).
 
    Uso: node tools/eval/bot-train.mjs [--epochs=40] [--data=caminho.ndjson] [--from-supabase]
+        [--player-boost=N]  (N repete o dado de jogador p/ ele pesar mais que o professor)
    ============================================================================ */
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
@@ -73,7 +74,16 @@ function ingest(lines, tag) {
   console.error(`  ${tag}: ${n} frames`);
 }
 
-if (DATA_FILES.length) for (const f of DATA_FILES) ingest(fs.readFileSync(f, 'utf8').split('\n'), path.relative(process.cwd(), f));
+// PESO DO JOGADOR: --player-boost=N repete os frames de collected*.ndjson N vezes, pra a
+// jogada humana pesar mais que o professor roteirizado (senão 2k frames somem em 98k).
+const PLAYER_BOOST = Math.max(1, parseInt(args['player-boost'] || '1', 10));
+if (DATA_FILES.length) for (const f of DATA_FILES) {
+  const isPlayer = /collected/.test(path.basename(f));
+  const reps = isPlayer ? PLAYER_BOOST : 1;
+  const lines = fs.readFileSync(f, 'utf8').split('\n');
+  const tag = path.relative(process.cwd(), f) + (reps > 1 ? ` ×${reps} (jogador)` : '');
+  for (let r = 0; r < reps; r++) ingest(lines, r === 0 ? tag : '  ' + tag);
+}
 else console.error(`  (sem dataset em ${DATA_DIR})`);
 
 if (args['from-supabase']) {
