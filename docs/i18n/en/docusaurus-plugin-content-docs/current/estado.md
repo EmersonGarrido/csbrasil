@@ -29,7 +29,7 @@ The live map combines three distinct datasets and labels them separately:
 
 - `online_now`: recent presence for players who chose a nickname;
 - `city_daily` + `presence`: approximate city history, without exposing IP addresses;
-- `match_events.faction`: anonymous matches for Team E, Team B, Urban Tribes, Clowns,
+- `match_event.faction`: anonymous matches for Team E, Team B, Urban Tribes, Clowns,
   and Funkeiros.
 
 Older clients did not send a faction, so identified matches may be fewer than all historic

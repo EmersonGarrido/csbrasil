@@ -28,7 +28,7 @@ if (supabaseAdmin) {
     totals.mp += r.matches_p; totals.mb += r.matches_b;
   }
   const fq = await Promise.all(factionCounts.map(f =>
-    supabaseAdmin!.from('match_events').select('*', { count: 'exact', head: true }).eq('faction', f.code),
+    supabaseAdmin!.from('match_event').select('*', { count: 'exact', head: true }).eq('faction', f.code),
   ));
   if (fq.some(r => r.error) || !fq.some(r => (r.count ?? 0) > 0)) {
     factionSource = 'legacy';

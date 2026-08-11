@@ -54,7 +54,7 @@ if (MUT === 'sem-arma')   game = game.replaceAll('this._wperf[weap]', '/* removi
 if (MUT === 'sem-sessao') main = main.replaceAll('sessionId', 'sessaoRemovida');
 if (MUT === 'sem-saude')  prodWatch = prodWatch.replaceAll('/api/health', '/api/REMOVIDO');
 if (MUT === 'sem-uid')    main = main.replaceAll('uid: getAnonId()', 'uid: null');
-if (MUT === 'mapa-dois')  liveMap = liveMap.replaceAll("from('match_events')", "from('stats')");
+if (MUT === 'mapa-dois')  liveMap = liveMap.replaceAll("from('match_event')", "from('stats')");
 
 const falhas = [];
 
@@ -106,7 +106,7 @@ if (/logInternalError\([^\n]+\{[^\n]*nick/.test(submitRoute + registerRoute))
   falhas.push('TL9 log interno voltou a expor nick');
 
 // TL10 - o mapa público usa a dimensão de facção e renderiza o catálogo canônico completo.
-if (!liveMap.includes("from('match_events')") || !liveMap.includes('FACCOES.map') || !/urbanas:\s*'U'/.test(liveMap) || !/palhacos:\s*'C'/.test(liveMap) || !/funkeiros:\s*'F'/.test(liveMap))
+if (!liveMap.includes("from('match_event')") || !liveMap.includes('FACCOES.map') || !/urbanas:\s*'U'/.test(liveMap) || !/palhacos:\s*'C'/.test(liveMap) || !/funkeiros:\s*'F'/.test(liveMap))
   falhas.push('TL10 /mapa não agrega as cinco facções da telemetria');
 
 for (const f of falhas) console.log(`  \x1b[31m✗\x1b[0m ${f}`);
