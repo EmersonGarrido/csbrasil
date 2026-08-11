@@ -776,6 +776,7 @@ const IMPORTMAP = JSON.stringify({
       <button class="set-tab" data-tab="audio" role="tab" aria-selected="false">ÁUDIO</button>
       <button class="set-tab" data-tab="mouse" role="tab" aria-selected="false">MOUSE</button>
       <button class="set-tab" data-tab="interface" role="tab" aria-selected="false">INTERFACE</button>
+      <button class="set-tab" data-tab="privacidade" role="tab" aria-selected="false">PRIVACIDADE</button>
     </div>
     <!-- DUAS COLUNAS (referência telas/07): lista de ajustes à esquerda, painel de
          pré-visualização à direita. Os .set-pane continuam sendo filhos diretos de um
@@ -828,10 +829,13 @@ const IMPORTMAP = JSON.stringify({
           <option value="#e9f1f3">Branca</option>
         </select>
       </label>
-      <!-- BOTBRAIN: coleta anônima de jogadas p/ treinar os bots. Opt-out (ligado por padrão). -->
-      <label class="set-row">Ajudar a treinar os bots (dados de jogo anônimos)
+    </div>
+    <!-- BOTBRAIN: consentimento de coleta (LGPD). Aba própria, não em "interface". -->
+    <div class="set-pane hidden" data-pane="privacidade" role="tabpanel">
+      <label class="set-row">Ajudar a treinar os bots
         <input id="set-training" type="checkbox" checked>
       </label>
+      <p>O jogo grava jogadas anônimas (como você anda, mira e atira) para treinar a IA dos bots. Sem dados pessoais e sem IP — só um id de navegador. Desligue quando quiser; nada é enviado com isto desligado.</p>
     </div>
     </div>
     <!-- painel de amostra: é uma captura real de mapa do jogo (a mesma família de
