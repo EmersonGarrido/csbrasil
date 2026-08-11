@@ -25,7 +25,7 @@
     "eval:invariants": "node tools/eval/invariants.mjs",
     "//prod:coherence": "Mede o que o EDGE está servindo, não o repo: baixa o HTML de produção, segue o import map e verifica que todo import nomeado existe como export no módulo alvo. Nasceu do apagão de 08/08 (cache split-brain: main.js de um deploy com fparms.js de outro — BUG-39). NÃO entra no check:fast (precisa de rede e de produção no ar); quem roda é o prod-watch.yml a cada 15 min. `--selftest` é a mutação que prova que morde.",
     "prod:coherence": "node tools/eval/prod-coherence.mjs",
-    "//eval:release": "Todo caminho de GitHub Release usa o nome CSBR, notas nativas que ligam PRs/contribuidores às contas e `git commit -s` para o bump automático. Nasceu do alpha.47 (BUG-40, crédito perdido) e do incidente alpha.56 (release bot sem DCO). `--mutante=nome-antigo|semcreditos|semdco` prova as três cláusulas.",
+    "//eval:release": "Release preserva nome/créditos, DCO, docs e um único deploy automático pela main; o CLI fica manual. Mutantes: nome-antigo|semcreditos|semdco|semdocs|semrollback|deploy-duplo.",
     "eval:release": "node tools/eval/release-check.mjs",
     "eval:uuid": "node tools/eval/uuid-compat-check.mjs",
     "//eval:prune": "KEEP_FPVM preserva só models/fpvm; as bancadas continuam podadas dos dois destinos publicados. --mutante=early-exit prova a restrição.",
