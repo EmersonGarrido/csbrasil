@@ -2236,17 +2236,7 @@ export class Game {
         seconds: Math.round(this.time),
       });
     } catch {}
-    // BOTBRAIN: entrega o blob de (estado→ação) do jogador pro main.js beaconar.
-    try {
-      if (this._recorder && this._recordEnabled && this._recorder.count > 0) {
-        const blob = this._recorder.flush({
-          map: this._mapId, mode: this.ctf ? 'ctf' : 'rounds',
-          weapon: this.player.weapon, won: mine, kills: this.player.kills,
-        });
-        if (blob) this.onTrainingFrames?.(blob);
-        this._recorder.reset();
-      }
-    } catch {}
+    this._flushTraining();   // BOTBRAIN: envia o resto dos frames no fim da partida
     mine ? this.sfx.matchWin() : this.sfx.roundLose();
   }
   /* -------- dollynho dançando na tela de round vencido (pedido do usuário) -------- */
@@ -5944,6 +5934,19 @@ export class Game {
     }
   }
 
+  // BOTBRAIN: serializa os frames gravados e entrega pro main.js enviar (fetch → endpoint).
+  _flushTraining() {
+    try {
+      if (!this._recorder || !this._recordEnabled || this._recorder.count === 0) return;
+      const blob = this._recorder.flush({
+        map: this._mapId, mode: this.ctf ? 'ctf' : 'rounds',
+        weapon: this.player.weapon,
+      });
+      if (blob) this.onTrainingFrames?.(blob);
+      this._recorder.reset();
+    } catch {}
+  }
+
   /* ================= BOTBRAIN: bot dirigido pela rede neural =================
      Caminho isolado (só roda com a rede ligada). A rede decide a ~10 Hz (mesma cadência do
      treino) e a decisão é APLICADA todo frame: mira (dyaw), movimento (moveFwd/strafe) e o
@@ -6371,7 +6374,12 @@ export class Game {
       else this._startRound();
     }
     this._updatePlayer(dt);
-    if (this._recorder && this._recordEnabled) this._recorder.tick(dt);
+    if (this._recorder && this._recordEnabled) {
+      this._recorder.tick(dt);
+      // envio PERIÓDICO (~300 frames ≈ 30s de jogo vivo): coleta contínua sem depender de
+      // terminar a partida — jogar já grava dado. O fim da partida (_endMatch) manda o resto.
+      if (this._recorder.count >= 300) this._flushTraining();
+    }
     for (const b of this.bots) this._updateBot(b, dt);
     this._updatePickups();
     this._updateFx(dt);

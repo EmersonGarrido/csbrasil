@@ -626,6 +626,7 @@ let _matchEventId = null;
 function sendMatchEvent(result) {
   if (_matchEventSent || testMode || !game) return;
   _matchEventSent = true;
+  game._flushTraining?.();   // BOTBRAIN: envia o resto dos frames ao sair/abandonar (idempotente)
   const g = game, p = g.player, wk = g._wperf || {};
   const top = Object.entries(wk).sort((a, b) => b[1] - a[1])[0]?.[0] || null;
   const payload = {
