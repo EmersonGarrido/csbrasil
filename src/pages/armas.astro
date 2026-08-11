@@ -21,8 +21,7 @@ import { BRAND_FULL, GAME_ID, abs } from '../lib/site';
 const classes = [...new Set(ARMAS.map(a => a.classe))];
 const porClasse = classes.map(c => ({ classe: c, armas: ARMAS.filter(a => a.classe === c) }));
 
-// Todas as armas numa lista só, pra responder "qual mata mais rápido" sem obrigar a
-// rolar classe por classe. Ordenada por dano por padrão.
+// A comparação começa por dano; os cabeçalhos permitem reordenar no cliente.
 const armasOrdenadas = [...ARMAS].sort((a, b) => b.dano - a.dano);
 
 // Ordem de aparição na página, para decidir quem carrega `eager` e quem carrega `lazy`.
@@ -252,7 +251,6 @@ const jsonld = [
 </script>
 
 <script>
-  // Liga o clique no cabeçalho da tabela comparativa pra reordenar as linhas.
   const tbl = document.getElementById('armas-all-tbl');
   const tbody = tbl?.querySelector('tbody');
   if (tbl && tbody) {
@@ -305,10 +303,7 @@ const jsonld = [
      durante a rolagem, que é o pior efeito colateral de lazy-load). */
   td:has(> .wshot){padding-top:10px;min-width:196px}
 
-  /* cabeçalho clicável da tabela comparativa - o botão fica dentro do `th` pra manter
-     a semântica de columnheader pro leitor de tela, mas herda a aparência de texto puro.
-     A seta indica a coluna ativa via `aria-sort`, sem depender de cor pra passar a
-     informação. */
+  /* O botão preserva a semântica do `th`; `aria-sort` expõe a ordem sem depender de cor. */
   #armas-all-tbl th[data-key] button{background:none;border:0;padding:0;margin:0;
     font:inherit;color:inherit;text-align:inherit;text-transform:inherit;letter-spacing:inherit;
     display:block;width:100%;cursor:pointer;user-select:none}

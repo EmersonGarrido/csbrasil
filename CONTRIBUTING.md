@@ -188,9 +188,13 @@ E teste à mão: o jogo abre, o console fica limpo, uma partida completa roda
    > compatível: elas seguem MIT dentro do conjunto, que é distribuído sob
    > AGPL-3.0. Se isso for decisivo pra você, pergunte antes de abrir o PR.
 
-O CI valida a presença de `Signed-off-by:` em cada commit do PR.
+O CI valida a presença de `Signed-off-by:` em cada commit do PR. Depois de
+`npm install` ou `npm run setup`, o hook versionado em `.githooks/` acrescenta
+automaticamente o nome e o email configurados no Git. Ao commitar, você confirma
+essa declaração para a contribuição enviada. Se você já usa um `core.hooksPath`
+próprio, ele é preservado e o instalador avisa para continuar usando `git commit -s`.
 
-Para assinar:
+Se ainda não instalou as dependências, assine manualmente:
 
 ```bash
 git commit -s -m "feat: minha mudança"
