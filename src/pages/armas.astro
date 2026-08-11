@@ -21,6 +21,10 @@ import { BRAND_FULL, GAME_ID, abs } from '../lib/site';
 const classes = [...new Set(ARMAS.map(a => a.classe))];
 const porClasse = classes.map(c => ({ classe: c, armas: ARMAS.filter(a => a.classe === c) }));
 
+// A comparação começa por dano; os cabeçalhos permitem reordenar no cliente.
+const danoPorDisparo = (a: typeof ARMAS[number]) => a.id === 'shotgun' ? a.dano * 9 : a.dano;
+const armasOrdenadas = [...ARMAS].sort((a, b) => danoPorDisparo(b) - danoPorDisparo(a));
+
 // Ordem de aparição na página, para decidir quem carrega `eager` e quem carrega `lazy`.
 // Só as 3 primeiras estão acima da dobra em 1200×800 (medido na captura); as outras 23
 // são 143 KB que não precisam competir com o LCP.
@@ -100,6 +104,46 @@ const jsonld = [
       então o tamanho de uma comparado com a outra é o tamanho de verdade: a faca é aquele
       tiquinho ao lado da Mosin porque ela é 4,9× menor.
     </p>
+  </div>
+
+  <h2>Comparar todas · {ARMAS.length}</h2>
+  <p style="color:var(--bone-dim);font-size:13px;margin:-4px 0 12px">
+    Clique num cabeçalho pra ordenar por ele - clique de novo pra inverter. <b>DPS*</b> é
+    dano ÷ cadência, teórico e sem contar recarga.
+  </p>
+  <div class="tw">
+    <table id="armas-all-tbl">
+      <thead>
+        <tr>
+          <th scope="col" data-key="arma"><button type="button">Arma</button></th>
+          <th scope="col" data-key="classe"><button type="button">Classe</button></th>
+          <th scope="col" class="num" data-key="dano" aria-sort="descending"><button type="button">Dano</button></th>
+          <th scope="col" class="num" data-key="pente"><button type="button">Pente</button></th>
+          <th scope="col" class="num" data-key="reserva"><button type="button">Reserva</button></th>
+          <th scope="col" class="num" data-key="cadencia"><button type="button">Cad. (s)</button></th>
+          <th scope="col" class="num" data-key="dps"><button type="button">DPS*</button></th>
+        </tr>
+      </thead>
+      <tbody>
+        {armasOrdenadas.map(a => {
+          const danoPorTiro = danoPorDisparo(a);
+          const dps = Math.round((danoPorTiro / a.cadencia) * 10) / 10;
+          return (
+            <tr data-arma={a.nome} data-classe={a.classe} data-dano={danoPorTiro}
+              data-pente={a.pente} data-reserva={a.reserva} data-cadencia={a.cadencia}
+              data-dps={dps}>
+              <td>{a.nome}</td>
+              <td>{a.classe}</td>
+              <td class="num">{a.dano}{a.id === 'shotgun' ? ' ×9' : ''}</td>
+              <td class="num">{a.pente || ' - '}</td>
+              <td class="num">{a.reserva || ' - '}</td>
+              <td class="num">{a.cadencia}</td>
+              <td class="num">{dps}</td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
   </div>
 
   {porClasse.map(({ classe, armas }) => (
@@ -207,6 +251,43 @@ const jsonld = [
   } catch { /* fica */ }
 </script>
 
+<script>
+  const tbl = document.getElementById('armas-all-tbl');
+  const tbody = tbl?.querySelector('tbody');
+  if (tbl && tbody) {
+    const ths = [...tbl.querySelectorAll('th[data-key]')].filter(el => el instanceof HTMLElement);
+    let sortKey = 'dano';
+    let sortDir = 'desc';
+
+    const numeric = new Set(['dano', 'pente', 'reserva', 'cadencia', 'dps']);
+
+    function aplicar() {
+      if (!tbody) return;
+      const linhas = [...tbody.querySelectorAll('tr')].filter(el => el instanceof HTMLElement);
+      linhas.sort((a, b) => {
+        const va = a.dataset[sortKey] ?? '';
+        const vb = b.dataset[sortKey] ?? '';
+        const cmp = numeric.has(sortKey) ? parseFloat(va) - parseFloat(vb) : va.localeCompare(vb, 'pt-BR');
+        return sortDir === 'asc' ? cmp : -cmp;
+      });
+      linhas.forEach(tr => tbody.appendChild(tr));
+      ths.forEach(th => th.setAttribute('aria-sort',
+        th.dataset.key === sortKey ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'));
+    }
+
+    ths.forEach(th => {
+      const btn = th.querySelector('button');
+      btn?.addEventListener('click', () => {
+        const key = th.dataset.key;
+        if (!key) return;
+        sortDir = key === sortKey ? (sortDir === 'asc' ? 'desc' : 'asc') : 'desc';
+        sortKey = key;
+        aplicar();
+      });
+    });
+  }
+</script>
+
 <style>
   /* A miniatura vive na PRIMEIRA coluna, acima do nome, e não numa coluna própria:
      `.tw table` já tem `min-width:640px` (Layout.astro:418), então uma sexta coluna
@@ -222,4 +303,12 @@ const jsonld = [
      reservam a caixa antes do byte chegar (sem isso as 26 `lazy` fazem a página pular
      durante a rolagem, que é o pior efeito colateral de lazy-load). */
   td:has(> .wshot){padding-top:10px;min-width:196px}
+
+  /* O botão preserva a semântica do `th`; `aria-sort` expõe a ordem sem depender de cor. */
+  #armas-all-tbl th[data-key] button{background:none;border:0;padding:0;margin:0;
+    font:inherit;color:inherit;text-align:inherit;text-transform:inherit;letter-spacing:inherit;
+    display:block;width:100%;cursor:pointer;user-select:none}
+  #armas-all-tbl th[data-key] button::after{content:'';margin-left:4px;opacity:.5}
+  #armas-all-tbl th[data-key][aria-sort="ascending"] button::after{content:'▲';opacity:1}
+  #armas-all-tbl th[data-key][aria-sort="descending"] button::after{content:'▼';opacity:1}
 </style>
