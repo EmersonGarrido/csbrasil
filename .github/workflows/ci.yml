@@ -30,6 +30,8 @@ jobs:
         run: npm run eval:release
       - name: Syntax check do jogo (public/js)
         run: npm run syntax
+      - name: Telemetria wired, idempotente, atômica e monitorada
+        run: npm run eval:telemetry
       - name: UUID compatível com navegadores antigos
         run: npm run eval:uuid
 
