@@ -44,6 +44,30 @@ lista de "balão" do CHR1 tem os mesmos 13 antes e depois).
 
 ## P0 — quebram o jogo ou mentem para quem mede
 
+### ~~BUG-45 · log WebGL nulo derrubava o loop de render~~ · RESOLVIDO 11/08
+
+**Evidência.** As issues #108 (alpha.41, Safari) e #169 (alpha.57, Chrome) terminavam
+em `getShaderInfoLog(...).trim()` e `getProgramInfoLog(...).trim()` dentro do Three r160.
+Um GL falso retornando `null` reproduz o mesmo `TypeError` nos quatro acessos do bundle.
+
+**Causa.** A especificação WebGL permite `DOMString?` nesses dois métodos, mas o bundle
+assumia string. O diagnóstico secundário escondia o erro original do shader e podia se repetir
+a cada frame. O [Three #31438](https://github.com/mrdoob/three.js/commit/b62351b66fe5c44fd5612e051034c734abed2104)
+corrigiu a mesma falha no r179.
+
+**Correção.** Foi portado apenas o fallback oficial `|| ''` nos quatro acessos; atualizar
+todo o Three removeria a compatibilidade WebGL1 que este jogo ainda precisa. Como `/vendor/`
+tem cache imutável por um ano, os import maps de jogo, site e editor agora acrescentam a
+versão do pacote ao core. Isso faz o patch chegar a navegadores que já tinham o r160 em cache.
+
+**Limite.** A guarda preserva o diagnóstico e o loop, mas não torna um shader inválido válido.
+#115, #120, #121, #127 e #130 continuam sendo a família canônica de compilação/link.
+
+**Régua: `tools/eval/shader-log-check.mjs`** (`npm run eval:shaderlog`, em
+`check:fast` e `check:deploy`). SL1–SL3 executam as quatro expressões reais com `null` e texto;
+SL4 exige URL versionada quando `/vendor/` é imutável. Os mutantes `sem-guardas` e
+`sem-cache-bust` deixam a régua vermelha.
+
 ### ~~BUG-44 · Linux não consegue abrir o WebGL~~ · RESOLVIDO NO APP 11/08
 
 **Sintoma (do dono):** *"ok tem um erro de webgl, meu colega tem linux e nao consegue rodar, tem como consertar isso?"*

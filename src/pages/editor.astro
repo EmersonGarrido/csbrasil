@@ -22,7 +22,7 @@ const MODULOS = [
 ];
 const IMPORTMAP = JSON.stringify({
   imports: {
-    three: './vendor/three.module.js',
+    three: `./vendor/three.module.js?v=${V}`,
     'three/addons/': './vendor/addons/',
     ...Object.fromEntries(MODULOS.map((m) => [`./js/${m}`, `./js/${m}?v=${V}`])),
   },
