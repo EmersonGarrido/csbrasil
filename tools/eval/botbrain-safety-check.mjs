@@ -11,6 +11,7 @@ let docker = read('docker/botbrain.Dockerfile');
 let compose = read('docker-compose.botbrain.yml');
 let trainer = read('tools/eval/bot-train.mjs');
 let brain = read('public/js/botbrain/brain.js');
+let sense = read('public/js/botbrain/sense.js');
 
 if (mutant === 'anonimo') api = api.replace('resolvePlayerIdentity', 'resolveAnonymousIdentity');
 else if (mutant === 'ctf') game = game.replace('(!this.ctf || b.target)', 'true');
@@ -22,6 +23,7 @@ else if (mutant === 'localsink') {
   api = api.replaceAll('MAX_LOCAL_FILE_BYTES', 'UNLIMITED_LOCAL_FILE_BYTES');
   compose = compose.replace('127.0.0.1:4321:4321', '4321:4321');
 }
+else if (mutant === 'stale') sense = sense.replace('else if (!best) mem.target = null;', '');
 else if (mutant) throw new Error(`mutante desconhecido: ${mutant}`);
 
 const failures = [];
@@ -51,6 +53,8 @@ if (!api.includes('MAX_REQUEST_BYTES') || !api.includes('MAX_LOCAL_FILE_BYTES')
   failures.push('BB9 sink local não limita corpo, metadados, taxa e quota em disco');
 if (!compose.includes('127.0.0.1:4321:4321'))
   failures.push('BB9 serviço local expõe o sink de treino fora do loopback');
+if (!sense.includes('else if (!best) mem.target = null;'))
+  failures.push('BB10 memória neural conserva alvo morto ou fora do grace');
 
 for (const failure of failures) console.error(`  \x1b[31m✗\x1b[0m ${failure}`);
 if (mutant && !failures.length) failures.push(`mutação ${mutant} não foi detectada`);

@@ -114,8 +114,19 @@ function countCtfObjectiveCalls() {
   let calls = 0;
   const ctf = g._botCtf.bind(g);
   g._botCtf = (bot, dt) => { if (bot.team === 'E') calls++; return ctf(bot, dt); };
+  const neural = g.bots.find((bot) => bot.team === 'E');
+  const deadEnemy = g.bots.find((bot) => bot.team !== 'E');
+  for (const enemy of g.bots.filter((bot) => bot.team !== 'E')) enemy.alive = false;
+  g.state = 'live';
+  neural.target = deadEnemy;
+  neural._nnMem = { target: deadEnemy, lastSeenAt: g.time - 2 };
+  neural._nnThink = 0;
+  neural._nn = null;
+  g._updateBot(neural, 1 / 60);
+  const staleCleared = neural.target === null && neural._nnMem.target === null;
+  g._updateBot(neural, 1 / 60);
   for (let i = 0; i < 10 * 60; i++) g.update(1 / 60);
-  return calls;
+  return { calls, staleCleared };
 }
 
 let DE = 0, DB = 0, shots = 0, moveSum = 0, moveCnt = 0;
@@ -131,14 +142,14 @@ for (const mapId of MAPS) {
 const total = DE + DB;
 const shareB = total ? DB / total : 0;
 const avgMove = moveCnt ? moveSum / moveCnt : 0;
-const ctfCalls = countCtfObjectiveCalls();
+const ctf = countCtfObjectiveCalls();
 const alive = shots > 0 && avgMove > 0.05;
-const passRede = shareB >= SHARE_MIN && alive && ctfCalls > 0;
+const passRede = shareB >= SHARE_MIN && alive && ctf.calls > 0 && ctf.staleCleared;
 
 console.error(`\n=== BOT-BRAIN CHECK ${MUT ? '(mutante=' + MUT + ')' : ''} ===`);
 console.error(`mortes: E(rede) ${DE}  B(roteiro) ${DB}  | shareB ${shareB.toFixed(3)} (min ${SHARE_MIN})`);
 console.error(`rede viva: tiros ${shots}, deslocamento médio ${avgMove.toFixed(3)} → ${alive ? 'sim' : 'NÃO'}`);
-console.error(`objetivo CTF sem alvo: ${ctfCalls} chamadas → ${ctfCalls > 0 ? 'sim' : 'NÃO'}`);
+console.error(`objetivo CTF sem alvo: ${ctf.calls} chamadas · alvo vencido limpo: ${ctf.staleCleared ? 'sim' : 'NÃO'}`);
 
 if (MUT) {
   // mutação DEVE reprovar: rede zerada não mira/atira, shareB desaba

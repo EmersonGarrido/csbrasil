@@ -27,20 +27,23 @@ function probeWalls(game, eye, yaw) {
 // self: { pos, vel, yaw, pitch, hp, weapon, mag, team, isPlayer }
 // eye:  THREE.Vector3 (olho do agente; câmera p/ jogador, _botEye p/ bot)
 export function sense(game, self, eye, mem, now) {
-  // inimigo mais próximo COM linha de visão; se nenhum visível, mantém o último por grace
+  // Inimigo visível mais próximo; sem visão, retém apenas um alvo vivo durante o grace.
   let best = null, bd = 1e9, bestVisible = false;
-  for (const e of game._enemyOf(self)) {
+  const enemies = game._enemyOf(self);
+  for (const e of enemies) {
     const d = self.pos.distanceTo(e.pos);
     if (d >= bd) continue;
     const teye = e.isPlayer ? game.camera.position : game._botEye(e);
     const vis = game._losClear(eye, teye);
     if (vis) { best = e; bd = d; bestVisible = true; }
-    else if (!best && mem && mem.target === e && now - (mem.lastSeenAt || -99) < 1.2) { best = e; bd = d; }
+  }
+  if (!best && mem && enemies.includes(mem.target) && now - (mem.lastSeenAt || -99) < 1.2) {
+    best = mem.target;
   }
 
   if (mem) {
     if (bestVisible) { mem.target = best; mem.lastSeenAt = now; }
-    else if (best && mem.target !== best) mem.target = best;
+    else if (!best) mem.target = null;
   }
   const timeSinceSeen = mem ? now - (mem.lastSeenAt ?? now - 6) : bestVisible ? 0 : 6;
 
