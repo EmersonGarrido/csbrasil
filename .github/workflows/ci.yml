@@ -26,6 +26,8 @@ jobs:
         run: bash -n scripts/*.sh
       - name: Fronteira de confiança dos workflows
         run: python3 scripts/ci/workflow_security_check.py --selftest
+      - name: Contrato do release (nome, créditos e DCO do bot)
+        run: npm run eval:release
       - name: Syntax check do jogo (public/js)
         run: npm run syntax
       - name: UUID compatível com navegadores antigos
