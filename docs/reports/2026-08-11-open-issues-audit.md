@@ -1,7 +1,7 @@
 # Auditoria das issues abertas - 2026-08-11
 
 Fonte: 62 issues abertas consultadas pela API do GitHub em 2026-08-11, comparadas com
-`main` em `2.0.0-alpha.73`, os quality gates, `KNOWN-RED.json` e a saúde de produção.
+`main` em `2.0.0-alpha.74`, os quality gates, `KNOWN-RED.json` e a saúde de produção.
 Esta segunda passada fechou somente itens comprovadamente concluídos e preservou a
 evidência em cada issue.
 
@@ -14,9 +14,9 @@ evidência em cada issue.
   não 41 defeitos independentes.
 - **13 issues resolvidas foram fechadas com evidência:** #43, #73, #76, #77, #78, #79,
   #80, #81, #85, #86, #87, #98 e #178.
-- O PR #179 é o único aberto e está em validação final. A #135 aponta para o PR #137,
-  fechado sem merge; portanto o worker self-hosted continua pendente.
-- A produção está em `alpha.73`, `/api/health` está verde e o mapa expôs a causa de
+- Não há PR aberto. O #179 foi mergeado com DCO e publicado na alpha.74. A #135 aponta
+  para o PR #137, fechado sem merge; portanto o worker self-hosted continua pendente.
+- A base publicada está em `alpha.74`, `/api/health` está verde e o mapa expôs a causa de
   mostrar dados apenas de E/B: a página consultava `match_events`, mas a tabela real é
   `match_event`. O conserto e seu mutante acompanham esta atualização.
 

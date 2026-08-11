@@ -1,6 +1,6 @@
 # Revisão da aplicação e do pipeline - 2026-08-11
 
-Base revisada novamente: `main` em `2.0.0-alpha.73`. A análise combinou grafo de dependências,
+Base revisada novamente: `main` em `2.0.0-alpha.74`. A análise combinou grafo de dependências,
 leitura dos módulos centrais, APIs Astro, workflows, scripts de release, quality gates,
 builds PT/EN e auditoria das dependências. O relatório separa defeito comprovado de
 melhoria arquitetural; não transforma toda dívida em urgência.
@@ -20,9 +20,9 @@ Os quatro itens que mais mudam a confiabilidade do produto são:
 3. tornar os gates de navegador seletivos e obrigatórios (#82/#83);
 4. reduzir gradualmente a concentração de regras em `game.js` e `main.js`.
 
-Nesta segunda passada, a migração de identidade para UID já estava publicada, os evals
-obsoletos e o censo de grafite em uma altura já haviam sido resolvidos, e a produção
-estava saudável. Também foi encontrado um defeito objetivo no mapa ao vivo: o código
+Nesta segunda passada, a migração de identidade para UID e o BotBrain seguro já estavam
+publicados, os evals obsoletos e o censo de grafite em uma altura já haviam sido resolvidos,
+e a produção estava saudável. Também foi encontrado um defeito objetivo no mapa ao vivo: o código
 consultava `match_events`, embora o schema privado sempre tenha definido `match_event`.
 
 ## O que está bom
@@ -100,9 +100,9 @@ fez a reconstrução atual; ainda convém um job por paths em PRs de documentaç
 
 #### 5. `Game` é o principal gargalo de mudança
 
-O Graphify mostra `Game` com 151 conexões. `public/js/game.js` tem 6.289 linhas e mistura
-loop, regras de modo, bots, colisão, HUD, áudio e viewmodel; `main.js` tem 1.949 linhas e
-`index.astro`, 1.059. Isso aumenta conflito de merge e torna mudanças locais difíceis de
+O Graphify mostra `Game` com 160 conexões. `public/js/game.js` tem 6.435 linhas e mistura
+loop, regras de modo, bots, colisão, HUD, áudio e viewmodel; `main.js` tem 1.974 linhas e
+`index.astro`, 1.047. Isso aumenta conflito de merge e torna mudanças locais difíceis de
 provar. A extração deve seguir fronteiras já testáveis: estado/resultado de partida,
 controle de bots, HUD e submissão/telemetria. Uma reescrita total seria mais arriscada.
 
