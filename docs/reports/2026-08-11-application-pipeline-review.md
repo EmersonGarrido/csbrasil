@@ -1,6 +1,6 @@
 # Revisão da aplicação e do pipeline - 2026-08-11
 
-Base revisada: `main` em `2.0.0-alpha.69`. A análise combinou grafo de dependências,
+Base revisada novamente: `main` em `2.0.0-alpha.73`. A análise combinou grafo de dependências,
 leitura dos módulos centrais, APIs Astro, workflows, scripts de release, quality gates,
 builds PT/EN e auditoria das dependências. O relatório separa defeito comprovado de
 melhoria arquitetural; não transforma toda dívida em urgência.
@@ -19,6 +19,11 @@ Os quatro itens que mais mudam a confiabilidade do produto são:
 2. consertar a matriz dos occluders no arnês (#51);
 3. tornar os gates de navegador seletivos e obrigatórios (#82/#83);
 4. reduzir gradualmente a concentração de regras em `game.js` e `main.js`.
+
+Nesta segunda passada, a migração de identidade para UID já estava publicada, os evals
+obsoletos e o censo de grafite em uma altura já haviam sido resolvidos, e a produção
+estava saudável. Também foi encontrado um defeito objetivo no mapa ao vivo: o código
+consultava `match_events`, embora o schema privado sempre tenha definido `match_event`.
 
 ## O que está bom
 
@@ -101,21 +106,19 @@ loop, regras de modo, bots, colisão, HUD, áudio e viewmodel; `main.js` tem 1.9
 provar. A extração deve seguir fronteiras já testáveis: estado/resultado de partida,
 controle de bots, HUD e submissão/telemetria. Uma reescrita total seria mais arriscada.
 
-#### 6. A identidade ainda é `nick + token`
+#### 6. A migração para UID foi concluída
 
-O `uid` enviado por `register`/`submit-match` hoje serve ao log interno; autenticação e
-consultas ainda localizam o jogador por `nick + token`. Se o contrato desejado é UID, isso
-exige migração explícita: UID estável e único em `players`, RPCs por UID, compatibilidade
-temporária para clientes antigos e teste de replay/migração. Alterar apenas o nome do campo
-no cliente não resolve a identidade.
+A alpha.71 passou `register` e `submit-match` para UID + token, manteve fallback temporário
+para clientes antigos e adicionou gates para replay/compatibilidade. Novas rotas não devem
+reintroduzir busca por nick; o identificador resolvido no servidor é a fonte de verdade.
 
 #### 7. `/mapa` ainda usa leituras potencialmente truncadas
 
 Os totais legados fazem `select` de todas as linhas de `stats` e `city_daily`. O limite
 padrão do PostgREST pode truncar a resposta quando a base crescer, produzindo total público
-errado sem erro. Contagens e somas devem vir de view/RPC agregada; os cinco counts de
-`match_events` adicionados nesta atualização já usam `head + count: exact` e não têm esse
-problema.
+errado sem erro. Contagens e somas devem vir de view/RPC agregada. Os cinco counts de
+`match_event` usam `head + count: exact` e não têm esse problema; nesta revisão o nome
+plural incorreto foi corrigido e o mutante `mapa-dois` passou a proteger a tabela real.
 
 #### 8. Upload de avatar ignora falhas de persistência
 
@@ -161,9 +164,8 @@ staging e pré-release.
 2. Gate seletivo de navegador e frescor de `public/docs`/grafite.
 3. Consolidar/fechar backlog conforme a auditoria de issues.
 4. RPC/view agregada para `/mapa` e tratamento transacional do avatar.
-5. Migração planejada de identidade para UID.
-6. Extrair módulos de `Game` somente ao tocar nas respectivas regras.
-7. Atualizar dependências quando upstream publicar uma cadeia que realmente reduza o audit.
+5. Extrair módulos de `Game` somente ao tocar nas respectivas regras.
+6. Atualizar dependências quando upstream publicar uma cadeia que realmente reduza o audit.
 
 ## Verificação executada
 

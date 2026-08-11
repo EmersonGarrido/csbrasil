@@ -28,7 +28,7 @@ O mapa ao vivo combina três conjuntos diferentes e mantém os rótulos separado
 
 - `online_now`: presença recente de quem escolheu nick;
 - `city_daily` + `presence`: histórico aproximado por cidade, sem publicar IP;
-- `match_events.faction`: partidas anônimas por Time E, Time B, Tribos Urbanas,
+- `match_event.faction`: partidas anônimas por Time E, Time B, Tribos Urbanas,
   Palhaços e Funkeiros.
 
 Clientes antigos não enviavam facção. Por isso o total identificado pode ser menor que o

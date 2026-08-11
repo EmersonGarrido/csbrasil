@@ -1,20 +1,24 @@
 # Auditoria das issues abertas - 2026-08-11
 
-Fonte: 71 issues abertas consultadas pela API do GitHub em 2026-08-11, comparadas com
-`main` em `2.0.0-alpha.69`, os quality gates e `KNOWN-RED.json`. Esta triagem não fecha
-issues automaticamente: indica a ação recomendada e preserva o histórico no GitHub.
+Fonte: 62 issues abertas consultadas pela API do GitHub em 2026-08-11, comparadas com
+`main` em `2.0.0-alpha.73`, os quality gates, `KNOWN-RED.json` e a saúde de produção.
+Esta segunda passada fechou somente itens comprovadamente concluídos e preservou a
+evidência em cada issue.
 
 ## Resultado executivo
 
 - **1 P0:** #116 rejeita uma partida legítima e perde progresso/estatística.
 - **5 frentes P1:** qualidade visual central, confiabilidade do arnês e lacunas que
   existem em produção. Algumas issues formam uma única frente e não devem virar vários PRs.
-- **40 de 71** são abertas automaticamente por crash. Elas representam seis famílias,
-  não quarenta defeitos independentes.
-- **10 issues podem ser fechadas agora ou após o merge desta atualização:** #73, #77,
-  #78, #79, #80, #81, #85, #86, #87 e #98.
-- **Não há PR aberto.** A #135 aponta para o PR #137, mas ele foi fechado sem merge;
-  portanto a automação pedida continua pendente.
+- **41 de 62** são abertas automaticamente por crash. Elas representam famílias,
+  não 41 defeitos independentes.
+- **13 issues resolvidas foram fechadas com evidência:** #43, #73, #76, #77, #78, #79,
+  #80, #81, #85, #86, #87, #98 e #178.
+- O PR #179 é o único aberto e está em validação final. A #135 aponta para o PR #137,
+  fechado sem merge; portanto o worker self-hosted continua pendente.
+- A produção está em `alpha.73`, `/api/health` está verde e o mapa expôs a causa de
+  mostrar dados apenas de E/B: a página consultava `match_events`, mas a tabela real é
+  `match_event`. O conserto e seu mutante acompanham esta atualização.
 
 ## Ranking
 
@@ -23,6 +27,11 @@ issues automaticamente: indica a ação recomendada e preserva o histórico no G
 | Issue | Diagnóstico | Ação |
 |---|---|---|
 | #116 | **Válida.** Uma partida humana com 95 kills/6 mortes foi rejeitada como “fisicamente impossível”. É perda de dado legítimo e o sintoma também aparece em BOT8. | Medir partidas reais e de bots, separar limite por modo/duração e provar com mutante que placares legítimos passam e payloads forjados continuam bloqueados. |
+
+Os eventos `launch-watchdog` apresentados durante a triagem vieram da alpha.60. A alpha.69
+separou navegação do carregamento 3D, preservou o erro no console e ganhou a régua B1-B7;
+por isso eles ficam como incidente histórico, não como P0 atual. Uma recorrência em
+alpha.73 ou posterior, com as ações anteriores, volta imediatamente para P0.
 
 ### P1 - próxima leva
 
@@ -39,12 +48,12 @@ issues automaticamente: indica a ação recomendada e preserva o histórico no G
 | Issues | Situação atual |
 |---|---|
 | #42 | **Válida:** `skills-lock.json` ainda não tem verificação reproduzível de hash no CI. |
+| #189 | **Válida:** previews autorizados de forks continuam sem projeto Vercel acessível; não bloqueia o build confiável, mas remove a validação visual do mantenedor. |
 | #46, #48 | **Válidas:** diferença visual para as referências e bloom global ainda afetam leitura dos personagens. |
 | #54 | **Parcial:** docs e páginas principais têm inglês; changelog, mapa e ranking ainda não têm paridade. |
 | #74 | **Válida:** Brasília ainda não recebeu o mesmo adensamento procedural dos outros mapas. |
-| #75, #76 | **Válidas:** as duas réguas de grafite ainda medem mundos/alturas diferentes. Devem ser resolvidas junto do gate #82/#83. |
+| #75 | **Válida:** `decal-probe` e `medirParede` ainda discordam sobre 92 peças. Deve ser resolvida junto do gate #82/#83. |
 | #47 | **Parcial:** wallpaper e loading usam manifesto gerado; a música de menu ainda depende de `length: 26`. |
-| #43 | **Parcial:** houve limpeza de probes, mas a lista de obsoletos ainda precisa ser auditada arquivo por arquivo. |
 
 ### P3 - produto e automação opcional
 
@@ -53,8 +62,9 @@ issues automaticamente: indica a ação recomendada e preserva o histórico no G
 | #13 | Sugestão útil, mas quiz de facção não corrige uma falha do jogo. |
 | #56 | Identidade própria do bot melhora autoria/auditoria, sem impacto direto no jogador. |
 | #135 | Continua válida. O PR #137 foi fechado sem merge e não há worker self-hosted ativo. |
+| #176 | Sugestão boa para o roadmap de progressão, mas estabilização, novos mapas/facções e multiplayer vêm antes. |
 
-## Candidatas a fechamento
+## Fechadas nesta varredura
 
 | Issue | Evidência |
 |---|---|
@@ -68,16 +78,27 @@ issues automaticamente: indica a ação recomendada e preserva o histórico no G
 | #86 | `mutate.mjs`, catálogo de mutantes e ratchet já existem. |
 | #87 | O próprio autor confirmou a correção após várias partidas; a regressão tem `eval:submitguard`. |
 | #98 | Foi aberta a partir de checkout antigo; os caminhos citados existem e o comentário da própria issue já invalida a evidência. |
+| #43 | O PR #187 aposentou as famílias obsoletas e foi publicado na alpha.73. |
+| #76 | O PR #180 passou a medir três alturas nos cinco mapas e foi publicado na alpha.72. |
+| #178 | O alerta operacional recuperou; `/api/health` e as execuções seguintes do `prod-watch` estão verdes. |
 
-## Quarenta crashes automáticos, seis famílias
+## Quarenta e um crashes automáticos e suas famílias
 
-### 1. WebGL indisponível ou contexto perdido - consolidar 12
+### 1. WebGL indisponível ou contexto perdido - consolidar 13
 
-#104, #105, #106, #107, #123, #124, #128, #129, #132, #150, #153 e #167.
+#104, #105, #106, #107, #123, #124, #128, #129, #132, #150, #153, #167 e #181.
 
 São variantes de WebGL desativado, driver sem configuração, sandbox ou context loss. O
 produto deve degradar para a tela explicativa e a telemetria deve agrupar a família. Manter
-12 issues separadas não produz 12 correções.
+13 issues separadas não produzem 13 correções. A #181 confirma recorrência na alpha.70
+em `llvmpipe`; ela deve alimentar a issue canônica de compatibilidade, não uma correção
+específica para esse renderer de software.
+
+### 7. Alerta operacional recuperado
+
+#178 registrou uma reprovação do `prod-watch`. A saúde atual e as execuções seguintes estão
+verdes; o incidente foi fechado como recuperado e deve reaparecer automaticamente se o mesmo
+fingerprint voltar.
 
 ### 2. Shader/limite da GPU - consolidar 7
 
