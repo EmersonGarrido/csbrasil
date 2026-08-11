@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
-// Exige GLBs reais no caminho completo; a navegação sem preload é coberta por
-// web-smoke.spec.js. Sem retry para caber no orçamento de 20 min do job.
+// Exige GLBs reais; web-smoke.spec.js cobre a navegação sem preload.
+// Sem retry: uma falha de asset deve permanecer visível no gate.
 
 test.afterEach(async ({ page }, testInfo) => {
   if (testInfo.status === testInfo.expectedStatus) return;

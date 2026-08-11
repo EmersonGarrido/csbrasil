@@ -71,8 +71,7 @@ test('menu, ranking, setup, teams, character and initial hud boot', async ({ pag
   await expect(page.locator('#hud')).toBeVisible({ timeout: 60_000 });
   marcar('hud');
 
-  // duração por etapa no artifact — no CI, o runner de GPU compartilhado era o
-  // suspeito de "countdown travado"; ter os números separados por tela ajuda.
+  // O artefato separa a duração por tela para localizar lentidão no runner compartilhado.
   const timings = { total_ms: Date.now() - t0, etapas: { ...marcas } };
   await testInfo.attach('navegacao-timings.json', { body: JSON.stringify(timings, null, 2), contentType: 'application/json' });
   console.log('NAVEGAÇÃO', JSON.stringify(timings));
