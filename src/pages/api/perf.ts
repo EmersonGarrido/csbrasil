@@ -8,6 +8,7 @@
 import type { APIRoute } from 'astro';
 import { supabaseAdmin, NOT_CONFIGURED } from '../../lib/supabase';
 import { rateLimit } from '../../lib/ratelimit';
+import { logInternalError } from '../../lib/api-error';
 
 export const prerender = false;
 
@@ -42,8 +43,12 @@ export const POST: APIRoute = async ({ request }) => {
       p_connection: typeof body.connection === 'string' ? body.connection.slice(0, 8) : null,
       p_quality: typeof body.quality === 'string' ? body.quality.slice(0, 8) : null,
     });
-    if (error) return json({ ok: true, stored: false });
-  } catch {
+    if (error) {
+      logInternalError('api/perf', error);
+      return json({ ok: true, stored: false });
+    }
+  } catch (error) {
+    logInternalError('api/perf', error);
     return json({ ok: true, stored: false });
   }
   return json({ ok: true, stored: true });
