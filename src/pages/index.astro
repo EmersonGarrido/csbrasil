@@ -58,11 +58,7 @@ const IMPORTMAP = JSON.stringify({
 
   function showDebug(kind, msg, extra){
     if (!DEBUG) return;
-    /* SEM WEBGL O OVERLAY SE CALA. `glcontext.js` marca `__semWebgl` quando nenhum degrau
-       criou contexto, e nesse caso o jogador JÁ está lendo uma explicação em português -
-       empilhar `three.module.js:28672` por cima dela não informa, atrapalha. O erro
-       continua sendo REPORTADO (a chamada de `reporta` não passa por aqui): o que se
-       suprime é o banner, não o dado. */
+    // O fallback WebGL já explica a falha; só o banner é suprimido, não o relatório.
     if (window.__semWebgl) return;
     try{
       var el = document.getElementById('crash-overlay');

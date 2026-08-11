@@ -481,7 +481,7 @@ function sendTelemetry() {
     if (!navigator.sendBeacon('/api/telemetry', blob)) api('/api/telemetry', payload);
   } catch { try { api('/api/telemetry', payload); } catch {} }
 }
-let registeredNick = ''; // nick usado no registro da sessão (token está atrelado a ele)
+let registeredNick = ''; // nick canônico devolvido pelo registro do UID
 let rankingBloqueado = ''; // erro do register da sessão (nick de outro dono, charset…) — vira aviso claro no fim da partida
 let heartbeatOff = false;
 
@@ -781,16 +781,22 @@ async function _startGame(team, charId, enemyFaction) {
   const nick = $('nick-input').value.trim();
   registeredNick = nick; heartbeatOff = false; rankingBloqueado = '';
   if (nick && !testMode) {
-    /* O ERRO DO REGISTER IMPORTA (06/08, print do dono: "⚠ stats não enviados: token
-       inválido" na tela de vitória). Causa: cada preview da Vercel é um domínio novo,
-       com localStorage novo → token novo; o nick já existe no banco com o token VELHO,
-       o register falha em silêncio aqui, e TODA partida terminava no 403 críptico.
-       A resposta agora fica guardada e o aviso do fim da partida diz o porquê. */
     api('/api/register', {
       nick, token: getToken(),
-      anonId: getAnonId(),
+      uid: getAnonId(),
       socials: socials.filter(s => s.handle),
-    }).then((reg) => { if (reg && reg.error) rankingBloqueado = String(reg.error); });
+    }).then((reg) => {
+      if (!reg) return;
+      if (reg.error) { rankingBloqueado = String(reg.message || reg.error); return; }
+      if (typeof reg.nick === 'string' && reg.nick) {
+        registeredNick = reg.nick;
+        if (nickEl.value.trim() !== reg.nick) {
+          nickEl.value = reg.nick;
+          localStorage.setItem(NICK_KEY, reg.nick);
+          updateAvatarVisibility(); renderPlayerPlate();
+        }
+      }
+    });
   }
   /* `mode` faltava, e sem ele metade da pergunta não tem resposta: dá para saber QUE MAPA
      as pessoas escolhem, não SE escolhem captura ou rodadas. O `match_end` manda os quatro
@@ -840,11 +846,11 @@ function quitToMenu() {
 /* ---------------- heartbeat (presença/mapa) ---------------- */
 setInterval(async () => {
   if (!game || !registeredNick || testMode || heartbeatOff) return;
-  const res = await api('/api/heartbeat', { nick: registeredNick, token: getToken() });
-  if (res && res.error) heartbeatOff = true;   // token inválido etc. — para de martelar
+  const res = await api('/api/heartbeat', { uid: getAnonId(), nick: registeredNick, token: getToken() });
+  if (res && res.error) heartbeatOff = true;
 }, 30_000);
 
-/* ---------------- avatar upload (sem login — validado por nick+token) ---------------- */
+/* ---------------- avatar upload (UID seleciona; token autentica) ---------------- */
 $('avatar-btn').onclick = () => $('avatar-file').click();
 $('avatar-file').onchange = async e => {
   const f = e.target.files[0];
@@ -858,7 +864,7 @@ $('avatar-file').onchange = async e => {
     const s = Math.min(bmp.width, bmp.height);
     x.drawImage(bmp, (bmp.width - s) / 2, (bmp.height - s) / 2, s, s, 0, 0, 128, 128);
     const dataUrl = c.toDataURL('image/png');
-    const res = await api('/api/avatar', { nick, token: getToken(), image: dataUrl });
+    const res = await api('/api/avatar', { uid: getAnonId(), nick, token: getToken(), image: dataUrl });
     $('avatar-note').textContent = res && res.ok ? 'foto atualizada! ✓' : 'falhou: ' + (res?.error || 'sem conexão');
   } catch { $('avatar-note').textContent = 'falhou — tente outra imagem'; }
   e.target.value = '';
@@ -1465,13 +1471,9 @@ function submitNote(msg) {
     el.appendChild(d);
   }
 }
-/* Traduz o erro cru do RPC pra algo que o jogador entende e pode agir em cima.
-   "token inválido" = o nick já existe no banco com OUTRO token (outro navegador,
-   outra aba de preview da Vercel, localStorage limpo). Se o register da sessão já
-   tinha acusado (rankingBloqueado), essa é a explicação quase certa. */
 function traduErroSubmit(msg) {
-  if (/token|inválid|nick/i.test(msg) || rankingBloqueado)
-    return 'esse nick já está registrado em outro navegador — troca o nick no PERFIL pra gravar no ranking';
+  if (/identity|identidade|token|uid/i.test(msg) || rankingBloqueado)
+    return rankingBloqueado || 'não foi possível recuperar seu jogador; recarregue e tente de novo';
   return msg;
 }
 

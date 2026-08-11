@@ -1,13 +1,12 @@
-// POST /api/submit-match - valida + rate-limita (por IP) e grava via RPC no DB.
-// A validação do token do jogador acontece dentro do RPC (schema.sql).
+// POST /api/submit-match - valida identidade, limita por IP e grava via RPC.
 import type { APIRoute } from 'astro';
 import { supabaseAdmin, NOT_CONFIGURED } from '../../lib/supabase';
 import { geoFrom } from '../../lib/geo';
 import { rateLimit } from '../../lib/ratelimit';
 import { jsonError, logInternalError } from '../../lib/api-error';
+import { resolvePlayerIdentity, validUid } from '../../lib/player-identity';
 
 export const prerender = false;
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // Rate limit por IP: 1 submit/30 s. ERA um `new Map()` de módulo - que na
 // Vercel some no cold start e dá um orçamento novo por instância de lambda
@@ -44,11 +43,19 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
     return new Response(JSON.stringify({ error: 'bad_json' }), { status: 400, headers: { 'content-type': 'application/json' } });
   }
   const { nick, token, won, kills, deaths, headshots, bestStreak, rounds, team, faction, seconds, character, mode, uid: rawUid } = body ?? {};
-  if (typeof nick !== 'string' || typeof token !== 'string')
+  if (typeof token !== 'string' || (!validUid(rawUid) && typeof nick !== 'string'))
     return new Response(JSON.stringify({ error: 'missing_fields' }), { status: 400, headers: { 'content-type': 'application/json' } });
 
-  const n = nick.slice(0, 14);
-  const uid = typeof rawUid === 'string' && UUID_RE.test(rawUid) ? rawUid : null;
+  if (rawUid != null && !validUid(rawUid)) return jsonError(400, 'uid_invalid', 'UID do jogador inválido');
+  const uid = validUid(rawUid) ? rawUid : null;
+  const fallbackNick = typeof nick === 'string' ? nick.slice(0, 14) : null;
+  const identity = await resolvePlayerIdentity(supabaseAdmin, { uid, token, nick: fallbackNick });
+  if (identity.error) {
+    logInternalError('api/submit-match-identity', identity.error, { uid });
+    return jsonError(503, 'identity_unavailable', 'não foi possível validar a identidade agora');
+  }
+  if (!identity.player) return jsonError(403, 'invalid_identity', 'UID ou token do jogador inválido');
+  const n = identity.player.nick;
   /* MODO DA PARTIDA (issue #87). A trava de tempo do RPC aplica um piso de segundos por
      rodada, e o piso do ABATE (80 s, rodada de 99 s) não vale pro CAPTURA, onde a rodada
      não tem janela de tempo - era isso que recusava partida legítima e ainda marcava o
@@ -89,7 +96,7 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
   const g = geoFrom(request);
   if (g) {
     await supabaseAdmin.from('presence').upsert({
-      nick: nick.slice(0, 14), last_seen: new Date().toISOString(),
+      nick: n, last_seen: new Date().toISOString(),
       city: g.city, country: g.country, lat: g.lat, lon: g.lon,
     });
   }
