@@ -1,6 +1,6 @@
 {
   "name": "coro-solto",
-  "version": "2.0.0-alpha.64",
+  "version": "2.0.0-alpha.66",
   "license": "AGPL-3.0-only",
   "description": "CORO SOLTO: Treta Suprema (ex-CS BRASIL) — FPS de navegador estilo CS 1.6 (site Astro + jogo vanilla em Three.js)",
   "scripts": {
@@ -57,6 +57,8 @@
     "eval:ctfhud": "node tools/eval/ctfhud-check.mjs",
     "//eval:ratchet": "O ratchet de dívidas (KNOWN-RED.json) só anda pra frente: entrada NOVA reprova o PR, a menos que o corpo justifique com `ratchet: +ID porque <motivo>`; entrada REMOVIDA é quitação e passa. Sem régua, quebrar uma invariante nova e pingar o ID na lista era a forma de deixar o portão verde — virou lista de desculpas.",
     "eval:ratchet": "node tools/eval/ratchet-check.mjs",
+    "//eval:mutate": "Mutation testing do viewmodel: regenera a auditoria, aplica cada mutante de tools/eval/mutantes.json, roda a régua alvo e restaura. MATOU = régua morde; SOBREVIVEU = invariante cega; PULADO = avaliação inconclusiva. Ctrl-C/SIGTERM restauram na hora.",
+    "eval:mutate": "node tools/eval/mutate.mjs",
     "//eval:vmlabhud": "O menu de armas do protótipo do #131 precisa existir no HUD real quando ?vmlab=1 e continuar ausente sem a flag. Nasceu do relato do dono em produção (BUG-43). Executa _updateWeaponHud de game.js em três estados; --mutante=semflag reintroduz a ausência.",
     "eval:vmlabhud": "node tools/eval/vmlab-hud-check.mjs",
     "//eval:posters": "O aspecto declarado de cada cartaz em POSTER_FILES (textures.js) bate com o pixel do arquivo em public/posters/? Erro >6% = arte esticada na parede (issue #79). `--mutate` estraga um número e prova que a régua morde.",
