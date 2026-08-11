@@ -13,7 +13,7 @@
  *
  * RLS6: release não dispara um segundo deploy; o fallback fica manual.
  *
- * Mutações: --mutante=nome-antigo | semcreditos | semdco | semdocs | semrollback | deploy-duplo.
+ * Mutações: --mutante=nome-antigo | semcreditos | semdco | semdocs | semrollback | deploy-duplo | deploy-yaml.
  */
 import { readFileSync, readdirSync } from 'node:fs';
 
@@ -21,9 +21,12 @@ const mutante = process.argv.find((arg) => arg.startsWith('--mutante='))?.split(
 const arquivos = ['.github/workflows/release.yml', '.github/workflows/ci.yml'];
 let workflowRelease = readFileSync('.github/workflows/release.yml', 'utf8');
 let workflowDeploy = readFileSync('.github/workflows/deploy-prod.yml', 'utf8');
-const workflowsProd = readdirSync('.github/workflows')
-  .filter((arquivo) => arquivo.endsWith('.yml'))
-  .filter((arquivo) => /vercel\s+deploy[\s\S]{0,240}?--prod/.test(readFileSync(`.github/workflows/${arquivo}`, 'utf8')));
+let workflowSources = readdirSync('.github/workflows')
+  .filter((arquivo) => /\.ya?ml$/.test(arquivo))
+  .map((arquivo) => [arquivo, readFileSync(`.github/workflows/${arquivo}`, 'utf8')]);
+const workflowsProd = () => workflowSources
+  .filter(([, source]) => /vercel\s+deploy[\s\S]{0,240}?--prod/.test(source))
+  .map(([arquivo]) => arquivo);
 const vercel = JSON.parse(readFileSync('vercel.json', 'utf8'));
 let scriptRelease = readFileSync('scripts/release.mjs', 'utf8');
 let comandos = arquivos.flatMap((arquivo) => readFileSync(arquivo, 'utf8')
@@ -64,8 +67,8 @@ const validaCaminhoProd = () => {
   return vercel.git?.deploymentEnabled?.main === true
     && eventos.length === 1
     && eventos[0] === 'workflow_dispatch'
-    && workflowsProd.length === 1
-    && workflowsProd[0] === 'deploy-prod.yml'
+    && workflowsProd().length === 1
+    && workflowsProd()[0] === 'deploy-prod.yml'
     && /^permissions:\n  contents: read\s*$/m.test(workflowDeploy)
     && /^concurrency:\n  group: deploy-prod\n  cancel-in-progress: false\s*$/m.test(workflowDeploy)
     && /^\s+ref:\s*refs\/tags\/\$\{\{\s*github\.event\.inputs\.tag\s*\}\}\s*$/m.test(workflowDeploy);
@@ -86,6 +89,10 @@ if (mutante) {
   else if (mutante === 'semrollback') rollbackRelease = false;
   else if (mutante === 'deploy-duplo') {
     workflowDeploy = workflowDeploy.replace('on:\n', 'on:\n  release:\n    types: [published]\n');
+    caminhoProdUnico = validaCaminhoProd();
+  }
+  else if (mutante === 'deploy-yaml') {
+    workflowSources.push(['segundo-deploy.yaml', 'steps:\n  - run: vercel deploy --prebuilt --prod']);
     caminhoProdUnico = validaCaminhoProd();
   }
   else throw new Error(`mutante desconhecido: ${mutante}`);
