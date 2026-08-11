@@ -38,8 +38,10 @@ export async function resolvePlayerIdentity(
   if (uid) {
     const result = await admin.from('players').select('id, nick')
       .eq('uid', uid).eq('token', token).maybeSingle();
-    if (!result.error) return { player: result.data as PlayerIdentity | null, legacy: false, error: null };
-    if (!isIdentitySchemaMissing(result.error)) return { player: null, legacy: false, error: result.error };
+    if (!result.error && result.data)
+      return { player: result.data as PlayerIdentity, legacy: false, error: null };
+    if (result.error && !isIdentitySchemaMissing(result.error))
+      return { player: null, legacy: false, error: result.error };
   }
 
   if (!nick) return { player: null, legacy: !uid, error: null };

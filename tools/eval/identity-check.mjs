@@ -29,6 +29,8 @@ if (!identity.includes(".eq('uid', uid)") || !identity.includes(".eq('token', to
   failures.push('ID3 resolução não autentica por UID + token');
 if (!identity.includes('isIdentitySchemaMissing') || !identity.includes(".eq('nick', nick)"))
   failures.push('ID3 compatibilidade temporária para banco/cliente antigo ausente');
+if (!identity.includes('if (!result.error && result.data)'))
+  failures.push('ID3 UID ainda não associado não alcança o fallback legado válido');
 
 for (const [name, source] of [['submit', submit], ['heartbeat', heartbeat], ['avatar', avatar]]) {
   if (!source.includes('resolvePlayerIdentity')) failures.push(`ID4 ${name} não resolve identidade pelo helper comum`);

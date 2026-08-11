@@ -1,5 +1,3 @@
-// POST /api/avatar - upload de foto validado pela identidade do jogador
-// (sem login OAuth). Redimensiona pra 128×128 e grava no bucket avatars.
 import type { APIRoute } from 'astro';
 import sharp from 'sharp';
 import { supabaseAdmin, NOT_CONFIGURED } from '../../lib/supabase';

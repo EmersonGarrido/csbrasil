@@ -1,4 +1,3 @@
-// POST /api/submit-match - valida identidade, limita por IP e grava via RPC.
 import type { APIRoute } from 'astro';
 import { supabaseAdmin, NOT_CONFIGURED } from '../../lib/supabase';
 import { geoFrom } from '../../lib/geo';
