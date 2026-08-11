@@ -40,6 +40,7 @@
                      em MEMÓRIA (interceptação de rota), o arquivo em disco não é tocado.
      --mutante=sem-amigavel  tira a chamada de recuperação do catch de `startGame`.
      --mutante=vaza-detalhe  remove a guarda que restringe o overlay técnico a `?debug=1`.
+     --mutante=sem-console-watchdog  volta a esconder do console o timeout do watchdog.
 
    USO
      node tools/eval/boot-check.mjs                 # sobe o astro dev sozinho
@@ -58,7 +59,7 @@ const FOTO = val('foto', '');
 const EXTERNO = !!process.env.BASE;
 const BASE = process.env.BASE || `http://localhost:${PORTA}`;
 const MAIN_LOCAL = readFileSync(new URL('../../public/js/main.js', import.meta.url), 'utf8');
-const MUTANTES = new Set(['', 'tdz', 'sem-amigavel', 'vaza-detalhe']);
+const MUTANTES = new Set(['', 'tdz', 'sem-amigavel', 'vaza-detalhe', 'sem-console-watchdog']);
 if (!MUTANTES.has(MUTANTE)) {
   console.error(`✗ BOOT0  mutante desconhecido: ${MUTANTE}`);
   process.exit(1);
@@ -139,12 +140,14 @@ try {
     await rota.fulfill({ status: 200, contentType: 'application/javascript', body: novo });
   });
 
-  if (MUTANTE === 'vaza-detalhe') {
+  if (MUTANTE === 'vaza-detalhe' || MUTANTE === 'sem-console-watchdog') {
     await context.route(/\/\?auto=E,$/, async (rota) => {
       const r = await rota.fetch();
       const corpo = await r.text();
-      const novo = corpo.replace('if (!DEBUG) return;', 'if (false) return; /* MUTANTE */');
-      if (novo === corpo) throw new Error('mutante vaza-detalhe não casou');
+      const novo = MUTANTE === 'vaza-detalhe'
+        ? corpo.replace('if (!DEBUG) return;', 'if (false) return; /* MUTANTE */')
+        : corpo.replace("try { consoleErroNativo('Falha ao abrir ' + etapa, err); } catch(_) {}", '/* MUTANTE: log nativo removido */');
+      if (novo === corpo) throw new Error(`mutante ${MUTANTE} não casou`);
       mutacaoAplicou = true;
       await rota.fulfill({ status: r.status(), headers: r.headers(), body: novo });
     });
@@ -158,7 +161,9 @@ try {
   const page = await context.newPage();
 
   const erros = [];
+  const consoleErros = [];
   page.on('pageerror', (e) => erros.push(e.message));
+  page.on('console', (m) => { if (m.type() === 'error') consoleErros.push(m.text()); });
   await page.goto(`${BASE}/`, { waitUntil: 'domcontentloaded', timeout: 120000 });
   await page.waitForTimeout(3500);
 
@@ -182,7 +187,7 @@ try {
   console.log(`   #btn-jogar existe ${alvo.existe}   onclick ligado ${alvo.ligado}`);
   console.log(`   ${b2 ? 'PASSA' : 'FALHA'}\n`);
 
-  let b3 = false, b4 = false, b5 = false;
+  let b3 = false, b4 = false, b5 = false, b6 = false, b7 = false;
   if (b1 && b2) {
     erros.length = 0;
     await page.goto(`${BASE}/?auto=E,`, { waitUntil: 'domcontentloaded', timeout: 120000 });
@@ -246,11 +251,48 @@ try {
     } else {
       console.log('B5 · não medido porque a recuperação amigável já falhou\n');
     }
+
+    const antes = consoleErros.length;
+    await page.evaluate(() => {
+      window.__gameLaunch?.begin('teste do console', 60000, () => false);
+      window.__gameLaunch?.fail(new Error('tempo limite ao abrir teste do console'), 'launch-watchdog');
+    });
+    await page.waitForTimeout(100);
+    const novos = consoleErros.slice(antes);
+    b6 = novos.some((m) => /Falha ao abrir teste do console/.test(m) && /tempo limite ao abrir teste do console/.test(m));
+    console.log('B6 · timeout do watchdog permanece visível no console');
+    console.log(`   ${b6 ? 'erro e stack preservados' : 'nenhum erro correspondente no console'}`);
+    console.log(`   ${b6 ? 'PASSA' : 'FALHA'}\n`);
+
+    const watchdogsAntes = relatorios.filter((r) => r.source === 'launch-watchdog').length;
+    const jornada = await context.newPage();
+    await jornada.goto(`${BASE}/?nav=1`, { waitUntil: 'domcontentloaded', timeout: 120000 });
+    await jornada.locator('#splash-enter:not(.hidden)').waitFor({ timeout: 120000 });
+    await jornada.locator('#boot-splash').dispatchEvent('pointerdown');
+    await jornada.waitForTimeout(3100);
+    const entradaOk = await jornada.locator('#launch-error').evaluate((el) => el.classList.contains('hidden'));
+    await jornada.locator('.cs-item[data-act="sp"]').click();
+    await jornada.evaluate(() => {
+      const nick = document.getElementById('nick-input');
+      nick.value = 'BOOT_CHECK';
+      nick.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    await jornada.locator('#btn-jogar').click();
+    await jornada.locator('#btn-team-c').click();
+    await jornada.locator('#char-select:not(.hidden)').waitFor({ timeout: 120000 });
+    await jornada.waitForTimeout(3100);
+    const menuOk = await jornada.locator('#launch-error').evaluate((el) => el.classList.contains('hidden'));
+    const watchdogsDepois = relatorios.filter((r) => r.source === 'launch-watchdog').length;
+    b7 = entradaOk && menuOk && watchdogsDepois === watchdogsAntes;
+    console.log('B7 · avançar rápido pela entrada e pelo menu não dispara falso timeout');
+    console.log(`   entrada ${entradaOk}   menu ${menuOk}   novos watchdogs ${watchdogsDepois - watchdogsAntes}`);
+    console.log(`   ${b7 ? 'PASSA' : 'FALHA'}\n`);
+    await jornada.close();
   } else {
-    console.log('B3–B5 · não medidos porque o boot não concluiu\n');
+    console.log('B3–B7 · não medidos porque o boot não concluiu\n');
   }
 
-  const passou = b1 && b2 && b3 && b4 && b5 && mutacaoAplicou;
+  const passou = b1 && b2 && b3 && b4 && b5 && b6 && b7 && mutacaoAplicou;
   console.log(passou
     ? '✓ BOOT1  o jogo abre e falhas de entrada têm recuperação amigável, reportável e depurável'
     : '✗ BOOT1  boot ou recuperação de falha não cumpriu o contrato');

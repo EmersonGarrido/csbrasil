@@ -102,9 +102,12 @@ conhecimento deles já está ou nos portões da §1, ou nos comentários de caus
 raiz dentro do `weapons.js`/`game.js`, ou no `CHANGELOG.md`. Ficam versionados
 porque reproduzem medições históricas — não porque alguém deva rodá-los.
 
-**Sondas de áudio (5 gerações, mesma pergunta):**
-`audio-probe.mjs` · `audio-probe2.mjs` · `audio-probe3.mjs` · `audio-probe4.mjs` · `audio-probe5.mjs`
-→ o que sobreviveu está no manifest e no fallback sintetizado.
+**Aposentados** (movidos para `tools/eval/aposentados/`, fora do `grep` de
+quem busca no arnês ativo): as 5 gerações de `audio-probe*.mjs` (sondas da
+rodada 4 — grafo WebAudio, eco, duck, pan/PropDelay). O que cada uma media
+sobreviveu nos comentários de causa raiz do `audio.js` (master chain com
+limiter anti-clip, `duckBus` sidechain, caps de bounce em ~80ms) e nos portões
+`audio:check`/`assert:assets` — nenhuma delas é mais execução de portão.
 
 **Rodada G2-R6 (pose e troca de arma):**
 `g2r6-blackband.mjs` · `g2r6-bots.mjs` · `g2r6-bots2.mjs` · `g2r6-capture.mjs` ·
