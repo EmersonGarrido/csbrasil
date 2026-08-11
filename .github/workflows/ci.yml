@@ -1,10 +1,14 @@
-name: CI
+name: pr-fast
 
 on:
   push:
     branches: [main]
     tags: ['v*']
   pull_request:
+
+concurrency:
+  group: pr-fast-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
@@ -16,6 +20,10 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Python CI scripts syntax
+        run: python3 -m py_compile scripts/ci/*.py
+      - name: Bash scripts syntax
+        run: bash -n scripts/*.sh
       - name: Syntax check do jogo (public/js)
         run: npm run syntax
 
@@ -25,6 +33,10 @@ jobs:
       # regiões diferentes e não estão.
       - name: ARCH.md gerado está em dia
         run: npm run arch:check
+      - name: Manifesto de wallpapers está em dia
+        run: npm run media:check
+      - name: Texto público sem travessão
+        run: npm run travessao:check
 
       # ── PORTÃO DE QUALIDADE ───────────────────────────────────────────────
       # Os quatro arneses abaixo rodam em NODE PURO (sem Chrome/SwiftShader) e
@@ -54,6 +66,22 @@ jobs:
       # Supabase, que é exatamente o estado do CI.
       - name: Smoke do site (13 rotas, contrato + JSON-LD)
         run: node tools/eval/site-smoke.mjs
+  dco:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Check Signed-off-by
+        run: |
+          printf '{"baseRefOid":"%s","headRefOid":"%s"}' \
+            "${{ github.event.pull_request.base.sha }}" \
+            "${{ github.event.pull_request.head.sha }}" > /tmp/dco.json
+          python3 scripts/ci/dco_check.py < /tmp/dco.json
 
   release:
     if: startsWith(github.ref, 'refs/tags/v')
@@ -67,8 +95,12 @@ jobs:
         run: |
           TAG="${GITHUB_REF_NAME#v}"
           awk "/^## \\[$TAG\\]/{f=1;next}/^## \\[/{f=0}f" CHANGELOG.md > release-body.md
-          [ -s release-body.md ] || echo "Ver commits abaixo." > release-body.md
       - name: Criar GitHub Release
-        run: gh release create "${{ github.ref_name }}" --notes-file release-body.md --title "CORO SOLTO ${{ github.ref_name }}"
+        run: |
+          EXTRA=()
+          if [ -s release-body.md ]; then
+            EXTRA=(--notes "$(cat release-body.md)")
+          fi
+          gh release create "${{ github.ref_name }}" --generate-notes "${EXTRA[@]}" --title "CSBR ${{ github.ref_name }}"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -40,6 +40,12 @@ import path from 'node:path';
 const ALVOS = [
   'dist/client/models/fpvm',
   '.vercel/output/static/models/fpvm',
+  // MODO DEV (dev.html): fica em public/ pra o `astro dev` servir na máquina de quem
+  // desenvolve, mas NÃO pode ir pro ar (seria URL pública /dev.html). Mesmo tratamento
+  // do fpvm: poda do dist E do espelho da Vercel, então em produção dá 404. Continua
+  // valendo em `npm run dev`.
+  'dist/client/dev.html',
+  '.vercel/output/static/dev.html',
 ];
 
 function tamanho(dir) {
@@ -60,7 +66,8 @@ if (process.env.KEEP_FPVM === '1') {
 let total = 0, podados = 0;
 for (const alvo of ALVOS) {
   if (!existsSync(alvo)) continue;
-  const b = tamanho(alvo);
+  const st = statSync(alvo);
+  const b = st.isDirectory() ? tamanho(alvo) : st.size;   // ALVOS tem pasta (fpvm) E arquivo (bancadas)
   rmSync(alvo, { recursive: true, force: true });
   total += b; podados++;
   console.log(`  poda: ${alvo} (${mb(b)})`);
