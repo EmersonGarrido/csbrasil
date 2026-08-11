@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /* Executa o catálogo descrito em docs/issues/26-mutation-testing-automatizado.md. */
-import { readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
@@ -12,18 +12,29 @@ const DEMO_INTERROMPE = process.argv.includes('--demo-interrompe');
 
 let childAtivo = null;
 let aplicado = null;
+let preparacao = [];
 
-function restaura() {
+function restauraMutante() {
   if (aplicado) {
     writeFileSync(aplicado.caminho, aplicado.original);
     aplicado = null;
   }
 }
+function restauraTudo() {
+  restauraMutante();
+  for (const artefato of preparacao) {
+    if (artefato.existia) writeFileSync(artefato.caminho, artefato.original);
+    else rmSync(artefato.caminho, { force: true });
+  }
+  preparacao = [];
+}
 for (const sinal of ['SIGINT', 'SIGTERM']) {
   process.on(sinal, () => {
-    restaura();
-    if (childAtivo) childAtivo.kill('SIGTERM');
-    process.exit(sinal === 'SIGINT' ? 130 : 143);
+    const sair = () => { restauraTudo(); process.exit(sinal === 'SIGINT' ? 130 : 143); };
+    if (childAtivo) {
+      childAtivo.once('close', sair);
+      childAtivo.kill('SIGTERM');
+    } else sair();
   });
 }
 
@@ -68,7 +79,15 @@ function preparar(comando) {
 async function main() {
   const mutantes = SO ? CAT.mutantes.filter((m) => m.id === SO) : CAT.mutantes;
   if (!mutantes.length) throw new Error(`nenhum mutante (--so=${SO}) no catálogo`);
-  if (CAT.prepara) await preparar(CAT.prepara);
+  if (CAT.prepara) {
+    const etapa = typeof CAT.prepara === 'string' ? { comando: CAT.prepara } : CAT.prepara;
+    preparacao = (etapa.artefatos || []).map((arquivo) => {
+      const caminho = join(ROOT, arquivo);
+      const existia = existsSync(caminho);
+      return { caminho, existia, original: existia ? readFileSync(caminho) : null };
+    });
+    await preparar(etapa.comando);
+  }
   let sobrev = 0, pulados = 0, falhas = 0;
 
   for (const m of mutantes) {
@@ -103,10 +122,11 @@ async function main() {
       console.log(`ERRO  ${m.id}: ${e.message}`);
       falhas++;
     } finally {
-      restaura();
+      restauraMutante();
     }
   }
 
+  restauraTudo();
   if (sobrev || pulados || falhas) {
     const motivos = (sobrev ? `${sobrev} sobreviveram (invariante cega — achado)` : '') +
       (sobrev && (pulados || falhas) ? ' + ' : '') +
@@ -118,4 +138,4 @@ async function main() {
   console.log(`\nOK: ${mutantes.length} mutantes MATARAM a régua — catálogo morde em todos os buracos documentados`);
 }
 
-main().catch((e) => { restaura(); console.error(`\nFALHOU: ${e.message}`); process.exit(1); });
+main().catch((e) => { restauraTudo(); console.error(`\nFALHOU: ${e.message}`); process.exit(1); });

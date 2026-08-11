@@ -1,5 +1,17 @@
 {
-  "prepara": "node tools/eval/vm-mint-audit.mjs",
+  "prepara": {
+    "comando": "node tools/eval/vm-mint-audit.mjs",
+    "artefatos": [
+      "tools/eval/char_probe.json",
+      "tools/eval/map_check.json",
+      "tools/eval/mat_check.json",
+      "tools/eval/mat_scenes.json",
+      "tools/eval/mat_shade.json",
+      "tools/eval/pickup_check.json",
+      "tools/eval/vm_kick_sim.json",
+      "tools/eval/vm_mint_audit.json"
+    ]
+  },
   "regua": {
     "comando": "node tools/eval/invariants.mjs --json",
     "alvo": "AUD1"
