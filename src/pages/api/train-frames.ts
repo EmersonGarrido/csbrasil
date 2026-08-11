@@ -9,6 +9,8 @@
 // NÃO usa sendBeacon: o lote pode passar de 64 KB, e é enviado por fetch normal na tela de
 // fim de partida (página viva), então a resposta pode ser lida e o tamanho não é limitado.
 import type { APIRoute } from 'astro';
+import { appendFile, mkdir } from 'node:fs/promises';
+import path from 'node:path';
 import { supabaseAdmin, NOT_CONFIGURED } from '../../lib/supabase';
 import { rateLimit } from '../../lib/ratelimit';
 import { logInternalError } from '../../lib/api-error';
@@ -24,12 +26,22 @@ const ACTION_DIM = 7;
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
 
-export const POST: APIRoute = async ({ request }) => {
-  if (!supabaseAdmin) return new Response(NOT_CONFIGURED, { status: 503, headers: { 'content-type': 'application/json' } });
+// SINK LOCAL (dev): sem Supabase configurado, em `astro dev` os lotes vão pra um arquivo
+// ndjson que o bot-train.mjs lê — fecha o loop "jogar → coletar → treinar" na sua máquina,
+// sem montar banco. Em produção (build) `import.meta.env.DEV` é false: continua exigindo
+// Supabase, nunca grava em disco no servidor.
+const LOCAL_ENABLED = !supabaseAdmin && import.meta.env.DEV;
+const LOCAL_FILE = path.resolve(process.cwd(), 'tools/eval/data/collected.ndjson');
 
-  const ip = request.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'unknown';
-  if (!(await rateLimit(supabaseAdmin, 'train_frames', ip, 20, 60)))
-    return json({ error: 'rate_limited' }, 429);
+export const POST: APIRoute = async ({ request }) => {
+  if (!supabaseAdmin && !LOCAL_ENABLED)
+    return new Response(NOT_CONFIGURED, { status: 503, headers: { 'content-type': 'application/json' } });
+
+  if (supabaseAdmin) {
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0].trim() || 'unknown';
+    if (!(await rateLimit(supabaseAdmin, 'train_frames', ip, 20, 60)))
+      return json({ error: 'rate_limited' }, 429);
+  }
 
   let body: any;
   try { body = await request.json(); } catch { return json({ error: 'bad_json' }, 400); }
@@ -54,6 +66,18 @@ export const POST: APIRoute = async ({ request }) => {
 
   const m = meta && typeof meta === 'object' && !Array.isArray(meta) ? meta : {};
   const clip = (x: unknown, len: number) => (typeof x === 'string' ? x.slice(0, len) : null);
+
+  // sem Supabase (dev): grava o lote no arquivo local, no mesmo shape que o bot-train lê.
+  if (!supabaseAdmin) {
+    try {
+      await mkdir(path.dirname(LOCAL_FILE), { recursive: true });
+      await appendFile(LOCAL_FILE, JSON.stringify({ v: v | 0 || 1, dims: { s, a }, n, meta: m, data }) + '\n');
+      return json({ ok: true, stored: 'local' });
+    } catch (error) {
+      logInternalError('api/train-frames(local)', error, { anonId });
+      return json({ ok: true, stored: false });
+    }
+  }
 
   try {
     const { error } = await supabaseAdmin.rpc('insert_training_frames', {

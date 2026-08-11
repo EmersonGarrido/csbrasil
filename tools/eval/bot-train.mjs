@@ -33,7 +33,13 @@ const args = Object.fromEntries(process.argv.slice(2).map((a) => {
   const m = a.match(/^--([^=]+)(?:=(.*))?$/); return m ? [m[1], m[2] ?? true] : [a, true];
 }));
 const EPOCHS = parseInt(args.epochs || '40', 10);
-const DATA = args.data ? path.resolve(process.cwd(), args.data) : path.join(HERE, 'data', 'bootstrap.ndjson');
+const DATA_DIR = path.join(HERE, 'data');
+// Por padrão treina com TODO ndjson de tools/eval/data/: bootstrap.ndjson (professor
+// roteirizado) + collected.ndjson (VOCÊ jogando, via sink local do /api/train-frames).
+// Assim seus dados entram no treino sem passo extra. --data=arquivo força um só.
+const DATA_FILES = args.data
+  ? [path.resolve(process.cwd(), args.data)]
+  : (fs.existsSync(DATA_DIR) ? fs.readdirSync(DATA_DIR).filter((f) => f.endsWith('.ndjson')).map((f) => path.join(DATA_DIR, f)) : []);
 const MIN_FRAMES = parseInt(args['min-frames'] || '2000', 10);
 
 // ---- carregar lotes (mesmo shape do /api/train-frames: {dims,n,data(base64 Int8)}) ----
@@ -67,8 +73,8 @@ function ingest(lines, tag) {
   console.error(`  ${tag}: ${n} frames`);
 }
 
-if (fs.existsSync(DATA)) ingest(fs.readFileSync(DATA, 'utf8').split('\n'), path.relative(process.cwd(), DATA));
-else console.error(`  (sem dataset local em ${DATA})`);
+if (DATA_FILES.length) for (const f of DATA_FILES) ingest(fs.readFileSync(f, 'utf8').split('\n'), path.relative(process.cwd(), f));
+else console.error(`  (sem dataset em ${DATA_DIR})`);
 
 if (args['from-supabase']) {
   const url = process.env.SUPABASE_URL, key = process.env.SUPABASE_SERVICE_ROLE_KEY;
