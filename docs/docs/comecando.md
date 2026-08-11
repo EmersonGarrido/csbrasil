@@ -39,9 +39,9 @@ esta página envelhecia no primeiro commit — ver
 
 | O que | Quanto | Onde confere |
 |---|---:|---|
-| Código do jogo | 27.496 linhas em 33 arquivos | `cat public/js/*.js \| wc -l` |
+| Código do jogo | 27.523 linhas em 33 arquivos | `cat public/js/*.js \| wc -l` |
 | `game.js` | **6.435** linhas | `wc -l public/js/game.js` |
-| `main.js` | 1.974 linhas | `wc -l public/js/main.js` |
+| `main.js` | 2.001 linhas | `wc -l public/js/main.js` |
 | Armas com GLB | 26 | `ls public/models/weapons/*.glb \| wc -l` |
 | GLBs de personagem | 45 | `ls public/models/characters/*.glb \| wc -l` |
 | Props em GLB | 108 | `ls public/models/props/*.glb \| wc -l` |
@@ -49,10 +49,10 @@ esta página envelhecia no primeiro commit — ver
 | Personagens jogáveis | 44, em 5 facções | array `CHARACTERS` de `characters.js` |
 | Mapas no registro | 5 | objeto `MAPS` de `maps.js` |
 | Arnêses visuais em HTML | 13 | `ls public/*.html \| wc -l` |
-| Scripts do arnês | 149 | `ls tools/eval/*.mjs tools/eval/*.py \| wc -l` |
+| Scripts do arnês | 150 | `ls tools/eval/*.mjs tools/eval/*.py \| wc -l` |
 | Scripts de pipeline | 46 | `ls tools/*.mjs \| wc -l` |
 | Tarefas de entrada escritas | 26 | `ls docs/issues/[0-9]*.md \| wc -l` |
-| Versão | `2.0.0-alpha.75` | `public/js/version.js` e `package.json` (batem) |
+| Versão | `2.0.0-alpha.76` | `public/js/version.js` e `package.json` (batem) |
 
 > Bloco gerado por `node tools/gen-docs.mjs`. Fonte: `o comando da coluna direita de cada linha`
 
@@ -122,6 +122,18 @@ npm run dev          # abre em http://localhost:4321 — essa página JÁ É o j
 
 O pacote de áudio (`npm run fetch-audio`) é **opcional**: sem ele o jogo usa sons
 sintetizados. A pasta `public/audio/` não é versionada.
+
+### Linux, WebGL e modo compatibilidade
+
+O jogo tenta WebGL2 e WebGL1, começando pela escolha padrão do navegador e reduzindo
+antialias, preferência de GPU e stencil antes de desistir. Quando cai em WebGL1,
+llvmpipe/SwiftShader ou outro degrau reduzido, ativa qualidade baixa apenas naquela
+sessão: DPR 0,75, sem bloom/sombras e com retratos estáticos na seleção.
+
+Use `?safe=1` para priorizar WebGL1 e o caminho de menor custo. Se nem esse modo abrir,
+confira `chrome://gpu` ou a seção Graphics de `about:support`, ligue aceleração por
+hardware e atualize Mesa/driver pelo gerenciador da distribuição. Uma página não pode
+forçar um driver quando o navegador recusa criar até o contexto WebGL1.
 
 ### Alternativa sem Astro (zero dependência de build)
 
@@ -258,10 +270,10 @@ E os dois quality gates, com a lista exata do que cada um roda — direto do `pa
 
 ```bash
 npm run check        # npm run syntax && npm run audio:check && npm run eval:ctfhud && npm run eval:vm && npm run eval:invariants && npm run eval:kick && npm run eval:bots
-npm run check:fast   # node tools/eval/runner.mjs syntax eval:release eval:telemetry eval:identity eval:error-console eval:botbrain eval:prune eval:vminspect docs:check arch:check audio:check feet:check eval:vmlabhud eval:ctfhud eval:pause eval:ctfround eval:ctfwin eval:spawn eval:regen eval:pegada eval:ctflabels anims:check anims:merge:check walls:check media:check travessao:check eval:posters
+npm run check:fast   # node tools/eval/runner.mjs syntax eval:release eval:telemetry eval:identity eval:error-console eval:webgl eval:botbrain eval:prune eval:vminspect docs:check arch:check audio:check feet:check eval:vmlabhud eval:ctfhud eval:pause eval:ctfround eval:ctfwin eval:spawn eval:regen eval:pegada eval:ctflabels anims:check anims:merge:check walls:check media:check travessao:check eval:posters
 ```
 
-`package.json` tem **75 scripts**. Vários trazem uma chave `//nome` logo acima com o motivo de existirem — é onde mora o porquê.
+`package.json` tem **76 scripts**. Vários trazem uma chave `//nome` logo acima com o motivo de existirem — é onde mora o porquê.
 
 > Bloco gerado por `node tools/gen-docs.mjs`. Fonte: `node -p "Object.keys(require('./package.json').scripts)"`
 

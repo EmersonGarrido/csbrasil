@@ -256,6 +256,8 @@ const IMPORTMAP = JSON.stringify({
     if (consoleErroNativo) {
       try { consoleErroNativo('Erro global não tratado', e.error || msg); } catch(_) {}
     }
+    // A factory já registrou a falha final; o throw apenas interrompe o módulo sem renderer.
+    if (window.__semWebgl && /sem_webgl/.test(String(msg))) return;
     showDebug('error', msg + (loc ? ('  @ ' + loc) : ''), e.error && e.error.stack);
     reporta('error', msg, loc, e.error && e.error.stack);
     if (!window.__CS_MAIN_READY__ && origemDoJogo(loc)) erroDoBoot = e.error || new Error(String(msg));
@@ -306,6 +308,8 @@ const IMPORTMAP = JSON.stringify({
     var orig = consoleErroNativo || console.error;
     console.error = function(){
       try{ orig.apply(console, arguments); }catch(_){}
+      // Tentativas WebGL continuam no console, mas só a falha final vira relatório.
+      if (window.__webglTentativa) return;
       try{
         var partes = [];
         for (var i = 0; i < arguments.length && i < 4; i++) {
@@ -770,6 +774,7 @@ const IMPORTMAP = JSON.stringify({
     </div>
     <div class="char-preview-box">
       <canvas id="char-preview" width="640" height="640"></canvas>
+      <img id="char-preview-static" class="hidden" src="" alt="">
       <div class="pv-hints"><span>ARRASTE · GIRAR</span><span>SCROLL · ZOOM</span></div>
     </div>
   </div>
