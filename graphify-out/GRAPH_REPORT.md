@@ -1,16 +1,16 @@
-# Graph Report - csbrasil-uid  (2026-08-11)
+# Graph Report - csbrasil-pr180  (2026-08-11)
 
 ## Corpus Check
-- 590 files · ~4,040,904 words
+- 590 files · ~4,041,021 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 7996 nodes · 12641 edges · 623 communities (415 shown, 208 thin omitted)
+- 7998 nodes · 12643 edges · 624 communities (412 shown, 212 thin omitted)
 - Extraction: 97% EXTRACTED · 3% INFERRED · 0% AMBIGUOUS · INFERRED: 433 edges (avg confidence: 0.71)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `c49f1d75`
+- Built from commit: `b9c8481c`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -25,20 +25,20 @@
 - Color
 - main.js
 - Game
-- AnimationClip
-- .copy
+- .add
 - WebXRManager
 - .subVectors
 - earcutLinked
 - dependencies
+- ._onChangeCallback
 - WebGLRenderer
-- BatchedMesh
+- .fromBufferAttribute
 - Quaternion
 - .push
 - .constructor
 - Project
 - AnimationMixer
-- e
+- .load
 - .applyMatrix4
 - scripts
 - .normalize
@@ -52,7 +52,7 @@
 - .updateProjectionMatrix
 - ranking.astro
 - .setViewport
-- .toJSON
+- .copy
 - KeyframeTrack
 - arraysEqual
 - leaflet.js
@@ -65,7 +65,7 @@
 - .bind
 - editor.js
 - .fromJSON
-- .dispose
+- register.ts
 - P1 — o jogador vê
 - Spherical
 - pose-inflate.mjs
@@ -83,13 +83,12 @@
 - .update
 - s
 - game.js
-- map_ferrovelho.js
 - Layers
 - vm-variant-tex.mjs
 - .getContext
 - glbchars.js
-- PositionalAudio
-- .clone
+- ._updateBot
+- .fromArray
 - canarinho-icon.mjs
 - Loader
 - GLTFLoader
@@ -97,14 +96,14 @@
 - textures.js
 - WebGLShaderCache
 - tsconfig.json
+- Line
 - LoadingManager
 - ui-check.mjs
 - .setValues
 - mapproject.js
 - GLTFParser
-- preloadCharacterAssets
 - Runbook: testar o cliente Godot
-- .start
+- .reset
 - flatten
 - GLBufferAttribute
 - GLTFLoader.js
@@ -120,13 +119,13 @@
 - 2. O alvo visual, lido nas referências
 - mat_shade.py
 - graffiti_pass.js
-- LineCurve
+- Raycaster
 - gunSpace
 - gen-asset.mjs
 - pose-posture.mjs
 - ref-ui.py
 - O QUE FAZER — em ordem
-- .connect
+- []
 - INDICE.md
 - MapStage
 - map_piscinao_ramos.js
@@ -155,7 +154,7 @@
 - submit-guard-check.mjs
 - IcosahedronGeometry
 - vm-kick-sim.mjs
-- .evaluate
+- Interpolant
 - botsim.mjs
 - LinearInterpolant
 - harness.mjs
@@ -239,7 +238,7 @@
 - P0 — quebram o jogo ou mentem para quem mede
 - O quality gate: invariantes, procedência e mutação
 - Stack e ferramentas
-- MeshPhysicalMaterial
+- skel-family.mjs
 - The gate: invariants, provenance and mutation
 - Stack and tools
 - BufferGeometryUtils.js
@@ -253,7 +252,7 @@
 - Arquitetura: N agentes no mesmo arquivo
 - Architecture: N agents in the same file
 - .loadMesh
-- Texture
+- .dispose
 - Sequenciamento
 - char-color.mjs
 - p0-armas.mjs
@@ -272,7 +271,7 @@
 - site-smoke.mjs
 - Segurança — o que foi fechado no pré-release da v2
 - PLANO DE RELEASE — CORO SOLTO v2
-- k
+- ct
 - ViewModelRig
 - Source
 - EffectComposer
@@ -282,7 +281,7 @@
 - r3_color.py
 - r3_sim.py
 - ref-measure.py
-- select-mount.mjs
+- i
 - make-idle1h.mjs
 - AGENTS.md — porta de entrada
 - Relatório — Análise CS BRASIL: 8 PRs abertos, gráficos e viralização
@@ -306,7 +305,7 @@
 - 1. Diagnóstico medido
 - 08 — RELEASE PROFISSIONAL: segurança, consistência e monetização
 - A ordem
-- prod-coherence.mjs
+- k
 - springs.js
 - build-audio-pack.mjs
 - build-brasoes.mjs
@@ -355,7 +354,9 @@
 - 00-RELEASE-V2.md
 - GLTFMaterialsUnlitExtension
 - P1 — UI E HUD NÍVEL AAA
+- EllipseCurve
 - RecoilAxis
+- LightProbe
 - c
 - char_probe.py
 - game-capture.mjs
@@ -394,8 +395,8 @@
 - Onboarding
 - pull_request_template.md
 - AnimationObjectGroup
-- map_quebrada.js
-- main.8c0acdf5.js
+- map_ferrovelho.js
+- main.e4a783c3.js
 - char-surface-maps.mjs
 - 2. Regras de clareza competitiva (CS2 / VALORANT)
 - 4.1 Praça dos Três Poderes / Esplanada dos Ministérios — Brasília
@@ -407,7 +408,7 @@
 - r3_vm.py
 - vercel.godot-preview.json
 - CSBRASIL PR triage
-- [1.6.2] — 2026-07-18
+- PointLight
 - 5. Carreira: a parte que você não vai gostar de ler
 - Spring
 - SOURCES — models/anims/mixamo (rifle locomotion pack)
@@ -441,15 +442,14 @@
 - mutate.mjs
 - UnrealBloomPass
 - g2r7b-mzmarks.mjs
-- ._updatePlayer
+- SpotLight
 - g2ui-map-previews.mjs
 - gl-metrics.mjs
 - mixamo-capture.mjs
-- seat-capture.mjs
+- VideoTexture
 - release-check.mjs
 - serve.mjs
 - telas-menu7.mjs
-- travessao-check.mjs
 - vm-quake-scen.mjs
 - weapon-capture.mjs
 - finger-curl.mjs
@@ -470,16 +470,16 @@
 - index.js
 - UnrealBloomPass.js
 - ratchet-check.mjs
-- [1.9.0] — 2026-07-18
 - sync-changelog.mjs
 - feedback.ts
-- [1.12.1] — 2026-07-18
+- HemisphereLight
+- [1.12.3] — 2026-07-18
 - selftest
 - [2.0.0-alpha.69] — 2026-08-11
 - Current state: production, data, and debt
 - BUG-10 · Elenco: proporção, pés no chão e palma enterrada
 - addUniform
-- [1.3.1] — 2026-07-17
+- [1.4.1] — 2026-07-17
 - check_automerge.py
 - pr_classify.py
 - Tarefas: Port do jogo para Godot Web
@@ -514,24 +514,26 @@
 - ik-capture.mjs
 - studio.mjs
 - [1.0.1] — 2026-07-17
-- [1.10.0] — 2026-07-18
+- [1.6.0] — 2026-07-17
 - [1.11.0] — 2026-07-18
-- [1.7.1] — 2026-07-18
+- [1.7.2] — 2026-07-18
 - [1.7.4] — 2026-07-18
 - [2.0.0-alpha.70] — 2026-08-11
 - [1.2.0] — 2026-07-17
 - [1.3.0] — 2026-07-17
 - audio-probe.mjs
-- CompressedTextureLoader
+- [1.7.6] — 2026-07-18
+- [1.8.1] — 2026-07-18
 - [1.5.0] — 2026-07-17
 - [1.5.2] — 2026-07-17
 - [1.5.3] — 2026-07-17
-- LoaderUtils
-- [1.6.1] — 2026-07-17
+- [2.0.0-alpha.71] — 2026-08-11
+- [3.1.0] — 2026-08-01 *(publicada como `2.0.0-alpha.1`)*
 - [1.5.1] — 2026-07-17
 - [1.6.3] — 2026-07-18
 - [1.4.3] — 2026-07-17
-- .fromArray
+- loop
+- MaterialLoader
 - CLAUDE.md
 - .claude/CLAUDE.md
 - STUDIO_CONSTITUTION.md
@@ -588,25 +590,25 @@
 6. `Vector4` - 51 edges
 7. `WebGLRenderer` - 51 edges
 8. `Object3D` - 47 edges
-9. `Changelog` - 46 edges
+9. `Changelog` - 47 edges
 10. `HANDOFF — sessão Kimi (21/07) — estado do CS BRASIL` - 42 edges
 
 ## Surprising Connections (you probably didn't know these)
+- `worldMap()` --indirect_call--> `c()`  [INFERRED]
+  tools/eval/raio-por-osso.mjs → public/vendor/leaflet/leaflet.js
 - `mesclar()` --indirect_call--> `c()`  [INFERRED]
   tools/merge-anims.mjs → public/vendor/leaflet/leaflet.js
-- `arquivos()` --indirect_call--> `e()`  [INFERRED]
-  tools/eval/travessao-check.mjs → public/vendor/leaflet/leaflet.js
+- `escalaDoMundo()` --indirect_call--> `m()`  [INFERRED]
+  tools/eval/char-probe.mjs → public/vendor/leaflet/leaflet.js
 - `aplicar()` --indirect_call--> `tr()`  [INFERRED]
   src/pages/armas.astro → public/js/i18n.js
 - `medir()` --indirect_call--> `l()`  [INFERRED]
   tools/gen-docs.mjs → public/vendor/leaflet/leaflet.js
-- `_c6` --indirect_call--> `i()`  [INFERRED]
-  tools/eval/char-probe.mjs → public/vendor/leaflet/leaflet.js
 
 ## Import Cycles
 - None detected.
 
-## Communities (623 total, 208 thin omitted)
+## Communities (624 total, 212 thin omitted)
 
 ### Community 0 - "three.module.js"
 Cohesion: 0.01
@@ -614,7 +616,7 @@ Nodes (241): _addedEvent, _alignedPosition, AnimationUtils, arrayCacheF32, array
 
 ### Community 3 - "Box3"
 Cohesion: 0.04
-Nodes (4): Box2, Box3, Box3Helper, Sphere
+Nodes (5): Box2, Box3, Box3Helper, CatmullRomCurve3, Sphere
 
 ### Community 8 - "Color"
 Cohesion: 0.08
@@ -622,19 +624,15 @@ Nodes (4): Color, damp(), hue2rgb(), LinearToSRGB()
 
 ### Community 9 - "main.js"
 Cohesion: 0.02
-Nodes (129): preloadFPArms(), confirmGate(), DICT, FRASES, LANG, tr(), translateDom(), api() (+121 more)
+Nodes (147): charWeapon(), preloadFPArms(), confirmGate(), hasModel(), avisaSemWebgl(), criaRenderer(), DEGRAUS, DICT (+139 more)
 
-### Community 11 - "AnimationClip"
-Cohesion: 0.11
-Nodes (8): AnimationClip, AnimationLoader, getKeyframeOrder(), getShaderErrors(), getTrackTypeForValueTypeName(), handleSource(), parseKeyframeTrack(), sortedArray()
-
-### Community 12 - ".copy"
-Cohesion: 0.06
-Nodes (7): ArrowHelper, Camera, CubeCamera, SphericalHarmonics3, Sprite, transformVertex(), VideoTexture
+### Community 12 - ".add"
+Cohesion: 0.07
+Nodes (4): ArrowHelper, LineCurve, LineCurve3, Mesh
 
 ### Community 14 - ".subVectors"
-Cohesion: 0.04
-Nodes (7): checkGeometryIntersection(), checkIntersection(), Line3, Plane, Ray, satForAxes(), Triangle
+Cohesion: 0.03
+Nodes (8): checkGeometryIntersection(), Frustum, Line3, Plane, Ray, satForAxes(), SphericalHarmonics3, Triangle
 
 ### Community 15 - "earcutLinked"
 Cohesion: 0.09
@@ -644,37 +642,29 @@ Nodes (31): addContour(), compareX(), cureLocalIntersections(), earcutLinked(), 
 Cohesion: 0.13
 Nodes (15): astro, @astrojs/vercel, dejavu-fonts-ttf, dependencies, astro, @astrojs/vercel, dejavu-fonts-ttf, @resvg/resvg-js (+7 more)
 
-### Community 19 - "BatchedMesh"
-Cohesion: 0.07
-Nodes (9): ascSort(), BatchedMesh, CameraHelper, copyAttributeData(), EdgesGeometry, intersectObject(), Raycaster, setPoint() (+1 more)
-
-### Community 20 - "Quaternion"
-Cohesion: 0.05
-Nodes (3): Euler, makeClipAdditive(), Quaternion
+### Community 19 - ".fromBufferAttribute"
+Cohesion: 0.06
+Nodes (9): BatchedMesh, CameraHelper, EdgesGeometry, InterleavedBufferAttribute, isUniqueEdge(), LineSegments, PolyhedronGeometry, setPoint() (+1 more)
 
 ### Community 21 - ".push"
 Cohesion: 0.03
-Nodes (30): arrayNeedsUint32(), AxesHelper, BoxGeometry, BoxHelper, BufferGeometry, CircleGeometry, _createPlanes(), CylinderGeometry (+22 more)
+Nodes (30): AnimationClip, AnimationLoader, arrayNeedsUint32(), AxesHelper, BoxHelper, BufferGeometry, _createPlanes(), DirectionalLightHelper (+22 more)
 
-### Community 22 - ".constructor"
-Cohesion: 0.15
-Nodes (3): WebGLBindingStates(), WebGLClipping(), WebGLInfo()
-
-### Community 25 - "e"
-Cohesion: 0.27
-Nodes (3): e(), AudioLoader, DataTextureLoader
+### Community 25 - ".load"
+Cohesion: 0.20
+Nodes (4): AudioLoader, CompressedTextureLoader, DataTextureLoader, LoaderUtils
 
 ### Community 26 - ".applyMatrix4"
-Cohesion: 0.05
-Nodes (8): Frustum, Line, LOD, Mesh, PlaneHelper, PointLightShadow, _points, testPoint()
+Cohesion: 0.06
+Nodes (5): Camera, LOD, SkinnedMesh, SpotLightHelper, testPoint()
 
 ### Community 27 - "scripts"
 Cohesion: 0.03
 Nodes (72): scripts, //anims, anims:check, //anims:merge, anims:merge:check, arch, arch:check, //assert:assets (+64 more)
 
 ### Community 28 - ".normalize"
-Cohesion: 0.04
-Nodes (10): BufferAttribute, denormalize(), Float16BufferAttribute, fromHalfFloat(), InterleavedBufferAttribute, isUniqueEdge(), LineSegments, PolyhedronGeometry (+2 more)
+Cohesion: 0.07
+Nodes (6): BufferAttribute, copyAttributeData(), denormalize(), Float16BufferAttribute, fromHalfFloat(), toHalfFloat()
 
 ### Community 29 - "WebGLProgram"
 Cohesion: 0.09
@@ -685,28 +675,24 @@ Cohesion: 0.08
 Nodes (53): fake_geometry(), lab_of(), Matematica da R2: PBR + piso ADITIVO no outgoingLight com tinta hue-normalizada., Matematica da R3: ganho de croma + piso de albedo por ESCALA + piso na…, Distribuicoes plausiveis de N.V e N.L num corpo humanoide low-poly, para prever…, run(), shade_r2(), shade_r3() (+45 more)
 
 ### Community 33 - "WebGLShadowMap"
-Cohesion: 0.18
-Nodes (3): getUnlitUniformColorSpace(), LightShadow, WebGLShadowMap()
+Cohesion: 0.11
+Nodes (6): CubeCamera, getUnlitUniformColorSpace(), LightShadow, PointLightShadow, SpotLightShadow, WebGLShadowMap()
 
 ### Community 34 - "PMREMGenerator"
-Cohesion: 0.17
+Cohesion: 0.19
 Nodes (7): _createRenderTarget(), _getBlurShader(), _getCommonVertexShader(), _getCubemapMaterial(), _getEquirectMaterial(), PMREMGenerator, _setViewport()
 
 ### Community 35 - "Object3D"
-Cohesion: 0.06
-Nodes (5): HemisphereLight, Object3D, SpotLightHelper, WebGLAttributes(), WebGLProperties()
-
-### Community 36 - ".updateProjectionMatrix"
-Cohesion: 0.12
-Nodes (3): OrthographicCamera, PerspectiveCamera, SpotLightShadow
+Cohesion: 0.09
+Nodes (4): DirectionalLight, Object3D, WebGLAttributes(), WebGLProperties()
 
 ### Community 37 - "ranking.astro"
-Cohesion: 0.08
-Nodes (40): charInner(), charName(), CHARS, charSvg(), charSvgScaled(), displayTime(), fmtTime(), NET_SVG (+32 more)
+Cohesion: 0.09
+Nodes (34): charInner(), charName(), CHARS, charSvg(), charSvgScaled(), displayTime(), fmtTime(), NET_SVG (+26 more)
 
-### Community 39 - ".toJSON"
-Cohesion: 0.04
-Nodes (13): cloneUniforms(), cloneUniformsGroups(), DepthTexture, EllipseCurve, InstancedBufferAttribute, InstancedBufferGeometry, Light, LightProbe (+5 more)
+### Community 39 - ".copy"
+Cohesion: 0.03
+Nodes (24): BoxGeometry, checkIntersection(), CircleGeometry, cloneUniformsGroups(), CylinderGeometry, DepthTexture, InstancedBufferAttribute, InstancedBufferGeometry (+16 more)
 
 ### Community 40 - "KeyframeTrack"
 Cohesion: 0.16
@@ -717,32 +703,36 @@ Cohesion: 0.21
 Nodes (19): allocTexUnits(), arraysEqual(), copyArray(), setValueM2(), setValueM3(), setValueM4(), setValueT1Array(), setValueT2DArrayArray() (+11 more)
 
 ### Community 42 - "leaflet.js"
-Cohesion: 0.06
-Nodes (37): 2551(), 5287(), 2551(), 5287(), Ae(), be(), bi(), Ce() (+29 more)
+Cohesion: 0.07
+Nodes (31): 2551(), 5287(), 2551(), 5287(), Ae(), bi(), Ce(), ei() (+23 more)
 
 ### Community 44 - "char-probe.mjs"
 Cohesion: 0.05
-Nodes (34): acabamentoGLB(), alturas, C2, C4, _c6linhas, constructor(), coorte, ctx2d (+26 more)
+Nodes (39): acabamentoGLB(), alturas, C2, C4, _c6linhas, constructor(), coorte, ctx2d (+31 more)
 
 ### Community 45 - "rateLimit"
-Cohesion: 0.07
-Nodes (60): ErrorPayload, jsonError(), logInternalError(), Geo, geoFrom(), isValidNick(), NICK_HINT, NICK_RE (+52 more)
+Cohesion: 0.09
+Nodes (49): ErrorPayload, jsonError(), logInternalError(), Geo, geoFrom(), resolvePlayerIdentity(), validUid(), rateLimit() (+41 more)
+
+### Community 46 - "Audio"
+Cohesion: 0.06
+Nodes (3): Audio, AudioAnalyser, PositionalAudio
 
 ### Community 48 - "og-card.ts"
 Cohesion: 0.12
-Nodes (20): FONT_BOLD_B64, Card, CARDS, cardSvg(), corta(), esc(), OG_H, OG_W (+12 more)
+Nodes (19): FONT_BOLD_B64, Card, CARDS, cardSvg(), corta(), esc(), OG_H, OG_W (+11 more)
 
 ### Community 49 - ".bind"
 Cohesion: 0.14
-Nodes (3): Composite, StructuredUniform, WebGLUniforms
+Nodes (4): Composite, StructuredUniform, WebGLUniforms, WebGLUniformsGroups()
 
 ### Community 50 - "editor.js"
 Cohesion: 0.17
-Nodes (23): ARMAS, CHARS, mkLabel(), mkSelect(), mountAlignPanel(), ARMAS, mountMapPanel(), PALETTE (+15 more)
+Nodes (23): GUN_VOL, mountEditor(), preloadRuntimes(), ARMAS, CHARS, mkLabel(), mkSelect(), mountAlignPanel() (+15 more)
 
-### Community 52 - ".dispose"
+### Community 52 - "register.ts"
 Cohesion: 0.15
-Nodes (6): EventDispatcher, WebGLCubeMaps(), WebGLCubeUVMaps(), WebGLPrograms(), WebGLRenderLists(), WebGLRenderStates()
+Nodes (16): isValidNick(), NICK_HINT, NICK_RE, DatabaseError, IdentityInput, isIdentityRpcMissing(), isIdentitySchemaMissing(), PlayerIdentity (+8 more)
 
 ### Community 53 - "P1 — o jogador vê"
 Cohesion: 0.11
@@ -757,12 +747,12 @@ Cohesion: 0.04
 Nodes (46): BLOCO 1 — O que quebra calado em produção, BLOCO 2 — AI ENGINEERING (a instrumentação é produto), BLOCO 3 — Medir antes de escalar, BLOCO 4 — Destravar canais, BLOCO 5 — Primeira impressão, BLOCO 6 — Repo pronto para colaborador, BLOCO 7 — Release, Comandos (+38 more)
 
 ### Community 57 - "mapprops.js"
-Cohesion: 0.11
-Nodes (14): _AXES, _base, InstBatch, loader, memoTex(), normalizeGeo(), _partsCache, PROP_BATCH (+6 more)
+Cohesion: 0.10
+Nodes (15): _AXES, _base, hasProp(), InstBatch, loader, memoTex(), normalizeGeo(), _partsCache (+7 more)
 
 ### Community 59 - "fparms.js"
 Cohesion: 0.05
-Nodes (44): buildFPArms(), _deg3(), _eff, _eu, FP_OFF, L_OFF, L_OFF_VEC, L_ROT (+36 more)
+Nodes (45): buildFPArms(), _deg3(), _eff, _eu, FP_OFF, L_OFF, L_OFF_VEC, L_ROT (+37 more)
 
 ### Community 60 - "vm-solve.mjs"
 Cohesion: 0.11
@@ -772,13 +762,9 @@ Nodes (42): ARM, mul(), ARM0, ASPECTS, autoteste(), avaliar(), buscar(), buscar2
 Cohesion: 0.05
 Nodes (42): clsx, browserslist, development, production, dependencies, clsx, @docusaurus/core, @docusaurus/preset-classic (+34 more)
 
-### Community 62 - "VmStage"
-Cohesion: 0.18
-Nodes (3): mountEditor(), VmStage, magOf()
-
 ### Community 64 - "site.ts"
 Cohesion: 0.06
-Nodes (55): Arma, ARMAS, Arremesso, Controle, CONTROLES, FACCOES, Mapa, MAPAS (+47 more)
+Nodes (51): Arma, ARMAS, Arremesso, Controle, CONTROLES, FACCOES, Mapa, MAPAS (+43 more)
 
 ### Community 65 - "HANDOFF — sessão Kimi (21/07) — estado do CS BRASIL"
 Cohesion: 0.05
@@ -788,17 +774,17 @@ Nodes (42): Aprendizados-chave (NÃO repetir erros), ✅ ATUALIZAÇÃO 22/07 (so
 Cohesion: 0.08
 Nodes (23): 10. Há 32 alertas de dependência e o ambiente local não é fixado no pacote raiz, 11. O pipeline é forte, mas caro e duplicado, 1. A validação antifraude rejeita dado legítimo, 2. O arnês de bots pode medir o mundo na origem, 3. O navegador real não está coberto nos pontos mais frágeis, 4. As fontes Docusaurus e o site estático podem divergir, 5. `Game` é o principal gargalo de mudança, 6. A identidade ainda é `nick + token` (+15 more)
 
+### Community 67 - ".update"
+Cohesion: 0.19
+Nodes (3): vmAdsRot(), vmOffY(), frase()
+
 ### Community 68 - "s"
-Cohesion: 0.08
-Nodes (20): 2983(), 1513(), 2983(), Ci(), j(), l(), s(), CANDS (+12 more)
+Cohesion: 0.09
+Nodes (16): 1513(), j(), s(), CANDS, gRoot, [W, H], gRoot, [W, H] (+8 more)
 
 ### Community 69 - "game.js"
 Cohesion: 0.05
-Nodes (42): poseCharacter(), BALL_CLASS, BOT_DMG_BY_DIFF, BOT_HS_MUL, BOT_SKILLS, CONFIRM_MAX_MS, CONFIRM_MIN_MS, DIFF_MUL (+34 more)
-
-### Community 70 - "map_ferrovelho.js"
-Cohesion: 0.17
-Nodes (20): caixaGirada(), barrelTex(), bladeTex(), blobTex(), blocoTex(), buildFerroVelho(), canopyTex(), fibroTex() (+12 more)
+Nodes (40): BALL_CLASS, BOT_DMG_BY_DIFF, BOT_HS_MUL, BOT_SKILLS, CONFIRM_MAX_MS, CONFIRM_MIN_MS, DIFF_MUL, diffKey() (+32 more)
 
 ### Community 71 - "Layers"
 Cohesion: 0.17
@@ -809,16 +795,16 @@ Cohesion: 0.09
 Nodes (32): q(), applyGunVariant(), applyLens(), applyWoodGrain(), buildMask(), clamp(), [cls, glb, yHandsMaxS, outBase, ...variants], flatWoodT() (+24 more)
 
 ### Community 73 - ".getContext"
-Cohesion: 0.18
+Cohesion: 0.19
 Nodes (6): AudioContext, createCanvasElement(), createElementNS(), ImageUtils, SRGBToLinear(), WebGLTextures()
 
 ### Community 74 - "glbchars.js"
 Cohesion: 0.06
-Nodes (46): addAccessories(), adereçosDoBlurb(), AP, applyCharFX(), box(), buildCharacter(), buildRifle(), CHAR_FX (+38 more)
+Nodes (47): addAccessories(), adereçosDoBlurb(), AP, applyCharFX(), box(), buildCharacter(), buildRifle(), CHAR_FX (+39 more)
 
-### Community 77 - ".clone"
-Cohesion: 0.04
-Nodes (10): CatmullRomCurve3, DirectionalLight, InstancedInterleavedBuffer, InstancedMesh, PointLight, RenderTarget, Scene, SpotLight (+2 more)
+### Community 77 - ".fromArray"
+Cohesion: 0.08
+Nodes (5): CatmullRom(), InstancedMesh, Scene, SplineCurve, WebXRController
 
 ### Community 78 - "canarinho-icon.mjs"
 Cohesion: 0.06
@@ -833,15 +819,15 @@ Cohesion: 0.15
 Nodes (3): getImageURIMimeType(), GLTFLoader, resolve()
 
 ### Community 82 - "textures.js"
-Cohesion: 0.11
-Nodes (26): avisaSemWebgl(), criaRenderer(), DEGRAUS, cam, canvas, last, renderer, scene (+18 more)
+Cohesion: 0.13
+Nodes (23): cam, canvas, last, renderer, scene, BY_SOURCE, canvas(), concreteBase() (+15 more)
 
 ### Community 84 - "tsconfig.json"
 Cohesion: 0.22
 Nodes (8): **/*, astro/tsconfigs/strict, .astro/types.d.ts, dist, public, exclude, extends, include
 
 ### Community 86 - "LoadingManager"
-Cohesion: 0.15
+Cohesion: 0.14
 Nodes (4): FileLoader, ImageBitmapLoader, ImageLoader, LoadingManager
 
 ### Community 87 - "ui-check.mjs"
@@ -849,24 +835,24 @@ Cohesion: 0.06
 Nodes (32): ALVO, arvore, ASTRO_PATH, caixas, CENA_PIOR, classificaRelogio(), CSS_PATH, cssTxt (+24 more)
 
 ### Community 88 - ".setValues"
-Cohesion: 0.05
-Nodes (14): LineBasicMaterial, LineDashedMaterial, MeshBasicMaterial, MeshDepthMaterial, MeshDistanceMaterial, MeshLambertMaterial, MeshMatcapMaterial, MeshNormalMaterial (+6 more)
+Cohesion: 0.04
+Nodes (15): LineBasicMaterial, LineDashedMaterial, MeshBasicMaterial, MeshDepthMaterial, MeshDistanceMaterial, MeshLambertMaterial, MeshMatcapMaterial, MeshNormalMaterial (+7 more)
 
 ### Community 89 - "mapproject.js"
-Cohesion: 0.15
-Nodes (12): cap(), DEFAULT_BOUNDS, fmt(), hex(), itemCode(), label(), MapProject, newItem() (+4 more)
+Cohesion: 0.16
+Nodes (11): cap(), DEFAULT_BOUNDS, fmt(), hex(), itemCode(), label(), MapProject, newItem() (+3 more)
 
 ### Community 90 - "GLTFParser"
 Cohesion: 0.11
 Nodes (5): addMorphTargets(), addPrimitiveAttributes(), GLTFDracoMeshCompressionExtension, GLTFMeshGpuInstancing, GLTFParser
 
-### Community 91 - "preloadCharacterAssets"
-Cohesion: 0.15
-Nodes (19): charWeapon(), animIndex(), hasModel(), loadGLB(), preloadCharacterAssets(), armSwitchHook(), ensurePreview(), ensureTeamPreviews() (+11 more)
-
 ### Community 92 - "Runbook: testar o cliente Godot"
 Cohesion: 0.06
 Nodes (30): Cliente jogável atual, Desenvolvimento do cliente Godot, Linha de comando, Pré-requisitos, Saídas locais, Shell e preview Vercel, VS Code, Computador de referência (+22 more)
+
+### Community 93 - ".reset"
+Cohesion: 0.14
+Nodes (4): Clock, EventDispatcher, now(), WebGLInfo()
 
 ### Community 94 - "flatten"
 Cohesion: 0.29
@@ -878,7 +864,7 @@ Nodes (22): ALPHA_MODES, ATTRIBUTES, BINARY_EXTENSION_CHUNK_TYPES, computeBounds
 
 ### Community 97 - "sitemap.xml.ts"
 Cohesion: 0.12
-Nodes (28): RANKING_ON, SITE, Entrada, escXml(), numeroDePaginas(), offsetDaPagina(), POR_PAGINA, xmlIndex() (+20 more)
+Nodes (27): SITE, Entrada, escXml(), numeroDePaginas(), offsetDaPagina(), POR_PAGINA, xmlIndex(), xmlUrlset() (+19 more)
 
 ### Community 98 - "mat-check.mjs"
 Cohesion: 0.07
@@ -906,7 +892,7 @@ Nodes (27): apiFetch(), argv, ASPECT, body, ch, content, CROP, CROP_R (+19 more)
 
 ### Community 104 - "char-floor.mjs"
 Cohesion: 0.07
-Nodes (24): ALB_LOD, ALB_MIN, CHARDIR, ids, Lstar(), LUM, medir(), MODO (+16 more)
+Nodes (25): ALB_LOD, ALB_MIN, baseColorFile(), CHARDIR, ids, Lstar(), LUM, medir() (+17 more)
 
 ### Community 105 - "QuadraticBezier"
 Cohesion: 0.12
@@ -921,8 +907,12 @@ Cohesion: 0.11
 Nodes (29): agx(), autoteste(), build_env(), env_brdf_approx(), env_diffuse_irradiance(), env_prefiltered(), fibonacci_normals(), ggx_direct() (+21 more)
 
 ### Community 108 - "graffiti_pass.js"
-Cohesion: 0.13
-Nodes (27): GRAFITE, _alturaParede(), _amostrador(), _cadeia(), _cobreDemais(), _ea, _ed, _encaixar() (+19 more)
+Cohesion: 0.12
+Nodes (30): GRAFITE, _alturaParede(), _amostrador(), aplicarGrafite(), _cadeia(), _cobreDemais(), _ea, _ed (+22 more)
+
+### Community 109 - "Raycaster"
+Cohesion: 0.38
+Nodes (3): ascSort(), intersectObject(), Raycaster
 
 ### Community 110 - "gunSpace"
 Cohesion: 0.31
@@ -933,8 +923,8 @@ Cohesion: 0.08
 Nodes (24): API_HOSTS, apiFetch(), argv, b, BALANCE_ONLY, die(), dim, download() (+16 more)
 
 ### Community 112 - "pose-posture.mjs"
-Cohesion: 0.10
-Nodes (29): baseColorFile(), baseColorFile(), ab(), ang(), ANIMDIR, CHARDIR, CONTROLE, ids (+21 more)
+Cohesion: 0.14
+Nodes (22): ab(), ang(), ANIMDIR, CHARDIR, CONTROLE, ids, measure(), out (+14 more)
 
 ### Community 113 - "ref-ui.py"
 Cohesion: 0.13
@@ -943,6 +933,10 @@ Nodes (27): acha_rotulo(), bandas_texto(), componentes(), densidade(), escala_ti
 ### Community 114 - "O QUE FAZER — em ordem"
 Cohesion: 0.11
 Nodes (18): A0.10 — MAPA NOVO: "QUEBRADA" (spec do dono, 04/08), A0. O que o dono pediu em 04/08 (nenhum item começou), A. As 4 tarefas anteriores do dono, ainda NÃO feitas (verificadas em 04/08), AS DUAS LEIS DA CASA — leia antes de escrever uma linha, B. Antes do deploy — três coisas que NÃO puderam ser feitas sem rede, C. Dívidas técnicas abertas, em ordem de impacto, CORO SOLTO: Treta Suprema — handoff para continuar o trabalho, Corolário — teste de mutação da própria régua (+10 more)
+
+### Community 115 - "[]"
+Cohesion: 0.43
+Nodes (6): [], esc(), inline(), jsonld, recentes, render()
 
 ### Community 117 - "MapStage"
 Cohesion: 0.16
@@ -973,8 +967,8 @@ Cohesion: 0.08
 Nodes (24): For /graphify add and --watch, For /graphify query, For the commit hook and native CLAUDE.md integration, For --update and --cluster-only, /graphify, Honesty Rules, Interpreter guard for subcommands, Part A - Structural extraction for code files (+16 more)
 
 ### Community 126 - "map_havan.js"
-Cohesion: 0.13
-Nodes (25): acmTex(), asfaltoTex(), buildHavan(), caneluraTex(), CAR_COST, carCost(), CARS, carTris() (+17 more)
+Cohesion: 0.14
+Nodes (24): acmTex(), asfaltoTex(), buildHavan(), caneluraTex(), CAR_COST, carCost(), CARS, carTris() (+16 more)
 
 ### Community 127 - "identity-check.mjs"
 Cohesion: 0.22
@@ -994,7 +988,7 @@ Nodes (6): buildCommand, main, git, deploymentEnabled, headers, $schema
 
 ### Community 132 - "tp-mount-probe.mjs"
 Cohesion: 0.10
-Nodes (21): medirGLB(), ossoPos(), rigDoGLB(), accessor(), axisLen(), bboxOf(), CHARS, COMP (+13 more)
+Nodes (18): accessor(), axisLen(), CHARS, COMP, compose(), mIdent(), mul(), NUM (+10 more)
 
 ### Community 133 - "Pass.js"
 Cohesion: 0.13
@@ -1009,24 +1003,24 @@ Cohesion: 0.09
 Nodes (13): ctx2d, HERE, JS, MUDO_S, out, renderer, rendererBase, runMap() (+5 more)
 
 ### Community 141 - "submit-guard-check.mjs"
-Cohesion: 0.09
-Nodes (18): PCHAR, renderer, sfx, ALVOS, AMOSTRA, args, falhas, HERE (+10 more)
+Cohesion: 0.10
+Nodes (17): renderer, sfx, ALVOS, AMOSTRA, args, falhas, HERE, IDS (+9 more)
 
 ### Community 143 - "vm-kick-sim.mjs"
 Cohesion: 0.09
 Nodes (20): AUDIT_PATH, AUTO, AX, die(), fails, G, GEOM, grab() (+12 more)
 
-### Community 144 - ".evaluate"
-Cohesion: 0.12
-Nodes (4): CubicInterpolant, DiscreteInterpolant, Interpolant, QuaternionLinearInterpolant
+### Community 144 - "Interpolant"
+Cohesion: 0.15
+Nodes (3): CubicInterpolant, DiscreteInterpolant, Interpolant
 
 ### Community 145 - "botsim.mjs"
 Cohesion: 0.10
 Nodes (12): ctx2d, HERE, JS, out, renderer, rendererBase, runMap(), SECS (+4 more)
 
 ### Community 147 - "harness.mjs"
-Cohesion: 0.13
-Nodes (5): ctx2d, HERE, JS, rendererBase, carregaArnes()
+Cohesion: 0.12
+Nodes (6): ctx2d, HERE, JS, PCHAR, rendererBase, carregaArnes()
 
 ### Community 148 - "rig-from-donor.mjs"
 Cohesion: 0.10
@@ -1057,8 +1051,8 @@ Cohesion: 0.12
 Nodes (16): 1. WebGL indisponível ou contexto perdido - consolidar 12, 2. Shader/limite da GPU - consolidar 7, 3. Textura GLTF em blob - consolidar 5, 4. Código externo/extensões - filtrar 7, 5. Comportamento esperado do navegador - filtrar 2, 6. Sinais únicos sem reprodução - observar 7, Auditoria das issues abertas - 2026-08-11, Candidatas a fechamento (+8 more)
 
 ### Community 156 - "weapons.js"
-Cohesion: 0.07
-Nodes (36): GUN_VOL, preloadRuntimes(), ENEMY_IDS, STORE, SPOTS, AK_LEN, defaultPose(), defaultPoseFor() (+28 more)
+Cohesion: 0.08
+Nodes (38): CHARACTERS, ENEMY_IDS, GEOMETRY_KINDS, MAP_PROPS, PROP_DEFAULT_H, STORE, ORBIT, SPOTS (+30 more)
 
 ### Community 157 - "vm-project.mjs"
 Cohesion: 0.15
@@ -1070,7 +1064,7 @@ Nodes (17): args, caixas, CONTATO, EXP, gRoot, inv, linhas, LUZ (+9 more)
 
 ### Community 160 - "Changelog"
 Cohesion: 0.10
-Nodes (21): [1.0.0] — 2026-07-17, [1.12.2] — 2026-07-18, [1.12.3] — 2026-07-18, [1.4.1] — 2026-07-17, [1.4.2] — 2026-07-17, [1.6.0] — 2026-07-17, [1.7.2] — 2026-07-18, [1.7.6] — 2026-07-18 (+13 more)
+Nodes (21): [1.0.0] — 2026-07-17, [1.10.0] — 2026-07-18, [1.12.1] — 2026-07-18, [1.12.2] — 2026-07-18, [1.3.1] — 2026-07-17, [1.4.2] — 2026-07-17, [1.6.1] — 2026-07-17, [1.6.2] — 2026-07-18 (+13 more)
 
 ### Community 161 - "CS BRASIL: Treta Suprema — Especificação de Produto e Técnica"
 Cohesion: 0.11
@@ -1101,7 +1095,7 @@ Cohesion: 0.11
 Nodes (18): 1 · Régua antes do conserto, 2 · Toda correção vem com a mutação que deixa a régua vermelha, 3 · Gere a figura e OLHE — no tamanho em que ela é servida, 4 · Refute o palpite óbvio antes de agir nele, 5 · O sintoma raramente é o defeito, 6 · Falha silenciosa tem assinatura — procure a assinatura, 7 · Cuidado com o arnês: o defeito pode ser da medição, 8 · O cache-bump (+10 more)
 
 ### Community 177 - ".constructor"
-Cohesion: 0.09
+Cohesion: 0.13
 Nodes (4): byId(), botTier(), rollBotSkill(), vmFovForAspect()
 
 ### Community 181 - "reskin-glb.mjs"
@@ -1141,8 +1135,8 @@ Cohesion: 0.12
 Nodes (16): 10. Prefiltro espacial antes de raycast em massa, 11. Custo de build tem orçamento, e é de milissegundos, 12. Produção builda de clone puro, e sua máquina mente, 13. A ordem entre passadas é decisão de arte, não detalhe, 14. Índice desliza calado; nome não, 1. Régua que mede numa direção é cega na outra, 2. Duas réguas com limiar diferente = o instrumento discordando de si, 3. A régua e o jogo têm que rodar no MESMO mundo (+8 more)
 
 ### Community 213 - "brasoes.js"
-Cohesion: 0.12
-Nodes (17): bandeiraTextura(), BRASAO, _cache, COR_TIME, CORES_BANDEIRA, FACCOES_COM_BRASAO, imagemDoBrasao(), _img (+9 more)
+Cohesion: 0.11
+Nodes (19): bandeiraTextura(), BRASAO, _cache, COR_TIME, CORES_BANDEIRA, FACCOES_COM_BRASAO, imagemDoBrasao(), _img (+11 more)
 
 ### Community 214 - "brasao-check.mjs"
 Cohesion: 0.12
@@ -1153,8 +1147,8 @@ Cohesion: 0.12
 Nodes (16): Adicionar um mapa, Adicionar um personagem, Adicionar uma arma, Antes de abrir o PR, As duas zonas, Como fazer as coisas, Conteúdo, Contribuindo com o CORO SOLTO: Treta Suprema (+8 more)
 
 ### Community 216 - "map_decals.js"
-Cohesion: 0.15
-Nodes (19): esconderSeFaltar(), _aabb(), _alvos(), _bate(), _c, _centro, _d, medirParede() (+11 more)
+Cohesion: 0.17
+Nodes (18): esconderSeFaltar(), _aabb(), _alvos(), _bate(), _c, _centro, _d, medirParede() (+10 more)
 
 ### Community 217 - "release.mjs"
 Cohesion: 0.16
@@ -1204,6 +1198,10 @@ Nodes (15): Anti-padrões que já custaram caro aqui, As duas leis da casa, Como
 Cohesion: 0.13
 Nodes (15): A documentação, Arte 2D: OpenRouter, As chaves, As duas zonas, e por que a fronteira é dura, Banco — Postgres gerenciado, RLS e telemetria, Geração de asset — o que é gerado por IA, e por qual serviço, O gauntlet loop, Otimização de GLB: gltf-transform e meshoptimizer (+7 more)
 
+### Community 229 - "skel-family.mjs"
+Cohesion: 0.29
+Nodes (6): ANIMDIR, CHARDIR, donor, ids, ROOT, rows
+
 ### Community 230 - "The gate: invariants, provenance and mutation"
 Cohesion: 0.13
 Nodes (15): Anti-patterns that have already cost dearly here {#anti-patterns}, How to write an invariant {#how-to-write-an-invariant}, It was not an isolated case — there were three {#not-an-isolated-case}, Law 1 — Intention that doesn't become an invariant is optimized away {#law-1}, Law 2 — A ceiling without provenance is an opinion {#law-2}, Mutation as a first-class thing: `ui-check.mjs` {#mutation-first-class}, Mutation test of the ruler itself {#mutation-test}, Running the gate {#running-the-gate} (+7 more)
@@ -1215,6 +1213,10 @@ Nodes (15): 2D art: OpenRouter {#art-2d-openrouter}, 3D props: Tripo3D and Meshy
 ### Community 232 - "BufferGeometryUtils.js"
 Cohesion: 0.18
 Nodes (7): deepCloneAttribute(), deinterleaveAttribute(), deinterleaveGeometry(), mergeAttributes(), mergeBufferAttributes(), mergeBufferGeometries(), mergeGeometries()
+
+### Community 233 - "PropertyMixer"
+Cohesion: 0.12
+Nodes (3): makeClipAdditive(), PropertyMixer, QuaternionLinearInterpolant
 
 ### Community 234 - "brasao-ref.mjs"
 Cohesion: 0.14
@@ -1252,17 +1254,17 @@ Nodes (14): Architecture: N agents in the same file, Content data system {#conte
 Cohesion: 0.21
 Nodes (6): addUnknownExtensionsToUserData(), assignExtrasToUserData(), createDefaultMaterial(), GLTFLightsExtension, updateMorphTargets(), toTrianglesDrawMode()
 
-### Community 243 - "Texture"
-Cohesion: 0.14
-Nodes (3): Texture, warnOnce(), WebGLCubeRenderTarget
+### Community 243 - ".dispose"
+Cohesion: 0.08
+Nodes (11): cloneUniforms(), mergeUniforms(), Texture, warnOnce(), WebGLCubeMaps(), WebGLCubeRenderTarget, WebGLCubeUVMaps(), WebGLMultipleRenderTargets (+3 more)
 
 ### Community 244 - "Sequenciamento"
 Cohesion: 0.14
 Nodes (13): 1. Baseline e toolchain Web, 2. Slice jogável de movimento, 3. Slice de combate completo, 4. Partida 4×4, 5. Conteúdo procedural e apresentação, 6. Áudio, persistência e integração Web, 7. Paridade, desempenho e corte, Dependências (+5 more)
 
 ### Community 245 - "char-color.mjs"
-Cohesion: 0.17
-Nodes (11): CHARDIR, ids, mad(), med(), mSat, ok, por, ROOT (+3 more)
+Cohesion: 0.15
+Nodes (12): baseColorFile(), CHARDIR, ids, mad(), med(), mSat, ok, por (+4 more)
 
 ### Community 246 - "p0-armas.mjs"
 Cohesion: 0.19
@@ -1324,9 +1326,9 @@ Nodes (13): 1. `players.token` era legível pela anon key — **crítico**, 1b. 
 Cohesion: 0.11
 Nodes (18): 1. O corte, 2.1 O `ViewModelRig` completo já está escrito — e nunca foi importado, 2.2 O recoil do viewmodel é 4x maior que o de qualquer FPS moderno, 2.3 A causa raiz de "bot passa do lado e não atira" é uma linha, 2.4 O auditor de viewmodel mede uma versão do jogo que não existe mais, 2.5 A trava de borda manda no enquadramento, não o `recuoZ`, 2. O que a auditoria achou que você não sabia, 3. Ordem de execução (+10 more)
 
-### Community 262 - "k"
-Cohesion: 0.08
-Nodes (25): 5868(), 2694(), 4625(), 7463(), 7839(), 8080(), 5868(), 2694() (+17 more)
+### Community 262 - "ct"
+Cohesion: 0.22
+Nodes (4): 5868(), 5868(), ct(), ee()
 
 ### Community 266 - "CORO SOLTO: Treta Suprema"
 Cohesion: 0.17
@@ -1352,9 +1354,9 @@ Nodes (8): agx(), agx_contrast(), composite(), invert_composite(), lin_to_srgb()
 Cohesion: 0.23
 Nodes (8): buracos(), legibilidade(), maior_componente(), medir(), Buracos da silhueta = fundo NÃO conectado à borda da imagem. É o detector do…, LEGIBILIDADE (VM18) — "dá pra saber que arma é?" em três números MEDÍVEIS NA…, regra(a) -> máscara booleana; regiao = (x0,y0,x1,y1) em fração, onde o VM mora., Maior componente 4-conexa. Sem scipy (o container não tem rede pra instalar).
 
-### Community 272 - "select-mount.mjs"
-Cohesion: 0.17
-Nodes (9): args, byId, gRoot, IDS, out, refs, REFS_1H, REFS_2H (+1 more)
+### Community 272 - "i"
+Cohesion: 0.11
+Nodes (17): 2983(), 2983(), Ci(), i(), l(), Mi(), zi(), _c6 (+9 more)
 
 ### Community 273 - "make-idle1h.mjs"
 Cohesion: 0.17
@@ -1405,8 +1407,8 @@ Cohesion: 0.31
 Nodes (8): agx(), agx_contrast(), composite(), invert(), lstar_from_srgb(), profile(), radiancia de cena (cinza) -> sRGB de display 0..1, L* de display -> radiancia de cena, por LUT monotona
 
 ### Community 285 - "merge-anims.mjs"
-Cohesion: 0.20
-Nodes (7): CHECK, ESTADOS, falhas, fonte, io, mesclar(), pastas
+Cohesion: 0.12
+Nodes (9): io, worldMap(), CHECK, ESTADOS, falhas, fonte, io, mesclar() (+1 more)
 
 ### Community 286 - "gen-anim-manifest.mjs"
 Cohesion: 0.18
@@ -1448,9 +1450,9 @@ Nodes (10): 08 — RELEASE PROFISSIONAL: segurança, consistência e monetizaç�
 Cohesion: 0.20
 Nodes (10): 1 · Barato e fecha vermelha (faça hoje), 2 · Licença e documentos (bloqueia contribuição externa), 3 · UI contra as telas de referência, 4 · Formulário de feedback no e-mail do dono, 5 · Multiplayer por WebRTC — **plano antes de código**, A ordem, Antes de entregar qualquer coisa, Antes de escrever a primeira linha (+2 more)
 
-### Community 296 - "prod-coherence.mjs"
-Cohesion: 0.52
-Nodes (6): audit(), baixa(), parseModule(), parseNamed(), resolveSpec(), SELFTEST
+### Community 296 - "k"
+Cohesion: 0.11
+Nodes (25): 2694(), 4625(), 7463(), 7839(), 8080(), 2694(), 4625(), 7463() (+17 more)
 
 ### Community 297 - "springs.js"
 Cohesion: 0.27
@@ -1637,8 +1639,8 @@ Cohesion: 0.33
 Nodes (3): RecoilAxis, burst(), vmAmpOf()
 
 ### Community 349 - "c"
-Cohesion: 0.06
-Nodes (37): 1513(), 2759(), 2833(), 5947(), 7022(), 7489(), 9700(), r() (+29 more)
+Cohesion: 0.07
+Nodes (39): 1513(), 2759(), 2833(), 5947(), 7022(), 7489(), 9700(), r() (+31 more)
 
 ### Community 350 - "char_probe.py"
 Cohesion: 0.52
@@ -1657,8 +1659,8 @@ Cohesion: 0.29
 Nodes (6): ALL, ANGLES, gk, gRoot, hasFFmpeg, reports
 
 ### Community 354 - "pickup-check.mjs"
-Cohesion: 0.14
-Nodes (9): BRASILIA, T, THREE, OBRIGATORIOS, T, HERE, mapas, saida (+1 more)
+Cohesion: 0.12
+Nodes (10): BRASILIA, T, T, THREE, OBRIGATORIOS, T, HERE, mapas (+2 more)
 
 ### Community 355 - "Asset Quality Rubric — CS BRASIL"
 Cohesion: 0.29
@@ -1784,11 +1786,11 @@ Nodes (5): Before opening a PR, Local setup, Onboarding, Project shape, Sensitiv
 Cohesion: 0.33
 Nodes (5): Bot notes, Issue, Risk, Summary, Validation
 
-### Community 388 - "map_quebrada.js"
-Cohesion: 0.12
-Nodes (30): makeAerialFog(), grafitar(), buildBrasilia(), PEGADA_BUS, PEGADA_CORPO, decalIds(), FERRO_PROPS, buildQuebrada() (+22 more)
+### Community 388 - "map_ferrovelho.js"
+Cohesion: 0.08
+Nodes (51): makeAerialFog(), buildBrasilia(), PEGADA_BUS, PEGADA_CORPO, caixaGirada(), decalIds(), barrelTex(), bladeTex() (+43 more)
 
-### Community 389 - "main.8c0acdf5.js"
+### Community 389 - "main.e4a783c3.js"
 Cohesion: 0.02
 Nodes (3): 9726(), 9726(), Y()
 
@@ -1944,10 +1946,6 @@ Nodes (3): [CHAR = 'mst', OUT = '/tmp/mixamo-check'], DRIVERS, gRoot
 Cohesion: 0.25
 Nodes (6): arquivos, comandos, commitsRelease, docsRelease, scriptRelease, workflowRelease
 
-### Community 445 - "travessao-check.mjs"
-Cohesion: 0.50
-Nodes (3): achados, arquivos(), lista
-
 ### Community 447 - "weapon-capture.mjs"
 Cohesion: 0.50
 Nodes (3): cols, gRoot, hints
@@ -2024,29 +2022,25 @@ Nodes (4): GET(), LIMITES_SEGUNDOS, prerender, resposta()
 Cohesion: 0.40
 Nodes (5): Antes de publicar, Fontes vivas, Produto, Riscos que não devem ser escondidos, STATUS - onde o projeto está agora
 
-### Community 540 - ".fromArray"
-Cohesion: 0.14
-Nodes (3): CatmullRom(), MaterialLoader, SplineCurve
-
 ## Knowledge Gaps
-- **2890 isolated node(s):** `mint`, `abrir-issues.sh script`, `name`, `version`, `private` (+2885 more)
+- **2891 isolated node(s):** `mint`, `abrir-issues.sh script`, `name`, `version`, `private` (+2886 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **208 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **212 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `s()` connect `s` to `site.ts`, `v`, `k`, `main.js`, `leaflet.js`, `rig-from-donor.mjs`, `MapStage`, `gen-arch.mjs`, `jsonld-validate.mjs`, `c`?**
+- **Why does `s()` connect `s` to `site.ts`, `v`, `k`, `main.js`, `leaflet.js`, `i`, `rig-from-donor.mjs`, `MapStage`, `gen-arch.mjs`, `jsonld-validate.mjs`, `c`?**
   _High betweenness centrality (0.139) - this node is a cross-community bridge._
-- **Why does `[]` connect `site.ts` to `INDICE.md`?**
+- **Why does `[]` connect `[]` to `site.ts`, `INDICE.md`?**
   _High betweenness centrality (0.129) - this node is a cross-community bridge._
-- **Why does `c()` connect `c` to `pegada-check.mjs`, `Game`, `.subVectors`, `e`, `weapons.js`, `merge-anims.mjs`, `ranking.astro`, `leaflet.js`, `og-card.ts`, `copy-wasm.mjs`, `pose-inflate.mjs`, `site.ts`, `._updateBot`, `canarinho-icon.mjs`, `pickup-check.mjs`, `gunSpace`, `MapStage`, `gen-arch.mjs`, `package.json`?**
+- **Why does `c()` connect `c` to `site.ts`, `pegada-check.mjs`, `pickup-check.mjs`, `ranking.astro`, `._tryShoot`, `leaflet.js`, `._updateBot`, `.subVectors`, `canarinho-icon.mjs`, `og-card.ts`, `.constructor`, `gunSpace`, `MapStage`, `copy-wasm.mjs`, `pose-inflate.mjs`, `gen-arch.mjs`, `package.json`, `merge-anims.mjs`?**
   _High betweenness centrality (0.055) - this node is a cross-community bridge._
 - **What connects `mint`, `abrir-issues.sh script`, `name` to the rest of the system?**
-  _2890 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _2891 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `three.module.js` be split into smaller, more focused modules?**
   _Cohesion score 0.0068257811599215954 - nodes in this community are weakly interconnected._
 - **Should `AnimationAction` be split into smaller, more focused modules?**
   _Cohesion score 0.10846560846560846 - nodes in this community are weakly interconnected._
 - **Should `Box3` be split into smaller, more focused modules?**
-  _Cohesion score 0.04390451832907076 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.037650113599480686 - nodes in this community are weakly interconnected._
