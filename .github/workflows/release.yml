@@ -84,7 +84,7 @@ jobs:
             exit 1
           fi
           git add package.json package-lock.json public/js/version.js README.md docs/ tools/eval/ARCH.md
-          git commit -m "chore(release): $NEW"
+          git commit -s -m "chore(release): $NEW"
           # Tag ANOTADA + push explícito do ref. `--follow-tags` só sobe tag anotada, e
           # `git tag` sem `-a` cria tag LEVE: o alpha.38 (08/08) nasceu leve, ficou só no
           # runner, e o `gh release create` abortou com "tag exists locally but has not
