@@ -6,8 +6,8 @@ import { buildCharacterModel } from './glbchars.js';
 import { weaponModel, weaponCFG, ONE_HANDED, WEAPON_IDS, PISTOLS, gripPoints } from './weapons.js';
 import { buildFPArms, poseToWeapon, FP_OFF } from './fparms.js';
 import { VM_FRAME } from './vmattach.js';
-import { vmlabPose, VMLAB_SCOPED, VMLAB_NO_ALIGN } from './vmlab.js';   // ?vmlab=1: viewmodel do editor
-import { buildRecoilPattern, RECOIL_PARAMS, RECOIL_PATTERN, RECOIL_CLASS, REC_DEG, REC } from './recoil.js';   // recuo: fonte única (compartilhada c/ dev.html)
+import { vmlabPose, VMLAB_SCOPED, VMLAB_NO_ALIGN } from './vmlab.js';
+import { buildRecoilPattern, RECOIL_PARAMS, RECOIL_PATTERN, RECOIL_CLASS, REC_DEG, REC } from './recoil.js';
 import { GPUParticles } from './gpuparticles.js';
 // radiância do céu MEDIDA por mapa (r3_fog.py) — teto de brilho da fumaça, ver _corDaFumaca
 import { skyRadiance } from './bloom.js';
@@ -65,8 +65,7 @@ export const WEAPONS = {
    ?killcam=0 -> sem painel/câmera de morte
    Motivo: as três mudam COMPORTAMENTO sentido pelo jogador; o dono precisa do A/B. */
 const QS = new URLSearchParams(location.search);
-// ?vmlab=1 — desenha o viewmodel afinado na bancada (public/js/vmlab.js) no lugar do
-// calibrado. Modo de comparação: sem a flag, NADA muda. Ver _vmlabFrame.
+// ?vmlab=1 usa o viewmodel afinado; sem a flag mantém o calibrado.
 const VMLAB = QS.get('vmlab') === '1';
 /* KILL-SWITCH DA RODADA DE MATERIAL: ?vmmat=legacy devolve, de uma vez, o clamp
    `min(metalness, 0.55)` do viewmodel E o orçamento fixo de 7,60 unidades de luz da vmScene.
@@ -327,9 +326,7 @@ const MK_LABELS = { doublekill: 'DOUBLE KILL', triplekill: 'TRIPLE KILL', multik
    armas de uma vez — se algo ficar ruim em produção o dono tem o A/B na querystring. */
 const GUNFEEL = new URLSearchParams(location.search).get('gunfeel') !== '0';
 const D2R = Math.PI / 180;
-// RECUO: definições (buildRecoilPattern, RECOIL_PARAMS/PATTERN/CLASS, REC_DEG, REC) movidas p/
-// ./recoil.js — FONTE ÚNICA compartilhada com o editor (public/dev.html), pra o editor não
-// reinventar e divergir. Chegam pelo import no topo. _tune muta esses mesmos objetos ao vivo.
+// Recoil compartilhado pelo jogo e pelas bancadas vive em recoil.js.
 // Queda de dano por distância: hoje o raycast vai a 200 m com dano constante (P90 a 40 m
 // mata igual à AWP). start/end em metros, min = multiplicador no fim. Sniper: sem falloff.
 const DMG_FALLOFF = {
@@ -2400,10 +2397,7 @@ export class Game {
     if (this.vm.arms) this.vm.arms.group.visible = true;
     for (const k in this.vm.models) this.vm.models[k].visible = k === w;
   }
-  // ===== VMLAB (?vmlab=1) — viewmodel afinado no editor, por cima do jogo =====
-  // Constrói um viewmodel PARALELO (weaponModel puro, igual à bancada) na vmScene e o
-  // desenha no lugar do vm.root calibrado. Isolado: só roda com a flag; o caminho normal
-  // fica intocado. Lazy — cada arma é montada na 1ª vez que aparece.
+  // ?vmlab=1 usa um viewmodel isolado e criado sob demanda.
   _vmlabEnsure(id) {
     if (!this._vmlab) {
       this._vmlab = { group: new THREE.Group(), models: {} };
@@ -2445,9 +2439,7 @@ export class Game {
       if (Math.abs(this.vmCamera.fov - fov) > 0.01) { this.vmCamera.fov = fov; this.vmCamera.updateProjectionMatrix(); }
     }
   }
-  // ── DEBUG: tuning ao vivo das CONFIGS por arma (usado pelo dev.html game-backed).
-  //    Muta as tabelas REAIS (WEAPONS/REC_DEG) e os multiplicadores de FX -> efeito 1:1 com
-  //    o jogo. Sem consumidor em produção (só o dev tool chama via window.__game). ──
+  // Bancadas locais ajustam as configurações reais por window.__game.
   _tuneGet(w) {
     const W = WEAPONS[w] || {};
     const cls = RECOIL_CLASS[w] || 'semi', P = RECOIL_PARAMS[cls] || {};

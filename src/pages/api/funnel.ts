@@ -7,10 +7,12 @@
 import type { APIRoute } from 'astro';
 import { supabaseAdmin, NOT_CONFIGURED } from '../../lib/supabase';
 import { rateLimit } from '../../lib/ratelimit';
+import { logInternalError } from '../../lib/api-error';
 
 export const prerender = false;
 
 const STEPS = new Set(['land', 'menu', 'match_start', 'match_end', 'quit']);
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
 
@@ -26,11 +28,16 @@ export const POST: APIRoute = async ({ request }) => {
 
   const step = typeof body?.step === 'string' ? body.step : '';
   if (!STEPS.has(step)) return json({ error: 'bad_step' }, 400);
+  const sessionId = typeof body?.sessionId === 'string' && UUID_RE.test(body.sessionId) ? body.sessionId : null;
 
   try {
-    const { error } = await supabaseAdmin.rpc('track_funnel', { p_step: step });
-    if (error) return json({ ok: true, stored: false });
-  } catch {
+    const { error } = await supabaseAdmin.rpc('track_funnel', { p_step: step, p_session_id: sessionId });
+    if (error) {
+      logInternalError('api/funnel', error, { step });
+      return json({ ok: true, stored: false });
+    }
+  } catch (error) {
+    logInternalError('api/funnel', error, { step });
     return json({ ok: true, stored: false });
   }
   return json({ ok: true, stored: true });

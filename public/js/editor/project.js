@@ -18,10 +18,8 @@ export class Project {
     for (const k in FXDEF) this.fx[k] = FXDEF[k].val;
     this._load();
     for (const id of WEAPON_IDS) {
-      const list = (this.poses[id] === undefined);
-      if (list) this.poses[id] = clone(defaultPoseFor(id));
+      if (this.poses[id] === undefined) this.poses[id] = clone(defaultPoseFor(id));
       if (POSE_FIXED[id]) this.poses[id] = clone(POSE_FIXED[id]);
-      if (list || POSE_FIXED[id]) this.tuned.add(id);
     }
   }
 

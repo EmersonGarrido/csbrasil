@@ -274,6 +274,7 @@ function dismissSplash() {
   const sp = document.getElementById('boot-splash');
   if (!sp || !_splashReady || sp.classList.contains('gone')) return;
   sp.classList.add('gone');
+  window.__gameLaunch?.ready('entrada');
   setTimeout(() => sp.remove(), 480);
   musicArmed = true;
   if (musicFade) { clearInterval(musicFade); musicFade = null; }
@@ -385,6 +386,8 @@ function pvSetChar(def) {
     p.model.rotation.y = 0.4;
     p.scene.add(p.model);
   };
+  // ?nav=1 mantém o preview procedural; web-assets.spec.js cobre o GLB real.
+  if (navOnly) { showBox(); return; }
   if (GLB_CHARS.has(def.id)) {
     // Keep the PREVIOUS model visible while the real GLB streams in — never flash the
     // blocky placeholder for a character that has a real model (the pop-in bug).
@@ -397,6 +400,8 @@ function pvSetChar(def) {
       const m = hasModel(def.id) ? buildCharacterModel(def, { weaponId: charWeapon(def.id), preview: true }) : null;
       if (!m) { showBox(); return; }
       if (p.model) p.scene.remove(p.model);
+      // Somente o GLB real marca o canvas para web-assets.spec.js.
+      $('char-preview').dataset.glb = '1';
       m.group.rotation.y = 0.4;
       p.model = m.group; p.mixer = m.mixer; p.ctrl = m.ctrl;
       p.scene.add(m.group);
@@ -436,6 +441,7 @@ let submitted = true;   // stats da partida atual já enviados?
    sendBeacon porque isto costuma sair junto com o fim da partida ou com a aba
    fechando — `fetch` normal é cancelado no unload, sendBeacon não. */
 const ANON_KEY = 'cs_anon';
+const SESSION_KEY = 'cs_session';
 function clientUuid() {
   const c = globalThis.crypto;
   if (typeof c?.randomUUID === 'function') return c.randomUUID();
@@ -451,6 +457,11 @@ function getAnonId() {
   let a = localStorage.getItem(ANON_KEY);
   if (!a) { a = clientUuid(); localStorage.setItem(ANON_KEY, a); }
   return a;
+}
+function getSessionId() {
+  let s = sessionStorage.getItem(SESSION_KEY);
+  if (!s) { s = clientUuid(); sessionStorage.setItem(SESSION_KEY, s); }
+  return s;
 }
 let telemetrySent = true;
 function sendTelemetry() {
@@ -535,7 +546,11 @@ function _pingPresenca() {
 // FUNIL (017): land → menu → match_start → match_end → quit. Converte "chegou a jogar?".
 function _funnel(step) {
   if (testMode) return;
-  try { navigator.sendBeacon('/api/funnel', new Blob([JSON.stringify({ step })], { type: 'application/json' })); } catch { /* fail-silent */ }
+  try {
+    navigator.sendBeacon('/api/funnel', new Blob([
+      JSON.stringify({ step, sessionId: getSessionId() }),
+    ], { type: 'application/json' }));
+  } catch { /* fail-silent */ }
 }
 // AQUISIÇÃO (019): 1x por navegador. referrer vira host (URL inteira pode carregar query
 // sensível); UTM e ?ref= lidos da URL de entrada. first-touch-wins no servidor.
@@ -604,6 +619,7 @@ function _perfFinish(bootMs, frames) {
 // resultado. Complementa o submit-match (só registrado) e a telemetria agregada (012).
 // _wperf vem do game.js (abates por arma, zerado por partida no construtor).
 let _matchEventSent = false;
+let _matchEventId = null;
 function sendMatchEvent(result) {
   if (_matchEventSent || testMode || !game) return;
   _matchEventSent = true;
@@ -611,8 +627,10 @@ function sendMatchEvent(result) {
   const top = Object.entries(wk).sort((a, b) => b[1] - a[1])[0]?.[0] || null;
   const payload = {
     anonId: getAnonId(),
+    sessionId: getSessionId(), eventId: _matchEventId, version: VERSION,
     map: currentMap, mode: matchMode === 'ctf' ? 'ctf' : 'rounds',
     character: currentChar, team: g.playerTeam,
+    faction: g.playerFaction || currentFaction,
     result: result || 'quit',
     kills: p.kills || 0, deaths: p.deaths || 0, headshots: p.headshots || 0,
     bestStreak: g.mk?.best || 0,
@@ -645,6 +663,8 @@ _refreshOnline();
 setInterval(_refreshOnline, 60000);
 const params = new URLSearchParams(location.search);
 const testMode = params.get('debug') === '1';
+// ?nav=1 isola transições de tela; web-assets.spec.js cobre preload e render 3D.
+const navOnly = params.get('nav') === '1';
 
 /* Presença: as chamadas descem para CÁ, depois de `testMode` existir (ver o comentário na
    linha em que elas moravam). O intervalo e o comportamento são os mesmos — o que muda é
@@ -664,6 +684,22 @@ addEventListener('pointerdown', _menuOnce);
 addEventListener('keydown', _menuOnce);
 
 async function startGame(team, charId, enemyFaction) {
+  window.__gameLaunch?.begin('partida', 60000);
+  try {
+    await _startGame(team, charId, enemyFaction);
+    window.__gameLaunch?.ready('partida');
+  } catch (e) {
+    try { hideLoading(); } catch {}
+    try { if (game) game.dispose(); } catch {}
+    game = null; window.__game = null;
+    try { if (document.pointerLockElement) document.exitPointerLock(); } catch {}
+    try { if (document.fullscreenElement) document.exitFullscreen()?.catch?.(() => {}); } catch {}
+    try { show('main-menu'); } catch {}
+    console.error('falha ao abrir a partida', e);
+    window.__gameLaunch?.fail(e, 'main.js:startGame');
+  }
+}
+async function _startGame(team, charId, enemyFaction) {
   if (isMobile && !testMode) { show('mobile-warning'); return; }
   // facção = time do personagem ('E'/'B'/'U'). O jogador ESCOLHE o adversário (enemyFaction);
   // default = oposto político. Mesma facção dos dois lados = mirror (inimigo roxo no HUD).
@@ -702,11 +738,13 @@ async function startGame(team, charId, enemyFaction) {
   // sorteia os carros da Havan desta partida ANTES do preload (seleção = props do mapa)
   setHavanCarSeed((Math.random() * 1e9) | 0);
   try {
-    await Promise.all([
-      preloadCharacterAssets([...GLB_CHARS]),
-      preloadMapProps([...MAP_PROPS, ...((MAPS[currentMap] && MAPS[currentMap].props) || [])]),   // + props do mapa (Havan: carros/estátua)
-      preloadFPArms(),   // braços FP dedicados (falha → fallback procedural, sem bloquear)
-    ]);
+    if (!navOnly) {
+      await Promise.all([
+        preloadCharacterAssets([...GLB_CHARS]),
+        preloadMapProps([...MAP_PROPS, ...((MAPS[currentMap] && MAPS[currentMap].props) || [])]),   // + props do mapa (Havan: carros/estátua)
+        preloadFPArms(),   // braços FP dedicados (falha → fallback procedural, sem bloquear)
+      ]);
+    }
   } catch (e) { console.error('preload da partida falhou parcialmente', e); }
   if (_lstat.phase) _lstat.phase.set(1);
   game = new Game({
@@ -720,6 +758,7 @@ async function startGame(team, charId, enemyFaction) {
   submitted = false;
   telemetrySent = false;   // partida nova = uma linha nova de telemetria
   _matchEventSent = false;   // partida nova = um evento rico novo (feat/telemetria)
+  _matchEventId = clientUuid(); // idempotência no banco se o beacon for repetido
   _funnel('match_start');    // funil: começou a jogar (017)
   retryPending();
   armSwitchHook();
@@ -749,6 +788,7 @@ async function startGame(team, charId, enemyFaction) {
        A resposta agora fica guardada e o aviso do fim da partida diz o porquê. */
     api('/api/register', {
       nick, token: getToken(),
+      anonId: getAnonId(),
       socials: socials.filter(s => s.handle),
     }).then((reg) => { if (reg && reg.error) rankingBloqueado = String(reg.error); });
   }
@@ -982,6 +1022,7 @@ $('btn-jogar').onclick = () => {
     // nesta tela, então um shake num campo invisível não diria nada a ninguém)
     nickEl.placeholder = 'SEM NOME NÃO TEM CORO!';
     openProfileStep(true);
+    window.__gameLaunch?.ready('menu');
     nickEl.classList.add('invalid');
     setTimeout(() => nickEl.classList.remove('invalid'), 1500);
     return;   // sem nick, sem treta
@@ -989,6 +1030,7 @@ $('btn-jogar').onclick = () => {
   sfx.uiClick();
   setTeamStep('side');
   show('team-select');
+  window.__gameLaunch?.ready('menu');
   ensureTeamPreviews();   // thumbnails 3D dos times (async, cacheia no card)
 };
 $('btn-ranking').onclick = () => { sfx.uiClick(); showRanking(); };
@@ -1452,8 +1494,9 @@ function partialPayload() {
      dominação e fechar a aba manda `rounds: 1` com `seconds` de poucas dezenas. Sem o
      modo, o servidor aplicava o piso do ABATE (80 s/rodada) e recusava. */
   return {
-    nick, token: getToken(), won: false, kills: p.kills, deaths: p.deaths,
+    uid: getAnonId(), nick, token: getToken(), won: false, kills: p.kills, deaths: p.deaths,
     headshots: p.headshots || 0, bestStreak: g.mk.best || 0, rounds, team: g.playerTeam,
+    faction: g.playerFaction || currentFaction,
     seconds: Math.round(g.time), character: currentChar, mode: matchMode,
   };
 }
@@ -1521,9 +1564,9 @@ async function recordMatchStats(s) {
   const nick = registeredNick || (nickEl.value || '').trim();
   if (nick && !testMode) {
     const res = await submitGlobal({
-      nick, token: getToken(), won: s.won, kills: s.kills, deaths: s.deaths,
+      uid: getAnonId(), nick, token: getToken(), won: s.won, kills: s.kills, deaths: s.deaths,
       headshots: s.headshots, bestStreak: s.bestStreak,
-      rounds: s.roundsP + s.roundsB, team: s.team, seconds: s.seconds || 0,
+      rounds: s.roundsP + s.roundsB, team: s.team, faction: currentFaction, seconds: s.seconds || 0,
       character: s.character, mode: matchMode,
     });
     if (!res) submitNote('ranking global indisponível');
@@ -1649,10 +1692,9 @@ function pickTeam(faction) {
     if (b) b.setAttribute('aria-pressed', String(f.toUpperCase() === faction));
   }
   const chars = CHARACTERS.filter(c => c.team === faction);   // roster da facção escolhida
-  // LOADING REAL da seleção de personagem: os GLBs do roster entram ANTES da tela abrir —
-  // nada de thumbnails de caixa montando aos poucos (o "minecraft" que o dono viu)
-  showLoading('CARREGANDO PERSONAGENS…');
-  preloadCharacterAssets(chars.map(c => c.id)).catch(() => {}).then(() => {
+  // ?nav=1 pula o preload 3D do roster (lento) — thumbnails caem no fallback pvThumb, que
+  // nunca dispara GLB. A transição #char-select é o que o smoke de navegação quer provar.
+  const mountCharList = () => {
     hideLoading();
     const list = $('char-list');
     list.innerHTML = '';
@@ -1682,7 +1724,12 @@ function pickTeam(faction) {
     // seleciona DEPOIS de gerar todos os thumbs — senão o preview fica com o último
     if (firstRow) selectChar(chars[0], firstRow);
     show('char-select');
-  });
+  };
+  if (navOnly) { mountCharList(); return; }
+  // LOADING REAL da seleção de personagem: os GLBs do roster entram ANTES da tela abrir —
+  // nada de thumbnails de caixa montando aos poucos (o "minecraft" que o dono viu)
+  showLoading('CARREGANDO PERSONAGENS…');
+  preloadCharacterAssets(chars.map(c => c.id)).catch(() => {}).then(mountCharList);
 }
 /* Ficha do personagem (tela de seleção): raridade + atributos derivados da arma inicial
    (charWeapon) e de um hash estável do id. É FLAVOR de apresentação no estilo CS2/Valorant —
@@ -1894,6 +1941,8 @@ document.querySelector('.footnote').textContent =
   `v${VERSION} · Sátira política fictícia. Nenhum político real foi consultado (ou poupado).`;
 { const sv = document.getElementById('splash-ver'); if (sv) sv.textContent = `v${VERSION}`; }
 show(isMobile && !testMode ? 'mobile-warning' : 'main-menu');
+window.__CS_MAIN_READY__ = true;
+window.__gameLaunch?.ready('boot');
 if (testMode && params.get('auto')) {
   const [team, char] = params.get('auto').split(',');
   startGame(team || 'E', char || CHARACTERS[0].id);

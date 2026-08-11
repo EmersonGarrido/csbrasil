@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* KEEP_FPVM só pode preservar models/fpvm: dev.html continua privado do build.
+/* KEEP_FPVM só pode preservar models/fpvm: as bancadas continuam privadas.
    O teste roda prune-dist numa árvore descartável. --mutante=early-exit devolve
    o bug do #131 e precisa ficar vermelho. */
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -21,7 +21,12 @@ function arquivo(base, relativo) {
 function executar(script) {
   const base = mkdtempSync(join(tmpdir(), 'csbr-prune-'));
   const fpvm = ['dist/client/models/fpvm/a.glb', '.vercel/output/static/models/fpvm/a.glb'];
-  const dev = ['dist/client/dev.html', '.vercel/output/static/dev.html'];
+  const dev = [
+    'dist/client/dev.html', '.vercel/output/static/dev.html',
+    'dist/client/editor/index.html', '.vercel/output/static/editor/index.html',
+    'dist/client/js/editor/editor.js', '.vercel/output/static/js/editor/editor.js',
+    'dist/client/img/reticle-pu.png', '.vercel/output/static/img/reticle-pu.png',
+  ];
   try {
     for (const alvo of [...fpvm, ...dev]) arquivo(base, alvo);
     const run = spawnSync(process.execPath, [script], {
@@ -67,4 +72,4 @@ if (erros.length) {
   for (const erro of erros) console.error(`✗ PRUNE1 ${erro}`);
   process.exit(1);
 }
-console.log('✓ PRUNE1 KEEP_FPVM preserva fpvm e continua podando dev.html');
+console.log('✓ PRUNE1 KEEP_FPVM preserva fpvm e continua podando as bancadas');
