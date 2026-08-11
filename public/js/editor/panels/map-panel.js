@@ -118,6 +118,10 @@ export function mountMapPanel(side, project, stage) {
   }
 
   stage.onSelect = () => refreshEdit();
+  stage.onPlaced = () => {
+    palBtns.forEach((x) => x.classList.remove('on'));
+    hint.textContent = 'clique num item da paleta, depois no chão';
+  };
 
   // ── export ──────────────────────────────────────────────────────────────────
   const gConf = group('Export');

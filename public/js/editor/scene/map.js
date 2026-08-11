@@ -139,17 +139,18 @@ export class MapStage {
   _bindInput() {
     const el = this._renderer.domElement;
     let drag = null;
-    el.addEventListener('pointerdown', (e) => { if (!this.running) return; drag = { x: e.clientX, y: e.clientY }; });
+    let moved = 0;
+    el.addEventListener('pointerdown', (e) => { if (!this.running) return; drag = { x: e.clientX, y: e.clientY }; moved = 0; });
     addEventListener('pointerup', () => { drag = null; });
     el.addEventListener('click', (e) => {
       if (!this.running) return;
-      if (this._dragged) { this._dragged = false; return; }
+      if (moved > 8) { moved = 0; return; }
       this.clickAt(e.clientX, e.clientY);
     });
     addEventListener('pointermove', (e) => {
       if (!this.running || !drag) return;
       const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
-      if (Math.abs(dx) + Math.abs(dy) > 4) this._dragged = true;
+      moved = Math.sqrt(dx * dx + dy * dy);
       ORBIT.theta -= dx * 0.006;
       ORBIT.phi = Math.max(0.15, Math.min(Math.PI * 0.45, ORBIT.phi - dy * 0.006));
       drag = { x: e.clientX, y: e.clientY };
@@ -201,6 +202,7 @@ export class MapStage {
       }
       this.renderAll();
       this.onChange && this.onChange();
+      this.onPlaced && this.onPlaced();
       return;
     }
     this.select(null);

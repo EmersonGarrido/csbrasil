@@ -1,11 +1,11 @@
 ---
-// MODO EDITOR (dev) — rota /editor. Ferramenta de bancada para o dono/equipe:
+// MODO EDITOR (dev) - rota /editor. Ferramenta de bancada para o dono/equipe:
 // réplica do jogo em módulos (public/js/editor/) importando as MESMAS libs do
 // game (weaponModel, buildCharacterModel, Sfx). NÃO é rota de jogador.
 //
 // POR QUE AINDA ASSIM TEM IMPORT MAP: os módulos do editor importam o `three`
 // e as libs do jogo (weapons.js/characters.js/glbchars.js/audio.js), e o jogo
-// resolve `three` por import map — sem ele o editor nem carrega. A versão vem
+// resolve `three` por import map - sem ele o editor nem carrega. A versão vem
 // do package.json (fonte única), igual ao index.astro, pra não divergir do
 // cache do jogo (BUG-39).
 import pkg from '../../package.json';
@@ -34,7 +34,7 @@ const IMPORTMAP = JSON.stringify({
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
-<title>modo editor — bancada do CORO SOLTO</title>
+<title>modo editor - bancada do CORO SOLTO</title>
 <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48">
 <script type="importmap" is:inline set:html={IMPORTMAP}></script>
 <style>
@@ -94,6 +94,8 @@ const IMPORTMAP = JSON.stringify({
   #host-editor canvas{position:absolute;inset:0;width:100%!important;height:100%!important}
   #host-map{position:absolute;inset:0;display:none}
   #host-map canvas{position:absolute;inset:0;width:100%!important;height:100%!important}
+  #host-align{position:absolute;inset:0;display:none}
+  #host-align canvas{position:absolute;inset:0;width:100%!important;height:100%!important}
   .ov{position:absolute;inset:0;pointer-events:none}
   #cross{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%)}
   #cross::before,#cross::after{content:"";position:absolute;background:#7fe;opacity:.85}
@@ -114,14 +116,18 @@ const IMPORTMAP = JSON.stringify({
 <body>
 <div id="sidebar">
   <div id="devtabs">
-    <button data-tab="editor" class="on">Editor de viewmodel</button>
-    <button data-tab="map">Editor de mapa</button>
+    <button data-tab="editor" class="on">Viewmodel</button>
+    <button data-tab="map">Mapa</button>
+    <button data-tab="align">Alinhamento</button>
   </div>
   <div class="side" id="side-editor">
     <!-- o painel (panels/vm-panel.js) monta os grupos aqui -->
   </div>
   <div class="side" id="side-map" hidden>
     <!-- o painel (panels/map-panel.js) monta a paleta e o export aqui -->
+  </div>
+  <div class="side" id="side-align" hidden>
+    <!-- o painel (panels/align-panel.js) monta os controles aqui -->
   </div>
 </div>
 
@@ -136,10 +142,11 @@ const IMPORTMAP = JSON.stringify({
     <div class="hint">clique na cena pra jogar · atire nos bots · botão direito mira · <b>R</b> recarrega/repõe</div>
   </div>
   <div id="host-map"></div>
+  <div id="host-align"></div>
 </div>
 
 <script type="module" is:inline>
-import { mountEditor } from './js/editor/editor.js';
+import { mountEditor } from './js/editor/editor.js?v=${V}';
 mountEditor(document.body).catch((e) => {
   const el = document.createElement('div');
   el.style.cssText = 'position:fixed;inset:auto 12px 12px 320px;background:#7a1e1e;color:#fff;font:12px monospace;padding:10px 14px;border-radius:6px;white-space:pre-wrap;z-index:99';

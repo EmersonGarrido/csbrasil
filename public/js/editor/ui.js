@@ -47,7 +47,7 @@ export function ctl(label, { min, max, value, step = 1 } = {}) {
   num.addEventListener('input', () => { if (num.value !== '') set(+num.value); onChange(+num.value); });
   let onChange = () => {};
   row.append(lab, range, num);
-  return { el: row, set, bind(fn) { onChange = fn; } };
+  return { el: row, set, bind(fn) { onChange = fn; return this; } };
 }
 
 export function chips(items, { selected = null, title = (x) => '' } = {}) {
