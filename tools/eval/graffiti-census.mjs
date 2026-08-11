@@ -21,9 +21,8 @@
    ── O CRITÉRIO ─────────────────────────────────────────────────────────────
    1. PONTO DE VISTA = waypoint do mapa. É por onde bot e jogador andam de fato;
       medir a partir da bounding box premiaria parede de fundo que ninguém vê.
-   2. De cada waypoint, 16 raios na horizontal em 3 alturas (1,6 / 3,2 / 5,0 m) até 7 m
-      — só a 1,6 m, a empena (4,2–7,6 m) ficava invisível. Primeiro acerto em malha
-      VISÍVEL, OPACA e de face QUASE VERTICAL é uma "placa" de parede.
+   2. De cada waypoint, 16 raios em 3 alturas até 7 m; o primeiro acerto em
+      malha VISÍVEL, OPACA e QUASE VERTICAL é uma "placa" de parede.
    3. Placas são deduplicadas por célula de 1,5 m + direção da normal: a mesma
       empena vista de 4 waypoints conta UMA vez.
    4. Uma placa está PINTADA se existe quad de arte (`decal:*` / `mural:*`) com
@@ -58,9 +57,7 @@ const MAPS = ['awp_map', 'fy_pool_day', 'fy_havan', 'fy_ferrovelho', 'fy_quebrad
    respeita) e no Ferro Velho lataria e mato não recebem tinta — e essas superfícies
    CONTINUAM contando como placa de parede aqui, porque elas são parede que o jogador
    vê. Cobrar 85 delas seria a régua brigando com o pedido do dono. */
-/* RECALIBRADO 2026-08-11 (#76): as metas de 07/08 (60/90/70/70/90) mediam só a 1,6 m;
-   com 3 faixas a empena entrou na conta (awp/havan/ferro em 0% a 5,0 m). Viram PISO
-   MEDIDO — medido 2× idêntico, ~3 pts de folga — não alvo. Suba junto com a empena. */
+// Pisos medidos nas três faixas; aumente-os quando a cobertura melhorar.
 const META = { awp_map: 35, fy_pool_day: 76, fy_havan: 43, fy_ferrovelho: 46, fy_quebrada: 67 };
 
 const gRoot = execSync('npm root -g').toString().trim();
@@ -84,7 +81,7 @@ const CENSO = async () => {
   const LIMPO = ((GRAFITE || {})[window.__mapId] || {}).limpo || [];
   const _limpo = (x, z) => LIMPO.some((b) => x >= b.x0 && x <= b.x1 && z >= b.z0 && z <= b.z1);
   const scene = window.__scene, W = window.__gworld;
-  // olho, meio, empena — a chave já separa por ky (CEL=1,5 m), cada faixa é placa nova
+  // A deduplicação vertical separa as três faixas por célula.
   const ALTURAS = [1.6, 3.2, 5.0], ALCANCE = 7, RAIOS = 16, CEL = 1.5, FOLGA = 0.35, PERTO = 0.6;
 
   /* --- 1. quads de arte ------------------------------------------------------
@@ -152,45 +149,45 @@ const CENSO = async () => {
     const ox = nd.x !== undefined ? nd.x : nd[0], oz = nd.z !== undefined ? nd.z : nd[2];
     const baseY = nd.y !== undefined ? nd.y : 0;
     for (const alt of ALTURAS) {
-    const oy = baseY + alt;
-    for (let a = 0; a < RAIOS; a++) {
-      const ang = (a / RAIOS) * Math.PI * 2;
-      rc.set(o3.set(ox, oy, oz), d3.set(Math.sin(ang), 0, Math.cos(ang)).normalize());
-      const hits = rc.intersectObjects(alvos, false);
-      let h = null;
-      for (const x of hits) if (x.distance > 0.25) { h = x; break; }
-      if (!h || !h.face) continue;
-      // MESMA função da passada (`normalMundo`), de propósito: régua e passada não
-      // podem discordar por causa do instrumento. Em InstancedMesh a normal só sai
-      // certa somando a matriz da instância.
-      const nw = normalMundo(h);
-      if (Math.abs(nw.y) > 0.45) continue;                    // chão/teto não é parede
-      if (_limpo(h.point.x, h.point.z)) continue;              // declarada limpa: não é dívida
-      /* FACE DE TRÁS NÃO É PAREDE PRA ESTA RÉGUA. Medido na Quebrada: das 114 placas
-         que continuavam "peladas" com a cobertura em 85%, ~92 eram a face INTERNA do
-         muro externo (x ≈ -26, normal apontando pra fora do mapa) — o raio entrava por
-         um vão da pele de fora e acertava a casca por dentro. A captura do mesmo trecho
-         mostra o muro pintado de "ZICA" de ponta a ponta. Com material FrontSide (o
-         padrão), essa face é descartada pelo culling: o jogador NUNCA a vê, e cobrar
-         tinta nela é a régua inventando dívida. DoubleSide continua contando, porque aí
-         a face é mesmo desenhada. */
-      const mat = Array.isArray(h.object.material) ? h.object.material[0] : h.object.material;
-      const doisLados = mat && mat.side === THREE.DoubleSide;
-      if (!doisLados && nw.dot(d3) > 0) continue;
-      if (nw.dot(d3) > 0) nw.negate();                        // normal virada pro observador
-      const kx = Math.round(h.point.x / CEL), ky = Math.round(h.point.y / CEL), kz = Math.round(h.point.z / CEL);
-      const kd = Math.round(Math.atan2(nw.x, nw.z) / (Math.PI / 4));
-      const k = `${kx}|${ky}|${kz}|${kd}`;
-      // `quem` é o nome da malha da placa: sem ele, "163 placas peladas" não diz se
-      // falta tinta ou se aquilo nem é parede (poste, toldo, placa de rua)
-      if (!placas.has(k)) {
-        placas.set(k, {
-          x: h.point.x, y: h.point.y, z: h.point.z, nx: nw.x, ny: nw.y, nz: nw.z,
-          banda: alt,
-          quem: String(h.object.name || h.object.type) + (h.object.isInstancedMesh ? '[inst]' : ''),
-        });
+      const oy = baseY + alt;
+      for (let a = 0; a < RAIOS; a++) {
+        const ang = (a / RAIOS) * Math.PI * 2;
+        rc.set(o3.set(ox, oy, oz), d3.set(Math.sin(ang), 0, Math.cos(ang)).normalize());
+        const hits = rc.intersectObjects(alvos, false);
+        let h = null;
+        for (const x of hits) if (x.distance > 0.25) { h = x; break; }
+        if (!h || !h.face) continue;
+        // MESMA função da passada (`normalMundo`), de propósito: régua e passada não
+        // podem discordar por causa do instrumento. Em InstancedMesh a normal só sai
+        // certa somando a matriz da instância.
+        const nw = normalMundo(h);
+        if (Math.abs(nw.y) > 0.45) continue;                    // chão/teto não é parede
+        if (_limpo(h.point.x, h.point.z)) continue;              // declarada limpa: não é dívida
+        /* FACE DE TRÁS NÃO É PAREDE PRA ESTA RÉGUA. Medido na Quebrada: das 114 placas
+           que continuavam "peladas" com a cobertura em 85%, ~92 eram a face INTERNA do
+           muro externo (x ≈ -26, normal apontando pra fora do mapa) — o raio entrava por
+           um vão da pele de fora e acertava a casca por dentro. A captura do mesmo trecho
+           mostra o muro pintado de "ZICA" de ponta a ponta. Com material FrontSide (o
+           padrão), essa face é descartada pelo culling: o jogador NUNCA a vê, e cobrar
+           tinta nela é a régua inventando dívida. DoubleSide continua contando, porque aí
+           a face é mesmo desenhada. */
+        const mat = Array.isArray(h.object.material) ? h.object.material[0] : h.object.material;
+        const doisLados = mat && mat.side === THREE.DoubleSide;
+        if (!doisLados && nw.dot(d3) > 0) continue;
+        if (nw.dot(d3) > 0) nw.negate();                        // normal virada pro observador
+        const kx = Math.round(h.point.x / CEL), ky = Math.round(h.point.y / CEL), kz = Math.round(h.point.z / CEL);
+        const kd = Math.round(Math.atan2(nw.x, nw.z) / (Math.PI / 4));
+        const k = `${kx}|${ky}|${kz}|${kd}`;
+        // `quem` é o nome da malha da placa: sem ele, "163 placas peladas" não diz se
+        // falta tinta ou se aquilo nem é parede (poste, toldo, placa de rua)
+        if (!placas.has(k)) {
+          placas.set(k, {
+            x: h.point.x, y: h.point.y, z: h.point.z, nx: nw.x, ny: nw.y, nz: nw.z,
+            banda: alt,
+            quem: String(h.object.name || h.object.type) + (h.object.isInstancedMesh ? '[inst]' : ''),
+          });
+        }
       }
-    }
     }
   }
 
