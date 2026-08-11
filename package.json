@@ -1,6 +1,6 @@
 {
   "name": "coro-solto",
-  "version": "2.0.0-alpha.60",
+  "version": "2.0.0-alpha.64",
   "license": "AGPL-3.0-only",
   "description": "CORO SOLTO: Treta Suprema (ex-CS BRASIL) — FPS de navegador estilo CS 1.6 (site Astro + jogo vanilla em Three.js)",
   "scripts": {
@@ -42,7 +42,7 @@
     "eval:submitguard": "node tools/eval/submit-guard-check.mjs",
     "//eval:ctrlw": "Agachar andando pra frente não pode fechar a aba. Relato do Daniel Diniz (07/08): 'quando fica muito tempo com a tecla Control pressionada a página fecha' — no Windows, não no Mac. Não é o Control: agachar é ControlLeft/Right e andar pra frente é W, então agachar avançando É Ctrl+W (no Mac o atalho é Cmd+W, por isso não reproduzia aqui). preventDefault não alcança atalho reservado; quem resolve é a Keyboard Lock API em tela cheia, com a confirmação de saída do beforeunload como segunda camada pra Firefox/Safari. CW3 cobra o SILÊNCIO no menu — confirmação que aparece sempre vira praga e é arrancada inteira depois, levando o conserto junto. EXIGE BROWSER: fora do `check`, passo de pré-deploy. `--mutante=semlock|semprompt|promptsempre` provam que morde, e a régua morre se o mutante não casar o texto.",
     "eval:ctrlw": "node tools/eval/ctrlw-check.mjs",
-    "//eval:boot": "O JOGO ABRE E FALHA DE FORMA ACIONÁVEL? No Chrome real, exige zero pageerror, o `onclick` do #btn-jogar ligado e uma falha injetada no início da partida voltando ao menu com modal amigável, telemetria automática/manual e detalhe técnico só em ?debug=1. Nasceu do BUG-34 (TDZ deixava JOGAR inerte) e do BUG-42 (erro bruto assustava o jogador sem dar recuperação). EXIGE BROWSER: fica fora do `check` e é passo obrigatório antes de deploy. `--mutante=tdz|sem-amigavel|vaza-detalhe` prova as cláusulas.",
+    "//eval:boot": "O JOGO ABRE E FALHA DE FORMA ACIONÁVEL? No Chrome real, exige zero pageerror, o `onclick` do #btn-jogar ligado e uma falha injetada no início da partida voltando ao menu com modal amigável, telemetria automática/manual, erro preservado no console e detalhe técnico só em ?debug=1. Nasceu do BUG-34 (TDZ deixava JOGAR inerte) e do BUG-42 (erro bruto assustava o jogador sem dar recuperação). EXIGE BROWSER: fica fora do `check` e é passo obrigatório antes de deploy. `--mutante=tdz|sem-amigavel|vaza-detalhe|sem-console-watchdog` prova as cláusulas.",
     "eval:boot": "node tools/eval/boot-check.mjs",
     "eval:vm": "node tools/eval/vm-mint-audit.mjs",
     "eval:kick": "node tools/eval/vm-kick-sim.mjs",
@@ -72,7 +72,7 @@
     "//eval:select": "BALÃO NA TELA DE SELEÇÃO. Exige BROWSER e o servidor no ar: `npm run eval:serve &` antes. Mede o caminho REAL do preview (buildCharacterModel + arma + IK + curl + ctrl.update), que é onde o defeito mora — a pose-inflate lê o GLB do disco e é cega pra ele (KNOWN-BUGS BUG-25). ~4 min pros 44. Fora do `check` de propósito: `check` roda sem browser.",
     "eval:select": "node tools/eval/select-inflate.mjs",
     "eval:select:mutate": "node tools/eval/select-inflate.mjs mandrake,pagodeiro --mutate=skin",
-    "//assert:assets": "T1. REPROVA O BUILD se o pacote de áudio ou o acervo de decalques não chegou inteiro. Existe porque os dois fetch scripts falham EM SILÊNCIO: o fetch-audio.sh:23 copia manifest.example.json (62 caminhos) por cima quando o unzip não traz o real (308) e o build passa verde com o jogo mudo. Roda no buildCommand da Vercel entre os fetches e o build. Mutação: AUDIO_PACK_URL=https://example.invalid/x.zip com public/audio vazio.",
+    "//assert:assets": "REPROVA O BUILD se o pacote de áudio/decalques não chegou inteiro ou se o layout gerado cita arte que saiu do pacote. Os fetches falham em silêncio; e, sem o contrato inverso da issue #77, peças somem da parede com só um console.warn. Roda no buildCommand da Vercel entre os fetches e o build. Mutações: AUDIO_PACK_URL inválida com public/audio vazio; `node tools/eval/assets-check.mjs --mutante=grafite-orfa`.",
     "assert:assets": "node tools/eval/assets-check.mjs",
     "eval:serve": "node tools/eval/serve.mjs 8123",
     "//grafite": "ASSA a colocação do grafite dos 5 mapas. Roda a passada de graffiti_pass.js NO NAVEGADOR (único lugar onde os GLB existem) e congela o resultado em public/js/graffiti_layout.js. Exige `npm run eval:serve` no ar. REGERE depois de mexer em geometria de mapa, pool de decalque ou bandas — layout velho vira peça no lugar errado, e quem cobra isso é o eval:grafite.",
