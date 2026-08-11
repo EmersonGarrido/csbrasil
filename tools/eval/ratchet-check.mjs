@@ -39,7 +39,7 @@ const declaracoes = body.split(/\r?\n/).map((linha) => {
     return '';
   }
   if (cerca) {
-    const fechamento = linha.trim().match(/^(`+|~+)$/)?.[1];
+    const fechamento = linha.match(/^ {0,3}(`+|~+)[ \t]*$/)?.[1];
     if (fechamento?.[0] === cerca.caractere && fechamento.length >= cerca.tamanho) cerca = null;
     return '';
   }
