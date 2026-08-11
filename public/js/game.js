@@ -15,6 +15,9 @@ import { RecoilAxis, ViewModelRig } from './springs.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { frase, tr } from './i18n.js';   // EN por camada — o crash 'frase is not defined' de 06/08 foi este import faltando
 import { PlayerRecorder } from './botbrain/recorder.js';   // BOTBRAIN: grava (estado→ação) do jogador (só quando recordTraining)
+import { buildState } from './botbrain/features.js';       // BOTBRAIN: monta o vetor de estado do bot p/ a rede
+import { sense } from './botbrain/sense.js';               // BOTBRAIN: percepção (jogo→features)
+import { BotBrain } from './botbrain/brain.js';            // BOTBRAIN: inferência (rede treinada rodando no bot)
 
 export const WEAPONS = {
   awp:    { name: 'AWP "DELIBERADOR"', short: 'AWP', dmg: 400, mag: 5, reserve: 25, rate: 1.7, reload: 3.1, spreadHip: 0.075, spreadScope: 0.0008, recoil: 0.055, scope: true },
@@ -577,6 +580,14 @@ export class Game {
     this.onTrainingFrames = onTrainingFrames;
     this._recordEnabled = !!recordTraining && !testMode;
     this._recorder = this._recordEnabled ? new PlayerRecorder(this) : null;
+    // BOTBRAIN (inferência): ?botbrain=1 liga a rede nos bots. Lazy: baixa o modelo (~29 KB)
+    // e só então _updateBot delega pra rede. Em node/régua o harness seta _botBrain à mão.
+    this._botBrain = null;
+    this.botBrainMix = 0;
+    if (QS.get('botbrain') === '1' && !testMode) {
+      this.botBrainMix = 1;
+      new BotBrain().load().then((br) => { this._botBrain = br; }).catch(() => { this.botBrainMix = 0; });
+    }
     this.state = 'boot';
     this.paused = false;
     this.time = 0;
@@ -5138,6 +5149,13 @@ export class Game {
   }
   _updateBot(b, dt) {
     const g = b.mesh.group;
+    // BOTBRAIN: com a rede ligada e o bot vivo em jogo, a REDE controla o bot (mira/movimento/
+    // tiro). Caminho 100% isolado atrás da flag — com ela desligada, é só este boolean e o
+    // path roteirizado abaixo fica byte-a-byte intacto (zero regressão no jogo normal).
+    if (this._botBrain && this._botBrain.ready && this.botBrainMix > 0 && b.alive && this.state === 'live'
+        && (!this._botBrainTeam || b.team === this._botBrainTeam)) {   // _botBrainTeam: régua pita NN×roteirizado
+      return this._updateBotNN(b, dt);
+    }
     if (!b.alive) {
       b.deadT += dt;
       if (b.mesh.isGLB) {
@@ -5924,6 +5942,117 @@ export class Game {
       b.phase += dt * (moving ? 9 : 0);
       poseCharacter(b.mesh.parts, b.phase, moving, this.time);
     }
+  }
+
+  /* ================= BOTBRAIN: bot dirigido pela rede neural =================
+     Caminho isolado (só roda com a rede ligada). A rede decide a ~10 Hz (mesma cadência do
+     treino) e a decisão é APLICADA todo frame: mira (dyaw), movimento (moveFwd/strafe) e o
+     GATE de tiro (fire). O alvo/percepção sai de sense() — a MESMA fonte do dataset. Reusa
+     as primitivas do jogo (_collide, _damage, _botEye, _losClear): o tiro é honesto (dano da
+     arma real, falloff, teto de dano no jogador, sem acerto atrás de parede). */
+  _updateBotNN(b, dt) {
+    const g = b.mesh.group;
+    if (this.time < b.protUntil) g.visible = Math.floor(this.time * 12) % 2 === 0;
+    else if (!g.visible) g.visible = true;
+    if (b._lastHp !== undefined && b.hp < b._lastHp) b._hurtAt = this.time;
+    b._lastHp = b.hp;
+
+    // decisão da rede a ~10 Hz (segura entre ticks)
+    b._nnMem = b._nnMem || { target: null, lastSeenAt: -99 };
+    b._nnThink = (b._nnThink || 0) - dt;
+    if (b._nnThink <= 0 || !b._nn) {
+      b._nnThink = 0.1;
+      const vx = b._nnLp ? (b.pos.x - b._nnLp.x) / 0.1 : 0, vz = b._nnLp ? (b.pos.z - b._nnLp.z) / 0.1 : 0;
+      const self = { pos: b.pos, vel: { x: vx, z: vz }, yaw: b.yaw, pitch: 0, hp: b.hp, weapon: b.weapon, mag: b.mag, team: b.team, isPlayer: false };
+      const raw = sense(this, self, this._botEye(b), b._nnMem, this.time);
+      const out = this._botBrain.decideFromState(buildState(raw));
+      if (out) { b._nn = out; b._nnLp = { x: b.pos.x, z: b.pos.z }; }
+      b.target = b._nnMem.target || null;   // p/ o mesh (crouch/aimPitch) e o gate de tiro
+    }
+    const nn = b._nn || { moveFwd: 0, moveStrafe: 0, dyaw: 0, dpitch: 0, fire: 0, crouch: 0, reload: 0 };
+    const mix = Math.min(1, this.botBrainMix);
+
+    // MIRA: aplica o dyaw da rede, limitado pelo teto de giro humano (YAW_CAP)
+    const cap = YAW_CAP * dt;
+    b.yaw += Math.max(-cap, Math.min(cap, nn.dyaw * mix * 60 * dt));
+
+    // MOVIMENTO: converte fwd/strafe (local) pra velocidade de mundo e passa pelo colisor
+    const sin = Math.sin(b.yaw), cos = Math.cos(b.yaw);
+    const fwd = Math.max(-1, Math.min(1, nn.moveFwd)), strafe = Math.max(-1, Math.min(1, nn.moveStrafe));
+    const wx = fwd * sin + strafe * cos, wz = fwd * cos - strafe * sin;
+    const spd = BOT_SPEED * mix;
+    b.pos.x += wx * spd * dt; b.pos.z += wz * spd * dt;
+    this._collide(b.pos, 0.38);
+    this._botSeparation(b, dt);   // reusa a despenetração (evita empilhar bots)
+    b.pos.y = this.world.groundHeightAt(b.pos.x, b.pos.z);
+    const moving = Math.hypot(wx, wz) > 0.15 ? 1 : 0;
+
+    // TIRO: a rede decide QUANDO; a resolução reusa as primitivas honestas do jogo
+    if (b.mag === undefined) b.mag = (WEAPONS[b.weapon] || WEAPONS.ak).mag || 30;
+    const e = b.target;
+    // limiar 0.35: a "intenção de fogo" fica ~0.35-0.55 no engajamento (rótulo de rajada);
+    // o gate de cadência (nextShotAt) é quem controla o RITMO real dos tiros.
+    if (e && e.alive && nn.fire > 0.35 && this.time > (b.nextShotAt || 0) && this.time > (b.reloadUntil || 0)) {
+      this._botShootNN(b, e);
+    }
+
+    // mesh + rotação + marca de time (espelha a cauda do _updateBot)
+    g.position.copy(b.pos);
+    g.rotation.set(0, b.yaw, 0);
+    if (b.mesh.isGLB) {
+      b.mesh.ctrl.setCrouch(!!e && nn.crouch > 0.5);
+      let aim = 0;
+      if (e) {
+        const teyeY = e.isPlayer ? this.camera.position.y : e.pos.y + BOT_EYE;
+        const hd = Math.hypot(e.pos.x - b.pos.x, e.pos.z - b.pos.z) || 1;
+        aim = Math.max(-BOT_AIM_PITCH, Math.min(BOT_AIM_PITCH, Math.atan2(teyeY - (b.pos.y + BOT_EYE), hd)));
+      }
+      b.mesh.ctrl.aimPitch = aim;
+      const lp = b._lp || { x: b.pos.x, z: b.pos.z };
+      const mx = b.pos.x - lp.x, mz = b.pos.z - lp.z;
+      const sp = Math.hypot(mx, mz) / Math.max(dt, 1e-3);
+      b._lp = { x: b.pos.x, z: b.pos.z };
+      b.mesh.ctrl.update(dt, sp < 0.35 ? 0 : 1, !!e, sp, false);
+    } else {
+      b.phase = (b.phase || 0) + dt * (moving ? 9 : 0);
+      poseCharacter(b.mesh.parts, b.phase, moving, this.time);
+    }
+    this._updateTeamMark(b);
+  }
+
+  // Tiro do bot-NN: honesto (arma real, falloff, teto no jogador, sem acerto atrás de parede).
+  _botShootNN(b, e) {
+    const Wb = WEAPONS[b.weapon] || WEAPONS.ak;
+    const bcls = BALL_CLASS[b.weapon] || 'rifle';
+    b.mag--;
+    b.revealedAt = this.time;
+    b.nextShotAt = this.time + Math.max(Wb.rate || 0.1, (Wb.auto ? 0.12 : 0.4)) ;
+    if ((Wb.mag || 0) > 0 && b.mag <= 0) { b.reloadUntil = this.time + (Wb.reload || 2.4); b.mag = Wb.mag; }
+    const from = this._botEye(b);
+    const teye = e.isPlayer ? this.camera.position.clone() : this._botEye(e);
+    const tdist = Math.max(1, from.distanceTo(teye));
+    const dir = teye.clone().sub(from).normalize();
+    // desvio de mira por skill (a rede diz "atira"; a precisão fina segue o tier do bot)
+    const err = 0.02 + 0.03 / Math.max(0.4, b.skill || 1);
+    const gs = () => (Math.random() + Math.random() + Math.random() - 1.5) / 1.5;
+    const off = Math.hypot(gs() * err, gs() * err);
+    let hit = off < Math.atan2(0.5, tdist);
+    this.ray.set(from, dir); this.ray.far = 200;
+    const hw = this.ray.intersectObjects(this.world.occluders, false)[0];
+    if (hw && hw.distance < tdist - 0.4) hit = false;   // parede na frente: bala morre lá
+    const end = hit ? teye : (hw ? hw.point : from.clone().add(dir.clone().multiplyScalar(120)));
+    if (hit) {
+      let dmg = (Wb.dmg || 30) * (Wb.pellets ? Math.min(Wb.pellets, 6) * 0.55 : 1);
+      const fo = DMG_FALLOFF[bcls];
+      if (fo) { const t = Math.max(0, Math.min(1, (tdist - fo[0]) / (fo[1] - fo[0]))); dmg *= 1 - (1 - fo[2]) * t; }
+      const dmgMul = e.isPlayer ? (BOT_FAIR ? this._botDmgPlayer : BOT_DMG_PLAYER) : 1;
+      dmg = Math.max(6, Math.min(e.isPlayer ? 100 : 130, Math.round(dmg * dmgMul)));
+      this._damage(e, dmg, b, Wb.short || 'ARMA', false, teye);
+      if (e.isPlayer) this._noteHit(b, Wb.short || 'ARMA', dmg, false, tdist);
+    }
+    this._tracer(from.clone().add(dir.clone().multiplyScalar(0.7)), end);
+    this._flash(from.clone().add(dir.clone().multiplyScalar(0.85)), dir);
+    if (b.mesh.isGLB) b.mesh.ctrl.shoot();
   }
 
   /* ================= radar (CS-style) =================
