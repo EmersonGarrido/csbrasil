@@ -274,6 +274,7 @@ function dismissSplash() {
   const sp = document.getElementById('boot-splash');
   if (!sp || !_splashReady || sp.classList.contains('gone')) return;
   sp.classList.add('gone');
+  window.__gameLaunch?.ready('entrada');
   setTimeout(() => sp.remove(), 480);
   musicArmed = true;
   if (musicFade) { clearInterval(musicFade); musicFade = null; }
@@ -1021,6 +1022,7 @@ $('btn-jogar').onclick = () => {
     // nesta tela, então um shake num campo invisível não diria nada a ninguém)
     nickEl.placeholder = 'SEM NOME NÃO TEM CORO!';
     openProfileStep(true);
+    window.__gameLaunch?.ready('menu');
     nickEl.classList.add('invalid');
     setTimeout(() => nickEl.classList.remove('invalid'), 1500);
     return;   // sem nick, sem treta
@@ -1028,6 +1030,7 @@ $('btn-jogar').onclick = () => {
   sfx.uiClick();
   setTeamStep('side');
   show('team-select');
+  window.__gameLaunch?.ready('menu');
   ensureTeamPreviews();   // thumbnails 3D dos times (async, cacheia no card)
 };
 $('btn-ranking').onclick = () => { sfx.uiClick(); showRanking(); };
