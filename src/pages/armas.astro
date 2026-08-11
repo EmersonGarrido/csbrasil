@@ -22,7 +22,8 @@ const classes = [...new Set(ARMAS.map(a => a.classe))];
 const porClasse = classes.map(c => ({ classe: c, armas: ARMAS.filter(a => a.classe === c) }));
 
 // A comparação começa por dano; os cabeçalhos permitem reordenar no cliente.
-const armasOrdenadas = [...ARMAS].sort((a, b) => b.dano - a.dano);
+const danoPorDisparo = (a: typeof ARMAS[number]) => a.id === 'shotgun' ? a.dano * 9 : a.dano;
+const armasOrdenadas = [...ARMAS].sort((a, b) => danoPorDisparo(b) - danoPorDisparo(a));
 
 // Ordem de aparição na página, para decidir quem carrega `eager` e quem carrega `lazy`.
 // Só as 3 primeiras estão acima da dobra em 1200×800 (medido na captura); as outras 23
@@ -125,10 +126,10 @@ const jsonld = [
       </thead>
       <tbody>
         {armasOrdenadas.map(a => {
-          const danoPorTiro = a.id === 'shotgun' ? a.dano * 9 : a.dano;
+          const danoPorTiro = danoPorDisparo(a);
           const dps = Math.round((danoPorTiro / a.cadencia) * 10) / 10;
           return (
-            <tr data-arma={a.nome} data-classe={a.classe} data-dano={a.dano}
+            <tr data-arma={a.nome} data-classe={a.classe} data-dano={danoPorTiro}
               data-pente={a.pente} data-reserva={a.reserva} data-cadencia={a.cadencia}
               data-dps={dps}>
               <td>{a.nome}</td>
