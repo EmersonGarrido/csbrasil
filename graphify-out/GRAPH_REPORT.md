@@ -1,16 +1,16 @@
 # Graph Report - csbrasil-autoresearch  (2026-08-11)
 
 ## Corpus Check
-- 608 files · ~4,056,405 words
+- 608 files · ~4,056,404 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 8191 nodes · 12937 edges · 643 communities (428 shown, 215 thin omitted)
+- 8191 nodes · 12937 edges · 644 communities (428 shown, 216 thin omitted)
 - Extraction: 97% EXTRACTED · 3% INFERRED · 0% AMBIGUOUS · INFERRED: 440 edges (avg confidence: 0.71)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `bb7164cf`
+- Built from commit: `52339b2b`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -273,7 +273,7 @@
 - Segurança — o que foi fechado no pré-release da v2
 - PLANO DE RELEASE — CORO SOLTO v2
 - ViewModelRig
-- renderPlayerPlate
+- openSetup
 - EffectComposer
 - CORO SOLTO: Treta Suprema
 - boot-check.mjs
@@ -596,6 +596,7 @@
 - [2.0.0-alpha.70] — 2026-08-11
 - [2.0.0-alpha.75] — 2026-08-11
 - CatmullRom
+- ContactSkirt
 
 ## God Nodes (most connected - your core abstractions)
 1. `Game` - 160 edges
@@ -624,7 +625,7 @@
 ## Import Cycles
 - 3-file cycle: `public/js/botbrain/recorder.js -> public/js/botbrain/sense.js -> public/js/game.js -> public/js/botbrain/recorder.js`
 
-## Communities (643 total, 215 thin omitted)
+## Communities (644 total, 216 thin omitted)
 
 ### Community 0 - "three.module.js"
 Cohesion: 0.01
@@ -795,8 +796,8 @@ Cohesion: 0.06
 Nodes (42): buildFPArms(), _deg3(), _eff, _eu, FP_OFF, L_OFF, L_OFF_VEC, L_ROT (+34 more)
 
 ### Community 60 - "vm-solve.mjs"
-Cohesion: 0.11
-Nodes (42): ARM, mul(), ARM0, ASPECTS, autoteste(), avaliar(), buscar(), buscar2() (+34 more)
+Cohesion: 0.12
+Nodes (41): ARM, ARM0, ASPECTS, autoteste(), avaliar(), buscar(), buscar2(), escala() (+33 more)
 
 ### Community 61 - "docs/package.json"
 Cohesion: 0.05
@@ -956,7 +957,7 @@ Nodes (30): GRAFITE, _alturaParede(), _amostrador(), aplicarGrafite(), _cadeia()
 
 ### Community 110 - "gunSpace"
 Cohesion: 0.31
-Nodes (11): accessor(), apply(), armRig(), bbox(), eulerXYZ(), glbPositions(), gunSpace(), ident() (+3 more)
+Nodes (11): accessor(), apply(), armRig(), eulerXYZ(), glbPositions(), gunSpace(), ident(), mat4FromArray() (+3 more)
 
 ### Community 111 - "gen-asset.mjs"
 Cohesion: 0.08
@@ -999,8 +1000,8 @@ Cohesion: 0.08
 Nodes (24): For /graphify add and --watch, For /graphify query, For the commit hook and native CLAUDE.md integration, For --update and --cluster-only, /graphify, Honesty Rules, Interpreter guard for subcommands, Part A - Structural extraction for code files (+16 more)
 
 ### Community 126 - "map_havan.js"
-Cohesion: 0.11
-Nodes (25): acmTex(), asfaltoTex(), buildHavan(), caneluraTex(), CAR_COST, carCost(), CARS, carTris() (+17 more)
+Cohesion: 0.14
+Nodes (24): acmTex(), asfaltoTex(), buildHavan(), caneluraTex(), CAR_COST, carCost(), CARS, carTris() (+16 more)
 
 ### Community 127 - "identity-check.mjs"
 Cohesion: 0.22
@@ -1088,7 +1089,7 @@ Nodes (40): GUN_VOL, CHARACTERS, preloadRuntimes(), ENEMY_IDS, GEOMETRY_KINDS, M
 
 ### Community 157 - "vm-project.mjs"
 Cohesion: 0.15
-Nodes (15): CFG, rotXYZ(), sightOf(), WDIR, ALVO, AQUI, conferir(), frame() (+7 more)
+Nodes (16): CFG, muzzleOf(), rotXYZ(), sightOf(), WDIR, ALVO, AQUI, conferir() (+8 more)
 
 ### Community 158 - "weapon-shots.mjs"
 Cohesion: 0.10
@@ -1220,7 +1221,7 @@ Nodes (13): fora, HERE, JSON_OUT, medir(), MUTATE, POSTERS, ROOT, arquivo() (+5 
 
 ### Community 222 - "vm-orto.mjs"
 Cohesion: 0.15
-Nodes (12): F, muzzleOf(), OFF, V0DEG, AQUI, CLI, IDS, LONGAS (+4 more)
+Nodes (12): bbox(), F, OFF, V0DEG, AQUI, CLI, IDS, LONGAS (+4 more)
 
 ### Community 223 - "retarget-ue2.mjs"
 Cohesion: 0.12
@@ -1263,8 +1264,8 @@ Cohesion: 0.17
 Nodes (8): deepCloneAttribute(), deinterleaveAttribute(), deinterleaveGeometry(), mergeAttributes(), mergeBufferAttributes(), mergeBufferGeometries(), mergeGeometries(), toTrianglesDrawMode()
 
 ### Community 233 - "gotoMap"
-Cohesion: 0.18
-Nodes (11): applySetupWall(), gotoMap(), openProfileStep(), openSetup(), rebuildMenuBackdrop(), saveSettings(), setMapMode(), setMapThumb() (+3 more)
+Cohesion: 0.20
+Nodes (11): gotoMap(), loadStats(), playerXp(), rebuildMenuBackdrop(), renderMapScreen(), renderPlayerPlate(), saveSettings(), setMapThumb() (+3 more)
 
 ### Community 234 - "brasao-ref.mjs"
 Cohesion: 0.14
@@ -1335,8 +1336,8 @@ Cohesion: 0.15
 Nodes (7): 1377(), 1377(), FRAMES, gRoot, SECS, trails, Z()
 
 ### Community 254 - "show"
-Cohesion: 0.22
-Nodes (9): applyHomeWall(), _armMusic(), closeSetup(), dismissSplash(), _ensureMusic(), markCurrent(), _pick(), show() (+1 more)
+Cohesion: 0.25
+Nodes (8): _armMusic(), dismissSplash(), _ensureMusic(), _pick(), renderGlobal(), show(), showRanking(), startMenuMusic()
 
 ### Community 255 - ".loadTextureImage"
 Cohesion: 0.21
@@ -1366,9 +1367,9 @@ Nodes (13): 1. `players.token` era legível pela anon key — **crítico**, 1b. 
 Cohesion: 0.11
 Nodes (18): 1. O corte, 2.1 O `ViewModelRig` completo já está escrito — e nunca foi importado, 2.2 O recoil do viewmodel é 4x maior que o de qualquer FPS moderno, 2.3 A causa raiz de "bot passa do lado e não atira" é uma linha, 2.4 O auditor de viewmodel mede uma versão do jogo que não existe mais, 2.5 A trava de borda manda no enquadramento, não o `recuoZ`, 2. O que a auditoria achou que você não sabia, 3. Ordem de execução (+10 more)
 
-### Community 264 - "renderPlayerPlate"
-Cohesion: 0.33
-Nodes (7): loadStats(), playerXp(), renderGlobal(), renderMapScreen(), renderPlayerPlate(), showRanking(), syncPlayState()
+### Community 264 - "openSetup"
+Cohesion: 0.25
+Nodes (8): applyHomeWall(), applySetupWall(), closeSetup(), markCurrent(), openProfileStep(), openSetup(), setMapMode(), setSetupStep()
 
 ### Community 266 - "CORO SOLTO: Treta Suprema"
 Cohesion: 0.17
@@ -2093,7 +2094,7 @@ Nodes (3): DirectionalLight, HemisphereLight, SpotLight
 ## Knowledge Gaps
 - **2980 isolated node(s):** `mint`, `abrir-issues.sh script`, `name`, `version`, `private` (+2975 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **215 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **216 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
