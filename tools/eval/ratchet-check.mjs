@@ -44,7 +44,7 @@ const declaracoes = body.split(/\r?\n/).map((linha) => {
     return '';
   }
   return linha;
-}).join('\n');
+}).join('\n').replace(/<!--[\s\S]*?(?:-->|$)/g, '');
 const motivos = new Map();
 for (const m of declaracoes.matchAll(/^ratchet:\s*([+-]?)([A-Z0-9_]+)(?:\s+porque\s+(.+))?\s*$/gim)) {
   motivos.set(m[2].toUpperCase(), { libera: m[1] === '+', motivo: m[3] || '' });
