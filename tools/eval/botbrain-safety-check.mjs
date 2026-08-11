@@ -8,6 +8,7 @@ let main = read('public/js/main.js');
 let game = read('public/js/game.js');
 let page = read('src/pages/index.astro');
 let docker = read('docker/botbrain.Dockerfile');
+let compose = read('docker-compose.botbrain.yml');
 let trainer = read('tools/eval/bot-train.mjs');
 let brain = read('public/js/botbrain/brain.js');
 
@@ -17,6 +18,10 @@ else if (mutant === 'optout') main = main.replace("localStorage.getItem(TRAIN_CO
 else if (mutant === 'cache') page = page.replace('"botbrain/brain.js",', '');
 else if (mutant === 'root') docker = docker.replace('USER node', '');
 else if (mutant === 'poison') trainer = trainer.replace('MAX_BATCHES_PER_PLAYER', 'UNLIMITED_BATCHES_PER_PLAYER');
+else if (mutant === 'localsink') {
+  api = api.replaceAll('MAX_LOCAL_FILE_BYTES', 'UNLIMITED_LOCAL_FILE_BYTES');
+  compose = compose.replace('127.0.0.1:4321:4321', '4321:4321');
+}
 else if (mutant) throw new Error(`mutante desconhecido: ${mutant}`);
 
 const failures = [];
@@ -41,6 +46,11 @@ if (!brain.includes("weights.bin") && !brain.includes('${wpath}?v=${version}'))
 if (!/^USER node$/m.test(docker)) failures.push('BB7 imagem BotBrain ainda executa como root');
 if (!trainer.includes('MAX_BATCHES_PER_PLAYER') || !trainer.includes('player_id'))
   failures.push('BB8 importação remota não limita contribuição por jogador autenticado');
+if (!api.includes('MAX_REQUEST_BYTES') || !api.includes('MAX_LOCAL_FILE_BYTES')
+    || !api.includes('sanitizeMeta') || !api.includes('localRateLimit') || !api.includes('validLocalOrigin'))
+  failures.push('BB9 sink local não limita corpo, metadados, taxa e quota em disco');
+if (!compose.includes('127.0.0.1:4321:4321'))
+  failures.push('BB9 serviço local expõe o sink de treino fora do loopback');
 
 for (const failure of failures) console.error(`  \x1b[31m✗\x1b[0m ${failure}`);
 if (mutant && !failures.length) failures.push(`mutação ${mutant} não foi detectada`);

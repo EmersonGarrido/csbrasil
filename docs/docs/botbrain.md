@@ -45,9 +45,11 @@ npm run bot:brain:check
 
 O guia operacional completo, inclusive Docker e sink local, está em
 [`docs/BOTBRAIN-LOCAL.md`](https://github.com/rubenmarcus/csbrasil/blob/main/docs/BOTBRAIN-LOCAL.md).
+O Docker publica o jogo apenas no loopback; o sink local rejeita origens externas, limita
+taxa, corpo e metadados, e interrompe a coleta ao atingir 50 MiB.
 
 ## Gates
 
 `npm run eval:botbrain` verifica identidade UID, consentimento, objetivo de CTF, cache bust,
-execução não-root no contêiner e balanceamento do corpus. `npm run bot:brain:check` executa
+sink local, execução não-root no contêiner e balanceamento do corpus. `npm run bot:brain:check` executa
 partidas bot contra bot e confirma que a rede se move, atira e consegue abates.

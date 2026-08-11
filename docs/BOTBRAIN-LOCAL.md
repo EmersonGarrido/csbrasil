@@ -46,6 +46,9 @@ docker compose -f docker-compose.botbrain.yml run --rm train
 O contêiner executa como o usuário não-root `node`; os artefatos gerados não pertencem ao
 root. A instalação do TensorFlow fica no volume isolado de `node_modules` e não altera
 `package.json` nem o lockfile do host.
+O serviço `game` publica a porta somente em `127.0.0.1`. O sink local rejeita origens
+externas, limita taxa e tamanho do corpo, conserva apenas metadados conhecidos e para de
+gravar quando o corpus atinge 50 MiB.
 > Em Apple Silicon o `tfjs-node` pode não ter binário prebuilt pro Linux ARM do container;
 > se o `train` falhar na instalação, treine no host (seção 1) — o resultado é o mesmo.
 

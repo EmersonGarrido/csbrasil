@@ -15,13 +15,13 @@ services:
       context: .
       dockerfile: docker/botbrain.Dockerfile
     ports:
-      - "4321:4321"
+      - "127.0.0.1:4321:4321"
     volumes:
       - .:/app
       - /app/node_modules
     environment:
       - NODE_ENV=development
-    # sem SUPABASE_URL/KEY → o /api/train-frames grava em arquivo local (sink de dev)
+    # sem SUPABASE_URL/KEY → o sink limitado grava somente a partir do loopback
 
   train:
     build:
