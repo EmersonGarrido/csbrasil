@@ -4,8 +4,8 @@
 
 - **Versão:** `2.0.0-alpha.70`
 - **Conteúdo jogável:** 5 facções, 44 personagens, 5 mapas e 26 armas com GLB
-- **Código do jogo:** 27.324 linhas em 33 módulos JavaScript
-- **Automação:** 69 comandos npm, 171 scripts de avaliação e 46 scripts de pipeline
+- **Código do jogo:** 27.326 linhas em 33 módulos JavaScript
+- **Automação:** 70 comandos npm, 172 scripts de avaliação e 46 scripts de pipeline
 
 > Bloco gerado por `node tools/gen-docs.mjs`. Fonte: `package.json · CHARACTERS · MAPS · public/models/weapons · public/js · tools/`
 
@@ -20,6 +20,10 @@ single-player contra bots, com rodadas e captura de bandeiras.
 O ranking está desligado por `RANKING_ON`. A telemetria anônima continua ativa e registra
 funil, performance, partidas, mapas, modos, personagens, armas e facções. O mapa público
 mostra presença aproximada por cidade e as cinco facções sem publicar IP.
+
+Nas rotas de jogador, UID é a identidade estável, token autentica a sessão e nick é
+atributo de exibição. O fallback por `nick + token` existe apenas para a transição de
+clientes e banco antigos.
 
 ## Fontes vivas
 

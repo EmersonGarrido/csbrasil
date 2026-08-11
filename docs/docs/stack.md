@@ -96,6 +96,10 @@ A segurança não vem de esconder a `anon` key — ela é pública por design. V
 *policies*, dos grants por coluna e do rate limit contado no Postgres
 (`src/lib/ratelimit.ts` + RPC `rl_take`), não em memória de lambda.
 
+Identidade de jogador usa UID estável para selecionar a conta e token para
+autenticar a sessão; nick é atributo de exibição. Clientes e bancos antigos têm
+fallback temporário por `nick + token`, documentado em `docs/seguranca.md`.
+
 Hoje a `anon` key **não sai do servidor**: existia um `GET /api/config` que a entregava
 ao browser "pro client ligar OAuth/storage", mas nenhum cliente chegou a usar, e a rota
 foi removida (issue #41). Se OAuth entrar na mesa, ela volta — com rate limit.

@@ -95,9 +95,13 @@ The ranking and the telemetry live in a managed Postgres. Schema and migrations 
 private (outside the repo — a security decision); the runtime only uses the envs.
 optional obfuscation that was delivered ready and **deliberately not applied**.
 
-Security does not come from hiding the `anon` key — it is public by design and reaches the browser
-via `GET /api/config`. It comes from the *policies*, from the per-column grants and from the rate limit counted
+Security does not come from hiding the `anon` key — it is public by design, although the current
+client does not receive it. It comes from the *policies*, from the per-column grants and from the rate limit counted
 in Postgres (`src/lib/ratelimit.ts` + RPC `rl_take`), not in lambda memory.
+
+Player identity uses a stable UID to select the account and a token to authenticate
+the session; the nickname is display data. Old clients and a database pending the
+private migration retain a temporary `nickname + token` fallback.
 
 **The ranking is off today** (`RANKING_ON` in `src/lib/site.ts`) and was replaced by
 anonymous telemetry. It is a flag, not a removal — details in [Current state](./status).
