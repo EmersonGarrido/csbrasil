@@ -12,6 +12,7 @@
 import type { APIRoute } from 'astro';
 import { supabaseAdmin, NOT_CONFIGURED } from '../../lib/supabase';
 import { rateLimit } from '../../lib/ratelimit';
+import { logInternalError } from '../../lib/api-error';
 
 export const prerender = false;
 
@@ -31,22 +32,32 @@ export const POST: APIRoute = async ({ request }) => {
   let body: any;
   try { body = await request.json(); } catch { return json({ error: 'bad_json' }, 400); }
 
-  const { anonId, map, mode, character, team, result, kills, deaths, headshots, bestStreak, rounds, seconds, topWeapon, weaponKills, botCount, nick } = body ?? {};
+  const { anonId, sessionId, eventId, version, map, mode, character, team, faction, result, kills, deaths, headshots, bestStreak, rounds, seconds, topWeapon, weaponKills, botCount, nick } = body ?? {};
 
   // anonId é a única obrigatória: vira FK lógica. Sem ele, descarta em silêncio.
   if (typeof anonId !== 'string' || !UUID_RE.test(anonId))
     return json({ error: 'bad_anon_id' }, 400);
 
-  // weaponKills tem que ser objeto {arma: n}; se vier outra coisa, vira {}.
-  const wk = weaponKills && typeof weaponKills === 'object' && !Array.isArray(weaponKills) ? weaponKills : {};
+  const wk = Object.fromEntries(
+    Object.entries(
+      weaponKills && typeof weaponKills === 'object' && !Array.isArray(weaponKills) ? weaponKills : {},
+    )
+      .filter(([key, value]) => /^[a-z0-9_-]{1,32}$/i.test(key) && Number.isFinite(+value))
+      .slice(0, 32)
+      .map(([key, value]) => [key, Math.max(0, Math.min(10000, Math.round(+value)))]),
+  );
 
   try {
     const { error } = await supabaseAdmin.rpc('track_match_event', {
       p_anon_id: anonId,
+      p_session_id: typeof sessionId === 'string' && UUID_RE.test(sessionId) ? sessionId : null,
+      p_event_id: typeof eventId === 'string' && UUID_RE.test(eventId) ? eventId : null,
+      p_version: typeof version === 'string' ? version.slice(0, 40) : null,
       p_map: typeof map === 'string' ? map.slice(0, 40) : 'desconhecido',
       p_mode: mode === 'ctf' ? 'ctf' : 'rounds',
       p_character: typeof character === 'string' ? character.slice(0, 32) : null,
       p_team: typeof team === 'string' ? team.slice(0, 4) : null,
+      p_faction: typeof faction === 'string' && /^(E|B|U|C|F)$/.test(faction) ? faction : null,
       p_result: typeof result === 'string' && RESULT_RE.test(result) ? result : 'quit',
       p_kills: kills | 0, p_deaths: deaths | 0, p_headshots: headshots | 0,
       p_best_streak: bestStreak | 0, p_rounds: rounds | 0, p_seconds: Math.round(+seconds) || 0,
@@ -54,8 +65,12 @@ export const POST: APIRoute = async ({ request }) => {
       p_weapon_kills: wk, p_bot_count: botCount | 0,
       p_nick: typeof nick === 'string' && nick ? nick.slice(0, 32) : null,
     });
-    if (error) return json({ ok: true, stored: false });
-  } catch {
+    if (error) {
+      logInternalError('api/match', error, { eventId: typeof eventId === 'string' ? eventId : null });
+      return json({ ok: true, stored: false });
+    }
+  } catch (error) {
+    logInternalError('api/match', error, { eventId: typeof eventId === 'string' ? eventId : null });
     return json({ ok: true, stored: false });
   }
   return json({ ok: true, stored: true });
