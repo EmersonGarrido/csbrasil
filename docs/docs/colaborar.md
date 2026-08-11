@@ -14,7 +14,7 @@ O número abaixo não é retórica, e não é escrito à mão: sai de `git short
 
 {/* BEGIN:GERADO:pessoas — não edite à mão, rode `npm run docs` */}
 
-**11 pessoas** assinam commit no histórico **desta branch**: `ruben-cytonic`, `csbrasil-deploy-bot`, `William Oliveira`, `Emerson Garrido`, `Juan Versolato Lopes`, `Ruben Marcus`, `CS BRASIL Bot`, `github-actions[bot]`, `matheusgb`, `Ruben`, `daltonfontes`. O resto dos commits é assinado por agentes de IA. Branch não é repositório: quem contribuiu num ramo que esta branch não contém **não aparece aqui**.
+**11 pessoas** assinam commit no histórico **desta branch**: `ruben-cytonic`, `csbrasil-deploy-bot`, `Emerson Garrido`, `Ruben Marcus`, `William Oliveira`, `Juan Versolato Lopes`, `CS BRASIL Bot`, `github-actions[bot]`, `matheusgb`, `Ruben`, `daltonfontes`. O resto dos commits é assinado por agentes de IA. Branch não é repositório: quem contribuiu num ramo que esta branch não contém **não aparece aqui**.
 
 > Bloco gerado por `node tools/gen-docs.mjs`. Fonte: `git shortlog -sn --no-merges (descontando autores que são agentes)`
 
