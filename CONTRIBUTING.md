@@ -38,6 +38,11 @@ critério de aceite.
    Tocou área sensível? Um mantenedor aplica o label na mão depois de revisar.
 4. **Quality gates locais antes de abrir**: `npm run check:fast` (segundos) e, se mexeu em
    jogo, `npm run check`. Vermelho novo no quality gate = PR volta.
+5. **Nada de travessão `—` no texto do site (`src/`)**. Use hífen com espaços (` - `). O
+   em-dash é a marca de texto gerado por IA e, num jogo que se vende como original, entrega
+   a origem em título, meta, OG e nas descrições de arma/personagem. O `travessao:check`
+   reprova `—` e `–` em `src/`; escreva ` - ` e siga a vida. Vale para texto escrito por
+   gente e por IA - a régua não distingue, e é essa a intenção.
 
 ## Rodando localmente
 
@@ -180,6 +185,14 @@ E teste à mão: o jogo abre, o console fica limpo, uma partida completa roda
    > Contribuições anteriores à troca entraram sob MIT — licença permissiva e
    > compatível: elas seguem MIT dentro do conjunto, que é distribuído sob
    > AGPL-3.0. Se isso for decisivo pra você, pergunte antes de abrir o PR.
+
+O CI valida a presença de `Signed-off-by:` em cada commit do PR.
+
+Para assinar:
+
+```bash
+git commit -s -m "feat: minha mudança"
+```
 
 ## Reportando bugs
 

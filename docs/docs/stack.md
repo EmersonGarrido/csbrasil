@@ -17,7 +17,7 @@ a partir do `package.json`, do `docs/package.json` e do próprio Three.js vendor
 | Camada | Ferramenta | Versão |
 |---|---|---|
 | Motor 3D (WebGL) | **Three.js**, vendorizado | `r160` |
-| Jogo | ES modules vanilla, **zero build** | 31 arquivos |
+| Jogo | ES modules vanilla, **zero build** | 33 arquivos |
 | Site | **Astro** com SSR | `^7.1.1` |
 | Hospedagem | adapter **Vercel** | `^11.0.3` |
 | Banco | **Postgres gerenciado** (RLS; schema privado, fora do repo) | `^2.110.7` |
@@ -243,8 +243,8 @@ de trabalhar. Elas vivem em `.agents/skills/`, e `.claude/skills/` são symlinks
 | Contagem | Quanto | O que significa |
 |---|---:|---|
 | Declaradas no `skills-lock.json` | 39 | com `source`, `skillPath` e `computedHash` — skill de terceiro que mudar de conteúdo é detectável |
-| Versionadas (chegam em quem clona) | 9 | `git ls-files .agents/skills` |
-| …dessas, com `SKILL.md` no git | 9 | é o que um clone limpo consegue ler |
+| Versionadas (chegam em quem clona) | 10 | `git ls-files .agents/skills` |
+| …dessas, com `SKILL.md` no git | 10 | é o que um clone limpo consegue ler |
 
 **As contagens divergem de propósito, e a diferença é o fato:** a maioria das skills é de terceiro, fixada por hash no lock e baixada sob demanda. Quem clonar o repositório recebe o lock inteiro e só uma parte do conteúdo. Publicar só uma das contagens esconderia exatamente o que o contribuidor precisa saber.
 
