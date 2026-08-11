@@ -20,6 +20,9 @@ const settings = Object.assign({ sens: 1, vol: 0.7, quality: 'med', speech: true
   JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}'));
 const saveSettings = () => localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
 const NICK_KEY = 'awpbr_nick';
+// BOTBRAIN: coleta de jogadas p/ treinar a rede dos bots. Opt-out (ligado por padrão).
+const TRAIN_OPTOUT_KEY = 'csbr_optout_training';
+const trainingEnabled = () => { try { return localStorage.getItem(TRAIN_OPTOUT_KEY) !== '1'; } catch { return false; } };
 const SOCIAL_KEY = 'awpbr_social';
 const STATS_KEY = 'awpbr_stats';   // declarado no bloco de storage: syncPlayState→renderPlayerPlate→loadStats roda ANTES da definição antiga (TDZ)
 
@@ -641,6 +644,13 @@ function sendMatchEvent(result) {
   };
   try { navigator.sendBeacon('/api/match', new Blob([JSON.stringify(payload)], { type: 'application/json' })); } catch { /* fail-silent */ }
 }
+/* BOTBRAIN: envia o lote de (estado→ação) do jogador. fetch POST (NÃO sendBeacon): o lote
+   passa dos 64 KB do beacon, e a tela de fim mantém a página viva o bastante pra terminar.
+   Fail-silent e anônimo (anonId), como as telemetrias irmãs. */
+function sendTrainingFrames(blob) {
+  if (testMode || !blob) return;
+  try { api('/api/train-frames', { anonId: getAnonId(), ...blob }); } catch { /* paciência */ }
+}
 /* AS CHAMADAS MORAM DEPOIS DO `const testMode` — e isto não é estilo, é o que fazia o jogo
    não abrir (07/08, medido em produção). `_pingPresenca` lê `testMode` na primeira linha;
    `const` não é hoisted como `var`: chamar a função ANTES da linha 498 lança
@@ -753,6 +763,8 @@ async function _startGame(team, charId, enemyFaction) {
     nickname: $('nick-input').value, testMode,
     ctf: matchMode === 'ctf',   // o modo agora é 100% escolha do jogador (ctfMode só define o PADRÃO ao trocar de mapa)
     onMatchEnd: recordMatchStats,
+    recordTraining: trainingEnabled(),   // BOTBRAIN: coleta de jogadas (opt-out)
+    onTrainingFrames: sendTrainingFrames,
   });
   window.__game = game;
   submitted = false;
@@ -1820,6 +1832,15 @@ speechEl.onchange = () => {
   saveSettings();
   if (game?.el?.hudSpeech) game.el.hudSpeech.textContent = settings.speech ? '🔊' : '🔇';
 };
+// BOTBRAIN: opt-out da coleta de jogadas (persiste em localStorage, não em settings).
+const trainEl = $('set-training');
+if (trainEl) {
+  trainEl.checked = trainingEnabled();
+  trainEl.onchange = () => {
+    try { localStorage.setItem(TRAIN_OPTOUT_KEY, trainEl.checked ? '0' : '1'); } catch { /* paciência */ }
+    if (game) game._recordEnabled = trainEl.checked && !testMode && !!game._recorder;
+  };
+}
 updLabels();
 
 /* ---------------- logo ---------------- */

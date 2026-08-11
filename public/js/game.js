@@ -14,6 +14,7 @@ import { skyRadiance } from './bloom.js';
 import { RecoilAxis, ViewModelRig } from './springs.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { frase, tr } from './i18n.js';   // EN por camada — o crash 'frase is not defined' de 06/08 foi este import faltando
+import { PlayerRecorder } from './botbrain/recorder.js';   // BOTBRAIN: grava (estado→ação) do jogador (só quando recordTraining)
 
 export const WEAPONS = {
   awp:    { name: 'AWP "DELIBERADOR"', short: 'AWP', dmg: 400, mag: 5, reserve: 25, rate: 1.7, reload: 3.1, spreadHip: 0.075, spreadScope: 0.0008, recoil: 0.055, scope: true },
@@ -563,7 +564,7 @@ function rollBotSkill(mul = 1) {
 function botTier(skill) { return skill < 0.75 ? 'ruim' : skill < 1.05 ? 'medio' : skill < 1.4 ? 'bom' : 'muitobom'; }
 
 export class Game {
-  constructor({ renderer, textures, sfx, settings, playerCharId, playerTeam, playerFaction, enemyFaction, nickname, mapId, ctf, testMode = false, onQuit, onMatchEnd }) {
+  constructor({ renderer, textures, sfx, settings, playerCharId, playerTeam, playerFaction, enemyFaction, nickname, mapId, ctf, testMode = false, onQuit, onMatchEnd, onTrainingFrames, recordTraining = false }) {
     this._ctfOpt = ctf;
     this.renderer = renderer;
     this.sfx = sfx;
@@ -571,6 +572,11 @@ export class Game {
     this.testMode = testMode;
     this.onQuit = onQuit;
     this.onMatchEnd = onMatchEnd;
+    // BOTBRAIN (coleta): grava (estado→ação) do jogador p/ treinar a rede dos bots.
+    // Só liga se o dono não deu opt-out (recordTraining) e fora do modo de teste.
+    this.onTrainingFrames = onTrainingFrames;
+    this._recordEnabled = !!recordTraining && !testMode;
+    this._recorder = this._recordEnabled ? new PlayerRecorder(this) : null;
     this.state = 'boot';
     this.paused = false;
     this.time = 0;
@@ -2218,6 +2224,17 @@ export class Game {
         roundsP: this.roundsWon.E, roundsB: this.roundsWon.B,
         seconds: Math.round(this.time),
       });
+    } catch {}
+    // BOTBRAIN: entrega o blob de (estado→ação) do jogador pro main.js beaconar.
+    try {
+      if (this._recorder && this._recordEnabled && this._recorder.count > 0) {
+        const blob = this._recorder.flush({
+          map: this._mapId, mode: this.ctf ? 'ctf' : 'rounds',
+          weapon: this.player.weapon, won: mine, kills: this.player.kills,
+        });
+        if (blob) this.onTrainingFrames?.(blob);
+        this._recorder.reset();
+      }
     } catch {}
     mine ? this.sfx.matchWin() : this.sfx.roundLose();
   }
@@ -6225,6 +6242,7 @@ export class Game {
       else this._startRound();
     }
     this._updatePlayer(dt);
+    if (this._recorder && this._recordEnabled) this._recorder.tick(dt);
     for (const b of this.bots) this._updateBot(b, dt);
     this._updatePickups();
     this._updateFx(dt);
