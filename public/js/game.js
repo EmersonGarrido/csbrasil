@@ -1116,7 +1116,7 @@ export class Game {
       pauseActions: document.querySelector('#pause-menu .pause-actions'),
       radioMenu: $('radio-menu'), radioLog: $('radio-log'), mkBanner: $('mk-banner'),
       lockHint: $('lock-hint'), hudSpeech: $('hud-speech'), hudSettings: $('hud-settings'),
-      pickupHint: $('pickup-hint'),
+      pickupHint: $('pickup-hint'), weaponHud: $('weapon-hud'),
     };
   }
 
@@ -6105,8 +6105,42 @@ export class Game {
        referência (título em cima, painel embaixo, nada se cruzando). */
     this.el.hud.classList.toggle('sb-on', !!v);
   }
+  _updateWeaponHud() {
+    const hud = this.el.weaponHud;
+    if (!hud) return;
+    if (!VMLAB) {
+      hud.classList.add('hidden');
+      if (this._weaponHudSig) { hud.innerHTML = ''; this._weaponHudSig = ''; }
+      return;
+    }
+    const p = this.player;
+    const slots = [];
+    if (p.primary) slots.push({ key: 1, weapon: p.primary });
+    slots.push({ key: 2, weapon: p.secondary || 'pistol' });
+    slots.push({ key: 3, weapon: 'knife' });
+    if (p.smokes > 0) slots.push({ key: 4, kind: 'smoke', name: 'FUMAÇA', count: p.smokes });
+    if (p.frags > 0) slots.push({ key: 5, kind: 'frag', name: 'FRAG', count: p.frags });
+
+    const signature = slots.map((slot) => {
+      const ammo = slot.weapon && p.ammo?.[slot.weapon];
+      return [slot.key, slot.weapon || slot.kind, ammo?.mag ?? '', ammo?.res ?? '', slot.count ?? '', slot.weapon === p.weapon].join(':');
+    }).join('|');
+    if (signature === this._weaponHudSig && !hud.classList.contains('hidden')) return;
+    this._weaponHudSig = signature;
+    hud.innerHTML = slots.map((slot) => {
+      const weapon = slot.weapon && WEAPONS[slot.weapon];
+      const active = slot.weapon === p.weapon;
+      const ammo = slot.weapon && p.ammo?.[slot.weapon];
+      const amount = slot.count != null ? `×${slot.count}` : (slot.weapon === 'knife' ? '' : (ammo ? `${ammo.mag}/${ammo.res}` : ''));
+      const icon = this._wpnIcon(slot.kind === 'frag' ? 'FRAG' : slot.kind === 'smoke' ? 'NADE' : weapon?.short);
+      const name = slot.name || weapon?.name || slot.weapon?.toUpperCase() || '';
+      return `<div class="weapon-slot${active ? ' on' : ''}" data-slot="${slot.key}"><span class="weapon-key">${slot.key}</span><span class="weapon-icon">${icon}</span><span class="weapon-label">${name}</span><span class="weapon-amount">${amount}</span></div>`;
+    }).join('');
+    hud.classList.remove('hidden');
+  }
   _updateHud() {
     const p = this.player;
+    this._updateWeaponHud();
     this.el.hpNum.textContent = Math.max(0, Math.ceil(p.hp));
     this.el.hpFill.style.width = Math.max(0, p.hp) + '%';
     this.el.hpFill.classList.toggle('low', p.hp <= 35);

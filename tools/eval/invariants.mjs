@@ -2158,7 +2158,21 @@ function runNode(script, env = {}, args = []) {
   }
 }
 
-// ── 9. INVARIANTES QUE EXIGEM PIXEL (marcadas, não rodadas aqui) ────────────
+// ── 9. HUD EXPERIMENTAL ─────────────────────────────────────────────────────
+// BUG-42: o protótipo do menu de armas existia apenas em dev.html, podado da
+// produção. A régua executa o método real com e sem ?vmlab=1.
+{
+  const out = runNode('vmlab-hud-check.mjs', {}, ['--json']);
+  let audit = null;
+  try { audit = JSON.parse(out); } catch {}
+  const itens = audit?.resultados || [];
+  const falhasHud = itens.filter((item) => !item.ok);
+  put('HUD1', '?vmlab=1 materializa o menu de armas do loadout no HUD real',
+    itens.length === 4 && falhasHud.length === 0,
+    itens.length ? itens.map((item) => `${item.id}:${item.ok ? 'ok' : item.evid}`).join(' · ') : out.trim());
+}
+
+// ── 10. INVARIANTES QUE EXIGEM PIXEL (marcadas, não rodadas aqui) ───────────
 skip('PX1', 'no ADS o jogador vê a arma E a mira', 'exige browser — use tools/eval/motion.mjs');
 skip('PX2', 'silhuetas das 26 armas diferem (IoU par a par < 0,85)', 'exige browser — use tools/eval/motion.mjs');
 skip('PX3', 'mão travada no grip em todo frame de toda animação', 'exige browser/traço — use tools/eval/motion.mjs');
