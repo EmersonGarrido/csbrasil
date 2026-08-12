@@ -9,6 +9,9 @@ import { MAPS, MAP_IDS, DEFAULT_MAP, resolveMapId } from './maps.js';
 import { setHavanCarSeed } from './map_havan.js';
 import { Sfx } from './audio.js';
 import { Game, confirmGate, CONFIRM_MAX_MS } from './game.js';
+// net.js é MÓDULO PRIVADO (multiplayer, fora do open source). No build público o arquivo não
+// existe — por isso NÃO se importa estático aqui (quebraria o boot inteiro). O lobby carrega via
+// loadNet() dinâmico e tolerante: sem o arquivo, o MP some e o single-player roda igual.
 import { VERSION } from './version.js';
 import { LANG, translateDom, tr, frase } from './i18n.js';
 import { enableLightBloom } from './bloom.js';
@@ -89,8 +92,26 @@ const sfxReady = sfx.loadManifest();
 
 /* ---------------- selected map ---------------- */
 const urlMap = new URLSearchParams(location.search).get('map');
+// ?map=__edit__ → "Testar mapa" do editor: constrói a partir do projeto salvo no editor.
+let editMapProps = [];
+if (urlMap === '__edit__') {
+  try {
+    const raw = localStorage.getItem('awpbr_editor_testmap');
+    if (raw) {
+      const data = JSON.parse(raw);
+      const { buildEditorMap } = await import('./editor/mapbuild.js');
+      MAPS.__edit__ = {
+        name: (data.name || 'Teste') + ' (editor)',
+        build: (scene, T) => buildEditorMap(scene, T, data),
+        props: data.propIds || [],
+        ctfMode: !!(data.ctf && data.ctf.length),
+      };
+      editMapProps = data.propIds || [];
+    }
+  } catch (e) { console.warn('mapa do editor não carregou', e); }
+}
 let currentMap = resolveMapId(urlMap || settings.map);
-settings.map = currentMap;
+if (currentMap !== '__edit__') settings.map = currentMap;   // não grava o mapa de teste como padrão
 
 /* ---------------- menu backdrop (orbiting map) ---------------- */
 // Mint building/statue GLBs used by the Brasília map (loaded once, cloned per placement).
@@ -146,10 +167,10 @@ function rebuildMenuBackdrop() {
 }
 // The first backdrop is built before props load; rebuild once they're ready so the
 // menu shows the real Brasília landmarks too. Só então a splash libera a entrada.
-preloadMapProps(MAP_PROPS).then(() => { rebuildMenuBackdrop(); _splashSetReady(); }).catch(() => _splashSetReady());
+preloadMapProps([...MAP_PROPS, ...editMapProps]).then(() => { rebuildMenuBackdrop(); _splashSetReady(); }).catch(() => _splashSetReady());
 
 /* ---------------- screens ---------------- */
-const screens = ['mobile-warning', 'main-menu', 'map-screen', 'team-select', 'char-select', 'settings-panel', 'howto-panel', 'ranking-panel', 'feedback-panel', 'pause-menu', 'match-end'];
+const screens = ['mobile-warning', 'main-menu', 'map-screen', 'team-select', 'char-select', 'settings-panel', 'howto-panel', 'ranking-panel', 'feedback-panel', 'mp-lobby', 'pause-menu', 'match-end'];
 function show(id) {
   for (const s of screens) document.getElementById(s).classList.toggle('hidden', s !== id);
   if (!id) for (const s of screens) document.getElementById(s).classList.add('hidden');
@@ -752,6 +773,7 @@ async function _startGame(team, charId, enemyFaction) {
     playerCharId: charId, playerTeam: side, playerFaction: faction, enemyFaction: enemyFac, mapId: currentMap,
     nickname: $('nick-input').value, testMode,
     ctf: matchMode === 'ctf',   // o modo agora é 100% escolha do jogador (ctfMode só define o PADRÃO ao trocar de mapa)
+    online: mpOnline, net: mpNet, mpFactory,   // multiplayer: servidor autoritativo + netcode privado injetado (ver bootMP)
     onMatchEnd: recordMatchStats,
   });
   window.__game = game;
@@ -829,6 +851,9 @@ function quitToMenu() {
   // dispose protegido: se a limpeza da partida falhar, o menu volta MESMO assim
   // (antes, uma exceção aqui deixava o botão "SAIR PRO MENU" morto e o jogo zumbi)
   try { if (game) game.dispose(); } catch (e) { console.error('dispose falhou ao sair pro menu', e); }
+  // MULTIPLAYER: fecha a conexão ao sair — libera o slot no servidor e deixa a sala encerrar
+  if (mpNet) { try { mpNet.close(); } catch { /* já fechada */ } mpNet = null; }
+  mpOnline = false; mpFactory = null;   // netcode privado só é reinjetado ao entrar em outra partida MP
   game = null; window.__game = null;
   if (document.pointerLockElement) document.exitPointerLock();
   // a tela cheia era da PARTIDA (pré-requisito da trava de Ctrl+W); no menu ela não serve
@@ -934,6 +959,7 @@ csItems.forEach((it) => {
     ui.click();
     switch (it.dataset.act) {
       case 'sp':    openSetup('rounds', 'SINGLE PLAYER', 'sp'); break;
+      case 'mp':    openLobby(); break;
       case 'ctf':   openSetup('ctf', 'CAPTURE THE FLAG', 'ctf'); break;
       /* MAPA saiu (mapa se escolhe no fluxo de partida); FEEDBACK entrou (07/08) */
       case 'feedback': markCurrent('feedback'); show('feedback-panel'); break;
@@ -1186,18 +1212,26 @@ function wpnLabel(id) {
 wpnDdList.innerHTML = WPN_MODES.map(m =>
   `<button class="dd-item" data-id="${m.id}" type="button">${WPN_ICONS[m.id]}<span>${tr(m.label)}</span></button>`).join('');
 wpnLabel(wpnSel.value);
-wpnDdBtn.onclick = e => { e.stopPropagation(); wpnDdList.classList.toggle('hidden'); wpnDdBtn.classList.toggle('open'); };
+wpnDdBtn.onclick = e => { e.stopPropagation(); botsDdList?.classList.add('hidden'); botsDdBtn?.classList.remove('open'); wpnDdList.classList.toggle('hidden'); wpnDdBtn.classList.toggle('open'); };
 document.addEventListener('click', () => { wpnDdList.classList.add('hidden'); wpnDdBtn.classList.remove('open'); });
 wpnDdList.querySelectorAll('.dd-item').forEach(b => b.onclick = () => {
   settings.wpnMode = b.dataset.id; saveSettings();
   wpnLabel(settings.wpnMode); setMapMeta(); sfx.uiClick();
 });
-// bots-per-side + difficulty selectors (custom match)
-const botsSel = $('bots-select');
-if (botsSel) {
-  [2, 3, 4, 5, 6, 7, 8].forEach(n => { const o = document.createElement('option'); o.value = n; o.textContent = `${n} vs ${n}`; botsSel.appendChild(o); });
-  botsSel.value = settings.bots || 4;
-  botsSel.onchange = () => { settings.bots = +botsSel.value; saveSettings(); setMapMeta(); sfx.uiClick(); };
+// bots-per-side: dropdown custom (mesma cara do de armas — o <select> nativo abria o
+// menu default do navegador, fora do estilo do resto do setup)
+const botsDdBtn = $('bots-dd-btn'), botsDdList = $('bots-dd-list'), botsDdLabel = $('bots-dd-label');
+if (botsDdBtn && botsDdList && botsDdLabel) {
+  const botsLabel = n => { botsDdLabel.innerHTML = `<span class="dd-cur"><span>${n} vs ${n}</span></span>`; };
+  botsDdList.innerHTML = [2, 3, 4, 5, 6, 7, 8].map(n =>
+    `<button class="dd-item" data-n="${n}" type="button"><span>${n} vs ${n}</span></button>`).join('');
+  botsLabel(settings.bots || 4);
+  botsDdBtn.onclick = e => { e.stopPropagation(); wpnDdList.classList.add('hidden'); wpnDdBtn.classList.remove('open'); botsDdList.classList.toggle('hidden'); botsDdBtn.classList.toggle('open'); };
+  document.addEventListener('click', () => { botsDdList.classList.add('hidden'); botsDdBtn.classList.remove('open'); });
+  botsDdList.querySelectorAll('.dd-item').forEach(b => b.onclick = () => {
+    settings.bots = +b.dataset.n; saveSettings();
+    botsLabel(settings.bots); setMapMeta(); sfx.uiClick();
+  });
 }
 const diffSel = $('diff-select');
 if (diffSel) {
@@ -1902,17 +1936,27 @@ addEventListener('resize', () => {
   if (game) game.onResize();
 });
 const clock = new THREE.Clock();
+// Timestep FIXO da simulação (o mesmo 1/60 s do botsim). O jogo avança em passos de
+// tamanho constante e o render sai uma vez por frame — sem isto a predição do
+// multiplayer (Fase 0.1) não reconcilia. `simAcc` acumula o tempo real e é drenado em
+// passos de FIXED_DT; o teto de 0.25 s evita a "espiral da morte" quando a aba volta do
+// segundo plano com um delta gigante. Visual de menu/preview continua no dt clampado a 0.05.
+const FIXED_DT = 1 / 60;
+let simAcc = 0;
 let menuAngle = 0;
 function loop() {
   requestAnimationFrame(loop);
-  const dt = Math.min(0.05, clock.getDelta());
+  const raw = clock.getDelta();
+  const dt = Math.min(0.05, raw);
   const csOpen = !$('char-select').classList.contains('hidden');
   // While the char-select is open mid-match (pressing M to switch teams), the game
   // auto-pauses — so we must NOT keep rendering it here, and we MUST still spin the
   // preview. Rendering the preview only lived in the menu branch before, which is
   // why M froze the selector.
-  if (game && !csOpen) {
-    game.update(dt);
+  if (game && !csOpen && !game.paused) {
+    simAcc += Math.min(0.25, raw);
+    while (simAcc >= FIXED_DT) { game.step(FIXED_DT); simAcc -= FIXED_DT; }
+    game.render();
   } else if (!game) {
     menuAngle += dt * 0.07;
     menuCam.position.set(Math.sin(menuAngle) * 34, 17 + Math.sin(menuAngle * 0.6) * 4, Math.cos(menuAngle) * 34);
@@ -1935,7 +1979,159 @@ document.querySelector('.footnote').textContent =
 show(isMobile && !testMode ? 'mobile-warning' : 'main-menu');
 window.__CS_MAIN_READY__ = true;
 window.__gameLaunch?.ready('boot');
+// MULTIPLAYER: setados por bootMP e lidos na construção do Game (_startGame). Declarados ANTES
+// do auto-start para não cair em TDZ se `?auto` disparar startGame.
+let mpNet = null, mpOnline = false, mpFactory = null;
+
+// Carrega o módulo privado de rede sob demanda. Em build público (sem net.js) devolve null uma
+// única vez (memoizado) e o lobby avisa que o multiplayer está indisponível — nada estoura.
+let _netMod, _netTried = false;
+async function loadNet() {
+  if (_netTried) return _netMod;
+  _netTried = true;
+  try { _netMod = await import('./net.js'); } catch { _netMod = null; }
+  return _netMod;
+}
 if (testMode && params.get('auto')) {
   const [team, char] = params.get('auto').split(',');
   startGame(team || 'E', char || CHARACTERS[0].id);
 }
+
+/* MULTIPLAYER — LOBBY. O servidor de jogo é um processo à parte (`cd server && npm start`);
+   `?mp=1` aponta pro local (ws/http em <host>:8787), `?mp=host:porta` ou `?mp=wss://...` pra outro.
+   O lobby lista salas, cria sala (nome/mapa/jogadores/pública-privada+senha) e entra. */
+const MP_PARAM = params.get('mp') || '1';
+let mpPendingRoom = null;   // sala privada aguardando senha
+
+function setMpStatus(t) { const el = $('mp-status'); if (el) el.textContent = t; }
+
+async function openLobby() {
+  markCurrent('mp');
+  show('mp-lobby');
+  $('mp-create').classList.add('hidden');
+  $('mp-joinbar').classList.add('hidden');
+  $('mp-list-view').classList.remove('hidden');
+  const N = await loadNet();
+  if (!N) { setMpStatus('multiplayer indisponível neste build'); return; }
+  const base = N.mpUrls(MP_PARAM).http;
+  setMpStatus('conectando ao lobby…');
+  try {
+    if (!$('mp-map').options.length) {
+      for (const m of await N.listMaps(base)) {
+        const o = document.createElement('option'); o.value = m; o.textContent = m; $('mp-map').appendChild(o);
+      }
+    }
+    await refreshRooms();
+    setMpStatus(`servidor: ${base}`);
+  } catch {
+    setMpStatus(`SERVIDOR OFFLINE — rode: cd server && npm start  (${base})`);
+    $('mp-room-list').replaceChildren(mpEmpty('sem conexão com o servidor de jogo'));
+  }
+}
+
+function mpEmpty(txt) { const d = document.createElement('div'); d.className = 'mp-empty'; d.textContent = txt; return d; }
+
+async function refreshRooms() {
+  const N = await loadNet();
+  if (!N) { setMpStatus('multiplayer indisponível neste build'); return; }
+  const rooms = await N.listRooms(N.mpUrls(MP_PARAM).http);
+  const list = $('mp-room-list');
+  list.replaceChildren();
+  if (!rooms.length) { list.appendChild(mpEmpty('nenhuma sala — crie a primeira!')); return; }
+  for (const r of rooms) {
+    const full = r.players >= r.max;
+    const b = document.createElement('button');
+    b.className = 'mp-room'; b.type = 'button';
+    const nm = document.createElement('span');
+    nm.textContent = (r.private ? '🔒 ' : '') + r.name;
+    const meta = document.createElement('span');
+    meta.className = 'mp-meta';
+    meta.textContent = `${r.map} · ${r.players}/${r.max}${r.ctf ? ' · CTF' : ''}${full ? ' · CHEIA' : ''}`;
+    b.append(nm, meta);
+    if (full) b.disabled = true; else b.onclick = () => onPickRoom(r);
+    list.appendChild(b);
+  }
+}
+
+function onPickRoom(r) {
+  if (r.private) {
+    mpPendingRoom = r;
+    $('mp-joinbar-label').firstChild.textContent = `SENHA · ${r.name} `;
+    $('mp-join-pass').value = '';
+    $('mp-joinbar').classList.remove('hidden');
+    $('mp-join-pass').focus();
+  } else {
+    startMultiplayer(r.id, '');
+  }
+}
+
+async function startMultiplayer(roomId, pw) {
+  // desbloqueia o áudio AGORA (ainda no gesto do clique): o `await net.connect()` abaixo quebra o
+  // gesto, e resumir o AudioContext depois dele falha calado (clicar numa sala da lista não passava
+  // pelo ui.click que já fazia isso).
+  try { sfx.ensure(); } catch { /* sem áudio */ }
+  // FECHA a conexão anterior antes de abrir outra: sem isto cada sala que você troca deixa uma
+  // conexão zumbi segurando um slot no servidor (a sala velha nunca encerra) e queimando CPU
+  // parseando 20 snapshots/s à toa — degrada o fps a cada troca de sala.
+  if (mpNet) { try { mpNet.close(); } catch { /* já fechada */ } mpNet = null; }
+  const N = await loadNet();
+  if (!N) { hideLoading(); show('mp-lobby'); setMpStatus('multiplayer indisponível neste build'); return; }
+  const { ws } = N.mpUrls(MP_PARAM);
+  const q = [];
+  if (roomId) q.push('room=' + encodeURIComponent(roomId));
+  if (pw) q.push('pw=' + encodeURIComponent(pw));
+  const url = ws + (q.length ? '?' + q.join('&') : '');
+  showLoading('CONECTANDO…', 'MULTIPLAYER');
+  try {
+    const net = new N.NetClient(url);
+    const meta = await net.connect();
+    if (MAPS[meta.map]) currentMap = meta.map;
+    matchMode = meta.ctf ? 'ctf' : 'rounds';
+    if (meta.teamSize) settings.bots = meta.teamSize;
+    mpNet = net; mpOnline = true;
+    // módulo privado de netcode (interpolação/predição/lag comp) — injetado no Game via mpFactory.
+    // Sem ele (build público) o MP nem chega aqui; ainda assim toleramos a falta e caímos fora.
+    const M = await import('./netgame.js').catch(() => null);
+    if (!M) { mpOnline = false; mpNet = null; try { net.close(); } catch {} hideLoading(); show('mp-lobby'); setMpStatus('multiplayer indisponível neste build'); return; }
+    mpFactory = M.makeNetcode;
+    const team = meta.yourTeam === 'B' ? 'B' : 'E';
+    const teamChar = CHARACTERS.find((c) => c.team === team) || CHARACTERS[0];
+    await startGame(team, teamChar.id);
+  } catch (e) {
+    console.error('[mp] falha ao entrar', e);
+    mpOnline = false; mpNet = null;
+    hideLoading(); show('mp-lobby');
+    const msg = { bad_password: 'senha incorreta', room_full: 'sala cheia', room_not_found: 'sala não existe mais', closed: 'conexão recusada' }[e.message] || e.message;
+    setMpStatus(`não entrou: ${msg}`);
+  }
+}
+
+// ── wiring dos botões do lobby ──
+$('mp-refresh').onclick = () => { ui.click(); refreshRooms().catch(() => setMpStatus('sem conexão')); };
+$('mp-back').onclick = () => { ui.back(); markCurrent(null); show('main-menu'); };
+$('mp-quick').onclick = () => { ui.click(); startMultiplayer(null, ''); };
+$('mp-new').onclick = () => { ui.click(); $('mp-list-view').classList.add('hidden'); $('mp-create').classList.remove('hidden'); };
+$('mp-create-cancel').onclick = () => { ui.back(); $('mp-create').classList.add('hidden'); $('mp-list-view').classList.remove('hidden'); };
+$('mp-private').onchange = () => { $('mp-pass').classList.toggle('hidden', !$('mp-private').checked); };
+$('mp-join-cancel').onclick = () => { ui.back(); $('mp-joinbar').classList.add('hidden'); mpPendingRoom = null; };
+$('mp-join-ok').onclick = () => { if (mpPendingRoom) startMultiplayer(mpPendingRoom.id, $('mp-join-pass').value); };
+$('mp-create-ok').onclick = async () => {
+  ui.click();
+  const cfg = {
+    name: $('mp-name').value, mapId: $('mp-map').value,
+    maxPlayers: Number($('mp-max').value), private: $('mp-private').checked,
+    password: $('mp-pass').value, ctf: $('mp-mode').value === 'ctf',
+  };
+  showLoading('CRIANDO SALA…', 'MULTIPLAYER');
+  try {
+    const N = await loadNet();
+    if (!N) throw new Error('sem multiplayer');
+    const res = await N.createRoom(N.mpUrls(MP_PARAM).http, cfg);
+    if (!res || !res.room) throw new Error('falha ao criar');
+    await startMultiplayer(res.room, cfg.password);
+  } catch (e) {
+    hideLoading(); show('mp-lobby'); setMpStatus('não criou a sala — o servidor está rodando?');
+  }
+};
+
+if (params.get('mp')) openLobby();

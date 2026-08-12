@@ -157,3 +157,13 @@ graphify-out/cache/
 graphify-out/manifest.json
 graphify-out/.graphify_root
 graphify-out/.graphify_analysis.json
+
+# ── MÓDULOS PRIVADOS (fora do open source) — ficam no repo csbrasil-private ─────
+# Multiplayer (servidor + transporte) e editor de mapa. Restaure com:
+#   bash scripts/fetch-private.sh
+# server/ e net.js já eram untracked; o editor sai do tracking (git rm --cached).
+/server/
+/public/js/net.js
+/public/js/netgame.js
+/public/js/editor/
+/src/pages/editor.astro

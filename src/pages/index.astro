@@ -18,6 +18,7 @@
    em vez de virar mais um item de checklist.
    ============================================================================ */
 import pkg from '../../package.json';
+import { PRIVATE_FEATURES } from '../lib/features';   // multiplayer só no build privado/dev
 
 const V = pkg.version;
 const MODULOS = [
@@ -533,6 +534,7 @@ const IMPORTMAP = JSON.stringify({
     <nav class="cs-menu" id="cs-menu" aria-label="Menu principal">
       <div class="cs-menu-label">// ESCOLHA A TRETA</div>
       <button class="cs-item" data-act="sp"    type="button"><span class="cs-tick">▸</span>SINGLE PLAYER</button>
+      {PRIVATE_FEATURES && <button class="cs-item" data-act="mp" type="button"><span class="cs-tick">▸</span>MULTIPLAYER</button>}
       <button class="cs-item" data-act="ctf"   type="button"><span class="cs-tick">▸</span>CAPTURE THE FLAG</button>
       <button class="cs-item" data-act="config" type="button"><span class="cs-tick">▸</span>CONFIGURAÇÕES</button>
       <button class="cs-item" data-act="ranking" type="button"><span class="cs-tick">▸</span>RANKING</button>
@@ -606,17 +608,22 @@ const IMPORTMAP = JSON.stringify({
           </div>
         </label>
         <label class="map-label">BOTS / LADO
-          <select id="bots-select"></select>
+          <div class="dd" id="bots-dd">
+            <button class="dd-btn" id="bots-dd-btn" type="button"><span id="bots-dd-label"></span><span class="dd-arrow">▾</span></button>
+            <div class="dd-list hidden" id="bots-dd-list"></div>
+          </div>
         </label>
         <!-- Dificuldade agora é RANDÔMICA por bot (50% ruins / 20% médios / 20% bons /
              10% muito bons) - seletor removido. -->
       </div>
       <div class="cs-setup-actions">
-        <button id="setup-back" class="btn btn-back" type="button">◀ VOLTAR</button>
         <button id="btn-profile" class="btn btn-profile" type="button">
-          <small>SEU PERFIL</small><span id="profile-name">SEM NICK</span>
+          <span id="profile-name">SEM NICK</span>
         </button>
-        <button id="btn-jogar" class="btn btn-big">▶ JOGAR</button>
+        <div class="cs-setup-row">
+          <button id="setup-back" class="btn btn-back" type="button">◀ VOLTAR</button>
+          <button id="btn-jogar" class="btn btn-big">▶ JOGAR</button>
+        </div>
       </div>
     </section>
 
@@ -890,6 +897,54 @@ const IMPORTMAP = JSON.stringify({
     <p id="fb-status" class="fb-status" aria-live="polite"></p>
     <button id="fb-send" class="btn">ENVIAR</button>
     <button id="fb-back" class="btn">VOLTAR</button>
+  </div>
+</div>
+
+<!-- Lobby multiplayer: lista de salas + criar sala (nome, mapa, jogadores, pública/privada). -->
+<div id="mp-lobby" class="screen hidden">
+  <div class="panel center-panel">
+    <h2>MULTIPLAYER</h2>
+    <p id="mp-status" class="fb-status" aria-live="polite">servidor: —</p>
+    <div id="mp-list-view">
+      <div id="mp-room-list" class="mp-rooms"></div>
+      <div id="mp-joinbar" class="mp-create hidden">
+        <label class="mp-field" id="mp-joinbar-label">SENHA DA SALA
+          <input id="mp-join-pass" type="text" maxlength="32" placeholder="senha">
+        </label>
+        <div class="mp-actions">
+          <button id="mp-join-ok" class="btn">ENTRAR</button>
+          <button id="mp-join-cancel" class="btn">CANCELAR</button>
+        </div>
+      </div>
+      <div class="mp-actions">
+        <button id="mp-refresh" class="btn">ATUALIZAR</button>
+        <button id="mp-new" class="btn">+ CRIAR SALA</button>
+        <button id="mp-quick" class="btn">PARTIDA RÁPIDA</button>
+        <button id="mp-back" class="btn">VOLTAR</button>
+      </div>
+    </div>
+    <div id="mp-create" class="mp-create hidden">
+      <label class="mp-field">NOME DA SALA
+        <input id="mp-name" type="text" maxlength="24" placeholder="ex.: Treta do Zé">
+      </label>
+      <label class="mp-field">MAPA
+        <select id="mp-map"></select>
+      </label>
+      <label class="mp-field">JOGADORES
+        <select id="mp-max">
+          <option>2</option><option>4</option><option>6</option><option selected>8</option>
+        </select>
+      </label>
+      <label class="mp-field">MODO
+        <select id="mp-mode"><option value="rounds">ROUNDS</option><option value="ctf">CAPTURE THE FLAG</option></select>
+      </label>
+      <label class="mp-consent"><input type="checkbox" id="mp-private"> <span>Sala privada (com senha)</span></label>
+      <input id="mp-pass" type="text" maxlength="32" placeholder="senha" class="hidden">
+      <div class="mp-actions">
+        <button id="mp-create-ok" class="btn">CRIAR E ENTRAR</button>
+        <button id="mp-create-cancel" class="btn">CANCELAR</button>
+      </div>
+    </div>
   </div>
 </div>
 
