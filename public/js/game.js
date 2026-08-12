@@ -86,6 +86,8 @@ const VM_MAT_LEGACY = QS.get('vmmat') === 'legacy';
 // round) olhando pra esplanada vazia. Menos espera + spawn escolhido por segurança
 // (_pickSpawn) encurta o caminho de volta pra briga sem virar respawn de arena.
 const ROUND_TIME = 99, ROUNDS_TO_WIN = 3, RESPAWN_DELAY = 2.2, PICKUP_RESPAWN = 8, SPAWN_PROT = 2;
+// Prazo e teto do drop de morte; procedência dos dois números em tools/eval/drop-check.mjs.
+const DROP_TTL = 18, DROP_MAX = 12;
 /* TETO DE RODADAS — "melhor de 5", que é o que o índice já promete ao jogador
    (src/pages/index.astro:503, "Vence quem ganhar 3 rounds"). Sem este teto o formato NÃO
    ERA melhor de 5: round EMPATADO não dá ponto pra ninguém (game.js:_endRound), então uma
@@ -1671,7 +1673,7 @@ export class Game {
         const { pk, dropIdx } = this.nearPickup;
         this._grabPickup(pk, this.player, true);
         // consome só drops NÃO-rack (armas largadas/mortes); o rack persiste (armário)
-        if (dropIdx >= 0 && !pk.rack) { this.scene.remove(pk.mesh); this.drops.splice(dropIdx, 1); }
+        if (dropIdx >= 0 && !pk.rack) this._sumirDrop(dropIdx);
         this.nearPickup = null;
       }
       if (e.code === 'KeyM') { if (this.onRequestSwitch) this.onRequestSwitch(); else this._switchTeam(); }
@@ -2924,9 +2926,11 @@ export class Game {
     ent._killT = this.time;
     ent.alive = false; ent.hp = 0; ent.deaths++;
     ent.respawnAt = this.time + RESPAWN_DELAY;
-    // Sem drop de arma onde morreu: o arsenal completo já está no respawn, então drops
-    // pelo mapa viravam lixo espalhado (pedido do usuário: nada de arma jogada no chão).
-    // this._dropWeapon(ent.pos.x, ent.pos.z, ent.weapon === 'knife' ? 'awp' : ent.weapon);
+    // Drop tem prazo e teto porque a versão sem eles foi retirada por virar lixo de mapa;
+    // faca não dropa (todo mundo nasce com uma). Histórico e números: tools/eval/drop-check.mjs.
+    if (ent.weapon && ent.weapon !== 'knife' && this._pickupAllowed(ent.weapon)) {
+      this._dropWeapon(ent.pos.x, ent.pos.z, ent.weapon, false, 0.01, this.time + DROP_TTL);
+    }
     if (attacker) {
       attacker.kills++; this.roundKills[attacker.team]++;
       this.sfx.voice(this._voiceKey(attacker.team));   // killer's side celebrates (meme audio)
@@ -4845,11 +4849,13 @@ export class Game {
     // PLAYER — bots leave them alone (otherwise they hoover the spawn line on round 1).
     for (let i = this.drops.length - 1; i >= 0; i--) {
       const pk = this.drops[i];
+      // prazo antes da coleta: arma vencida some mesmo com bot em cima dela neste quadro
+      if (pk.expiraEm && this.time >= pk.expiraEm) { this._sumirDrop(i); continue; }
       if (pk.rack) continue;
       for (const b of this.bots) {
         if (!b.alive) continue;
         const dx = pk.x - b.pos.x, dz = pk.z - b.pos.z;
-        if (dx * dx + dz * dz <= 1.7 * 1.7) { this._grabPickup(pk, b, false); this.scene.remove(pk.mesh); this.drops.splice(i, 1); break; }
+        if (dx * dx + dz * dz <= 1.7 * 1.7) { this._grabPickup(pk, b, false); this._sumirDrop(i); break; }
       }
     }
   }
@@ -4922,7 +4928,7 @@ export class Game {
     return mesh.position.y;
   }
   // CS: morto larga a arma no chão
-  _dropWeapon(x, z, weapon, rack = false, folga = 0.01) {
+  _dropWeapon(x, z, weapon, rack = false, folga = 0.01, expiraEm = 0) {
     const mesh = weaponModel(weapon) || buildRifle();  // real GLB on the ground
     // lay it FLAT on its side (roll 90° about the barrel) so it rests on the ground
     // instead of standing on its belly. Rack drops (spawn weapon rows) get an aligned
@@ -4932,7 +4938,23 @@ export class Game {
     this._assentarNoChao(mesh, x, z, folga);
     mesh.traverse(o => { if (o.isMesh) o.castShadow = true; });
     this.scene.add(mesh);
-    this.drops.push({ x, z, weapon, readyAt: 0, mesh, rack });
+    this.drops.push({ x, z, weapon, readyAt: 0, mesh, rack, expiraEm });
+    // só quem tem prazo entra na fila do teto: rack de spawn e troca de arma nunca são despejados
+    if (expiraEm) {
+      const comPrazo = [];
+      for (let i = 0; i < this.drops.length; i++) if (this.drops[i].expiraEm) comPrazo.push(i);
+      for (let k = 0; k < comPrazo.length - DROP_MAX; k++) this._sumirDrop(comPrazo[k] - k);
+    }
+  }
+  _sumirDrop(i) {
+    const d = this.drops[i];
+    if (!d) return;
+    d.mesh?.removeFromParent();
+    this.drops.splice(i, 1);
+    // `nearPickup` guarda ÍNDICE, e ele desliza quando a lista encolhe: sem isto o E entre
+    // dois quadros entregava a arma vencida e removia o drop que herdou o índice.
+    const np = this.nearPickup;
+    if (np && np.dropIdx >= 0) { if (np.pk === d) this.nearPickup = null; else if (np.dropIdx > i) np.dropIdx--; }
   }
   /* SPAWN POR SEGURANÇA (não sorteado): dos 4 pontos do time, escolhe o que está mais longe
      do inimigo vivo mais próximo E sem linha de visão pra ele. O sorteio puro colocava o
