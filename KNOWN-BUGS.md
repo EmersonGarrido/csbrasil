@@ -84,6 +84,21 @@ true; }`). EP4 exige early-return e dispatch único; EP5 recorta a condição
 inteira do step de issue; EP6 **executa** a `origemDoJogo` inline do cliente
 contra oito fixtures (mutantes `sem-early-return` e `abre-externo`).
 
+**Adendo (12/08, issues #218 e #219 · alpha.91).** Fingerprints `3c3f1990` e
+`96362080`: `TypeError: Cannot assign to read only property 'pushState' of object
+'#<History>'`, com origem e stack inteiramente em `/_vercel/speed-insights/script.js`
+e `/_vercel/insights/script.js`. São os bundles que a Vercel injeta (Web Analytics e
+Speed Insights): eles reescrevem `history.pushState` para rastrear navegação SPA, e
+o `=` estoura quando o `pushState` está travado como read-only por extensão de
+privacidade ou webview de app. O código é de terceiro — não temos como consertar o
+script da Vercel nem destravar o `pushState` — mas o crash abriu issue `crash-auto`
+porque `/_vercel/` é servido do **próprio domínio**, e a régua original dizia
+"same-origin não é descartado". A proveniência agora reconhece `/_vercel/` como
+terceiro mesmo sendo same-origin, no helper (`VENDOR_RE`) e no cliente (`vendor`),
+provado em `source` e em `stack`. EP8 executa o classificador real e a `origemDoJogo`
+inline contra o par de fixtures das duas issues e confirma que `/js/` do jogo segue
+`codigo`; mutantes `sem-vercel-helper` e `sem-vercel-cliente` guardam cada lado.
+
 ### ~~BUG-50 · WeakMap do Three derrubava o loop quando createFramebuffer falhava~~ · RESOLVIDO 12/08 (issue #171)
 
 **Evidência antes.** Issue #171 (fingerprint `b598fe98`, alpha.57): `TypeError:

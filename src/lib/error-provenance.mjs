@@ -1,4 +1,9 @@
 const EXTENSION_RE = /(?:chrome|moz|safari-web|safari)-extension:\/\//i;
+// Bundles injetados pela Vercel (Web Analytics, Speed Insights) moram em /_vercel/:
+// são servidos do próprio domínio, mas o código é de terceiro que não controlamos.
+// Crash deles — ex. `history.pushState` travado como read-only por extensão/webview
+// (#218, #219) — não é bug do jogo e não tem conserto no nosso fonte.
+const VENDOR_RE = /\/_vercel\//i;
 const CACHE_SPLIT_RE = /does not provide an export|Failed to fetch dynamically imported module|Importing a module script failed|error loading dynamically imported module|prod-coherence/i;
 const HTTP_URL_RE = /https?:\/\/[^\s)'"<>]+/gi;
 
@@ -12,6 +17,8 @@ export function isExternalCrash({ message = '', source = '', stack = '' } = {}, 
   const evidence = [message, source, stack].filter(Boolean).join("\n");
   const sourceText = String(source || '');
   if (EXTENSION_RE.test(sourceText)) return true;
+  // Vale antes do atalho same-origin: /_vercel/ é próprio domínio, mas terceiro.
+  if (VENDOR_RE.test(sourceText) || VENDOR_RE.test(String(stack || ''))) return true;
 
   const sourceOrigin = /^https?:\/\//i.test(sourceText)
     ? normalizedOrigin(sourceText, ownOrigin)
