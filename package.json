@@ -125,6 +125,8 @@
     "anims:merge:check": "node tools/merge-anims.mjs --check",
     "//walls:check": "Os arrays WALLS/LOADING_WALLS do main.js apontam pra arquivo que EXISTE no disco e é .webp. Nasceu de dois achados: o 404 do wall-1.png em produção (KNOWN-BUGS BUG-08, lista hardcoded que engole arte) e a conversão WebP de 07/08 (22 MB de PNG no boot, medido pelo boot-waterfall) — PNG é fonte, o jogo serve webp, e sem portão o peso volta em silêncio. `--mutante=fantasma|png` prova que morde.",
     "walls:check": "node tools/eval/walls-check.mjs",
+    "//verify:skills": "Supply chain (issue #42): recalcula o SHA-256 de cada skill de terceiro instalada em .agents/skills/ e compara com o skills-lock.json — sem isso o lock é texto que ninguém confere e não detecta skill que mudou depois de travada. Algoritmo canônico (UTF-8, sem BOM, LF, um \\n final) documentado no topo do script. Sem .agents/skills/ (o conteúdo saiu do git nesta release, reinstalado do lock) PULA e sai 0. `--update` regrava os hashes das instaladas.",
+    "verify:skills": "node tools/verify-skills.mjs",
     "media": "node tools/gen-media-manifest.mjs",
     "media:check": "node tools/gen-media-manifest.mjs --check",
     "//travessao:check": "Nenhum travessão `—` (nem en-dash `–`) no texto público (src/). O em-dash é a marca de texto gerado por IA — num jogo que se vende como original, título/meta/OG/descrições cheios de `—` entregam a origem. A regra (use ` - `) está no CONTRIBUTING.md; esta é o portão pra ninguém reintroduzir. Escopo só src/ (o site); comentários de dev e docs geradas ficam de fora. `--mutante=inject` prova que morde.",
