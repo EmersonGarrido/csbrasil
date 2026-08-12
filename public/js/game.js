@@ -605,7 +605,9 @@ export class Game {
     this.world = MAPS[this._mapId].build(this.scene, textures);
     this._buildEnv();   // IBL: env map de gradiente dusk -> materiais PBR (Standard) ganham ambiente/reflexo
     this.flashTex = textures.flash;
-    // modo de armas também muda o mapa: pickups fora do modo somem (e suas meshes)
+    /* modo de armas também muda o mapa: pickups fora do modo somem (e suas meshes)
+       `removeFromParent()` e NÃO `scene.remove()`: o mapa pendura a arma em `root`, e o
+       remove() do three é no-op mudo quando o objeto não é filho direto de quem chamou. */
     if (this.world.pickups) {
       const keep = [];
       for (const pk of this.world.pickups) {
@@ -615,10 +617,10 @@ export class Game {
             // ROTAÇÃO ANTES da altura: o assentamento mede a bbox JÁ girada (ver _assentarNoChao).
             rw.rotation.set(0, pk.mesh.rotation.y || Math.random() * 6.28, 0.12);
             rw.traverse(o => { if (o.isMesh) o.castShadow = true; });
-            this.scene.remove(pk.mesh); this.scene.add(rw); pk.mesh = rw;
+            pk.mesh.removeFromParent(); this.scene.add(rw); pk.mesh = rw;
           }
           keep.push(pk);
-        } else if (pk.mesh) this.scene.remove(pk.mesh);
+        } else if (pk.mesh) pk.mesh.removeFromParent();
       }
       this.world.pickups = keep;
       /* AQUI ficava `_puxarPickupsProGrafo()` (commit 5f8b5a5), REVERTIDO E REMOVIDO em
