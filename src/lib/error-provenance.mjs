@@ -6,6 +6,14 @@ const CACHE_SPLIT_RE = /does not provide an export|Failed to fetch dynamically i
 // código) e não tem conserto no repo, então fica na telemetria bruta mas NÃO abre issue.
 const RECOVERABLE_RE = /THREE\.[^:]*: Couldn't load texture/i;
 const HTTP_URL_RE = /https?:\/\/[^\s)'"<>]+/gi;
+/* Assinaturas opacas de terceiro/extensão/resposta corrompida: mensagens sem
+   pilha e sem nome de arquivo do próprio jogo que o navegador entrega já
+   anonimizadas (CORS mascara "Script error.", Firefox emite "uncaught
+   exception: undefined", byte injetado vira "illegal character U+xxxx", rede
+   caída vira "network error"). Cobre issues #109, #125, #126, #136. Crash real
+   do jogo SEMPRE carrega filename ou stack same-origin — por isso o corte só
+   vale quando não há nenhum dos dois (ver isOpaqueNoise). */
+const OPAQUE_RE = /uncaught exception: undefined|illegal character\s+U\+[0-9a-f]{2,6}|^script error\.?$|^network error$/i;
 
 const normalizedOrigin = (value, base) => {
   if (!value) return null;
@@ -35,9 +43,20 @@ export function isExternalCrash({ message = '', source = '', stack = '' } = {}, 
   return origins.some((origin) => origin !== ownOrigin);
 }
 
+/* Ruído opaco: sem pilha E sem source (nenhum nome de arquivo do jogo), a
+   mensagem sozinha bate uma assinatura conhecida de terceiro. A guarda de
+   source/stack é o que impede mascarar crash real do jogo — throw undefined do
+   próprio código chega com e.filename same-origin, syntax error real é pego no
+   build, e nenhum dos dois cai aqui. */
+export function isOpaqueNoise({ message = '', source = '', stack = '' } = {}) {
+  if (source || stack) return false;
+  return OPAQUE_RE.test(String(message).trim());
+}
+
 export function classifyCrash(payload = {}, ownOrigin = '') {
   const evidence = [payload.message, payload.source, payload.stack].filter(Boolean).join(' ');
   if (isExternalCrash(payload, ownOrigin)) return 'externo';
+  if (isOpaqueNoise(payload)) return 'externo';
   if (CACHE_SPLIT_RE.test(evidence)) return 'cache-split';
   if (RECOVERABLE_RE.test(evidence)) return 'recuperavel';
   return 'codigo';

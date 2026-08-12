@@ -8,7 +8,7 @@ const mutants = [
   'sem-api', 'sem-early-return',
   'sem-workflow', 'abre-externo',
   'sem-cliente', 'cliente-mensagem-url', 'sem-teto-externo', 'debug-externo', 'console-sem-origem',
-  'cache-antes-origem', 'sem-recuperavel',
+  'cache-antes-origem', 'sem-recuperavel', 'sem-opaco', 'opaco-sem-guarda',
 ];
 if (mutant && !mutants.includes(mutant)) throw new Error(`mutante desconhecido: ${mutant}`);
 
@@ -69,6 +69,12 @@ if (mutant === 'cache-antes-origem') helperSource = mutate(helperSource,
 if (mutant === 'sem-recuperavel') helperSource = mutate(helperSource,
   "if (RECOVERABLE_RE.test(evidence)) return 'recuperavel';",
   "if (RECOVERABLE_RE.test(evidence)) return 'codigo';");
+if (mutant === 'sem-opaco') helperSource = mutate(helperSource,
+  'return OPAQUE_RE.test(String(message).trim());',
+  'return false;');
+if (mutant === 'opaco-sem-guarda') helperSource = mutate(helperSource,
+  'if (source || stack) return false;',
+  'if (false) return false;');
 
 let classifyCrash = null, shouldDispatchCrash = null;
 if (helperSource) {
@@ -91,11 +97,24 @@ const crossOriginFixtures = [
 ];
 const internalFixtures = [
   { source: `${own}/js/game.js:1:2`, stack: `${own}/js/main.js:3:4`, message: 'boom' },
-  { source: '', stack: '', message: 'Script error.' },
-  { source: null, stack: null, message: 'uncaught exception: undefined' },
   { source: `${own}/js/main.js:1:2`, stack: 'Error at chrome-extension://abc/inpage.js:2:3', message: 'boom' },
   { source: '', stack: `Error at ${own}/js/main.js:3:4\n at chrome-extension://abc/inpage.js:2:3`, message: 'boom' },
   { message: 'falha ao carregar https://cdn.example.invalid/data' },
+  /* crash real do jogo cujo texto CONTÉM "undefined" mas carrega filename
+     same-origin: nenhum filtro de substring pode aposentá-lo (mutante filtro-amplo). */
+  { source: `${own}/js/game.js:1:2`, stack: '', message: "Cannot read properties of undefined (reading 'x')" },
+  /* sem pilha, sem source, mas a mensagem NÃO bate assinatura opaca conhecida:
+     ambíguo continua acionável, o corte opaco é estreito de propósito. */
+  { source: '', stack: '', message: 'TypeError: x is undefined' },
+];
+/* Sinais opacos de terceiro/extensão/resposta corrompida: sem pilha e sem
+   nome de arquivo do jogo, viram externo e não abrem issue (#109, #125, #126, #136). */
+const opaqueFixtures = [
+  { source: '', stack: '', message: 'Script error.' },
+  { source: '', stack: '', message: 'Script error' },
+  { source: null, stack: null, message: 'uncaught exception: undefined' },
+  { source: null, stack: null, message: 'SyntaxError: illegal character U+009E' },
+  { source: '', stack: '', message: 'network error' },
 ];
 /* Aviso recuperável do carregador do three (issue #110): a textura embutida não
    decodifica, o three loga com console.error mas o modelo carrega. Fica no banco,
@@ -183,7 +202,10 @@ const clientWired = /origemDoJogo\(e\.filename, e\.error && e\.error\.stack, Str
 const checks = [
   ['EP1', extensionFixtures.every((fixture) => classify(fixture) === 'externo'), 'esquemas de extensão são externos'],
   ['EP2', crossOriginFixtures.every((fixture) => classify(fixture) === 'externo'), 'scripts cross-origin são externos'],
-  ['EP3', internalFixtures.every((fixture) => classify(fixture) === 'codigo'), 'same-origin e sinais opacos continuam acionáveis'],
+  ['EP3', internalFixtures.every((fixture) => classify(fixture) === 'codigo'), 'same-origin e mensagens sem assinatura opaca continuam acionáveis'],
+  ['EP9', opaqueFixtures.every((fixture) => classify(fixture) === 'externo')
+    && classify({ source: `${own}/js/main.js:1:1`, stack: '', message: 'uncaught exception: undefined' }) === 'codigo'
+    && classify({ source: '', stack: `at boom (${own}/js/game.js:9:9)`, message: 'Script error.' }) === 'codigo', 'assinatura opaca sem pilha e sem source é externa, mas filename/stack same-origin mantêm código'],
   ['EP7', externalCacheFixtures.every((fixture) => classify(fixture) === 'externo')
     && classify({ source: `${own}/js/main.js`, stack: 'at chrome-extension://abc/inpage.js', message: 'boom' }) === 'codigo'
     && classify({ message: 'prod-coherence reprovou' }) === 'cache-split', 'proveniência externa vence cache-split e origem própria vence evidência secundária'],
@@ -207,6 +229,7 @@ const mutantClause = {
   'console-sem-origem': 'EP6',
   'cache-antes-origem': 'EP7',
   'sem-recuperavel': 'EP8',
+  'sem-opaco': 'EP9', 'opaco-sem-guarda': 'EP9',
 };
 if (mutant && !failed.some(([id]) => id === mutantClause[mutant])) {
   failed.push(['MUT', false, `mutação ${mutant} não acendeu ${mutantClause[mutant]}`]);
