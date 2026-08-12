@@ -8,23 +8,25 @@
 [![supabase](https://img.shields.io/badge/ranking-supabase-3fcf8e?logo=supabase&logoColor=white)](https://supabase.com)
 [![vercel](https://img.shields.io/badge/deploy-vercel-000000?logo=vercel)](https://vercel.com)
 
-Construído em par com agentes de IA — cada commit diz qual:
+**AI generated & AI friendly** — construído em par com agentes de IA, e cada
+commit diz qual escreveu (trailer `Agent:`, convenção em `CONTRIBUTING.md`):
 
 [![Claude Fable 5](https://img.shields.io/badge/agente-Claude_Fable_5-d97757?logo=claude&logoColor=white)](https://claude.com/claude-code)
 [![Claude Opus](https://img.shields.io/badge/agente-Claude_Opus-d97757?logo=claude&logoColor=white)](https://claude.com/claude-code)
 [![Kimi K3](https://img.shields.io/badge/agente-Kimi_K3-1a1a2e)](https://www.kimi.com)
+[![Codex GPT](https://img.shields.io/badge/agente-Codex_GPT-412991?logo=openai&logoColor=white)](https://openai.com/codex/)
+[![GLM](https://img.shields.io/badge/agente-GLM-0f62fe)](https://z.ai)
 [![Gemini](https://img.shields.io/badge/arte_2D-Gemini-4285f4?logo=googlegemini&logoColor=white)](https://deepmind.google/technologies/gemini/)
 [![OpenRouter](https://img.shields.io/badge/API-OpenRouter-6566f1)](https://openrouter.ai)
 [![Tripo3D](https://img.shields.io/badge/3D-Tripo3D-ff6b35)](https://www.tripo3d.ai)
 [![Meshy](https://img.shields.io/badge/rig-Meshy-00c4b3)](https://www.meshy.ai)
 [![mint.gg](https://img.shields.io/badge/3D-mint.gg-8a2be2)](https://mint.gg)
 
-![CORO SOLTO: Treta Suprema — arena de sniper estilo CS 1.6 numa Brasília fictícia](public/og-image.jpg)
+![CORO SOLTO: Treta Suprema — FPS satírico de navegador com facções brasileiras](public/og-image.jpg)
 
-**FPS gratuito de navegador em Three.js**: arena de sniper estilo CS 1.6
-(`praca_poderes`) numa Brasília fictícia e satírica. Facções, personagens originais,
-mapas, arsenal, bots, rounds e Capture the Flag. Sem download, sem instalação,
-sem cadastro.
+**FPS gratuito de navegador em Three.js**: 5 facções brasileiras caricatas, 44
+personagens originais, 5 mapas satíricos e 26 armas — rounds e Capture the Flag
+contra bots, direto na aba. Sem download, sem instalação, sem cadastro.
 
 <!-- BEGIN:GERADO:numeros — não edite à mão, rode `npm run docs` -->
 
