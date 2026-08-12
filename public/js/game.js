@@ -4596,9 +4596,13 @@ export class Game {
     // mesma duração da tabela, então as duas pontas chegam no mesmo quadro (BUG-04).
     if (!this._reloading() && p.reloadUntil > 0) {
       p.reloadUntil = 0;
+      const inf = this._municaoInfinita();   // modo de arma única: ver _municaoInfinita()
       for (const k of Object.keys(p.ammo)) {
         const am = p.ammo[k], wm = WEAPONS[k].mag;
         if (am.mag < wm && am.res > 0) { const need = wm - am.mag, take = Math.min(need, am.res); am.mag += take; am.res -= take; }
+        // depois de servir o pente, não antes: portão de recarga, HUD e `util` do bot
+        // seguem lendo número normal e nenhum precisa saber que existe modo infinito.
+        if (inf) am.res = WEAPONS[k].reserve;
       }
       this.el.reloadNote.classList.add('hidden');
       this.sfx.reloadEnd();
@@ -4864,7 +4868,9 @@ export class Game {
      regra de arma amarrada a um id de mapa e o mapa não existe mais. Nenhum mapa vivo força
      AWP-only — quem escolhe é o menu. */
   _wpnMode() {
-    return this.settings.wpnMode || 'all';
+    // `?.` porque o HUD de loadout agora lê o modo, e há caminho (vmlab) que monta o Game
+    // sem `settings`: sem a guarda o render do menu estoura e o HUD1 fica vermelho.
+    return this.settings?.wpnMode || 'all';
   }
   _botWeapon() {
     // Give bots varied weapons that match the weapon mode, so ground drops aren't all AWP.
@@ -4876,6 +4882,9 @@ export class Game {
       'carbine', 'm400', 'mosin', 'rem700', 'lmg', 'scar', 'g3', 'tavor', 'famas', 'uzi', 'p90', 'revolver38'];
     return pool[(Math.random() * pool.length) | 0];
   }
+  // Modo restrito não tem pickup de outra arma no mapa, então reserva finita = partida
+  // acabada quando zera. Fica infinita a RESERVA, não o pente: a recarga segue cobrando.
+  _municaoInfinita() { return this._wpnMode() !== 'all'; }
   _pickupAllowed(w) {
     const mode = this._wpnMode();
     if (mode === 'pistols') return w === 'pistol' || w === 'deagle';
@@ -6283,7 +6292,9 @@ export class Game {
       const weapon = slot.weapon && WEAPONS[slot.weapon];
       const active = slot.weapon === p.weapon;
       const ammo = slot.weapon && p.ammo?.[slot.weapon];
-      const amount = slot.count != null ? `×${slot.count}` : (slot.weapon === 'knife' ? '' : (ammo ? `${ammo.mag}/${ammo.res}` : ''));
+      // '∞' e não o número: reserva que volta a cheia toda recarga lê-se como contador travado
+      const res = this._municaoInfinita() ? '∞' : ammo?.res;
+      const amount = slot.count != null ? `×${slot.count}` : (slot.weapon === 'knife' ? '' : (ammo ? `${ammo.mag}/${res}` : ''));
       const icon = this._wpnIcon(slot.kind === 'frag' ? 'FRAG' : slot.kind === 'smoke' ? 'NADE' : weapon?.short);
       const name = slot.name || weapon?.name || slot.weapon?.toUpperCase() || '';
       return `<div class="weapon-slot${active ? ' on' : ''}" data-slot="${slot.key}"><span class="weapon-key">${slot.key}</span><span class="weapon-icon">${icon}</span><span class="weapon-label">${name}</span><span class="weapon-amount">${amount}</span></div>`;
@@ -6302,7 +6313,7 @@ export class Game {
     } else {
       const a = p.ammo[p.weapon];
       this.el.ammoMag.textContent = a.mag;
-      this.el.ammoRes.textContent = a.res;
+      this.el.ammoRes.textContent = this._municaoInfinita() ? '∞' : a.res;
       this.el.ammoMag.classList.toggle('empty', a.mag === 0);
     }
     // HIERARQUIA DO TOPO: o elemento mais pesado tem que carregar a informação mais
