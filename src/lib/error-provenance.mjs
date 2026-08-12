@@ -1,5 +1,10 @@
 const EXTENSION_RE = /(?:chrome|moz|safari-web|safari)-extension:\/\//i;
 const CACHE_SPLIT_RE = /does not provide an export|Failed to fetch dynamically imported module|Importing a module script failed|error loading dynamically imported module|prod-coherence/i;
+// Aviso RECUPERÁVEL do carregador do three: uma textura embutida (webp) do GLB não
+// decodifica em navegador minoritário (createImageBitmap), o three loga com console.error
+// mas o modelo CARREGA sem aquele mapa — o jogo não trava. É ambiental (não é defeito de
+// código) e não tem conserto no repo, então fica na telemetria bruta mas NÃO abre issue.
+const RECOVERABLE_RE = /THREE\.[^:]*: Couldn't load texture/i;
 const HTTP_URL_RE = /https?:\/\/[^\s)'"<>]+/gi;
 
 const normalizedOrigin = (value, base) => {
@@ -34,7 +39,10 @@ export function classifyCrash(payload = {}, ownOrigin = '') {
   const evidence = [payload.message, payload.source, payload.stack].filter(Boolean).join(' ');
   if (isExternalCrash(payload, ownOrigin)) return 'externo';
   if (CACHE_SPLIT_RE.test(evidence)) return 'cache-split';
+  if (RECOVERABLE_RE.test(evidence)) return 'recuperavel';
   return 'codigo';
 }
 
-export const shouldDispatchCrash = (classification) => classification !== 'externo';
+// 'externo' e 'recuperavel' ficam gravados no banco, mas não consomem dispatch nem
+// abrem bug do jogo: um não pertence ao jogo, o outro o jogo já contornou sozinho.
+export const shouldDispatchCrash = (classification) => classification !== 'externo' && classification !== 'recuperavel';

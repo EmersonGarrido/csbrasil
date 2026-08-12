@@ -8,7 +8,7 @@ const mutants = [
   'sem-api', 'sem-early-return',
   'sem-workflow', 'abre-externo',
   'sem-cliente', 'cliente-mensagem-url', 'sem-teto-externo', 'debug-externo', 'console-sem-origem',
-  'cache-antes-origem',
+  'cache-antes-origem', 'sem-recuperavel',
 ];
 if (mutant && !mutants.includes(mutant)) throw new Error(`mutante desconhecido: ${mutant}`);
 
@@ -66,12 +66,15 @@ if (mutant === 'console-sem-origem') page = mutate(page,
 if (mutant === 'cache-antes-origem') helperSource = mutate(helperSource,
   "if (isExternalCrash(payload, ownOrigin)) return 'externo';\n  if (CACHE_SPLIT_RE.test(evidence)) return 'cache-split';",
   "if (CACHE_SPLIT_RE.test(evidence)) return 'cache-split';\n  if (isExternalCrash(payload, ownOrigin)) return 'externo';");
+if (mutant === 'sem-recuperavel') helperSource = mutate(helperSource,
+  "if (RECOVERABLE_RE.test(evidence)) return 'recuperavel';",
+  "if (RECOVERABLE_RE.test(evidence)) return 'codigo';");
 
-let classifyCrash = null;
+let classifyCrash = null, shouldDispatchCrash = null;
 if (helperSource) {
   try {
     const encoded = Buffer.from(helperSource).toString('base64');
-    ({ classifyCrash } = await import(`data:text/javascript;base64,${encoded}`));
+    ({ classifyCrash, shouldDispatchCrash } = await import(`data:text/javascript;base64,${encoded}`));
   } catch { /* cláusulas abaixo ficam vermelhas */ }
 }
 const own = 'https://www.csbrasil.online';
@@ -93,6 +96,13 @@ const internalFixtures = [
   { source: `${own}/js/main.js:1:2`, stack: 'Error at chrome-extension://abc/inpage.js:2:3', message: 'boom' },
   { source: '', stack: `Error at ${own}/js/main.js:3:4\n at chrome-extension://abc/inpage.js:2:3`, message: 'boom' },
   { message: 'falha ao carregar https://cdn.example.invalid/data' },
+];
+/* Aviso recuperável do carregador do three (issue #110): a textura embutida não
+   decodifica, o three loga com console.error mas o modelo carrega. Fica no banco,
+   não abre issue. Sem `source`/`stack` (o console.error do three não tem pilha). */
+const recoverableFixtures = [
+  { source: '', stack: '', message: "THREE.GLTFLoader: Couldn't load texture blob:https://www.csbrasil.online/bbaced98-44e1-4922-83b1-4564e004a737" },
+  { message: "THREE.GLTFLoader: Couldn't load texture models/characters/mst.glb" },
 ];
 const externalCacheFixtures = [
   { source: 'chrome-extension://abc/inpage.js:1:2', message: 'does not provide an export' },
@@ -177,6 +187,11 @@ const checks = [
   ['EP7', externalCacheFixtures.every((fixture) => classify(fixture) === 'externo')
     && classify({ source: `${own}/js/main.js`, stack: 'at chrome-extension://abc/inpage.js', message: 'boom' }) === 'codigo'
     && classify({ message: 'prod-coherence reprovou' }) === 'cache-split', 'proveniência externa vence cache-split e origem própria vence evidência secundária'],
+  ['EP8', recoverableFixtures.every((fixture) => classify(fixture) === 'recuperavel')
+    && classify({ source: `${own}/js/game.js:1:2`, message: 'boom' }) === 'codigo'
+    && typeof shouldDispatchCrash === 'function'
+    && shouldDispatchCrash('recuperavel') === false
+    && shouldDispatchCrash('codigo') === true, 'aviso recuperável de textura fica na telemetria mas não vira bug do jogo'],
   ['EP4', apiWired, 'API grava o erro e o early-return externo é o único corte antes do dispatch único'],
   ['EP5', workflowWired, 'workflow classifica externo sem abrir issue, em nenhum OR da condição'],
   ['EP6', clientBehavior && clientWired, 'cliente executado: mensagem não é proveniência, overlay/cota de externo são separados'],
@@ -191,6 +206,7 @@ const mutantClause = {
   'sem-cliente': 'EP6', 'cliente-mensagem-url': 'EP6', 'sem-teto-externo': 'EP6', 'debug-externo': 'EP6',
   'console-sem-origem': 'EP6',
   'cache-antes-origem': 'EP7',
+  'sem-recuperavel': 'EP8',
 };
 if (mutant && !failed.some(([id]) => id === mutantClause[mutant])) {
   failed.push(['MUT', false, `mutação ${mutant} não acendeu ${mutantClause[mutant]}`]);
