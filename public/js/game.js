@@ -2988,7 +2988,7 @@ export class Game {
     if (QS.get('dmgdir') === '0') {
       const el = this.el.dmgDir;
       if (!el) return;
-      const rel0 = Math.atan2(attacker.pos.x - ent.pos.x, attacker.pos.z - ent.pos.z) - ent.yaw;
+      const rel0 = Math.atan2(attacker.pos.x - ent.pos.x, attacker.pos.z - ent.pos.z) - ent.yaw - Math.PI;
       el.style.transform = `rotate(${rel0.toFixed(3)}rad)`;
       el.style.opacity = 0.95;
       clearTimeout(this._dmgDirT);
@@ -3032,7 +3032,7 @@ export class Game {
     }
     // raio: 42% da menor dimensão -> o arco encosta na borda em qualquer aspecto (16:9 e 3:2)
     const R = Math.min(innerWidth, innerHeight) * 0.42;
-    const rel = Math.atan2(attacker.pos.x - ent.pos.x, attacker.pos.z - ent.pos.z) - ent.yaw;
+    const rel = Math.atan2(attacker.pos.x - ent.pos.x, attacker.pos.z - ent.pos.z) - ent.yaw - Math.PI;
     // CSS gira no sentido horário com Y pra baixo; o mundo mede yaw anti-horário: por isso o
     // sinal negativo. 0 rad = atacante bem à frente = arco no topo da tela. Confere nas 4
     // direções: frente=topo, direita=direita, costas=embaixo, esquerda=esquerda.

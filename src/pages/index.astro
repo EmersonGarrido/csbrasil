@@ -138,7 +138,11 @@ const IMPORTMAP = JSON.stringify({
   function origemDoJogo(source, stack, mensagem){
     var sourceText = String(source || '');
     var extensao = /(?:chrome|moz|safari-web|safari)-extension:\/\//i;
+    // /_vercel/ é bundle da Vercel (analytics/speed-insights): same-origin, mas
+    // código de terceiro. Crash dele (ex. pushState read-only, #218/#219) não é jogo.
+    var vendor = /\/_vercel\//i;
     if (extensao.test(sourceText)) return false;
+    if (vendor.test(sourceText) || vendor.test(String(stack || ''))) return false;
     var propria = location.origin;
     if (sourceText && /^https?:\/\//i.test(sourceText)) {
       try {
@@ -251,6 +255,11 @@ const IMPORTMAP = JSON.stringify({
   window.addEventListener('error', function(e){
     var loc = e.filename ? (e.filename + ':' + e.lineno + ':' + e.colno) : '';
     var msg = (e.message || e.error || '?');
+    /* "Script error." sem filename e sem stack é o erro cross-origin opaco que o
+       browser mascara (extensão ou script de terceiro sem CORS). Como todo código
+       do jogo é same-origin (/js, /vendor), ele nunca é nosso: descartar evita lotar
+       o js_error e abrir issue automática vazia (#136). */
+    if (!e.filename && !(e.error && e.error.stack) && /^script error/i.test(String(msg))) return;
     var interna = origemDoJogo(e.filename, e.error && e.error.stack, String(msg));
     if (consoleErroNativo) {
       try { consoleErroNativo('Erro global não tratado', e.error || msg); } catch(_) {}

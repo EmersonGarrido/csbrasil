@@ -84,6 +84,21 @@ true; }`). EP4 exige early-return e dispatch único; EP5 recorta a condição
 inteira do step de issue; EP6 **executa** a `origemDoJogo` inline do cliente
 contra oito fixtures (mutantes `sem-early-return` e `abre-externo`).
 
+**Adendo (12/08, issues #218 e #219 · alpha.91).** Fingerprints `3c3f1990` e
+`96362080`: `TypeError: Cannot assign to read only property 'pushState' of object
+'#<History>'`, com origem e stack inteiramente em `/_vercel/speed-insights/script.js`
+e `/_vercel/insights/script.js`. São os bundles que a Vercel injeta (Web Analytics e
+Speed Insights): eles reescrevem `history.pushState` para rastrear navegação SPA, e
+o `=` estoura quando o `pushState` está travado como read-only por extensão de
+privacidade ou webview de app. O código é de terceiro — não temos como consertar o
+script da Vercel nem destravar o `pushState` — mas o crash abriu issue `crash-auto`
+porque `/_vercel/` é servido do **próprio domínio**, e a régua original dizia
+"same-origin não é descartado". A proveniência agora reconhece `/_vercel/` como
+terceiro mesmo sendo same-origin, no helper (`VENDOR_RE`) e no cliente (`vendor`),
+provado em `source` e em `stack`. EP8 executa o classificador real e a `origemDoJogo`
+inline contra o par de fixtures das duas issues e confirma que `/js/` do jogo segue
+`codigo`; mutantes `sem-vercel-helper` e `sem-vercel-cliente` guardam cada lado.
+
 ### ~~BUG-50 · WeakMap do Three derrubava o loop quando createFramebuffer falhava~~ · RESOLVIDO 12/08 (issue #171)
 
 **Evidência antes.** Issue #171 (fingerprint `b598fe98`, alpha.57): `TypeError:
@@ -884,6 +899,16 @@ mudar.
 ---
 
 ## P1 — o jogador vê
+
+### ~~BUG-52 · "o sensor de tiro está ao contrário, quando atiram na frente é nas costas"~~ · RESOLVIDO 13/08
+
+**Feedback (12/08, guilhermeraulino2704):** *"O sensor de tiro está ao contrário, quando atiram na frente da que é nas costas"*.
+
+**Causa raiz — confirmada por medição.** A câmera usa `rotation.order='YXZ'` (`game.js:602`), então olha `(-sin yaw, -cos yaw)` — yaw=0 encarando **-Z**. O indicador `_dmgArc` (`game.js:3035`) calculava `rel = atan2(dx,dz) - yaw`, que é a convenção do **mesh** (frente +Z, bearing=yaw). O jogador enfrenta bearing `yaw+π`, não `yaw` → **defasagem de 180°**: quem atira pela frente caía no rodapé da tela (posição de costas). Provado em node (direção da câmera × fórmula): frente → rel=±π (baixo); costas → rel=0 (topo).
+
+**Correção.** `- Math.PI` nas DUAS path do `_dmgArc`: `game.js:3035` (arcos, principal) e `game.js:2991` (fallback `?dmgdir=0`). Frente volta ao topo, costas ao rodapé, laterais ao lado certo.
+
+**Régua:** `tools/eval/dmg-dir-check.mjs` (`npm run eval:dmgdir`, no `check:fast`). Extrai a fórmula real do `game.js`, testa as 4 direções cardinais contra a frente da câmera e exige a correção de π no fonte (DD5). `--mutante=sem-pi` devolve o defeito e acende DD1/DD2 (16 vermelhas).
 
 ### ~~BUG-43 · "o menu de HUD não está mostrando com vmlab=1 em produção"~~ · RESOLVIDO 10/08
 
