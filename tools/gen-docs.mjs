@@ -271,7 +271,8 @@ function medir() {
      histórico completo, ele continua mordendo. */
   f.raso = sh('git', ['rev-parse', '--is-shallow-repository']).trim() === 'true';
   const short = sh('git', ['shortlog', '-sn', '--no-merges', 'HEAD']).trim().split('\n').filter(Boolean);
-  const autores = short.map((l) => { const m = /^\s*(\d+)\s+(.*)$/.exec(l); return m ? { n: +m[1], nome: m[2] } : null; }).filter(Boolean);
+  const autores = short.map((l) => { const m = /^\s*(\d+)\s+(.*)$/.exec(l); return m ? { n: +m[1], nome: m[2] } : null; }).filter(Boolean)
+    .sort((a, b) => b.n - a.n || a.nome.localeCompare(b.nome));   // shortlog deixa empates de count em ordem instável → determinismo
   const ehAgente = (n) => /^claude\b/i.test(n) || /^(codex|kimi|gpt|cursor|devin)\b/i.test(n) || /bot\b/i.test(n) || /^github-actions/i.test(n);
   const humanos = autores.filter((a) => !ehAgente(a.nome));
   f.pessoas = {
