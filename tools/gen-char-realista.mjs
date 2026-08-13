@@ -32,7 +32,7 @@
 //   --publicar     grava em public/img/chars-realista/<id>.webp já recortado
 //   --base         padrão http://localhost:8137 (suba `node tools/eval/serve.mjs 8137`)
 //   --forcar       regera mesmo se a saída já existir
-import { existsSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { chromium } from 'playwright';
 import sharp from 'sharp';
@@ -50,9 +50,29 @@ const FORCAR = flag('forcar');
 const OUT = arg('out', PUBLICAR ? 'public/img/chars-realista' : '/tmp/gen-char-realista');
 const TMP = '/tmp/gen-char-realista/refs';
 
+/* A lista sai do ELENCO cruzado com os arquivos, não do diretório sozinho.
+   `public/models/characters/` tem funkeiro.glb, que é ÓRFÃO: o glbchars.js explica
+   que "mandrake = o antigo funkeiro.glb renomeado", e a entrada saiu do
+   characters.js mas o arquivo ficou. Listando por diretório, o tool tentava
+   renderizar um personagem que o jogo não tem — CHARACTERS.find devolvia undefined,
+   o modelo não montava e a página pendurava até o timeout de 120s. Duas corridas
+   perdidas nisso.
+   Leio por regex em vez de importar: characters.js é módulo de browser e arrastá-lo
+   para o node traria three e o resto junto. */
+function elenco() {
+  const src = readFileSync('public/js/characters.js', 'utf8');
+  const ids = new Set();
+  for (const m of src.matchAll(/\bid:\s*'([a-z0-9_]+)'/g)) ids.add(m[1]);
+  return ids;
+}
+
 let IDS;
 if (flag('todos')) {
-  IDS = readdirSync('public/models/characters').filter((f) => f.endsWith('.glb')).map((f) => f.replace(/\.glb$/, '')).sort();
+  const roster = elenco();
+  const arquivos = readdirSync('public/models/characters').filter((f) => f.endsWith('.glb')).map((f) => f.replace(/\.glb$/, ''));
+  const orfaos = arquivos.filter((id) => !roster.has(id));
+  if (orfaos.length) console.log(`· ignorando GLB sem entrada no elenco: ${orfaos.join(', ')}`);
+  IDS = arquivos.filter((id) => roster.has(id)).sort();
 } else {
   const s = arg('ids');
   if (!s) die('faltou --ids (ou --todos)');
