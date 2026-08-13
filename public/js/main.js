@@ -2014,8 +2014,16 @@ function loop() {
 loop();
 
 /* ---------------- boot ---------------- */
-document.querySelector('.footnote').textContent =
-  `v${VERSION} · Sátira política fictícia. Nenhum político real foi consultado (ou poupado).`;
+/* Guarda igual à da linha de baixo, e não é zelo: esta escrita roda em escopo de
+   módulo DUAS linhas antes do `show()`. Se o redesign mexer na única `.footnote`
+   do documento (index.astro, dentro do #pause-menu), o TypeError acontece ANTES
+   de qualquer tela aparecer — o sintoma seria "o menu não abre", que não parece
+   com "alguém renomeou uma classe no pause". */
+{
+  const fn = document.querySelector('.footnote');
+  if (fn) fn.textContent =
+    `v${VERSION} · Sátira política fictícia. Nenhum político real foi consultado (ou poupado).`;
+}
 { const sv = document.getElementById('splash-ver'); if (sv) sv.textContent = `v${VERSION}`; }
 show(isMobile && !testMode ? 'mobile-warning' : 'main-menu');
 window.__CS_MAIN_READY__ = true;

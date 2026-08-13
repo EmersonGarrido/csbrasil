@@ -190,9 +190,18 @@ html[data-ui="legacy"]{--br-faixa:var(--br-faixa-legacy)}
   transition:box-shadow var(--t) var(--ease)
 }
 .aaa-cta:hover,.aaa-cta:focus-visible{box-shadow:var(--aaa-glow)}
+/* O afundar de 1px do :active mora em `:where(.btn,.cs-item,…):active` lá embaixo
+   (style.css:234). `:where()` não soma especificidade, então aquela regra vale
+   (0,1,0) — EMPATE com `.aaa-cta`, e ela vence por vir depois. No primeiro botão
+   que tiver as duas classes, `transform:translateY(1px)` substituiria o skew e o
+   CTA desentortaria ao ser pressionado. Reescrever os dois juntos, em (0,2,0). */
+.aaa-cta:active{transform:var(--aaa-skew) translateY(1px)}
 .aaa-cta>*{
   display:inline-block;transform:var(--aaa-unskew);
-  font:700 var(--fs-500)/1 var(--aaa-font-display);letter-spacing:var(--tr-3);
+  /* 400 e não 700: Bebas Neue só existe em Regular (um único @font-face, linha 6).
+     Pedir 700 não deixa mais forte — faz o browser ENGROSSAR o contorno sozinho, e
+     o borrão aparece justamente no tamanho grande, que é onde esta fonte trabalha. */
+  font:400 var(--fs-500)/1 var(--aaa-font-display);letter-spacing:var(--tr-3);
   text-transform:uppercase;color:var(--aaa-lime-ink);padding:14px 28px
 }
 .aaa-card-cut{clip-path:var(--aaa-cut-sm);border-radius:0}

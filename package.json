@@ -99,6 +99,8 @@
     "eval:botbrain": "node tools/eval/botbrain-safety-check.mjs",
     "//eval:posters": "O aspecto declarado de cada cartaz em POSTER_FILES (textures.js) bate com o pixel do arquivo em public/posters/? Erro >6% = arte esticada na parede (issue #79). `--mutate` estraga um número e prova que a régua morde.",
     "eval:posters": "node tools/eval/poster-aspect-check.mjs",
+    "//eval:ui": "As 5 réguas de UI (UI1 contraste WCAG do HUD sobre o pior fundo medido, UI2 poluição, UI3 área morta sobre mira/viewmodel, UI4 ritmo por modo, UI5 paleta contra ref_ui.json). O arquivo existe desde a fase 5 do roadmap mas NÃO tinha script: nenhum `npm run` chamava, então ela só rodava quando alguém lembrava — justo a régua que o redesign AAA mais precisa. NÃO está em check:fast/check:deploy de propósito: o UI4 (ritmo do modo ABATE) está VERMELHO desde antes do redesign, e pendurar isso na cadeia bloqueante reprovaria o build por defeito alheio. Baseline de 13/08/2026: 4 de 5 passam.",
+    "eval:ui": "node tools/eval/ui-check.mjs all",
     "eval:mat": "node tools/eval/mat-check.mjs",
     "//eval:seo": "LÊ dist/client/ — o HTML publicado, não o .astro. Rode `npm run build` antes, ou use `npm run check:seo`, que já faz os dois. `--mutate` prova que a régua morde.",
     "eval:seo": "node tools/eval/seo-check.mjs",
