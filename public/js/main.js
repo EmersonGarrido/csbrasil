@@ -249,14 +249,18 @@ fetch(`/audio/manifest.json?v=${VERSION}`)
     if (novas.join('|') === MENU_TRACKS.join('|')) return;
     MENU_TRACKS.splice(0, MENU_TRACKS.length, ...novas);
     // O boot chama startMenuMusic() antes desta promessa resolver e _ensureMusic cacheia o
-    // <Audio> pra sempre — sem soltar o cache, a lista da pasta nunca chega a escolher faixa.
-    // Só solta enquanto o loop está mudo: depois do 1º clique trocaria som já tocando.
-    if (!musicArmed && menuMusic) { menuMusic.pause(); menuMusic = null; startMenuMusic(); }
+    // <Audio> pra sempre — sem soltar o cache, a lista da pasta nunca escolhe faixa.
+    tracksTrocadas = true;
+    // Mudo ainda: dá pra trocar agora. Com som tocando não — a troca fica pendente e o
+    // _ensureMusic pega na próxima visita ao menu, que é quando a faixa muda de qualquer jeito.
+    if (!musicArmed) startMenuMusic();
   })
   .catch(() => {});
-let menuMusic = null, musicArmed = false, musicFade = null;
+let menuMusic = null, musicArmed = false, musicFade = null, tracksTrocadas = false;
 function _ensureMusic() {
-  if (menuMusic) return menuMusic;
+  if (menuMusic && !tracksTrocadas) return menuMusic;
+  if (menuMusic) { menuMusic.pause(); menuMusic = null; }
+  tracksTrocadas = false;
   { const _mi = (Math.random() * MENU_TRACKS.length) | 0;
     const _url = MENU_TRACKS[_mi];
     menuMusic = new Audio(_url);
