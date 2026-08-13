@@ -10,7 +10,7 @@
 >
 <!-- BEGIN:GERADO:versao_atual — não edite à mão, rode `npm run docs` -->
 
-**O jogo está em `2.0.0-alpha.102`.** Prerelease do semver ordena sozinho
+**O jogo está em `2.0.0-alpha.107`.** Prerelease do semver ordena sozinho
 (`alpha` < `beta` < release), e o fluxo automático cuida do bump.
 
 > Bloco gerado por `node tools/gen-docs.mjs`. Fonte: `grep VERSION public/js/version.js · node -p "require('./package.json').version"`
@@ -22,6 +22,36 @@
 > das três tem tag git** (a última tag é `v1.12.4`). "v3" nunca existiu como coisa publicada.
 > O conteúdo e as datas das entradas continuam intactos; só o rótulo mudou, porque chamar de
 > 3.3.0 um build com P0 em aberto promete ao jogador uma estabilidade que ele não tem.
+
+## [2.0.0-alpha.107] — 2026-08-13
+
+### Mudado
+- feat(mapa): adiciona Posto da Treta (6º mapa) — #250 (#250)
+- [Notas completas do release](https://github.com/rubenmarcus/csbrasil/releases/tag/v2.0.0-alpha.107).
+
+## [2.0.0-alpha.106] — 2026-08-13
+
+### Mudado
+- feat(portões): régua que casa tag, main e versão (#252)
+- [Notas completas do release](https://github.com/rubenmarcus/csbrasil/releases/tag/v2.0.0-alpha.106).
+
+## [2.0.0-alpha.105] — 2026-08-13
+
+### Mudado
+- fix(eval): char-floor skipa CHR8 graciosamente quando magick falta (build fork PR)
+- [Notas completas do release](https://github.com/rubenmarcus/csbrasil/releases/tag/v2.0.0-alpha.105).
+
+## [2.0.0-alpha.104] — 2026-08-13
+
+### Mudado
+- fix(build): error-console preserva a exceção antes do guard Script-error (#251)
+- [Notas completas do release](https://github.com/rubenmarcus/csbrasil/releases/tag/v2.0.0-alpha.104).
+
+## [2.0.0-alpha.103] — 2026-08-13
+
+### Mudado
+- fix: marcador de registro de tiro na hud (#248)
+- [Notas completas do release](https://github.com/rubenmarcus/csbrasil/releases/tag/v2.0.0-alpha.103).
 
 ## [2.0.0-alpha.102] — 2026-08-13
 

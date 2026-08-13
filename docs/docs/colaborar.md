@@ -253,8 +253,9 @@ O registro, gerado do `MAPS` de `public/js/maps.js`:
 | `loja_h` | Loja H (Estacionamento) | **captura** | `map_havan.js` | 1.952 |
 | `ferro_velho` | Ferro Velho do Zé | **captura** | `map_ferrovelho.js` | 1.888 |
 | `quebrada` | Quebrada (Rua do Baile) | **captura** | `map_quebrada.js` | 1.599 |
+| `posto_treta` | Posto da Treta | **captura** | `map_posto.js` | 489 |
 
-**5 mapas registrados** — 2 abrem em rodadas e 3 em captura. `ctfMode` **abre** o mapa em captura, não prende: o jogador troca no menu (é a `MOD1`). Há 7 arquivos `map_*.js` em `public/js/` — arquivo no disco **não** implica mapa jogável.
+**6 mapas registrados** — 2 abrem em rodadas e 4 em captura. `ctfMode` **abre** o mapa em captura, não prende: o jogador troca no menu (é a `MOD1`). Há 8 arquivos `map_*.js` em `public/js/` — arquivo no disco **não** implica mapa jogável.
 
 > Bloco gerado por `node tools/gen-docs.mjs`. Fonte: `objeto MAPS de public/js/maps.js`
 

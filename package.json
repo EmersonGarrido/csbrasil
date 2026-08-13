@@ -1,6 +1,6 @@
 {
   "name": "coro-solto",
-  "version": "2.0.0-alpha.102",
+  "version": "2.0.0-alpha.107",
   "license": "AGPL-3.0-only",
   "description": "CORO SOLTO: Treta Suprema (ex-CS BRASIL) — FPS satírico de navegador com 5 facções brasileiras (site Astro + jogo vanilla em Three.js), gerado em par com agentes de IA (AI generated & AI friendly)",
   "scripts": {
@@ -42,8 +42,8 @@
     "eval:vminspect": "node tools/eval/vm-inspect-check.mjs",
     "//eval:pegada": "Colisor de prop na ALTURA DO CORPO (Brasília): recomputa a pegada dos GLBs (tent/stall/drinkstand/bus) e acusa deriva da tabela PEGADA_CORPO / PEGADA_BUS. Nasceu da reprovação de 05/08 ('box do ônibus e barracas') com o obb-check VERDE — ele compara contra a caixa declarada e não vê caixa mais gorda que a malha.",
     "eval:pegada": "node tools/eval/pegada-check.mjs",
-    "//eval:dmgdir": "Indicador direcional de dano aponta pra onde o tiro veio na convenção da CÂMERA (YXZ, frente=-Z), não do mesh. Nasceu do feedback de 12/08 ('o sensor de tiro está ao contrário, quando atiram na frente é nas costas'): o _dmgArc usava atan2-yaw (convenção mesh) e ficava 180° invertido. --mutante=sem-pi devolve o defeito.",
-    "eval:dmgdir": "node tools/eval/dmg-dir-check.mjs",
+    "//eval:dmgdir": "O arco de dano na borda da tela (_dmgArc) tem que apontar pro atacante, não pro lado oposto. Nasceu do relato do dono (BUG-52): tiro na frente desenhava o arco embaixo (COSTAS). Executa _dmgArc de game.js com o atacante nas 4 direções cardeais em 7 yaws da vítima; --mutante=ordem-trocada reintroduz a troca de operandos do atan2.",
+    "eval:dmgdir": "node tools/eval/dmgdir-check.mjs",
     "//eval:ctflabels": "Bandeira com nome do PRÓPRIO mapa, declarada pelo mapa (defeito de 06/08: 'CONGRESSO' jogando na piscina — o fallback do game.js vazava os nomes de Brasília). --mutante=vaza prova que morde.",
     "eval:ctflabels": "node tools/eval/ctf-labels-check.mjs",
     "//eval:faccao": "Cor de facção tem UMA origem (public/js/paleta.js) e ela cobre o elenco. Nasceu do dono jogando em 07/08: 'quando captura bandeira não pinta de vermelho e nem põe o brasão' — o rename Time E (06/08) trocou a letra em BRASAO e no arquivo e esqueceu COR_TIME, então bandeiraTextura('E') devolvia null e o pano saía sem cor e sem brasão. O mesmo rename passou batido em TEAM_RIM (contorno branco) e na faixa do peito (braçadeira azul). Nenhum dos três dá erro no console. Os três espelhos ACABARAM: game.js, brasoes.js e characters.js importam de paleta.js, e F2 impede espelho novo de nascer. Estava fora de TODO portão até agora — régua escrita e não pendurada é régua que não roda; entrou no check:fast, que é o gatilho certo (node puro, milissegundos). `--mutar=sem-e|espelho` prova que morde.",
@@ -91,8 +91,6 @@
     "eval:mutate": "node tools/eval/mutate.mjs",
     "//eval:vmlabhud": "O menu de armas do protótipo do #131 precisa existir no HUD real quando ?vmlab=1 e continuar ausente sem a flag. Nasceu do relato do dono em produção (BUG-43). Executa _updateWeaponHud de game.js em três estados; --mutante=semflag reintroduz a ausência.",
     "eval:vmlabhud": "node tools/eval/vmlab-hud-check.mjs",
-    "//eval:dmgdir": "O arco de dano na borda da tela (_dmgArc) tem que apontar pro atacante, não pro lado oposto. Nasceu do relato do dono (BUG-52): tiro na frente desenhava o arco embaixo (COSTAS). Executa _dmgArc de game.js com o atacante nas 4 direções cardeais em 7 yaws da vítima; --mutante=ordem-trocada reintroduz a troca de operandos do atan2.",
-    "eval:dmgdir": "node tools/eval/dmgdir-check.mjs",
     "//bot:record": "BOTBRAIN: gera o dataset bootstrap (estado→ação) gravando os bots roteirizados no botsim — o professor da rede enquanto não há dado de jogador. Uso: [segundos] [mapId|all].",
     "bot:record": "node tools/eval/bot-record.mjs",
     "//bot:train": "BOTBRAIN: treina o MLP com o dataset bootstrap e/ou o Supabase (--from-supabase), exportando public/models/bot-brain/. REQUER tfjs-node local (npm i -D @tensorflow/tfjs-node) — é nativa pesada, fora das deps do projeto. Uso: [--epochs=40] [--data=...].",
@@ -158,7 +156,9 @@
     "//check:fast": "docs:check vem ANTES do arch:check DE PROPÓSITO. O arch:check já ficou vermelho por dias (o ARCH.md commitado atrás do game.js) e o `&&` corta a corrente no primeiro erro — atrás dele, todo portão novo nasce morto sem ninguém perceber. É o mesmo modo de falha do BUG-02, que fazia o portão medir o viewmodel de ontem. Em 05/08 o ARCH.md foi regenerado e o arch:check voltou a VERDE; se ele reprovar de novo, rode `npm run arch` ANTES de acrescentar qualquer passo. MESMO MOTIVO, outro passo: o anims:check foi para o FIM da corrente em 05/08. Ele está vermelho de verdade (BUG-15, `public/models/anims/` não versionado — 88 clipes que existem nesta máquina e dão 404 no deploy) e, no meio da corrente, os SETE portões atrás dele rodavam ZERO vezes: eval:ctfhud, eval:pause, eval:ctfround, eval:ctfwin, eval:spawn, eval:regen e eval:pegada. Nada foi afrouxado — o anims:check continua reprovando e o check:fast continua saindo != 0; só parou de esconder o resto.",
     "check:fast": "node tools/eval/runner.mjs syntax eval:release eval:telemetry eval:identity eval:error-console eval:error-origin eval:webgl eval:webglguard eval:maprotate eval:shaderlog eval:shaderbudget eval:botbrain eval:prune eval:vminspect eval:faccao eval:mapid eval:mapjson eval:mapcontrato docs:check arch:check audio:check feet:check eval:vmlabhud eval:ctfhud eval:pause eval:ctfround eval:ctfwin eval:spawn eval:regen eval:pegada eval:dmgdir eval:ctflabels anims:check anims:merge:check walls:check media:check travessao:check eval:medianet eval:posters eval:grafitelayout",
     "//check": "eval:vm ANTES de eval:invariants: as invariantes de VM LEEM o vm_mint_audit.json que o eval:vm ESCREVE. Na ordem antiga o && cortava no primeiro vermelho e o JSON nunca era regenerado — o portão media o viewmodel de ontem e inventava vermelha (26/26 armas 'fora' que viraram 3/26 depois de regenerar). Ver KNOWN-BUGS.md BUG-02.",
-    "check": "npm run syntax && npm run audio:check && npm run eval:medianet && npm run eval:ctfhud && npm run eval:vm && npm run eval:invariants && npm run eval:kick && npm run eval:bots"
+    "check": "npm run syntax && npm run audio:check && npm run eval:medianet && npm run eval:ctfhud && npm run eval:vm && npm run eval:invariants && npm run eval:kick && npm run eval:bots",
+    "//eval:tags": "Tag, main e versao contam a MESMA historia. Nasceu de defeito real: push nao atomico de dois refspecs deixou a v2.0.0-alpha.93 apontando pra commit que nunca chegou na main, e a sequencia pulou .92 -> .94. O versao-bumpada compara arquivo x arquivo e o eval:release valida gatilho; ninguem olhava o grafo do git. TM3 exige rede e gh: rode com --rede fora do portao rapido. Mutacoes: --mutante=tag-orfa|versao-atrasada|release-faltando|tag-fora-do-padrao",
+    "eval:tags": "node tools/eval/tag-main-check.mjs"
   },
   "repository": {
     "type": "git",
