@@ -924,6 +924,30 @@ body:has(#pause-menu:not(.hidden)) #hud{opacity:.12;transition:opacity var(--t) 
   padding:var(--s-1) var(--s-3);text-shadow:var(--sh-hud)}
 .ts-p{color:#ff9a9a;border-left:3px solid var(--team-e)}
 .ts-b{color:#a9f0b6;border-right:3px solid var(--team-b)}
+
+/* ---- plaqueta com BRASÃO (tela 05 do redesign) ----
+   A placa escura não é enfeite: é o que segura o portão UI1. O HUD é desenhado
+   sobre o 3D, e o pior fundo medido desta base é a areia do Piscinão
+   (RGB 214,196,164 — style.css:420 e tools/eval/ui-check.mjs). Texto claro direto
+   sobre ela fica perto de 1:1; sobre esta placa passa folgado dos 4,5:1. */
+#hud-top .team-score{
+  display:flex;align-items:center;gap:8px;
+  background:rgba(10,10,12,.78);border-radius:0}
+#hud-top .team-score b{font-family:var(--font);font-size:26px;font-weight:700;line-height:1}
+/* A arte mora aqui e não no JS: assim o laço de quadro só troca um data-attribute,
+   sem tocar em <img> nem em style inline. */
+.ts-crest{
+  width:20px;height:20px;flex:0 0 20px;display:block;
+  background-size:contain;background-repeat:no-repeat;background-position:center}
+.ts-crest[data-f="b"]{background-image:url('/img/brasoes/b.png')}
+.ts-crest[data-f="c"]{background-image:url('/img/brasoes/c.png')}
+.ts-crest[data-f="e"]{background-image:url('/img/brasoes/e.png')}
+.ts-crest[data-f="f"]{background-image:url('/img/brasoes/f.png')}
+.ts-crest[data-f="u"]{background-image:url('/img/brasoes/u.png')}
+/* A sigla sai do olho mas NÃO do documento: o brasão diz o time para quem vê, e
+   quem usa leitor de tela não pode ficar com um "0" sem dono. */
+.so-leitor{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;
+  clip-path:inset(50%);white-space:nowrap;border:0}
 /* A plaquinha do bloco central saiu junto: era rgba .72 + chanfro pra segurar o "1:39"
    (branco) sobre a parede branca do praca_poderes, onde dava ~1,1:1. Quem segura agora é o
    contorno do glifo (--sh-hud + text-stroke). O padding vertical FICA: ele entra na soma

@@ -1124,6 +1124,13 @@ export class Game {
       ammoMag: $('ammo-mag'), ammoRes: $('ammo-reserve'), reloadNote: $('reload-note'), smokeCount: $('smoke-count'),
       roundTime: $('round-time'), roundsRow: $('rounds-row'),
       scoreP: $('score-e'), scoreB: $('score-b'), killfeed: $('killfeed'), ctfHud: $('ctf-hud'),
+      /* Filhos cacheados: _updateHud roda por QUADRO. Antes ele montava a plaqueta
+         inteira com innerHTML; agora só escreve o número, e o brasão (data-f) só
+         muda quando a facção muda. Sem isto, pôr o brasão no HUD custaria um
+         reparse de HTML e uma imagem por quadro. */
+      scorePNum: $('score-e').querySelector('b'), scoreBNum: $('score-b').querySelector('b'),
+      crestP: $('crest-e'), crestB: $('crest-b'),
+      siglaP: $('sigla-e'), siglaB: $('sigla-b'),
       banner: $('round-banner'), bannerTitle: $('banner-title'), bannerSub: $('banner-sub'),
       respawn: $('respawn-overlay'), respawnCount: $('respawn-count'),
       prot: $('prot-badge'), protCount: $('prot-count'),
@@ -3698,6 +3705,24 @@ export class Game {
   _voiceKey(side) { return this._factionOf(side); }   // pack de vozes/round por facção (P/B/U)
   _teamName(side) { const f = this._factionOf(side); return f === 'U' ? 'TRIBOS URBANAS' : f === 'C' ? 'PALHAÇOS' : f === 'F' ? 'FUNKEIROS' : (TEAM_LABEL[f] || f); }
   _teamTag(side) { const f = this._factionOf(side); return f === 'U' ? 'TRB' : f === 'C' ? 'PLH' : f === 'F' ? 'FNK' : f === 'E' ? 'TME' : 'TMB'; }
+
+  /* Uma plaqueta do HUD. Chamada por QUADRO, então tudo aqui é comparação barata:
+     o número só é escrito se mudou, e o brasão (data-f, arte no CSS) só quando a
+     facção muda — na prática, uma vez por partida. `slot` é o sufixo do cache
+     (scorePNum/crestP/siglaP) e `side` é o lado no modelo do jogo. */
+  _plaqueta(slot, side) {
+    const num = this.el['score' + slot + 'Num'];
+    const n = String(this.roundKills[side]);
+    if (num && num.textContent !== n) num.textContent = n;
+    /* minúscula porque o seletor de atributo do CSS é SENSÍVEL A CAIXA e os arquivos
+       são b/c/e/f/u.png — `data-f="U"` não casaria com `[data-f="u"]` e o brasão
+       simplesmente não apareceria, sem erro nenhum no console. */
+    const f = String(this._factionOf(side) || '').toLowerCase();
+    const crest = this.el['crest' + slot];
+    if (crest && crest.dataset.f !== f) crest.dataset.f = f;
+    const sig = this.el['sigla' + slot], tag = this._teamTag(side);
+    if (sig && sig.textContent !== tag) sig.textContent = tag;
+  }
   _mirror(side) { return side === this.enemyTeam && this.enemyFaction === this.playerFaction; }   // inimigo = mesma facção
   // Separação (boids): empurra o bot pra longe de colegas do mesmo time num raio curto, pra eles
   // NÃO andarem colados em fila indiana sobre o mesmo path. Peso ~inverso à distância.
@@ -6351,8 +6376,7 @@ export class Game {
       this.el.roundsRow.textContent =
         `${frase('rodadaDe', this.roundNum, ROUNDS_MAX)} · ${this._teamTag('E')} ${this.roundsWon.E} × ${this.roundsWon.B} ${this._teamTag('B')}`;
     }
-    this.el.scoreP.innerHTML = `${this._teamTag('E')} <b>${this.roundKills.E}</b>`;
-    this.el.scoreB.innerHTML = `${this._teamTag('B')} <b>${this.roundKills.B}</b>`;
+    this._plaqueta('P', 'E'); this._plaqueta('B', 'B');
     this.el.scoreP.style.color = this._teamColor('E');   // lado do jogador Tribos fica AZUL
     this.el.scoreB.style.color = this._teamColor('B');
     // badge de spawn protection (issue #24)

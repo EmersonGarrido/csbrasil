@@ -986,12 +986,23 @@ const IMPORTMAP = JSON.stringify({
   <div id="mk-banner"></div>
   <div id="prot-badge" class="hidden"><svg viewBox="0 0 14 14" width="13" height="13" aria-hidden="true"><path fill="currentColor" d="M7 .6 12.3 2.9v4.2c0 3.1-2.2 5.6-5.3 6.3-3.1-.7-5.3-3.2-5.3-6.3V2.9z"/></svg> PROTEGIDO <span id="prot-count">3</span>s</div>
   <div id="hud-top">
-    <div id="score-e" class="team-score ts-p">PET <b>0</b></div>
+    <!-- BRASÃO no lugar da sigla (tela 05 do redesign). A sigla continua no DOM
+         como texto só-para-leitor: o brasão diz o time para quem vê, e quem usa
+         leitor de tela não pode ficar com "0" sem dono. `data-f` é escrito pelo
+         game.js só quando a facção MUDA — a arte vem do CSS, então o laço de
+         quadro não toca em imagem nenhuma. -->
+    <div id="score-e" class="team-score ts-p">
+      <i class="ts-crest" id="crest-e" aria-hidden="true"></i><span class="so-leitor" id="sigla-e">PET</span><b>0</b>
+    </div>
     <div id="hud-mid">
       <div id="round-time">1:39</div>
+      <!-- rounds VENCIDOS — dado diferente do kills das plaquetas ao lado, por isso
+           esta linha não é redundante e não sai. -->
       <div id="rounds-row">RODADA 1 · PET 0 × 0 BOL</div>
     </div>
-    <div id="score-b" class="team-score ts-b">BOL <b>0</b></div>
+    <div id="score-b" class="team-score ts-b">
+      <i class="ts-crest" id="crest-b" aria-hidden="true"></i><span class="so-leitor" id="sigla-b">BOL</span><b>0</b>
+    </div>
   </div>
   <div id="ctf-hud" class="hidden"></div>
   <div id="killfeed"></div>
