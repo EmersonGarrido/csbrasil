@@ -117,9 +117,32 @@ const PROMPTS = {
   ].join('\n'),
 };
 
+/* DICAS POR PERSONAGEM — a lista de exceções, e ela existe por um motivo medido.
+   O modelo não erra ao acaso: ele SUBSTITUI o item específico pelo genérico da
+   categoria. Palhaço ganha casaco escuro de circo, médica perde a faixa de cabeça,
+   e o Mandrake ganhou um Wayfarer no lugar da Juliet — que é justamente a peça que
+   define o arquétipo. Enquadrar melhor resolveu omissão de peça grande (as
+   ombreiras do palhaço voltaram); NÃO resolve esse viés, porque aqui o modelo tem
+   a informação e escolhe "corrigir".
+   A alavanca que funciona é NOMEAR o objeto: o modelo sabe o que é uma Oakley
+   Juliet. Por isso a dica é uma linha curta e só para quem escorrega — descrever
+   os 44 à mão traria de volta a chance de errar o personagem no texto.
+   REGRA: só entra aqui item que já foi visto errado numa geração. Não é lugar de
+   palpite preventivo. */
+const DICAS = {
+  mandrake: 'Os óculos são uma OAKLEY JULIET: armação de metal escovado envolvente, '
+    + 'hastes com detalhe de parafuso, lente vermelha em duas peças curvas. NÃO é Wayfarer, '
+    + 'NÃO é armação quadrada de acetato, NÃO é óculos redondo de metal fino.',
+  doutora: 'Ela usa uma FAIXA/BANDANA na testa, sobre a linha do cabelo, presa por trás. '
+    + 'Ela existe na referência e não pode sumir.',
+  palhacomal: 'O casaco é ROSA-LILÁS claro, não vinho nem bordô. Mantenha o rosa como está '
+    + 'na referência mesmo que pareça improvável para um palhaço sombrio.',
+};
+
 const ESTILO = arg('estilo', 'gamer');
 if (!PROMPTS[ESTILO]) die(`--estilo desconhecido: ${ESTILO} (use gamer ou foto)`);
-const PROMPT = PROMPTS[ESTILO];
+const PROMPT_BASE = PROMPTS[ESTILO];
+const comDica = (id) => (DICAS[id] ? `${PROMPT_BASE}\n\nATENÇÃO NESTE PERSONAGEM: ${DICAS[id]}` : PROMPT_BASE);
 
 mkdirSync(TMP, { recursive: true });
 mkdirSync(OUT, { recursive: true });
@@ -147,7 +170,7 @@ for (const ID of IDS) {
 
   // 2. acabamento realista, com o render como referência
   const flags = ['tools/gen-image.mjs', '--id', `${ID}-${ESTILO}`, '--ref', ref,
-    '--model', MODEL, '--aspect', '1:1', '--prompt', PROMPT];
+    '--model', MODEL, '--aspect', '1:1', '--prompt', comDica(ID)];
   if (PUBLICAR) flags.push('--out', OUT, '--crop', '1:1', '--w', '512');
   else flags.push('--raw-only');
 
