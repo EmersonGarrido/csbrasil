@@ -10,7 +10,7 @@
 >
 <!-- BEGIN:GERADO:versao_atual — não edite à mão, rode `npm run docs` -->
 
-**O jogo está em `2.0.0-alpha.91`.** Prerelease do semver ordena sozinho
+**O jogo está em `2.0.0-alpha.101`.** Prerelease do semver ordena sozinho
 (`alpha` < `beta` < release), e o fluxo automático cuida do bump.
 
 > Bloco gerado por `node tools/gen-docs.mjs`. Fonte: `grep VERSION public/js/version.js · node -p "require('./package.json').version"`
@@ -22,6 +22,66 @@
 > das três tem tag git** (a última tag é `v1.12.4`). "v3" nunca existiu como coisa publicada.
 > O conteúdo e as datas das entradas continuam intactos; só o rótulo mudou, porque chamar de
 > 3.3.0 um build com P0 em aberto promete ao jogador uma estabilidade que ele não tem.
+
+## [2.0.0-alpha.101] — 2026-08-13
+
+### Mudado
+- fix(telemetria): descarta "Script error." cross-origin opaco no coletor de crash (#221)
+- [Notas completas do release](https://github.com/rubenmarcus/csbrasil/releases/tag/v2.0.0-alpha.101).
+
+## [2.0.0-alpha.100] — 2026-08-13
+
+### Mudado
+- fix(hud): indicador de dano aponta pra onde o tiro veio (BUG-52)
+- [Notas completas do release](https://github.com/rubenmarcus/csbrasil/releases/tag/v2.0.0-alpha.100).
+
+## [2.0.0-alpha.99] — 2026-08-13
+
+### Mudado
+- chore: remove a rota /editor do build público (bancada WIP com problemas) (#220)
+- [Notas completas do release](https://github.com/rubenmarcus/csbrasil/releases/tag/v2.0.0-alpha.99).
+
+## [2.0.0-alpha.98] — 2026-08-13
+
+### Mudado
+- fix(eval): mapa-id ignora .worktrees e isenta atribuição histórica da LICENCA
+- [Notas completas do release](https://github.com/rubenmarcus/csbrasil/releases/tag/v2.0.0-alpha.98).
+
+## [2.0.0-alpha.97] — 2026-08-13
+
+### Mudado
+- fix(eval): os 4 apontamentos do Greptile na régua de contrato — e um defeito real que o MC3 achou (#242)
+- [Notas completas do release](https://github.com/rubenmarcus/csbrasil/releases/tag/v2.0.0-alpha.97).
+
+## [2.0.0-alpha.96] — 2026-08-13
+
+### Mudado
+- feat(portões): pre-push roda o CI antes do push, e o cache para de raspar o teto (#243)
+- [Notas completas do release](https://github.com/rubenmarcus/csbrasil/releases/tag/v2.0.0-alpha.96).
+
+## [2.0.0-alpha.95] — 2026-08-13
+
+### Mudado
+- test(eval): contrato de mapa vira régua — o que o game.js consome (#240)
+- [Notas completas do release](https://github.com/rubenmarcus/csbrasil/releases/tag/v2.0.0-alpha.95).
+
+## [2.0.0-alpha.94] — 2026-08-13
+
+### Mudado
+- fix(release): push atômico de commit+tag — destrava pr-fast e release (#239)
+- [Notas completas do release](https://github.com/rubenmarcus/csbrasil/releases/tag/v2.0.0-alpha.94).
+
+## [2.0.0-alpha.93] — 2026-08-13
+
+### Mudado
+- feat(seguranca): verifica hashes do skills-lock.json na instalação (#230)
+- [Notas completas do release](https://github.com/rubenmarcus/csbrasil/releases/tag/v2.0.0-alpha.93).
+
+## [2.0.0-alpha.92] — 2026-08-12
+
+### Mudado
+- fix(eval): reconcilia decal-probe com o medirParede da Quebrada (#75) (#231)
+- [Notas completas do release](https://github.com/rubenmarcus/csbrasil/releases/tag/v2.0.0-alpha.92).
 
 ## [2.0.0-alpha.91] — 2026-08-12
 

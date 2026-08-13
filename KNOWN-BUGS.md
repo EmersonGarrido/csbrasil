@@ -900,6 +900,16 @@ mudar.
 
 ## P1 — o jogador vê
 
+### ~~BUG-52 · "o sensor de tiro está ao contrário, quando atiram na frente é nas costas"~~ · RESOLVIDO 13/08
+
+**Feedback (12/08, guilhermeraulino2704):** *"O sensor de tiro está ao contrário, quando atiram na frente da que é nas costas"*.
+
+**Causa raiz — confirmada por medição.** A câmera usa `rotation.order='YXZ'` (`game.js:602`), então olha `(-sin yaw, -cos yaw)` — yaw=0 encarando **-Z**. O indicador `_dmgArc` (`game.js:3035`) calculava `rel = atan2(dx,dz) - yaw`, que é a convenção do **mesh** (frente +Z, bearing=yaw). O jogador enfrenta bearing `yaw+π`, não `yaw` → **defasagem de 180°**: quem atira pela frente caía no rodapé da tela (posição de costas). Provado em node (direção da câmera × fórmula): frente → rel=±π (baixo); costas → rel=0 (topo).
+
+**Correção.** `- Math.PI` nas DUAS path do `_dmgArc`: `game.js:3035` (arcos, principal) e `game.js:2991` (fallback `?dmgdir=0`). Frente volta ao topo, costas ao rodapé, laterais ao lado certo.
+
+**Régua:** `tools/eval/dmg-dir-check.mjs` (`npm run eval:dmgdir`, no `check:fast`). Extrai a fórmula real do `game.js`, testa as 4 direções cardinais contra a frente da câmera e exige a correção de π no fonte (DD5). `--mutante=sem-pi` devolve o defeito e acende DD1/DD2 (16 vermelhas).
+
 ### ~~BUG-43 · "o menu de HUD não está mostrando com vmlab=1 em produção"~~ · RESOLVIDO 10/08
 
 **Sintoma (do dono):** *"o menu de hud nao esta mostrando com vmlab=1 em producao"*.
