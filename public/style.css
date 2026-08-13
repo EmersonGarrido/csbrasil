@@ -1298,11 +1298,22 @@ html[data-ui="legacy"] .kf-row .kf-n{clip-path:none;border-radius:var(--r-1)}
 /* Campo atmosférico onde mora a arte do vencedor na referência. Sem o retrato ele existe
    pra segurar a composição em duas metades — sem ele o conteúdo à esquerda lê como
    desalinhado, e não como ancorado. */
+/* Os dois gradientes vêm ANTES da arte na lista: em `background` a primeira camada
+   é a de cima. São eles que garantem a leitura do texto da coluna esquerda por cima
+   de qualquer personagem — sem isso, um personagem claro come o subtítulo.
+   `--me-art` é escrito pelo game.js no fim da partida; sem ele o `none` mantém
+   exatamente o visual que esta tela tinha antes. */
 .me-hero{position:relative;align-self:stretch;pointer-events:none;
   background:radial-gradient(58% 70% at 62% 46%,rgba(var(--bg-700-rgb),.85) 0%,rgba(var(--bg-900-rgb),0) 72%),
-             linear-gradient(90deg,rgba(var(--bg-900-rgb),.9) 0%,rgba(var(--bg-900-rgb),0) 26%)}
+             linear-gradient(90deg,rgba(var(--bg-900-rgb),.9) 0%,rgba(var(--bg-900-rgb),0) 26%),
+             var(--me-art,none) 62% center/cover no-repeat;
+  transition:opacity var(--t) var(--ease)}
 .me-verdict{display:flex;flex-direction:column;align-items:flex-start;gap:var(--s-2);text-align:left}
-#match-title{font-family:var(--aaa-font-display);font-size:clamp(46px,12vh,132px);font-weight:700;letter-spacing:clamp(2px,.4vw,7px);
+/* peso 400: Bebas Neue só existe em Regular (@font-face único, linha 6). Pedir 700
+   fazia o browser engrossar o contorno sozinho — e este é o MAIOR texto do jogo
+   (até 132px), onde o borrão do falso negrito mais aparece. Mesmo defeito já
+   corrigido no `.aaa-cta`. */
+#match-title{font-family:var(--aaa-font-display);font-size:clamp(46px,12vh,132px);font-weight:400;letter-spacing:clamp(2px,.4vw,7px);
   text-transform:uppercase;line-height:var(--lh-tight);
   animation:matchTitleIn .55s cubic-bezier(.16,1,.3,1) both}
 html[data-ui="legacy"] #match-title{font-family:var(--font)}

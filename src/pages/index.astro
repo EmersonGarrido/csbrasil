@@ -1082,7 +1082,10 @@ const IMPORTMAP = JSON.stringify({
         <button id="btn-menu" class="btn">VOLTAR AO MENU</button>
       </div>
     </div>
-    <div class="me-hero" aria-hidden="true"></div>
+    <!-- Slot da arte do vencedor. O CSS já reservava esta metade da tela e desenhava
+         só os gradientes de leitura desde sempre; o personagem nunca chegou. Agora o
+         game.js aponta `--me-art` para o retrato de quem o jogador escolheu. -->
+    <div class="me-hero" id="me-hero" aria-hidden="true"></div>
   </div>
 </div>
 

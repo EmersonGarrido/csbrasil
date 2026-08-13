@@ -2223,6 +2223,21 @@ export class Game {
       : frase('perdeu', this._teamName(winner));
     this.el.matchStats.innerHTML =
       frase('statsFim', this.roundsWon.E, this.roundsWon.B, this.player.kills, this.player.name, this.player.deaths);
+    /* ARTE DO VENCEDOR — o slot .me-hero existia vazio desde que a tela nasceu.
+       Uso o retrato que JÁ está no repo (public/img/chars/, 44 arquivos) e não o
+       render 3D: aqui a tela é 2D, estática, e montar um canvas WebGL só para o
+       fim de partida custaria um contexto novo num momento em que o jogo acabou de
+       liberar o dele.
+       `encodeURIComponent` no id porque ele entra numa url() de CSS — id com
+       caractere estranho quebraria a regra inteira, em silêncio. E se o arquivo não
+       existir, o navegador só não pinta a camada: os gradientes seguem e a tela fica
+       igual ao que era. Falha silenciosa aqui é a falha CERTA — ninguém deve perder
+       a tela de fim de partida por causa de um .webp faltando. */
+    const heroEl = this.el.meHero || (this.el.meHero = document.getElementById('me-hero'));
+    if (heroEl) {
+      const cid = this.playerDef && this.playerDef.id;
+      heroEl.style.setProperty('--me-art', cid ? `url("/img/chars/${encodeURIComponent(cid)}.webp")` : 'none');
+    }
     this.el.matchEnd.classList.remove('hidden');
     if (document.pointerLockElement) document.exitPointerLock();
     /* MAPA, MODO, PERSONAGEM E DURAÇÃO ENTRAM AQUI (07/08) porque sem eles o `match_end`
