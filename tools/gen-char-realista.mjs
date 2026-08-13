@@ -78,6 +78,18 @@ const PRESERVAR = [
 ].join('\n');
 
 const TRAVAS = [
+  /* TRAVA DE ÓCULOS — global, e não mais uma exceção por personagem. Dois de dois
+     personagens com óculos marcante perderam o modelo para um Wayfarer preto de
+     acetato: o Mandrake (Juliet) e o Chave (Oakley envolvente). Duas ocorrências na
+     MESMA categoria é viés do modelo, não azar — ele tem um óculos default e recorre
+     a ele sempre que não é contrariado. Como o blurb não é fonte confiável (o do
+     Mandrake nem cita óculos), a trava vale para todos. */
+  'ÓCULOS — o modelo erra sistematicamente aqui, preste atenção: reproduza a GEOMETRIA',
+  'EXATA da armação que está na referência. Formato e curvatura da lente, se envolve o',
+  'rosto ou é plano, espessura e material da haste, aro completo / meio-aro / sem aro,',
+  'e a cor real da lente. NUNCA substitua por óculos retangular preto de acetato tipo',
+  'Wayfarer — esse é o erro padrão. Armação fina de metal envolvente de esporte (tipo',
+  'Oakley) tem de sair como armação fina de metal envolvente de esporte.',
   'NÃO acrescente NENHUM objeto que não esteja na referência — nem corrente, colar,',
   'brinco, arma, faca, cigarro nem objeto na mão. Se o enquadramento cortar o peito, o',
   'que fica de fora simplesmente não existe: não preencha.',
@@ -104,15 +116,7 @@ const PROMPTS = {
        Pixar". Citar Overwatch/Fortnite como alvo era parte do problema: os dois SÃO
        cartoon. O alvo certo não é outro jogo — é a arte que este jogo já publicou
        (public/img/wall-*.webp e loading-*.webp), que é semi-realista. */
-    'PROPORÇÃO E ROSTO — ponto mais importante:',
-    'Adulto de proporções REAIS. Cabeça no tamanho de cabeça de gente, olhos no tamanho',
-    'de olhos de gente, mandíbula e nariz definidos, pele com textura.',
-    'PROIBIDO o visual de animação da Pixar / Disney / DreamWorks: nada de olhos enormes',
-    'e brilhantes, nada de rosto redondo de bebê, nada de bochecha inflada, nada de nariz',
-    'de botão, nada de pele plástica sem poro, nada de expressão fofa.',
-    'A referência de estilo é a arte de capa DESTE jogo: personagem semi-realista de',
-    'sátira urbana brasileira, com peso e presença — mais perto de GTA V ou Max Payne 3',
-    'do que de filme de animação infantil.', '',
+    '@PROPORCAO@', '',
     TRAVAS,
   ].join('\n'),
 
@@ -127,6 +131,38 @@ const PROMPTS = {
     TRAVAS,
   ].join('\n'),
 };
+
+/* MASCOTES — quem NÃO é gente, e por que isso precisa de um bloco próprio.
+   A trava anti-Pixar ("proporção adulta real, olho de tamanho de gente, nada de
+   expressão fofa") nasceu de o dono reprovar o guru e a doutora. Aplicada a estes
+   quatro ela DESTRÓI o personagem: o Dollynho é uma garrafa de olho grande, e
+   "realismo" nele vira monstro. A lista é a mesma de IK_L_SKIP em glbchars.js —
+   "mascotes de braços-toco" —, que o repo já mantinha por outro motivo e que por
+   acaso é exatamente o recorte de quem não é humano. */
+const MASCOTES = new Set(['dollynho', 'gotinha', 'et', 'canarinho']);
+
+const PROPORCAO_HUMANO = [
+  'PROPORÇÃO E ROSTO — ponto mais importante:',
+  'Adulto de proporções REAIS. Cabeça no tamanho de cabeça de gente, olhos no tamanho',
+  'de olhos de gente, mandíbula e nariz definidos, pele com textura.',
+  'PROIBIDO o visual de animação da Pixar / Disney / DreamWorks: nada de olhos enormes',
+  'e brilhantes, nada de rosto redondo de bebê, nada de bochecha inflada, nada de nariz',
+  'de botão, nada de pele plástica sem poro, nada de expressão fofa.',
+  'A referência de estilo é a arte de capa DESTE jogo: personagem semi-realista de',
+  'sátira urbana brasileira, com peso e presença — mais perto de GTA V ou Max Payne 3',
+  'do que de filme de animação infantil.',
+].join('\n');
+
+const PROPORCAO_MASCOTE = [
+  'PROPORÇÃO — ATENÇÃO: este personagem NÃO é uma pessoa. É um MASCOTE de marca, e a',
+  'linguagem de desenho é a identidade dele, não um defeito a corrigir.',
+  'MANTENHA a proporção caricata da referência: olhos grandes e expressivos, cabeça',
+  'desproporcional, corpo simplificado, mãos de luva, expressão alegre. NÃO tente',
+  'torná-lo realista, NÃO dê a ele rosto ou pele humana, NÃO corrija a anatomia.',
+  'O que melhora é só o ACABAMENTO: superfície com material de verdade (plástico, vinil,',
+  'pelo, borracha, conforme o caso), volume com iluminação de estúdio, oclusão nas',
+  'dobras, brilho especular onde couber. Um mascote bem renderizado, não um humano.',
+].join('\n');
 
 /* DICAS POR PERSONAGEM — a lista de exceções, e ela existe por um motivo medido.
    O modelo não erra ao acaso: ele SUBSTITUI o item específico pelo genérico da
@@ -153,7 +189,20 @@ const DICAS = {
      Idade precisa ser dita, como tudo que o modelo decide sozinho quando calamos. */
   chave: 'Ele é JOVEM: entre 18 e 22 anos. Rosto fino e anguloso, queixo estreito, pescoço '
     + 'magro, corpo esguio de adolescente crescido. NÃO é um homem de meia-idade, NÃO tem '
-    + 'pescoço grosso nem mandíbula larga, NÃO é musculoso.',
+    + 'pescoço grosso nem mandíbula larga, NÃO é musculoso. '
+    + 'Os óculos são OAKLEY de esporte: armação fina, envolvente, lente escura curva que '
+    + 'acompanha o rosto. NÃO é Wayfarer, NÃO é armação retangular grossa de acetato.',
+  /* O dono mandou a arte clássica do mascote. Descrevo em vez de anexar arquivo porque
+     a imagem veio no chat, não no repo — e insumo de gerador que só existe no histórico
+     de uma conversa é insumo que ninguém regera. Se a arte entrar em public/, isto vira
+     entrada em ARTE_OFICIAL e o texto sai. */
+  dollynho: 'É o mascote clássico da Dolly: CORPO DE GARRAFA verde brilhante (o corpo é a '
+    + 'garrafa, não uma pessoa vestida), com a tampinha branca de rosca no alto da cabeça '
+    + 'como se fosse chapéu. Olhos grandes, redondos e alegres, com sobrancelhas finas e '
+    + 'sorriso aberto mostrando os dentes. Luvas brancas de quatro dedos. Tênis vermelhos '
+    + 'com sola branca. A palavra DOLLY em letras brancas inclinadas no peito. Braços e '
+    + 'pernas finos e curtos saindo direto da garrafa. Verde vivo e saturado, superfície '
+    + 'de plástico com brilho. Nada de rosto humano, nada de anatomia realista.',
 };
 
 /* ARTE OFICIAL — segunda referência, quando o personagem já tem key art publicada.
@@ -172,7 +221,10 @@ const ESTILO = arg('estilo', 'gamer');
 if (!PROMPTS[ESTILO]) die(`--estilo desconhecido: ${ESTILO} (use gamer ou foto)`);
 const PROMPT_BASE = PROMPTS[ESTILO];
 const comDica = (id) => {
-  let p = PROMPT_BASE;
+  /* O bloco de proporção é escolhido por personagem: humano leva a trava anti-Pixar,
+     mascote leva o oposto. Um prompt só para os dois casos era o defeito — o mesmo
+     texto que conserta a doutora estraga o Dollynho. */
+  let p = PROMPT_BASE.replace('@PROPORCAO@', MASCOTES.has(id) ? PROPORCAO_MASCOTE : PROPORCAO_HUMANO);
   if (ARTE_OFICIAL[id]) {
     p += '\n\nDUAS REFERÊNCIAS. A PRIMEIRA imagem é o modelo 3D do jogo: dela vêm a POSE, o'
       + ' ENQUADRAMENTO e o ângulo. A SEGUNDA é a arte oficial deste personagem: dela vêm a'
