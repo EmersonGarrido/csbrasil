@@ -35,6 +35,7 @@
 import { existsSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { chromium } from 'playwright';
+import sharp from 'sharp';
 
 const argv = process.argv.slice(2);
 const arg = (n, d = null) => { const i = argv.indexOf(`--${n}`); return i >= 0 && argv[i + 1] && !argv[i + 1].startsWith('--') ? argv[i + 1] : d; };
@@ -90,10 +91,8 @@ const PROMPTS = {
   /* ESCOLHIDO como padrão: o jogo é 3D estilizado, então retrato fotorrealista
      brigaria com o próprio personagem que aparece jogando na tela ao lado. */
   gamer: [
-    'Render 3D de personagem de videogame AAA moderno, no MESMO estilo estilizado da',
-    'referência — NÃO é fotografia, NÃO é pessoa real.', '', PRESERVAR, '',
-    'Mantenha a linguagem estilizada de personagem de jogo: feições simplificadas,',
-    'silhueta legível, proporção levemente caricata.', '',
+    'Render 3D de personagem de videogame AAA moderno, SEMI-REALISTA.',
+    'NÃO é fotografia de pessoa real, e NÃO é desenho animado.', '', PRESERVAR, '',
     'O QUE MUDA — mais DENSIDADE DE DETALHE que o modelo de origem: malha de alta',
     'resolução no lugar do low-poly (nada de facetas chapadas nem silhueta poligonal),',
     'materiais PBR de verdade com mapa de normal e rugosidade, trama visível no tecido,',
@@ -101,7 +100,19 @@ const PROMPTS = {
     'tatuagens com traço nítido. Iluminação de game art: luz-chave direcional forte, luz',
     'de contorno separando o personagem do fundo, oclusão de ambiente nas dobras. Fundo',
     'escuro liso neutro.', '',
-    'Resultado alvo: o hero render de capa do jogo — Overwatch, Valorant, Fortnite.', '',
+    /* Este bloco existe porque o dono reprovou "guru e doutora do SUS muito estilo
+       Pixar". Citar Overwatch/Fortnite como alvo era parte do problema: os dois SÃO
+       cartoon. O alvo certo não é outro jogo — é a arte que este jogo já publicou
+       (public/img/wall-*.webp e loading-*.webp), que é semi-realista. */
+    'PROPORÇÃO E ROSTO — ponto mais importante:',
+    'Adulto de proporções REAIS. Cabeça no tamanho de cabeça de gente, olhos no tamanho',
+    'de olhos de gente, mandíbula e nariz definidos, pele com textura.',
+    'PROIBIDO o visual de animação da Pixar / Disney / DreamWorks: nada de olhos enormes',
+    'e brilhantes, nada de rosto redondo de bebê, nada de bochecha inflada, nada de nariz',
+    'de botão, nada de pele plástica sem poro, nada de expressão fofa.',
+    'A referência de estilo é a arte de capa DESTE jogo: personagem semi-realista de',
+    'sátira urbana brasileira, com peso e presença — mais perto de GTA V ou Max Payne 3',
+    'do que de filme de animação infantil.', '',
     TRAVAS,
   ].join('\n'),
 
@@ -137,12 +148,41 @@ const DICAS = {
     + 'Ela existe na referência e não pode sumir.',
   palhacomal: 'O casaco é ROSA-LILÁS claro, não vinho nem bordô. Mantenha o rosa como está '
     + 'na referência mesmo que pareça improvável para um palhaço sombrio.',
+  /* A segunda referência (wall-9) trouxe o acabamento certo mas NÃO a idade: o modelo
+     entregou um homem de ~40 com pescoço grosso onde a arte mostra um rapaz magro.
+     Idade precisa ser dita, como tudo que o modelo decide sozinho quando calamos. */
+  chave: 'Ele é JOVEM: entre 18 e 22 anos. Rosto fino e anguloso, queixo estreito, pescoço '
+    + 'magro, corpo esguio de adolescente crescido. NÃO é um homem de meia-idade, NÃO tem '
+    + 'pescoço grosso nem mandíbula larga, NÃO é musculoso.',
+};
+
+/* ARTE OFICIAL — segunda referência, quando o personagem já tem key art publicada.
+   O render do GLB responde "quem é, nesta pose"; o wallpaper responde "que idade e
+   que acabamento". Nasceu do dono apontando que o Chave SP ficou velho demais: o
+   GLB é low-poly e não carrega idade, mas wall-9.webp mostra o personagem jovem,
+   de polo e boné, do jeito certo. Com as duas referências juntas o modelo tem as
+   duas informações, e nenhuma delas precisa virar texto.
+   A caixa de recorte foi medida na arte (1672x941): enquadra da cabeça à cintura.
+   Só entra aqui personagem que TEM arte própria — hoje o Chave. */
+const ARTE_OFICIAL = {
+  chave: { arquivo: 'public/img/wall-9.webp', caixa: { left: 820, top: 100, width: 300, height: 420 } },
 };
 
 const ESTILO = arg('estilo', 'gamer');
 if (!PROMPTS[ESTILO]) die(`--estilo desconhecido: ${ESTILO} (use gamer ou foto)`);
 const PROMPT_BASE = PROMPTS[ESTILO];
-const comDica = (id) => (DICAS[id] ? `${PROMPT_BASE}\n\nATENÇÃO NESTE PERSONAGEM: ${DICAS[id]}` : PROMPT_BASE);
+const comDica = (id) => {
+  let p = PROMPT_BASE;
+  if (ARTE_OFICIAL[id]) {
+    p += '\n\nDUAS REFERÊNCIAS. A PRIMEIRA imagem é o modelo 3D do jogo: dela vêm a POSE, o'
+      + ' ENQUADRAMENTO e o ângulo. A SEGUNDA é a arte oficial deste personagem: dela vêm a'
+      + ' IDADE APARENTE, o rosto, o tipo físico e o acabamento. Onde as duas discordarem'
+      + ' sobre como ele É, mande a segunda; onde discordarem sobre como ele está POSICIONADO,'
+      + ' mande a primeira.';
+  }
+  if (DICAS[id]) p += `\n\nATENÇÃO NESTE PERSONAGEM: ${DICAS[id]}`;
+  return p;
+};
 
 mkdirSync(TMP, { recursive: true });
 mkdirSync(OUT, { recursive: true });
@@ -152,7 +192,12 @@ const page = await browser.newPage({ viewport: { width: 512, height: 512 }, devi
 
 let feitos = 0, pulados = 0, falhas = 0;
 for (const ID of IDS) {
-  const saida = `${OUT}/${ID}-${ESTILO}.${PUBLICAR ? 'webp' : 'png'}`;
+  /* Sem --publicar, o gen-image grava em /tmp/gen-image (o --raw-only dele), NÃO em
+     OUT. A checagem apontava para OUT nos dois casos, então "já existe, pulando"
+     nunca disparava no modo cru e um `--todos` repetido regerava o elenco inteiro —
+     44 imagens de crédito queimadas em silêncio. Agora cada modo olha onde de fato
+     escreve. */
+  const saida = PUBLICAR ? `${OUT}/${ID}-${ESTILO}.webp` : `/tmp/gen-image/${ID}-${ESTILO}.png`;
   if (!FORCAR && existsSync(saida)) { console.log(`· ${ID} já existe, pulando (use --forcar)`); pulados++; continue; }
 
   const ref = `${TMP}/${ID}-${SHOT}.png`;
@@ -169,7 +214,17 @@ for (const ID of IDS) {
   }
 
   // 2. acabamento realista, com o render como referência
-  const flags = ['tools/gen-image.mjs', '--id', `${ID}-${ESTILO}`, '--ref', ref,
+  /* A arte oficial entra como SEGUNDA referência, recortada na hora. O recorte não
+     é publicado em public/: é insumo do gerador, e materializá-lo no repo criaria um
+     arquivo que ninguém sabe regerar quando a arte mudar. */
+  const refs = ['--ref', ref];
+  const arte = ARTE_OFICIAL[ID];
+  if (arte) {
+    const corte = `${TMP}/${ID}-arte.png`;
+    await sharp(arte.arquivo).extract(arte.caixa).png().toFile(corte);
+    refs.push('--ref', corte);
+  }
+  const flags = ['tools/gen-image.mjs', '--id', `${ID}-${ESTILO}`, ...refs,
     '--model', MODEL, '--aspect', '1:1', '--prompt', comDica(ID)];
   if (PUBLICAR) flags.push('--out', OUT, '--crop', '1:1', '--w', '512');
   else flags.push('--raw-only');
