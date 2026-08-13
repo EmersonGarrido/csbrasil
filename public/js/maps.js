@@ -4,6 +4,10 @@ import { buildPoolDay } from './map_piscina.js';
 import { buildHavan, havanPropsForMatch } from './map_havan.js';
 import { buildFerroVelho, FERRO_PROPS } from './map_ferrovelho.js';
 import { buildQuebrada, QUEBRADA_PROPS } from './map_quebrada.js';
+import { buildPosto, POSTO_PROPS } from './map_posto.js';
+import { buildAtacadao, ATACADAO_PROPS } from './map_atacadao.js';
+import { buildObras, OBRAS_PROPS } from './map_obras.js';
+import { buildUpa, UPA_PROPS } from './map_upa.js';
 
 export const MAPS = {
   awp_map:     { name: 'Praça dos Três Poderes', build: buildBrasilia }, // Brasília fiel (substitui o clássico)
@@ -33,6 +37,19 @@ export const MAPS = {
   // 4 bandeiras (campinho · bar de esquina · ponto de ônibus · praça do baile). Spec do dono
   // em HANDOFF.md §A0.10. As vielas de fundo (x = ∓23) são requisito da CTF2, não decoração.
   fy_quebrada: { name: 'Quebrada (Rua do Baile)', build: buildQuebrada, props: QUEBRADA_PROPS, ctfMode: true },
+  // Posto de gasolina de beira de estrada, hora dourada. 3 corredores (loja O · marquise C ·
+  // pátio L), simétrico em z=0. Procedural (marquise/bombas/loja) + props (kombi/fusca/pneus…).
+  fy_posto: { name: 'Posto da Treta', build: buildPosto, props: POSTO_PROPS, ctfMode: true },
+  // Galpão de atacado (paródia), estilo CS clássico: corredores de gôndola, caixas na
+  // entrada, doca de carga no fundo. Simétrico em z=0. A treta é o preço absurdo.
+  fy_atacadao: { name: 'Atacadão da Treta', build: buildAtacadao, props: ATACADAO_PROPS, ctfMode: true },
+  // Canteiro de obra da prefeitura que nunca acaba: estrutura meio-construída no centro, tapumes,
+  // andaimes, entulho, guindaste. Simétrico em z=0. A treta é a verba que sumiu.
+  fy_obras: { name: 'Obras da Prefeitura', build: buildObras, props: OBRAS_PROPS, ctfMode: true },
+  // UPA 24h: pronto-socorro lotado, mapa 100% INTERNO (prédio fechado, sem céu). Salas de verdade
+  // — recepção/espera, triagem, consultórios, raio-x, farmácia, enfermaria e emergência — ligadas
+  // por corredor central em cruz com portas. Cheio de canto pra se esconder. A treta é a fila eterna.
+  fy_upa: { name: 'UPA 24h da Treta', build: buildUpa, props: UPA_PROPS, ctfMode: true },
 };
 export const MAP_IDS = Object.keys(MAPS);
 export const DEFAULT_MAP = 'awp_map';
