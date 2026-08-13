@@ -97,6 +97,13 @@ const TRAVAS = [
   'é rosa, verde-limão é verde-limão. Não "amadureça" a paleta para tons realistas.',
   'NÃO acrescente texto, legenda, marca de água, logotipo inventado nem moldura.',
   'NÃO troque a etnia, o tipo físico, a idade aparente ou o gênero do personagem.',
+  /* "Não troque a etnia" é categórico e não pegava a deriva GRADUAL: o Bombado saiu
+     bem mais escuro do que o `skin: 0x8d5a3b` (pardo médio) que characters.js declara
+     para ele. Tom de pele precisa ser tratado como VALOR a reproduzir, não como
+     categoria a respeitar. */
+  'TOM DE PELE: reproduza exatamente o da referência, sem clarear nem escurecer. Se a',
+  'referência mostra pele parda média, o resultado é pele parda média — não mais clara,',
+  'não mais escura. O mesmo vale para o gênero: o que estiver na referência é o que sai.',
 ].join('\n');
 
 const PROMPTS = {
@@ -196,6 +203,24 @@ const DICAS = {
      a imagem veio no chat, não no repo — e insumo de gerador que só existe no histórico
      de uma conversa é insumo que ninguém regera. Se a arte entrar em public/, isto vira
      entrada em ARTE_OFICIAL e o texto sai. */
+  /* O modelo entregou uma MULHER triste. O GLB é low-poly e a franja cobrindo o rosto
+     dá margem para ler como quiser — então o gênero, que aqui não é opcional, precisa
+     ser dito. Os três acessórios são do personagem e sumiram: sem eles ele vira
+     "pessoa de preto", não o Emo. */
+  emo: 'É um RAPAZ, homem jovem — NÃO é mulher. Magro, pele bem clara (o jogo declara '
+    + 'skin 0xe6d3d0), cabelo preto liso com FRANJA COMPRIDA cobrindo um dos olhos. '
+    + 'Ele usa, e os três precisam aparecer: MUNHEQUEIRA no pulso, COLAR DE BOLINHAS '
+    + 'preto e branco no pescoço, e um PIERCING no rosto. Roupa toda preta. '
+    + 'Expressão emburrada de adolescente, não expressão de tristeza feminina.',
+  /* characters.js declara `skin: 0x8d5a3b` = rgb(141,90,59), pardo médio. O modelo
+     escureceu por conta própria — é a deriva gradual que a trava categórica não pega. */
+  /* Citar o hex (0x8d5a3b) não funcionou — o modelo não lê número, lê descrição.
+     Trocado por referência visual concreta, que é como ele de fato ancora cor. */
+  bombado: 'PELE PARDA CLARA, cor de caramelo tostado — o tom de um brasileiro moreno '
+    + 'de praia, bem mais CLARO do que pele negra. Pense em pele bronzeada dourada, não '
+    + 'em pele escura. Este ponto vem sendo errado: ele NÃO é negro, é pardo claro. '
+    + 'Mantenha o contraste do corpo: peitoral e braços enormes com pernas finas, que é '
+    + 'a piada do personagem.',
   dollynho: 'É o mascote clássico da Dolly: CORPO DE GARRAFA verde brilhante (o corpo é a '
     + 'garrafa, não uma pessoa vestida), com a tampinha branca de rosca no alto da cabeça '
     + 'como se fosse chapéu. Olhos grandes, redondos e alegres, com sobrancelhas finas e '
