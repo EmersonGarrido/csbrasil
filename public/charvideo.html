@@ -63,17 +63,9 @@ const SHOT = (qp.get('shot') || (ALPHA ? 'busto' : 'corpo')).toLowerCase();
 const SPIN = parseFloat(qp.get('spin') || '0');           // graus/segundo (turntable)
 const YAW0 = parseFloat(qp.get('yaw') || '0');            // graus, giro inicial
 
-/* Enquadramento: o elenco tem ~1,8 de altura no espaço do mundo. Estes dois
-   valores saíram de olhar o resultado, não de teoria — 'busto' corta na cintura
-   (é o que cabe num avatar redondo de 44px sem virar mancha) e 'corpo' mostra
-   o personagem inteiro com folga para o gradiente de leitura da tela 09. */
-const ENQ = {
-  busto: { dist: 1.85, fov: 30, alvoY: 1.52 },
-  corpo: { dist: 4.60, fov: 34, alvoY: 1.00 },
-}[SHOT] || { dist: 4.6, fov: 34, alvoY: 1.0 };
-const DIST = parseFloat(qp.get('dist')) || ENQ.dist;
-const FOV = parseFloat(qp.get('fov')) || ENQ.fov;
-const ALVO_Y = parseFloat(qp.get('alvoy')) || ENQ.alvoY;
+/* Só a abertura é fixa; a distância e o alvo saem da caixa do personagem, mais
+   abaixo (o elenco não tem a mesma altura — ver o comentário lá). */
+const FOV = parseFloat(qp.get('fov')) || (SHOT === 'busto' ? 30 : 34);
 
 const renderer = new THREE.WebGLRenderer({
   antialias: true,
@@ -161,8 +153,30 @@ if (ALPHA) {
   scene.fog = null;
 }
 
-camera.position.set(sp.x, gy + ALVO_Y, sp.z - DIST);
-camera.lookAt(sp.x, gy + ALVO_Y, sp.z);
+/* ENQUADRAMENTO POR CAIXA DO PERSONAGEM, e não por distância fixa.
+   O elenco NÃO tem a mesma altura: com a câmera parada numa distância fixa, o
+   Mandrake preenchia o quadro e a doutora aparecia pequena e distante. Isso não é
+   só feio — quando o quadro vira referência para o modelo de imagem, referência
+   pequena é pouca informação, e o que falta de pixel o modelo preenche inventando
+   (foi assim que o palhaço perdeu as ombreiras de espinho).
+   Aqui a caixa manda: mede-se o personagem e a câmera recua o quanto for preciso
+   para a fatia pedida ocupar a altura do quadro. `--dist`/`--alvoy` continuam
+   vencendo, para quando alguém quiser enquadrar na mão. */
+const caixa = new THREE.Box3().setFromObject(built.group);
+const alturaPers = Math.max(0.1, caixa.max.y - caixa.min.y);
+/* Fatia da altura total que cada plano mostra, e onde ela é centrada. Os números
+   vieram de olhar o resultado nos 44, não de teoria. */
+const PLANO = SHOT === 'busto'
+  ? { fatia: 0.42, centro: 0.84 }   // cabeça + ombros
+  : { fatia: 1.16, centro: 0.52 };  // corpo inteiro com folga
+const alvoAuto = caixa.min.y + alturaPers * PLANO.centro;
+const distAuto = (alturaPers * PLANO.fatia / 2) / Math.tan((FOV * Math.PI / 180) / 2);
+
+const ALVO = parseFloat(qp.get('alvoy')) || (alvoAuto - gy);
+const D = parseFloat(qp.get('dist')) || distAuto;
+
+camera.position.set(sp.x, gy + ALVO, sp.z - D);
+camera.lookAt(sp.x, gy + ALVO, sp.z);
 
 /* No modo cena o composite do jogo entra por cima (AgX + bloom + vinheta) — é o
    que faz o render parecer o jogo. No modo alpha ele NÃO pode entrar: o composer

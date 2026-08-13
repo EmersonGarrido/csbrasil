@@ -12,13 +12,16 @@
 // Por isso o prompt abaixo é GENÉRICO e igual para os 44 — descrever a roupa de
 // cada um à mão seria reintroduzir, em texto, a chance de errar o personagem.
 //
-// A saída NUNCA sobrescreve a do passo 1: sufixo `-realista`. Uma corrida com chave
+// A saída NUNCA sobrescreve a do passo 1: sufixo `-<estilo>`. Uma corrida com chave
 // não pode apagar o render fiel, que é o único artefato que não dá para refazer sem
 // o browser.
 //
 // Uso:
 //   node tools/gen-char-realista.mjs --ids mandrake,canarinho --base http://localhost:8137
-//   node tools/gen-char-realista.mjs --todos
+//   node tools/gen-char-realista.mjs --todos --estilo gamer
+//
+//   --estilo gamer|foto   gamer (padrao) = hero render 3D estilizado, casa com o jogo.
+//                         foto = retrato fotorrealista de estudio.
 //
 // Flags:
 //   --ids a,b,c    lista de personagens (obrigatório, salvo --todos)
@@ -55,29 +58,68 @@ if (flag('todos')) {
   IDS = s.split(',').map((x) => x.trim()).filter(Boolean);
 }
 
-/* O PROMPT É GENÉRICO DE PROPÓSITO — ver o cabeçalho. Ele diz o que PRESERVAR (tudo
-   que define quem é) e o que MUDAR (só o meio). A tentação de descrever a roupa
-   personagem por personagem é justamente o erro que a referência existe para evitar. */
-const PROMPT = [
-  'Fotografia de retrato do personagem da imagem de referência.',
-  '',
+/* OS PROMPTS SÃO GENÉRICOS DE PROPÓSITO — ver o cabeçalho. Cada um diz o que
+   PRESERVAR (tudo que define quem é) e o que MUDAR (só o acabamento). Descrever a
+   roupa personagem por personagem seria reintroduzir, em texto, exatamente a chance
+   de errar o personagem que a referência existe para eliminar.
+
+   As duas travas do fim nasceram de defeito MEDIDO na primeira leva de 5: o modelo
+   pôs uma corrente prateada no canarinho (o busto corta na gola e ele preencheu o
+   vazio) e trocou o casaco rosa do palhacomal por couro vinho — ele "conserta" para
+   o plausível, e plausível não é o personagem. */
+const PRESERVAR = [
   'PRESERVE COM EXATIDÃO, sem inventar nem substituir nada: o rosto e suas proporções,',
   'o tom de pele, o cabelo e o corte, todos os acessórios de cabeça (boné, chapéu, capuz,',
   'faixa, máscara), os óculos e a cor exata das lentes, cada peça de roupa com as MESMAS',
   'cores, o mesmo recorte e os mesmos blocos de cor, correntes e joias, tatuagens e suas',
   'posições, e qualquer adereço que apareça. Mesma pose, mesmo ângulo da cabeça e do',
   'tronco, mesmo enquadramento.',
-  '',
-  'MUDE APENAS O MEIO: em vez de um render 3D estilizado, entregue uma fotografia feita',
-  'com câmera real e lente de retrato. Pele com poros, pelos finos e dispersão',
-  'subsuperficial; tecido com trama, costura e fiapos; metal com reflexo especular; couro',
-  'e plástico com micro-riscos. Profundidade de campo rasa com o rosto em foco. Luz de',
-  'estúdio contrastada vinda da esquerda, preenchimento suave à direita, recorte de luz na',
-  'silhueta. Fundo liso escuro neutro, sem cenário.',
-  '',
+].join('\n');
+
+const TRAVAS = [
+  'NÃO acrescente NENHUM objeto que não esteja na referência — nem corrente, colar,',
+  'brinco, arma, faca, cigarro nem objeto na mão. Se o enquadramento cortar o peito, o',
+  'que fica de fora simplesmente não existe: não preencha.',
+  'TRATE COR SATURADA COMO A COR REAL DO TECIDO, não como estilização a corrigir. Rosa',
+  'é rosa, verde-limão é verde-limão. Não "amadureça" a paleta para tons realistas.',
   'NÃO acrescente texto, legenda, marca de água, logotipo inventado nem moldura.',
   'NÃO troque a etnia, o tipo físico, a idade aparente ou o gênero do personagem.',
 ].join('\n');
+
+const PROMPTS = {
+  /* ESCOLHIDO como padrão: o jogo é 3D estilizado, então retrato fotorrealista
+     brigaria com o próprio personagem que aparece jogando na tela ao lado. */
+  gamer: [
+    'Render 3D de personagem de videogame AAA moderno, no MESMO estilo estilizado da',
+    'referência — NÃO é fotografia, NÃO é pessoa real.', '', PRESERVAR, '',
+    'Mantenha a linguagem estilizada de personagem de jogo: feições simplificadas,',
+    'silhueta legível, proporção levemente caricata.', '',
+    'O QUE MUDA — mais DENSIDADE DE DETALHE que o modelo de origem: malha de alta',
+    'resolução no lugar do low-poly (nada de facetas chapadas nem silhueta poligonal),',
+    'materiais PBR de verdade com mapa de normal e rugosidade, trama visível no tecido,',
+    'costura e barra nas roupas, desgaste e sujeira sutis, metal com reflexo anisotrópico,',
+    'tatuagens com traço nítido. Iluminação de game art: luz-chave direcional forte, luz',
+    'de contorno separando o personagem do fundo, oclusão de ambiente nas dobras. Fundo',
+    'escuro liso neutro.', '',
+    'Resultado alvo: o hero render de capa do jogo — Overwatch, Valorant, Fortnite.', '',
+    TRAVAS,
+  ].join('\n'),
+
+  foto: [
+    'Fotografia de retrato do personagem da imagem de referência.', '', PRESERVAR, '',
+    'MUDE APENAS O MEIO: em vez de um render 3D estilizado, entregue uma fotografia feita',
+    'com câmera real e lente de retrato. Pele com poros, pelos finos e dispersão',
+    'subsuperficial; tecido com trama, costura e fiapos; metal com reflexo especular; couro',
+    'e plástico com micro-riscos. Profundidade de campo rasa com o rosto em foco. Luz de',
+    'estúdio contrastada vinda da esquerda, preenchimento suave à direita, recorte de luz na',
+    'silhueta. Fundo liso escuro neutro, sem cenário.', '',
+    TRAVAS,
+  ].join('\n'),
+};
+
+const ESTILO = arg('estilo', 'gamer');
+if (!PROMPTS[ESTILO]) die(`--estilo desconhecido: ${ESTILO} (use gamer ou foto)`);
+const PROMPT = PROMPTS[ESTILO];
 
 mkdirSync(TMP, { recursive: true });
 mkdirSync(OUT, { recursive: true });
@@ -87,7 +129,7 @@ const page = await browser.newPage({ viewport: { width: 512, height: 512 }, devi
 
 let feitos = 0, pulados = 0, falhas = 0;
 for (const ID of IDS) {
-  const saida = `${OUT}/${ID}-realista.${PUBLICAR ? 'webp' : 'png'}`;
+  const saida = `${OUT}/${ID}-${ESTILO}.${PUBLICAR ? 'webp' : 'png'}`;
   if (!FORCAR && existsSync(saida)) { console.log(`· ${ID} já existe, pulando (use --forcar)`); pulados++; continue; }
 
   const ref = `${TMP}/${ID}-${SHOT}.png`;
@@ -104,7 +146,7 @@ for (const ID of IDS) {
   }
 
   // 2. acabamento realista, com o render como referência
-  const flags = ['tools/gen-image.mjs', '--id', `${ID}-realista`, '--ref', ref,
+  const flags = ['tools/gen-image.mjs', '--id', `${ID}-${ESTILO}`, '--ref', ref,
     '--model', MODEL, '--aspect', '1:1', '--prompt', PROMPT];
   if (PUBLICAR) flags.push('--out', OUT, '--crop', '1:1', '--w', '512');
   else flags.push('--raw-only');
