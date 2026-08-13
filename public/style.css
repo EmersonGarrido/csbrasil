@@ -196,6 +196,26 @@ html[data-ui="legacy"]{--br-faixa:var(--br-faixa-legacy)}
   text-transform:uppercase;color:var(--aaa-lime-ink);padding:14px 28px
 }
 .aaa-card-cut{clip-path:var(--aaa-cut-sm);border-radius:0}
+
+/* ---- submenu de modos (JOGAR ▸ ABATE / CAPTURE A BANDEIRA) ----
+   Recuo de 14px + filete à esquerda: o submenu tem de ler como SEGUNDO NÍVEL sem
+   repetir a placa do acento, que é reservada ao item ativo da lista principal. */
+/* `.cs-menu` na frente de tudo aqui é PROPOSITAL, não estilo: o bloco `.cs-item` /
+   `.cs-tick` mora ~1200 linhas ABAIXO deste ponto do arquivo, então com a mesma
+   especificidade quem ganha é ele. Subir para (0,3,1) faz a regra valer sem
+   depender da ordem — e sem ter de espalhar o redesign no meio do CSS antigo. */
+.cs-menu .cs-sub{display:flex;flex-direction:column;margin:2px 0 2px 14px;
+  border-left:1px solid rgba(236,235,230,.14)}
+.cs-menu .cs-sub[hidden]{display:none}
+.cs-menu .cs-sub-item{font-size:var(--fs-300);padding-top:8px;padding-bottom:8px;opacity:.92}
+.cs-menu .cs-sub-item:hover,.cs-menu .cs-sub-item:focus-visible{opacity:1}
+/* O ▸ do JOGAR gira quando abre — é o único aviso de que ali tem mais coisa. */
+.cs-menu .cs-item.is-open .cs-tick{transform:rotate(90deg);width:22px;opacity:1;margin-right:6px}
+
+/* Botão de FEEDBACK no rodapé: <button> tem UA style próprio, então precisa ser
+   zerado para assentar na fileira de <a> sem pular um pixel de baseline. */
+.menu-footer .mf-link{appearance:none;background:none;border:0;padding:0;cursor:pointer;
+  font:inherit;color:inherit;letter-spacing:inherit;text-transform:inherit}
 .aaa-scanlines{
   position:absolute;inset:0;pointer-events:none;
   background:repeating-linear-gradient(0deg,transparent 0 3px,#000 3px 4px);
@@ -1380,12 +1400,16 @@ html[data-ui="legacy"] .cs-menu-label{font-family:var(--mono);font-weight:400;fo
    Quem tiver aria-current leva a barra; sem ninguém marcado ela mora na PRIMEIRA entrada
    (SINGLE PLAYER = o JOGAR da referência). O `:not(:has(...))` é o que garante UMA barra
    só — sem ele, abrir CONFIGURAÇÕES deixava duas barras cheias na tela ao mesmo tempo. */
+/* `> .cs-item` (filho DIRETO) e não descendente: desde que JOGAR abriu um submenu,
+   o primeiro botão de dentro de `.cs-sub` também casava `:first-of-type` e a tela
+   ficava com DUAS barras cheias — exatamente o defeito que o comentário acima diz
+   que o `:not(:has())` existe para impedir. */
 .cs-item[aria-current="true"],
-.cs-menu:not(:has(.cs-item[aria-current="true"])) .cs-item:first-of-type{
+.cs-menu:not(:has(.cs-item[aria-current="true"])) > .cs-item:first-of-type{
   color:var(--bg-900);background:var(--br-faixa);border-left-color:var(--br-faixa);
   text-shadow:none;clip-path:var(--cut-sm)}
 html[data-ui="legacy"] .cs-item[aria-current="true"],
-html[data-ui="legacy"] .cs-menu:not(:has(.cs-item[aria-current="true"])) .cs-item:first-of-type{
+html[data-ui="legacy"] .cs-menu:not(:has(.cs-item[aria-current="true"])) > .cs-item:first-of-type{
   clip-path:none}
 .cs-item[aria-current="true"] .cs-tick,
 .cs-menu:not(:has(.cs-item[aria-current="true"])) .cs-item:first-of-type .cs-tick{

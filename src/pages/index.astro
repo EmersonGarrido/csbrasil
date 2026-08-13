@@ -518,17 +518,23 @@ const IMPORTMAP = JSON.stringify({
     <!-- nav com roving tabindex: setas ↑↓ movem, Enter/Espaço confirma (main.js).
          aria-current marca o item que abriu o painel - antes nada dizia de onde
          o setup tinha vindo. -->
-    <nav class="cs-menu" id="cs-menu" aria-label="Menu principal">
+    <!-- Lista de 4 do redesign (JOGAR / RANKING / COMO JOGAR / CONFIGURAÇÕES). Os DOIS
+         modos não cabiam como irmãos sem virar 5 itens, então JOGAR abre um submenu e
+         os data-act `sp`/`ctf` seguem intocados — o switch do main.js:980 não muda.
+         SOBRE O JOGO virou COMO JOGAR só no rótulo: `sobre` já abria o #howto-panel,
+         ou seja, esse item sempre FOI o "como jogar" do handoff.
+         FEEDBACK desceu pro rodapé (segue vivo, ver /api/feedback e migration 013). -->
+    <nav class="cs-menu aaa-nav" id="cs-menu" aria-label="Menu principal">
       <div class="cs-menu-label">// ESCOLHA A TRETA</div>
-      <button class="cs-item" data-act="sp"    type="button"><span class="cs-tick">▸</span>SINGLE PLAYER</button>
-      <button class="cs-item" data-act="ctf"   type="button"><span class="cs-tick">▸</span>CAPTURE THE FLAG</button>
-      <button class="cs-item" data-act="config" type="button"><span class="cs-tick">▸</span>CONFIGURAÇÕES</button>
+      <button class="cs-item" data-act="jogar" type="button"
+              aria-expanded="false" aria-controls="cs-modos"><span class="cs-tick">▸</span>JOGAR</button>
+      <div class="cs-sub" id="cs-modos" hidden>
+        <button class="cs-item cs-sub-item" data-act="sp"  type="button"><span class="cs-tick">▸</span>ABATE</button>
+        <button class="cs-item cs-sub-item" data-act="ctf" type="button"><span class="cs-tick">▸</span>CAPTURE A BANDEIRA</button>
+      </div>
       <button class="cs-item" data-act="ranking" type="button"><span class="cs-tick">▸</span>RANKING</button>
-      <!-- MAPA saiu do menu (o mapa se escolhe dentro de SINGLE PLAYER / CTF); no
-           lugar entrou FEEDBACK (pedido do dono, 07/08), que alimenta a lista da
-           futura newsletter - ver /api/feedback e supabase/migrations/013. -->
-      <button class="cs-item" data-act="feedback" type="button"><span class="cs-tick">▸</span>FEEDBACK</button>
-      <button class="cs-item" data-act="sobre" type="button"><span class="cs-tick">▸</span>SOBRE O JOGO</button>
+      <button class="cs-item" data-act="sobre" type="button"><span class="cs-tick">▸</span>COMO JOGAR</button>
+      <button class="cs-item" data-act="config" type="button"><span class="cs-tick">▸</span>CONFIGURAÇÕES</button>
     </nav>
     <!-- plate do jogador: nível/XP derivados dos stats locais (mesma fonte do RANKING).
          Clique abre o passo de perfil do setup. -->
@@ -554,6 +560,9 @@ const IMPORTMAP = JSON.stringify({
         <a href="/como-jogar" target="_blank">Como jogar</a>
         <a href="/changelog" target="_blank">Changelog</a>
         <a href="/sobre" target="_blank">Sobre</a>
+        <!-- FEEDBACK saiu da lista principal (o redesign fecha o menu em 4 itens) e
+             desceu pra cá. É <button> e não <a> porque abre painel interno, não rota. -->
+        <button type="button" id="mf-feedback" class="mf-link">Feedback</button>
       </div>
   </div>
 

@@ -973,11 +973,24 @@ const openSetup = (mode, title, act) => {
   setSetupStep('match');   // abrir o menu SEMPRE cai no passo da partida, nunca no perfil
   applySetupWall();   // "escolher mapa/config" usa o wallpaper da posição 2 do fluxo
 };
+/* JOGAR abre os DOIS modos num submenu em vez de ocupar duas linhas da lista: o
+   redesign fecha o menu principal em 4 itens, e os modos são escolha de segundo
+   nível. `sp` e `ctf` seguem exatamente como estavam — só ganharam um pai. */
+const csJogar = document.querySelector('.cs-item[data-act="jogar"]');
+const csModos = $('cs-modos');
+function abreModos(abrir) {
+  if (!csModos || !csJogar) return;
+  const on = abrir === undefined ? csModos.hidden : abrir;
+  csModos.hidden = !on;
+  csJogar.setAttribute('aria-expanded', String(on));
+  csJogar.classList.toggle('is-open', on);
+}
 csItems.forEach((it) => {
   it.onmouseenter = () => ui.hover();
   it.onclick = () => {
     ui.click();
     switch (it.dataset.act) {
+      case 'jogar': abreModos(); markCurrent(csModos && !csModos.hidden ? 'jogar' : null); break;
       case 'sp':    openSetup('rounds', 'SINGLE PLAYER', 'sp'); break;
       case 'ctf':   openSetup('ctf', 'CAPTURE THE FLAG', 'ctf'); break;
       /* MAPA saiu (mapa se escolhe no fluxo de partida); FEEDBACK entrou (07/08) */
@@ -988,17 +1001,28 @@ csItems.forEach((it) => {
     }
   };
 });
+/* FEEDBACK saiu da lista principal e virou link de rodapé — o painel e a rota
+   (/api/feedback, migration 013) são os mesmos, só o ponto de entrada mudou. */
+const mfFeedback = $('mf-feedback');
+if (mfFeedback) mfFeedback.onclick = () => { ui.click(); markCurrent('feedback'); show('feedback-panel'); };
+
 // Navegação por teclado no menu (↑↓ / Home / End). Num FPS de PC não navegar no teclado
 // é falha de acessibilidade E de sensação — CS2/Valorant fazem tudo sem mouse.
 $('cs-menu').addEventListener('keydown', (e) => {
-  const i = csItems.indexOf(document.activeElement);
+  /* Só os VISÍVEIS entram na roda. Com o submenu de modos recolhido, indexar o
+     array estático mandava o foco para um botão dentro de [hidden]: a seta
+     "engolia" um passo e o leitor de tela anunciava item que não existe na tela.
+     offsetParent é null para qualquer ancestral com display:none/[hidden]. */
+  const itens = csItems.filter((b) => b.offsetParent !== null);
+  if (!itens.length) return;
+  const i = itens.indexOf(document.activeElement);
   let n = -1;
-  if (e.key === 'ArrowDown') n = (i < 0 ? 0 : (i + 1) % csItems.length);
-  else if (e.key === 'ArrowUp') n = (i < 0 ? csItems.length - 1 : (i - 1 + csItems.length) % csItems.length);
+  if (e.key === 'ArrowDown') n = (i < 0 ? 0 : (i + 1) % itens.length);
+  else if (e.key === 'ArrowUp') n = (i < 0 ? itens.length - 1 : (i - 1 + itens.length) % itens.length);
   else if (e.key === 'Home') n = 0;
-  else if (e.key === 'End') n = csItems.length - 1;
+  else if (e.key === 'End') n = itens.length - 1;
   if (n < 0) return;
-  e.preventDefault(); csItems[n].focus(); ui.hover();
+  e.preventDefault(); itens[n].focus(); ui.hover();
 });
 // Fechar o setup tinha UMA saída só: o botão VOLTAR. Enquanto ele estava aberto a coluna
 // da esquerda ficava inerte (ver style.css, bloco `:has(.cs-setup.open)`), então quem

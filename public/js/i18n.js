@@ -29,12 +29,20 @@ const DICT = {
   'CARREGANDO…': 'LOADING…',
   // menu principal
   '// ESCOLHA A TRETA': '// PICK YOUR FIGHT',
+  // O redesign fechou a lista em 4 itens e pôs os DOIS modos num submenu sob JOGAR.
+  // 'SINGLE PLAYER' fica no dicionário porque o rótulo ainda é usado no cabeçalho do
+  // setup (openSetup('rounds','SINGLE PLAYER','sp') em main.js).
+  'JOGAR': 'PLAY',
+  'ABATE': 'DEATHMATCH',
+  'CAPTURE A BANDEIRA': 'CAPTURE THE FLAG',
+  'COMO JOGAR': 'HOW TO PLAY',
   'SINGLE PLAYER': 'SINGLE PLAYER',
   'CAPTURE THE FLAG': 'CAPTURE THE FLAG',
   'CONFIGURAÇÕES': 'SETTINGS',
   'RANKING': 'LEADERBOARD',
   'MAPA': 'MAP',
   'SOBRE O JOGO': 'ABOUT THE GAME',
+  'Feedback': 'Feedback',
   // painel de feedback (substituiu o MAPA no menu, 07/08)
   'FEEDBACK': 'FEEDBACK',
   'Conta o que curtiu, o que quebrou, o que falta. Vai direto pro dono do jogo.':
