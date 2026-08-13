@@ -236,11 +236,8 @@ const MENU_MUSIC_VOL = 0.3;
 // Trilhas do menu (public/audio/menu-music/mNN.mp3 — trims de ~105s normalizados via ffmpeg,
 // ver HANDOFF). Uma aleatória POR VISITA ao menu; troca a cada partida/retorno.
 //
-// Este array é só o FALLBACK do primeiro quadro. A fonte de verdade é a pasta, via
-// audio/manifest.json (chave `menuMusic`, gerada por `npm run audio` a partir do disco).
-// Antes era `Array.from({ length: 26 })` fixo: faixa nova na pasta sumia calada e a 27ª
-// nunca tocaria (issue #47). O manifesto substitui a lista quando chega; falha de rede
-// mantém este fallback.
+// Este array é só o FALLBACK do primeiro quadro: a fonte de verdade é a pasta, via
+// audio/manifest.json (chave `menuMusic`). Falha de rede mantém o fallback.
 const MENU_TRACKS = Array.from({ length: 26 }, (_, i) => `/audio/menu-music/m${String(i + 1).padStart(2, '0')}.mp3`);
 fetch(`/audio/manifest.json?v=${VERSION}`)
   .then((response) => (response.ok ? response.json() : null))
@@ -248,7 +245,13 @@ fetch(`/audio/manifest.json?v=${VERSION}`)
     const list = manifest && Array.isArray(manifest.menuMusic) ? manifest.menuMusic : null;
     if (!list || !list.length) return;
     // manifest grava caminho relativo (`audio/...`); a URL do <Audio> é absoluta (`/audio/...`).
-    MENU_TRACKS.splice(0, MENU_TRACKS.length, ...list.map((u) => (u.startsWith('/') ? u : `/${u}`)));
+    const novas = list.map((u) => (u.startsWith('/') ? u : `/${u}`));
+    if (novas.join('|') === MENU_TRACKS.join('|')) return;
+    MENU_TRACKS.splice(0, MENU_TRACKS.length, ...novas);
+    // O boot chama startMenuMusic() antes desta promessa resolver e _ensureMusic cacheia o
+    // <Audio> pra sempre — sem soltar o cache, a lista da pasta nunca chega a escolher faixa.
+    // Só solta enquanto o loop está mudo: depois do 1º clique trocaria som já tocando.
+    if (!musicArmed && menuMusic) { menuMusic.pause(); menuMusic = null; startMenuMusic(); }
   })
   .catch(() => {});
 let menuMusic = null, musicArmed = false, musicFade = null;
