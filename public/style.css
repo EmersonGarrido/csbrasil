@@ -221,6 +221,21 @@ html[data-ui="legacy"]{--br-faixa:var(--br-faixa-legacy)}
 /* O ▸ do JOGAR gira quando abre — é o único aviso de que ali tem mais coisa. */
 .cs-menu .cs-item.is-open .cs-tick{transform:rotate(90deg);width:22px;opacity:1;margin-right:6px}
 
+/* ---- chips de link do topo-direito (tela 01 do redesign) ----
+   z-index 4 porque a coluna da esquerda e o setup vivem em 3; sem isto os chips
+   somem atrás do painel quando o setup abre. */
+.aaa-links{position:absolute;top:20px;right:24px;display:flex;gap:8px;z-index:4}
+.aaa-links a{
+  border:1px solid rgba(236,235,230,.16);background:rgba(10,10,12,.55);
+  padding:7px 14px;cursor:pointer;color:var(--ink-300);text-decoration:none;
+  font:600 12px/1 var(--aaa-font-body);letter-spacing:2px;text-transform:uppercase;
+  transition:border-color var(--t) var(--ease),color var(--t) var(--ease)}
+.aaa-links a:hover,.aaa-links a:focus-visible{border-color:var(--aaa-lime);color:var(--ink-100)}
+.aaa-links a span{opacity:.6;margin-left:2px}
+/* Numa tela baixa os chips brigam com o topo do wallpaper; abaixo de 900px de
+   largura eles saem — os mesmos três links seguem no rodapé, então nada se perde. */
+@media (max-width:900px){.aaa-links{display:none}}
+
 /* Botão de FEEDBACK no rodapé: <button> tem UA style próprio, então precisa ser
    zerado para assentar na fileira de <a> sem pular um pixel de baseline. */
 .menu-footer .mf-link{appearance:none;background:none;border:0;padding:0;cursor:pointer;

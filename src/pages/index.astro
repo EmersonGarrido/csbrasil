@@ -513,6 +513,17 @@ const IMPORTMAP = JSON.stringify({
   <div class="cs-vignette"></div>
   <div class="scanlines"></div>
 
+  <!-- Chips do topo-direito (redesign, tela 01). São ROTAS REAIS do site, não
+       decoração: as mesmas três já existiam soterradas na fileira de 10 links do
+       rodapé. Aqui elas ganham o peso que o desenho pede, e o rodapé segue
+       inteiro — nenhuma informação saiu de lugar, uma ganhou destaque.
+       A seta é U+2197, glifo geométrico: o redesign proíbe emoji. -->
+  <nav class="aaa-links" aria-label="Links do jogo">
+    <a href="/ranking" target="_blank" rel="noopener">RANKING GLOBAL <span aria-hidden="true">↗</span></a>
+    <a href="/mapa" target="_blank" rel="noopener">MAPA DA TRETA <span aria-hidden="true">↗</span></a>
+    <a href="/sobre" target="_blank" rel="noopener">SOBRE <span aria-hidden="true">↗</span></a>
+  </nav>
+
   <div class="cs-left">
     <!-- logo removido: os wallpapers (wall-1..4) já trazem o logo do jogo -->
     <!-- nav com roving tabindex: setas ↑↓ movem, Enter/Espaço confirma (main.js).
