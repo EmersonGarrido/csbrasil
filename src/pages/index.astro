@@ -138,7 +138,11 @@ const IMPORTMAP = JSON.stringify({
   function origemDoJogo(source, stack, mensagem){
     var sourceText = String(source || '');
     var extensao = /(?:chrome|moz|safari-web|safari)-extension:\/\//i;
+    // /_vercel/ é bundle da Vercel (analytics/speed-insights): same-origin, mas
+    // código de terceiro. Crash dele (ex. pushState read-only, #218/#219) não é jogo.
+    var vendor = /\/_vercel\//i;
     if (extensao.test(sourceText)) return false;
+    if (vendor.test(sourceText) || vendor.test(String(stack || ''))) return false;
     var propria = location.origin;
     if (sourceText && /^https?:\/\//i.test(sourceText)) {
       try {
