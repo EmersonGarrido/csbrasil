@@ -1657,9 +1657,39 @@ function renderPlayerPlate() {
   $('xp-fill').style.width = (into / 20) + '%';
   $('xp-num').textContent = `${into.toLocaleString('pt-BR')} / 2.000 XP`;
   el.dataset.empty = nick ? '0' : '1';
+  espelhaBarraMenu();
 }
+
+/* A barra inferior do menu MOSTRA a escolha da partida; quem a MUDA continua sendo
+   o setup. Espelhar em vez de duplicar o controle: dois lugares editando o mesmo
+   estado é como se perde a sincronia entre eles. Se o setup ainda não montou, o
+   traço fica — é o mesmo placeholder que o #map-name usa antes de escolher. */
+function espelhaBarraMenu() {
+  const sub = $('pp-sub');
+  if (sub) {
+    const s = (typeof socialList !== 'undefined' && socialList && socialList[0]) ? socialList[0] : null;
+    sub.textContent = s ? `@${s.handle} · EDITAR PERFIL` : 'EDITAR PERFIL';
+  }
+  const armas = $('mf-armas-val'), mapa = $('mf-mapa-val');
+  const caret = '<span class="caret" aria-hidden="true">▼</span>';
+  if (armas) {
+    const v = ($('wpn-dd-label') || {}).textContent;
+    armas.innerHTML = `${(v || 'TODAS').trim()} ${caret}`;
+  }
+  if (mapa) {
+    const v = ($('map-name') || {}).textContent;
+    mapa.innerHTML = `${(v || '—').trim()} ${caret}`;
+  }
+}
+
 // o plate abre o passo de perfil do setup (onde nick/avatar se editam de verdade)
 $('player-plate').onclick = () => { openSetup(null, 'SEU PERFIL', null); openProfileStep(true); };
+/* ARMAS e MAPA levam ao MESMO passo do setup — é lá que a escolha existe. Sem
+   `markCurrent`, porque nenhum item da lista principal foi acionado. */
+for (const [id, titulo] of [['mf-armas', 'SINGLE PLAYER'], ['mf-mapa', 'SINGLE PLAYER']]) {
+  const b = $(id);
+  if (b) b.onclick = () => { ui.click(); openSetup('rounds', titulo, 'sp'); };
+}
 function showRanking() {
   const st = loadStats();
   const kd = st.deaths ? (st.kills / st.deaths).toFixed(2) : st.kills.toFixed(2);

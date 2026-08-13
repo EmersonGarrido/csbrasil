@@ -236,6 +236,45 @@ html[data-ui="legacy"]{--br-faixa:var(--br-faixa-legacy)}
    largura eles saem — os mesmos três links seguem no rodapé, então nada se perde. */
 @media (max-width:900px){.aaa-links{display:none}}
 
+/* ---- barra inferior do menu (tela 01 do redesign) ----
+   Tudo aqui é escrito como `.aaa-bottombar X` (0,2,0) de propósito: `.player-plate`
+   já tem bloco próprio ~1200 linhas abaixo, e com a mesma especificidade venceria
+   pela ordem. Mesmo motivo do bloco do `.cs-menu` acima. */
+/* NO FLUXO, e não `position:absolute` como no protótipo. A `.cs-left` é absoluta,
+   ancorada embaixo e de altura automática: com a barra fora do fluxo ela caía DENTRO
+   do intervalo da lista (medido: coluna 498→737, barra 643→709) e cobria COMO JOGAR
+   e CONFIGURAÇÕES. No fluxo, a coluna cresce para cima sozinha e a barra assenta
+   embaixo da lista — sem número mágico para desencontrar quando a lista mudar. */
+.aaa-bottombar{display:flex;gap:12px;align-items:stretch;margin-top:18px;z-index:4}
+#menu-bottombar .aaa-profile{
+  display:flex;align-items:center;gap:12px;background:rgba(13,14,17,.85);
+  border:1px solid var(--line);padding:10px 16px;cursor:pointer;border-radius:0;
+  width:auto;text-align:left;transition:border-color var(--t) var(--ease)}
+#menu-bottombar .aaa-profile:hover,#menu-bottombar .aaa-profile:focus-visible{border-color:var(--aaa-lime)}
+#menu-bottombar .pp-avatar{
+  width:44px;height:44px;flex:0 0 44px;border:1px solid var(--aaa-lime);border-radius:0;
+  background:var(--aaa-panel-2);display:flex;align-items:center;justify-content:center;
+  font:700 15px/1 var(--aaa-font-body);letter-spacing:1px;color:var(--ink-100)}
+#menu-bottombar .pp-info{display:flex;flex-direction:column;gap:1px;align-items:flex-start}
+#menu-bottombar .pp-nick{font:700 16px/1.1 var(--aaa-font-body);letter-spacing:2px;color:var(--ink-100)}
+#menu-bottombar .pp-sub{font:600 11px/1.1 var(--font);color:var(--ink-300);letter-spacing:.5px}
+
+#menu-bottombar .aaa-dd{
+  display:flex;flex-direction:column;justify-content:center;gap:2px;
+  background:rgba(13,14,17,.85);border:1px solid var(--line);padding:8px 16px;
+  cursor:pointer;border-radius:0;text-align:left;
+  transition:border-color var(--t) var(--ease)}
+#menu-bottombar .aaa-dd:hover,#menu-bottombar .aaa-dd:focus-visible{border-color:var(--aaa-lime)}
+#menu-bottombar .aaa-dd .label{font:700 10px/1 var(--aaa-font-body);letter-spacing:3px;color:var(--ink-300)}
+/* nowrap é obrigatório: "AWP + PISTOLA + FACA" quebrava em duas linhas e
+   desalinhava a altura dos três blocos da barra. */
+#menu-bottombar .aaa-dd .value{
+  white-space:nowrap;font:600 14px/1.2 var(--aaa-font-body);letter-spacing:1px;color:var(--ink-100)}
+#menu-bottombar .aaa-dd .caret{color:var(--ink-300);font-size:10px;margin-left:4px}
+/* Numa tela estreita a barra encavala a lista de menu; some e nada se perde,
+   porque as mesmas escolhas continuam dentro do setup. */
+@media (max-width:900px),(max-height:620px){.aaa-bottombar{display:none}}
+
 /* Botão de FEEDBACK no rodapé: <button> tem UA style próprio, então precisa ser
    zerado para assentar na fileira de <a> sem pular um pixel de baseline. */
 .menu-footer .mf-link{appearance:none;background:none;border:0;padding:0;cursor:pointer;
