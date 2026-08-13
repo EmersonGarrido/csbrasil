@@ -1,6 +1,6 @@
 {
   "name": "coro-solto",
-  "version": "2.0.0-alpha.102",
+  "version": "2.0.0-alpha.103",
   "license": "AGPL-3.0-only",
   "description": "CORO SOLTO: Treta Suprema (ex-CS BRASIL) — FPS satírico de navegador com 5 facções brasileiras (site Astro + jogo vanilla em Three.js), gerado em par com agentes de IA (AI generated & AI friendly)",
   "scripts": {
@@ -42,8 +42,8 @@
     "eval:vminspect": "node tools/eval/vm-inspect-check.mjs",
     "//eval:pegada": "Colisor de prop na ALTURA DO CORPO (Brasília): recomputa a pegada dos GLBs (tent/stall/drinkstand/bus) e acusa deriva da tabela PEGADA_CORPO / PEGADA_BUS. Nasceu da reprovação de 05/08 ('box do ônibus e barracas') com o obb-check VERDE — ele compara contra a caixa declarada e não vê caixa mais gorda que a malha.",
     "eval:pegada": "node tools/eval/pegada-check.mjs",
-    "//eval:dmgdir": "Indicador direcional de dano aponta pra onde o tiro veio na convenção da CÂMERA (YXZ, frente=-Z), não do mesh. Nasceu do feedback de 12/08 ('o sensor de tiro está ao contrário, quando atiram na frente é nas costas'): o _dmgArc usava atan2-yaw (convenção mesh) e ficava 180° invertido. --mutante=sem-pi devolve o defeito.",
-    "eval:dmgdir": "node tools/eval/dmg-dir-check.mjs",
+    "//eval:dmgdir": "O arco de dano na borda da tela (_dmgArc) tem que apontar pro atacante, não pro lado oposto. Nasceu do relato do dono (BUG-52): tiro na frente desenhava o arco embaixo (COSTAS). Executa _dmgArc de game.js com o atacante nas 4 direções cardeais em 7 yaws da vítima; --mutante=ordem-trocada reintroduz a troca de operandos do atan2.",
+    "eval:dmgdir": "node tools/eval/dmgdir-check.mjs",
     "//eval:ctflabels": "Bandeira com nome do PRÓPRIO mapa, declarada pelo mapa (defeito de 06/08: 'CONGRESSO' jogando na piscina — o fallback do game.js vazava os nomes de Brasília). --mutante=vaza prova que morde.",
     "eval:ctflabels": "node tools/eval/ctf-labels-check.mjs",
     "//eval:faccao": "Cor de facção tem UMA origem (public/js/paleta.js) e ela cobre o elenco. Nasceu do dono jogando em 07/08: 'quando captura bandeira não pinta de vermelho e nem põe o brasão' — o rename Time E (06/08) trocou a letra em BRASAO e no arquivo e esqueceu COR_TIME, então bandeiraTextura('E') devolvia null e o pano saía sem cor e sem brasão. O mesmo rename passou batido em TEAM_RIM (contorno branco) e na faixa do peito (braçadeira azul). Nenhum dos três dá erro no console. Os três espelhos ACABARAM: game.js, brasoes.js e characters.js importam de paleta.js, e F2 impede espelho novo de nascer. Estava fora de TODO portão até agora — régua escrita e não pendurada é régua que não roda; entrou no check:fast, que é o gatilho certo (node puro, milissegundos). `--mutar=sem-e|espelho` prova que morde.",
@@ -91,8 +91,6 @@
     "eval:mutate": "node tools/eval/mutate.mjs",
     "//eval:vmlabhud": "O menu de armas do protótipo do #131 precisa existir no HUD real quando ?vmlab=1 e continuar ausente sem a flag. Nasceu do relato do dono em produção (BUG-43). Executa _updateWeaponHud de game.js em três estados; --mutante=semflag reintroduz a ausência.",
     "eval:vmlabhud": "node tools/eval/vmlab-hud-check.mjs",
-    "//eval:dmgdir": "O arco de dano na borda da tela (_dmgArc) tem que apontar pro atacante, não pro lado oposto. Nasceu do relato do dono (BUG-52): tiro na frente desenhava o arco embaixo (COSTAS). Executa _dmgArc de game.js com o atacante nas 4 direções cardeais em 7 yaws da vítima; --mutante=ordem-trocada reintroduz a troca de operandos do atan2.",
-    "eval:dmgdir": "node tools/eval/dmgdir-check.mjs",
     "//bot:record": "BOTBRAIN: gera o dataset bootstrap (estado→ação) gravando os bots roteirizados no botsim — o professor da rede enquanto não há dado de jogador. Uso: [segundos] [mapId|all].",
     "bot:record": "node tools/eval/bot-record.mjs",
     "//bot:train": "BOTBRAIN: treina o MLP com o dataset bootstrap e/ou o Supabase (--from-supabase), exportando public/models/bot-brain/. REQUER tfjs-node local (npm i -D @tensorflow/tfjs-node) — é nativa pesada, fora das deps do projeto. Uso: [--epochs=40] [--data=...].",
