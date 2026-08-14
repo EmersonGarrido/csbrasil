@@ -354,11 +354,24 @@ let howtoReturn = 'main-menu';   // CONTROLES aberto pelo pause volta pro pause,
 
 /* ---------------- 3D character preview ---------------- */
 let pv = null, pvDrag = null;
-const portraitUrl = (def) => `/img/chars/${def.id}.webp?v=${VERSION}`;
+/* RETRATO HERO em vez do recorte low-poly. Os 44 de public/img/chars-hero/ saem do
+   MESMO GLB (o render é a referência que trava a identidade — ver
+   tools/gen-char-realista.mjs), só com densidade de detalhe que a malha do jogo não
+   tem. Verificado: os 44 ids do characters.js têm arquivo, então não há caminho de
+   404 por personagem faltando.
+   Uma função só alimenta prévia estática, fallback do snapshot 3D e modo de
+   qualidade baixa — trocar aqui melhora os três de uma vez. */
+const portraitUrl = (def) => `/img/chars-hero/${def.id}.webp?v=${VERSION}`;
+/* O antigo continua no repo e vira a rede de segurança: se o hero não carregar, a
+   imagem cai para o recorte do modelo em vez de ficar quebrada. */
+const portraitFallbackUrl = (def) => `/img/chars/${def.id}.webp?v=${VERSION}`;
 function showStaticPreview(def) {
   const canvas = $('char-preview'), image = $('char-preview-static'), hints = document.querySelector('.pv-hints');
   if (canvas) canvas.classList.add('hidden');
-  if (image) { image.src = portraitUrl(def); image.alt = def.name; image.classList.remove('hidden'); }
+  if (image) {
+    image.onerror = () => { image.onerror = null; image.src = portraitFallbackUrl(def); };
+    image.src = portraitUrl(def); image.alt = def.name; image.classList.remove('hidden');
+  }
   if (hints) hints.classList.add('hidden');
 }
 function ensurePreview() {
