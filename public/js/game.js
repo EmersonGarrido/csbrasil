@@ -2233,10 +2233,23 @@ export class Game {
        existir, o navegador só não pinta a camada: os gradientes seguem e a tela fica
        igual ao que era. Falha silenciosa aqui é a falha CERTA — ninguém deve perder
        a tela de fim de partida por causa de um .webp faltando. */
+    /* ARTE POR FACÇÃO, EM DUAS POSES. Cada facção tem um representante desenhado
+       comemorando e derrotado (tools/gen-pose.mjs). Não é o personagem escolhido:
+       autorar 44 personagens × 2 poses seria outro projeto, e o que a tela precisa
+       comunicar é "o SEU LADO ganhou/perdeu" — que é informação de facção.
+       O poster entra sempre; o vídeo é enfeite que aparece se puder. */
+    const REP = { E: 'mst', B: 'bombado', U: 'metaleiro', C: 'bonzo', F: 'chave' };
     const heroEl = this.el.meHero || (this.el.meHero = document.getElementById('me-hero'));
-    if (heroEl) {
-      const cid = this.playerDef && this.playerDef.id;
-      heroEl.style.setProperty('--me-art', cid ? `url("/img/chars/${encodeURIComponent(cid)}.webp")` : 'none');
+    const vidEl = this.el.meVideo || (this.el.meVideo = document.getElementById('me-video'));
+    const rep = REP[this._factionOf(this.playerTeam)] || 'mst';
+    const pose = mine ? 'vitoria' : 'derrota';
+    if (heroEl) heroEl.style.setProperty('--me-art', `url("/img/resultado/${rep}-${pose}.webp")`);
+    if (vidEl) {
+      vidEl.classList.remove('pronto');
+      vidEl.onloadeddata = () => vidEl.classList.add('pronto');
+      vidEl.onerror = () => vidEl.classList.remove('pronto');   // fica o poster
+      vidEl.src = `/video/resultado/${rep}-${pose}.webm`;
+      const pr = vidEl.play(); if (pr && pr.catch) pr.catch(() => {});
     }
     this.el.matchEnd.classList.remove('hidden');
     if (document.pointerLockElement) document.exitPointerLock();

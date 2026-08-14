@@ -275,6 +275,48 @@ html[data-ui="legacy"]{--br-faixa:var(--br-faixa-legacy)}
    porque as mesmas escolhas continuam dentro do setup. */
 @media (max-width:900px),(max-height:620px){.aaa-bottombar{display:none}}
 
+/* ---- tela 00 ENTRADA: personagem em vídeo, tela cheia ----
+   O personagem ocupa a metade direita e o texto vive na esquerda, que é o mesmo
+   arranjo da tela de fim de partida e dos wallpapers do jogo — arte à direita,
+   leitura à esquerda. Os dois scrims não são estética: sem eles o logo branco
+   some sobre uma regata amarela. */
+.splash-art{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:0}
+.splash-art video{
+  position:absolute;top:0;right:0;height:100%;width:58%;object-fit:cover;object-position:center 18%;
+  opacity:0;transition:opacity .8s var(--ease)}
+.splash-art video.pronto{opacity:1}
+.splash-art::after{
+  content:"";position:absolute;inset:0;
+  background:linear-gradient(90deg,#141216 0%,rgba(20,18,22,.92) 34%,rgba(20,18,22,0) 62%),
+             linear-gradient(0deg,#141216 0%,rgba(20,18,22,0) 32%),
+             radial-gradient(70% 60% at 24% 46%,rgba(20,18,22,.55) 0%,rgba(20,18,22,0) 70%)}
+/* O conteúdo tem de ficar ACIMA da arte: o #boot-splash não criava contexto de
+   empilhamento entre filhos, e sem isto o vídeo cobria a barra de progresso. */
+#boot-splash .splash-frame,#boot-splash .splash-ver{position:relative;z-index:1}
+
+/* UMA ARTE DE CADA VEZ. O #boot-splash já pintava um wallpaper de loading como
+   fundo — com o personagem por cima ficavam duas artes brigando (foi o "fantasma
+   de palhaço" atrás do Chave). Quando o vídeo assume, o wallpaper sai. */
+#boot-splash:has(.splash-art video.pronto){background-image:none!important}
+/* E aí o LOGO precisa voltar: ele estava com largura 0 porque o wallpaper já trazia
+   a marca pintada. Sem wallpaper, sem marca — o canvas volta a ocupar espaço. */
+#boot-splash:has(.splash-art video.pronto) #splash-logo{
+  display:block;width:min(420px,42vw);height:auto;margin:0 0 var(--s-3)}
+/* O texto encosta à esquerda em vez de centralizar: medido, o frame ia de 423 a 823
+   e o vídeo começa em 574 — a barra de progresso passava por cima do peito do
+   personagem. */
+#boot-splash:has(.splash-art video.pronto) .splash-frame{
+  position:absolute;left:clamp(40px,6vw,96px);top:50%;transform:translateY(-50%);
+  width:min(460px,42vw);align-items:flex-start;text-align:left}
+#boot-splash:has(.splash-art video.pronto) .splash-status{width:100%}
+/* A versão vinha centrada e caía em cima do personagem. Vai para o canto, que é
+   onde o handoff a coloca e onde ela não disputa espaço com arte nenhuma. */
+#boot-splash:has(.splash-art video.pronto) .splash-ver{
+  position:absolute;left:auto;right:20px;bottom:16px;transform:none;text-align:right}
+/* Numa tela estreita o personagem come o texto; ele sai e tudo volta ao arranjo
+   antigo, inclusive o wallpaper — que o `:has` deixa de casar sozinho. */
+@media (max-width:760px){.splash-art video{display:none}}
+
 /* Botão de FEEDBACK no rodapé: <button> tem UA style próprio, então precisa ser
    zerado para assentar na fileira de <a> sem pular um pixel de baseline. */
 .menu-footer .mf-link{appearance:none;background:none;border:0;padding:0;cursor:pointer;
@@ -1303,11 +1345,20 @@ html[data-ui="legacy"] .kf-row .kf-n{clip-path:none;border-radius:var(--r-1)}
    de qualquer personagem — sem isso, um personagem claro come o subtítulo.
    `--me-art` é escrito pelo game.js no fim da partida; sem ele o `none` mantém
    exatamente o visual que esta tela tinha antes. */
-.me-hero{position:relative;align-self:stretch;pointer-events:none;
-  background:radial-gradient(58% 70% at 62% 46%,rgba(var(--bg-700-rgb),.85) 0%,rgba(var(--bg-900-rgb),0) 72%),
-             linear-gradient(90deg,rgba(var(--bg-900-rgb),.9) 0%,rgba(var(--bg-900-rgb),0) 26%),
-             var(--me-art,none) 62% center/cover no-repeat;
-  transition:opacity var(--t) var(--ease)}
+.me-hero{position:relative;align-self:stretch;pointer-events:none;overflow:hidden;
+  background:var(--me-art,none) center top/cover no-repeat}
+/* O vídeo entra POR BAIXO dos gradientes e por cima do poster. A ordem importa:
+   `.me-hero::after` desenha os scrims de leitura, e é ele que garante o subtítulo
+   legível sobre qualquer personagem — inclusive um de regata amarela. */
+/* `center top` e não `center`: o vídeo é quadrado e o slot é alto, então `cover`
+   corta em cima e embaixo. Ancorado no topo, o que se perde é o pé — e a cabeça,
+   que é o que comunica a emoção da pose, fica sempre no quadro. */
+.me-hero video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+  object-position:center top;opacity:0;transition:opacity .5s var(--ease)}
+.me-hero video.pronto{opacity:1}
+.me-hero::after{content:"";position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(58% 70% at 62% 46%,rgba(var(--bg-700-rgb),.55) 0%,rgba(var(--bg-900-rgb),0) 72%),
+             linear-gradient(90deg,rgba(var(--bg-900-rgb),.95) 0%,rgba(var(--bg-900-rgb),0) 30%)}
 .me-verdict{display:flex;flex-direction:column;align-items:flex-start;gap:var(--s-2);text-align:left}
 /* peso 400: Bebas Neue só existe em Regular (@font-face único, linha 6). Pedir 700
    fazia o browser engrossar o contorno sozinho — e este é o MAIOR texto do jogo

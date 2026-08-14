@@ -26,7 +26,8 @@
 //   --out <dir>    padrão public/video/chars
 //   --secs N       duração do loop (padrão 3)
 //   --fps N        padrão 24
-//   --w N          lado do quadrado de saída (padrão 512)
+//   --w N          largura de saída (padrão 512)
+//   --h N          altura de saída (padrão = --w, ou seja, quadrado)
 //   --zoom N       amplitude do empurrão, 0..0.2 (padrão 0.045)
 //   --deriva N     deriva lateral em px do quadro de origem (padrão 10)
 //   --grao N       intensidade do grão, 0 desliga (padrão 5)
@@ -50,6 +51,9 @@ const OUT = arg('out', 'public/video/chars');
 const SECS = parseFloat(arg('secs', '3'));
 const FPS = parseInt(arg('fps', '24'), 10);
 const W = parseInt(arg('w', '512'), 10);
+/* Altura própria: forçar quadrado esmagava retrato 2:3 — a arte de corpo inteiro
+   entrou espremida na primeira leva. Padrão segue quadrado (o caso do avatar). */
+const H = parseInt(arg('h', String(W)), 10);
 const ZOOM = parseFloat(arg('zoom', '0.045'));
 const DERIVA = parseFloat(arg('deriva', '10'));
 const GRAO = parseInt(arg('grao', '5'), 10);
@@ -67,7 +71,7 @@ const x = `iw/2-(iw/zoom/2)+${DERIVA}*sin(${w2})`;
 const y = `ih/2-(ih/zoom/2)+${(DERIVA * 0.4).toFixed(2)}*sin(${w2}+PI/2)`;
 
 const filtros = [
-  `zoompan=z='${z}':x='${x}':y='${y}':d=1:s=${W}x${W}:fps=${FPS}`,
+  `zoompan=z='${z}':x='${x}':y='${y}':d=1:s=${W}x${H}:fps=${FPS}`,
   // respiração de luz: ±1,5% de brilho no mesmo período, para o quadro não ficar morto
   `eq=brightness=0.015*sin(${w2.replace(/on/g, `n`)})`,
 ];

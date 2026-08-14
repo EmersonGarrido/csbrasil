@@ -461,6 +461,15 @@ const IMPORTMAP = JSON.stringify({
      a splash transforma essa exigência em ritual de entrada). O menu carrega por baixo
      e já aparece pronto quando a splash sai. -->
 <div id="boot-splash" style="position:fixed;inset:0;z-index:200;background:#141216">
+  <!-- Personagem em tela cheia (tela 00 do redesign). O <video> é opcional: se ele
+       não carregar, o `poster` já está pintado e a tela fica igual — por isso o
+       poster aponta para o mesmo personagem, e não para um placeholder.
+       `muted` + `playsinline` são obrigatórios para o autoplay não ser bloqueado;
+       som aqui seria pior que inútil, já que o áudio do jogo só destrava no
+       primeiro clique (é o que o próprio #splash-enter avisa). -->
+  <div class="splash-art" aria-hidden="true">
+    <video id="splash-video" autoplay muted loop playsinline preload="auto"></video>
+  </div>
   <div class="splash-frame">
     <canvas id="splash-logo" width="900" height="360"></canvas>
     <div class="splash-sub">ARENA DE SNIPER · PET × BOL × TRIBOS</div>
@@ -470,6 +479,27 @@ const IMPORTMAP = JSON.stringify({
   </div>
   <div class="splash-ver" id="splash-ver"></div>
 </div>
+<script is:inline>
+  /* Sorteia quem recebe o jogador. Roda INLINE e não no main.js porque a splash é a
+     primeira coisa pintada — esperar o módulo carregar deixaria a tela sem arte
+     justamente nos segundos em que ela é a única coisa na tela.
+     O poster entra primeiro (é uma imagem de ~70KB, chega quase junto do HTML) e o
+     vídeo só aparece quando tem quadro pronto, com fade. Se o vídeo falhar — rede
+     ruim, codec sem suporte, arquivo ausente — a tela fica exatamente como está
+     agora, com o poster. Nenhum caminho aqui pode impedir alguém de entrar no jogo. */
+  (function () {
+    var ELENCO = ['chave', 'bombado', 'mst', 'bonzo', 'canarinho', 'metaleiro'];
+    var v = document.getElementById('splash-video');
+    if (!v) return;
+    var id = ELENCO[Math.floor(Math.random() * ELENCO.length)];
+    v.poster = '/img/entrada/' + id + '.webp';
+    v.addEventListener('loadeddata', function () { v.classList.add('pronto'); }, { once: true });
+    v.addEventListener('error', function () { v.classList.remove('pronto'); }, { once: true });
+    v.src = '/video/entrada/' + id + '.webm';
+    var p = v.play();
+    if (p && p.catch) p.catch(function () { /* autoplay barrado: fica o poster */ });
+  })();
+</script>
 
 <!-- LOADING de partida/personagens: overlay opaco com barra real (THREE.LoadingManager)
  - enquanto os GLBs entram, NADA da cena montando fica visível -->
@@ -1085,7 +1115,9 @@ const IMPORTMAP = JSON.stringify({
     <!-- Slot da arte do vencedor. O CSS já reservava esta metade da tela e desenhava
          só os gradientes de leitura desde sempre; o personagem nunca chegou. Agora o
          game.js aponta `--me-art` para o retrato de quem o jogador escolheu. -->
-    <div class="me-hero" id="me-hero" aria-hidden="true"></div>
+    <div class="me-hero" id="me-hero" aria-hidden="true">
+      <video id="me-video" autoplay muted loop playsinline preload="none"></video>
+    </div>
   </div>
 </div>
 
