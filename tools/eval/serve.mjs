@@ -30,7 +30,11 @@ async function renderIndex() {
   });
   return src
     .replace(/<script type="importmap"[^>]*><\/script>/, `<script type="importmap">${importmap}</script>`)
-    .replace(/href=\{`\/style\.css\?v=\$\{V\}`\}/, `href="/style.css?v=${V}"`);
+    .replace(/href=\{`\/style\.css\?v=\$\{V\}`\}/, `href="/style.css?v=${V}"`)
+    // o entrypoint também virou template (index.astro:1110) — sem renderizar, o browser
+    // pedia literalmente `/{`/js/main.js?v=${V}`}`, 404, e NENHUMA ferramenta de browser
+    // do arnês bootava o jogo (menu abria, __game nunca nascia).
+    .replace(/src=\{`\/js\/main\.js\?v=\$\{V\}`\}/, `src="/js/main.js?v=${V}"`);
 }
 
 http.createServer(async (req, res) => {

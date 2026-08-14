@@ -34,6 +34,11 @@ const MODULOS = [
   "map_havan.js",
   "map_ferrovelho.js",
   "map_quebrada.js",
+  "map_posto.js",
+  "map_atacadao.js",
+  "map_obras.js",
+  "map_upa.js",
+  "map_favela.js",
   "map_decals.js",
   "graffiti_pass.js",
   "graffiti_layout.js",
@@ -596,6 +601,8 @@ const IMPORTMAP = JSON.stringify({
         </div>
         <div class="map-side">
           <span class="map-kicker">O PALCO DA TRETA</span>
+          <!-- badge de origem: mapas com `community: true` no registro (maps.js) -->
+          <span id="map-community" class="badge-community hidden">MAPA DA COMUNIDADE</span>
           <span id="map-name"> - </span>
           <span id="map-meta"></span>
         </div>
@@ -675,6 +682,7 @@ const IMPORTMAP = JSON.stringify({
   <header class="ms-head">
     <small>O PALCO DA TRETA</small>
     <h2 id="ms-name" class="ms-name"> - </h2>
+    <span id="ms-community" class="badge-community hidden">MAPA DA COMUNIDADE</span>
     <p id="ms-meta" class="ms-meta"></p>
     <p id="ms-desc" class="ms-desc"></p>
   </header>

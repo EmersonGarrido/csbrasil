@@ -126,9 +126,16 @@ export interface Mapa {
    *  contar "quantas abrem em rounds e quantas em CTF", e contar essa frase à mão
    *  foi exatamente o que fez /mapas e /como-jogar dizerem 3×2 quando é 2×3. */
   ctf: boolean;
+  /** `community: true` no registro - mapa contribuído via PR de fora (ver
+   *  docs "Mapas da comunidade"). /mapas separa oficiais de comunidade por isto. */
+  comunidade?: boolean;
+  autor?: string;
+  autorGithub?: string;
 }
 
-/** 5 arenas jogáveis - a ordem é a do registro (public/js/maps.js, objeto MAPS). */
+/** 10 arenas jogáveis - a ordem é a do registro (public/js/maps.js, objeto MAPS).
+ *  Reconferido contra o registro em 2026-08-13 (entraram fy_posto, fy_atacadao,
+ *  fy_obras, fy_upa e fy_favela, que o site não listava). */
 export const MAPAS: Mapa[] = [
   {
     id: 'awp_map', nome: 'Praça dos Três Poderes', modo: 'Rounds · padrão', ctf: false,
@@ -170,6 +177,41 @@ export const MAPAS: Mapa[] = [
       'calçada e barricadas. As duas vielas do fundo não são enfeite - são a rota alternativa que ' +
       'impede a rua virar corredor de sniper. Quatro bandeiras: campinho, bar de esquina, ponto de ' +
       'ônibus e praça do baile.',
+  },
+  {
+    id: 'fy_posto', nome: 'Posto da Treta', modo: 'CTF · rounds opcional', ctf: true,
+    resumo: 'Posto de gasolina de beira de estrada na hora dourada, simétrico e de três corredores.',
+    detalhe: 'Loja de conveniência numa ponta, marquise com as bombas no centro e pátio aberto na outra - ' +
+      'três corredores paralelos, simétricos em relação ao meio do mapa. Kombi, fusca e pilhas de pneu ' +
+      'fazem a cobertura. A luz é de fim de tarde e nenhum dos três caminhos é seguro por muito tempo.',
+  },
+  {
+    id: 'fy_atacadao', nome: 'Atacadão da Treta', modo: 'CTF · rounds opcional', ctf: true,
+    resumo: 'Galpão de atacado no estilo CS clássico: corredores de gôndola e doca de carga no fundo.',
+    detalhe: 'Mapa interno de galpão: fileiras de gôndola formam corredores de tiro, caixas empilhadas ' +
+      'na entrada e a doca de carga no fundo. Simétrico, direto e de leitura rápida - quem domina o ' +
+      'corredor central dita o ritmo. A treta é o preço absurdo; a bala sai de graça.',
+  },
+  {
+    id: 'fy_obras', nome: 'Obras da Prefeitura', modo: 'CTF · rounds opcional', ctf: true,
+    resumo: 'O canteiro de obras da prefeitura que nunca acaba: tapumes, andaimes, entulho e guindaste.',
+    detalhe: 'Uma estrutura meio-construída domina o centro, cercada de tapumes, andaimes e montes de ' +
+      'entulho que viram cobertura. O guindaste marca o horizonte. Simétrico nos dois lados da obra, ' +
+      'com rotas por dentro e por fora da estrutura. A verba sumiu, o tiroteio ficou.',
+  },
+  {
+    id: 'fy_upa', nome: 'UPA 24h da Treta', modo: 'CTF · rounds opcional', ctf: true,
+    resumo: 'Pronto-socorro lotado, 100% interno: salas de verdade ligadas por um corredor em cruz.',
+    detalhe: 'O único mapa totalmente fechado, sem céu: recepção e espera, triagem, consultórios, raio-x, ' +
+      'farmácia, enfermaria e emergência, todos ligados por um corredor central em cruz cheio de portas. ' +
+      'Combate de canto e de porta - cada sala é uma emboscada possível. A treta é a fila eterna.',
+  },
+  {
+    id: 'fy_favela', nome: 'Favela da Treta', modo: 'CTF · rounds opcional', ctf: true,
+    resumo: 'O maior mapa e o único vertical: o morro em três terraços ligados por escadarias.',
+    detalhe: 'Rua no pé do morro, miolo de becos no meio e a laje do baile no topo - três terraços ' +
+      'ligados por escadarias, com labirinto de vielas entre casas coladas. Um time nasce no asfalto, ' +
+      'o outro na laje, e a briga é pela subida. Verticalidade de verdade: altura é vantagem e alvo.',
   },
 ];
 

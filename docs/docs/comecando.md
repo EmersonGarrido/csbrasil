@@ -39,15 +39,15 @@ esta página envelhecia no primeiro commit — ver
 
 | O que | Quanto | Onde confere |
 |---|---:|---|
-| Código do jogo | 27.154 linhas em 31 arquivos | `cat public/js/*.js \| wc -l` |
-| `game.js` | **6.238** linhas | `wc -l public/js/game.js` |
-| `main.js` | 1.941 linhas | `wc -l public/js/main.js` |
+| Código do jogo | 29.702 linhas em 40 arquivos | `cat public/js/*.js \| wc -l` |
+| `game.js` | **6.400** linhas | `wc -l public/js/game.js` |
+| `main.js` | 2.160 linhas | `wc -l public/js/main.js` |
 | Armas com GLB | 26 | `ls public/models/weapons/*.glb \| wc -l` |
 | GLBs de personagem | 45 | `ls public/models/characters/*.glb \| wc -l` |
 | Props em GLB | 108 | `ls public/models/props/*.glb \| wc -l` |
 | Clipes de animação versionados | 573 | `git ls-files public/models/anims \| wc -l` |
 | Personagens jogáveis | 44, em 5 facções | array `CHARACTERS` de `characters.js` |
-| Mapas no registro | 5 | objeto `MAPS` de `maps.js` |
+| Mapas no registro | 10 | objeto `MAPS` de `maps.js` |
 | Arnêses visuais em HTML | 13 | `ls public/*.html \| wc -l` |
 | Scripts do arnês | 171 | `ls tools/eval/*.mjs tools/eval/*.py \| wc -l` |
 | Scripts de pipeline | 46 | `ls tools/*.mjs \| wc -l` |
@@ -66,7 +66,7 @@ E as regras de partida que mais mudam de lugar, todas lidas das constantes de
 | Regra | Valor | Constante |
 |---|---|---|
 | Facções · personagens | 5 · 44 (B 9 · C 9 · E 8 · F 9 · U 9) | `CHARACTERS` |
-| Mapas no menu | 5 — 2 abrem em rodadas, **3 em captura** | `MAPS` / `ctfMode` |
+| Mapas no menu | 10 — 2 abrem em rodadas, **8 em captura** | `MAPS` / `ctfMode` |
 | Respawn | 2,2 s | `RESPAWN_DELAY` |
 | Round | 99 s, 3 vitórias | `ROUND_TIME` / `ROUNDS_TO_WIN` |
 | Captura | alvo = **todas as bandeiras do mapa**, 2 rodadas (rede de segurança 480 s) | `capsToWin = ctfPts.length` / `CTF_ROUNDS_TO_WIN` |
@@ -207,15 +207,20 @@ Os mapas registrados hoje, e em que modo cada um abre:
 
 {/* BEGIN:GERADO:mapas — não edite à mão, rode `npm run docs` */}
 
-| Id | Nome no menu | Abre em | Arquivo em `public/js/` | Linhas |
-|---|---|---|---|---:|
-| `awp_map` | Praça dos Três Poderes | rodadas | `map_brasilia.js` | 1.845 |
-| `fy_pool_day` | Piscina da Treta | rodadas | `—` | — |
-| `fy_havan` | Loja H (Estacionamento) | **captura** | `map_havan.js` | 1.920 |
-| `fy_ferrovelho` | Ferro Velho do Zé | **captura** | `map_ferrovelho.js` | 1.888 |
-| `fy_quebrada` | Quebrada (Rua do Baile) | **captura** | `map_quebrada.js` | 1.599 |
+| Id | Nome no menu | Abre em | Origem | Arquivo em `public/js/` | Linhas |
+|---|---|---|---|---|---:|
+| `awp_map` | Praça dos Três Poderes | rodadas | oficial | `map_brasilia.js` | 1.845 |
+| `fy_pool_day` | Piscina da Treta | rodadas | oficial | `—` | — |
+| `fy_havan` | Loja H (Estacionamento) | **captura** | oficial | `map_havan.js` | 1.920 |
+| `fy_ferrovelho` | Ferro Velho do Zé | **captura** | oficial | `map_ferrovelho.js` | 1.888 |
+| `fy_quebrada` | Quebrada (Rua do Baile) | **captura** | oficial | `map_quebrada.js` | 1.599 |
+| `fy_posto` | Posto da Treta | **captura** | oficial | `map_posto.js` | 493 |
+| `fy_atacadao` | Atacadão da Treta | **captura** | oficial | `map_atacadao.js` | 281 |
+| `fy_obras` | Obras da Prefeitura | **captura** | oficial | `map_obras.js` | 266 |
+| `fy_upa` | UPA 24h da Treta | **captura** | oficial | `map_upa.js` | 313 |
+| `fy_favela` | Favela da Treta | **captura** | oficial | `map_favela.js` | 285 |
 
-**5 mapas registrados** — 2 abrem em rodadas e 3 em captura. `ctfMode` **abre** o mapa em captura, não prende: o jogador troca no menu (é a `MOD1`). Há 6 arquivos `map_*.js` em `public/js/` — arquivo no disco **não** implica mapa jogável.
+**10 mapas registrados** (10 oficiais, 0 da comunidade) — 2 abrem em rodadas e 8 em captura. `ctfMode` **abre** o mapa em captura, não prende: o jogador troca no menu (é a `MOD1`). Há 11 arquivos `map_*.js` em `public/js/` — arquivo no disco **não** implica mapa jogável.
 
 > Bloco gerado por `node tools/gen-docs.mjs`. Fonte: `objeto MAPS de public/js/maps.js`
 

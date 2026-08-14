@@ -1129,12 +1129,19 @@ function setMapMode() {
     setSetupStep('match');   // o eyebrow do passo carrega o modo (PARTIDA / PARTIDA (CTF))
   });
 }
+// Badge "MAPA DA COMUNIDADE": mapas com `community: true` no registro (PRs de fora).
+// Um toggle só, chamado onde o mapa muda — a origem vem do MAPS, nunca de lista à mão.
+function setMapBadge() {
+  const b = $('map-community');
+  if (b) b.classList.toggle('hidden', !MAPS[currentMap].community);
+}
 let mapIdx = Math.max(0, MAP_IDS.indexOf(currentMap));
 function gotoMap(i) {
   mapIdx = (i + MAP_IDS.length) % MAP_IDS.length;
   currentMap = resolveMapId(MAP_IDS[mapIdx]);
   settings.map = currentMap; saveSettings();
   mapNameEl.textContent = MAPS[currentMap].name;
+  setMapBadge();
   setMapThumb();
   // troca de mapa aplica o PADRÃO do mapa (Loja H/Ferro Velho abrem em CTF, o resto em rounds)
   // — mas SÓ enquanto o jogador não tiver escolhido. Ver `modoEscolhido` lá em cima: era
@@ -1146,6 +1153,7 @@ function gotoMap(i) {
 }
 function stepMap(dir) { ui.click(); gotoMap(mapIdx + dir); }
 mapNameEl.textContent = MAPS[currentMap].name;
+setMapBadge();
 setMapThumb();
 setMapMode();
 $('map-prev').onclick = () => stepMap(-1);
@@ -1155,26 +1163,41 @@ $('map-next').onclick = () => stepMap(1);
 /* ---------------- map screen (escolha de mapa em tela cheia) ----------------
    Abre pelo cartaz do mapa no setup. Lê o MESMO estado do carrossel (currentMap/mapIdx) —
    trocar aqui troca lá, e vice-versa. CONTINUAR segue o fluxo normal (nick → facção). */
+/* Descrições dos mapas OFICIAIS (uma frase de clima + leitura tática). Mapa da
+   comunidade NÃO entra aqui: a desc dele mora na própria linha do registro
+   (maps.js, campo `desc`) — renderMapScreen lê de lá primeiro. */
 const MAP_DESC = {
   awp_map: 'O coração do poder vira arena: rampas do Planalto, espelho d\'água e linhas de tiro longas entre os ministérios.',
   fy_pool_day: 'Salão fechado, eco de tiro e briga de faca no raso. Quem controla a borda controla o round.',
   fy_havan: 'Estacionamento de megastore: corredores de vaga, mezanino de sniper e a estátua te olhando atirar.',
   fy_ferrovelho: 'Um ferro velho gigantesco onde tudo pode ser arma e toda sombra pode esconder um traira.',
+  fy_quebrada: 'Rua reta do baile: rotunda numa ponta, campinho de terra na outra e quatro bandeiras no meio da treta.',
+  fy_posto: 'Posto de beira de estrada na hora dourada: loja, marquise e pátio — três corredores e nenhum lugar seguro.',
+  fy_atacadao: 'Galpão de atacado: corredores de gôndola, caixas na entrada e doca no fundo. O preço é absurdo, a bala é de graça.',
+  fy_obras: 'A obra da prefeitura que nunca acaba: tapumes, andaimes e entulho. A verba sumiu, o tiroteio ficou.',
+  fy_upa: 'Pronto-socorro lotado, 100% interno: corredor em cruz, salas de verdade e canto pra emboscada em toda porta.',
+  fy_favela: 'O morro em três terraços — rua, miolo e laje do baile — ligados por escadaria. O maior mapa, e o único vertical.',
 };
 function renderMapScreen() {
   const img = $('ms-bg-img'); if (!img) return;
   img.src = `/img/map-previews/${currentMap}.jpg?v=${VERSION}`;
-  $('ms-name').textContent = MAPS[currentMap].name;
+  const mapa = MAPS[currentMap];
+  $('ms-name').textContent = mapa.name;
   $('ms-meta').textContent = $('map-meta').textContent;   // a MESMA ficha impressa no cartaz
-  $('ms-desc').textContent = MAP_DESC[currentMap] || '';
+  // desc do registro (mapas da comunidade a trazem na própria linha) > MAP_DESC (oficiais)
+  let desc = mapa.desc || MAP_DESC[currentMap] || '';
+  if (mapa.community && mapa.author) desc += `${desc ? ' ' : ''}— mapa da comunidade, por ${mapa.author}.`;
+  $('ms-desc').textContent = desc;
+  $('ms-community').classList.toggle('hidden', !mapa.community);
   // chrome do topo: o mesmo jogador do plate do menu (uma fonte só de verdade)
   const nick = (nickEl.value || '').trim();
   $('ms-top-nick').textContent = nick || 'SEM NICK';
   $('ms-avatar').textContent = (nick || 'CS').replace(/[^a-z0-9]/gi, '').slice(0, 2).toUpperCase() || 'CS';
   $('ms-top-level').textContent = 'NÍVEL ' + (Math.floor(playerXp(loadStats()) / 2000) + 1);
   $('ms-strip').innerHTML = MAP_IDS.map((id, i) =>
-    `<button class="ms-thumb${id === currentMap ? ' on' : ''}" data-i="${i}" type="button">` +
-    `<img src="/img/map-previews/${id}.jpg?v=${VERSION}" alt="${MAPS[id].name}"><span>${MAPS[id].name}</span></button>`).join('');
+    `<button class="ms-thumb${id === currentMap ? ' on' : ''}${MAPS[id].community ? ' community' : ''}" data-i="${i}" type="button">` +
+    `<img src="/img/map-previews/${id}.jpg?v=${VERSION}" alt="${MAPS[id].name}">` +
+    `${MAPS[id].community ? '<em>COMUNIDADE</em>' : ''}<span>${MAPS[id].name}</span></button>`).join('');
   $('ms-strip').querySelectorAll('.ms-thumb').forEach(b => {
     b.onclick = () => { ui.click(); gotoMap(+b.dataset.i); };
     b.onmouseenter = () => ui.hover();

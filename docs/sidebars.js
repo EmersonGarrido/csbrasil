@@ -20,6 +20,9 @@ const sidebars = {
     'quality-gates',
     'arquitetura',
     'colaborar',
+    // logo depois de `colaborar` de propósito: é o desdobramento dela para quem vem de
+    // fora contribuir mapa — a receita técnica mora lá, o processo/política mora aqui.
+    'mapas-comunidade',
     'licenca',
     'estado',
   ],

@@ -29,7 +29,12 @@ import { BRAND_FULL, GAME_ID, abs } from '../lib/site';
 const nCtf = MAPAS.filter(m => m.ctf).length;
 const nRounds = MAPAS.length - nCtf;
 const CTF_NOMES = MAPAS.filter(m => m.ctf).map(m => m.nome);
-const porExtenso = ['zero', 'uma', 'duas', 'três', 'quatro', 'cinco', 'seis', 'sete', 'oito'];
+// vai até vinte porque o registro passou de oito (10 mapas em 08/2026) e `porExtenso[10]`
+// indefinido derrubou o build inteiro; acima disso o fallback é o numeral, não um crash.
+const porExtenso = ['zero', 'uma', 'duas', 'três', 'quatro', 'cinco', 'seis', 'sete', 'oito',
+  'nove', 'dez', 'onze', 'doze', 'treze', 'catorze', 'quinze', 'dezesseis', 'dezessete', 'dezoito', 'dezenove', 'vinte'];
+const numEx = (n: number) => porExtenso[n] ?? String(n);
+const cap = (s: string) => s[0].toUpperCase() + s.slice(1);
 
 const PASSOS = [
   { nome: 'Abra o jogo no navegador de desktop',
@@ -39,7 +44,7 @@ const PASSOS = [
   { nome: 'Escolha a facção e o personagem',
     texto: 'Cinco facções: Time E, Time B, Tribos Urbanas, Palhaços e Funkeiros. São 44 personagens no total, e todos jogam igual - a escolha é de estilo, não de vantagem.' },
   { nome: 'Escolha o mapa e o modo',
-    texto: `${porExtenso[MAPAS.length][0].toUpperCase()}${porExtenso[MAPAS.length].slice(1)} arenas: ${MAPAS.map(m => m.nome).join(', ')}. ${porExtenso[nRounds][0].toUpperCase()}${porExtenso[nRounds].slice(1)} abrem em rounds e ${porExtenso[nCtf]} em Capture the Flag, mas dá pra trocar o modo de qualquer mapa antes de começar. O tamanho dos times também é seu: de 1 contra 1 até 8 contra 8, com 4 contra 4 como padrão.` },
+    texto: `${cap(numEx(MAPAS.length))} arenas: ${MAPAS.map(m => m.nome).join(', ')}. ${cap(numEx(nRounds))} abrem em rounds e ${numEx(nCtf)} em Capture the Flag, mas dá pra trocar o modo de qualquer mapa antes de começar. O tamanho dos times também é seu: de 1 contra 1 até 8 contra 8, com 4 contra 4 como padrão.` },
   { nome: 'Mire, agache, atire',
     texto: 'WASD move, mouse mira, clique esquerdo atira e clique direito abre a luneta. Agachar com Ctrl (ou C) deixa a mira bem mais estável - é a diferença entre acertar e errar com a AWP sem luneta.' },
   { nome: 'Ganhe o round',

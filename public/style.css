@@ -1413,6 +1413,11 @@ html[data-ui="legacy"] .cs-vignette{
 #map-dots{position:absolute;top:var(--s-2);right:var(--s-2);z-index:2;display:flex;gap:5px}
 #map-dots i{width:6px;height:6px;background:rgba(255,255,255,.32);display:block;transition:background var(--t)}
 #map-dots i.on{background:var(--br-faixa)}
+/* Badge de ORIGEM (mapas com `community: true` no registro). Roxo de propósito: o verde
+   já significa "modo CTF" no #map-mode — origem e modo não podem vestir a mesma cor. */
+.badge-community{display:inline-block;width:max-content;font-family:var(--mono);font-size:var(--fs-50);
+  letter-spacing:var(--tr-2);text-transform:uppercase;color:#efe3ff;background:#7a3fd1;
+  padding:2px var(--s-2);margin:2px 0 3px;text-shadow:none}
 
 /* ============ PASSOS DO SETUP (partida / perfil) ============
    Pedido literal do dono: "o primeiro menu com o mapa não precisa ter o nick — a gente
@@ -1588,6 +1593,10 @@ html[data-ui="legacy"] .cs-vignette{
 .ms-thumb span{padding:0 8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ms-thumb:hover,.ms-thumb:focus-visible{border-color:var(--sys);color:var(--ink-100)}
 .ms-thumb.on{border-color:var(--br-faixa);color:var(--br-faixa);transform:translateY(-4px)}
+/* faixinha COMUNIDADE sobre o thumb — mesma cor do .badge-community, tamanho de etiqueta */
+.ms-thumb em{position:absolute;top:4px;left:4px;font-style:normal;font-family:var(--mono);
+  font-size:9px;letter-spacing:.08em;color:#efe3ff;background:#7a3fd1;padding:1px 5px}
+.ms-thumb.community{position:relative}
 /* Centralização por margin-top, NÃO por transform: o :active genérico de .map-arrow
    (translateY(1px)) sobrescreveria o translateY(-50%) no mousedown e o botão pularia
    33px pra baixo no meio do clique — o clique caía fora do botão (pego pelo harness). */
@@ -1871,3 +1880,19 @@ html[data-ui="legacy"] .cs-vignette{
   #scoreboard table{font-size:12px}
   #scoreboard th,#scoreboard td{padding-left:6px;padding-right:6px}
 }
+
+/* ===== Lobby multiplayer (Fase 3) ===== */
+.mp-rooms{display:flex;flex-direction:column;gap:8px;width:100%;max-height:44vh;overflow:auto;margin-bottom:14px}
+.mp-room{display:flex;justify-content:space-between;align-items:center;gap:12px;width:100%;text-align:left;
+  font-family:var(--font);font-weight:700;letter-spacing:1px;color:var(--ink-100);cursor:pointer;
+  background:var(--bg-700);border:1px solid var(--line);padding:12px 16px}
+.mp-room:hover,.mp-room:focus-visible{background:var(--bg-600);border-color:var(--sys);color:#fff}
+.mp-room .mp-meta{font-family:var(--mono);font-size:12px;opacity:.8;letter-spacing:1px}
+.mp-room[disabled]{opacity:.45;cursor:not-allowed}
+.mp-empty{font-family:var(--mono);font-size:13px;opacity:.7;padding:18px 0}
+.mp-actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+.mp-create{display:flex;flex-direction:column;gap:12px;width:100%;text-align:left}
+.mp-field{display:flex;flex-direction:column;gap:6px;font-family:var(--mono);font-size:12px;letter-spacing:1px;color:var(--ink-200)}
+.mp-field input,.mp-field select,#mp-pass{font-family:var(--font);font-size:15px;padding:10px 12px;background:var(--bg-800);
+  border:1px solid var(--line);color:#fff}
+.mp-consent{display:flex;gap:8px;align-items:center;font-family:var(--mono);font-size:13px;color:var(--ink-200)}
