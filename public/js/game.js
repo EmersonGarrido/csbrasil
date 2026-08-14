@@ -2244,7 +2244,13 @@ export class Game {
     const rep = REP[this._factionOf(this.playerTeam)] || 'mst';
     const pose = mine ? 'vitoria' : 'derrota';
     if (heroEl) heroEl.style.setProperty('--me-art', `url("/img/resultado/${rep}-${pose}.webp")`);
-    if (vidEl) {
+    /* `typeof vidEl.play === 'function'` e não `if (vidEl)`: a régua de UI roda este
+       mesmo game.js em NODE, com DOM simulado (tools/eval/ui-check.mjs). Lá o
+       getElementById devolve um stub sem a API de <video>, e o `.play()` derrubava a
+       simulação inteira — os cinco portões viraram zero de uma vez. O jogo no browser
+       não sentiria, o que é justamente o que torna esse tipo de quebra caro: ela só
+       aparece no CI. Detectar a CAPACIDADE, e não a existência do elemento. */
+    if (vidEl && typeof vidEl.play === 'function') {
       vidEl.classList.remove('pronto');
       vidEl.onloadeddata = () => vidEl.classList.add('pronto');
       vidEl.onerror = () => vidEl.classList.remove('pronto');   // fica o poster
