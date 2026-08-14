@@ -10,7 +10,7 @@
 >
 <!-- BEGIN:GERADO:versao_atual — não edite à mão, rode `npm run docs` -->
 
-**O jogo está em `2.0.0-alpha.98`.** Prerelease do semver ordena sozinho
+**O jogo está em `2.0.0-alpha.115`.** Prerelease do semver ordena sozinho
 (`alpha` < `beta` < release), e o fluxo automático cuida do bump.
 
 > Bloco gerado por `node tools/gen-docs.mjs`. Fonte: `grep VERSION public/js/version.js · node -p "require('./package.json').version"`
@@ -22,6 +22,108 @@
 > das três tem tag git** (a última tag é `v1.12.4`). "v3" nunca existiu como coisa publicada.
 > O conteúdo e as datas das entradas continuam intactos; só o rótulo mudou, porque chamar de
 > 3.3.0 um build com P0 em aberto promete ao jogador uma estabilidade que ele não tem.
+
+## [2.0.0-alpha.115] — 2026-08-14
+
+### Mudado
+- fix(eval): mat_shade guard de numpy — build de fork PR volta a passar
+- [Notas completas do release](https://github.com/rubenmarcus/csbrasil/releases/tag/v2.0.0-alpha.115).
+
+## [2.0.0-alpha.114] — 2026-08-14
+
+### Mudado
+- fix(api): client Supabase com timeout no fetch — acaba com os 504 de 300s (#269)
+- [Notas completas do release](https://github.com/rubenmarcus/csbrasil/releases/tag/v2.0.0-alpha.114).
+
+## [2.0.0-alpha.113] — 2026-08-14
+
+### Mudado
+- feat(site): redes sociais no rodapé, atalhos /discord e /telegram, e SEO/GSC pendente (#263)
+- [Notas completas do release](https://github.com/rubenmarcus/csbrasil/releases/tag/v2.0.0-alpha.113).
+
+## [2.0.0-alpha.112] — 2026-08-14
+
+### Mudado
+- fix(mapa): adiciona preview do Posto da Treta (sumiu no merge do #250) (#255)
+- [Notas completas do release](https://github.com/rubenmarcus/csbrasil/releases/tag/v2.0.0-alpha.112).
+
+## [2.0.0-alpha.111] — 2026-08-13
+
+### Mudado
+- fix(grafite): placement pula caixa procedural + tool tira fundo branco do decal (#260)
+- [Notas completas do release](https://github.com/rubenmarcus/csbrasil/releases/tag/v2.0.0-alpha.111).
+
+## [2.0.0-alpha.110] — 2026-08-13
+
+### Mudado
+- chore(release): v2.0.0-alpha.109
+- [Notas completas do release](https://github.com/rubenmarcus/csbrasil/releases/tag/v2.0.0-alpha.110).
+
+## [2.0.0-alpha.109] — 2026-08-13
+
+### Mudado
+- fix: música de menu vira pool do manifesto de áudio (#225)
+- [Notas completas do release](https://github.com/rubenmarcus/csbrasil/releases/tag/v2.0.0-alpha.109).
+
+## [2.0.0-alpha.108] — 2026-08-13
+
+### Mudado
+- fix(grafite): reassa o layout — loja_h volta de 39,7% para 51,8% (#254)
+- [Notas completas do release](https://github.com/rubenmarcus/csbrasil/releases/tag/v2.0.0-alpha.108).
+
+## [2.0.0-alpha.107] — 2026-08-13
+
+### Mudado
+- feat(mapa): adiciona Posto da Treta (6º mapa) — #250 (#250)
+- [Notas completas do release](https://github.com/rubenmarcus/csbrasil/releases/tag/v2.0.0-alpha.107).
+
+## [2.0.0-alpha.106] — 2026-08-13
+
+### Mudado
+- feat(portões): régua que casa tag, main e versão (#252)
+- [Notas completas do release](https://github.com/rubenmarcus/csbrasil/releases/tag/v2.0.0-alpha.106).
+
+## [2.0.0-alpha.105] — 2026-08-13
+
+### Mudado
+- fix(eval): char-floor skipa CHR8 graciosamente quando magick falta (build fork PR)
+- [Notas completas do release](https://github.com/rubenmarcus/csbrasil/releases/tag/v2.0.0-alpha.105).
+
+## [2.0.0-alpha.104] — 2026-08-13
+
+### Mudado
+- fix(build): error-console preserva a exceção antes do guard Script-error (#251)
+- [Notas completas do release](https://github.com/rubenmarcus/csbrasil/releases/tag/v2.0.0-alpha.104).
+
+## [2.0.0-alpha.103] — 2026-08-13
+
+### Mudado
+- fix: marcador de registro de tiro na hud (#248)
+- [Notas completas do release](https://github.com/rubenmarcus/csbrasil/releases/tag/v2.0.0-alpha.103).
+
+## [2.0.0-alpha.102] — 2026-08-13
+
+### Mudado
+- fix: trata bundles /_vercel/ como terceiro na proveniência de crash (#229)
+- [Notas completas do release](https://github.com/rubenmarcus/csbrasil/releases/tag/v2.0.0-alpha.102).
+
+## [2.0.0-alpha.101] — 2026-08-13
+
+### Mudado
+- fix(telemetria): descarta "Script error." cross-origin opaco no coletor de crash (#221)
+- [Notas completas do release](https://github.com/rubenmarcus/csbrasil/releases/tag/v2.0.0-alpha.101).
+
+## [2.0.0-alpha.100] — 2026-08-13
+
+### Mudado
+- fix(hud): indicador de dano aponta pra onde o tiro veio (BUG-52)
+- [Notas completas do release](https://github.com/rubenmarcus/csbrasil/releases/tag/v2.0.0-alpha.100).
+
+## [2.0.0-alpha.99] — 2026-08-13
+
+### Mudado
+- chore: remove a rota /editor do build público (bancada WIP com problemas) (#220)
+- [Notas completas do release](https://github.com/rubenmarcus/csbrasil/releases/tag/v2.0.0-alpha.99).
 
 ## [2.0.0-alpha.98] — 2026-08-13
 

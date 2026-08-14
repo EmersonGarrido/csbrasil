@@ -9,6 +9,7 @@ const mutants = [
   'sem-workflow', 'abre-externo',
   'sem-cliente', 'cliente-mensagem-url', 'sem-teto-externo', 'debug-externo', 'console-sem-origem',
   'cache-antes-origem', 'sem-recuperavel', 'sem-opaco', 'opaco-sem-guarda',
+  'sem-vercel-helper', 'sem-vercel-cliente',
 ];
 if (mutant && !mutants.includes(mutant)) throw new Error(`mutante desconhecido: ${mutant}`);
 
@@ -63,6 +64,12 @@ if (mutant === 'debug-externo') page = mutate(page,
 if (mutant === 'console-sem-origem') page = mutate(page,
   "reporta('console', m, null, pilha, !interna)",
   "reporta('console', m, null, pilha)");
+if (mutant === 'sem-vercel-helper') helperSource = mutate(helperSource,
+  "if (VENDOR_RE.test(sourceText) || VENDOR_RE.test(String(stack || ''))) return true;",
+  "if (VENDOR_RE.test(sourceText) || VENDOR_RE.test(String(stack || ''))) return false;");
+if (mutant === 'sem-vercel-cliente') page = mutate(page,
+  "if (vendor.test(sourceText) || vendor.test(String(stack || ''))) return false;",
+  "if (vendor.test(sourceText) || vendor.test(String(stack || ''))) return true;");
 if (mutant === 'cache-antes-origem') helperSource = mutate(helperSource,
   "if (isExternalCrash(payload, ownOrigin)) return 'externo';\n  if (CACHE_SPLIT_RE.test(evidence)) return 'cache-split';",
   "if (CACHE_SPLIT_RE.test(evidence)) return 'cache-split';\n  if (isExternalCrash(payload, ownOrigin)) return 'externo';");
@@ -94,6 +101,12 @@ const extensionFixtures = [
 const crossOriginFixtures = [
   { source: 'https://static.cloudflareinsights.com/beacon.min.js:1:136', message: 'at não existe' },
   { stack: 'Error\n at https://cdn.example.invalid/sdk.js:2:4', message: 'boom' },
+];
+/* #218/#219: bundles da Vercel (analytics, speed-insights) são servidos do próprio
+   domínio em /_vercel/, mas o `pushState` read-only estoura DENTRO do código deles. */
+const vendorFixtures = [
+  { source: `${own}/_vercel/insights/script.js:1:2317`, message: "Cannot assign to read only property 'pushState' of object '#<History>'" },
+  { stack: `TypeError\n    at ${own}/_vercel/speed-insights/script.js:1:12505`, message: "Cannot assign to read only property 'pushState'" },
 ];
 const internalFixtures = [
   { source: `${own}/js/game.js:1:2`, stack: `${own}/js/main.js:3:4`, message: 'boom' },
@@ -185,6 +198,13 @@ const clientFixtures = [
 ];
 const clientBehavior = !!origemCliente
   && clientFixtures.every(([source, stack, mensagem, esperado]) => origemCliente(source, stack, mensagem) === esperado);
+/* Mesmo par de #218/#219 no cliente: /_vercel/ em source OU em stack não é jogo. */
+const vendorClientFixtures = [
+  [`${own}/_vercel/insights/script.js:1:2317`, '', "Cannot assign to read only property 'pushState'", false],
+  [null, `TypeError\n    at ${own}/_vercel/speed-insights/script.js:1:12505`, 'boom', false],
+];
+const vendorBehavior = !!origemCliente
+  && vendorClientFixtures.every(([source, stack, mensagem, esperado]) => origemCliente(source, stack, mensagem) === esperado);
 const clientWired = /origemDoJogo\(e\.filename, e\.error && e\.error\.stack, String\(msg\)\)/.test(page)
   && /origemDoJogo\(null, r && r\.stack, String\(\(r && r\.message\) \|\| r \|\| ''\)\)/.test(page)
   && /lancamento\.ativo && interna/.test(page)
@@ -217,6 +237,9 @@ const checks = [
   ['EP4', apiWired, 'API grava o erro e o early-return externo é o único corte antes do dispatch único'],
   ['EP5', workflowWired, 'workflow classifica externo sem abrir issue, em nenhum OR da condição'],
   ['EP6', clientBehavior && clientWired, 'cliente executado: mensagem não é proveniência, overlay/cota de externo são separados'],
+  ['EP10', vendorFixtures.every((fixture) => classify(fixture) === 'externo')
+    && classify({ source: `${own}/js/game.js:1:2`, message: 'boom' }) === 'codigo'
+    && vendorBehavior, 'bundles /_vercel/ da Vercel são externos no helper e no cliente; /js/ do jogo continua acionável'],
 ];
 const failed = checks.filter(([, ok]) => !ok);
 for (const [id, ok, description] of checks) console.log(`${ok ? '\x1b[32m✓' : '\x1b[31m✗'} ${id} ${description}\x1b[0m`);
@@ -230,6 +253,7 @@ const mutantClause = {
   'cache-antes-origem': 'EP7',
   'sem-recuperavel': 'EP8',
   'sem-opaco': 'EP9', 'opaco-sem-guarda': 'EP9',
+  'sem-vercel-helper': 'EP10', 'sem-vercel-cliente': 'EP10',
 };
 if (mutant && !failed.some(([id]) => id === mutantClause[mutant])) {
   failed.push(['MUT', false, `mutação ${mutant} não acendeu ${mutantClause[mutant]}`]);

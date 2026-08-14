@@ -1,4 +1,8 @@
 const EXTENSION_RE = /(?:chrome|moz|safari-web|safari)-extension:\/\//i;
+// Bundles injetados pela Vercel (Web Analytics, Speed Insights) moram em /_vercel/: são
+// servidos do próprio domínio, mas o código é de terceiro. Crash deles não é bug do jogo
+// e não tem conserto no nosso fonte.
+const VENDOR_RE = /\/_vercel\//i;
 const CACHE_SPLIT_RE = /does not provide an export|Failed to fetch dynamically imported module|Importing a module script failed|error loading dynamically imported module|prod-coherence/i;
 // Aviso RECUPERÁVEL do carregador do three: uma textura embutida (webp) do GLB não
 // decodifica em navegador minoritário (createImageBitmap), o three loga com console.error
@@ -25,6 +29,8 @@ export function isExternalCrash({ message = '', source = '', stack = '' } = {}, 
   const evidence = [message, source, stack].filter(Boolean).join("\n");
   const sourceText = String(source || '');
   if (EXTENSION_RE.test(sourceText)) return true;
+  // Vale antes do atalho same-origin: /_vercel/ é próprio domínio, mas terceiro.
+  if (VENDOR_RE.test(sourceText) || VENDOR_RE.test(String(stack || ''))) return true;
 
   const sourceOrigin = /^https?:\/\//i.test(sourceText)
     ? normalizedOrigin(sourceText, ownOrigin)
