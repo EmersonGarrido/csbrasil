@@ -126,8 +126,22 @@ THREE.DefaultLoadingManager.onProgress = (url, l, t) => {
   const ph = _lstat.phase;
   if (ph) ph.set(Math.min(0.99, (l - ph.l0) / Math.max(1, t - ph.l0)));
 };
-function _mkPhase(fillEl, pctEl) {
-  const ph = { l0: _lstat.loaded, set(p) { fillEl.style.width = (p * 100).toFixed(0) + '%'; pctEl.textContent = Math.round(p * 100) + '%'; } };
+/* `statusEl` é opcional: só o overlay de partida troca o texto conforme a barra
+   anda (o boot mantém a mensagem fixa, que já é curta). A escrita é condicionada a
+   ter MUDADO porque `set` é chamado a cada progresso do LoadingManager — escrever
+   textContent igual em toda chamada é layout à toa. */
+function _mkPhase(fillEl, pctEl, statusEl) {
+  const ph = {
+    l0: _lstat.loaded,
+    set(p) {
+      fillEl.style.width = (p * 100).toFixed(0) + '%';
+      pctEl.textContent = Math.round(p * 100) + '%';
+      if (statusEl) {
+        const t = _statusPorProgresso(p);
+        if (statusEl.textContent !== t) statusEl.textContent = t;
+      }
+    },
+  };
   _lstat.phase = ph; ph.set(0); return ph;
 }
 // fase de boot: props do cenário 3D do menu (carrega por baixo da splash)
@@ -149,13 +163,45 @@ const _lo = {
   box: document.getElementById('load-overlay'), fill: document.getElementById('load-bar-fill'),
   pct: document.getElementById('load-pct'), label: document.getElementById('load-label'), status: document.getElementById('load-status'),
 };
+/* DICAS DO CARREGAMENTO. São de JOGO, não de marketing: cada uma diz algo que muda
+   a mão de quem lê. Passam pelo tr() como todo o resto da UI. */
+const _DICAS = [
+  'Andar com a arma no ombro (tecla F) é mais rápido do que andar mirando.',
+  'Segure TAB a qualquer momento para ver o placar e quem está vivo.',
+  'Agachar reduz o espalhamento do tiro — mas também a sua velocidade.',
+  'Tiro na cabeça mata em quase tudo. Mire alto no corredor.',
+  'A fumaça (tecla 4) corta a linha de visão dos bots, não só a sua.',
+  'O radar mostra parede: use ele para saber de onde o barulho vem.',
+  'Recarregar cancela o tiro. Não recarregue no meio da troca.',
+  'Cada personagem muda só a aparência — a mira é toda sua.',
+];
+let _dicaT = null;
+function _giraDica() {
+  const el = document.getElementById('load-tip');
+  if (!el) return;
+  el.textContent = tr(_DICAS[Math.floor(Math.random() * _DICAS.length)]);
+}
+/* Faixa de progresso -> status, como o handoff pede. O texto muda de verdade
+   conforme a barra anda, então ele não é enfeite: é o segundo sinal de vida da
+   tela (o primeiro é a própria barra). */
+function _statusPorProgresso(p) {
+  if (p < 0.34) return tr('CARREGANDO TEXTURAS…');
+  if (p < 0.72) return tr('POSICIONANDO OS BOTS…');
+  return tr('AQUECENDO A TRETA…');
+}
 function showLoading(label, status = 'CARREGANDO MODELOS 3D…') {
   _lo.label.textContent = label; _lo.status.textContent = status;
   try { _lo.box.style.backgroundImage = wallUrl(_loadWallI++); } catch {}   // wallpaper rotativo (wall-*) no load de mapa
   _lo.box.classList.remove('hidden');
-  _mkPhase(_lo.fill, _lo.pct);
+  _giraDica();
+  clearInterval(_dicaT); _dicaT = setInterval(_giraDica, 5000);
+  _mkPhase(_lo.fill, _lo.pct, _lo.status);
 }
-function hideLoading() { _lstat.phase = null; _lo.box.classList.add('hidden'); }
+function hideLoading() {
+  _lstat.phase = null;
+  clearInterval(_dicaT); _dicaT = null;   // sem isto o timer sobrevive à partida inteira
+  _lo.box.classList.add('hidden');
+}
 function rebuildMenuBackdrop() {
   menuScene = new THREE.Scene();
   MAPS[currentMap].build(menuScene, textures);

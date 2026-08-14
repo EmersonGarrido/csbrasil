@@ -317,6 +317,16 @@ html[data-ui="legacy"]{--br-faixa:var(--br-faixa-legacy)}
    antigo, inclusive o wallpaper — que o `:has` deixa de casar sozinho. */
 @media (max-width:760px){.splash-art video{display:none}}
 
+/* ---- DICA do carregamento (tela 00B) ----
+   min-height fixa: sem ela, dicas de comprimentos diferentes mudam a altura da
+   caixa a cada 5 s e a barra de progresso "pula" — o defeito clássico de texto
+   rotativo em layout de fluxo. */
+.lo-tip{display:flex;align-items:baseline;gap:10px;margin-top:var(--s-3);
+  min-height:34px;max-width:520px}
+.lo-tip b{flex:0 0 auto;font:700 10px/1 var(--aaa-font-body);letter-spacing:3px;
+  color:var(--aaa-lime)}
+.lo-tip span{font:500 13px/1.35 var(--aaa-font-body);letter-spacing:.4px;color:var(--ink-200)}
+
 /* Botão de FEEDBACK no rodapé: <button> tem UA style próprio, então precisa ser
    zerado para assentar na fileira de <a> sem pular um pixel de baseline. */
 .menu-footer .mf-link{appearance:none;background:none;border:0;padding:0;cursor:pointer;

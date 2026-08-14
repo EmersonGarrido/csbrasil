@@ -509,6 +509,10 @@ const IMPORTMAP = JSON.stringify({
     <div id="load-label">CARREGANDO…</div>
     <div class="splash-bar lo-bar"><div id="load-bar-fill"></div></div>
     <div class="splash-status"><span id="load-status">CARREGANDO MODELOS 3D…</span><span id="load-pct">0%</span></div>
+    <!-- DICA rotativa (tela 00B do redesign). Tem função além de decorar: o load de
+         mapa leva alguns segundos e uma tela que só mostra porcentagem parece
+         travada. Uma linha que muda prova que o jogo está vivo. -->
+    <div class="lo-tip"><b>DICA</b><span id="load-tip"></span></div>
   </div>
 </div>
 
