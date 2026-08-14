@@ -783,9 +783,12 @@ const BLOCOS_EN = {
     rodapeEn(f.regras.cmd),
   ].join('\n'),
   mapas: (f) => [
-    '| Id | Menu name | Opens in | File in `public/js/` | Lines |', '|---|---|---|---|---:|',
-    ...f.mapas.registrados.map((m) => `| \`${m.id}\` | ${m.nome} | ${m.ctf ? '**capture**' : 'rounds'} | \`${m.arquivo || '-'}\` | ${m.arquivo ? numEn(linhas('public/js/' + m.arquivo)) : '-'} |`),
-    '', `**${f.mapas.total} registered maps** - ${f.mapas.emRodadas} open in rounds and ${f.mapas.emCaptura} in capture. \`ctfMode\` sets the initial mode; it does not lock it. There are ${f.mapas.arquivosNoDisco} \`map_*.js\` files on disk, so a file alone does **not** make a map playable.`,
+    '| Id | Menu name | Opens in | Origin | File in `public/js/` | Lines |', '|---|---|---|---|---|---:|',
+    ...f.mapas.registrados.map((m) => {
+      const origem = m.comunidade ? `**community**${m.autor ? ` (${m.autor})` : ''}` : 'official';
+      return `| \`${m.id}\` | ${m.nome} | ${m.ctf ? '**capture**' : 'rounds'} | ${origem} | \`${m.arquivo || '-'}\` | ${m.arquivo ? numEn(linhas('public/js/' + m.arquivo)) : '-'} |`;
+    }),
+    '', `**${f.mapas.total} registered maps** (${f.mapas.total - f.mapas.daComunidade} official, ${f.mapas.daComunidade} community) - ${f.mapas.emRodadas} open in rounds and ${f.mapas.emCaptura} in capture. \`ctfMode\` sets the initial mode; it does not lock it. There are ${f.mapas.arquivosNoDisco} \`map_*.js\` files on disk, so a file alone does **not** make a map playable.`,
     rodapeEn(f.mapas.cmd),
   ].join('\n'),
   scripts: (f) => ['```bash', `npm run check        # ${f.scripts.check}`, `npm run check:fast   # ${f.scripts.checkFast}`, '```', '', `\`package.json\` has **${f.scripts.total} scripts**. Keys prefixed with \`//\` explain why the adjacent command exists.`, rodapeEn(f.scripts.cmd)].join('\n'),

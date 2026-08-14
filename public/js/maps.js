@@ -62,6 +62,20 @@ export const MAPS = {
   // por portas de verdade na fachada. Gôndolas reais (gondola_mercado/eletro), caixas, doca, e um
   // bairro/skyline em volta. A treta é o preço absurdo. Simétrico funcional, A* pelos corredores.
   atacadao_treta: { name: 'Atacadão da Treta', build: buildAtacadao, props: ATACADAO_PROPS, ctfMode: true },
+
+  /* ═══ MAPAS DA COMUNIDADE — PRs de fora, mesmo contrato e mesmas réguas dos oficiais ═══
+     Regras desta seção (ver docs/docs/mapas-comunidade.md e o template de PR em
+     .github/PULL_REQUEST_TEMPLATE/mapa_comunidade.md):
+       • entrada em UMA LINHA — o parser do tools/gen-docs.mjs lê o registro linha a linha;
+         quebrar a linha faz o mapa sumir da doc gerada sem erro;
+       • sempre DEPOIS do último oficial — MAP_IDS ordena o menu (oficiais primeiro);
+       • campos obrigatórios além dos de sempre: community: true, author, authorGithub, desc
+         (a desc vai pro cartaz em tela cheia — o contribuidor NÃO mexe no MAP_DESC do main.js);
+       • id segue a convenção da casa: minúsculo, sem prefixo de CS (`fy_*` saiu no rename
+         de 11/08), sem acento e sem espaço.
+     Exemplo (mantido comentado até o primeiro PR de comunidade):
+  meu_mapa: { name: 'Nome no Menu', build: buildMeuMapa, props: MEUMAPA_PROPS, ctfMode: true, community: true, author: 'Fulano', authorGithub: 'fulano', desc: 'Uma frase de descrição pro cartaz em tela cheia.' },
+  */
 };
 export const MAP_IDS = Object.keys(MAPS);
 // Derivado do registro — nunca listar ids de comunidade à mão em outro lugar.

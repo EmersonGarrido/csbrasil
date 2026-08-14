@@ -34,7 +34,7 @@ contra bots, direto na aba. Sem download, sem instalação, sem cadastro.
 
 | O que | Quanto | Onde confere |
 |---|---:|---|
-| Código do jogo | 28.716 linhas em 37 arquivos | `cat public/js/*.js \| wc -l` |
+| Código do jogo | 28.751 linhas em 37 arquivos | `cat public/js/*.js \| wc -l` |
 | `game.js` | **6.471** linhas | `wc -l public/js/game.js` |
 | `main.js` | 2.046 linhas | `wc -l public/js/main.js` |
 | Armas com GLB | 26 | `ls public/models/weapons/*.glb \| wc -l` |
@@ -315,17 +315,17 @@ Os mapas registrados, e em que modo cada um abre:
 
 <!-- BEGIN:GERADO:mapas — não edite à mão, rode `npm run docs` -->
 
-| Id | Nome no menu | Abre em | Arquivo em `public/js/` | Linhas |
-|---|---|---|---|---:|
-| `praca_poderes` | Praça dos Três Poderes | rodadas | `map_brasilia.js` | 1.830 |
-| `piscina_treta` | Piscina da Treta | rodadas | `map_piscina.js` | 810 |
-| `loja_h` | Loja H (Estacionamento) | **captura** | `map_havan.js` | 1.952 |
-| `ferro_velho` | Ferro Velho do Zé | **captura** | `map_ferrovelho.js` | 1.888 |
-| `quebrada` | Quebrada (Rua do Baile) | **captura** | `map_quebrada.js` | 1.599 |
-| `posto_treta` | Posto da Treta | **captura** | `map_posto.js` | 489 |
-| `atacadao_treta` | Atacadão da Treta | **captura** | `map_atacadao.js` | 255 |
+| Id | Nome no menu | Abre em | Origem | Arquivo em `public/js/` | Linhas |
+|---|---|---|---|---|---:|
+| `praca_poderes` | Praça dos Três Poderes | rodadas | oficial | `map_brasilia.js` | 1.830 |
+| `piscina_treta` | Piscina da Treta | rodadas | oficial | `map_piscina.js` | 810 |
+| `loja_h` | Loja H (Estacionamento) | **captura** | oficial | `map_havan.js` | 1.952 |
+| `ferro_velho` | Ferro Velho do Zé | **captura** | oficial | `map_ferrovelho.js` | 1.888 |
+| `quebrada` | Quebrada (Rua do Baile) | **captura** | oficial | `map_quebrada.js` | 1.599 |
+| `posto_treta` | Posto da Treta | **captura** | oficial | `map_posto.js` | 489 |
+| `atacadao_treta` | Atacadão da Treta | **captura** | oficial | `map_atacadao.js` | 255 |
 
-**7 mapas registrados** — 2 abrem em rodadas e 5 em captura. `ctfMode` **abre** o mapa em captura, não prende: o jogador troca no menu (é a `MOD1`). Há 9 arquivos `map_*.js` em `public/js/` — arquivo no disco **não** implica mapa jogável.
+**7 mapas registrados** (7 oficiais, 0 da comunidade) — 2 abrem em rodadas e 5 em captura. `ctfMode` **abre** o mapa em captura, não prende: o jogador troca no menu (é a `MOD1`). Há 9 arquivos `map_*.js` em `public/js/` — arquivo no disco **não** implica mapa jogável.
 
 > Bloco gerado por `node tools/gen-docs.mjs`. Fonte: `objeto MAPS de public/js/maps.js`
 
