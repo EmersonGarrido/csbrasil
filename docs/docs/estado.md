@@ -2,7 +2,7 @@
 id: estado
 title: 'Estado medido: o que está verde e o que está vermelho'
 sidebar_label: Estado medido
-sidebar_position: 8
+sidebar_position: 9
 description: O que está verde e o que está vermelho HOJE, com a saída real do quality gate, e as dívidas declaradas do projeto.
 ---
 

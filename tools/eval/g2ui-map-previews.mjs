@@ -45,6 +45,10 @@ const POSES = process.env.POSES ? JSON.parse(process.env.POSES) : {
   // Rua inteira do campinho até a rotunda do baile, comércio dos dois lados, faixa na
   // frente. Câmera alta e pitch fundo porque a -0,17 metade do cartaz era céu.
   fy_quebrada:  { pos: [0, 8.0, 30], pitch: -0.30, yaw:  0.0 },
+  // O morro inteiro de frente: telhados da rua embaixo, a escadaria com a placa
+  // "SOBE O MORRO" no meio e o casario subindo até a laje. yaw π porque yaw 0 olha
+  // pra -Z e a rua fica no sul do mapa (o morro sobe pro norte).
+  fy_favela:    { pos: [0, 15.0, -50], pitch: -0.22, yaw: 3.14 },
 };
 const NOPOSE = process.env.NOPOSE === '1';   // captura do spawn, sem pino de posição
 const TAG = process.env.TAG || '';

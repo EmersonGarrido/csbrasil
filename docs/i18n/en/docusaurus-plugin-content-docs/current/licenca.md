@@ -2,7 +2,7 @@
 id: licenca
 title: License, art and brand
 sidebar_label: License, art and brand
-sidebar_position: 7
+sidebar_position: 8
 slug: /license
 description: What holds today (AGPL-3.0, applied on 07/08/2026), the measured consent survey, and the code × art × brand separation that makes it possible to sell skins without locking the code.
 ---

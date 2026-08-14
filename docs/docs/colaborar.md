@@ -236,6 +236,11 @@ O pipeline é data-driven a partir do GLB. Os GLBs de arma vivem em `public/mode
 
 ## Como adicionar um mapa
 
+**Mapa seu, vindo de fora do time?** Ele entra como **mapa da comunidade**: mesma receita
+técnica desta seção, mais os campos de origem no registro (`community: true`, `author`) e o
+template próprio de PR. O processo completo — critérios de aceite, licença e o que o review
+olha — está em [Mapas da comunidade](./mapas-comunidade.md).
+
 Hoje mapas são **código**, não dado: cada `map_*.js` é geometria declarada à mão, e os
 maiores rivalizam em tamanho com os módulos de sistema. Migrar isso para JSON é a Fase 2
 conteúdo como dado do
@@ -246,15 +251,20 @@ O registro, gerado do `MAPS` de `public/js/maps.js`:
 
 {/* BEGIN:GERADO:mapas — não edite à mão, rode `npm run docs` */}
 
-| Id | Nome no menu | Abre em | Arquivo em `public/js/` | Linhas |
-|---|---|---|---|---:|
-| `awp_map` | Praça dos Três Poderes | rodadas | `map_brasilia.js` | 1.845 |
-| `fy_pool_day` | Piscina da Treta | rodadas | `—` | — |
-| `fy_havan` | Loja H (Estacionamento) | **captura** | `map_havan.js` | 1.920 |
-| `fy_ferrovelho` | Ferro Velho do Zé | **captura** | `map_ferrovelho.js` | 1.888 |
-| `fy_quebrada` | Quebrada (Rua do Baile) | **captura** | `map_quebrada.js` | 1.599 |
+| Id | Nome no menu | Abre em | Origem | Arquivo em `public/js/` | Linhas |
+|---|---|---|---|---|---:|
+| `awp_map` | Praça dos Três Poderes | rodadas | oficial | `map_brasilia.js` | 1.845 |
+| `fy_pool_day` | Piscina da Treta | rodadas | oficial | `—` | — |
+| `fy_havan` | Loja H (Estacionamento) | **captura** | oficial | `map_havan.js` | 1.920 |
+| `fy_ferrovelho` | Ferro Velho do Zé | **captura** | oficial | `map_ferrovelho.js` | 1.888 |
+| `fy_quebrada` | Quebrada (Rua do Baile) | **captura** | oficial | `map_quebrada.js` | 1.599 |
+| `fy_posto` | Posto da Treta | **captura** | oficial | `map_posto.js` | 493 |
+| `fy_atacadao` | Atacadão da Treta | **captura** | oficial | `map_atacadao.js` | 281 |
+| `fy_obras` | Obras da Prefeitura | **captura** | oficial | `map_obras.js` | 266 |
+| `fy_upa` | UPA 24h da Treta | **captura** | oficial | `map_upa.js` | 313 |
+| `fy_favela` | Favela da Treta | **captura** | oficial | `map_favela.js` | 285 |
 
-**5 mapas registrados** — 2 abrem em rodadas e 3 em captura. `ctfMode` **abre** o mapa em captura, não prende: o jogador troca no menu (é a `MOD1`). Há 6 arquivos `map_*.js` em `public/js/` — arquivo no disco **não** implica mapa jogável.
+**10 mapas registrados** (10 oficiais, 0 da comunidade) — 2 abrem em rodadas e 8 em captura. `ctfMode` **abre** o mapa em captura, não prende: o jogador troca no menu (é a `MOD1`). Há 11 arquivos `map_*.js` em `public/js/` — arquivo no disco **não** implica mapa jogável.
 
 > Bloco gerado por `node tools/gen-docs.mjs`. Fonte: `objeto MAPS de public/js/maps.js`
 
@@ -275,7 +285,7 @@ Para adicionar um mapa no formato de hoje:
 1. **Crie `public/js/map_<nome>.js`** exportando uma função `build<Nome>()`. Use
    `map_piscina.js` como referência — é o menor dos registrados (a tabela acima traz o
    tamanho de cada um).
-2. **Registre em `public/js/maps.js:8-36`** — nome exibido, `build`, e `ctfMode: true` se
+2. **Registre em `public/js/maps.js:13-70`** — nome exibido, `build`, e `ctfMode: true` se
    a geometria foi desenhada em volta de bandeiras. `ctfMode` **abre** o mapa em captura;
    não prende. **Não** existe mais `ctfOnly`: `MOD1` reprova qualquer mapa que force o
    modo. O jogador escolhe.

@@ -39,7 +39,42 @@
   /* controle: rótulo + slider + input numérico */
   .ctl{display:grid;grid-template-columns:74px 1fr 46px;align-items:center;gap:8px}
   .ctl>span{font-size:12px;color:#aeb9c4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  #fxTiro .ctl,#fxLuz .ctl,#fxRecuo .ctl{grid-template-columns:92px 1fr 42px}
+  #fxTiro .ctl,#fxLuz .ctl,#recEd .ctl{grid-template-columns:92px 1fr 48px}
+  #gcfg .ctl,#gfx .ctl{grid-template-columns:112px 1fr 56px}
+  #host-game iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+  /* preview do HUD de armas (estilo CS) sobreposto ao jogo real */
+  #wephud{position:absolute;right:16px;bottom:168px;z-index:6;display:flex;flex-direction:column;gap:6px;pointer-events:none}
+  #wephud .slot{display:flex;align-items:center;gap:10px;background:rgba(10,12,16,.55);border:1px solid #2a3340;border-left:3px solid #3a4658;border-radius:7px;padding:7px 13px 7px 9px;min-width:184px;color:#9fb}
+  #wephud .slot.on{background:rgba(47,191,113,.18);border-color:#2fbf71;border-left-color:#2fbf71;color:#eafff2}
+  #wephud .slot .k{font-size:13px;color:#7fd;min-width:14px;text-align:center;opacity:.75}
+  #wephud .slot.on .k{color:#2fbf71;opacity:1}
+  #wephud .slot .ic{width:48px;height:20px;display:flex;align-items:center;justify-content:flex-end}
+  #wephud .slot .ic svg{width:100%;height:100%;fill:currentColor}
+  #wephud .slot .nm{flex:1;font-size:12px;letter-spacing:.5px;text-transform:uppercase}
+  #wephud .slot .am{font-size:12px;color:#7fe;font-variant-numeric:tabular-nums}
+  /* preview da LOJA (estilo CS) — abre no B */
+  #buymenu{position:absolute;inset:0;z-index:8;display:none;align-items:center;justify-content:center;background:rgba(6,8,11,.78);pointer-events:auto}
+  #buymenu .bm-panel{background:rgba(10,13,17,.95);border:1px solid #2a3340;border-radius:12px;padding:16px 20px 18px;max-height:94%;overflow:auto}
+  #buymenu .bm-title{text-align:center;color:#7fd;font-size:14px;letter-spacing:4px;text-transform:uppercase;font-weight:700}
+  #buymenu .bm-sub{text-align:center;color:#89a;font-size:11px;letter-spacing:1px;margin:4px 0 14px}
+  #buymenu .bm-sub b{color:#2fbf71}
+  #buymenu .cols{display:flex;gap:12px;align-items:flex-start}
+  #buymenu .col{display:flex;flex-direction:column;gap:7px;width:188px}
+  #buymenu .col h4{margin:0 0 2px;font-size:12px;color:#7fd;letter-spacing:1.5px;text-transform:uppercase;display:flex;gap:8px;align-items:center}
+  #buymenu .col h4 .cn{background:#1b2029;border:1px solid #2a3340;border-radius:5px;padding:1px 7px;color:#cfe}
+  #buymenu .col.sel h4{color:#2fbf71}
+  #buymenu .col.sel h4 .cn{background:#2fbf71;border-color:#2fbf71;color:#042012}
+  #buymenu .card{background:rgba(28,34,43,.9);border:1px solid #2a3340;border-radius:8px;padding:6px 9px 5px;cursor:pointer;transition:border-color .1s,background .1s}
+  #buymenu .card:hover{border-color:#2fbf71;background:rgba(47,191,113,.15)}
+  #buymenu .card .ct{display:flex;align-items:center;gap:7px;font-size:11px}
+  #buymenu .card .ct .n{min-width:14px;text-align:center;color:#7fd;opacity:.7}
+  #buymenu .card .ct .nm{flex:1;color:#dfe8ef;text-transform:uppercase;letter-spacing:.4px}
+  #buymenu .card .ct .pr{color:#7fe;opacity:.6}
+  #buymenu .card .ic{height:28px;display:flex;align-items:center;justify-content:center;margin-top:3px}
+  #buymenu .card .ic svg{height:22px;width:auto;fill:#c7d3de}
+  #buymenu .card:hover .ic svg{fill:#eafff2}
+  #buymenu .card.empty{background:rgba(20,24,30,.4);border-style:dashed;border-color:#232c38;cursor:default;pointer-events:none;min-height:56px}
+  #buymenu .bm-hint{text-align:center;margin-top:14px;color:#89a;font-size:11px}
   .ctl input[type=range]{width:100%;min-width:0}
   .num{width:48px;font-family:inherit;font-size:12px;background:#0b0e12;color:#7fe;border:1px solid #2a3340;border-radius:5px;padding:3px 4px;text-align:right}
   .num:focus{outline:none;border-color:#2fbf71}
@@ -54,6 +89,7 @@
   /* selects, botões, segmentado */
   .side select{flex:1;font-family:inherit;font-size:13px;background:#1b2029;color:#cfe;border:1px solid #2a3340;border-radius:6px;padding:6px 8px}
   .side label{display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .side label.chk{justify-content:flex-start;gap:7px;font-size:12px;color:#aeb9c4;cursor:pointer}
   .row{display:flex;gap:6px}
   .row>*{flex:1}
   .btn{font-family:inherit;font-size:12px;background:#1b2029;color:#cfe;border:1px solid #2a3340;border-radius:6px;padding:8px 6px;cursor:pointer;transition:background .1s,border-color .1s}
@@ -65,8 +101,8 @@
   .seg button:first-child{border-radius:6px 0 0 6px}
   .seg button:last-child{border-radius:0 6px 6px 0}
   .seg button.on{background:#2fbf71;border-color:#2fbf71;color:#042012;font-weight:700}
-  #vals{font-size:11px;color:#9fb;word-break:break-all;user-select:all;white-space:pre-wrap;max-height:110px;overflow:auto;background:#0b0e12;border:1px solid #222c38;border-radius:6px;padding:6px 7px;display:none}
-  #vals:not(:empty){display:block}
+  #vals,#gvals{font-size:11px;color:#9fb;word-break:break-all;user-select:all;white-space:pre-wrap;max-height:110px;overflow:auto;background:#0b0e12;border:1px solid #222c38;border-radius:6px;padding:6px 7px;display:none}
+  #vals:not(:empty),#gvals:not(:empty){display:block}
   #cfg{white-space:pre;font-size:12px;color:#9fb;line-height:1.6}
 
   /* ajuda em acordeão */
@@ -95,6 +131,9 @@
   #hitmark::after{height:3px;width:16px;top:-1.5px;left:-8px}
   #reticle{position:absolute;inset:0;display:none}
   #reticle svg{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:60vmin;height:60vmin;filter:drop-shadow(0 0 1px rgba(255,255,255,.85))}
+  #reticle .pu-wrap{position:absolute;inset:0}
+  #reticle .pu-vig{position:absolute;inset:0;background:radial-gradient(circle at 50% 50%, transparent 0 40vmin, #000 40vmin)}   /* preto em volta do anel (tubo da luneta) */
+  #reticle img.ret-pu{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:84vmin;height:84vmin;object-fit:contain;filter:drop-shadow(0 0 2px rgba(255,255,255,.55))}
   #scope{position:absolute;inset:0;display:none;background:radial-gradient(circle at 50% 50%, transparent 0 30%, #000 31%, #000 100%)}
   .hint{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);font-size:12px;color:#89a;background:rgba(10,12,16,.7);padding:6px 12px;border-radius:6px;white-space:nowrap}
   .hint b{color:#7fd}
@@ -107,8 +146,9 @@
 <body>
 <div id="sidebar">
   <div id="devtabs">
-    <button data-tool="editor" class="on">Editor de viewmodel</button>
-    <button data-tool="cena">Personagem + arma</button>
+    <button data-tool="editor" class="on">Viewmodel</button>
+    <button data-tool="cena">Personagem</button>
+    <button data-tool="game">Testar no jogo</button>
   </div>
 
   <div class="side" id="side-editor">
@@ -137,9 +177,9 @@
       <div class="ctl"><span>yaw</span><input type="range" id="ry" min="-30" max="30" value="7"><input class="num" type="number" id="ry_n" min="-30" max="30"></div>
       <div class="ctl"><span>inclinação</span><input type="range" id="wt" min="-30" max="30" value="10"><input class="num" type="number" id="wt_n" min="-30" max="30"></div>
     </div>
+    <div class="grp"><div class="cap">Recuo <span class="muted" id="recEdCls">real (jogo)</span></div><div id="recEd"></div></div>
     <div class="grp"><div class="cap">Efeito do tiro <span class="muted">FX</span></div><div id="fxTiro"></div></div>
     <div class="grp"><div class="cap">Fogo / luz <span class="muted">FX</span></div><div id="fxLuz"></div></div>
-    <div class="grp"><div class="cap">Recuo <span class="muted">FX</span></div><div id="fxRecuo"></div></div>
     <div class="grp">
       <div class="cap">Ações</div>
       <button id="play" class="btn primary">▶ testar na cena</button>
@@ -177,6 +217,26 @@
       <div id="cfg"></div>
     </div>
   </div>
+
+  <div class="side" id="side-game" hidden>
+    <div class="grp">
+      <div class="cap">Jogo real <span class="muted" id="gstatus">carregando…</span></div>
+      <label>Personagem <select id="gchar"></select></label>
+      <label>Arma <select id="gwep"></select></label>
+      <label class="chk"><input type="checkbox" id="gvmlab" checked> viewmodel afinado (minhas poses)</label>
+      <label class="chk"><input type="checkbox" id="ghud" checked> preview do HUD de armas (CS)</label>
+      <button id="gbuy" class="btn">🛒 abrir loja (tecla B)</button>
+    </div>
+    <div class="grp"><div class="cap">Config da arma <span class="muted">real</span></div><div id="gcfg"></div></div>
+    <div class="grp"><div class="cap">Recuo <span class="muted" id="grecls">real</span></div><div id="grec"></div></div>
+    <div class="grp"><div class="cap">FX <span class="muted">global ×</span></div><div id="gfx"></div></div>
+    <div class="grp">
+      <div class="cap">Ações</div>
+      <button id="gcopy" class="btn">📋 copiar config</button>
+      <div id="gvals"></div>
+    </div>
+    <div class="leg">Clica na cena pra jogar/atirar · <b>Esc</b> solta o mouse pra ajustar · os sliders editam o <b>jogo real</b> ao vivo.</div>
+  </div>
 </div>
 
 <div id="stage">
@@ -193,6 +253,7 @@
   <div class="ov" id="ov-cena" hidden>
     <div class="hint">arrasta = girar · scroll = zoom · o cano deve seguir a seta VERDE (+Z)</div>
   </div>
+  <div class="host" id="host-game" hidden></div>
 </div>
 
 <script type="module">
@@ -201,6 +262,7 @@ import { preloadCharacterAssets, buildCharacterModel } from './js/glbchars.js';
 import { CHARACTERS } from './js/characters.js';
 import { preloadWeapons, weaponModel, WEAPON_IDS, weaponCFG } from './js/weapons.js';
 import { Sfx } from './js/audio.js';
+import { REC_DEG, RECOIL_CLASS, RECOIL_PATTERN, RECOIL_PARAMS, REC, buildRecoilPattern, vmKickAmp } from './js/recoil.js';   // recuo REAL do jogo
 
 await preloadWeapons();
 
@@ -235,12 +297,21 @@ function initEditor(side, host, ov) {
     lightInt: { min: 0, max: 24, val: 8, cap: 'luz forte' },          // intensidade
     warmth: { min: 0, max: 100, val: 60, cap: 'luz calor' },          // 0=frio(branco) 100=quente(laranja)
     lightLife: { min: 20, max: 220, val: 55, cap: 'luz dur.' },       // ms
-    kick: { min: 0, max: 300, val: 100, cap: 'kick' },               // % do recuo pra trás
-    rise: { min: 0, max: 300, val: 100, cap: 'subida' },             // % da subida do cano (pitch)
-    side: { min: 0, max: 300, val: 100, cap: 'lateral' },            // % do jolt lateral
-    recover: { min: 20, max: 400, val: 100, cap: 'recuperar' },      // % da velocidade de volta
   };
-  const FXGROUPS = { fxTiro: ['flashSize', 'flashLife', 'sparks', 'trThick', 'trOpacity'], fxLuz: ['lightInt', 'warmth', 'lightLife'], fxRecuo: ['kick', 'rise', 'side', 'recover'] };
+  const FXGROUPS = { fxTiro: ['flashSize', 'flashLife', 'sparks', 'trThick', 'trOpacity'], fxLuz: ['lightInt', 'warmth', 'lightLife'] };
+  // RECUO REAL (dados de recoil.js): editar aqui muda o recuo do editor NA HORA (é o mesmo
+  // modelo do jogo). força por arma + padrão da classe + timing global.
+  const RECED = {
+    recDeg: { min: 0, max: 6, step: 0.05, cap: 'força (graus)' },
+    up: { min: 0, max: 1, step: 0.02, cap: 'subida meio' },
+    cauda: { min: 0, max: 1, step: 0.02, cap: 'subida fim' },
+    left: { min: 0, max: 1, step: 0.02, cap: 'p/ esquerda' },
+    right: { min: 0, max: 1, step: 0.02, cap: 'p/ direita' },
+    wig: { min: 0, max: 1, step: 0.02, cap: 'aleatório' },
+    recover: { min: 0.03, max: 1, step: 0.01, cap: 'recuperação s' },
+    hold: { min: 0, max: 1, step: 0.02, cap: 'segura s' },
+    perm: { min: 0, max: 1, step: 0.02, cap: 'permanente' },
+  };
   const FX = {}; for (const k in FXDEF) FX[k] = FXDEF[k].val;
   try { Object.assign(FX, JSON.parse(localStorage.getItem('devFX') || '{}')); } catch {}
   function saveFX() { try { localStorage.setItem('devFX', JSON.stringify(FX)); } catch {} }
@@ -280,22 +351,29 @@ function initEditor(side, host, ov) {
     wlist.querySelectorAll('button').forEach((b) => (b.onclick = () => selectWeapon(b.dataset.w)));
     updateCount();
   }
-  function selectWeapon(id) { wsel.value = id; mag = magOf(id); reloading = false; buildVM(); loadSliders(); renderList(); updateAmmo(); }
+  function selectWeapon(id) { wsel.value = id; mag = magOf(id); reloading = false; buildVM(); loadSliders(); renderList(); updateAmmo(); if (typeof loadRec === 'function') loadRec(); if (typeof setReticle === 'function') setReticle(); }
 
-  (function buildReticle() {
+  // retículos da luneta: mil-dot (padrão) e PU (mosin russa: 3 postes + ponta em seta, topo aberto)
+  const PU_RETICLE = new Set(['mosin']);
+  const MILDOT = (() => {
     const V = 400, C = 200, L = [];
     const ln = (x1, y1, x2, y2, w) => L.push(`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke-width="${w}"/>`);
     ln(C, 34, C, 366, 1.4); ln(34, C, 366, C, 1.4);
     for (let i = 1; i * 13 <= 150; i++) { const d = i * 13, mj = i % 4 === 0, t = mj ? 8 : 4.5, w = mj ? 1.4 : 1; ln(C - t, C - d, C + t, C - d, w); ln(C - t, C + d, C + t, C + d, w); ln(C - d, C - t, C - d, C + t, w); ln(C + d, C - t, C + d, C + t, w); }
     const cap = 12; ln(C - cap, 50, C + cap, 50, 2.2); ln(C - cap, 350, C + cap, 350, 2.2); ln(50, C - cap, 50, C + cap, 2.2); ln(350, C - cap, 350, C + cap, 2.2);
-    elRet.innerHTML = `<svg viewBox="0 0 ${V} ${V}"><g stroke="#0a0a0a" fill="none">${L.join('')}</g></svg>`;
+    return `<svg viewBox="0 0 ${V} ${V}"><g stroke="#0a0a0a" fill="none">${L.join('')}</g></svg>`;
   })();
+  const PUSVG = '<div class="pu-wrap"><div class="pu-vig"></div><img class="ret-pu" src="./img/reticle-pu.png" alt=""></div>';   // imagem PU + preto em volta
+  function setReticle() { elRet.innerHTML = PU_RETICLE.has(wsel.value) ? PUSVG : MILDOT; }
+  setReticle();
 
   let running = false, raf = 0;
   const keys = {};
   const look = { yaw: Math.PI, pitch: 0 };
-  const recoil = { pitch: 0, kick: 0, side: 0 };
-  let recHold = 0;   // segura o coice antes de recuperar (deixa VER o recuo)
+  // RECUO REAL (dados de recoil.js — mesmo modelo do jogo): view-punch que serpenteia/aleatório/recupera
+  let gTime = 0, rSpray = 0, rLast = -9, wkick = 0;
+  const rp = { ty: 0, tx: 0, y: 0, x: 0, sh: 0 };
+  const PISTOLISH = new Set(['pistol', 'deagle', 'revolver38']);
   let locked = false, aiming = false, shootHeld = false, lastShot = 0, jumpQueued = false;
   addEventListener('keydown', (e) => { if (!running) return; keys[e.code] = true; if (e.code === 'Space') { jumpQueued = true; e.preventDefault(); } if (e.code === 'KeyR') { mag = magOf(wsel.value); reloading = false; updateAmmo(); spawnBots(); } });
   addEventListener('keyup', (e) => { if (!running) return; keys[e.code] = false; });
@@ -387,6 +465,29 @@ function initEditor(side, host, ov) {
     r.addEventListener('input', () => setf(+r.value));
     n.addEventListener('input', () => { if (n.value !== '' && !isNaN(+n.value)) setf(+n.value); });
   }
+  // RECUO REAL: os controles editam recoil.js (REC_DEG/RECOIL_PARAMS/REC) — muda o recuo do editor na hora
+  $('recEd').innerHTML = Object.entries(RECED).map(([k, d]) => `<div class="ctl"><span title="${d.cap}">${d.cap}</span><input type="range" id="rc_${k}" min="${d.min}" max="${d.max}" step="${d.step}"><input class="num" type="number" id="rc_${k}_n" min="${d.min}" max="${d.max}" step="${d.step}"></div>`).join('');
+  const RCMAP = { up: 'mid', cauda: 'tail', left: 'left', right: 'right', wig: 'wig' };
+  function recGet() {
+    const w = wsel.value, cls = RECOIL_CLASS[w] || 'semi', P = RECOIL_PARAMS[cls] || {};
+    return { recDeg: REC_DEG[w] ?? 1.4, up: P.mid ?? 0.42, cauda: P.tail ?? 0.2, left: P.left ?? 0.56, right: P.right ?? 0.68, wig: P.wig ?? 0.3, recover: REC.tau, hold: REC.hold, perm: REC.perm };
+  }
+  function recSet(k, v) {
+    const w = wsel.value, cls = RECOIL_CLASS[w] || 'semi';
+    if (k === 'recDeg') REC_DEG[w] = v;
+    else if (k === 'recover') REC.tau = v;
+    else if (k === 'hold') REC.hold = v;
+    else if (k === 'perm') REC.perm = v;
+    else { const P = RECOIL_PARAMS[cls] || (RECOIL_PARAMS[cls] = {}); P[RCMAP[k]] = v; RECOIL_PATTERN[cls] = buildRecoilPattern(P); }
+  }
+  function loadRec() { const t = recGet(); for (const k in RECED) { const r = $('rc_' + k); if (r) { r.value = t[k]; $('rc_' + k + '_n').value = t[k]; } } const cl = $('recEdCls'); if (cl) cl.textContent = `real · classe ${RECOIL_CLASS[wsel.value] || 'semi'}`; }
+  for (const k in RECED) {
+    const r = $('rc_' + k), n = $('rc_' + k + '_n');
+    const set = (v) => { v = Math.max(+r.min, Math.min(+r.max, v)); r.value = v; n.value = v; recSet(k, v); };
+    r.addEventListener('input', () => set(+r.value));
+    n.addEventListener('input', () => { if (n.value !== '' && !isNaN(+n.value)) set(+n.value); });
+  }
+  loadRec();
   const fmt = (o) => SLIDERS.map((k) => `${k}=${o[k]}`).join(' ');
   $('play').onclick = () => { renderer.domElement.requestPointerLock(); sfx.ensure && sfx.ensure(); };
   $('cop').onclick = () => {
@@ -402,7 +503,10 @@ function initEditor(side, host, ov) {
     try { navigator.clipboard.writeText(str); $('exp').textContent = '✓ copiado!'; setTimeout(() => $('exp').textContent = 'exportar tudo', 1200); } catch {}
   };
   $('cfx').onclick = () => {
-    const str = 'FX ' + Object.keys(FXDEF).map((k) => `${k}=${FX[k]}`).join(' ');
+    const t = recGet(), w = wsel.value, cls = RECOIL_CLASS[w] || 'semi';
+    const rec = `${w} RECUO(classe ${cls}) recDeg=${t.recDeg} up=${t.up} cauda=${t.cauda} left=${t.left} right=${t.right} wig=${t.wig} recover=${t.recover} hold=${t.hold} perm=${t.perm}`;
+    const fx = 'FX ' + Object.keys(FXDEF).map((k) => `${k}=${FX[k]}`).join(' ');
+    const str = rec + '\n' + fx;
     $('vals').textContent = str;
     try { navigator.clipboard.writeText(str); $('cfx').textContent = '✓ copiado!'; setTimeout(() => $('cfx').textContent = '📋 copiar FX', 1200); } catch {}
   };
@@ -432,13 +536,18 @@ function initEditor(side, host, ov) {
   function fireShot() {
     const w = wsel.value;
     sfx.shotWeapon && sfx.shotWeapon(w, 0, 0.9);
-    // 3 · RECUO (base por arma × multiplicadores do FX)
-    const bp = SCOPED.has(w) ? 0.06 : (w === 'deagle' ? 0.05 : 0.022);
-    const bk = SCOPED.has(w) ? 0.05 : 0.02;
-    recoil.pitch = Math.min(0.2, recoil.pitch + bp * (aiming ? 0.5 : 1) * (FX.rise / 100));   // TETO ~11°: não sobe pro infinito
-    recoil.kick = Math.min(0.09, recoil.kick + bk * (FX.kick / 100));
-    recoil.side += (Math.random() * 2 - 1) * 0.045 * (FX.side / 100);
-    recHold = 0.11;   // segura ~110ms: durante a rajada a tela SOBE e fica subida
+    // 3 · RECUO REAL (mesmo modelo do jogo: padrão da classe + REC_DEG + timing — tudo de recoil.js)
+    if (gTime - rLast > REC.hold) rSpray = 0;
+    const pat = RECOIL_PATTERN[RECOIL_CLASS[w] || 'semi'];
+    const [px, py] = pat[Math.min(29, rSpray)];
+    const g = (REC_DEG[w] ?? 1.4) * (Math.PI / 180) * (aiming ? 0.68 : 1);
+    const vy = g * py * (1 + (Math.random() - 0.5) * 0.6);
+    const hx = g * px * (1 + (Math.random() - 0.5) * 0.6);
+    rp.ty += vy * (1 - REC.perm); rp.tx += hx * (1 - REC.perm);
+    look.pitch = Math.max(-1.4, Math.min(1.4, look.pitch + vy * REC.perm));   // deriva PERMANENTE na mira (corrige com o mouse)
+    look.yaw -= hx * REC.perm;
+    rLast = gTime; rp.sh = Math.min(0.013, rp.sh + g * 0.16); rSpray++;
+    wkick = Math.min(0.14, wkick + vmKickAmp(w, { scoped: aiming, pistol: PISTOLISH.has(w) }) * 0.03);   // kick da arma (animação do tiro)
     const dir = new THREE.Vector3(); cam.getWorldDirection(dir);
     const wMuzzle = cam.position.clone().addScaledVector(dir, 0.6).add(new THREE.Vector3(0, -0.05, 0));
     const col = warm();
@@ -495,17 +604,22 @@ function initEditor(side, host, ov) {
       if (cap > 0 && mag <= 0) { reloading = true; reloadEnd = now + 1100; updateAmmo(); }   // pente vazio → recarrega
       else { fireShot(); if (cap > 0) { mag--; updateAmmo(); } lastShot = now; if (SCOPED.has(wsel.value) || wsel.value === 'deagle') shootHeld = false; }
     }
-    if (recHold > 0) recHold -= dt;   // hold: não recupera enquanto a rajada está viva
-    else { const kf = Math.pow(0.03, dt * (FX.recover / 100)); recoil.pitch *= kf; recoil.kick *= kf; recoil.side *= kf; }
+    gTime += dt;
+    // view-punch REAL (mesma matemática do game.js): segura na rajada, recupera com mola tau, sobe com rise
+    if (gTime - rLast > REC.hold) { const k = Math.exp(-dt / REC.tau); rp.ty *= k; rp.tx *= k; }
+    const rr = Math.min(1, dt / REC.rise);
+    rp.y += (rp.ty - rp.y) * rr; rp.x += (rp.tx - rp.x) * rr;
+    rp.sh = Math.max(0, rp.sh - dt * 9);
+    wkick *= Math.pow(0.02, dt);   // kick da arma recupera
+    const punchP = rp.y + rp.sh * Math.sin(gTime * 78), punchY = rp.x;   // view-punch: pitch (com shake) e yaw
     flash.intensity *= Math.pow(0.00001, dt); if (flash.intensity < 0.05) flash.intensity = 0;
     if (mzT > 0) { mzT -= dt; mzFlash.material.opacity = Math.max(0, mzT / (FX.flashLife / 1000)); if (mzT <= 0) mzFlash.visible = false; }
     if (vmFlashT > 0) { vmFlashT -= dt; vmFlashL.intensity = FX.lightInt * Math.max(0, vmFlashT / (FX.lightLife / 1000)); if (vmFlashT <= 0) vmFlashL.intensity = 0; }
     for (let i = sparksA.length - 1; i >= 0; i--) { const sp = sparksA[i]; sp.t -= dt; sp.s.position.addScaledVector(sp.v, dt); sp.s.material.opacity = Math.max(0, sp.t / 0.14); if (sp.t <= 0) { sp.s.visible = false; sparkPool.push(sp.s); sparksA.splice(i, 1); } }
     for (let i = tracers.length - 1; i >= 0; i--) { const t = tracers[i]; t.userData.t -= dt; t.material.opacity = Math.max(0, t.userData.t / 0.09) * (FX.trOpacity / 100); if (t.userData.t <= 0) { scene.remove(t); tracers.splice(i, 1); } }
     if (hitT > 0) { hitT -= dt; if (hitT <= 0) elHit.style.opacity = '0'; }
-    // MIRA em sync com a ARMA: aplica o recuo na câmera AQUI (depois do tiro/decay deste frame),
-    // com o MESMO recoil.pitch/side que a arma usa logo abaixo — senão a mira fica 1 frame atrás.
-    cam.rotation.set(look.pitch + recoil.pitch, look.yaw, recoil.side * 0.4);
+    // MIRA em sync com a ARMA: recuo aplicado na câmera aqui (depois do tiro/integração deste frame)
+    cam.rotation.set(look.pitch + punchP, look.yaw + punchY, 0);
     const scoped = SCOPED.has(wsel.value);
     const showAds = (aiming || mode === 'ads');
     const scopeAds = showAds && scoped;
@@ -517,19 +631,19 @@ function initEditor(side, host, ov) {
     const ap = al ? [al.x, al.y, al.z] : [CP.ads.wx * 0.01, CP.ads.wy * 0.01, CP.ads.wz * 0.01];
     const L = (a, b) => a + (b - a) * adsT;
     vm.position.set(L(hp[0], ap[0]), L(hp[1], ap[1]), L(hp[2], ap[2]));
-    vm.position.z += recoil.kick;              // tranco: a arma recua PRA TRÁS (em direção ao olho)
-    vm.position.y += recoil.kick * 0.4;        // e sobe um pouco
+    vm.position.z += wkick;                    // tranco: a arma recua PRA TRÁS (em direção ao olho)
+    vm.position.y += wkick * 0.4;              // e sobe um pouco
     vm.scale.setScalar(L(CP.hip.sz, CP.ads.sz) * 0.01);
     const R = Math.PI / 180;
-    // cano SOBE junto com a mira (mesma direção do view-punch) + inclinação lateral do jolt
-    vm.rotation.set(L(CP.hip.rx, CP.ads.rx) * R + recoil.pitch * 0.55, L(CP.hip.ry, CP.ads.ry) * R, L(CP.hip.wt, CP.ads.wt) * R + recoil.side * 0.6);
+    // cano acompanha o view-punch (sobe com o pitch, tilta com o yaw) — mesma direção da mira
+    vm.rotation.set(L(CP.hip.rx, CP.ads.rx) * R + punchP * 0.5, L(CP.hip.ry, CP.ads.ry) * R + punchY * 0.4, L(CP.hip.wt, CP.ads.wt) * R);
     vm.position.x += Math.sin(bob) * 0.006 * (1 - adsT);
     vm.position.y += Math.abs(Math.cos(bob)) * 0.004 * (1 - adsT);
     vm.visible = !scopeAds;
     const wantFov = scopeAds ? CP.hip.fov * 0.35 : L(CP.hip.fov, CP.ads.fov);
     cam.fov += (wantFov - cam.fov) * Math.min(1, dt * 12); cam.updateProjectionMatrix();
     vmCam.fov = cam.fov; vmCam.aspect = cam.aspect; vmCam.rotation.set(0, 0, 0); vmCam.updateProjectionMatrix();   // VM cam fixa: quem se mexe é a ARMA (senão o coice faz a arma "descer")
-    elScope.style.display = scopeAds ? 'block' : 'none';
+    elScope.style.display = (scopeAds && !PU_RETICLE.has(wsel.value)) ? 'block' : 'none';   // mosin: a imagem PU já tem o anel
     elRet.style.display = scopeAds ? 'block' : 'none';
     elCross.style.display = scopeAds ? 'none' : 'block';
     renderer.render(scene, cam);
@@ -678,21 +792,200 @@ function initCena(side, host) {
   };
 }
 
+// ============================================================================
+// FERRAMENTA 3 — TESTAR NO JOGO (réplica: roda o JOGO REAL num iframe e edita as
+//   configs de produção ao vivo via window.__game._tune / _fxSet). O que você
+//   testa É o jogo — nada reimplementado. "copiar config" exporta pra eu gravar.
+// ============================================================================
+function initGame(side, host) {
+  const $ = (id) => side.querySelector('#' + id);
+  const iframe = document.createElement('iframe');
+  iframe.setAttribute('allow', 'fullscreen'); host.appendChild(iframe);
+  const G = () => { try { return iframe.contentWindow.__game; } catch { return null; } };
+  let cur = 'ak', started = false;
+  // ── PREVIEW do HUD de armas (estilo CS): slots 1/2/3/4 com ícone + número, lendo o loadout real
+  const hud = document.createElement('div'); hud.id = 'wephud'; host.appendChild(hud);
+  const PIST = new Set(['pistol', 'deagle', 'revolver38']);
+  const ICON = {
+    rifle: '<svg viewBox="0 0 48 18"><rect x="2" y="7" width="34" height="4"/><rect x="34" y="6.5" width="12" height="2"/><rect x="11" y="11" width="5" height="6"/><rect x="2" y="6" width="4" height="6"/></svg>',
+    pistol: '<svg viewBox="0 0 32 20"><rect x="4" y="4" width="22" height="5"/><rect x="8" y="9" width="7" height="9"/></svg>',
+    knife: '<svg viewBox="0 0 40 16"><path d="M2 8 L26 3 L30 8 L26 10 Z"/><rect x="30" y="6" width="8" height="4"/></svg>',
+    nade: '<svg viewBox="0 0 20 20"><circle cx="10" cy="12" r="6"/><rect x="8" y="2" width="4" height="4"/></svg>',
+  };
+  const catOf = (w) => (w === 'knife' ? 'knife' : (PIST.has(w) ? 'pistol' : 'rifle'));
+  function updateHud() {
+    const g = G();
+    if (!g || !g.player || !($('ghud') && $('ghud').checked)) { hud.style.display = 'none'; return; }
+    hud.style.display = 'flex';
+    const p = g.player, slots = [];
+    if (p.primary) slots.push({ k: 1, w: p.primary });
+    slots.push({ k: 2, w: p.secondary || 'pistol' });
+    slots.push({ k: 3, w: 'knife' });
+    if (p.smokes > 0) slots.push({ k: 4, w: 'nade', nm: 'fumaça', count: p.smokes });   // tecla 4 (lança na hora)
+    if (p.frags > 0) slots.push({ k: 5, w: 'nade', nm: 'frag', count: p.frags });        // tecla 5
+    hud.innerHTML = slots.map((s) => {
+      const on = s.w === p.weapon;
+      const cat = s.w === 'nade' ? 'nade' : catOf(s.w);
+      const nm = s.nm || s.w.toUpperCase();
+      const a = p.ammo && p.ammo[s.w];
+      const am = s.count != null ? ('×' + s.count) : (s.w === 'knife' ? '' : (a ? `${a.mag}/${a.res}` : ''));
+      return `<div class="slot ${on ? 'on' : ''}"><span class="k">${s.k}</span><span class="ic">${ICON[cat]}</span><span class="nm">${nm}</span><span class="am">${am}</span></div>`;
+    }).join('');
+  }
+  setInterval(updateHud, 250);
+  // ── PREVIEW da LOJA (estilo CS): abre no B, categorias + teclas de atalho ──
+  const buy = document.createElement('div'); buy.id = 'buymenu'; host.appendChild(buy);
+  const CATS = [
+    { t: 'Pistolas', w: ['pistol', 'deagle', 'revolver38'] },
+    { t: 'SMG', w: ['mp5', 'uzi', 'p90'] },
+    { t: 'Rifles', w: ['ak', 'akm', 'm4', 'm92', 'scar', 'famas', 'tavor', 'carbine', 'g3', 'md97'] },
+    { t: 'Snipers', w: ['awp', 'mosin', 'rem700', 'm400', 'svd', 'g3sg1', 'sks'] },
+    { t: 'Pesadas', w: ['shotgun', 'lmg'] },
+    { t: 'Granadas', w: ['nade_smoke', 'nade_frag'] },
+  ];
+  const labelOf = (id) => (id === 'nade_smoke' ? 'fumaça' : (id === 'nade_frag' ? 'frag' : id.toUpperCase()));
+  const SHOP_ICON = {
+    pistol: '<svg viewBox="0 0 40 24"><rect x="4" y="5" width="26" height="6"/><rect x="9" y="11" width="8" height="11"/></svg>',
+    smg: '<svg viewBox="0 0 46 22"><rect x="4" y="6" width="26" height="5"/><rect x="30" y="5" width="9" height="2"/><rect x="10" y="11" width="6" height="9"/><rect x="4" y="5" width="4" height="7"/></svg>',
+    rifle: '<svg viewBox="0 0 54 20"><rect x="2" y="8" width="40" height="4"/><rect x="42" y="8.5" width="10" height="2"/><rect x="14" y="12" width="6" height="7"/><rect x="2" y="7" width="4" height="7"/></svg>',
+    sniper: '<svg viewBox="0 0 58 20"><rect x="2" y="9" width="46" height="3"/><rect x="48" y="9.5" width="8" height="2"/><rect x="20" y="5" width="14" height="3"/><rect x="6" y="8" width="4" height="7"/><rect x="16" y="12" width="5" height="6"/></svg>',
+    shotgun: '<svg viewBox="0 0 54 18"><rect x="2" y="7" width="44" height="3"/><rect x="2" y="10.5" width="32" height="2"/><rect x="9" y="6" width="5" height="8"/></svg>',
+    lmg: '<svg viewBox="0 0 54 24"><rect x="2" y="7" width="40" height="4"/><rect x="42" y="8" width="10" height="2"/><rect x="15" y="11" width="13" height="9"/><rect x="2" y="6" width="5" height="8"/></svg>',
+    nade: '<svg viewBox="0 0 22 24"><circle cx="11" cy="14" r="7"/><rect x="9" y="3" width="4" height="5"/></svg>',
+  };
+  function iconFor(id) {
+    if (id === 'nade_smoke' || id === 'nade_frag') return SHOP_ICON.nade;
+    if (['pistol', 'deagle', 'revolver38'].includes(id)) return SHOP_ICON.pistol;
+    if (['mp5', 'uzi', 'p90'].includes(id)) return SHOP_ICON.smg;
+    if (['awp', 'mosin', 'rem700', 'm400', 'svd', 'g3sg1', 'sks'].includes(id)) return SHOP_ICON.sniper;
+    if (id === 'shotgun') return SHOP_ICON.shotgun;
+    if (id === 'lmg') return SHOP_ICON.lmg;
+    return SHOP_ICON.rifle;
+  }
+  let buyOpen = false, buyCol = 0;
+  function buildBuy() {
+    const maxL = Math.max(...CATS.map((c) => c.w.length));
+    buy.innerHTML =
+      '<div class="bm-panel"><div class="bm-title">Loja</div>' +
+      '<div class="bm-sub"><b>B</b> abre/fecha · número escolhe a categoria e depois o item · Esc fecha</div>' +
+      '<div class="cols">' +
+      CATS.map((c, ci) => {
+        const cards = c.w.map((id, ii) => `<div class="card" data-id="${id}"><div class="ct"><span class="n">${ii + 1}</span><span class="nm">${labelOf(id)}</span><span class="pr">$—</span></div><div class="ic">${iconFor(id)}</div></div>`).join('');
+        const pad = Array(Math.max(0, maxL - c.w.length)).fill('<div class="card empty"></div>').join('');
+        return `<div class="col ${buyCol === ci + 1 ? 'sel' : ''}"><h4><span class="cn">${ci + 1}</span>${c.t}</h4>${cards}${pad}</div>`;
+      }).join('') +
+      '</div>' +
+      '<div class="bm-hint">sem dinheiro por enquanto — comprar = equipa a arma (grátis). pronto pra ter preço depois.</div></div>';
+    buy.querySelectorAll('.card[data-id]').forEach((el) => (el.onclick = () => buyItem(el.dataset.id)));
+  }
+  function buyItem(id) {
+    const g = G(); if (!g || !g.player) return;
+    if (id === 'nade_smoke') { g.player.smokes = (g.player.smokes | 0) + 1; g._updateSmokeHud && g._updateSmokeHud(); }
+    else if (id === 'nade_frag') { g.player.frags = (g.player.frags | 0) + 1; g._updateSmokeHud && g._updateSmokeHud(); }
+    else if (g._switchWeapon) { g._switchWeapon(id); if (g.player) g.player.drawUntil = 0; }
+    closeBuy();
+  }
+  function openBuy() { buyOpen = true; buyCol = 0; buildBuy(); buy.style.display = 'flex'; try { iframe.contentWindow.document.exitPointerLock && iframe.contentWindow.document.exitPointerLock(); } catch {} }
+  function closeBuy() { buyOpen = false; buy.style.display = 'none'; }
+  function navDigit(d) {
+    if (buyCol === 0) { if (d >= 1 && d <= CATS.length) { buyCol = d; buildBuy(); } }
+    else { const col = CATS[buyCol - 1]; if (col && d >= 1 && d <= col.w.length) buyItem(col.w[d - 1]); }
+  }
+  function onBuyKey(e) {   // captura ANTES do jogo (capture=true) e barra a propagação p/ ele não trocar arma
+    if (host.hidden) return;
+    if (e.code === 'KeyB') { buyOpen ? closeBuy() : openBuy(); e.preventDefault(); e.stopImmediatePropagation(); return; }
+    if (!buyOpen) return;
+    if (e.code === 'Escape') { closeBuy(); e.preventDefault(); e.stopImmediatePropagation(); return; }
+    const m = /^Digit([1-9])$/.exec(e.code);
+    if (m) { navDigit(+m[1]); e.preventDefault(); e.stopImmediatePropagation(); }
+  }
+  addEventListener('keydown', onBuyKey, true);   // parent (mouse solto / menu aberto)
+  $('gbuy').onclick = () => (buyOpen ? closeBuy() : openBuy());
+  // parâmetros REAIS por arma (WEAPONS/REC_DEG) + FX (multiplicadores globais)
+  // config da arma (WEAPONS[w])
+  const CFG = {
+    rpm: { min: 60, max: 1200, step: 10, cap: 'cadência RPM' },
+    spreadHip: { min: 0, max: 0.15, step: 0.002, cap: 'spread quadril' },
+    spreadScope: { min: 0, max: 0.03, step: 0.0005, cap: 'spread mira' },
+    dmg: { min: 1, max: 400, step: 1, cap: 'dano' },
+    mag: { min: 1, max: 120, step: 1, cap: 'pente' },
+  };
+  // RECUO REAL: força por arma (REC_DEG) + padrão da classe (RECOIL_PATTERN) + timing global (REC)
+  const REC = {
+    recDeg: { min: 0, max: 6, step: 0.05, cap: 'força (graus)' },
+    up: { min: 0, max: 1, step: 0.02, cap: 'subida meio' },
+    cauda: { min: 0, max: 1, step: 0.02, cap: 'subida fim' },
+    left: { min: 0, max: 1, step: 0.02, cap: 'p/ esquerda' },
+    right: { min: 0, max: 1, step: 0.02, cap: 'p/ direita' },
+    wig: { min: 0, max: 1, step: 0.02, cap: 'aleatório' },
+    recover: { min: 0.03, max: 1, step: 0.01, cap: 'recuperação s' },
+    hold: { min: 0, max: 1, step: 0.02, cap: 'segura s' },
+    perm: { min: 0, max: 1, step: 0.02, cap: 'permanente' },
+  };
+  const FXC = { light: { min: 0, max: 3, step: 0.1, cap: 'luz ×' }, flash: { min: 0, max: 3, step: 0.1, cap: 'flash ×' }, spark: { min: 0, max: 3, step: 0.1, cap: 'faíscas ×' } };
+  const CFGREC = { ...CFG, ...REC };   // ambos são aplicados via _tune
+  const row = (id, d) => `<div class="ctl"><span title="${d.cap}">${d.cap}</span><input type="range" id="${id}" min="${d.min}" max="${d.max}" step="${d.step}"><input class="num" type="number" id="${id}_n" min="${d.min}" max="${d.max}" step="${d.step}"></div>`;
+  $('gcfg').innerHTML = Object.entries(CFG).map(([k, d]) => row('c_' + k, d)).join('');
+  $('grec').innerHTML = Object.entries(REC).map(([k, d]) => row('c_' + k, d)).join('');
+  $('gfx').innerHTML = Object.entries(FXC).map(([k, d]) => row('f_' + k, d)).join('');
+  $('gchar').innerHTML = CHARACTERS.map((c) => `<option value="${c.id}">${c.id}</option>`).join(''); $('gchar').value = 'mst';
+  $('gwep').innerHTML = WEAPON_IDS.map((id) => `<option value="${id}">${id}</option>`).join(''); $('gwep').value = cur;
+
+  function loadCfg() { const g = G(); if (!g || !g._tuneGet) return; const t = g._tuneGet(cur); for (const k in CFGREC) { const r = $('c_' + k); if (r) { r.value = t[k]; $('c_' + k + '_n').value = t[k]; } } const cl = $('grecls'); if (cl) cl.textContent = `real · classe ${t.cls}`; }
+  function loadFx() { const g = G(); if (!g || !g._tuneGet) return; const fx = g._tuneGet(cur).fx || {}; for (const k in FXC) { $('f_' + k).value = fx[k]; $('f_' + k + '_n').value = fx[k]; } }
+  for (const k in CFGREC) {
+    const r = $('c_' + k), n = $('c_' + k + '_n');
+    const set = (v) => { v = Math.max(+r.min, Math.min(+r.max, v)); r.value = v; n.value = v; const g = G(); if (g && g._tune) g._tune(cur, { [k]: +v }); };
+    r.addEventListener('input', () => set(+r.value));
+    n.addEventListener('input', () => { if (n.value !== '' && !isNaN(+n.value)) set(+n.value); });
+  }
+  for (const k in FXC) {
+    const r = $('f_' + k), n = $('f_' + k + '_n');
+    const set = (v) => { v = Math.max(+r.min, Math.min(+r.max, v)); r.value = v; n.value = v; const g = G(); if (g && g._fxSet) g._fxSet({ [k]: +v }); };
+    r.addEventListener('input', () => set(+r.value));
+    n.addEventListener('input', () => { if (n.value !== '' && !isNaN(+n.value)) set(+n.value); });
+  }
+  $('gwep').onchange = () => { cur = $('gwep').value; const g = G(); if (g && g._switchWeapon) { g._switchWeapon(cur); if (g.player) g.player.drawUntil = 0; } loadCfg(); };
+  $('gchar').onchange = () => boot();
+  $('gvmlab').onchange = () => boot();
+  $('gcopy').onclick = () => {
+    const g = G(); if (!g || !g._tuneGet) return;
+    const t = g._tuneGet(cur);
+    const out = `${cur} recDeg=${t.recDeg} rpm=${t.rpm} spreadHip=${t.spreadHip} spreadScope=${t.spreadScope} dmg=${t.dmg} mag=${t.mag}\nRECUO(classe ${t.cls}) up=${t.up} cauda=${t.cauda} left=${t.left} right=${t.right} wig=${t.wig} recover=${t.recover} hold=${t.hold} perm=${t.perm}\nFX light=${t.fx.light} flash=${t.fx.flash} spark=${t.fx.spark}`;
+    $('gvals').textContent = out;
+    try { navigator.clipboard.writeText(out); $('gcopy').textContent = '✓ copiado!'; setTimeout(() => $('gcopy').textContent = '📋 copiar config', 1200); } catch {}
+  };
+  function waitLive() {
+    const t0 = performance.now();
+    (function poll() {
+      const g = G();
+      if (g && g.state === 'live') { $('gstatus').textContent = 'pronto · edite ao vivo'; g._switchWeapon(cur); if (g.player) g.player.drawUntil = 0; loadCfg(); loadFx(); try { iframe.contentWindow.addEventListener('keydown', onBuyKey, true); } catch {} return; }
+      if (performance.now() - t0 > 60000) { $('gstatus').textContent = 'demorou (recarregue)'; return; }
+      setTimeout(poll, 250);
+    })();
+  }
+  function boot() { $('gstatus').textContent = 'carregando o jogo…'; const vl = ($('gvmlab') && $('gvmlab').checked) ? '&vmlab=1' : ''; iframe.src = `/?debug=1&auto=P,${$('gchar').value}${vl}`; waitLive(); }
+  return { start() { if (!started) { started = true; boot(); } }, stop() { /* deixa o jogo rodando no iframe */ } };
+}
+
 // ── abas ────────────────────────────────────────────────────────────────────
 const sideEd = document.getElementById('side-editor'), hostEd = document.getElementById('host-editor'), ovEd = document.getElementById('ov-editor');
 const sideCn = document.getElementById('side-cena'), hostCn = document.getElementById('host-cena'), ovCn = document.getElementById('ov-cena');
-const editor = initEditor(sideEd, hostEd, ovEd);
-let cena = null;
+const sideGm = document.getElementById('side-game'), hostGm = document.getElementById('host-game');
+const TOOLS = {
+  editor: { side: sideEd, host: hostEd, ov: ovEd, inst: initEditor(sideEd, hostEd, ovEd) },
+  cena: { side: sideCn, host: hostCn, ov: ovCn, inst: null, make: () => initCena(sideCn, hostCn) },
+  game: { side: sideGm, host: hostGm, ov: null, inst: null, make: () => initGame(sideGm, hostGm) },
+};
 let currentName = 'editor';
-editor.start();
+TOOLS.editor.inst.start();
 function activate(name) {
-  if (name === currentName) return;
-  (currentName === 'editor' ? editor : cena).stop();
+  if (name === currentName || !TOOLS[name]) return;
+  const prev = TOOLS[currentName]; if (prev.inst) prev.inst.stop();
   document.querySelectorAll('#devtabs button').forEach((b) => b.classList.toggle('on', b.dataset.tool === name));
-  sideEd.hidden = name !== 'editor'; hostEd.hidden = name !== 'editor'; ovEd.hidden = name !== 'editor';
-  sideCn.hidden = name !== 'cena'; hostCn.hidden = name !== 'cena'; ovCn.hidden = name !== 'cena';
-  if (name === 'cena' && !cena) cena = initCena(sideCn, hostCn);
-  (name === 'editor' ? editor : cena).start();
+  for (const key in TOOLS) { const t = TOOLS[key], on = key === name; t.side.hidden = !on; t.host.hidden = !on; if (t.ov) t.ov.hidden = !on; }
+  const next = TOOLS[name]; if (!next.inst && next.make) next.inst = next.make();
+  next.inst.start();
   currentName = name;
 }
 document.querySelectorAll('#devtabs button').forEach((b) => (b.onclick = () => activate(b.dataset.tool)));

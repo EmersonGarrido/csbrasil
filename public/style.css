@@ -249,7 +249,9 @@ body{font-family:var(--font);font-weight:600;color:var(--ink1)}
 .btn-side{font-size:12px;padding:8px 14px;letter-spacing:1px;min-width:120px;text-align:left}
 /* dropdown custom */
 .dd{position:relative;width:100%}
-.dd-btn{display:flex;align-items:center;justify-content:space-between;width:100%;cursor:pointer;
+/* min-height compartilhado: o ícone de ARMAS ("TODAS" = dois renders empilhados, ~27px)
+   deixava o .dd-btn de armas mais alto que o de bots (texto só). Piso igual pros dois. */
+.dd-btn{display:flex;align-items:center;justify-content:space-between;width:100%;min-height:47px;cursor:pointer;
   font-family:var(--mono);font-size:var(--fs-200);letter-spacing:var(--tr-1);
   background:var(--bg-800);border:1px solid var(--line);color:var(--ink-100);padding:10px 12px;outline:none;
   transition:border-color var(--t) var(--ease)}
@@ -258,7 +260,7 @@ body{font-family:var(--font);font-weight:600;color:var(--ink1)}
 .dd-arrow{font-size:var(--fs-100);color:var(--ink-300)}
 .dd-list{position:absolute;left:0;right:0;z-index:30;background:var(--bg-700);border:1px solid var(--line-2);
   overflow:hidden;top:calc(100% + 4px);box-shadow:var(--sh-1)}
-#wpn-dd .dd-list{top:auto;bottom:calc(100% + 4px)}   /* baixo na tela: abre pra cima */
+#wpn-dd .dd-list,#bots-dd .dd-list{top:auto;bottom:calc(100% + 4px)}   /* baixo na tela: abre pra cima */
 .dd-item{display:flex;align-items:center;gap:10px;width:100%;cursor:pointer;text-align:left;
   font-family:var(--mono);font-size:var(--fs-200);letter-spacing:var(--tr-1);color:var(--ink-200);
   background:transparent;border:0;padding:10px 12px;transition:background var(--t) var(--ease),color var(--t) var(--ease)}
@@ -1217,10 +1219,10 @@ body:has(#pause-menu:not(.hidden)) #hud{opacity:.12;transition:opacity var(--t) 
 .map-arrow:hover,.map-arrow:focus-visible{border-color:var(--sys);color:#fff;background:var(--bg-600)}
 .map-arrow:active{transform:translateY(1px)}
 
-#bots-select,#diff-select{font-family:var(--mono);font-size:var(--fs-200);letter-spacing:var(--tr-1);text-align:center;
+#diff-select{font-family:var(--mono);font-size:var(--fs-200);letter-spacing:var(--tr-1);text-align:center;
   background:var(--bg-800);border:1px solid var(--line);color:var(--ink-100);padding:10px 12px;outline:none;cursor:pointer;width:100%;
   transition:border-color var(--t) var(--ease)}
-#bots-select:hover,#diff-select:hover{border-color:var(--line-2)}
+#diff-select:hover{border-color:var(--line-2)}
 
 /* empilha em telas estreitas */
 @media(max-width:640px){
@@ -1363,8 +1365,21 @@ html[data-ui="legacy"] .cs-vignette{
   color:var(--ink-300);margin-bottom:var(--s-1)}
 /* VOLTAR do setup fica NO FLUXO do card (era absolute e flutuava por cima do SEU PERFIL) */
 #menu-setup .btn-back{position:static}
-.cs-setup-actions{display:flex;gap:12px;justify-content:space-between;align-items:center;margin-top:14px}
-.cs-setup-actions #btn-jogar{flex:1}
+/* Duas fileiras: PERFIL em cima (largura cheia) e VOLTAR + JOGAR embaixo. */
+.cs-setup-actions{display:flex;flex-direction:column;gap:12px;margin-top:14px}
+.cs-setup-row{display:flex;gap:12px;align-items:stretch}
+/* VOLTAR e JOGAR MESMO TAMANHO: mesma largura (flex:1) e a fonte grande do .btn-big.
+   VOLTAR segue secundário (contorno); JOGAR primário (preenchido, vem do .btn-big). */
+.cs-setup-row #setup-back,.cs-setup-row #btn-jogar{flex:1}
+.cs-setup-row #setup-back{font-size:var(--fs-600)}
+/* ALTURA PADRÃO: os três botões do setup na MESMA altura das fichas ARMAS/BOTS
+   (.dd-btn = 47px). Precisa de 2 ids pra vencer o #btn-jogar (que traz padding e
+   position:sticky próprios). Padding vertical zerado + flex-center faz a altura ser exata. */
+#menu-setup .btn-profile,
+#menu-setup .cs-setup-row #setup-back,
+#menu-setup .cs-setup-row #btn-jogar{
+  min-height:47px;height:47px;padding:0 var(--s-6);position:static;
+  display:flex;align-items:center;justify-content:center}
 /* Seletor de mapa: o preview VIRA a peça principal (era um <img> de 116px ao lado do
    nome). Agora é um cartaz 16:9 com o nome sobreposto, badge de modo e setas nas
    bordas — o jogador escolhe pela imagem, não pelo texto. */
@@ -1398,6 +1413,11 @@ html[data-ui="legacy"] .cs-vignette{
 #map-dots{position:absolute;top:var(--s-2);right:var(--s-2);z-index:2;display:flex;gap:5px}
 #map-dots i{width:6px;height:6px;background:rgba(255,255,255,.32);display:block;transition:background var(--t)}
 #map-dots i.on{background:var(--br-faixa)}
+/* Badge de ORIGEM (mapas com `community: true` no registro). Roxo de propósito: o verde
+   já significa "modo CTF" no #map-mode — origem e modo não podem vestir a mesma cor. */
+.badge-community{display:inline-block;width:max-content;font-family:var(--mono);font-size:var(--fs-50);
+  letter-spacing:var(--tr-2);text-transform:uppercase;color:#efe3ff;background:#7a3fd1;
+  padding:2px var(--s-2);margin:2px 0 3px;text-shadow:none}
 
 /* ============ PASSOS DO SETUP (partida / perfil) ============
    Pedido literal do dono: "o primeiro menu com o mapa não precisa ter o nick — a gente
@@ -1418,15 +1438,13 @@ html[data-ui="legacy"] .cs-vignette{
   color:var(--ink-200);text-transform:uppercase;margin-top:3px;text-shadow:var(--sh-text)}
 /* ARMAS e BOTS: duas fichas embaixo da arte. É o resto da partida, não o assunto dela. */
 .match-opts{display:grid;grid-template-columns:1fr 1fr;gap:var(--s-4);align-items:end}
-/* Botão do passo de perfil: rótulo pequeno + o nick de verdade, pra ele saber com que
-   nome vai entrar sem precisar abrir nada. */
-.btn-profile{display:flex;flex-direction:column;align-items:flex-start;gap:1px;
-  padding:7px var(--s-4);font-size:var(--fs-200);letter-spacing:var(--tr-1);max-width:44%}
-.btn-profile small{font-family:var(--mono);font-size:var(--fs-50);letter-spacing:var(--tr-2);
-  color:var(--ink-300);text-transform:uppercase}
-.btn-profile span{font-family:var(--mono);font-size:var(--fs-200);letter-spacing:var(--tr-1);
+/* Botão do passo de perfil: fica NA LINHA DE CIMA, largura cheia, o nick (ou
+   "PÔR O NOME NA CAMISA") numa LINHA SÓ, centrado. */
+.btn-profile{display:flex;flex-direction:row;align-items:center;justify-content:center;
+  padding:7px var(--s-4);font-size:var(--fs-200);letter-spacing:var(--tr-1);width:100%}
+/* mesma tipografia dos outros botões (Rajdhani bold, não o monospace que destoava) */
+.btn-profile span{font-family:var(--font);font-weight:700;font-size:var(--fs-600);letter-spacing:var(--tr-3);text-transform:uppercase;
   color:var(--br-faixa);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.btn-profile:hover small,.btn-profile:focus-visible small{color:var(--ink-200)}
 /* sem nick ainda: o botão vira o próximo passo óbvio, não um enfeite */
 .btn-profile[data-empty="1"]{border-color:var(--am)}
 .btn-profile[data-empty="1"] span{color:var(--am)}
@@ -1575,6 +1593,10 @@ html[data-ui="legacy"] .cs-vignette{
 .ms-thumb span{padding:0 8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ms-thumb:hover,.ms-thumb:focus-visible{border-color:var(--sys);color:var(--ink-100)}
 .ms-thumb.on{border-color:var(--br-faixa);color:var(--br-faixa);transform:translateY(-4px)}
+/* faixinha COMUNIDADE sobre o thumb — mesma cor do .badge-community, tamanho de etiqueta */
+.ms-thumb em{position:absolute;top:4px;left:4px;font-style:normal;font-family:var(--mono);
+  font-size:9px;letter-spacing:.08em;color:#efe3ff;background:#7a3fd1;padding:1px 5px}
+.ms-thumb.community{position:relative}
 /* Centralização por margin-top, NÃO por transform: o :active genérico de .map-arrow
    (translateY(1px)) sobrescreveria o translateY(-50%) no mousedown e o botão pularia
    33px pra baixo no meio do clique — o clique caía fora do botão (pego pelo harness). */
@@ -1819,7 +1841,7 @@ html[data-ui="legacy"] .cs-vignette{
    background por seletor de SVG do polish anterior fica inerte e pode sair depois. */
 .dd-ico{width:44px;height:17px;object-fit:contain;vertical-align:middle;margin-right:8px}
 .dd-ico-all{display:inline-flex;flex-direction:column;gap:1px;margin-right:8px}
-.dd-ico-all .dd-ico{width:38px;height:13px;margin:0}
+.dd-ico-all .dd-ico{width:36px;height:12px;margin:0}   /* 2×12 + gap 1 = 25px: cabe no .dd-btn de 47px sem estufar (ARMAS = BOTS = botões) */
 
 
 @media (max-width:640px) and (orientation:portrait){
@@ -1858,3 +1880,19 @@ html[data-ui="legacy"] .cs-vignette{
   #scoreboard table{font-size:12px}
   #scoreboard th,#scoreboard td{padding-left:6px;padding-right:6px}
 }
+
+/* ===== Lobby multiplayer (Fase 3) ===== */
+.mp-rooms{display:flex;flex-direction:column;gap:8px;width:100%;max-height:44vh;overflow:auto;margin-bottom:14px}
+.mp-room{display:flex;justify-content:space-between;align-items:center;gap:12px;width:100%;text-align:left;
+  font-family:var(--font);font-weight:700;letter-spacing:1px;color:var(--ink-100);cursor:pointer;
+  background:var(--bg-700);border:1px solid var(--line);padding:12px 16px}
+.mp-room:hover,.mp-room:focus-visible{background:var(--bg-600);border-color:var(--sys);color:#fff}
+.mp-room .mp-meta{font-family:var(--mono);font-size:12px;opacity:.8;letter-spacing:1px}
+.mp-room[disabled]{opacity:.45;cursor:not-allowed}
+.mp-empty{font-family:var(--mono);font-size:13px;opacity:.7;padding:18px 0}
+.mp-actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+.mp-create{display:flex;flex-direction:column;gap:12px;width:100%;text-align:left}
+.mp-field{display:flex;flex-direction:column;gap:6px;font-family:var(--mono);font-size:12px;letter-spacing:1px;color:var(--ink-200)}
+.mp-field input,.mp-field select,#mp-pass{font-family:var(--font);font-size:15px;padding:10px 12px;background:var(--bg-800);
+  border:1px solid var(--line);color:#fff}
+.mp-consent{display:flex;gap:8px;align-items:center;font-family:var(--mono);font-size:13px;color:var(--ink-200)}

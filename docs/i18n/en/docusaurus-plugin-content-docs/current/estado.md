@@ -2,7 +2,7 @@
 id: estado
 title: 'Measured state: what is green and what is red'
 sidebar_label: Measured state
-sidebar_position: 8
+sidebar_position: 9
 slug: /status
 description: What is green and what is red TODAY, with real gate output, and the project's declared debts.
 ---
