@@ -1589,6 +1589,10 @@ html[data-ui="legacy"] .cs-vignette{
 .ms-thumb span{padding:0 8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ms-thumb:hover,.ms-thumb:focus-visible{border-color:var(--sys);color:var(--ink-100)}
 .ms-thumb.on{border-color:var(--br-faixa);color:var(--br-faixa);transform:translateY(-4px)}
+/* faixinha COMUNIDADE sobre o thumb — mesma cor do .badge-community, tamanho de etiqueta */
+.ms-thumb em{position:absolute;top:4px;left:4px;font-style:normal;font-family:var(--mono);
+  font-size:9px;letter-spacing:.08em;color:#efe3ff;background:#7a3fd1;padding:1px 5px}
+.ms-thumb.community{position:relative}
 /* Centralização por margin-top, NÃO por transform: o :active genérico de .map-arrow
    (translateY(1px)) sobrescreveria o translateY(-50%) no mousedown e o botão pularia
    33px pra baixo no meio do clique — o clique caía fora do botão (pego pelo harness). */

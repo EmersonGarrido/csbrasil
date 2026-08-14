@@ -64,6 +64,8 @@ export const MAPS = {
   atacadao_treta: { name: 'Atacadão da Treta', build: buildAtacadao, props: ATACADAO_PROPS, ctfMode: true },
 };
 export const MAP_IDS = Object.keys(MAPS);
+// Derivado do registro — nunca listar ids de comunidade à mão em outro lugar.
+export const COMMUNITY_MAP_IDS = MAP_IDS.filter((id) => MAPS[id].community);
 export const DEFAULT_MAP = 'praca_poderes';
 
 /* ALIAS DE ID ANTIGO -> NOVO, e por que ele NÃO é opcional.

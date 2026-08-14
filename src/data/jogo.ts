@@ -126,6 +126,11 @@ export interface Mapa {
    *  contar "quantas abrem em rounds e quantas em CTF", e contar essa frase à mão
    *  foi exatamente o que fez /mapas e /como-jogar dizerem 3×2 quando é 2×3. */
   ctf: boolean;
+  /** `community: true` no registro - mapa contribuído via PR de fora (ver
+   *  docs "Mapas da comunidade"). /mapas separa oficiais de comunidade por isto. */
+  comunidade?: boolean;
+  autor?: string;
+  autorGithub?: string;
 }
 
 /** 5 arenas jogáveis - a ordem é a do registro (public/js/maps.js, objeto MAPS). */
