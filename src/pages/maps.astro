@@ -61,7 +61,9 @@ const plural = (n: number, um: string, muitos: string) => (n === 1 ? um : muitos
 
 /* Mesma regra do /mapas: a captura casa pelo id do mapa, nunca por lista à mão. */
 const preview = (id: string) => `/img/map-previews/${id}.jpg`;
-const [destaque, ...resto] = MAPAS;
+const oficiais = MAPAS.filter(m => !m.comunidade);
+const comunidade = MAPAS.filter(m => m.comunidade);
+const [destaque, ...resto] = oficiais;
 
 const jsonld = [
   {
@@ -135,6 +137,45 @@ const jsonld = [
       </article>
     ))}
   </div>
+
+  <h2>Community maps</h2>
+  <p>
+    Beyond the official arenas, the game accepts maps made by the community - open source,
+    submitted as a pull request, under the same contract and the same quality gauges as the
+    official ones. They show up in the in-game menu with a <strong>COMMUNITY MAP</strong> tag
+    and credit to their author.
+  </p>
+  {comunidade.length > 0 && (
+    <div class="grid cards">
+      {comunidade.map(m => (
+        <article class="card">
+          <div class="fig">
+            <img src={preview(m.id)} width="640" height="640" alt={`Aerial view of the ${en(m.id).nome} arena`} loading="lazy" decoding="async">
+          </div>
+          <div class="card-body">
+            <h3 class="map-nome">{en(m.id).nome}</h3>
+            <p class="meta">
+              <b>4v4</b><i>·</i>{m.ctf ? 'CTF' : 'Rounds'}<i>·</i>
+              {m.ctf ? '4 flags' : '1:39 per round'}<i>·</i><code>{m.id}</code>
+            </p>
+            <p class="lead">{en(m.id).resumo}</p>
+            <p>{en(m.id).detalhe}</p>
+            {m.autor && (
+              <p class="meta">
+                by <strong>{m.autor}</strong>
+                {m.autorGithub && <>{' '}(<a href={`https://github.com/${m.autorGithub}`} rel="noopener">@{m.autorGithub}</a>)</>}
+              </p>
+            )}
+          </div>
+        </article>
+      ))}
+    </div>
+  )}
+  <p>
+    <strong>Build your own map.</strong> The <a href="/docs/mapas-comunidade">community maps guide</a>
+    {' '}walks through it: the contract every map fulfills, the automatic gauges that validate spawns,
+    stairs and bot navigation, and the pull request template to submit yours.
+  </p>
 
   <h2>Rounds or CTF</h2>
   <ul>

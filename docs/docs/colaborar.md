@@ -236,6 +236,11 @@ O pipeline é data-driven a partir do GLB. Os GLBs de arma vivem em `public/mode
 
 ## Como adicionar um mapa
 
+**Mapa seu, vindo de fora do time?** Ele entra como **mapa da comunidade**: mesma receita
+técnica desta seção, mais os campos de origem no registro (`community: true`, `author`) e o
+template próprio de PR. O processo completo — critérios de aceite, licença e o que o review
+olha — está em [Mapas da comunidade](./mapas-comunidade.md).
+
 Hoje mapas são **código**, não dado: cada `map_*.js` é geometria declarada à mão, e os
 maiores rivalizam em tamanho com os módulos de sistema. Migrar isso para JSON é a Fase 2
 conteúdo como dado do

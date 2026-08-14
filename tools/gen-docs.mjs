@@ -131,7 +131,11 @@ function medir() {
   /* ---- mapas: o REGISTRO é a verdade. Arquivo map_*.js no disco não implica mapa
          jogável — o map_piscinao_ramos.js está no disco e fora do menu de propósito. ---- */
   const msrc = ler('public/js/maps.js');
-  const mbloco = msrc.slice(msrc.indexOf('export const MAPS'), msrc.indexOf('\n};', msrc.indexOf('export const MAPS')));
+  /* semComentarios ANTES de fatiar: a seção de mapas da comunidade carrega um exemplo
+     de entrada dentro de um bloco de comentário — sem tirar comentários, o exemplo
+     viraria mapa fantasma na tabela (o parser é linha a linha e não sabe o que é comentário). */
+  const mlimpo = semComentarios(msrc);
+  const mbloco = mlimpo.slice(mlimpo.indexOf('export const MAPS'), mlimpo.indexOf('\n};', mlimpo.indexOf('export const MAPS')));
   const importsDeMapa = new Map();
   for (const m of msrc.matchAll(/import\s+\{([^}]+)\}\s+from\s+'\.\/(map_[\w]+\.js)'/g))
     for (const nome of m[1].split(',').map((x) => x.trim()).filter(Boolean)) importsDeMapa.set(nome, m[2]);
@@ -139,7 +143,12 @@ function medir() {
   for (const l of mbloco.split('\n')) {
     const m = /^\s{2}([a-z0-9_]+):\s*\{.*?name:\s*'([^']+)'/.exec(l);
     const build = /build:\s*([A-Za-z0-9_]+)/.exec(l)?.[1];
-    if (m) mapas.push({ id: m[1], nome: m[2], ctf: /ctfMode:\s*true/.test(l), arquivo: build ? importsDeMapa.get(build) || null : null });
+    if (m) mapas.push({
+      id: m[1], nome: m[2], ctf: /ctfMode:\s*true/.test(l),
+      arquivo: build ? importsDeMapa.get(build) || null : null,
+      comunidade: /community:\s*true/.test(l),
+      autor: (/author:\s*'([^']+)'/.exec(l) || [])[1] || null,
+    });
   }
   /* "Fora do registro" = existe no disco e NINGUÉM o importa em maps.js. É o caso do
      map_piscinao_ramos.js (o "Piscinão"), e a distinção importa: arquivo de mapa em
@@ -151,6 +160,7 @@ function medir() {
     total: mapas.length,
     emCaptura: mapas.filter((m) => m.ctf).length,
     emRodadas: mapas.filter((m) => !m.ctf).length,
+    daComunidade: mapas.filter((m) => m.comunidade).length,
     arquivosNoDisco: arquivosMapa.length,
     importados: [...importados],
     foraDoRegistro: arquivosMapa.filter((a) => !importados.has(a)),
@@ -524,14 +534,16 @@ const BLOCOS = {
 
   /* O registro de mapas. Quem não está aqui não é jogável. */
   mapas: (f) => [
-    '| Id | Nome no menu | Abre em | Arquivo em `public/js/` | Linhas |',
-    '|---|---|---|---|---:|',
+    '| Id | Nome no menu | Abre em | Origem | Arquivo em `public/js/` | Linhas |',
+    '|---|---|---|---|---|---:|',
     ...f.mapas.registrados.map((m) => {
       const arq = m.arquivo;
-      return `| \`${m.id}\` | ${m.nome} | ${m.ctf ? '**captura**' : 'rodadas'} | \`${arq || '—'}\` | ${arq ? num(linhas('public/js/' + arq)) : '—'} |`;
+      const origem = m.comunidade ? `**comunidade**${m.autor ? ` (${m.autor})` : ''}` : 'oficial';
+      return `| \`${m.id}\` | ${m.nome} | ${m.ctf ? '**captura**' : 'rodadas'} | ${origem} | \`${arq || '—'}\` | ${arq ? num(linhas('public/js/' + arq)) : '—'} |`;
     }),
     '',
-    `**${f.mapas.total} mapas registrados** — ${f.mapas.emRodadas} abrem em rodadas e ${f.mapas.emCaptura} em captura. ` +
+    `**${f.mapas.total} mapas registrados** (${f.mapas.total - f.mapas.daComunidade} oficiais, ${f.mapas.daComunidade} da comunidade) — ` +
+    `${f.mapas.emRodadas} abrem em rodadas e ${f.mapas.emCaptura} em captura. ` +
     `\`ctfMode\` **abre** o mapa em captura, não prende: o jogador troca no menu (é a \`MOD1\`). ` +
     `Há ${f.mapas.arquivosNoDisco} arquivos \`map_*.js\` em \`public/js/\` — arquivo no disco **não** implica mapa jogável.`,
     rodape(f.mapas.cmd),
