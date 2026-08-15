@@ -16,7 +16,7 @@ import { enableStylize } from './stylize.js';
 
 /* ---------------- settings & nickname ---------------- */
 const SETTINGS_KEY = 'awpbr_settings';
-const settings = Object.assign({ sens: 1, vol: 0.7, quality: 'med', speech: true, map: DEFAULT_MAP, wpnMode: 'all', bots: 4, difficulty: 'normal' },
+const settings = Object.assign({ sens: 1, vol: 0.7, quality: 'med', speech: true, map: DEFAULT_MAP, wpnMode: 'all', bots: 4, difficulty: 'normal', invY: false },
   JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}'));
 let preferredQuality = null;
 const saveSettings = () => localStorage.setItem(SETTINGS_KEY, JSON.stringify({
@@ -746,7 +746,15 @@ addEventListener('pointerdown', _menuOnce);
 addEventListener('keydown', _menuOnce);
 
 async function startGame(team, charId, enemyFaction) {
-  window.__gameLaunch?.begin('partida', 60000);
+  /* #241: em rede lenta o preload dos GLBs passa de 60 s COM progresso andando
+     (_lstat.loaded sobe a cada arquivo do DefaultLoadingManager). O watchdog
+     renova enquanto há movimento e só falha se o progresso PARAR — travamento
+     de verdade continua sendo pego. */
+  let _wp = _lstat.loaded;
+  window.__gameLaunch?.begin('partida', 60000, function () {
+    if (_lstat.loaded > _wp) { _wp = _lstat.loaded; return 'rede-lenta'; }
+    return !!(window.__game && window.__game.state === 'live');
+  });
   try {
     await _startGame(team, charId, enemyFaction);
     window.__gameLaunch?.ready('partida');
@@ -1875,13 +1883,16 @@ function selectChar(c, row) {
 
 /* ---------------- settings wiring ---------------- */
 const sensEl = $('set-sens'), volEl = $('set-vol'), qualEl = $('set-quality');
+const invyEl = $('set-invy');
 sensEl.value = settings.sens; volEl.value = settings.vol; qualEl.value = settings.quality;
+if (invyEl) invyEl.checked = settings.invY === true;   // #280: inverter eixo vertical
 if (COMPAT_MODE) { qualEl.disabled = true; qualEl.title = 'Modo compatibilidade usa qualidade baixa nesta sessão'; }
 const updLabels = () => {
   $('set-sens-val').textContent = Number(settings.sens).toFixed(1);
   $('set-vol-val').textContent = Math.round(settings.vol * 100) + '%';
 };
 sensEl.oninput = () => { settings.sens = +sensEl.value; updLabels(); saveSettings(); };
+if (invyEl) invyEl.onchange = () => { settings.invY = invyEl.checked; saveSettings(); if (game) game.applySettings(); };
 volEl.oninput = () => { settings.vol = +volEl.value; sfx.setVolume(settings.vol); updLabels(); saveSettings(); };
 qualEl.onchange = () => { settings.quality = qualEl.value; saveSettings(); if (game) game.applySettings(); };
 // Cor da mira: a mira sai do sistema de cor do HUD (ciano = sistema, âmbar = objetivo,
