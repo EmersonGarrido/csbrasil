@@ -4,6 +4,7 @@ import { buildPoolDay } from './map_piscina.js';
 import { buildHavan, havanPropsForMatch } from './map_havan.js';
 import { buildFerroVelho, FERRO_PROPS } from './map_ferrovelho.js';
 import { buildQuebrada, QUEBRADA_PROPS } from './map_quebrada.js';
+import { buildObras, OBRAS_PROPS } from './map_obras.js';
 import { buildPosto, POSTO_PROPS } from './map_posto.js';
 import { buildAtacadao, ATACADAO_PROPS } from './map_atacadao.js';
 
@@ -58,6 +59,10 @@ export const MAPS = {
   // greve dos caminhoneiros travando a pista. 3 corredores (loja O · marquise C · pátio L),
   // simétrico em z=0. Procedural (marquise/bombas/loja/totem) + props (kombi/fusca/pneus/casas).
   posto_treta: { name: 'Posto da Treta', build: buildPosto, props: POSTO_PROPS, ctfMode: true },
+  // Canteiro de obra da prefeitura que nunca acaba: TERRENO ONDULADO com buracos de escavação
+  // (groundHeightAt), estrutura meio-construída no centro, tapumes, andaimes, guindaste, entulho.
+  // Simétrico em z=0. A treta é o "desvio de dinheiro público".
+  obras_prefeitura: { name: 'Obras da Prefeitura', build: buildObras, props: OBRAS_PROPS, ctfMode: true },
   // Galpão de atacado estilo Loja H: LOJA fechada (Time B) + ESTACIONAMENTO aberto (Time E) ligados
   // por portas de verdade na fachada. Gôndolas reais (gondola_mercado/eletro), caixas, doca, e um
   // bairro/skyline em volta. A treta é o preço absurdo. Simétrico funcional, A* pelos corredores.
