@@ -34,8 +34,8 @@ contra bots, direto na aba. Sem download, sem instalação, sem cadastro.
 
 | O que | Quanto | Onde confere |
 |---|---:|---|
-| Código do jogo | 28.751 linhas em 37 arquivos | `cat public/js/*.js \| wc -l` |
-| `game.js` | **6.471** linhas | `wc -l public/js/game.js` |
+| Código do jogo | 28.763 linhas em 37 arquivos | `cat public/js/*.js \| wc -l` |
+| `game.js` | **6.483** linhas | `wc -l public/js/game.js` |
 | `main.js` | 2.046 linhas | `wc -l public/js/main.js` |
 | Armas com GLB | 26 | `ls public/models/weapons/*.glb \| wc -l` |
 | GLBs de personagem | 45 | `ls public/models/characters/*.glb \| wc -l` |
@@ -47,7 +47,7 @@ contra bots, direto na aba. Sem download, sem instalação, sem cadastro.
 | Scripts do arnês | 169 | `ls tools/eval/*.mjs tools/eval/*.py \| wc -l` |
 | Scripts de pipeline | 48 | `ls tools/*.mjs \| wc -l` |
 | Tarefas de entrada escritas | 26 | `ls docs/issues/[0-9]*.md \| wc -l` |
-| Versão | `2.0.0-alpha.116` | `public/js/version.js` e `package.json` (batem) |
+| Versão | `2.0.0-alpha.119` | `public/js/version.js` e `package.json` (batem) |
 
 > Bloco gerado por `node tools/gen-docs.mjs`. Fonte: `o comando da coluna direita de cada linha`
 
