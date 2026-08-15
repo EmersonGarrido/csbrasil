@@ -1120,8 +1120,11 @@ $('fb-back').onclick = () => { ui.back(); markCurrent(null); show('main-menu'); 
 $('support-back').onclick = () => { ui.back(); markCurrent(null); show('main-menu'); };
 const supportLink = $('support-link');
 const supportNote = $('support-region-note');
-const SUPPORT_URL_BR = 'https://meapoia.com/vaquinhas/ajude-a-manter-o-coro-solto-online';
-const SUPPORT_URL_INTL = 'https://ko-fi.com/corosolto';
+/* URLs vêm RESOLVIDAS do servidor (index.astro injeta window.__SUPPORT a partir do
+   mesmo site.ts do /apoie) — o jogo é zero-build e não lê import.meta.env. O literal
+   aqui é só fallback para arquivo aberto direto do disco. */
+const SUPPORT_URL_BR = window.__SUPPORT?.br || 'https://meapoia.com/vaquinhas/ajude-a-manter-o-coro-solto-online';
+const SUPPORT_URL_INTL = window.__SUPPORT?.intl || 'https://ko-fi.com/corosolto';
 function showSupport(region) {
   const browserLocale = String(navigator.language || '').toLowerCase();
   const timezone = String(Intl.DateTimeFormat().resolvedOptions().timeZone || '');
@@ -1131,8 +1134,11 @@ function showSupport(region) {
   supportNote.textContent = br
     ? 'Você será levado ao MeApoia. O Pix da campanha fica na página de apoio.'
     : 'You will be taken to the international support page. Choose the option that works in your country.';
-  $('support-br').classList.toggle('active', br);
-  $('support-intl').classList.toggle('active', !br);
+  const botaoBr = $('support-br'), botaoIntl = $('support-intl');
+  botaoBr.setAttribute('aria-pressed', String(br));
+  botaoIntl.setAttribute('aria-pressed', String(!br));
+  botaoBr.classList.toggle('active', br);
+  botaoIntl.classList.toggle('active', !br);
   show('support-panel');
 }
 $('support-br').onclick = () => showSupport('br');
