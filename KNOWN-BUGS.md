@@ -620,7 +620,7 @@ console, todos 404**, e **zero** `pageerror` / `unhandledrejection`. Todos em
 padata, padati, palhacomal, titica`) — os únicos 8 dos 44 sem pasta de clipe. 8 × 11 = 88.
 O `catch` vazio de `glbchars.js` engolia tudo, então o jogo funcionava e o console mentia.
 
-**Duas saídas; a primeira foi MEDIDA E DESCARTADA.** `plans/02-BOTS-E-MODELS.md:285`
+**Duas saídas; a primeira foi MEDIDA E DESCARTADA.** `docs/historico/plans/02-BOTS-E-MODELS.md:285`
 previa "B7: rodar `retarget-glb.mjs` para os Palhaços". Rodado — e o retarget é um
 **no-op** para essa família:
 
