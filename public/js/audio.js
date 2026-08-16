@@ -90,6 +90,15 @@ export class Sfx {
     this._lastVoice = performance.now();
     return true;
   }
+  characterSelectVoice(characterId, faction, rosterIds) {
+    if (!this.speechEnabled) return false;
+    const slot = rosterIds?.indexOf(characterId) ?? -1;
+    const pool = this.pack?.voice?.[faction];
+    if (slot < 0 || !pool?.[slot]) return false;
+    if (this._characterSelectAudio) this._characterSelectAudio.pause();
+    this._characterSelectAudio = this._sample(pool[slot]);
+    return !!this._characterSelectAudio;
+  }
   /* SOM DE FIM DE ROUND — com teto e com fim.
      Regra do dono (04/08), depois de uma faixa do Mc Magrinho de 188 s atravessar DOIS
      rounds: "nenhum som de final de round pode ficar mais de 5 segs após o round acabar,

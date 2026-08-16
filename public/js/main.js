@@ -6,6 +6,7 @@ import { preloadCharacterAssets, buildCharacterModel, hasModel, GLB_CHARS } from
 import { preloadFPArms } from './fparms.js';
 import { preloadMapProps } from './mapprops.js';
 import { MAPS, MAP_IDS, DEFAULT_MAP, resolveMapId, mapaDaSessao } from './maps.js';
+import { PALETA } from './paleta.js';
 import { setHavanCarSeed } from './map_havan.js';
 import { Sfx } from './audio.js';
 import { Game, confirmGate, CONFIRM_MAX_MS } from './game.js';
@@ -13,11 +14,14 @@ import { VERSION } from './version.js';
 import { LANG, translateDom, tr, frase } from './i18n.js';
 import { enableLightBloom } from './bloom.js';
 import { enableStylize } from './stylize.js';
+import { resolveInspectionScreen } from './screenquery.js';
+import { LoadingCharacterStage } from './loading3d.js';
 
 /* ---------------- settings & nickname ---------------- */
 const SETTINGS_KEY = 'awpbr_settings';
-const settings = Object.assign({ sens: 1, vol: 0.7, quality: 'med', speech: true, map: DEFAULT_MAP, wpnMode: 'all', bots: 4, difficulty: 'normal', invY: false },
-  JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}'));
+const savedSettings = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}');
+if (savedSettings.invertY == null && savedSettings.invY != null) savedSettings.invertY = savedSettings.invY;
+const settings = Object.assign({ sens: 1, invertY: false, vol: 0.7, quality: 'med', speech: true, map: DEFAULT_MAP, wpnMode: 'all', bots: 4, rounds: 5, ctfRounds: 3, difficulty: 'normal' }, savedSettings);
 let preferredQuality = null;
 const saveSettings = () => localStorage.setItem(SETTINGS_KEY, JSON.stringify({
   ...settings,
@@ -29,6 +33,7 @@ const TRAIN_CONSENT_KEY = 'csbr_training_consent';
 const trainingEnabled = () => { try { return localStorage.getItem(TRAIN_CONSENT_KEY) === '1'; } catch { return false; } };
 const SOCIAL_KEY = 'awpbr_social';
 const STATS_KEY = 'awpbr_stats';   // declarado no bloco de storage: syncPlayState→renderPlayerPlate→loadStats roda ANTES da definição antiga (TDZ)
+const PLAYER_AVATAR_KEY = 'awpbr_player_avatar';
 
 /* ---------------- renderer ---------------- */
 // Import extra (top-level, legal em ESM) em vez de mexer no bloco de imports lá de cima:
@@ -126,8 +131,22 @@ THREE.DefaultLoadingManager.onProgress = (url, l, t) => {
   const ph = _lstat.phase;
   if (ph) ph.set(Math.min(0.99, (l - ph.l0) / Math.max(1, t - ph.l0)));
 };
-function _mkPhase(fillEl, pctEl) {
-  const ph = { l0: _lstat.loaded, set(p) { fillEl.style.width = (p * 100).toFixed(0) + '%'; pctEl.textContent = Math.round(p * 100) + '%'; } };
+/* `statusEl` é opcional: só o overlay de partida troca o texto conforme a barra
+   anda (o boot mantém a mensagem fixa, que já é curta). A escrita é condicionada a
+   ter MUDADO porque `set` é chamado a cada progresso do LoadingManager — escrever
+   textContent igual em toda chamada é layout à toa. */
+function _mkPhase(fillEl, pctEl, statusEl) {
+  const ph = {
+    l0: _lstat.loaded,
+    set(p) {
+      fillEl.style.width = (p * 100).toFixed(0) + '%';
+      pctEl.textContent = Math.round(p * 100) + '%';
+      if (statusEl) {
+        const t = _statusPorProgresso(p);
+        if (statusEl.textContent !== t) statusEl.textContent = t;
+      }
+    },
+  };
   _lstat.phase = ph; ph.set(0); return ph;
 }
 // fase de boot: props do cenário 3D do menu (carrega por baixo da splash)
@@ -149,13 +168,71 @@ const _lo = {
   box: document.getElementById('load-overlay'), fill: document.getElementById('load-bar-fill'),
   pct: document.getElementById('load-pct'), label: document.getElementById('load-label'), status: document.getElementById('load-status'),
 };
-function showLoading(label, status = 'CARREGANDO MODELOS 3D…') {
-  _lo.label.textContent = label; _lo.status.textContent = status;
-  try { _lo.box.style.backgroundImage = wallUrl(_loadWallI++); } catch {}   // wallpaper rotativo (wall-*) no load de mapa
-  _lo.box.classList.remove('hidden');
-  _mkPhase(_lo.fill, _lo.pct);
+const loadingStage = new LoadingCharacterStage(document.getElementById('load-character-3d'), { compatibility: COMPAT_MODE });
+loadingStage.show('B').catch(() => {});
+function dockLoadingCharacter() {
+  const canvas = document.getElementById('load-character-3d');
+  const stage = document.getElementById('load-character-stage');
+  if (canvas && stage && canvas.parentElement !== stage) stage.prepend(canvas);
 }
-function hideLoading() { _lstat.phase = null; _lo.box.classList.add('hidden'); }
+/* DICAS DO CARREGAMENTO. São de JOGO, não de marketing: cada uma diz algo que muda
+   a mão de quem lê. Passam pelo tr() como todo o resto da UI. */
+const _DICAS = [
+  'Andar com a arma no ombro (tecla F) é mais rápido do que andar mirando.',
+  'Segure TAB a qualquer momento para ver o placar e quem está vivo.',
+  'Agachar reduz o espalhamento do tiro — mas também a sua velocidade.',
+  'Tiro na cabeça mata em quase tudo. Mire alto no corredor.',
+  'A fumaça (tecla 4) corta a linha de visão dos bots, não só a sua.',
+  'O radar mostra parede: use ele para saber de onde o barulho vem.',
+  'Recarregar cancela o tiro. Não recarregue no meio da troca.',
+  'Cada personagem muda só a aparência — a mira é toda sua.',
+];
+let _dicaT = null;
+function _giraDica() {
+  const el = document.getElementById('load-tip');
+  if (!el) return;
+  el.textContent = tr(_DICAS[Math.floor(Math.random() * _DICAS.length)]);
+}
+/* Faixa de progresso -> status, como o handoff pede. O texto muda de verdade
+   conforme a barra anda, então ele não é enfeite: é o segundo sinal de vida da
+   tela (o primeiro é a própria barra). */
+function _statusPorProgresso(p) {
+  if (p < 0.34) return tr('CARREGANDO TEXTURAS…');
+  if (p < 0.72) return tr('POSICIONANDO OS BOTS…');
+  return tr('AQUECENDO A TRETA…');
+}
+function showLoading(label, status = 'CARREGANDO MODELOS 3D…', mapName = '') {
+  dockLoadingCharacter();
+  const kick = document.getElementById('load-kicker');
+  if (kick) kick.textContent = tr(label);   // o rótulo ("CARREGANDO <MAPA>") virou o kicker do topo (tela 00B)
+  _lo.label.textContent = ''; _lo.status.textContent = tr(status);
+  const mapEl = document.getElementById('load-map');
+  if (mapEl) mapEl.textContent = mapName;   // tela 00B: o mapa é o protagonista da espera
+  const metaEl = document.getElementById('load-meta');
+  if (metaEl) metaEl.innerHTML = mapName ? ($('map-meta').textContent || '').split('·').join('<span class="lo-sep">·</span>') : '';
+  // chip de confronto no topo à direita (tela 00B): seu lado × adversário, nas cores da facção
+  const vs = document.getElementById('load-versus');
+  if (vs) {
+    const a = $('load-vs-a'), b = $('load-vs-b');
+    if (mapName && currentEnemyFaction) {
+      a.textContent = tr(FACTION_NAME[currentFaction] || ''); a.style.color = (PALETA[currentFaction] || {}).base || '#e0762a';
+      b.textContent = tr(FACTION_NAME[currentEnemyFaction] || ''); b.style.color = (PALETA[currentEnemyFaction] || {}).base || '#8258d8';
+      vs.classList.remove('hidden');
+    } else vs.classList.add('hidden');
+  }
+  try { _lo.box.style.setProperty('--loading-wall', loadingWallUrl(_loadWallI++)); } catch {}
+  _lo.box.classList.remove('hidden');
+  loadingStage.show(currentFaction).catch(() => {});
+  _giraDica();
+  clearInterval(_dicaT); _dicaT = setInterval(_giraDica, 5000);
+  _mkPhase(_lo.fill, _lo.pct, _lo.status);
+}
+function hideLoading() {
+  _lstat.phase = null;
+  clearInterval(_dicaT); _dicaT = null;   // sem isto o timer sobrevive à partida inteira
+  loadingStage.hide();
+  _lo.box.classList.add('hidden');
+}
 function rebuildMenuBackdrop() {
   menuScene = new THREE.Scene();
   MAPS[currentMap].build(menuScene, textures);
@@ -169,6 +246,7 @@ const screens = ['mobile-warning', 'main-menu', 'map-screen', 'team-select', 'ch
 function show(id) {
   for (const s of screens) document.getElementById(s).classList.toggle('hidden', s !== id);
   if (!id) for (const s of screens) document.getElementById(s).classList.add('hidden');
+  if (id !== 'char-select') pvStopVideo();
   // ao navegar pra qualquer tela, fecha o painel de setup do menu CS (não fica aberto after)
   // EXCEÇÃO: map-screen é EXTENSÃO do setup (abre pelo cartaz do mapa) — o painel fica
   // aberto embaixo e o VOLTAR cai de volta nele, com mapa/modo/bots intactos.
@@ -176,6 +254,19 @@ function show(id) {
   else { applyHomeWall(); if (musicArmed) startMenuMusic(); }   // volta pra home: wallpaper + música de menu
 }
 const $ = id => document.getElementById(id);
+const FACTION_ART_URLS = ['/img/faccoes/time-e.webp', '/img/faccoes/time-b.webp', '/img/faccoes/tribos.webp', '/img/faccoes/palhacos.webp', '/img/faccoes/funkeiros.webp'];
+const factionArtImages = FACTION_ART_URLS.map((src) => {
+  const image = new Image();
+  image.decoding = 'async';
+  image.src = src;
+  return image;
+});
+const factionArtReady = Promise.all(factionArtImages.map((image) => (
+  image.decode ? image.decode() : new Promise((resolve, reject) => {
+    image.onload = resolve;
+    image.onerror = reject;
+  })
+))).catch((error) => console.warn('[facções] preload parcial', error));
 
 /* Wallpapers rotativos (wall-1..9): 1 por tela no fluxo home→setup→lado→personagem, sem
    repetir; o offset rotaciona a cada acesso (localStorage) pra variar entre visitas.
@@ -197,15 +288,21 @@ try {
   localStorage.setItem('cs_wallK', String(_wallVisit));
 } catch {}
 let _wallK = _wallVisit % WALLS.length;
-const wallUrl = (i) => `url('${WALLS[(_wallK + i) % WALLS.length]}')`;
+const wallPath = (i) => WALLS[(_wallK + i) % WALLS.length];
+const wallUrl = (i) => `url('${wallPath(i)}')`;
+const wall3x2Url = (i) => `url('${wallPath(i).replace('/img/', '/img/walls-3x2/')}')`;
 let HOME_WALL = wallUrl(0), SETUP_WALL = wallUrl(1), TEAM_WALL = wallUrl(2), CHAR_WALL = wallUrl(3);
-// loading-1..6: wallpaper rotativo SÓ da splash inicial (a msg "clique pra começar" fica por cima).
-// O overlay de carregamento de MAPA usa os wall-* (mesmo fluxo rotativo) — ver showLoading/_loadWallI.
-// Hardcoded pelo mesmo motivo (e com o mesmo defeito) do WALLS acima — ver KNOWN-BUGS.md BUG-08.
+let HOME_WALL_3X2 = wall3x2Url(0), SETUP_WALL_3X2 = wall3x2Url(1);
+// Splash e espera do mapa compartilham o lote loading-* do manifesto.
 const LOADING_WALLS = ['/img/loading-1.webp', '/img/loading-2.webp', '/img/loading-3.webp',
   '/img/loading-4.webp', '/img/loading-5.webp', '/img/loading-6.webp'];
 let _loadWallI = 4;
-{ const bs = document.getElementById('boot-splash'); if (bs) bs.style.backgroundImage = `url('${LOADING_WALLS[_wallK % LOADING_WALLS.length]}')`; }
+const loadingWallUrl = (i) => `url('${LOADING_WALLS[i % LOADING_WALLS.length]}')`;
+function applySplashWallpaper() {
+  const splash = $('boot-splash');
+  if (splash) splash.style.setProperty('--loading-wall', loadingWallUrl(_wallK));
+}
+applySplashWallpaper();
 fetch(`/img/walls.json?v=${VERSION}`)
   .then((response) => (response.ok ? response.json() : null))
   .then((manifest) => {
@@ -214,14 +311,21 @@ fetch(`/img/walls.json?v=${VERSION}`)
     if (Array.isArray(manifest.loading) && manifest.loading.length) LOADING_WALLS.splice(0, LOADING_WALLS.length, ...manifest.loading);
     _wallK = _wallVisit % WALLS.length;
     HOME_WALL = wallUrl(0); SETUP_WALL = wallUrl(1); TEAM_WALL = wallUrl(2); CHAR_WALL = wallUrl(3);
+    HOME_WALL_3X2 = wall3x2Url(0); SETUP_WALL_3X2 = wall3x2Url(1);
     applyHomeWall();
     const team = $('team-select'); if (team) team.style.setProperty('--wall', TEAM_WALL);
     const character = $('char-select'); if (character) character.style.setProperty('--wall', CHAR_WALL);
-    const splash = $('boot-splash'); if (splash) splash.style.backgroundImage = `url('${LOADING_WALLS[_wallK % LOADING_WALLS.length]}')`;
+    applySplashWallpaper();
   })
   .catch(() => {});
-function applyHomeWall() { const w = document.querySelector('#main-menu .cs-wallpaper'); if (w) w.style.backgroundImage = HOME_WALL; }
-function applySetupWall() { const w = document.querySelector('#main-menu .cs-wallpaper'); if (w) w.style.backgroundImage = SETUP_WALL; }
+function applyHomeWall() {
+  const w = document.querySelector('#main-menu .cs-wallpaper');
+  if (w) { w.style.setProperty('--menu-wall', HOME_WALL); w.style.setProperty('--menu-wall-3x2', HOME_WALL_3X2); }
+}
+function applySetupWall() {
+  const w = document.querySelector('#main-menu .cs-wallpaper');
+  if (w) { w.style.setProperty('--menu-wall', SETUP_WALL); w.style.setProperty('--menu-wall-3x2', SETUP_WALL_3X2); }
+}
 applyHomeWall();
 { const t = $('team-select'); if (t) t.style.setProperty('--wall', TEAM_WALL); }
 { const c = $('char-select'); if (c) c.style.setProperty('--wall', CHAR_WALL); }
@@ -314,6 +418,8 @@ const _armMusic = () => {
 function dismissSplash() {
   const sp = document.getElementById('boot-splash');
   if (!sp || !_splashReady || sp.classList.contains('gone')) return;
+  loadingStage.hide();
+  dockLoadingCharacter();
   sp.classList.add('gone');
   window.__gameLaunch?.ready('entrada');
   setTimeout(() => sp.remove(), 480);
@@ -333,11 +439,60 @@ let howtoReturn = 'main-menu';   // CONTROLES aberto pelo pause volta pro pause,
 
 /* ---------------- 3D character preview ---------------- */
 let pv = null, pvDrag = null;
-const portraitUrl = (def) => `/img/chars/${def.id}.webp?v=${VERSION}`;
+/* RETRATO HERO em vez do recorte low-poly. Os 44 de public/img/chars-hero/ saem do
+   MESMO GLB (o render é a referência que trava a identidade — ver
+   tools/gen-char-realista.mjs), só com densidade de detalhe que a malha do jogo não
+   tem. Verificado: os 44 ids do characters.js têm arquivo, então não há caminho de
+   404 por personagem faltando.
+   Uma função só alimenta prévia estática, fallback do snapshot 3D e modo de
+   qualidade baixa — trocar aqui melhora os três de uma vez. */
+const portraitUrl = (def) => `/img/chars-hero/${def.id}.webp?v=${VERSION}`;
+/* O antigo continua no repo e vira a rede de segurança: se o hero não carregar, a
+   imagem cai para o recorte do modelo em vez de ficar quebrada. */
+const portraitFallbackUrl = (def) => `/img/chars/${def.id}.webp?v=${VERSION}`;
+/* VÍDEO DO PERSONAGEM (tela 03 do redesign): captura do próprio modelo, rig e clipe
+   do jogo por tools/eval/char-native-vids.mjs. Falha de rede mantém o canvas/GLB. */
+let pvVidToken = 0;
+function previewVideoVisible() {
+  return document.querySelector('.char-preview-box')?.classList.contains('has-video') === true;
+}
+function pvStopVideo() {
+  const box = document.querySelector('.char-preview-box');
+  const video = $('char-preview-video');
+  if (!video) return;
+  video.pause();
+  video.removeAttribute('src');
+  video.load();
+  video.classList.add('hidden');
+  box?.classList.remove('has-video');
+}
+function pvSetVideo(def) {
+  const box = document.querySelector('.char-preview-box');
+  const video = $('char-preview-video'), hints = document.querySelector('.pv-hints');
+  if (!box || !video) return;
+  const my = ++pvVidToken;
+  box.classList.remove('has-video');
+  video.classList.add('hidden');
+  // no modo estático (sem WebGL) as dicas de GIRAR/ZOOM nunca aparecem — nem quando o vídeo falta
+  if (hints) hints.classList.toggle('hidden', staticPreviews);
+  video.onerror = () => { if (my === pvVidToken) { box.classList.remove('has-video'); video.classList.add('hidden'); } };
+  video.onloadeddata = () => {
+    if (my !== pvVidToken) return;
+    video.play().catch(() => {});
+    box.classList.add('has-video');
+    video.classList.remove('hidden');
+    if (hints) hints.classList.add('hidden');
+  };
+  video.src = `/video/chars/${def.id}.webm?v=${VERSION}`;
+  video.load();
+}
 function showStaticPreview(def) {
   const canvas = $('char-preview'), image = $('char-preview-static'), hints = document.querySelector('.pv-hints');
   if (canvas) canvas.classList.add('hidden');
-  if (image) { image.src = portraitUrl(def); image.alt = def.name; image.classList.remove('hidden'); }
+  if (image) {
+    image.onerror = () => { image.onerror = null; image.src = portraitFallbackUrl(def); };
+    image.src = portraitUrl(def); image.alt = def.name; image.classList.remove('hidden');
+  }
   if (hints) hints.classList.add('hidden');
 }
 function ensurePreview() {
@@ -436,7 +591,7 @@ function pvSetChar(def) {
     if (p.model) p.scene.remove(p.model);
     p.mixer = null; p.ctrl = null;
     p.model = buildCharacter(def).group;
-    p.model.rotation.y = 0.4;
+    p.model.rotation.y = -0.4;
     p.scene.add(p.model);
   };
   // ?nav=1 mantém o preview procedural; web-assets.spec.js cobre o GLB real.
@@ -455,7 +610,7 @@ function pvSetChar(def) {
       if (p.model) p.scene.remove(p.model);
       // Somente o GLB real marca o canvas para web-assets.spec.js.
       $('char-preview').dataset.glb = '1';
-      m.group.rotation.y = 0.4;
+      m.group.rotation.y = -0.4;
       p.model = m.group; p.mixer = m.mixer; p.ctrl = m.ctrl;
       p.scene.add(m.group);
     }).catch(() => { if (my === pvToken) showBox(); });
@@ -724,7 +879,8 @@ async function _refreshOnline() {
 _refreshOnline();
 setInterval(_refreshOnline, 60000);
 const params = new URLSearchParams(location.search);
-const testMode = params.get('debug') === '1';
+const inspectionScreen = resolveInspectionScreen(params);
+const testMode = params.get('debug') === '1' || !!inspectionScreen;
 // ?nav=1 isola transições de tela; web-assets.spec.js cobre preload e render 3D.
 const navOnly = params.get('nav') === '1';
 
@@ -797,10 +953,11 @@ async function _startGame(team, charId, enemyFaction) {
      Falhar é ACEITÁVEL: sem tela cheia não há trava de atalho, e a confirmação de saída
      do `beforeunload` cobre o caso. Por isso nada de await e nada de erro na tela. */
   if (!testMode) { try { document.documentElement.requestFullscreen?.()?.catch?.(() => {}); } catch {} }
+  loadingStage.hide(); dockLoadingCharacter();
   const _sp = document.getElementById('boot-splash'); if (_sp) _sp.remove();   // fluxo ?auto= pula a splash
   // LOADING REAL da partida: overlay opaco cobre TUDO enquanto os GLBs entram e o mundo
   // é construído — nada de cena parcial/"minecraft" aparecendo aos poucos
-  showLoading(frase('carregando', MAPS[currentMap].name.toUpperCase()));
+  showLoading(frase('carregando', MAPS[currentMap].name.toUpperCase()), 'CARREGANDO MODELOS 3D…', MAPS[currentMap].name.toUpperCase());
   await sfxReady;   // make sure voice/CS samples are registered before round 1 sounds
   // Preload real GLB character models + shared animation clips (bots). Falls back to
   // procedural box meshes for any archetype that isn't modeled yet. Map props (statues)
@@ -822,6 +979,7 @@ async function _startGame(team, charId, enemyFaction) {
     playerCharId: charId, playerTeam: side, playerFaction: faction, enemyFaction: enemyFac, mapId: currentMap,
     nickname: $('nick-input').value, testMode,
     ctf: matchMode === 'ctf',   // o modo agora é 100% escolha do jogador (ctfMode só define o PADRÃO ao trocar de mapa)
+    roundsMax: matchRounds(),
     onMatchEnd: recordMatchStats,
     recordTraining: trainingEnabled(),
     onTrainingFrames: sendTrainingFrames,
@@ -923,13 +1081,34 @@ setInterval(async () => {
 }, 30_000);
 
 /* ---------------- avatar upload (UID seleciona; token autentica) ---------------- */
+function fallbackPlayerAvatar(seed) {
+  let h = 2166136261;
+  for (const ch of `${getAnonId()}|${seed || ''}`) h = Math.imul(h ^ ch.charCodeAt(0), 16777619) >>> 0;
+  const character = CHARACTERS[h % CHARACTERS.length] || CHARACTERS[0];
+  return `/img/chars/avatars/${character.id}.webp?v=${VERSION}`;
+}
+function applyPlayerAvatar(el, seed) {
+  if (!el) return;
+  let custom = '';
+  try { custom = localStorage.getItem(PLAYER_AVATAR_KEY) || ''; } catch {}
+  el.style.backgroundImage = `url("${custom || fallbackPlayerAvatar(seed)}")`;
+  el.textContent = '';
+}
 $('avatar-btn').onclick = () => $('avatar-file').click();
 $('avatar-file').onchange = async e => {
   const f = e.target.files[0];
-  const nick = registeredNick || (nickEl.value || '').trim();
+  let nick = registeredNick || (nickEl.value || '').trim();
   if (!f || !nick) return;
   $('avatar-note').textContent = 'enviando…';
   try {
+    if (!registeredNick) {
+      const reg = await api('/api/register', {
+        nick, token: getToken(), uid: getAnonId(), socials: socials.filter(s => s.handle),
+      });
+      if (!reg || reg.error) throw new Error(reg?.message || reg?.error || 'cadastro indisponível');
+      registeredNick = typeof reg.nick === 'string' && reg.nick ? reg.nick : nick;
+      nick = registeredNick;
+    }
     const bmp = await createImageBitmap(f);
     const c = document.createElement('canvas'); c.width = c.height = 128;
     const x = c.getContext('2d');
@@ -937,8 +1116,12 @@ $('avatar-file').onchange = async e => {
     x.drawImage(bmp, (bmp.width - s) / 2, (bmp.height - s) / 2, s, s, 0, 0, 128, 128);
     const dataUrl = c.toDataURL('image/png');
     const res = await api('/api/avatar', { uid: getAnonId(), nick, token: getToken(), image: dataUrl });
-    $('avatar-note').textContent = res && res.ok ? 'foto atualizada! ✓' : 'falhou: ' + (res?.error || 'sem conexão');
-  } catch { $('avatar-note').textContent = 'falhou — tente outra imagem'; }
+    if (res && res.ok && res.url) {
+      localStorage.setItem(PLAYER_AVATAR_KEY, res.url);
+      renderPlayerPlate();
+      $('avatar-note').textContent = 'foto atualizada! ✓';
+    } else $('avatar-note').textContent = 'falhou: ' + (res?.message || res?.error || 'sem conexão');
+  } catch (error) { $('avatar-note').textContent = `falhou: ${error?.message || 'tente outra imagem'}`; }
   e.target.value = '';
 };
 
@@ -985,16 +1168,16 @@ function markCurrent(act) {
                  da primeira tela ("o primeiro menu com o mapa não precisa ter o nick").
    Um container só = a máquina de estados do menu (ESC, clique fora, VOLTAR, o seletor
    :has(.cs-setup.open) do CSS) continua valendo pros dois sem duplicação. */
-let setupTitle = 'SINGLE PLAYER';
+let setupTitle = 'MATA-MATA';
 function setSetupStep(step) {
   menuSetup.dataset.step = step;
   const st = $('setup-step'), tt = $('setup-title');
   if (step === 'profile') {
-    if (st) st.textContent = 'PASSO À PARTE · NOME NA CAMISA';
-    if (tt) tt.textContent = 'SEU PERFIL';
+    if (st) st.textContent = tr('PASSO À PARTE · NOME NA CAMISA');
+    if (tt) tt.textContent = tr('SEU PERFIL');
   } else {
-    if (st) st.textContent = matchMode === 'ctf' ? 'PASSO 1 · A PARTIDA (CTF)' : 'PASSO 1 · A PARTIDA';
-    if (tt) tt.textContent = setupTitle;
+    if (st) st.textContent = tr(matchMode === 'ctf' ? 'PASSO 1 · A PARTIDA (CTF)' : 'PASSO 1 · A PARTIDA');
+    if (tt) tt.textContent = tr(setupTitle);
   }
 }
 const openSetup = (mode, title, act) => {
@@ -1006,13 +1189,31 @@ const openSetup = (mode, title, act) => {
   setSetupStep('match');   // abrir o menu SEMPRE cai no passo da partida, nunca no perfil
   applySetupWall();   // "escolher mapa/config" usa o wallpaper da posição 2 do fluxo
 };
+function openModeMap(mode, title, act) {
+  openSetup(mode, title, act);
+  renderMapScreen();
+  show('map-screen');
+}
+/* JOGAR abre os DOIS modos num submenu em vez de ocupar duas linhas da lista: o
+   redesign fecha o menu principal em 4 itens, e os modos são escolha de segundo
+   nível. `sp` e `ctf` seguem exatamente como estavam — só ganharam um pai. */
+const csJogar = document.querySelector('.cs-item[data-act="jogar"]');
+const csModos = $('cs-modos');
+function abreModos(abrir) {
+  if (!csModos || !csJogar) return;
+  const on = abrir === undefined ? csModos.hidden : abrir;
+  csModos.hidden = !on;
+  csJogar.setAttribute('aria-expanded', String(on));
+  csJogar.classList.toggle('is-open', on);
+}
 csItems.forEach((it) => {
   it.onmouseenter = () => ui.hover();
   it.onclick = () => {
     ui.click();
     switch (it.dataset.act) {
-      case 'sp':    openSetup('rounds', 'SINGLE PLAYER', 'sp'); break;
-      case 'ctf':   openSetup('ctf', 'CAPTURE THE FLAG', 'ctf'); break;
+      case 'jogar': abreModos(); markCurrent(csModos && !csModos.hidden ? 'jogar' : null); break;
+      case 'sp':    openModeMap('rounds', 'MATA-MATA', 'sp'); break;
+      case 'ctf':   openModeMap('ctf', 'CAPTURE THE FLAG', 'ctf'); break;
       /* MAPA saiu (mapa se escolhe no fluxo de partida); FEEDBACK entrou (07/08) */
       case 'feedback': markCurrent('feedback'); show('feedback-panel'); break;
       case 'apoie': markCurrent('apoie'); showSupport(); break;
@@ -1022,17 +1223,28 @@ csItems.forEach((it) => {
     }
   };
 });
+/* FEEDBACK saiu da lista principal e virou link de rodapé — o painel e a rota
+   (/api/feedback, migration 013) são os mesmos, só o ponto de entrada mudou. */
+const mfFeedback = $('mf-feedback');
+if (mfFeedback) mfFeedback.onclick = () => { ui.click(); markCurrent('feedback'); show('feedback-panel'); };
+
 // Navegação por teclado no menu (↑↓ / Home / End). Num FPS de PC não navegar no teclado
 // é falha de acessibilidade E de sensação — CS2/Valorant fazem tudo sem mouse.
 $('cs-menu').addEventListener('keydown', (e) => {
-  const i = csItems.indexOf(document.activeElement);
+  /* Só os VISÍVEIS entram na roda. Com o submenu de modos recolhido, indexar o
+     array estático mandava o foco para um botão dentro de [hidden]: a seta
+     "engolia" um passo e o leitor de tela anunciava item que não existe na tela.
+     offsetParent é null para qualquer ancestral com display:none/[hidden]. */
+  const itens = csItems.filter((b) => b.offsetParent !== null);
+  if (!itens.length) return;
+  const i = itens.indexOf(document.activeElement);
   let n = -1;
-  if (e.key === 'ArrowDown') n = (i < 0 ? 0 : (i + 1) % csItems.length);
-  else if (e.key === 'ArrowUp') n = (i < 0 ? csItems.length - 1 : (i - 1 + csItems.length) % csItems.length);
+  if (e.key === 'ArrowDown') n = (i < 0 ? 0 : (i + 1) % itens.length);
+  else if (e.key === 'ArrowUp') n = (i < 0 ? itens.length - 1 : (i - 1 + itens.length) % itens.length);
   else if (e.key === 'Home') n = 0;
-  else if (e.key === 'End') n = csItems.length - 1;
+  else if (e.key === 'End') n = itens.length - 1;
   if (n < 0) return;
-  e.preventDefault(); csItems[n].focus(); ui.hover();
+  e.preventDefault(); itens[n].focus(); ui.hover();
 });
 // Fechar o setup tinha UMA saída só: o botão VOLTAR. Enquanto ele estava aberto a coluna
 // da esquerda ficava inerte (ver style.css, bloco `:has(.cs-setup.open)`), então quem
@@ -1095,7 +1307,7 @@ function syncPlayState() {
   }
   renderPlayerPlate();   // nick do card do menu acompanha a digitação
 }
-$('btn-jogar').onclick = () => {
+$('btn-jogar').onclick = async () => {
   if (!(nickEl.value || '').trim()) {
     // sem nick o JOGAR não morre: ele LEVA pro passo que falta (o nick não está mais
     // nesta tela, então um shake num campo invisível não diria nada a ninguém)
@@ -1107,6 +1319,7 @@ $('btn-jogar').onclick = () => {
     return;   // sem nick, sem treta
   }
   sfx.uiClick();
+  await factionArtReady;
   setTeamStep('side');
   show('team-select');
   window.__gameLaunch?.ready('menu');
@@ -1176,19 +1389,24 @@ function setMapThumb() {
 // Rótulos dos modos de arma em UM lugar (WPN_MODES lá embaixo é derivado daqui): a
 // ficha do cartaz e o dropdown têm que dizer a mesma coisa com as mesmas palavras.
 const WPN_MODE_LABEL = { all: 'TODAS', pistols: 'SÓ PISTOLAS', knife: 'SÓ FACA', awp: 'SÓ AWP' };
+function matchRounds() {
+  const fallback = matchMode === 'ctf' ? 3 : 5;
+  const requested = +(matchMode === 'ctf' ? settings.ctfRounds : settings.rounds);
+  return [1, 3, 5, 7].includes(requested) ? requested : fallback;
+}
 // Ficha da partida IMPRESSA NO CARTAZ (modo · bots · armas). O dono pediu "maior dimensão
 // pro mapa" com "nome, modo, bots" — então o resumo mora sobre a arte, e não numa coluna
 // de formulário ao lado dela.
 function setMapMeta() {
   const el = $('map-meta'); if (!el) return;
   const n = settings.bots || 4;
-  const modo = matchMode === 'ctf' ? 'CAPTURE THE FLAG' : frase('melhorDe5');
+  const modo = frase(matchMode === 'ctf' ? 'ctfMelhorDeN' : 'melhorDeN', matchRounds());
   el.textContent = frase('resumoPartida', modo, n, tr(WPN_MODE_LABEL[settings.wpnMode || 'all'] || 'TODAS'));
 }
 function setMapMode() {
   const m = $('map-mode');
   if (m) {
-    m.textContent = matchMode === 'ctf' ? 'CAPTURE THE FLAG' : 'ROUNDS';
+    m.textContent = matchMode === 'ctf' ? 'CAPTURE THE FLAG' : 'MATA-MATA';
     m.dataset.mode = matchMode;
   }
   const d = $('map-dots');
@@ -1223,7 +1441,11 @@ function gotoMap(i) {
   rebuildMenuBackdrop();
   renderMapScreen();   // se a tela cheia estiver aberta, ela acompanha o carrossel
 }
-function stepMap(dir) { ui.click(); gotoMap(mapIdx + dir); }
+function stepMap(dir, ids = MAP_IDS) {
+  const pool = ids.length ? ids : MAP_IDS;
+  const nextId = pool[(Math.max(0, pool.indexOf(currentMap)) + dir + pool.length) % pool.length];
+  ui.click(); gotoMap(MAP_IDS.indexOf(nextId));
+}
 mapNameEl.textContent = MAPS[currentMap].name;
 setMapThumb();
 setMapMode();
@@ -1239,39 +1461,76 @@ const MAP_DESC = {
   piscina_treta: 'Salão fechado, eco de tiro e briga de faca no raso. Quem controla a borda controla o round.',
   loja_h: 'Estacionamento de megastore: corredores de vaga, mezanino de sniper e a estátua te olhando atirar.',
   ferro_velho: 'Um ferro velho gigantesco onde tudo pode ser arma e toda sombra pode esconder um traira.',
+  quebrada: 'Rua de baile: muros baixos, beco cego e o paredão marcando o compasso do round.',
+  posto_treta: 'Posto de combustível na beira da BR: loja de conveniência, bombas de cobertura e treta no fluorescente.',
+  atacadao_treta: 'Galpão de atacado em guerra: gôndolas apertadas, caixas de cobertura e o estacionamento disputado carrinho por carrinho.',
 };
+const MAP_CAT = {
+  praca_poderes: 'CIDADES', piscina_treta: 'ARENA', loja_h: 'CIDADES',
+  ferro_velho: 'ARENA', quebrada: 'FAVELA', posto_treta: 'ARENA',
+  atacadao_treta: 'CIDADES',
+};
+let mapCategory = 'TODOS';
+function visibleMapIds() {
+  return mapCategory === 'TODOS' ? MAP_IDS : MAP_IDS.filter((id) => MAP_CAT[id] === mapCategory);
+}
 function renderMapScreen() {
   const img = $('ms-bg-img'); if (!img) return;
+  const continuar = $('ms-continue')?.querySelector('span');
+  if (continuar) continuar.textContent = frase('continuarSetup');
   img.src = `/img/map-previews/${currentMap}.jpg?v=${VERSION}`;
   $('ms-name').textContent = MAPS[currentMap].name;
-  $('ms-meta').textContent = $('map-meta').textContent;   // a MESMA ficha impressa no cartaz
-  $('ms-desc').textContent = MAP_DESC[currentMap] || '';
-  // chrome do topo: o mesmo jogador do plate do menu (uma fonte só de verdade)
-  const nick = (nickEl.value || '').trim();
-  $('ms-top-nick').textContent = nick || 'SEM NICK';
-  $('ms-avatar').textContent = (nick || 'CS').replace(/[^a-z0-9]/gi, '').slice(0, 2).toUpperCase() || 'CS';
-  $('ms-top-level').textContent = 'NÍVEL ' + (Math.floor(playerXp(loadStats()) / 2000) + 1);
-  $('ms-strip').innerHTML = MAP_IDS.map((id, i) =>
-    `<button class="ms-thumb${id === currentMap ? ' on' : ''}" data-i="${i}" type="button">` +
-    `<img src="/img/map-previews/${id}.jpg?v=${VERSION}" alt="${MAPS[id].name}"><span>${MAPS[id].name}</span></button>`).join('');
+  // separadores da ficha em verde (referência 04): texto continua o mesmo do cartaz
+  $('ms-meta').innerHTML = ($('map-meta').textContent || '').split('·').join('<span class="ms-sep">·</span>');
+  $('ms-desc').textContent = tr(MAP_DESC[currentMap] || '');
+  syncMapOptions();
+  const cat = MAP_CAT[currentMap] || 'ARENA';
+  const catEl = $('ms-cat');
+  catEl.textContent = tr(cat); catEl.dataset.cat = cat;
+  $('ms-count').textContent = `${tr('MAPA')} ${MAP_IDS.indexOf(currentMap) + 1} ${tr('DE')} ${MAP_IDS.length}`;
+  const shown = visibleMapIds();
+  $('ms-strip').style.setProperty('--map-count', shown.length);
+  $('ms-strip').innerHTML = shown.map((id) =>
+      `<button class="ms-thumb${id === currentMap ? ' on' : ''}" data-id="${id}" aria-pressed="${id === currentMap}" type="button">` +
+      `<img class="ms-thumb-img" src="/img/map-previews/${id}.jpg?v=${VERSION}" alt="">` +
+      `<span class="ms-thumb-copy"><span class="ms-thumb-name">${MAPS[id].name}</span>` +
+      `<span class="ms-thumb-cat" data-cat="${MAP_CAT[id] || 'ARENA'}">${tr(MAP_CAT[id] || 'ARENA')}</span></span>` +
+      `${id === currentMap ? '<i class="ms-diamond" aria-hidden="true"></i>' : ''}</button>`).join('');
+  document.querySelectorAll('.ms-tab').forEach((tab) => {
+    const on = tab.dataset.cat === mapCategory;
+    tab.classList.toggle('on', on);
+    tab.setAttribute('aria-selected', on);
+  });
+  const pages = Math.max(1, Math.ceil(shown.length / 5));
+  const activePage = Math.min(pages - 1, Math.floor(Math.max(0, shown.indexOf(currentMap)) / 5));
+  $('ms-dashes').innerHTML = Array.from({ length: pages }, (_, i) => `<i${i === activePage ? ' class="on"' : ''}></i>`).join('');
   $('ms-strip').querySelectorAll('.ms-thumb').forEach(b => {
-    b.onclick = () => { ui.click(); gotoMap(+b.dataset.i); };
+    b.onclick = () => { ui.click(); gotoMap(MAP_IDS.indexOf(b.dataset.id)); };
     b.onmouseenter = () => ui.hover();
   });
+  requestAnimationFrame(() => $('ms-strip').querySelector('.ms-thumb.on')?.scrollIntoView({ block: 'nearest', inline: 'center' }));
 }
 mapThumb.title = 'Ver mapa em tela cheia';
 mapThumb.style.cursor = 'pointer';
 mapThumb.onclick = () => { ui.click(); renderMapScreen(); show('map-screen'); };
-$('ms-prev').onclick = () => stepMap(-1);
-$('ms-next').onclick = () => stepMap(1);
 $('ms-back').onclick = () => { ui.back(); show('main-menu'); };
+$('ms-prev').onclick = () => stepMap(-1, visibleMapIds());
+$('ms-next').onclick = () => stepMap(1, visibleMapIds());
+document.querySelectorAll('.ms-tab').forEach((tab) => {
+  tab.onclick = () => {
+    ui.click(); mapCategory = tab.dataset.cat || 'TODOS';
+    const first = MAP_IDS.find((id) => mapCategory === 'TODOS' || MAP_CAT[id] === mapCategory);
+    if (first && !MAP_IDS.some((id) => id === currentMap && (mapCategory === 'TODOS' || MAP_CAT[id] === mapCategory))) gotoMap(MAP_IDS.indexOf(first));
+    else renderMapScreen();
+  };
+});
 // CONTINUAR = o JOGAR de sempre: ele decide o próximo passo (perfil se falta nick, facção se não)
 $('ms-continue').onclick = () => { show('main-menu'); $('btn-jogar').click(); };
 // ← → trocam de mapa com a tela cheia aberta (ESC fecha — ver o handler de ESC do menu)
 addEventListener('keydown', (e) => {
   if ($('map-screen').classList.contains('hidden')) return;
-  if (e.key === 'ArrowLeft') { e.preventDefault(); stepMap(-1); }
-  else if (e.key === 'ArrowRight') { e.preventDefault(); stepMap(1); }
+  if (e.key === 'ArrowLeft') { e.preventDefault(); stepMap(-1, visibleMapIds()); }
+  else if (e.key === 'ArrowRight') { e.preventDefault(); stepMap(1, visibleMapIds()); }
 });
 const wpnSel = { value: settings.wpnMode || 'all' };
 // dropdown de modo de armas: renders REAIS de /img/weapons (o dono reprovou os glifos)
@@ -1300,8 +1559,8 @@ wpnDdList.querySelectorAll('.dd-item').forEach(b => b.onclick = () => {
 // bots-per-side: dropdown custom (mesma cara do de armas — o <select> nativo abria o
 // menu default do navegador, fora do estilo do resto do setup)
 const botsDdBtn = $('bots-dd-btn'), botsDdList = $('bots-dd-list'), botsDdLabel = $('bots-dd-label');
+const botsLabel = n => { if (botsDdLabel) botsDdLabel.innerHTML = `<span class="dd-cur"><span>${n} vs ${n}</span></span>`; };
 if (botsDdBtn && botsDdList && botsDdLabel) {
-  const botsLabel = n => { botsDdLabel.innerHTML = `<span class="dd-cur"><span>${n} vs ${n}</span></span>`; };
   botsDdList.innerHTML = [2, 3, 4, 5, 6, 7, 8].map(n =>
     `<button class="dd-item" data-n="${n}" type="button"><span>${n} vs ${n}</span></button>`).join('');
   botsLabel(settings.bots || 4);
@@ -1312,6 +1571,22 @@ if (botsDdBtn && botsDdList && botsDdLabel) {
     botsLabel(settings.bots); setMapMeta(); sfx.uiClick();
   });
 }
+const msWpnMode = $('ms-wpn-mode'), msPlayers = $('ms-players'), msRounds = $('ms-rounds');
+function syncMapOptions() {
+  if (msWpnMode) msWpnMode.value = settings.wpnMode || 'all';
+  if (msPlayers) msPlayers.value = String(settings.bots || 4);
+  if (msRounds) msRounds.value = String(matchRounds());
+}
+if (msWpnMode) msWpnMode.onchange = () => {
+  settings.wpnMode = msWpnMode.value; saveSettings(); wpnLabel(settings.wpnMode); setMapMeta(); renderMapScreen(); sfx.uiClick();
+};
+if (msPlayers) msPlayers.onchange = () => {
+  settings.bots = +msPlayers.value; saveSettings(); botsLabel(settings.bots); setMapMeta(); renderMapScreen(); sfx.uiClick();
+};
+if (msRounds) msRounds.onchange = () => {
+  settings[matchMode === 'ctf' ? 'ctfRounds' : 'rounds'] = +msRounds.value;
+  saveSettings(); setMapMeta(); renderMapScreen(); sfx.uiClick();
+};
 const diffSel = $('diff-select');
 if (diffSel) {
   [['easy', 'FÁCIL'], ['normal', 'NORMAL'], ['hard', 'DIFÍCIL'], ['insane', 'INSANO']].forEach(([v, l]) => { const o = document.createElement('option'); o.value = v; o.textContent = l; diffSel.appendChild(o); });
@@ -1321,28 +1596,48 @@ if (diffSel) {
 $('btn-howto').onclick = () => { sfx.uiClick(); howtoReturn = 'main-menu'; show('howto-panel'); };
 $('howto-back').onclick = () => { ui.back(); markCurrent(null); const r = howtoReturn; howtoReturn = 'main-menu'; show(r); };
 $('btn-settings').onclick = () => { sfx.uiClick(); settingsReturn = 'main-menu'; show('settings-panel'); };
-$('settings-back').onclick = () => {
+const closeSettings = () => {
   ui.back(); saveSettings();
   if (game) game.applySettings();
   if (settingsReturn === 'main-menu') markCurrent(null);
   show(settingsReturn);
+};
+$('settings-back').onclick = closeSettings;
+$('settings-close').onclick = closeSettings;
+$('settings-apply').onclick = () => { ui.click(); saveSettings(); if (game) game.applySettings(); };
+$('settings-restore').onclick = () => {
+  ui.click();
+  settings.quality = 'med'; settings.sens = 1; settings.invertY = false; settings.vol = 0.7; settings.speech = true; settings.xhair = '#4fe8e0';
+  $('set-quality').value = settings.quality; $('set-sens').value = settings.sens; $('set-vol').value = settings.vol;
+  $('set-speech').checked = true; $('set-invert-y').checked = false; $('set-xhair').value = settings.xhair;
+  sfx.speechEnabled = true; sfx.setVolume(settings.vol); applyXhair(); updLabels(); saveSettings();
+  if (game) game.applySettings();
 };
 // Abas das configurações: troca o pane visível; os inputs nunca são re-criados,
 // então o wiring de persistência abaixo vale pra todos os panes.
 document.querySelectorAll('.set-tab').forEach(tab => {
   tab.onclick = () => {
     sfx.uiClick();
+    $('settings-panel').dataset.activeTab = tab.dataset.tab;
     document.querySelectorAll('.set-tab').forEach(t => {
       const on = t === tab;
       t.classList.toggle('active', on);
       t.setAttribute('aria-selected', on);
     });
-    document.querySelectorAll('.set-pane').forEach(p => p.classList.toggle('hidden', p.dataset.pane !== tab.dataset.tab));
   };
 });
 $('mobile-ok').onclick = () => { sfx.uiClick(); show('main-menu'); };
 $('team-back').onclick = () => { ui.back(); pickingEnemy = false; setEnemyPickMode(false); setTeamStep('side'); show('main-menu'); };
-$('char-back').onclick = () => { ui.back(); show('team-select'); };
+$('char-back').onclick = () => {
+  ui.back();
+  if (switchMode && game) {
+    switchMode = false;
+    currentTeam = game.playerTeam; currentFaction = game.playerFaction;
+    currentEnemyFaction = game.enemyFaction; currentChar = game.playerCharId;
+    show(null); game.resume(); return;
+  }
+  show('team-select');
+};
 // Setas do filmstrip: movem a SELEÇÃO (não só o scroll) e garantem a linha visível.
 const stripStep = (dir) => {
   const rows = [...document.querySelectorAll('.char-row')];
@@ -1350,7 +1645,7 @@ const stripStep = (dir) => {
   const i = Math.max(0, rows.findIndex(r => r.classList.contains('sel')));
   const next = rows[(i + dir + rows.length) % rows.length];
   next.click();
-  next.scrollIntoView({ block: 'nearest' });
+  next.scrollIntoView({ block: 'nearest', inline: 'nearest' });
 };
 $('strip-up').onclick = () => { ui.click(); stripStep(-1); };
 $('strip-down').onclick = () => { ui.click(); stripStep(1); };
@@ -1361,7 +1656,7 @@ for (const f of ['e', 'b', 'u', 'c', 'f']) {
   if (!card) continue;
   const chip = document.createElement('span');
   chip.className = 'team-count';
-  chip.textContent = `${n} PERSONAGENS`;
+  chip.textContent = `${n} ${tr('PERSONAGENS')}`;
   card.appendChild(chip);
 }
 $('btn-team-e').onclick = () => { sfx.uiClick(); pickTeam('E'); };
@@ -1429,9 +1724,9 @@ $('btn-menu').onclick = () => { sfx.uiClick(); quitToMenu(); };
 let switchMode = false;
 function armSwitchHook() {
   game.onRequestSwitch = () => {
-    if (document.pointerLockElement) document.exitPointerLock();
+    game.setPaused(true);
     switchMode = true;
-    pickTeam(game.enemyTeam);
+    pickTeam(game.enemyFaction);
   };
 }
 $('char-confirm').onclick = () => {
@@ -1444,7 +1739,11 @@ $('char-confirm').onclick = () => {
     switchMode = false;
     currentChar = selChar.id;
     show(null);
-    try { game._switchTeam(selChar.id); } catch (e) { console.error('switch team failed', e); }
+    try {
+      game._switchTeam(selChar.id);
+      currentTeam = game.playerTeam; currentFaction = game.playerFaction;
+      currentEnemyFaction = game.enemyFaction; currentChar = game.playerCharId;
+    } catch (e) { console.error('switch team failed', e); }
     game.resume();   // unpause + re-request pointer lock (fixes "M opens but game won't resume")
   } else {
     switchMode = false;
@@ -1471,18 +1770,18 @@ function setEnemyPickMode(on, myFaction) {
    ficava com cara de formulário ("escolha o adversário" e três caixas iguais).
    Agora o passo é um estado (data-step) que a tela inteira lê: eyebrow, título, dica
    e o texto da barra de ação de cada placa (ver .team-cta no style.css). */
-const FACTION_NAME = { P: 'TIME E', B: 'TIME B', U: 'TRIBOS URBANAS', C: 'PALHAÇOS', F: 'FUNKEIROS' };
+const FACTION_NAME = { E: 'TIME E', B: 'TIME B', U: 'TRIBOS URBANAS', C: 'PALHAÇOS', F: 'FUNKEIROS' };
 function setTeamStep(step, myFaction) {
   const ts = $('team-select'); if (ts) ts.dataset.step = step;
   const st = $('team-step'), tt = $('team-title'), hint = $('team-hint');
   if (step === 'enemy') {
-    if (st) st.textContent = 'PASSO 4 · O ADVERSÁRIO';
-    if (tt) tt.textContent = 'QUEM VAI LEVAR O CORO?';
-    if (hint) hint.textContent = `Você fecha com ${FACTION_NAME[myFaction] || 'os seus'}. Aponte quem vai encarar do outro lado.`;
+    if (st) st.textContent = tr('PASSO 4 · O ADVERSÁRIO');
+    if (tt) tt.textContent = tr('QUEM VAI LEVAR O CORO?');
+    if (hint) hint.textContent = frase('escolhaAdversario', tr(FACTION_NAME[myFaction] || 'os seus'));
   } else {
-    if (st) st.textContent = 'PASSO 2 · O SEU LADO';
-    if (tt) tt.textContent = 'ESCOLHA SEU LADO DA TRETA';
-    if (hint) hint.textContent = 'Cada facção tem elenco, grito e jeito de brigar. Escolha o coro.';
+    if (st) st.textContent = tr('PASSO 2 · O SEU LADO');
+    if (tt) tt.textContent = tr('ESCOLHA SEU LADO DA TRETA');
+    if (hint) hint.textContent = tr('Cada facção tem elenco, grito e jeito de brigar. Escolha o coro.');
   }
 }
 
@@ -1562,13 +1861,6 @@ async function api(path, body) {
 }
 function submitNote(msg) {
   console.warn('[ranking]', msg);
-  const el = document.getElementById('match-stats');
-  if (el && !document.getElementById('match-end').classList.contains('hidden')) {
-    const d = document.createElement('div');
-    d.style.cssText = 'color:#ff8080;font-size:12px;width:100%';
-    d.textContent = '⚠ stats não enviados: ' + msg;
-    el.appendChild(d);
-  }
 }
 function traduErroSubmit(msg) {
   if (/identity|identidade|token|uid/i.test(msg) || rankingBloqueado)
@@ -1687,15 +1979,45 @@ function renderPlayerPlate() {
   const level = Math.floor(xp / 2000) + 1;
   const into = xp % 2000;
   const nick = (nickEl.value || '').trim();
-  $('pp-avatar').textContent = (nick || 'CS').replace(/[^a-z0-9]/gi, '').slice(0, 2).toUpperCase() || 'CS';
-  $('pp-nick').textContent = nick || 'SEM NICK';
-  $('pp-level').textContent = 'NÍVEL ' + level;
+  applyPlayerAvatar($('pp-avatar'), nick);
+  $('pp-nick').textContent = nick || tr('SEM NICK');
+  $('pp-level').textContent = `${tr('NÍVEL')} ${level}`;
   $('xp-fill').style.width = (into / 20) + '%';
   $('xp-num').textContent = `${into.toLocaleString('pt-BR')} / 2.000 XP`;
   el.dataset.empty = nick ? '0' : '1';
+  espelhaBarraMenu();
 }
+
+/* A barra inferior do menu MOSTRA a escolha da partida; quem a MUDA continua sendo
+   o setup. Espelhar em vez de duplicar o controle: dois lugares editando o mesmo
+   estado é como se perde a sincronia entre eles. Se o setup ainda não montou, o
+   traço fica — é o mesmo placeholder que o #map-name usa antes de escolher. */
+function espelhaBarraMenu() {
+  const sub = $('pp-sub');
+  if (sub) {
+    const s = (typeof socialList !== 'undefined' && socialList && socialList[0]) ? socialList[0] : null;
+    sub.textContent = s ? `@${s.handle} · EDITAR PERFIL` : 'EDITAR PERFIL';
+  }
+  const armas = $('mf-armas-val'), mapa = $('mf-mapa-val');
+  const caret = '<span class="caret" aria-hidden="true">▼</span>';
+  if (armas) {
+    const v = ($('wpn-dd-label') || {}).textContent;
+    armas.innerHTML = `${(v || 'TODAS').trim()} ${caret}`;
+  }
+  if (mapa) {
+    const v = ($('map-name') || {}).textContent;
+    mapa.innerHTML = `${(v || '—').trim()} ${caret}`;
+  }
+}
+
 // o plate abre o passo de perfil do setup (onde nick/avatar se editam de verdade)
 $('player-plate').onclick = () => { openSetup(null, 'SEU PERFIL', null); openProfileStep(true); };
+/* ARMAS e MAPA levam ao MESMO passo do setup — é lá que a escolha existe. Sem
+   `markCurrent`, porque nenhum item da lista principal foi acionado. */
+for (const [id, titulo] of [['mf-armas', 'MATA-MATA'], ['mf-mapa', 'MATA-MATA']]) {
+  const b = $(id);
+  if (b) b.onclick = () => { ui.click(); openSetup('rounds', titulo, 'sp'); };
+}
 function showRanking() {
   const st = loadStats();
   const kd = st.deaths ? (st.kills / st.deaths).toFixed(2) : st.kills.toFixed(2);
@@ -1805,22 +2127,23 @@ function pickTeam(faction) {
     chars.forEach((c, i) => {
       const row = document.createElement('button');
       row.className = 'char-row';
-      // GLB direto (acabou de pré-carregar) — caixa procedural só se o modelo não existe
-      const thumb0 = (hasModel(c.id) ? glbThumb(c) : null) || pvThumb(c);
+      // Avatar = busto cortado da ARTE APROVADA (molde/neutro), não do GLB low-poly —
+      // referência 03: a coluna da esquerda é uma fileira de retratos, não de modelos 3D.
+      const thumb0 = `/img/chars/avatars/${c.id}.webp?v=${VERSION}`;
       row.type = 'button'; row.setAttribute('role', 'option'); row.setAttribute('aria-selected', 'false');
       row.innerHTML = `<img src="${thumb0}" alt="${c.name}"><span>${c.name}</span>`;
       row.onmouseenter = () => ui.hover();
-      // teclado: ↑↓ percorrem o roster e já trocam o preview (era só mouse)
+      // A faixa é horizontal, mas ↑↓ continuam aceitos para quem já usava o fluxo antigo.
       row.onkeydown = (e) => {
         const rows = [...list.children];
         const k = rows.indexOf(row);
         let n = -1;
-        if (e.key === 'ArrowDown') n = (k + 1) % rows.length;
-        else if (e.key === 'ArrowUp') n = (k - 1 + rows.length) % rows.length;
+        if (e.key === 'ArrowRight' || e.key === 'ArrowDown') n = (k + 1) % rows.length;
+        else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') n = (k - 1 + rows.length) % rows.length;
         if (n < 0) return;
         e.preventDefault(); rows[n].focus(); rows[n].click();
       };
-      row.onclick = () => { ui.click(); selectChar(c, row); };
+      row.onclick = () => selectCharacterFromAvatar(c, row, chars);
       list.appendChild(row);
       if (i === 0) firstRow = row;
     });
@@ -1868,13 +2191,13 @@ function renderCharAttrs(c) {
   const meme = 1 + (h % 5);
   const r = h % 10, tier = r < 5 ? 0 : r < 8 ? 1 : r < 9 ? 2 : 3;   // 50% comum / 30% raro / 10% épico / 10% lendário
   const rEl = $('char-rarity');
-  rEl.textContent = RARITIES[tier][0];
+  rEl.textContent = tr(RARITIES[tier][0]);
   rEl.style.color = RARITIES[tier][1];
   const [specName, specDesc] = SPEC_BY_WPN[wpn] || ['SOLDADO', 'Equilíbrio em tudo.'];
-  $('char-spec-name').textContent = specName;
-  $('char-spec-desc').textContent = specDesc;
+  $('char-spec-name').textContent = tr(specName);
+  $('char-spec-desc').textContent = tr(specDesc);
   $('char-attrs').innerHTML = [['VIDA', vida], ['VELOCIDADE', velo], ['PRECISÃO', prec], ['MEME', meme]]
-    .map(([l, v]) => `<div class="attr"><span>${l}</span><div class="attr-bar"><i style="width:${v * 20}%"></i></div></div>`).join('');
+    .map(([l, v]) => `<div class="attr"><span>${tr(l)}</span><div class="attr-bar"><i style="width:${v * 20}%"></i></div><b>${v}</b></div>`).join('');
 }
 function selectChar(c, row) {
   selChar = c;
@@ -1882,23 +2205,36 @@ function selectChar(c, row) {
   document.querySelectorAll('.char-row').forEach(r => { r.classList.remove('sel'); r.setAttribute('aria-selected', 'false'); });
   row.classList.add('sel'); row.setAttribute('aria-selected', 'true');
   pvSetChar(c);
+  if (staticPreviews) pvSetVideo(c); else pvStopVideo();
+  // rótulo da facção + tamanho do elenco sobre o nome (referência 03: "PALHAÇOS · 8 PERSONAGENS")
+  const tagEl = $('char-faction-tag');
+  if (tagEl) tagEl.textContent = `${tr(FACTION_NAME[currentFaction] || '')} · ${CHARACTERS.filter(x => x.team === currentFaction).length} ${tr('PERSONAGENS')}`;
   $('char-info-name').textContent = c.name;
-  $('char-info-blurb').textContent = c.blurb;
+  $('char-info-blurb').textContent = tr(c.blurb);
   renderCharAttrs(c);
 }
 
+function selectCharacterFromAvatar(c, row, roster) {
+  ui.click();
+  selectChar(c, row);
+  void sfxReady.then(() => {
+    if (selChar?.id === c.id) sfx.characterSelectVoice(c.id, c.team, roster.map((entry) => entry.id));
+  });
+}
+
 /* ---------------- settings wiring ---------------- */
-const sensEl = $('set-sens'), volEl = $('set-vol'), qualEl = $('set-quality');
-const invyEl = $('set-invy');
+const sensEl = $('set-sens'), invertEl = $('set-invert-y'), volEl = $('set-vol'), qualEl = $('set-quality');
 sensEl.value = settings.sens; volEl.value = settings.vol; qualEl.value = settings.quality;
-if (invyEl) invyEl.checked = settings.invY === true;   // #280: inverter eixo vertical
+invertEl.checked = settings.invertY === true;
 if (COMPAT_MODE) { qualEl.disabled = true; qualEl.title = 'Modo compatibilidade usa qualidade baixa nesta sessão'; }
 const updLabels = () => {
   $('set-sens-val').textContent = Number(settings.sens).toFixed(1);
   $('set-vol-val').textContent = Math.round(settings.vol * 100) + '%';
+  sensEl.style.setProperty('--set-pct', `${Math.round((Number(settings.sens) - 0.2) / 2.8 * 100)}%`);
+  volEl.style.setProperty('--set-pct', `${Math.round(Number(settings.vol) * 100)}%`);
 };
 sensEl.oninput = () => { settings.sens = +sensEl.value; updLabels(); saveSettings(); };
-if (invyEl) invyEl.onchange = () => { settings.invY = invyEl.checked; saveSettings(); if (game) game.applySettings(); };
+invertEl.onchange = () => { settings.invertY = invertEl.checked; saveSettings(); ui.click(); };
 volEl.oninput = () => { settings.vol = +volEl.value; sfx.setVolume(settings.vol); updLabels(); saveSettings(); };
 qualEl.onchange = () => { settings.quality = qualEl.value; saveSettings(); if (game) game.applySettings(); };
 // Cor da mira: a mira sai do sistema de cor do HUD (ciano = sistema, âmbar = objetivo,
@@ -2030,11 +2366,9 @@ let menuAngle = 0;
 function loop() {
   requestAnimationFrame(loop);
   const dt = Math.min(0.05, clock.getDelta());
+  loadingStage.update(dt);
   const csOpen = !$('char-select').classList.contains('hidden');
-  // While the char-select is open mid-match (pressing M to switch teams), the game
-  // auto-pauses — so we must NOT keep rendering it here, and we MUST still spin the
-  // preview. Rendering the preview only lived in the menu branch before, which is
-  // why M froze the selector.
+  // A troca com M pausa a partida; o preview 3D visível continua animando nesse estado.
   if (game && !csOpen) {
     game.update(dt);
   } else if (!game) {
@@ -2043,8 +2377,7 @@ function loop() {
     menuCam.lookAt(0, 1, 0);
     renderer.render(menuScene, menuCam);
   }
-  if (csOpen && pv && pv.model) {
-    if (!pvDrag) pv.model.rotation.y += dt * 0.9;   // giro automático pausa enquanto arrasta
+  if (csOpen && pv && pv.model && !previewVideoVisible()) {
     // ctrl.update (idle + IK da mão de apoio) quando há GLB; mixer cru só no fallback box
     if (pv.ctrl) pv.ctrl.update(dt, 0, false, 0); else if (pv.mixer) pv.mixer.update(dt);
     pv.r.render(pv.scene, pv.cam);
@@ -2053,13 +2386,94 @@ function loop() {
 loop();
 
 /* ---------------- boot ---------------- */
-document.querySelector('.footnote').textContent =
-  `v${VERSION} · Sátira política fictícia. Nenhum político real foi consultado (ou poupado).`;
+/* Guarda igual à da linha de baixo, e não é zelo: esta escrita roda em escopo de
+   módulo DUAS linhas antes do `show()`. Se o redesign mexer na única `.footnote`
+   do documento (index.astro, dentro do #pause-menu), o TypeError acontece ANTES
+   de qualquer tela aparecer — o sintoma seria "o menu não abre", que não parece
+   com "alguém renomeou uma classe no pause". */
+{
+  const fn = document.querySelector('.footnote');
+  if (fn) fn.textContent =
+    `v${VERSION} · Sátira política fictícia. Nenhum político real foi consultado (ou poupado).`;
+}
 { const sv = document.getElementById('splash-ver'); if (sv) sv.textContent = `v${VERSION}`; }
 show(isMobile && !testMode ? 'mobile-warning' : 'main-menu');
 window.__CS_MAIN_READY__ = true;
 window.__gameLaunch?.ready('boot');
-if (testMode && params.get('auto')) {
+function showInspectionResult(won, character) {
+  const end = $('match-end');
+  end.classList.toggle('win', won);
+  end.classList.toggle('lose', !won);
+  $('match-title').textContent = won ? tr('VITÓRIA') : tr('DERROTA');
+  const winnerName = tr(FACTION_NAME[won ? currentFaction : currentEnemyFaction] || 'TIME ADVERSÁRIO');
+  $('match-sub').textContent = won ? frase('venceu', winnerName) : frase('perdeu', winnerName);
+  const playerRounds = won ? 4 : 1;
+  const enemyRounds = won ? 1 : 4;
+  const playerOnE = currentTeam === 'E';
+  const roundsE = playerOnE ? playerRounds : enemyRounds;
+  const roundsB = playerOnE ? enemyRounds : playerRounds;
+  $('match-stats').innerHTML = frase('statsFim', roundsE, roundsB, won ? 16 : 7, nickEl.value || 'JOGADOR', won ? 5 : 12);
+  $('me-hero').style.setProperty('--me-art', `url("/img/resultado/${character.id}-${won ? 'vitoria' : 'derrota'}.webp")`);
+  show('match-end');
+}
+async function openInspectionScreen(target) {
+  document.documentElement.dataset.inspectScreen = target.screen;
+  if (target.screen === 'splash') return;
+  loadingStage.hide(); dockLoadingCharacter();
+  document.getElementById('boot-splash')?.remove();
+  const faction = target.faction;
+  const character = CHARACTERS.find((c) => c.id === target.character && c.team === faction)
+    || CHARACTERS.find((c) => c.team === faction) || CHARACTERS[0];
+  currentFaction = faction;
+  currentTeam = faction === 'B' ? 'B' : 'E';
+  currentChar = character.id;
+  currentEnemyFaction = faction === 'B' ? 'E' : 'B';
+  if (target.map) currentMap = resolveMapId(target.map);
+  mapIdx = Math.max(0, MAP_IDS.indexOf(currentMap));
+
+  if (target.screen === 'menu') { show('main-menu'); return; }
+  if (target.screen === 'maps') { renderMapScreen(); show('map-screen'); return; }
+  if (target.screen === 'faction') {
+    await factionArtReady;
+    setEnemyPickMode(false); setTeamStep('side'); show('team-select'); ensureTeamPreviews(); return;
+  }
+  if (target.screen === 'character') {
+    pickTeam(faction);
+    if (target.character) {
+      for (let i = 0; i < 180 && $('char-select').classList.contains('hidden'); i++) {
+        await new Promise((resolve) => requestAnimationFrame(resolve));
+      }
+      const roster = CHARACTERS.filter((c) => c.team === faction);
+      const row = [...$('char-list').children][roster.findIndex((c) => c.id === character.id)];
+      if (row) selectChar(character, row);
+    }
+    return;
+  }
+  if (target.screen === 'loading') {
+    show(null);
+    showLoading(frase('carregando', MAPS[currentMap].name.toUpperCase()), 'CARREGANDO MODELOS 3D…', MAPS[currentMap].name.toUpperCase());
+    return;
+  }
+  if (target.screen === 'victory' || target.screen === 'defeat') {
+    showInspectionResult(target.screen === 'victory', character);
+    return;
+  }
+  if (target.screen === 'settings') {
+    settingsReturn = 'main-menu';
+    $('set-quality').value = 'high'; show('settings-panel'); return;
+  }
+  await startGame(currentTeam, character.id, currentEnemyFaction);
+  if (target.hp != null && game?.player) { game.player.hp = target.hp; game._updateHud(); }
+  if (target.screen === 'scoreboard') {
+    game.roundNum = 4; game.ctf = false; game._inspectionTotalRounds = 5;
+    game.roundsWon.E = 2; game.roundsWon.B = 1; game.timeLeft = 92;
+    game.paused = true; game.keys = {}; game.el.pause.classList.add('hidden'); game._showScoreboard(true); return;
+  }
+  if (target.screen === 'pause') game?.setPaused(true);
+}
+if (inspectionScreen) {
+  openInspectionScreen(inspectionScreen).catch((error) => window.__gameLaunch?.fail(error, 'screen-query'));
+} else if (testMode && params.get('auto')) {
   const [team, char] = params.get('auto').split(',');
   startGame(team || 'E', char || CHARACTERS[0].id);
 }

@@ -88,7 +88,7 @@ const VM_MAT_LEGACY = QS.get('vmmat') === 'legacy';
 const ROUND_TIME = 99, ROUNDS_TO_WIN = 3, RESPAWN_DELAY = 2.2, PICKUP_RESPAWN = 8, SPAWN_PROT = 2;
 // Prazo e teto do drop de morte; procedência dos dois números em tools/eval/drop-check.mjs.
 const DROP_TTL = 18, DROP_MAX = 12;
-/* TETO DE RODADAS — "melhor de 5", que é o que o índice já promete ao jogador
+/* TETO PADRÃO DE RODADAS — "melhor de 5", que é o que o índice promete inicialmente
    (src/pages/index.astro:503, "Vence quem ganhar 3 rounds"). Sem este teto o formato NÃO
    ERA melhor de 5: round EMPATADO não dá ponto pra ninguém (game.js:_endRound), então uma
    partida com muitos empates nunca chegava aos 3. Medido em tools/eval/ui-check.mjs (UI4):
@@ -115,9 +115,8 @@ const ROUNDS_MAX = ROUNDS_TO_WIN * 2 - 1;
      piscina_treta 3,3 · loja_h 1,5 · ferro_velho 1,2.
    Com CTF_CAPS_TO_WIN = 2, o mapa MAIS LENTO medido (ferrovelho, 1,2/99 s repartidos
    entre 2 times) leva ~2 × 99/0,6 ≈ 330 s pra uma rodada, e é por isso que existe o teto
-   de tempo de PARTIDA — sem ele o modo voltaria a não fechar. Melhor de 3 (e não de 5)
-   porque a rodada de captura é 2-3× mais longa que a de abate: 5 rodadas de captura não
-   cabem em partida nenhuma. */
+   de tempo de PARTIDA — sem ele o modo voltaria a não fechar. Melhor de 3 é o padrão
+   porque a rodada de captura é 2-3× mais longa; a tela de mapas permite outro teto. */
 /* FALLBACK, não regra: o alvo REAL da rodada é `this.ctfPts.length` — TODAS as bandeiras
    que o mapa tem —, derivado em `_initCTF` (ver o bloco ALVO DA RODADA lá). Este 3 só vale
    para o layout padrão (mapa que não declara `world.ctfPoints`), que tem exatamente 3
@@ -572,7 +571,7 @@ function rollBotSkill(mul = 1) {
 function botTier(skill) { return skill < 0.75 ? 'ruim' : skill < 1.05 ? 'medio' : skill < 1.4 ? 'bom' : 'muitobom'; }
 
 export class Game {
-  constructor({ renderer, textures, sfx, settings, playerCharId, playerTeam, playerFaction, enemyFaction, nickname, mapId, ctf, testMode = false, onQuit, onMatchEnd, onTrainingFrames, recordTraining = false }) {
+  constructor({ renderer, textures, sfx, settings, playerCharId, playerTeam, playerFaction, enemyFaction, nickname, mapId, ctf, roundsMax, testMode = false, onQuit, onMatchEnd, onTrainingFrames, recordTraining = false }) {
     this._ctfOpt = ctf;
     this.renderer = renderer;
     this.sfx = sfx;
@@ -1075,6 +1074,9 @@ export class Game {
     // modo Capture the Flag (?ctf=1): 3 pontos (2 spawns + meio); time vence o round segurando
     // os 3 ao mesmo tempo. Rounds SEM FIM (sem _endMatch). Captura = ~3s na zona sem inimigo.
     this.ctf = !!this._ctfOpt || (new URLSearchParams(location.search).get('ctf') === '1');   // menu (Capture the Flag) ou ?ctf=1
+    const requestedRounds = Number(roundsMax);
+    this._roundsMax = [1, 3, 5, 7].includes(requestedRounds) ? requestedRounds : (this.ctf ? CTF_ROUNDS_MAX : ROUNDS_MAX);
+    this.roundsToWin = Math.floor(this._roundsMax / 2) + 1;
     this.ctfPts = [];
     this.ctfCaps = { E: 0, B: 0 };   // total de capturas de bandeira por time (cumulativo na partida)
     this._ctfRingGeo = new THREE.TorusGeometry(1, 0.045, 8, 48);   // anel FINO de contorno (era disco gordo)
@@ -1094,7 +1096,7 @@ export class Game {
        CTF usa; no modo de abate fica Infinity e nada o lê. Ele NÃO reinicia a cada
        rodada (é o que o diferencia do `timeLeft`) e só aparece no HUD nos últimos
        CTF_CLOCK_SHOW segundos — ver `_updateHud`. */
-    this.ctfMatchLeft = this.ctf ? CTF_MATCH_TIME : Infinity;
+    this.ctfMatchLeft = this.ctf ? CTF_MATCH_TIME * (this._roundsMax / CTF_ROUNDS_MAX) : Infinity;
     // alvo de capturas que fecha a RODADA no CTF (o equivalente do killsToWin do abate).
     // Valor PROVISÓRIO: o alvo de verdade é o nº de bandeiras do mapa e só pode ser sabido
     // depois que elas existem — `_initCTF` o sobrescreve com `ctfPts.length` a cada rodada.
@@ -1122,8 +1124,16 @@ export class Game {
       scope: $('scope-overlay'), vignette: $('damage-vignette'), dmgDir: $('dmg-dir'),
       hpFill: $('hp-fill'), hpNum: $('hp-num'), weaponName: $('weapon-name'),
       ammoMag: $('ammo-mag'), ammoRes: $('ammo-reserve'), reloadNote: $('reload-note'), smokeCount: $('smoke-count'),
+      ammoWeaponArt: $('ammo-weapon-art'), ammoBars: $('ammo-bars'),
       roundTime: $('round-time'), roundsRow: $('rounds-row'),
       scoreP: $('score-e'), scoreB: $('score-b'), killfeed: $('killfeed'), ctfHud: $('ctf-hud'),
+      /* Filhos cacheados: _updateHud roda por QUADRO. Antes ele montava a plaqueta
+         inteira com innerHTML; agora só escreve o número, e o brasão (data-f) só
+         muda quando a facção muda. Sem isto, pôr o brasão no HUD custaria um
+         reparse de HTML e uma imagem por quadro. */
+      scorePNum: $('score-e').querySelector('b'), scoreBNum: $('score-b').querySelector('b'),
+      crestP: $('crest-e'), crestB: $('crest-b'),
+      siglaP: $('sigla-e'), siglaB: $('sigla-b'),
       banner: $('round-banner'), bannerTitle: $('banner-title'), bannerSub: $('banner-sub'),
       respawn: $('respawn-overlay'), respawnCount: $('respawn-count'),
       prot: $('prot-badge'), protCount: $('prot-count'),
@@ -1739,8 +1749,9 @@ export class Game {
       // ZOOM REAL (fov atual / 70), com piso em 0.28 pra não travar. É o que faz a luneta
       // parecer luneta: você acompanha o alvo em vez de varrer o mapa com meio centímetro.
       const s = this.settings.sens * 0.0021 * (this.player.scoped ? Math.max(0.28, this.camera.fov / 70) : 1);
+      const invertY = this.settings.invertY ? -1 : 1;
       this.player.yaw -= e.movementX * s;
-      this.player.pitch -= e.movementY * s * (this.settings.invY ? -1 : 1);   // #280: inverter eixo vertical
+      this.player.pitch -= e.movementY * s * invertY;
       this.player.pitch = Math.max(-1.45, Math.min(1.45, this.player.pitch));
       // viewmodel sway: saiu daqui (BUG-04). Quem produz o sway agora é o ViewModelRig, a
       // partir do Δyaw/Δpitch REAL do quadro — que já embute a sensibilidade e não depende
@@ -2186,18 +2197,11 @@ export class Game {
      gateado por `!this.ctf` (game.js:update), o que fazia o modo CAPTURA rodar pra sempre —
      rounds infinitos, nenhuma tela de fim, e o placar do topo subindo sem teto. */
   _fimDaPartida() {
-    /* game.js:2160 — DOIS FORMATOS, UMA CONDIÇÃO. O CAPTURA é melhor de 3 (rodada de
-       bandeira é 2-3× mais longa que rodada de abate — medido: 1,2 a 3,3 capturas por
-       99 s), e tem AINDA um teto de tempo de PARTIDA como rede de segurança. É esse teto
-       que garante a invariante UI4 "a partida FECHA" sem devolver cronômetro de round
-       pra cara do jogador. */
-    if (this.ctf)
-      return this.roundsWon.E >= CTF_ROUNDS_TO_WIN || this.roundsWon.B >= CTF_ROUNDS_TO_WIN
-        || this.roundNum >= CTF_ROUNDS_MAX || this.ctfMatchLeft <= 0;
-    return this.roundsWon.E >= ROUNDS_TO_WIN || this.roundsWon.B >= ROUNDS_TO_WIN || this.roundNum >= ROUNDS_MAX;
+    if (this.ctf) return this.roundNum >= this.roundsMax || this.ctfMatchLeft <= 0;
+    return this.roundNum >= this.roundsMax;
   }
   // teto de rodadas do modo em jogo — o HUD conta "RODADA n/N" com este número
-  get roundsMax() { return this.ctf ? CTF_ROUNDS_MAX : ROUNDS_MAX; }
+  get roundsMax() { return this._roundsMax; }
 
   _endMatch() {
     this.state = 'matchEnd';
@@ -2218,6 +2222,14 @@ export class Game {
       : frase('perdeu', this._teamName(winner));
     this.el.matchStats.innerHTML =
       frase('statsFim', this.roundsWon.E, this.roundsWon.B, this.player.kills, this.player.name, this.player.deaths);
+    /* Cada personagem tem duas artes estáticas: a tela mostra quem o jogador escolheu,
+       na pose correspondente ao resultado. UIA1 garante o par antes do deploy. */
+    const REP = { E: 'mst', B: 'bombado', U: 'metaleiro', C: 'bonzo', F: 'chave' };
+    const heroEl = this.el.meHero || (this.el.meHero = document.getElementById('me-hero'));
+    const rep = REP[this._factionOf(this.playerTeam)] || 'mst';
+    const pose = mine ? 'vitoria' : 'derrota';
+    const setHeroArt = (id) => { if (heroEl) heroEl.style.setProperty('--me-art', `url("/img/resultado/${id}-${pose}.webp")`); };
+    setHeroArt(this.playerCharId || rep);
     this.el.matchEnd.classList.remove('hidden');
     if (document.pointerLockElement) document.exitPointerLock();
     /* MAPA, MODO, PERSONAGEM E DURAÇÃO ENTRAM AQUI (07/08) porque sem eles o `match_end`
@@ -2376,17 +2388,20 @@ export class Game {
   _switchTeam(charId) {
     if (!this.player.alive || (this.state !== 'live' && this.state !== 'countdown')) return;
     const p = this.player;
-    if (charId) { this.playerDef = byId(charId); p.def = this.playerDef; }   // personagem do novo lado
+    if (charId) { this.playerDef = byId(charId); this.playerCharId = charId; p.def = this.playerDef; }   // personagem do novo lado
     const oldTeam = this.playerTeam;
     const newTeam = oldTeam === 'E' ? 'B' : 'E';
+    const oldFaction = this.playerFaction;
     this.playerTeam = newTeam; this.enemyTeam = oldTeam;
+    this.playerFaction = this.enemyFaction;
+    this.enemyFaction = oldFaction;
     p.team = newTeam;
     // rebalanceia 4×4: um bot do time novo deserta pro time velho
     const candidates = this.bots.filter(b => b.team === newTeam);
     const swapBot = candidates[(Math.random() * candidates.length) | 0];
     if (swapBot) {
       swapBot.team = oldTeam;
-      const defs = CHARACTERS.filter(c => c.team === oldTeam && c.id !== p.def.id);
+      const defs = CHARACTERS.filter(c => c.team === oldFaction && c.id !== p.def.id);
       const newDef = defs[(Math.random() * defs.length) | 0];
       swapBot.def = newDef; swapBot.name = newDef.name;
       this.scene.remove(swapBot.mesh.group);
@@ -3123,7 +3138,7 @@ export class Game {
       return `<span class="kf-n" style="background:${c}2e;color:${this._teamInk(e.team)}">${e.isPlayer ? tr('VOCÊ') : e.name}</span>`;
     };
     row.innerHTML = attacker && attacker !== victim
-      ? `${cn(attacker)}${head ? this._skullIcon() : ''}${this._wpnIcon(weap)}${cn(victim)}`
+      ? `${cn(attacker)}${head ? this._skullIcon() : ''}${this._killfeedWeaponIcon(weap)}${cn(victim)}`
       : `${cn(victim)}<span class="kf-w">tropeçou na treta</span>`;
     this.el.killfeed.prepend(row);
     setTimeout(() => row.remove(), 4600);
@@ -3135,6 +3150,12 @@ export class Game {
       + 'M4.9 7.5c-.8 0-1.5-.6-1.5-1.4S4.1 4.7 4.9 4.7s1.5.6 1.5 1.4-.6 1.4-1.5 1.4z'
       + 'M9.1 7.5c-.8 0-1.5-.6-1.5-1.4S8.3 4.7 9.1 4.7s1.5.6 1.5 1.4-.7 1.4-1.5 1.4z';
     return `<svg class="kf-ic kf-skull" viewBox="0 0 14 13" width="18" height="17"><path d="${d}" fill="currentColor" fill-rule="evenodd"/></svg>`;
+  }
+  _killfeedWeaponIcon(short) {
+    const id = Object.entries(WEAPONS).find(([, weapon]) => weapon.short === short)?.[0];
+    const fallback = this._wpnIcon(short);
+    if (!id) return fallback;
+    return `<span class="kf-weapon-2d"><i class="kf-weapon-mask" style="--weapon-mask:url('/img/weapons/${id}.webp')"></i><span class="kf-fallback">${fallback}</span></span>`;
   }
   // Ícone 2D da arma no killfeed (estilo CoD — o dono pediu silhuetas RECONHECÍVEIS
   // por arma, não só por classe). Recebe o `short` (AWP/AK/DE/M3/FACA…). ~14 desenhos
@@ -3704,6 +3725,24 @@ export class Game {
   _voiceKey(side) { return this._factionOf(side); }   // pack de vozes/round por facção (P/B/U)
   _teamName(side) { const f = this._factionOf(side); return f === 'U' ? 'TRIBOS URBANAS' : f === 'C' ? 'PALHAÇOS' : f === 'F' ? 'FUNKEIROS' : (TEAM_LABEL[f] || f); }
   _teamTag(side) { const f = this._factionOf(side); return f === 'U' ? 'TRB' : f === 'C' ? 'PLH' : f === 'F' ? 'FNK' : f === 'E' ? 'TME' : 'TMB'; }
+
+  /* Uma plaqueta do HUD. Chamada por QUADRO, então tudo aqui é comparação barata:
+     o número só é escrito se mudou, e o brasão (data-f, arte no CSS) só quando a
+     facção muda — na prática, uma vez por partida. `slot` é o sufixo do cache
+     (scorePNum/crestP/siglaP) e `side` é o lado no modelo do jogo. */
+  _plaqueta(slot, side) {
+    const num = this.el['score' + slot + 'Num'];
+    const n = String(this.roundKills[side]);
+    if (num && num.textContent !== n) num.textContent = n;
+    /* minúscula porque o seletor de atributo do CSS é SENSÍVEL A CAIXA e os arquivos
+       são b/c/e/f/u.png — `data-f="U"` não casaria com `[data-f="u"]` e o brasão
+       simplesmente não apareceria, sem erro nenhum no console. */
+    const f = String(this._factionOf(side) || '').toLowerCase();
+    const crest = this.el['crest' + slot];
+    if (crest && crest.dataset.f !== f) crest.dataset.f = f;
+    const sig = this.el['sigla' + slot], tag = this._teamTag(side);
+    if (sig && sig.textContent !== tag) sig.textContent = tag;
+  }
   _mirror(side) { return side === this.enemyTeam && this.enemyFaction === this.playerFaction; }   // inimigo = mesma facção
   // Separação (boids): empurra o bot pra longe de colegas do mesmo time num raio curto, pra eles
   // NÃO andarem colados em fila indiana sobre o mesmo path. Peso ~inverso à distância.
@@ -6163,15 +6202,15 @@ export class Game {
     const fp = this._radarFoot(S);
     const sc = fp ? fp.sc : 1.42, ox = fp ? fp.cx : 0, oz = fp ? fp.cz : 0;
     x.clearRect(0, 0, S, S);
-    // fundo: disco escuro radial (referência CS2/Valorant) — opaco o bastante pra
-    // a geometria ciano ler bem mesmo com céu claro atrás
+    // fundo: painel QUADRADO escuro (tela 05 do redesign — o minimapa da referência é
+    // um bloco, não um disco). Opaco o bastante pra geometria ciano ler com céu claro atrás.
     const bg = x.createRadialGradient(H, H, 8, H, H, R);
-    bg.addColorStop(0, 'rgba(4,8,10,0.78)');
-    bg.addColorStop(1, 'rgba(0,0,0,0.62)');
+    bg.addColorStop(0, 'rgba(4,8,10,0.88)');
+    bg.addColorStop(1, 'rgba(0,0,0,0.74)');
     x.fillStyle = bg;
-    x.beginPath(); x.arc(H, H, R, 0, 7); x.fill();
+    x.fillRect(0, 0, S, S);
     x.save();
-    x.beginPath(); x.arc(H, H, R, 0, 7); x.clip();
+    x.beginPath(); x.rect(0, 0, S, S); x.clip();
     // planta REAL do mapa atual (blit do offscreen; norte fixo: mundo X→tela X, Z→tela Y)
     if (fp) x.drawImage(fp.img, 0, 0);
     // grade de referência bem sutil
@@ -6209,16 +6248,14 @@ export class Game {
     }
     x.shadowBlur = 0;
     x.restore();
-    // anel de borda duplo + ticks cardinais (norte fixo)
-    x.strokeStyle = 'rgba(120,220,220,0.45)'; x.lineWidth = 1.5;
-    x.beginPath(); x.arc(H, H, R + 1, 0, 7); x.stroke();
-    x.strokeStyle = 'rgba(120,220,220,0.14)'; x.lineWidth = 1;
-    x.beginPath(); x.arc(H, H, R - 5, 0, 7); x.stroke();
-    x.font = "700 9px Rajdhani, sans-serif"; x.textAlign = 'center'; x.textBaseline = 'middle';
-    x.fillStyle = 'rgba(190,240,240,0.95)';
-    x.fillText('N', H, 9);
-    x.fillStyle = 'rgba(120,220,220,0.55)';
-    x.fillText('E', S - 9, H); x.fillText('S', H, S - 9); x.fillText('W', 9, H);
+    // moldura + nome do mapa embaixo à esquerda (tela 05 do redesign: "BECO OESTE").
+    // Aqui é o NOME DO MAPA — região nomeada só existe no CTF, e fora dele a etiqueta
+    // tem que continuar dizendo algo verdadeiro.
+    x.strokeStyle = 'rgba(236,235,230,0.12)'; x.lineWidth = 1;
+    x.strokeRect(0.5, 0.5, S - 1, S - 1);
+    x.font = "600 10px Rajdhani, sans-serif"; x.textAlign = 'left'; x.textBaseline = 'alphabetic';
+    x.fillStyle = 'rgba(139,140,146,0.95)';
+    x.fillText((MAPS[this._mapId].name || '').toUpperCase(), 8, S - 7);
   }
 
   /* ================= HUD ================= */
@@ -6254,13 +6291,16 @@ export class Game {
   }
   _showScoreboard(v) {
     if (v) {
-      // cabeçalho com placar do round em destaque (chips por time)
       const r = this._resultado;
+      const totalRounds = this._inspectionTotalRounds || this.roundsMax;
+      const clock = this.ctf ? Math.max(0, Math.ceil(this.ctfMatchLeft)) : Math.max(0, Math.ceil(this.timeLeft));
+      const clockText = `${Math.floor(clock / 60)}:${String(clock % 60).padStart(2, '0')}`;
+      const crest = (side) => String(this._factionOf(side) || 'E').toLowerCase();
       document.querySelector('#scoreboard h3').innerHTML =
         (r ? `<span class="sb-result">${r.titulo}</span><span class="sb-result-sub">${r.sub}</span>` : '') +
-        `<span class="sb-label">PLACAR · ROUND ${this.roundNum}</span>` +
-        `<span class="sb-score"><b class="tp">${this._teamTag('E')} ${this.roundsWon.E}</b>` +
-        `<i>×</i><b class="tb">${this.roundsWon.B} ${this._teamTag('B')}</b></span>`;
+        `<span class="sb-clock">RODADA ${this.roundNum}/${totalRounds} · <em>${clockText}</em></span>` +
+        `<span class="sb-score"><b class="tp"><img class="sb-crest" src="/img/brasoes/${crest('E')}.png" alt=""><span class="sb-team-name">${this._teamName('E')}</span><strong class="sb-score-num">${this.roundsWon.E}</strong></b>` +
+        `<span class="sb-vs">VS</span><b class="tb"><strong class="sb-score-num">${this.roundsWon.B}</strong><span class="sb-team-name">${this._teamName('B')}</span><img class="sb-crest" src="/img/brasoes/${crest('B')}.png" alt=""></b></span>`;
       // no CTF ordena por capturas (depois kills); senão por kills
       const rank = this.ctf ? (a, b) => (b.captures || 0) - (a.captures || 0) || b.kills - a.kills : (a, b) => b.kills - a.kills;
       /* DUAS COLUNAS COM BRASÃO (referência 08_placar, pedido do dono 07/08: "na tela de
@@ -6268,17 +6308,18 @@ export class Game {
          cada um"). O brasão é o MESMO arquivo que estampa a bandeira CTF (img/brasoes/),
          lido pela letra da facção que ocupa o lado — nunca pelo lado cru (a lição do
          _factionOf: lado 'B' ≠ facção 'B' por acidente de letra). */
-      const BRASAO_FILE = { E: 'e', B: 'b', U: 'u', C: 'c', F: 'f' };
       const coluna = (side) => {
-        const fac = this._factionOf(side);
-        const f = BRASAO_FILE[fac];
-        const linhas = [...this.combatants].filter(c => c.team === side).sort(rank).map(c =>
+        const linhas = [...this.combatants].filter(c => c.team === side).sort(rank).map((c, i) => {
+          const score = Math.max(0, c.kills * 100 + (c.captures || 0) * 250 - c.deaths * 20);
+          const ping = 12 + ((c.kills * 7 + c.deaths * 3 + i * 5) % 18);
+          return (
           `<tr${c.isPlayer ? ' class="me"' : ''}>
-            <td class="sb-n">${c.name}${c.isPlayer ? ' ★' : ''}</td><td class="sb-p">${c.def.name}</td>
-            <td>${c.kills}</td><td>${c.deaths}</td>${this.ctf ? `<td>${c.captures || 0}</td>` : ''}</tr>`).join('');
+            <td class="sb-n">${c.name}${c.isPlayer ? ' ★' : ''}</td><td>${c.kills}</td><td>${c.deaths}</td><td class="sb-points">${score}</td><td class="sb-ping">${ping}</td>${this.ctf ? `<td>${c.captures || 0}</td>` : ''}</tr>`
+          );
+        }).join('');
         return `<div class="sb-col ${side === 'E' ? 'tp' : 'tb'}${this.ctf ? ' ctf' : ''}">
-          <div class="sb-chead">${f ? `<img src="img/brasoes/${f}.png" alt="brasão ${this._teamName(side)}">` : ''}<span>${this._teamName(side)}</span></div>
-          <table><thead><tr><th>JOGADOR</th><th>PERSONAGEM</th><th>K</th><th>M</th>${this.ctf ? '<th>CAP.</th>' : ''}</tr></thead>
+          <div class="sb-chead"><span class="sb-team"><img class="sb-crest" src="/img/brasoes/${crest(side)}.png" alt=""><b>${tr('JOGADOR')}</b></span><span>K</span><span>D</span><span>SCORE</span><span>PING</span>${this.ctf ? '<span class="sb-cap">CAP.</span>' : ''}</div>
+          <table><thead><tr><th>${tr('JOGADOR')}</th><th>K</th><th>D</th><th>SCORE</th><th>PING</th>${this.ctf ? '<th>CAP.</th>' : ''}</tr></thead>
           <tbody>${linhas}</tbody></table></div>`;
       };
       document.getElementById('sb-cols').innerHTML = coluna('E') + coluna('B');
@@ -6299,11 +6340,6 @@ export class Game {
   _updateWeaponHud() {
     const hud = this.el.weaponHud;
     if (!hud) return;
-    if (!VMLAB) {
-      hud.classList.add('hidden');
-      if (this._weaponHudSig) { hud.innerHTML = ''; this._weaponHudSig = ''; }
-      return;
-    }
     const p = this.player;
     const slots = [];
     if (p.primary) slots.push({ key: 1, weapon: p.primary });
@@ -6318,33 +6354,62 @@ export class Game {
     }).join('|');
     if (signature === this._weaponHudSig && !hud.classList.contains('hidden')) return;
     this._weaponHudSig = signature;
+    let activeWeaponClaimed = false;
     hud.innerHTML = slots.map((slot) => {
       const weapon = slot.weapon && WEAPONS[slot.weapon];
-      const active = slot.weapon === p.weapon;
+      const active = slot.weapon === p.weapon && !activeWeaponClaimed;
+      if (active) activeWeaponClaimed = true;
       const ammo = slot.weapon && p.ammo?.[slot.weapon];
       // '∞' e não o número: reserva que volta a cheia toda recarga lê-se como contador travado
       const res = this._municaoInfinita() ? '∞' : ammo?.res;
       const amount = slot.count != null ? `×${slot.count}` : (slot.weapon === 'knife' ? '' : (ammo ? `${ammo.mag}/${res}` : ''));
       const icon = this._wpnIcon(slot.kind === 'frag' ? 'FRAG' : slot.kind === 'smoke' ? 'NADE' : weapon?.short);
+      const icon2d = slot.weapon
+        ? `<i class="weapon-mask" style="--weapon-mask:url('/img/weapons/${slot.weapon}.webp')"></i><span class="weapon-fallback">${icon}</span>`
+        : icon;
       const name = slot.name || weapon?.name || slot.weapon?.toUpperCase() || '';
-      return `<div class="weapon-slot${active ? ' on' : ''}" data-slot="${slot.key}"><span class="weapon-key">${slot.key}</span><span class="weapon-icon">${icon}</span><span class="weapon-label">${name}</span><span class="weapon-amount">${amount}</span></div>`;
+      return `<div class="weapon-slot${active ? ' on' : ''}" data-slot="${slot.key}"><span class="weapon-key">${slot.key}</span><span class="weapon-icon">${icon2d}</span><span class="weapon-label">${name}</span><span class="weapon-amount">${amount}</span></div>`;
     }).join('');
     hud.classList.remove('hidden');
   }
   _updateHud() {
     const p = this.player;
+    const weaponDef = WEAPONS[p.weapon];
     this._updateWeaponHud();
     this.el.hpNum.textContent = Math.max(0, Math.ceil(p.hp));
     this.el.hpFill.style.width = Math.max(0, p.hp) + '%';
     this.el.hpFill.classList.toggle('low', p.hp <= 35);
     this.el.hpNum.classList.toggle('low', p.hp <= 35);
+    if (this.el.ammoWeaponArt.dataset.weapon !== p.weapon) {
+      this.el.ammoWeaponArt.dataset.weapon = p.weapon;
+      this.el.ammoWeaponArt.src = `/img/weapons/${p.weapon}.webp`;
+      this.el.ammoWeaponArt.alt = weaponDef.name;
+    }
+    let mag = 0;
     if (p.weapon === 'knife') {
       this.el.ammoMag.textContent = '—'; this.el.ammoRes.textContent = '';
+      this.el.ammoMag.classList.remove('empty');
     } else {
       const a = p.ammo[p.weapon];
+      mag = a.mag;
       this.el.ammoMag.textContent = a.mag;
       this.el.ammoRes.textContent = this._municaoInfinita() ? '∞' : a.res;
       this.el.ammoMag.classList.toggle('empty', a.mag === 0);
+    }
+    const capacity = weaponDef.mag || 0;
+    const segments = Math.min(5, capacity);
+    const filled = capacity ? Math.round(segments * mag / capacity) : 0;
+    const barsSignature = `${p.weapon}:${mag}:${capacity}`;
+    if (this.el.ammoBars.dataset.signature !== barsSignature) {
+      this.el.ammoBars.dataset.signature = barsSignature;
+      this.el.ammoBars.style.setProperty('--ammo-bars', segments || 1);
+      if (typeof this.el.ammoBars.replaceChildren === 'function') {
+        this.el.ammoBars.replaceChildren(...Array.from({ length: segments }, (_, i) => {
+          const tick = document.createElement('i');
+          if (i < filled) tick.className = mag / capacity <= 0.25 ? 'on low' : 'on';
+          return tick;
+        }));
+      }
     }
     // HIERARQUIA DO TOPO: o elemento mais pesado tem que carregar a informação mais
     // importante. No CTF o round não tem tempo — mostrar '∞' a 32px fazia o MAIOR tipo do
@@ -6367,20 +6432,17 @@ export class Game {
       const fimProximo = restante <= CTF_CLOCK_SHOW;
       this.el.roundTime.classList.toggle('urgente', fimProximo);
       this.el.roundsRow.textContent =
-        `${frase('rodadaDe', this.roundNum, CTF_ROUNDS_MAX)} · ${frase('alvoBandeirasHud', alvo)} · ${this._teamTag('E')} ${this.roundsWon.E} × ${this.roundsWon.B} ${this._teamTag('B')}`
+        `${frase('rodadaDe', this.roundNum, this.roundsMax)} · ${frase('alvoBandeirasHud', alvo)} · ${this._teamTag('E')} ${this.roundsWon.E} × ${this.roundsWon.B} ${this._teamTag('B')}`
         + (fimProximo ? ` · FIM DA PARTIDA EM ${Math.floor(restante / 60)}:${String(restante % 60).padStart(2, '0')}` : '');
     } else {
       this.el.roundTime.classList.remove('ctf');
       const total = Math.max(0, Math.ceil(this.timeLeft));
       this.el.roundTime.textContent = `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
-      // linha secundária única sob o timer: rodada + placar de rounds por time
-      // "RODADA 2/5" em vez de "RODADA 2": o formato (melhor de 5) agora é garantido pelo
-      // ROUNDS_MAX, e um formato garantido que o HUD não conta é um formato que não existe.
+      // linha secundária única sob o timer: rodada/teto selecionado + placar por time
       this.el.roundsRow.textContent =
-        `${frase('rodadaDe', this.roundNum, ROUNDS_MAX)} · ${this._teamTag('E')} ${this.roundsWon.E} × ${this.roundsWon.B} ${this._teamTag('B')}`;
+        `${frase('rodadaDe', this.roundNum, this.roundsMax)} · ${this._teamTag('E')} ${this.roundsWon.E} × ${this.roundsWon.B} ${this._teamTag('B')}`;
     }
-    this.el.scoreP.innerHTML = `${this._teamTag('E')} <b>${this.roundKills.E}</b>`;
-    this.el.scoreB.innerHTML = `${this._teamTag('B')} <b>${this.roundKills.B}</b>`;
+    this._plaqueta('P', 'E'); this._plaqueta('B', 'B');
     this.el.scoreP.style.color = this._teamColor('E');   // lado do jogador Tribos fica AZUL
     this.el.scoreB.style.color = this._teamColor('B');
     // badge de spawn protection (issue #24)

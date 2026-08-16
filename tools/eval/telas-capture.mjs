@@ -15,6 +15,7 @@ import { pathToFileURL } from 'node:url';
 
 const OUT = process.env.OUT || '/tmp/telas';
 const BASE = process.env.BASE || 'http://127.0.0.1:8123';
+const AUTO = process.env.AUTO || 'E,esquerdomacho';
 const gRoot = execSync('npm root -g').toString().trim();
 const _pw = await import(pathToFileURL(`${gRoot}/playwright/index.js`).href);
 const chromium = _pw.chromium || _pw.default?.chromium;
@@ -22,14 +23,18 @@ const chromium = _pw.chromium || _pw.default?.chromium;
 mkdirSync(OUT, { recursive: true });
 const browser = await chromium.launch({
   executablePath: process.env.CHROME_BIN || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-  args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--headless=new', '--mute-audio'],
+  args: [
+    '--headless=new', '--mute-audio',
+    ...(process.env.GL === 'swiftshader' ? ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] : []),
+  ],
 });
 // 1536×1024 = 3:2, o enquadramento das 9 referências (512×341 é o mesmo quadro a 1/3).
 const page = await browser.newPage({ viewport: { width: 1536, height: 1024 } });
-page.on('pageerror', e => console.error('[pageerror]', e.message.slice(0, 300)));
+const pageErrors = [];
+page.on('pageerror', e => { pageErrors.push(e.message); console.error('[pageerror]', e.message.slice(0, 300)); });
 await page.addInitScript(() => localStorage.setItem('awpbr_nick', 'ZÉ DO AWP'));
 
-await page.goto(`${BASE}/?debug=1&auto=P,mst&map=praca_poderes`, { waitUntil: 'load' });
+await page.goto(`${BASE}/?debug=1&auto=${encodeURIComponent(AUTO)}&map=praca_poderes`, { waitUntil: 'commit', timeout: 120000 });
 await page.waitForFunction(() => window.__game && window.__game.state === 'live', null, { timeout: 180000 });
 await page.waitForTimeout(1500);
 
@@ -39,16 +44,18 @@ await page.waitForTimeout(1500);
 await page.evaluate(() => {
   const g = window.__game;
   const k = [12, 8, 6, 5, 3, 1, 0], a = [2, 1, 3, 2, 1, 1, 0], d = [3, 4, 4, 5, 6, 6, 7];
-  const byTeam = { P: 0, B: 0 };
+  const byTeam = { E: 0, B: 0 };
   for (const c of g.combatants) {
     const i = Math.min(byTeam[c.team]++, 6);
     c.kills = k[i]; c.deaths = d[i]; c.assists = a[i];
   }
-  g.roundNum = 4; g.roundsWon = { P: 2, B: 1 };
+  g.roundNum = 4; g.roundsWon = { E: 2, B: 1 };
   g._resultadoDaRodada('PALHAÇOS LEVARAM O ROUND', 'ELIMINARAM O TIME INTEIRO');
   document.getElementById('hud').classList.add('sb-on');
 });
 await page.waitForTimeout(700);
+const capsDm = await page.locator('.sb-chead .sb-cap').count();
+if (capsDm !== 0) throw new Error(`placar ABATE exibiu ${capsDm} rótulo(s) CAP.`);
 await page.screenshot({ path: `${OUT}/08_placar.png` });
 console.log('shot 08 placar');
 
@@ -57,7 +64,7 @@ await page.evaluate(() => {
   const g = window.__game;
   g._showScoreboard(false);
   g.player.kills = 24; g.player.deaths = 8;
-  g.roundsWon = { P: 3, B: 1 };
+  g.roundsWon = { E: 3, B: 1 };
   g._endMatch();
 });
 await page.waitForTimeout(1400);
@@ -72,15 +79,16 @@ const ctf = await page.evaluate(() => {
   document.getElementById('match-end').classList.add('hidden');   // a tela 09 é .screen z-40 e taparia o placar
   g.ctf = true;   /* o modo CTF não vem por query; o que o placar lê é este campo */
   let i = 0; for (const c of g.combatants) { c.kills = 9 - i; c.deaths = i; c.captures = (i % 3); i++; }
-  g.roundNum = 3; g.roundsWon = { P: 1, B: 1 };
+  g.roundNum = 3; g.roundsWon = { E: 1, B: 1 };
   g._showScoreboard(true);
-  const head = document.querySelector('.sb-head .sb-cap');
-  return { ctf: g.ctf, capHVisible: !document.getElementById('sb-cap-h').classList.contains('hidden'),
-           capLabelShown: head ? getComputedStyle(head).display !== 'none' : null,
-           cols: getComputedStyle(document.querySelector('#sb-body tr')).gridTemplateColumns,
-           tds: document.querySelectorAll('#sb-body tr:first-child td').length };
+  const heads = [...document.querySelectorAll('.sb-chead .sb-cap')];
+  return { ctf: g.ctf, capLabels: heads.map((head) => ({ text: head.textContent.trim(), shown: getComputedStyle(head).display !== 'none' })),
+           cols: (document.querySelector('#sb-body tr') || document.querySelector('.sb-col tbody tr')) ? 'tem-linha' : 'sem-linha',
+           tds: document.querySelectorAll('#sb-body tr:first-child td, .sb-col tbody tr:first-child td').length };
 });
 console.log('ctf:', JSON.stringify(ctf));
+if (!ctf.ctf || ctf.capLabels.length !== 2 || ctf.capLabels.some((h) => h.text !== 'CAP.' || !h.shown))
+  throw new Error(`placar CTF sem os dois rótulos CAP. visíveis: ${JSON.stringify(ctf)}`);
 await page.waitForTimeout(500);
 await page.screenshot({ path: `${OUT}/08b_placar_ctf.png` });
 console.log('shot 08b placar ctf');
@@ -106,3 +114,4 @@ await page.screenshot({ path: `${OUT}/08c_720.png` });
 console.log('shot 08c/09c 720');
 
 await browser.close();
+if (pageErrors.length) throw new Error(`${pageErrors.length} pageerror: ${pageErrors.join(' · ')}`);

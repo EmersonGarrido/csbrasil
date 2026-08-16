@@ -170,11 +170,11 @@ const CS_ALBEDO = `
 		diffuseColor.rgb *= max(1.0, csAlbMin / max(csMx, 1e-4));
 	}
 `;
-// O nível regional só existe onde há atlas de cor E textureLod (WebGL2). Sem os dois, o
+// O nível regional só existe onde há atlas de cor E LOD (WebGL2). Sem os dois, o
 // bloco cai no degrau antigo — degradação segura, não falha de compilação.
 const CS_ALB_REGIONAL = `
 		#ifdef USE_MAP
-			vec3 csLo = textureLod(map, vMapUv, csAlbLod).rgb;
+			vec3 csLo = texture2DLodEXT(map, vMapUv, csAlbLod).rgb;
 			csMx = max(csLo.r, max(csLo.g, csLo.b));
 		#endif`;
 
