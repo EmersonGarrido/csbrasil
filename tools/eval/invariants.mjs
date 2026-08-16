@@ -2178,9 +2178,9 @@ function runNode(script, env = {}, args = []) {
   const itens = audit?.resultados || [];
   const falhasHud = itens.filter((item) => !item.ok);
   // A contagem é EXATA de propósito: sub-régua que some (ou que nem roda) devolveria lista
-  // curta e passaria como "nenhuma falha". Cresceu para 5 com a HUD5 (reserva infinita).
+  // curta e passaria como "nenhuma falha". Cresceu para 6 com a HUD6 (slot duplicado).
   put('HUD1', '?vmlab=1 materializa o menu de armas do loadout no HUD real',
-    itens.length === 5 && falhasHud.length === 0,
+    itens.length === 6 && falhasHud.length === 0,
     itens.length ? itens.map((item) => `${item.id}:${item.ok ? 'ok' : item.evid}`).join(' · ') : out.trim());
 }
 

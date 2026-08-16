@@ -41,13 +41,13 @@ algo está errado e o quality gate está verde, o defeito é do quality gate.
 
 | Zona | O que é | Tamanho medido | Regra |
 |---|---|---|---|
-| `public/` | o **jogo** | 37 arquivos `.js`, 28.779 linhas · Three.js `r160` vendorizado | ES modules servidos crus, **zero build**, sem dependência de runtime |
+| `public/` | o **jogo** | 39 arquivos `.js`, 29.655 linhas · Three.js `r160` vendorizado | ES modules servidos crus, **zero build**, sem dependência de runtime |
 | `src/` | o **site** | 18 páginas `.astro`, 19 rotas `/api` · Astro `^7.1.1` | framework é bem-vindo; `service_role` só no servidor |
-| `tools/` | o **arnês** | 170 scripts em `tools/eval/`, 48 em `tools/` | node puro: sobe o jogo real sem browser |
+| `tools/` | o **arnês** | 178 scripts em `tools/eval/`, 54 em `tools/` | node puro: sobe o jogo real sem browser |
 
 **Não existe `public/index.html`.** O HTML do jogo é `src/pages/index.astro`, servido na rota `/`. Servir `public/` estaticamente entrega os arnêses visuais, **não o jogo** — é a pegadinha que custa a primeira hora de todo mundo.
 
-> Bloco gerado por `node tools/gen-docs.mjs`. Fonte: `find src/pages -name '*.astro' | wc -l · find src/pages/api -name '*.ts' | wc -l · ls public/index.html`
+> Bloco gerado por `node tools/gen-docs.mjs`. Fonte: `git ls-files 'src/pages/**/*.astro' 'src/pages/api/*.ts' public/index.html`
 
 <!-- END:GERADO:zonas -->
 
@@ -131,7 +131,7 @@ Um assunto, um arquivo. Se você precisa da informação, é daqui que você sai
 | o que cada script do arnês mede | [`tools/eval/README.md`](tools/eval/README.md) | inclui quais estão obsoletos |
 | a régua visual vigente | [`tools/eval/BAR-CONSISTENCIA.md`](tools/eval/BAR-CONSISTENCIA.md) | **tem precedência** sobre a `BAR.md` |
 | para onde o projeto vai | [`docs/ROADMAP.md`](docs/ROADMAP.md) | aponta para os planos, não os duplica |
-| o plano de release, degrau a degrau | [`plans/08-RELEASE-PROFISSIONAL.md`](plans/08-RELEASE-PROFISSIONAL.md) | com o corte defendido |
+| o plano de release, degrau a degrau | [`docs/historico/plans/08-RELEASE-PROFISSIONAL.md`](docs/historico/plans/08-RELEASE-PROFISSIONAL.md) | com o corte defendido |
 | como abrir um PR que passa | [`CONTRIBUTING.md`](CONTRIBUTING.md) | linha editorial, higiene, processo |
 | investigar e consertar um defeito | [`.claude/skills/bug-hunt/SKILL.md`](.claude/skills/bug-hunt/SKILL.md) | as leis viram passo a passo, com o caso real de cada uma |
 | podar over-engineering de um diff; entrevistar antes de codar | `.agents/skills/` (`ponytail-review`, `grill-me`, `handoff`, `to-spec`) | terceiras, gitignored, fixadas por hash — fontes em `.agents/skills/THIRD-PARTY.md` |
@@ -149,10 +149,10 @@ Um assunto, um arquivo. Se você precisa da informação, é daqui que você sai
 
 ```bash
 npm run check        # npm run syntax && npm run audio:check && npm run eval:medianet && npm run eval:ctfhud && npm run eval:vm && npm run eval:invariants && npm run eval:kick && npm run eval:bots
-npm run check:fast   # node tools/eval/runner.mjs syntax eval:release eval:telemetry eval:identity eval:error-console eval:error-origin eval:webgl eval:webglguard eval:maprotate eval:shaderlog eval:shaderbudget eval:botbrain eval:prune eval:vminspect eval:faccao eval:mapid eval:mapjson eval:mapcontrato docs:check arch:check audio:check feet:check eval:vmlabhud eval:ctfhud eval:pause eval:ctfround eval:ctfwin eval:spawn eval:regen eval:pegada eval:dmgdir eval:ctflabels anims:check anims:merge:check walls:check media:check travessao:check eval:medianet eval:posters eval:grafitelayout eval:backendhints
+npm run check:fast   # node tools/eval/runner.mjs syntax eval:release eval:telemetry eval:identity eval:error-console eval:error-origin eval:webgl eval:webglguard eval:maprotate eval:shaderlog eval:shaderbudget eval:botbrain eval:prune eval:vminspect eval:faccao eval:mapid eval:mapjson eval:mapcontrato eval:redesign eval:matchoptions eval:charvoice eval:screenquery docs:check arch:check audio:check feet:check eval:vmlabhud eval:ctfhud eval:pause eval:ctfround eval:ctfwin eval:spawn eval:regen eval:pegada eval:dmgdir eval:ctflabels anims:check anims:merge:check walls:check media:check menuwalls:check travessao:check eval:medianet eval:posters eval:grafitelayout eval:simclock eval:backendhints
 ```
 
-`package.json` tem **94 scripts**. Vários trazem uma chave `//nome` logo acima com o motivo de existirem — é onde mora o porquê.
+`package.json` tem **105 scripts**. Vários trazem uma chave `//nome` logo acima com o motivo de existirem — é onde mora o porquê.
 
 > Bloco gerado por `node tools/gen-docs.mjs`. Fonte: `node -p "Object.keys(require('./package.json').scripts)"`
 
@@ -167,10 +167,10 @@ npm run check:fast   # node tools/eval/runner.mjs syntax eval:release eval:telem
 > corrigida — o cuidado é para quando você chamar `node tools/eval/invariants.mjs` na mão.
 > É o **BUG-02** do [`KNOWN-BUGS.md`](KNOWN-BUGS.md).
 
-A mesma armadilha tem uma segunda forma, e ela morde quem adiciona quality gate: **`check:fast` é
-uma corrente de `&&`, e o primeiro erro corta o resto.** Quality gate colocado depois de um passo
-que já está vermelho nasce morto — roda zero vezes e ninguém percebe. Leia a chave
-`//check:fast` do `package.json` antes de acrescentar um passo.
+O `check:fast` usa `tools/eval/runner.mjs`: **todos os passos rodam mesmo quando um deles
+fica vermelho**, e o código de saída só é decidido no placar final. Isso evita que um defeito
+conhecido esconda um quality gate novo. Leia a chave `//check:fast` do `package.json` antes de
+acrescentar um passo.
 
 **O placar do quality gate não mora neste arquivo, e não deve morar em nenhum outro além de um.**
 Quantas invariantes passam **não é derivável do fonte** — depende de qual insumo existe na
@@ -239,25 +239,3 @@ já tinha o dobro; corrigir à mão dura exatamente um commit.
 
 E o resto — o porquê, a decisão, o caso que gerou a regra — é conhecimento humano, mora em
 **um** arquivo só, e os outros apontam para ele.
-
-## graphify
-
-Este projeto mantém um knowledge graph em `graphify-out/`, com relações entre arquivos,
-clusters e nós centrais da base.
-
-Quando o usuário pedir `/graphify`, use o skill/config instalado do adapter antes de seguir.
-
-Regras:
-
-- Para perguntas sobre a base, rode `graphify query "<pergunta>"` quando `graphify-out/graph.json`
-  existir. Use `graphify path "<A>" "<B>"` para relações e `graphify explain "<conceito>"`
-  para conceitos focados.
-- Arquivos sujos em `graphify-out/` são esperados depois de hooks ou updates incrementais.
-  Isso não é motivo para pular Graphify; só pule se a tarefa for justamente depurar saída
-  stale/incorreta do grafo, ou se o usuário pedir explicitamente para não usar.
-- Se `graphify-out/wiki/index.md` existir, use-o para navegação ampla antes de sair
-  abrindo fonte cru.
-- Leia `graphify-out/GRAPH_REPORT.md` só para revisão ampla de arquitetura ou quando
-  `query/path/explain` não trouxerem contexto suficiente.
-- Depois de mexer em código, rode `graphify update .` para manter o grafo atual
-  (AST-only, sem custo de API).

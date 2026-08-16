@@ -10,7 +10,7 @@
 >
 <!-- BEGIN:GERADO:versao_atual — não edite à mão, rode `npm run docs` -->
 
-**O jogo está em `2.0.0-alpha.126`.** Prerelease do semver ordena sozinho
+**O jogo está em `2.0.0-alpha.136`.** Prerelease do semver ordena sozinho
 (`alpha` < `beta` < release), e o fluxo automático cuida do bump.
 
 > Bloco gerado por `node tools/gen-docs.mjs`. Fonte: `grep VERSION public/js/version.js · node -p "require('./package.json').version"`
@@ -22,6 +22,66 @@
 > das três tem tag git** (a última tag é `v1.12.4`). "v3" nunca existiu como coisa publicada.
 > O conteúdo e as datas das entradas continuam intactos; só o rótulo mudou, porque chamar de
 > 3.3.0 um build com P0 em aberto promete ao jogador uma estabilidade que ele não tem.
+
+## [2.0.0-alpha.136] — 2026-08-16
+
+### Mudado
+- fix(audio): troca voz do Faria Limer
+- [Notas completas do release](https://github.com/rubenmarcus/csbrasil/releases/tag/v2.0.0-alpha.136).
+
+## [2.0.0-alpha.135] — 2026-08-16
+
+### Mudado
+- ci: gate de review-bot enxerga o estraga-codigo (reviews, nao so comments)
+- [Notas completas do release](https://github.com/rubenmarcus/csbrasil/releases/tag/v2.0.0-alpha.135).
+
+## [2.0.0-alpha.134] — 2026-08-16
+
+### Mudado
+- docs: BUG-57 - regua casava literal de formatacao e travou deploy por 14h
+- [Notas completas do release](https://github.com/rubenmarcus/csbrasil/releases/tag/v2.0.0-alpha.134).
+
+## [2.0.0-alpha.133] — 2026-08-16
+
+### Mudado
+- fix(eval): UIA6 aceita o fatiador de dt do #300 - regex exigia literal 'update(dt)'
+- [Notas completas do release](https://github.com/rubenmarcus/csbrasil/releases/tag/v2.0.0-alpha.133).
+
+## [2.0.0-alpha.132] — 2026-08-16
+
+### Mudado
+- fix(webgl): contexto perdido na abertura da arena tenta se recuperar (16a22c40) (#303)
+- [Notas completas do release](https://github.com/rubenmarcus/csbrasil/releases/tag/v2.0.0-alpha.132).
+
+## [2.0.0-alpha.131] — 2026-08-16
+
+### Mudado
+- fix(game): FPS baixo não desacelera mais o relógio do jogo (issue #295, BUG-56) (#300)
+- [Notas completas do release](https://github.com/rubenmarcus/csbrasil/releases/tag/v2.0.0-alpha.131).
+
+## [2.0.0-alpha.130] — 2026-08-16
+
+### Mudado
+- fix(audio): associa bordões aos personagens
+- [Notas completas do release](https://github.com/rubenmarcus/csbrasil/releases/tag/v2.0.0-alpha.130).
+
+## [2.0.0-alpha.129] — 2026-08-16
+
+### Mudado
+- feat(ui): fecha redesign AAA, loading e seleção de mapas
+- [Notas completas do release](https://github.com/rubenmarcus/csbrasil/releases/tag/v2.0.0-alpha.129).
+
+## [2.0.0-alpha.128] — 2026-08-16
+
+### Mudado
+- chore: plans/ - docs/historico/plans/ (arquivo morto, não estado atual)
+- [Notas completas do release](https://github.com/rubenmarcus/csbrasil/releases/tag/v2.0.0-alpha.128).
+
+## [2.0.0-alpha.127] — 2026-08-16
+
+### Mudado
+- chore: remove symlink node_modules commitado por engano + fecha a brecha do gitignore
+- [Notas completas do release](https://github.com/rubenmarcus/csbrasil/releases/tag/v2.0.0-alpha.127).
 
 ## [2.0.0-alpha.126] — 2026-08-15
 

@@ -170,11 +170,10 @@ const CS_ALBEDO = `
 		diffuseColor.rgb *= max(1.0, csAlbMin / max(csMx, 1e-4));
 	}
 `;
-// O nível regional só existe onde há atlas de cor E textureLod (WebGL2). Sem os dois, o
-// bloco cai no degrau antigo — degradação segura, não falha de compilação.
+// O terceiro argumento de texture2D é o bias de mip do fragment shader em GLSL 1 e 3.
 const CS_ALB_REGIONAL = `
 		#ifdef USE_MAP
-			vec3 csLo = textureLod(map, vMapUv, csAlbLod).rgb;
+			vec3 csLo = texture2D(map, vMapUv, csAlbLod).rgb;
 			csMx = max(csLo.r, max(csLo.g, csLo.b));
 		#endif`;
 
@@ -296,11 +295,6 @@ const CS_SSS = `
 const CS_END = `	}
 `;
 
-let _hasTextureLod = false;
-export function setCharacterRendererCapabilities(renderer) {
-  _hasTextureLod = renderer?.capabilities?.isWebGL2 === true;
-}
-
 // Instala a injeção num MeshStandardMaterial de personagem. Idempotente.
 export function applyCharFX(mat, rimColor) {
   if (!CHAR_FX.on || !mat || !mat.isMeshStandardMaterial || mat.userData.csFx) return mat;
@@ -320,8 +314,7 @@ export function applyCharFX(mat, rimColor) {
     csSat:      { value: CHAR_FX.sat },
     csSss:      { value: CHAR_FX.sss },
   };
-  // WebGL1 não compila textureLod; a capacidade vem do renderer que realmente abriu.
-  const regOn = clampOn && CHAR_FX.albReg && _hasTextureLod;
+  const regOn = clampOn && CHAR_FX.albReg;
   mat.userData.csUniforms = u;   // tuning ao vivo sem recompilar
   mat.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, u);

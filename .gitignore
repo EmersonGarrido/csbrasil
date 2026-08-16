@@ -1,5 +1,7 @@
 # ── Dependências e build ────────────────────────────────────────────────────
-node_modules/
+# sem barra de propósito: `node_modules/` só casa DIRETÓRIO — symlink node_modules
+# (worktree compartilhando deps) passava batido e foi commitado sem querer (13/08)
+node_modules
 dist/
 .astro/
 .vercel/
@@ -167,3 +169,9 @@ tools/eval/data/
 
 # probe de rodada MUTANTE do eval:cena — instrumento de teste da régua, não medição do jogo
 tools/eval/cena_probe.mutante-*.json
+
+# Material-FONTE dos retratos (renders do ChatGPT, ~2 MB cada). É insumo do
+# pipeline de arte, não asset do jogo: o que o jogador baixa são os .webp e .webm
+# derivados em public/img/entrada, public/img/resultado e public/video/. Sem esta
+# regra o repo ganharia 97 MB e o deploy publicaria todos eles.
+public/img/chars/molde/

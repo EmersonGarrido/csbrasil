@@ -72,7 +72,7 @@ jobs:
         run: python3 scripts/ci/pr_classify.py < /tmp/pr.json > /tmp/pr-labels.json
       - name: Gate on CodeRabbit presence
         run: |
-          gh pr view "$PR_NUMBER" --json comments,statusCheckRollup > /tmp/pr-coderabbit.json
+          gh pr view "$PR_NUMBER" --json comments,reviews,statusCheckRollup > /tmp/pr-coderabbit.json
           python3 scripts/ci/coderabbit_gate.py < /tmp/pr-coderabbit.json > /tmp/pr-coderabbit-labels.json
       - name: Apply labels
         run: |
