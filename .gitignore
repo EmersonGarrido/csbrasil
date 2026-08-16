@@ -1,5 +1,7 @@
 # ── Dependências e build ────────────────────────────────────────────────────
-node_modules/
+# sem barra de propósito: `node_modules/` só casa DIRETÓRIO — symlink node_modules
+# (worktree compartilhando deps) passava batido e foi commitado sem querer (13/08)
+node_modules
 dist/
 .astro/
 .vercel/

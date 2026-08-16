@@ -309,7 +309,7 @@ function medir() {
   /* ---- licença: o arquivo LICENSE é a verdade, e as SUPERFÍCIES são os lugares que
          repetem o nome dela e por isso mudam JUNTO com ela.
          Duas listas escritas à mão já enumeraram esses lugares (README.md e
-         `plans/08 §3`) e as duas esquecem o JSON-LD de `src/pages/index.astro` e o
+         `docs/historico/plans/08 §3`) e as duas esquecem o JSON-LD de `src/pages/index.astro` e o
          rodapé desta documentação. Lista à mão de onde a licença aparece tem o mesmo
          prazo de validade de qualquer outro número escrito à mão — por isso é medida. */
   /* POR QUE ISTO NÃO É MAIS `head -1 LICENSE` + regex de sigla — custou uma doc publicada
@@ -481,7 +481,7 @@ const BLOCOS = {
 
   /* AS SUPERFÍCIES DA LICENÇA — todo arquivo que REPETE o nome da licença e por isso muda
      JUNTO com ela. Duas listas escritas à mão já tentaram enumerar isto (README.md e
-     `plans/08 §3`) e as duas esquecem lugares reais. A lista de superfícies é decisão
+     `docs/historico/plans/08 §3`) e as duas esquecem lugares reais. A lista de superfícies é decisão
      humana (vive no topo deste script); ONDE cada uma nomeia a licença é medido. */
   licenca_pontos: (f) => [
     `| Superfície | Arquivo | Onde diz \`${f.licenca.atual || '?'}\` |`,
