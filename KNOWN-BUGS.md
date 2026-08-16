@@ -2171,6 +2171,43 @@ invisível hoje, porque `WEAPON_ONLY` é o padrão.
 
 ## P2 — infra, repo e deploy
 
+### ~~BUG-57 · Régua casava literal de formatação e travou TODO deploy da main por meio dia~~ · RESOLVIDO 16/08
+
+**Sintoma.** Deploys da Vercel falhando desde `ef0a392` (16/08 ~01:52) com
+`check:deploy` vermelho em `eval:redesign` — UIA6. A main ficou SEM publicar por
+~14h: os merges #300 (sim-clock) e #303 (fix WebGL `16a22c40`, o "arena não
+abriu" dos jogadores) estavam no git e fora do ar.
+
+**Causa raiz — a régua lia FORMATAÇÃO, não comportamento.** A UIA6 exigia o
+literal `loadingStage.update(dt)` no main.js. O rebase do #300 mudou a chamada
+para `update(Math.min(0.05, dtReal))` — correto e semântica idêntica pra cláusula
+(o loading continua sendo atualizado no loop) — e a regex deixou de casar.
+Família do BUG-02 (régua acoplada a detalhe que não é o comportamento cobrado):
+lá o JSON velho media o viewmodel de ontem; aqui a régua media a grafia de hoje.
+
+**Por que o CI do PR não pegou.** Pegou — mas o `check:fast` do CI roda SEM o
+`redesign-check` completo? Não: roda, e passou, porque o branch do #303 nasceu
+do #300 já com o texto novo E a régua velha só entrou no `check:deploy` da
+Vercel via `ef0a392` — que o CI do PR #303 (criado antes) não tinha. A janela:
+gate novo no deploy + regex frágil + rebase no caminho = ninguém viu até o
+push final. O `pr-fast` do merge-para-main roda contra a main NOVA só depois
+do merge — tarde demais.
+
+**Correção.** `redesign-check.mjs`: a cláusula passou a cobrar a CHAMADA
+(`loadingStage.update(`), não a grafia do argumento. Validado local: 47/47 + UIA6.
+
+**Régua.** A própria UIA6 agora existe e o `check:deploy` continua no
+buildCommand — deploy vermelho bloqueia publicação (é o desenho). O que muda é
+o que ela lê: comportamento, não formatação. Mutante da família: mudar a
+formatação da chamada NÃO pode acender a cláusula (testado ao vivo: o rebase do
+#300 foi o mutante involuntário e a régua nova fica verde).
+
+**Lição (a mesma do BUG-02, agora com custo de 14h de deploy):** cláusula que
+casa literal de código deve casar o MÍNIMO que expressa o comportamento. Antes
+de versionar regex de fonte no `check:deploy`, perguntar: "um rebase razoável
+mudaria este texto sem mudar o que eu quero garantir?" — se sim, a regex está
+errada.
+
 ### ~~BUG-46 · Todo release abria um deploy de produção vermelho e redundante~~ · RESOLVIDO 11/08
 
 **Evidência.** Os releases alpha.75, alpha.77 e alpha.78 dispararam `deploy-prod.yml` e
