@@ -2064,7 +2064,7 @@ function pickTeam(faction) {
         if (n < 0) return;
         e.preventDefault(); rows[n].focus(); rows[n].click();
       };
-      row.onclick = () => { ui.click(); selectChar(c, row); };
+      row.onclick = () => selectCharacterFromAvatar(c, row, chars);
       list.appendChild(row);
       if (i === 0) firstRow = row;
     });
@@ -2133,6 +2133,14 @@ function selectChar(c, row) {
   $('char-info-name').textContent = c.name;
   $('char-info-blurb').textContent = tr(c.blurb);
   renderCharAttrs(c);
+}
+
+function selectCharacterFromAvatar(c, row, roster) {
+  ui.click();
+  selectChar(c, row);
+  void sfxReady.then(() => {
+    if (selChar?.id === c.id) sfx.characterSelectVoice(c.id, c.team, roster.map((entry) => entry.id));
+  });
 }
 
 /* ---------------- settings wiring ---------------- */
@@ -2356,7 +2364,7 @@ async function openInspectionScreen(target) {
       }
       const roster = CHARACTERS.filter((c) => c.team === faction);
       const row = [...$('char-list').children][roster.findIndex((c) => c.id === character.id)];
-      row?.click();
+      if (row) selectChar(character, row);
     }
     return;
   }
