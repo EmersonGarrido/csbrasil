@@ -41,9 +41,9 @@ algo está errado e o quality gate está verde, o defeito é do quality gate.
 
 | Zona | O que é | Tamanho medido | Regra |
 |---|---|---|---|
-| `public/` | o **jogo** | 36 arquivos `.js`, 28.456 linhas · Three.js `r160` vendorizado | ES modules servidos crus, **zero build**, sem dependência de runtime |
+| `public/` | o **jogo** | 38 arquivos `.js`, 29.222 linhas · Three.js `r160` vendorizado | ES modules servidos crus, **zero build**, sem dependência de runtime |
 | `src/` | o **site** | 17 páginas `.astro`, 19 rotas `/api` · Astro `^7.1.1` | framework é bem-vindo; `service_role` só no servidor |
-| `tools/` | o **arnês** | 169 scripts em `tools/eval/`, 48 em `tools/` | node puro: sobe o jogo real sem browser |
+| `tools/` | o **arnês** | 178 scripts em `tools/eval/`, 54 em `tools/` | node puro: sobe o jogo real sem browser |
 
 **Não existe `public/index.html`.** O HTML do jogo é `src/pages/index.astro`, servido na rota `/`. Servir `public/` estaticamente entrega os arnêses visuais, **não o jogo** — é a pegadinha que custa a primeira hora de todo mundo.
 
@@ -149,10 +149,10 @@ Um assunto, um arquivo. Se você precisa da informação, é daqui que você sai
 
 ```bash
 npm run check        # npm run syntax && npm run audio:check && npm run eval:medianet && npm run eval:ctfhud && npm run eval:vm && npm run eval:invariants && npm run eval:kick && npm run eval:bots
-npm run check:fast   # node tools/eval/runner.mjs syntax eval:release eval:telemetry eval:identity eval:error-console eval:error-origin eval:webgl eval:webglguard eval:maprotate eval:shaderlog eval:shaderbudget eval:botbrain eval:prune eval:vminspect eval:faccao eval:mapid eval:mapjson eval:mapcontrato docs:check arch:check audio:check feet:check eval:vmlabhud eval:ctfhud eval:pause eval:ctfround eval:ctfwin eval:spawn eval:regen eval:pegada eval:dmgdir eval:ctflabels anims:check anims:merge:check walls:check media:check travessao:check eval:medianet eval:posters eval:grafitelayout
+npm run check:fast   # node tools/eval/runner.mjs syntax eval:release eval:telemetry eval:identity eval:error-console eval:error-origin eval:webgl eval:webglguard eval:maprotate eval:shaderlog eval:shaderbudget eval:botbrain eval:prune eval:vminspect eval:faccao eval:mapid eval:mapjson eval:mapcontrato eval:redesign eval:matchoptions eval:screenquery docs:check arch:check audio:check feet:check eval:vmlabhud eval:ctfhud eval:pause eval:ctfround eval:ctfwin eval:spawn eval:regen eval:pegada eval:dmgdir eval:ctflabels anims:check anims:merge:check walls:check media:check travessao:check eval:medianet eval:posters eval:grafitelayout
 ```
 
-`package.json` tem **93 scripts**. Vários trazem uma chave `//nome` logo acima com o motivo de existirem — é onde mora o porquê.
+`package.json` tem **100 scripts**. Vários trazem uma chave `//nome` logo acima com o motivo de existirem — é onde mora o porquê.
 
 > Bloco gerado por `node tools/gen-docs.mjs`. Fonte: `node -p "Object.keys(require('./package.json').scripts)"`
 
@@ -167,10 +167,10 @@ npm run check:fast   # node tools/eval/runner.mjs syntax eval:release eval:telem
 > corrigida — o cuidado é para quando você chamar `node tools/eval/invariants.mjs` na mão.
 > É o **BUG-02** do [`KNOWN-BUGS.md`](KNOWN-BUGS.md).
 
-A mesma armadilha tem uma segunda forma, e ela morde quem adiciona quality gate: **`check:fast` é
-uma corrente de `&&`, e o primeiro erro corta o resto.** Quality gate colocado depois de um passo
-que já está vermelho nasce morto — roda zero vezes e ninguém percebe. Leia a chave
-`//check:fast` do `package.json` antes de acrescentar um passo.
+O `check:fast` usa `tools/eval/runner.mjs`: **todos os passos rodam mesmo quando um deles
+fica vermelho**, e o código de saída só é decidido no placar final. Isso evita que um defeito
+conhecido esconda um quality gate novo. Leia a chave `//check:fast` do `package.json` antes de
+acrescentar um passo.
 
 **O placar do quality gate não mora neste arquivo, e não deve morar em nenhum outro além de um.**
 Quantas invariantes passam **não é derivável do fonte** — depende de qual insumo existe na

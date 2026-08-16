@@ -44,12 +44,18 @@ if (!/^[a-z0-9_-]+$/.test(ID)) die(`--id inválido: ${ID}`);
    não como derrota dele. */
 const PRESERVA = [
   'PRESERVE COM EXATIDÃO — é o MESMO personagem, sem nenhuma substituição: rosto e suas',
-  'proporções, tom de pele, cabelo e corte, boné/chapéu/capuz, óculos e a cor da lente,',
-  'cada peça de roupa com as MESMAS cores e os mesmos blocos de cor, correntes, joias,',
-  'tatuagens e suas posições, tipo físico, idade aparente e gênero.',
+  'proporções, etnia e traços faciais, tom de pele, cabelo e corte (se a referência tem',
+  'moicano, topete ou dread, ele CONTINUA lá, na mesma cor), boné/chapéu/capuz, óculos',
+  'e a cor da lente, cada peça de roupa com as MESMAS cores e os mesmos blocos de cor,',
+  'correntes, joias, tatuagens e suas posições, tipo físico, idade aparente e gênero.',
+  'NÃO troque a etnia dos traços: se a referência é brasileira miscigenada, mantenha.',
   'Mesmo estilo de render: semi-realista de videogame AAA, com material de verdade e',
   'iluminação de estúdio. NÃO é fotografia de pessoa real e NÃO é desenho animado.',
-  'Corpo inteiro, de frente, sobre fundo escuro liso e neutro.',
+  'ENQUADRAMENTO OBRIGATÓRIO: corpo inteiro dos pés à cabeça DENTRO do quadro, com',
+  'margem visível acima da cabeça (ou do braço erguido) — nada toca a borda superior.',
+  'Se comemorando, o braço sobe SEM sair do quadro. Prefira braço erguido à frente do',
+  'corpo a cabeça jogada para trás: o rosto inteiro tem que aparecer, de frente.',
+  'Fundo escuro liso e neutro.',
   'REMOVA a arma das mãos: aqui ele não está em combate.',
 ].join('\n');
 
@@ -57,8 +63,8 @@ const POSES = {
   vitoria: [
     'MUDE APENAS A POSTURA E A EXPRESSÃO: ele está COMEMORANDO uma vitória.',
     'Um braço erguido em punho fechado ou os dois braços abertos, peito estufado, queixo',
-    'levantado, peso numa perna só. Sorriso largo e genuíno de quem acabou de ganhar,',
-    'olhos vivos. Energia de comemoração de gol, não pose de catálogo.',
+    'firme — cabeça erguida mas de frente, nunca jogada para trás —, peso numa perna só.',
+    'Sorriso largo e genuíno de quem acabou de ganhar, olhos vivos.',
     'A luz pode ser um pouco mais quente e mais forte, reforçando o momento.',
   ].join('\n'),
   derrota: [
@@ -72,8 +78,10 @@ const POSES = {
 
 if (!POSES[POSE]) die(`--pose desconhecida: ${POSE} (use vitoria ou derrota)`);
 
+const EXTRA = arg('prompt-extra', '');
 const prompt = `${PRESERVA}\n\n${POSES[POSE]}\n\n`
-  + 'NÃO acrescente objeto, texto, legenda, moldura nem cenário. Fundo liso.';
+  + 'NÃO acrescente objeto, texto, legenda, moldura nem cenário. Fundo liso.'
+  + (EXTRA ? `\n\n${EXTRA}` : '');
 
 const t0 = Date.now();
 try {
