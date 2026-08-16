@@ -116,7 +116,7 @@ try {
       },
     };
   });
-  if (!menuProfile.avatar.includes('/img/chars/avatars/') || menuProfile.avatarText || menuProfile.support !== '▸SUPORTE AO JOGO'
+  if (!menuProfile.avatar.includes('/img/chars/avatars/') || menuProfile.avatarText || menuProfile.support !== '▸ENVIE SEU FEEDBACK'
     || !menuProfile.version.text.startsWith('CORO SOLTO v') || menuProfile.version.position !== 'fixed'
     || Math.abs(menuProfile.version.right - menuProfile.version.rightGap) > 1
     || Math.abs(menuProfile.version.bottom - menuProfile.version.bottomGap) > 1) {
