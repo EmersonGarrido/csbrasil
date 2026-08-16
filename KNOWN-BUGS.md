@@ -2200,11 +2200,13 @@ No mesmo build, `scripts/copy-wasm.mjs` rodou e gerou **`public/wasm/resvg.wasm`
 o arquivo que faltava para as páginas `/u/*` terem og:image. Os dois itens B1 do handoff
 fecharam juntos.
 
-### BUG-15 · `public/models/anims/` não é versionado
+### ~~BUG-15 · `public/models/anims/` não é versionado~~ · RESOLVIDO 16/08
 
-`git ls-files` devolve vazio para o caminho. `TPM1` falha em qualquer clone limpo e o CI fica
-vermelho por motivo que não é código. **Sem a pasta no deploy, todo personagem congela em
-T-pose** — e `glbchars.js:196-209` engole a falha em silêncio.
+O diagnóstico original era literal: `git ls-files` devolvia vazio e um clone limpo perdia
+as animações. Hoje os GLBs individuais, os pacotes mesclados e o índice estão versionados;
+`anims:check` e `anims:merge:check` passam no `check:fast`. A revisão do PR #301 encontrou
+que os dois ainda não rodavam no portão específico da Vercel. RLS7 agora exige ambos em
+`check:deploy`; o mutante `sem-anims-deploy` remove essa proteção e fica vermelho.
 
 ### BUG-16 · Migration de segurança pronta e não aplicada
 
