@@ -39,19 +39,19 @@ esta página envelhecia no primeiro commit — ver
 
 | O que | Quanto | Onde confere |
 |---|---:|---|
-| Código do jogo | 29.239 linhas em 38 arquivos | `cat public/js/*.js \| wc -l` |
+| Código do jogo | 29.239 linhas em 38 arquivos | `git ls-files public/js/*.js \| xargs wc -l` |
 | `game.js` | **6.533** linhas | `wc -l public/js/game.js` |
 | `main.js` | 2.398 linhas | `wc -l public/js/main.js` |
-| Armas com GLB | 26 | `ls public/models/weapons/*.glb \| wc -l` |
-| GLBs de personagem | 45 | `ls public/models/characters/*.glb \| wc -l` |
-| Props em GLB | 108 | `ls public/models/props/*.glb \| wc -l` |
+| Armas com GLB | 26 | `git ls-files 'public/models/weapons/*.glb' \| wc -l` |
+| GLBs de personagem | 45 | `git ls-files 'public/models/characters/*.glb' \| wc -l` |
+| Props em GLB | 108 | `git ls-files 'public/models/props/*.glb' \| wc -l` |
 | Clipes de animação versionados | 573 | `git ls-files public/models/anims \| wc -l` |
 | Personagens jogáveis | 44, em 5 facções | array `CHARACTERS` de `characters.js` |
 | Mapas no registro | 6 | objeto `MAPS` de `maps.js` |
-| Arnêses visuais em HTML | 15 | `ls public/*.html \| wc -l` |
-| Scripts do arnês | 179 | `ls tools/eval/*.mjs tools/eval/*.py \| wc -l` |
-| Scripts de pipeline | 54 | `ls tools/*.mjs \| wc -l` |
-| Tarefas de entrada escritas | 26 | `ls docs/issues/[0-9]*.md \| wc -l` |
+| Arnêses visuais em HTML | 15 | `git ls-files 'public/*.html' \| wc -l` |
+| Scripts do arnês | 176 | `git ls-files 'tools/eval/*.mjs' 'tools/eval/*.py' \| wc -l` |
+| Scripts de pipeline | 53 | `git ls-files 'tools/*.mjs' \| wc -l` |
+| Tarefas de entrada escritas | 26 | `git ls-files 'docs/issues/[0-9]*.md' \| wc -l` |
 | Versão | `2.0.0-alpha.115` | `public/js/version.js` e `package.json` (batem) |
 
 > Bloco gerado por `node tools/gen-docs.mjs`. Fonte: `o comando da coluna direita de cada linha`
