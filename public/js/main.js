@@ -19,8 +19,9 @@ import { LoadingCharacterStage } from './loading3d.js';
 
 /* ---------------- settings & nickname ---------------- */
 const SETTINGS_KEY = 'awpbr_settings';
-const settings = Object.assign({ sens: 1, invertY: false, vol: 0.7, quality: 'med', speech: true, map: DEFAULT_MAP, wpnMode: 'all', bots: 4, rounds: 5, ctfRounds: 3, difficulty: 'normal' },
-  JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}'));
+const savedSettings = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}');
+if (savedSettings.invertY == null && savedSettings.invY != null) savedSettings.invertY = savedSettings.invY;
+const settings = Object.assign({ sens: 1, invertY: false, vol: 0.7, quality: 'med', speech: true, map: DEFAULT_MAP, wpnMode: 'all', bots: 4, rounds: 5, ctfRounds: 3, difficulty: 'normal' }, savedSettings);
 let preferredQuality = null;
 const saveSettings = () => localStorage.setItem(SETTINGS_KEY, JSON.stringify({
   ...settings,
@@ -168,6 +169,12 @@ const _lo = {
   pct: document.getElementById('load-pct'), label: document.getElementById('load-label'), status: document.getElementById('load-status'),
 };
 const loadingStage = new LoadingCharacterStage(document.getElementById('load-character-3d'), { compatibility: COMPAT_MODE });
+loadingStage.show('B').catch(() => {});
+function dockLoadingCharacter() {
+  const canvas = document.getElementById('load-character-3d');
+  const stage = document.getElementById('load-character-stage');
+  if (canvas && stage && canvas.parentElement !== stage) stage.prepend(canvas);
+}
 /* DICAS DO CARREGAMENTO. São de JOGO, não de marketing: cada uma diz algo que muda
    a mão de quem lê. Passam pelo tr() como todo o resto da UI. */
 const _DICAS = [
@@ -195,6 +202,7 @@ function _statusPorProgresso(p) {
   return tr('AQUECENDO A TRETA…');
 }
 function showLoading(label, status = 'CARREGANDO MODELOS 3D…', mapName = '') {
+  dockLoadingCharacter();
   const kick = document.getElementById('load-kicker');
   if (kick) kick.textContent = tr(label);   // o rótulo ("CARREGANDO <MAPA>") virou o kicker do topo (tela 00B)
   _lo.label.textContent = ''; _lo.status.textContent = tr(status);
@@ -234,7 +242,7 @@ function rebuildMenuBackdrop() {
 preloadMapProps(MAP_PROPS).then(() => { rebuildMenuBackdrop(); _splashSetReady(); }).catch(() => _splashSetReady());
 
 /* ---------------- screens ---------------- */
-const screens = ['mobile-warning', 'main-menu', 'map-screen', 'team-select', 'char-select', 'settings-panel', 'howto-panel', 'ranking-panel', 'feedback-panel', 'pause-menu', 'match-end'];
+const screens = ['mobile-warning', 'main-menu', 'map-screen', 'team-select', 'char-select', 'settings-panel', 'howto-panel', 'ranking-panel', 'feedback-panel', 'support-panel', 'pause-menu', 'match-end'];
 function show(id) {
   for (const s of screens) document.getElementById(s).classList.toggle('hidden', s !== id);
   if (!id) for (const s of screens) document.getElementById(s).classList.add('hidden');
@@ -293,8 +301,8 @@ fetch(`/img/walls.json?v=${VERSION}`)
     applySplashWallpaper();
   })
   .catch(() => {});
-function applyHomeWall() { const w = document.querySelector('#main-menu .cs-wallpaper'); if (w) w.style.backgroundImage = HOME_WALL; }
-function applySetupWall() { const w = document.querySelector('#main-menu .cs-wallpaper'); if (w) w.style.backgroundImage = SETUP_WALL; }
+function applyHomeWall() { const w = document.querySelector('#main-menu .cs-wallpaper'); if (w) w.style.setProperty('--menu-wall', HOME_WALL); }
+function applySetupWall() { const w = document.querySelector('#main-menu .cs-wallpaper'); if (w) w.style.setProperty('--menu-wall', SETUP_WALL); }
 applyHomeWall();
 { const t = $('team-select'); if (t) t.style.setProperty('--wall', TEAM_WALL); }
 { const c = $('char-select'); if (c) c.style.setProperty('--wall', CHAR_WALL); }
@@ -387,6 +395,8 @@ const _armMusic = () => {
 function dismissSplash() {
   const sp = document.getElementById('boot-splash');
   if (!sp || !_splashReady || sp.classList.contains('gone')) return;
+  loadingStage.hide();
+  dockLoadingCharacter();
   sp.classList.add('gone');
   window.__gameLaunch?.ready('entrada');
   setTimeout(() => sp.remove(), 480);
@@ -869,7 +879,15 @@ addEventListener('pointerdown', _menuOnce);
 addEventListener('keydown', _menuOnce);
 
 async function startGame(team, charId, enemyFaction) {
-  window.__gameLaunch?.begin('partida', 60000);
+  /* #241: em rede lenta o preload dos GLBs passa de 60 s COM progresso andando
+     (_lstat.loaded sobe a cada arquivo do DefaultLoadingManager). O watchdog
+     renova enquanto há movimento e só falha se o progresso PARAR — travamento
+     de verdade continua sendo pego. */
+  let _wp = _lstat.loaded;
+  window.__gameLaunch?.begin('partida', 60000, function () {
+    if (_lstat.loaded > _wp) { _wp = _lstat.loaded; return 'rede-lenta'; }
+    return !!(window.__game && window.__game.state === 'live');
+  });
   try {
     await _startGame(team, charId, enemyFaction);
     window.__gameLaunch?.ready('partida');
@@ -912,6 +930,7 @@ async function _startGame(team, charId, enemyFaction) {
      Falhar é ACEITÁVEL: sem tela cheia não há trava de atalho, e a confirmação de saída
      do `beforeunload` cobre o caso. Por isso nada de await e nada de erro na tela. */
   if (!testMode) { try { document.documentElement.requestFullscreen?.()?.catch?.(() => {}); } catch {} }
+  loadingStage.hide(); dockLoadingCharacter();
   const _sp = document.getElementById('boot-splash'); if (_sp) _sp.remove();   // fluxo ?auto= pula a splash
   // LOADING REAL da partida: overlay opaco cobre TUDO enquanto os GLBs entram e o mundo
   // é construído — nada de cena parcial/"minecraft" aparecendo aos poucos
@@ -1174,6 +1193,7 @@ csItems.forEach((it) => {
       case 'ctf':   openModeMap('ctf', 'CAPTURE THE FLAG', 'ctf'); break;
       /* MAPA saiu (mapa se escolhe no fluxo de partida); FEEDBACK entrou (07/08) */
       case 'feedback': markCurrent('feedback'); show('feedback-panel'); break;
+      case 'apoie': markCurrent('apoie'); showSupport(); break;
       case 'config': markCurrent('config'); show('settings-panel'); break;
       case 'ranking': markCurrent('ranking'); showRanking(); break;
       case 'sobre': markCurrent('sobre'); howtoReturn = 'main-menu'; show('howto-panel'); break;
@@ -1286,6 +1306,32 @@ $('ranking-back').onclick = () => { ui.back(); markCurrent(null); show('main-men
 /* FEEDBACK: email + consentimento obrigatórios ANTES de enviar — a tabela é a
    semente da newsletter (migration 013), então não entra linha sem os dois. */
 $('fb-back').onclick = () => { ui.back(); markCurrent(null); show('main-menu'); };
+$('support-back').onclick = () => { ui.back(); markCurrent(null); show('main-menu'); };
+const supportLink = $('support-link');
+const supportNote = $('support-region-note');
+/* URLs vêm RESOLVIDAS do servidor (index.astro injeta window.__SUPPORT a partir do
+   mesmo site.ts do /apoie) — o jogo é zero-build e não lê import.meta.env. O literal
+   aqui é só fallback para arquivo aberto direto do disco. */
+const SUPPORT_URL_BR = window.__SUPPORT?.br || 'https://meapoia.com/vaquinhas/ajude-a-manter-o-coro-solto-online';
+const SUPPORT_URL_INTL = window.__SUPPORT?.intl || 'https://ko-fi.com/corosolto';
+function showSupport(region) {
+  const browserLocale = String(navigator.language || '').toLowerCase();
+  const timezone = String(Intl.DateTimeFormat().resolvedOptions().timeZone || '');
+  const br = region ? region === 'br' : browserLocale === 'pt-br' || timezone === 'America/Sao_Paulo';
+  supportLink.href = br ? SUPPORT_URL_BR : SUPPORT_URL_INTL;
+  supportLink.textContent = br ? 'ABRIR ME APOIA' : 'OPEN INTERNATIONAL SUPPORT';
+  supportNote.textContent = br
+    ? 'Você será levado ao MeApoia. O Pix da campanha fica na página de apoio.'
+    : 'You will be taken to the international support page. Choose the option that works in your country.';
+  const botaoBr = $('support-br'), botaoIntl = $('support-intl');
+  botaoBr.setAttribute('aria-pressed', String(br));
+  botaoIntl.setAttribute('aria-pressed', String(!br));
+  botaoBr.classList.toggle('active', br);
+  botaoIntl.classList.toggle('active', !br);
+  show('support-panel');
+}
+$('support-br').onclick = () => showSupport('br');
+$('support-intl').onclick = () => showSupport('intl');
 $('fb-send').onclick = async () => {
   ui.click();
   const msg = $('fb-msg').value.trim(), email = $('fb-email').value.trim();
@@ -1393,10 +1439,12 @@ const MAP_DESC = {
   ferro_velho: 'Um ferro velho gigantesco onde tudo pode ser arma e toda sombra pode esconder um traira.',
   quebrada: 'Rua de baile: muros baixos, beco cego e o paredão marcando o compasso do round.',
   posto_treta: 'Posto de combustível na beira da BR: loja de conveniência, bombas de cobertura e treta no fluorescente.',
+  atacadao_treta: 'Galpão de atacado em guerra: gôndolas apertadas, caixas de cobertura e o estacionamento disputado carrinho por carrinho.',
 };
 const MAP_CAT = {
   praca_poderes: 'CIDADES', piscina_treta: 'ARENA', loja_h: 'CIDADES',
-  ferro_velho: 'FAVELA', quebrada: 'FAVELA', posto_treta: 'CIDADES',
+  ferro_velho: 'ARENA', quebrada: 'FAVELA', posto_treta: 'ARENA',
+  atacadao_treta: 'CIDADES',
 };
 let mapCategory = 'TODOS';
 function visibleMapIds() {
@@ -1417,6 +1465,7 @@ function renderMapScreen() {
   catEl.textContent = tr(cat); catEl.dataset.cat = cat;
   $('ms-count').textContent = `${tr('MAPA')} ${MAP_IDS.indexOf(currentMap) + 1} ${tr('DE')} ${MAP_IDS.length}`;
   const shown = visibleMapIds();
+  $('ms-strip').style.setProperty('--map-count', shown.length);
   $('ms-strip').innerHTML = shown.map((id) =>
       `<button class="ms-thumb${id === currentMap ? ' on' : ''}" data-id="${id}" aria-pressed="${id === currentMap}" type="button">` +
       `<img class="ms-thumb-img" src="/img/map-previews/${id}.jpg?v=${VERSION}" alt="">` +
@@ -2340,6 +2389,7 @@ function showInspectionResult(won, character) {
 async function openInspectionScreen(target) {
   document.documentElement.dataset.inspectScreen = target.screen;
   if (target.screen === 'splash') return;
+  loadingStage.hide(); dockLoadingCharacter();
   document.getElementById('boot-splash')?.remove();
   const faction = target.faction;
   const character = CHARACTERS.find((c) => c.id === target.character && c.team === faction)

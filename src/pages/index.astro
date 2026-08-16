@@ -1,6 +1,6 @@
 ---
 import pkg from '../../package.json';
-import { DISCORD_URL, TELEGRAM_URL, GITHUB_URL } from '../lib/site';
+import { DISCORD_URL, TELEGRAM_URL, GITHUB_URL, SUPPORT_URL_BR, SUPPORT_URL_INTL } from '../lib/site';
 
 export const prerender = false;
 const V = pkg.version;
@@ -28,9 +28,15 @@ const IMPORTMAP = JSON.stringify({
 <head>
 <meta charset="UTF-8">
 <!-- Precisa rodar antes dos módulos para capturar falhas de boot; detalhes só com ?debug=1. -->
+<script is:inline define:vars={{ SUPPORT_URL_BR, SUPPORT_URL_INTL }}>
+/* URLs de apoio já RESOLVIDAS pelo servidor (env da Vercel pode sobrescrever).
+   O jogo é zero-build e não lê import.meta.env: sem isto, um override de
+   PUBLIC_SUPPORT_URL_* mudava o /apoie e não o menu do jogo (CodeRabbit, PR #284). */
+window.__SUPPORT = { br: SUPPORT_URL_BR, intl: SUPPORT_URL_INTL };
+</script>
 <script is:inline>
 (function(){
-  var TETO_SESSAO = 10;      // no máximo 10 erros DISTINTOS por carregamento de página
+  var TETO_SESSAO = 10;      /* no máximo 10 erros DISTINTOS por carregamento de página */
   var TETO_EXTERNO = 3;      // externos ficam no banco, mas com cota própria (BUG-51)
   var MIGALHAS = 20;         // últimas ações guardadas
   var DEBUG = new URLSearchParams(location.search).get('debug') === '1';
@@ -218,7 +224,14 @@ const IMPORTMAP = JSON.stringify({
       this.ativo = true; this.etapa = etapa;
       var self = this;
       this.timer = setTimeout(function(){
-        if (concluiu && concluiu()) { self.ready(etapa); return; }
+        if (concluiu) {
+          var v = concluiu();
+          /* #241: 'rede-lenta' = ainda há PROGRESSO real (ex.: GLBs chegando), só que
+             devagar. Renova o watchdog em vez de falhar; travamento de verdade é
+             progresso PARADO até o teto, e aí o fail vem igual. */
+          if (v === 'rede-lenta') { self.begin(etapa, timeout, concluiu); return; }
+          if (v) { self.ready(etapa); return; }
+        }
         self.fail(new Error('tempo limite ao abrir ' + etapa), 'launch-watchdog');
       }, timeout || 12000);
     },
@@ -301,9 +314,18 @@ const IMPORTMAP = JSON.stringify({
       if (alvo.id === 'boot-splash') {
         var prompt = document.getElementById('splash-enter');
         var pronto = prompt && !prompt.classList.contains('hidden');
-        if (!window.__CS_MAIN_READY__ && (erroDoBoot || Date.now() - inicio > 22000)) {
-          lancamento.fail(erroDoBoot || new Error('carregamento inicial não respondeu'), 'boot-watchdog');
-        } else if (window.__CS_MAIN_READY__ || pronto) {
+        if (!window.__CS_MAIN_READY__) {
+          if (erroDoBoot || window.__CS_MAIN_FAILED) {
+            lancamento.fail(erroDoBoot || new Error('o código do jogo não chegou (verifique a conexão)'), 'boot-watchdog');
+          } else if (!window.__CS_MAIN_LOADED) {
+            /* Rede lenta (#265): failsafe abre a splash antes do main.js chegar; clicar
+               não é defeito. Informa e espera, sem virar crash-auto. */
+            var st = document.getElementById('boot-status');
+            if (st) st.textContent = 'CONEXÃO LENTA - AINDA BAIXANDO O JOGO…';
+          } else if (Date.now() - inicio > 22000) {
+            lancamento.fail(new Error('carregamento inicial não respondeu'), 'boot-watchdog');
+          }
+        } else if (pronto) {
           lancamento.begin('entrada', 3000, function(){
             var splash = document.getElementById('boot-splash');
             return !splash || splash.classList.contains('gone');
@@ -483,6 +505,9 @@ const IMPORTMAP = JSON.stringify({
   <div class="splash-frame">
     <canvas id="splash-logo" width="900" height="360"></canvas>
     <div class="splash-sub">ARENA DE SNIPER · PET × BOL × TRIBOS</div>
+    <div id="splash-character-stage" aria-hidden="true">
+      <canvas id="load-character-3d"></canvas>
+    </div>
     <div class="splash-bar"><div id="boot-bar-fill"></div></div>
     <div class="splash-status"><span id="boot-status">CARREGANDO ARENA…</span><span id="boot-pct">0%</span></div>
     <div id="splash-enter" class="hidden">CLIQUE OU PRESSIONE QUALQUER TECLA</div>
@@ -507,7 +532,6 @@ const IMPORTMAP = JSON.stringify({
     <div class="lo-tip"><b>DICA</b><span id="load-tip"></span></div>
   </div>
   <div id="load-character-stage" aria-hidden="true">
-    <canvas id="load-character-3d"></canvas>
     <span id="load-character-action">CORRIDA</span>
   </div>
 </div>
@@ -577,6 +601,7 @@ const IMPORTMAP = JSON.stringify({
       <button class="cs-item" data-act="sobre" type="button"><span class="cs-tick">▸</span>COMO JOGAR</button>
       <button class="cs-item" data-act="config" type="button"><span class="cs-tick">▸</span>CONFIGURAÇÕES</button>
       <button class="cs-item" data-act="feedback" type="button"><span class="cs-tick">▸</span>SUPORTE AO JOGO</button>
+      <button class="cs-item" data-act="apoie" type="button"><span class="cs-tick">▸</span>APOIE O JOGO</button>
     </nav>
     <!-- plate do jogador: nível/XP derivados dos stats locais (mesma fonte do RANKING).
          Clique abre o passo de perfil do setup. -->
@@ -989,6 +1014,22 @@ const IMPORTMAP = JSON.stringify({
   </div>
 </div>
 
+<!-- Apoio ao projeto. O idioma é uma sugestão, não uma barreira: a pessoa pode trocar
+     entre MeApoia/Pix e a plataforma internacional. -->
+<div id="support-panel" class="screen hidden">
+  <div class="panel center-panel support-panel">
+    <h2>APOIE O JOGO</h2>
+    <p class="fb-note">O CORO SOLTO ainda está em alpha. Se você curte a ideia, qualquer apoio ajuda a pagar servidor, domínio e as próximas melhorias.</p>
+    <div class="support-choice" role="group" aria-label="Escolha sua região">
+      <button id="support-br" class="btn support-region" type="button" aria-pressed="true">🇧🇷 SOU DO BRASIL</button>
+      <button id="support-intl" class="btn support-region" type="button" aria-pressed="false">🌐 FORA DO BRASIL</button>
+    </div>
+    <p id="support-region-note" class="support-note"></p>
+    <a id="support-link" class="btn support-primary" href="/apoie" target="_blank" rel="noopener">ABRIR PÁGINA DE APOIO</a>
+    <button id="support-back" class="btn" type="button">VOLTAR</button>
+  </div>
+</div>
+
 <!-- How to play -->
 <div id="howto-panel" class="screen hidden">
   <div class="panel center-panel">
@@ -1090,10 +1131,12 @@ const IMPORTMAP = JSON.stringify({
   <!-- PLACAR (tela 08 da referência). Duas colunas de time lado a lado, cada uma com
        cabeçalho visual alinhado às colunas K/M/CAP. e thead equivalente para leitor de tela. -->
   <div id="scoreboard" class="hidden">
-    <h3>CORO SOLTO - PLACAR</h3>
-    <!-- Duas colunas, uma por time, com o brasão da facção no topo (referência
-         08_placar, pedido do dono 07/08). O JS preenche #sb-cols. -->
-    <div class="sb-cols" id="sb-cols"></div>
+    <div class="sb-center">
+      <h3>CORO SOLTO - PLACAR</h3>
+      <!-- Duas colunas, uma por time, com o brasão da facção no topo (referência
+           08_placar, pedido do dono 07/08). O JS preenche #sb-cols. -->
+      <div class="sb-cols" id="sb-cols"></div>
+    </div>
     <div class="sb-foot"><span><b>TAB</b> SEGURAR PARA VER</span><span><b>MOUSE 2</b> ATIVAR CURSOR</span></div>
   </div>
 </div>
@@ -1150,6 +1193,6 @@ const IMPORTMAP = JSON.stringify({
   }
 </script>
 
-<script type="module" src={`/js/main.js?v=${V}-${JS_REV}`} is:inline></script>
+<script type="module" src={`/js/main.js?v=${V}-${JS_REV}`} is:inline onload="window.__CS_MAIN_LOADED=1" onerror="window.__CS_MAIN_FAILED=1"></script>
 </body>
 </html>

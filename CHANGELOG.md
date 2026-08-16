@@ -10,7 +10,7 @@
 >
 <!-- BEGIN:GERADO:versao_atual — não edite à mão, rode `npm run docs` -->
 
-**O jogo está em `2.0.0-alpha.115`.** Prerelease do semver ordena sozinho
+**O jogo está em `2.0.0-alpha.126`.** Prerelease do semver ordena sozinho
 (`alpha` < `beta` < release), e o fluxo automático cuida do bump.
 
 > Bloco gerado por `node tools/gen-docs.mjs`. Fonte: `grep VERSION public/js/version.js · node -p "require('./package.json').version"`
@@ -22,6 +22,72 @@
 > das três tem tag git** (a última tag é `v1.12.4`). "v3" nunca existiu como coisa publicada.
 > O conteúdo e as datas das entradas continuam intactos; só o rótulo mudou, porque chamar de
 > 3.3.0 um build com P0 em aberto promete ao jogador uma estabilidade que ele não tem.
+
+## [2.0.0-alpha.126] — 2026-08-15
+
+### Mudado
+- chore: confirma auto-deploy Vercel pós-org corosolto
+- [Notas completas do release](https://github.com/rubenmarcus/csbrasil/releases/tag/v2.0.0-alpha.126).
+
+## [2.0.0-alpha.125] — 2026-08-15
+
+### Mudado
+- chore: verifica integração Vercel após transfer p/ org corosolto
+- [Notas completas do release](https://github.com/rubenmarcus/csbrasil/releases/tag/v2.0.0-alpha.125).
+
+## [2.0.0-alpha.124] — 2026-08-15
+
+### Mudado
+- feat: adicionar apoio nacional e internacional
+- [Notas completas do release](https://github.com/rubenmarcus/csbrasil/releases/tag/v2.0.0-alpha.124).
+
+## [2.0.0-alpha.123] — 2026-08-15
+
+### Mudado
+- fix(bots): fumaça estica o grace de alvo p/ 4s (#281) (#290)
+- [Notas completas do release](https://github.com/rubenmarcus/csbrasil/releases/tag/v2.0.0-alpha.123).
+
+## [2.0.0-alpha.122] — 2026-08-15
+
+### Mudado
+- feat(ui): opcao de inverter o eixo vertical do mouse (#280) (#289)
+- [Notas completas do release](https://github.com/rubenmarcus/csbrasil/releases/tag/v2.0.0-alpha.122).
+
+## [2.0.0-alpha.121] — 2026-08-15
+
+### Mudado
+- chore(release): v2.0.0-alpha.120
+- [Notas completas do release](https://github.com/rubenmarcus/csbrasil/releases/tag/v2.0.0-alpha.121).
+
+## [2.0.0-alpha.120] — 2026-08-15
+
+### Mudado
+- fix(webgl1): skinning compila no WebGL1 - getBoneMatrix bifurca por __VERSION__ (#275) (#287)
+- [Notas completas do release](https://github.com/rubenmarcus/csbrasil/releases/tag/v2.0.0-alpha.120).
+
+## [2.0.0-alpha.119] — 2026-08-14
+
+### Mudado
+- feat(ci): CodeRabbit no lugar do Greptile como revisor de PR (#272)
+- [Notas completas do release](https://github.com/rubenmarcus/csbrasil/releases/tag/v2.0.0-alpha.119).
+
+## [2.0.0-alpha.118] — 2026-08-14
+
+### Mudado
+- fix(gameplay): modo arma-única fecha slots, pickup não recarrega, lastinv (Q) (#279)
+- [Notas completas do release](https://github.com/rubenmarcus/csbrasil/releases/tag/v2.0.0-alpha.118).
+
+## [2.0.0-alpha.117] — 2026-08-14
+
+### Mudado
+- fix(boot): watchdog distingue rede lenta de travamento (#265) (#278)
+- [Notas completas do release](https://github.com/rubenmarcus/csbrasil/releases/tag/v2.0.0-alpha.117).
+
+## [2.0.0-alpha.116] — 2026-08-14
+
+### Mudado
+- feat(mapa): Atacadão da Treta (8º mapa) — supersedes #253 (#271)
+- [Notas completas do release](https://github.com/rubenmarcus/csbrasil/releases/tag/v2.0.0-alpha.116).
 
 ## [2.0.0-alpha.115] — 2026-08-14
 

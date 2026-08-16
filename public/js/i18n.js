@@ -40,6 +40,7 @@ const DICT = {
   'Automático (país)': 'Automatic (country)',
   'RANKING': 'LEADERBOARD',
   'MAPA': 'MAP', 'DE': 'OF',
+  'APOIE O JOGO': 'SUPPORT THE GAME',
   'SOBRE O JOGO': 'ABOUT THE GAME',
   'Feedback': 'Feedback',
   // painel de feedback (substituiu o MAPA no menu, 07/08)

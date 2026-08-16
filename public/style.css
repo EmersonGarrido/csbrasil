@@ -104,7 +104,6 @@
      eram azuis (#12171a h 245° / #0d1418 h 246°) coladas em cima de superfícies que
      agora são quentes. Reescritas com o MESMO L* e o matiz da família (#191610 L* 7,4). */
   --br-cal:#f2efe6;    --br-asfalto:#191610;
-  --hazard:repeating-linear-gradient(135deg,var(--br-faixa) 0 7px,var(--br-asfalto) 7px 14px);
   /* fundo do CTA: era #141810, o único dark que já nascera quente (h 130°). Mantido o L*
      e alinhado ao matiz do âmbar que ele carrega em cima. */
   --cta-bg:#181307;
@@ -330,7 +329,6 @@ html[data-ui="legacy"] .screen-title{font-family:var(--font)}
   width:120px;height:3px;background:linear-gradient(90deg,var(--br-sinal),var(--br-faixa))}   /* régua de tinta: assinatura da marca em toda tela de fluxo */
 .panel{background:var(--panel);border:1px solid var(--line);padding:var(--s-6) var(--s-7);clip-path:var(--cut);
   box-shadow:var(--sh-2);position:relative}
-.panel::before{content:"";position:absolute;left:0;top:14px;width:4px;height:52px;background:var(--hazard)}   /* top:0 caía dentro do canto chanfrado do clip-path */
 .center-panel{display:flex;flex-direction:column;gap:18px;align-items:center;max-width:640px;text-align:center}
 .big{font-size:18px}
 .footnote{position:absolute;bottom:18px;font-size:12px;font-weight:600;letter-spacing:2px;color:var(--ink3)}
@@ -425,7 +423,7 @@ html[data-ui="legacy"] .btn-cta:hover,html[data-ui="legacy"] .btn-cta:focus-visi
 #map-select{font-family:var(--mono);font-size:14px;letter-spacing:1px;text-align:center;
   background:var(--bg-800);border:1px solid var(--line);color:var(--cs);padding:10px 12px;outline:none;cursor:pointer;width:100%}
 .btn-ghost{font-family:var(--mono);font-size:12px;letter-spacing:1px;cursor:pointer;width:100%;
-  background:transparent;border:1px dashed var(--line);color:var(--ink3);padding:10px}
+  background:transparent;border:1px solid var(--line);color:var(--ink3);padding:10px}
 .btn-ghost:hover,.btn-ghost:focus-visible{border-color:var(--cs);color:var(--cs)}
 #avatar-note{font-size:12px;color:var(--cs);min-height:13px}
 .menu-secondary{display:flex;gap:10px;width:100%}
@@ -649,7 +647,6 @@ html[data-ui="legacy"] .ts-head small{font-family:var(--mono);font-weight:400;fo
   display:flex;flex-direction:column;gap:var(--s-4);min-height:0;overflow-y:auto;
   background:rgba(var(--bg-800-rgb),.9);border:1px solid var(--line);padding:var(--s-5);clip-path:var(--cut);
   position:relative;text-align:left;scrollbar-width:thin}
-.char-sheet::before{content:"";position:absolute;left:0;top:0;width:4px;height:64px;background:var(--hazard)}
 /* nome e raridade EMPILHADOS: na referência o "ÉPICO" cai numa linha própria embaixo do
    "PALHAÇO DO MAL" — lado a lado a pastilha disputava a linha do título e apertava o nome */
 .char-info-head{display:flex;flex-direction:column;align-items:flex-start;gap:var(--s-2)}
@@ -852,6 +849,12 @@ body:has(#pause-menu:not(.hidden)) #hud{opacity:.12;transition:opacity var(--t) 
 .howto-grid{display:grid;grid-template-columns:auto auto;gap:var(--s-2) var(--s-5);font-size:var(--fs-200);
   font-weight:600;letter-spacing:var(--tr-1);text-align:left;color:var(--ink-200)}
 .howto-grid span:nth-child(odd){color:var(--br-faixa);font-family:var(--mono);font-size:var(--fs-100)}
+.support-panel{max-width:560px}
+.support-choice{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin:10px 0}
+.support-region{font-size:12px!important;padding:10px 14px!important}
+.support-region.active{border-color:var(--yellow);color:var(--yellow)}
+.support-primary{display:block;text-decoration:none;text-align:center;margin:12px 0}
+.support-note{min-height:34px;color:var(--ink3);font-size:12px;line-height:1.5}
 
 /* ---------- HUD ---------- */
 /* MARGENS DO HUD — desvio 2 do BUG-05, medido e não achado. `ref-ui.py` dá, no consenso
@@ -1310,6 +1313,7 @@ html[data-ui="legacy"] .kf-row .kf-n{clip-path:none;border-radius:var(--r-1)}
 #scoreboard h3 .sb-clock em{font-style:normal;color:#b4d92e}
 #scoreboard h3 .sb-score{display:flex;align-items:center;gap:26px;font-family:var(--aaa-font-display);font-weight:400;font-size:40px;line-height:1;letter-spacing:2px}
 #scoreboard h3 .sb-score b{display:flex;align-items:center;gap:14px;font:400 40px/1 var(--aaa-font-display);color:#ecebe6}
+#scoreboard .sb-score .sb-crest{width:48px;height:48px;object-fit:contain;filter:drop-shadow(0 3px 8px rgba(0,0,0,.65))}
 #scoreboard h3 .sb-score-num{font:700 44px/1 var(--font)}
 #scoreboard h3 .tp .sb-score-num{color:#e0762a}#scoreboard h3 .tb .sb-score-num{color:#8258d8}
 #scoreboard h3 .sb-vs{font:400 20px/1 var(--aaa-font-display);color:#5c5d63}
@@ -1325,6 +1329,7 @@ html[data-ui="legacy"] .kf-row .kf-n{clip-path:none;border-radius:var(--r-1)}
   border-bottom:1px solid #26272d;font:700 11px/1 var(--aaa-font-body);letter-spacing:3px;color:#5c5d63}
 #scoreboard .sb-chead>span{padding:0 10px;text-align:right;color:#5c5d63}
 #scoreboard .sb-chead .sb-team{text-align:left;padding-left:16px;font:700 11px/1 var(--aaa-font-body);color:#5c5d63}
+#scoreboard .sb-chead .sb-crest{width:24px;height:24px;object-fit:contain;flex:0 0 24px;filter:drop-shadow(0 2px 4px rgba(0,0,0,.55))}
 #scoreboard .sb-col table{display:block;width:100%;margin:0;overflow:visible;font-family:var(--aaa-font-body)}
 #scoreboard .sb-col tbody{display:block;background:none}
 #scoreboard .sb-col tbody tr{display:grid;grid-template-columns:var(--sb-grid);align-items:center;gap:0;min-height:42px;padding:0;
@@ -1340,6 +1345,9 @@ html[data-ui="legacy"] .kf-row .kf-n{clip-path:none;border-radius:var(--r-1)}
 #scoreboard .sb-foot{position:absolute;left:50%;right:auto;bottom:32px;transform:translateX(-50%);display:flex;gap:18px;
   font:600 12px/1 var(--font);letter-spacing:2px;color:#5c5d63}
 #scoreboard .sb-foot b{color:#9a9ba1}
+#scoreboard .sb-center{position:absolute;inset:0 64px;display:flex;flex-direction:column;justify-content:center;gap:48px}
+#scoreboard .sb-center>h3{position:static;left:auto;right:auto;top:auto;width:100%;margin:0}
+#scoreboard .sb-center>.sb-cols{position:static;left:auto;right:auto;top:auto;width:100%;margin:0}
 
 /* ---------- match end ----------
    Três blocos com hierarquia declarada, em vez de um painel único com tudo do mesmo
@@ -1440,12 +1448,9 @@ html[data-ui="legacy"] #match-title{font-family:var(--font)}
 /* ink-300 e não ink-400: o sistema diz que ink-400 é régua decorativa, nunca texto */
 .mes-x{font-family:var(--mono);font-size:var(--fs-50);letter-spacing:var(--tr-2);color:var(--ink-300);
   flex:0 0 auto;text-transform:uppercase}
-/* SEU DESEMPENHO: o bloco do jogador é o único com trilho de sinaleiro — é o que ele
-   veio ver. Números tabulares e rótulo embaixo, nunca na mesma linha (era isso que
-   quebrava em "9 kills de r"). */
+/* SEU DESEMPENHO: números tabulares e rótulo embaixo, nunca na mesma linha. */
 .me-you{width:100%;background:var(--panel);border:1px solid var(--line);clip-path:var(--cut);
   padding:var(--s-4) var(--s-5);position:relative}
-.me-you::before{content:"";position:absolute;left:0;top:14px;width:4px;height:44px;background:var(--hazard)}
 .mey-h{display:block;font-size:var(--fs-100);font-weight:700;letter-spacing:var(--tr-3);
   color:var(--ink-300);text-transform:uppercase;margin-bottom:var(--s-3);text-align:center}
 .mey-h b{color:var(--br-faixa)}
@@ -1493,14 +1498,12 @@ html[data-ui="legacy"] #match-title{font-family:var(--font)}
 
 /* ============ MENU (Coro Solto) — wallpaper + lista de texto à esquerda ============ */
 #main-menu.cs-screen{display:block;padding:0;gap:0;overflow:hidden}
-/* ÂNCORA À ESQUERDA, não ao centro: os wall-* são 1672×941 (16:9) e o quadro do dono é
-   3:2, então `cover` escala pela ALTURA e sobra 284px de largura. Com `center` o corte
-   comia 142px de cada lado — e o logo do jogo está pintado colado na borda ESQUERDA do
-   wallpaper, então "CORO SOLTO" entrava em cena como "ORO OLTO" (conferido na captura
-   1536×1024). A referência 01_menu_principal.png mostra o logo INTEIRO dentro da coluna.
-   Ancorando à esquerda o corte inteiro (15,6%) vai pro lado direito, onde só há céu e
-   bandeira — o personagem da referência mora em ~65-90% da largura e continua no quadro. */
-.cs-wallpaper{position:absolute;inset:0;z-index:0;background:var(--bg-900) left center/cover no-repeat}
+/* A arte principal sempre usa contain: o logo e os personagens pintados no wall-* não
+   podem ser recortados. Uma cópia desfocada só preenche a sobra de aspecto atrás dela. */
+.cs-wallpaper{position:absolute;inset:0;z-index:0;overflow:hidden;isolation:isolate;background:var(--bg-900)}
+.cs-wallpaper::before,.cs-wallpaper::after{content:"";position:absolute;pointer-events:none;background-image:var(--menu-wall);background-position:center;background-repeat:no-repeat}
+.cs-wallpaper::before{inset:-24px;z-index:0;background-size:cover;filter:blur(18px) brightness(.48) saturate(.72)}
+.cs-wallpaper::after{inset:0;z-index:1;background-size:contain}
 /* Scrim que NASCE na borda da tela e morre em nada (CS2/Valorant). O texto passa a
    depender do scrim, não de um card — por isso o painel de nav pode perder a caixa.
 
@@ -1541,9 +1544,6 @@ html[data-ui="legacy"] .cs-vignette{
   padding:var(--s-4) var(--s-8) var(--s-4) var(--s-4);border:0;
   background:linear-gradient(90deg,rgba(var(--bg-900-rgb),.92) 0%,rgba(var(--bg-900-rgb),.86) 60%,
              rgba(var(--bg-900-rgb),.60) 86%,rgba(var(--bg-900-rgb),0) 100%)}
-/* único elemento com aresta = o trilho. Faixa amarelo/preto de sinaleiro de rua:
-   é a identidade BR entrando por linguagem visual de via pública, não por bandeirinha. */
-.cs-menu::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--hazard)}
 .cs-menu-label{font-family:var(--aaa-font-body);font-weight:600;font-size:var(--fs-100);letter-spacing:var(--tr-4);
   color:var(--ink-300);text-transform:uppercase;padding:0 0 var(--s-2) var(--s-3);margin-bottom:var(--s-1);
   border-bottom:1px solid rgba(255,255,255,.07)}
@@ -1739,6 +1739,9 @@ html[data-ui="legacy"] .cs-menu:not(:has(.cs-item[aria-current="true"])) > .cs-i
 #splash-logo,.splash-sub{display:none}
 #boot-splash.gone{opacity:0;pointer-events:none}
 .splash-frame{display:flex;flex-direction:column;align-items:center;gap:14px;padding:0 20px;z-index:2}
+#boot-splash .splash-frame{position:relative;z-index:2}
+#splash-character-stage{width:min(86px,18vw);height:min(144px,23vh);pointer-events:none;
+  filter:drop-shadow(0 28px 24px rgba(0,0,0,.58))}
 #splash-logo{width:min(560px,86vw);height:auto}
 .splash-sub{font-family:var(--mono);font-size:var(--fs-100);letter-spacing:var(--tr-4);color:var(--ink-300)}
 .splash-bar{width:min(360px,72vw);height:6px;background:var(--bg-800);border:1px solid var(--line);
@@ -1860,8 +1863,8 @@ html[data-ui="legacy"] #splash-enter{font-family:var(--font)}
   background:rgba(13,14,17,.7);border:1px solid #26272d;color:#9a9ba1;font-size:16px;cursor:pointer}
 .ms-arrow:hover,.ms-arrow:focus-visible{border-color:#b4d92e;color:#ecebe6}
 .ms-viewport{flex:1;min-width:0;overflow:hidden}
-.ms-strip{display:flex;gap:12px;width:max-content;overflow:visible;scroll-behavior:smooth}
-.ms-thumb{position:relative;width:196px;flex:none;padding:0;display:flex;flex-direction:column;cursor:pointer;
+.ms-strip{--map-count:1;display:grid;grid-template-columns:repeat(var(--map-count),minmax(0,196px));justify-content:center;gap:12px;width:100%;overflow:visible;scroll-behavior:smooth}
+.ms-thumb{position:relative;width:100%;min-width:0;padding:0;display:flex;flex-direction:column;cursor:pointer;
   background:#101014;border:1px solid rgba(236,235,230,.12);opacity:.75;
   font-family:var(--aaa-font-body);text-align:left;text-transform:uppercase;
   transition:border-color var(--t) var(--ease),filter var(--t) var(--ease)}
@@ -1975,11 +1978,10 @@ html[data-ui="legacy"] #splash-enter{font-family:var(--font)}
 .menu-footer .mf-online::before{content:"";display:inline-block;width:7px;height:7px;border-radius:0;
   transform:rotate(45deg);background:#4ade60;margin-right:6px;box-shadow:0 0 6px rgba(74,222,96,.8);
   vertical-align:baseline}
-.menu-footer a{color:var(--ink-200);text-decoration:none;border-bottom:1px dotted var(--line-2)}
+.menu-footer a{color:var(--ink-200);text-decoration:none;border-bottom:0}
 .menu-footer a:hover{color:var(--am)}
 .menu-footer .mf-online{color:var(--verde,#7dc98f);font-weight:700}
-/* `flex-basis:100%` dá linha própria sem sair do flex-wrap do rodapé; `border-bottom:0`
-   é obrigatório porque `.menu-footer a` traça pontilhado por baixo dos ícones. */
+/* `flex-basis:100%` dá linha própria sem sair do flex-wrap do rodapé. */
 .menu-footer .mf-social{flex-basis:100%;display:flex;gap:10px;align-items:center;
   justify-content:inherit;margin-top:2px}
 .menu-footer .mf-social a{display:inline-flex;width:30px;height:30px;border-bottom:0;
@@ -1993,7 +1995,7 @@ html[data-ui="legacy"] #splash-enter{font-family:var(--font)}
    o logo inteiro, resto em --bg-900), o menu desce pra baixo da faixa e o
    rodapé vira fluxo normal no fim da página em vez de fixed por cima do menu. */
 @media (max-width:640px) and (orientation:portrait){
-  .cs-wallpaper{background-size:100% auto;background-position:left top}
+  .cs-wallpaper::after{background-position:center top}
   .cs-left{position:static;padding:56vw var(--s-5) 0;bottom:auto;left:auto}
   #main-menu{display:block}
   .menu-footer{position:static;justify-content:flex-start;text-align:left;

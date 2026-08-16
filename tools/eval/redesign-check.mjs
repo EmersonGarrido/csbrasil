@@ -23,6 +23,8 @@ const alvoPorMutante = {
   'mapa-sem-miniaturas': 'UIR4',
   'mapa-sem-navegacao': 'UIR4',
   'mapa-navega-global': 'UIR4',
+  'mapa-strip-fixa': 'UIR4',
+  'mapa-categoria-errada': 'UIR4',
   'i18n-duplicada': 'UIR5',
   'arma-unica': 'UIR6',
   'placar-sem-cap': 'UIR7',
@@ -69,7 +71,13 @@ const alvoPorMutante = {
   'suporte-sai-do-menu': 'UIR30',
   'mouse-invertido-ignorado': 'UIR31',
   'loading-wall-cover-unico': 'UIR32',
+  'menu-wall-cover-unico': 'UIR32',
   'opcoes-mapa-decorativas': 'UIR33',
+  'borda-tracejada-volta': 'UIR34',
+  'splash-sem-personagem': 'UIR35',
+  'splash-conteudo-atras': 'UIR35',
+  'placar-sem-brasoes': 'UIR36',
+  'placar-volta-topo': 'UIR37',
 };
 if (MUTANTE && !alvoPorMutante[MUTANTE]) {
   console.error(`mutante desconhecido: ${MUTANTE}`);
@@ -84,6 +92,7 @@ const characters = readFileSync(join(ROOT, 'public/js/characters.js'), 'utf8');
 let videoGenerator = readFileSync(join(ROOT, 'tools/eval/char-native-vids.mjs'), 'utf8');
 let game = readFileSync(join(ROOT, 'public/js/game.js'), 'utf8');
 let mounttest = readFileSync(join(ROOT, 'public/mounttest.html'), 'utf8');
+let dev = readFileSync(join(ROOT, 'public/dev.html'), 'utf8');
 let mediaAudit = existsSync(join(ROOT, 'tools/eval/char-native-audit.json'))
   ? readFileSync(join(ROOT, 'tools/eval/char-native-audit.json'), 'utf8') : '';
 let staticAudit = existsSync(join(ROOT, 'tools/eval/redesign-static-audit.json'))
@@ -106,6 +115,9 @@ staticAudit = muta('punk-avatar-nao-auditado', staticAudit,
 astro = muta('loading-sem-canvas', astro,
   '<canvas id="load-character-3d"',
   '<canvas id="load-character-3d-mutado"');
+astro = muta('splash-sem-personagem', astro,
+  '<div id="splash-character-stage" aria-hidden="true">',
+  '<div id="splash-character-stage-mutado" aria-hidden="true">');
 loading3d = muta('loading-uma-acao', loading3d,
   "{ name: 'ready'",
   "{ name: 'run'");
@@ -137,12 +149,27 @@ game = muta('placar-sem-cap', game,
 game = muta('placar-labels-curtos', game,
   '<span>K</span><span>D</span><span>SCORE</span><span>PING</span>',
   '<span>K</span><span>D</span>');
+game = muta('placar-sem-brasoes', game,
+  '<img class="sb-crest" src="/img/brasoes/${crest(side)}.png" alt="">',
+  '');
 css = muta('loading-wall-cover-unico', css,
   'background-size:cover,contain;background-position:center;background-repeat:no-repeat}',
   'background-size:cover,cover;background-position:center;background-repeat:no-repeat}');
+css = muta('menu-wall-cover-unico', css,
+  '.cs-wallpaper::after{inset:0;z-index:1;background-size:contain}',
+  '.cs-wallpaper::after{inset:0;z-index:1;background-size:cover}');
 main = muta('opcoes-mapa-decorativas', main,
   'roundsMax: matchRounds(),',
   'roundsMax: 5,');
+css = muta('borda-tracejada-volta', css,
+  'background:transparent;border:1px solid var(--line);color:var(--ink3);padding:10px}',
+  'background:transparent;border:1px dashed var(--br-faixa);color:var(--ink3);padding:10px}');
+css = muta('splash-conteudo-atras', css,
+  '#boot-splash .splash-frame{position:relative;z-index:2}',
+  '#boot-splash .splash-frame{position:relative;z-index:1}');
+css = muta('placar-volta-topo', css,
+  '#scoreboard .sb-center{position:absolute;inset:0 64px;display:flex;flex-direction:column;justify-content:center;',
+  '#scoreboard .sb-center{position:absolute;inset:0 64px;display:flex;flex-direction:column;justify-content:flex-start;');
 mediaAudit = muta('lote-nao-auditado', mediaAudit,
   '"mediaSha256":',
   '"mediaSha256Mutado":');
@@ -173,6 +200,12 @@ main = muta('mapa-sem-miniaturas', main,
 main = muta('mapa-navega-global', main,
   "$('ms-next').onclick = () => stepMap(1, visibleMapIds());",
   "$('ms-next').onclick = () => stepMap(1);");
+css = muta('mapa-strip-fixa', css,
+  'grid-template-columns:repeat(var(--map-count),minmax(0,196px))',
+  'grid-template-columns:repeat(var(--map-count),196px)');
+main = muta('mapa-categoria-errada', main,
+  "ferro_velho: 'ARENA', quebrada: 'FAVELA', posto_treta: 'ARENA',",
+  "ferro_velho: 'FAVELA', quebrada: 'FAVELA', posto_treta: 'CIDADES',");
 astro = muta('mapa-sem-navegacao', astro,
   '<button id="ms-prev" class="ms-arrow"',
   '<button id="ms-prev-mutado" class="ms-arrow"');
@@ -492,6 +525,8 @@ const previewPausa = /id !== 'char-select'[\s\S]{0,60}pvStopVideo\(\)/.test(func
 const strip = (css.match(/\.ms-strip\{([^}]*)\}/) || [])[1] || '';
 const fundoMapa = (css.match(/\.ms-bg\{([^}]*)\}/) || [])[1] || '';
 const mapaReferencia = /const shown = visibleMapIds\(\);/.test(funcMap)
+  && /ferro_velho: 'ARENA', quebrada: 'FAVELA', posto_treta: 'ARENA'/.test(main)
+  && /atacadao_treta: 'CIDADES'/.test(main)
   && /function visibleMapIds\(\) \{[\s\S]{0,140}return mapCategory === 'TODOS' \? MAP_IDS : MAP_IDS\.filter\(\(id\) => MAP_CAT\[id\] === mapCategory\)/.test(main)
   && /function stepMap\(dir, ids = MAP_IDS\)/.test(main)
   && /const pool = ids\.length \? ids : MAP_IDS;/.test(main)
@@ -502,6 +537,7 @@ const mapaReferencia = /const shown = visibleMapIds\(\);/.test(funcMap)
   && /e\.key === 'ArrowLeft'[\s\S]{0,100}stepMap\(-1, visibleMapIds\(\)\)/.test(main)
   && /e\.key === 'ArrowRight'[\s\S]{0,100}stepMap\(1, visibleMapIds\(\)\)/.test(main)
   && /\$\('ms-strip'\)\.innerHTML = shown\.map\(\(id\) =>/.test(funcMap)
+  && /\$\('ms-strip'\)\.style\.setProperty\('--map-count', shown\.length\)/.test(funcMap)
   && /aria-pressed="\$\{id === currentMap\}"/.test(funcMap)
   && /<img class="ms-thumb-img" src="\/img\/map-previews\/\$\{id\}\.jpg\?v=\$\{VERSION\}" alt="">/.test(funcMap)
   && /id="ms-tabs"/.test(astro) && /id="ms-prev"/.test(astro) && /id="ms-next"/.test(astro)
@@ -510,7 +546,12 @@ const mapaReferencia = /const shown = visibleMapIds\(\);/.test(funcMap)
   && /\.ms-head\{[^}]*left:64px[^}]*top:130px[^}]*width:460px/.test(css)
   && /\.ms-name\{[^}]*font-size:72px/.test(css)
   && /\.ms-carousel\{[^}]*left:64px[^}]*right:64px[^}]*bottom:96px/.test(css)
-  && /\.ms-thumb\{[^}]*width:196px[^}]*flex:none/.test(css)
+  && /--map-count:1/.test(strip)
+  && /display:grid/.test(strip)
+  && /grid-template-columns:repeat\(var\(--map-count\),minmax\(0,196px\)\)/.test(strip)
+  && /justify-content:center/.test(strip)
+  && /width:100%/.test(strip)
+  && /\.ms-thumb\{[^}]*width:100%[^}]*min-width:0/.test(css)
   && /\.ms-thumb-img\{[^}]*height:96px[^}]*object-fit:cover/.test(css)
   && /inset:\s*0/.test(fundoMapa) && /border:\s*0/.test(fundoMapa)
   && !/class="ms-rail/.test(funcMap);
@@ -664,6 +705,11 @@ const mouseVerticalConfiguravel = /invertY: false/.test(main)
   && /const invertY = this\.settings\.invertY \? -1 : 1;[\s\S]{0,100}this\.player\.pitch -= e\.movementY \* s \* invertY;/.test(game);
 const wallpaperLoadingResponsivo = /setProperty\('--loading-wall', loadingWallUrl\(_wallK\)\)/.test(main)
   && /setProperty\('--loading-wall', loadingWallUrl\(_loadWallI\+\+\)\)/.test(main)
+  && /setProperty\('--menu-wall', HOME_WALL\)/.test(main)
+  && /setProperty\('--menu-wall', SETUP_WALL\)/.test(main)
+  && /\.cs-wallpaper::before,\.cs-wallpaper::after\{[^}]*background-image:var\(--menu-wall\);[^}]*background-repeat:no-repeat/.test(css)
+  && /\.cs-wallpaper::before\{[^}]*background-size:cover;[^}]*filter:blur\(18px\)/.test(css)
+  && /\.cs-wallpaper::after\{[^}]*background-size:contain/.test(css)
   && /#boot-splash::before,#load-overlay::before\{[^}]*background-image:var\(--loading-wall\);background-size:cover;[^}]*filter:blur\(18px\)/.test(css)
   && /#boot-splash::after\{[^}]*background-image:[^}]*var\(--loading-wall\);[^}]*background-size:cover,contain;/.test(css)
   && /#load-overlay::after\{[^}]*background-image:[^}]*var\(--loading-wall\);[^}]*background-size:cover,contain;/.test(css);
@@ -679,6 +725,25 @@ const opcoesPartidaNoMapa = /id="ms-wpn-mode"/.test(astro)
   && /this\._roundsMax = \[1, 3, 5, 7\]\.includes\(requestedRounds\)/.test(game)
   && /this\.roundsWon\.E >= this\.roundsToWin/.test(game)
   && /get roundsMax\(\) \{ return this\._roundsMax; \}/.test(game);
+const semBordaTracejada = !/(?:--hazard|var\(--hazard\)|border(?:-(?:bottom|top|left|right|style))?[^;}{]*(?:dashed|dotted))/i.test(css)
+  && !/border(?:-(?:bottom|top|left|right|style))?[^;}{]*(?:dashed|dotted)/i.test(dev);
+const personagemNoSplash = /id="splash-character-stage"[^>]*>[\s\S]{0,100}<canvas id="load-character-3d"><\/canvas>/.test(astro)
+  && /const loadingStage = new LoadingCharacterStage\(document\.getElementById\('load-character-3d'\)/.test(main)
+  && /loadingStage\.show\('B'\)/.test(main)
+  && /function dockLoadingCharacter\(\)[\s\S]{0,260}stage\.prepend\(canvas\)/.test(main)
+  && /#splash-character-stage\{[^}]*width:min\(86px,18vw\)[^}]*height:min\(144px,23vh\)/.test(css)
+  && /#boot-splash \.splash-frame\{position:relative;z-index:2\}/.test(css)
+  && /#splash-enter\{[^}]*font-family:var\(--aaa-font-display\)/.test(css);
+const brasoesNoPlacar = /const crest = \(side\) => String\(this\._factionOf\(side\)/.test(game)
+  && /<img class="sb-crest" src="\/img\/brasoes\/\$\{crest\('E'\)\}\.png" alt="">/.test(game)
+  && /<img class="sb-crest" src="\/img\/brasoes\/\$\{crest\('B'\)\}\.png" alt="">/.test(game)
+  && /<img class="sb-crest" src="\/img\/brasoes\/\$\{crest\(side\)\}\.png" alt="">/.test(game)
+  && /#scoreboard \.sb-score \.sb-crest\{[^}]*width:48px[^}]*height:48px[^}]*object-fit:contain/.test(css)
+  && /#scoreboard \.sb-chead \.sb-crest\{[^}]*width:24px[^}]*height:24px[^}]*object-fit:contain/.test(css);
+const placarCentralizado = /<div class="sb-center">[\s\S]{0,180}<h3>CORO SOLTO - PLACAR<\/h3>[\s\S]{0,220}<div class="sb-cols" id="sb-cols"><\/div>[\s\S]{0,40}<\/div>/.test(astro)
+  && /#scoreboard \.sb-center\{position:absolute;inset:0 64px;display:flex;flex-direction:column;justify-content:center;/.test(css)
+  && /#scoreboard \.sb-center>h3\{position:static;[^}]*width:100%/.test(css)
+  && /#scoreboard \.sb-center>\.sb-cols\{position:static;[^}]*width:100%/.test(css);
 const idiomaGeo = /const EN_GEO_COUNTRIES = new Set\(\[[\s\S]*?'US'[\s\S]*?'GB'/.test(astro)
   && /export const prerender = false/.test(astro)
   && /const GEO_COUNTRY = \(Astro\.request\.headers\.get\('x-vercel-ip-country'\)[\s\S]*?cf-ipcountry/.test(astro)
@@ -760,10 +825,18 @@ const resultados = [
     'SUPORTE AO JOGO abre o painel funcional sem criar rota morta'],
   ['UIR31', 'configuração de eixo vertical chega ao mouse-look real', mouseVerticalConfiguravel,
     'checkbox persistido inverte somente movementY; movimento horizontal permanece igual'],
-  ['UIR32', 'wallpaper de splash/loading preserva a arte inteira e cobre o quadro em qualquer aspecto', wallpaperLoadingResponsivo,
-    'duas camadas da mesma arte: contain íntegro sobre cover de preenchimento, ambas pela variável usada em produção'],
+  ['UIR32', 'wallpapers de menu, splash e loading preservam a arte inteira em qualquer aspecto', wallpaperLoadingResponsivo,
+    'arte contain íntegra sobre cover desfocado de preenchimento; nenhuma camada repete'],
   ['UIR33', 'tela cheia de mapas configura armas, jogadores e número real de rounds', opcoesPartidaNoMapa,
     'os três controles persistem no estado; roundsMax atravessa main.js e governa o encerramento em game.js'],
+  ['UIR34', 'interface pública não usa borda tracejada ou faixa hazard', semBordaTracejada,
+    'menu, painéis, seleção, resultado, links e arnês público ficam sem dashed/dotted'],
+  ['UIR35', 'splash inicial mostra chamada de clique junto do personagem animado', personagemNoSplash,
+    'o mesmo canvas Three.js transparente nasce na entrada e é reaproveitado no loading da partida'],
+  ['UIR36', 'placar do TAB mostra os brasões das duas facções', brasoesNoPlacar,
+    'cabeçalho geral e cada tabela resolvem /img/brasoes pela facção que ocupa o lado'],
+  ['UIR37', 'conteúdo do placar do TAB fica centralizado verticalmente', placarCentralizado,
+    'cabeçalho e tabelas formam um único bloco flex centrado no viewport'],
 ];
 
 for (const [id, desc, ok, evid] of resultados) console.log(`${ok ? '✓' : '✗'} ${id} · ${desc}\n  ${evid}`);

@@ -1681,6 +1681,8 @@ export class Game {
       if (e.code === 'Digit1') this._switchWeapon(this.player.primary || 'awp');
       if (e.code === 'Digit2') this._switchWeapon(this.player.secondary || 'pistol');
       if (e.code === 'Digit3') this._switchWeapon('knife');
+      if (e.code === 'KeyQ' && this.player.lastInv && this.player.lastInv !== this.player.weapon)
+        this._switchWeapon(this.player.lastInv);   // #261: lastinv - Q alterna as duas últimas
       if (e.code === 'KeyE' && this.nearPickup) {
         const { pk, dropIdx } = this.nearPickup;
         this._grabPickup(pk, this.player, true);
@@ -2521,6 +2523,7 @@ export class Game {
   _switchWeapon(w) {
     const p = this.player;
     if (p.weapon === w || !p.alive || !WEAPONS[w]) return;
+    if (!this._pickupAllowed(w)) return;   // #268: modo arma-única - slot proibido não equipa
     if (w !== 'knife' && !p.ammo[w]) p.ammo[w] = { mag: WEAPONS[w].mag, res: WEAPONS[w].reserve };
     // GUNFEEL: deploy por CLASSE (era 0.28 fixo p/ as 26 armas — a AWP sacava tão rápido
     // quanto a faca). Estes segundos alimentam DUAS coisas: `p.drawUntil` (trava do tiro) e
@@ -2528,6 +2531,7 @@ export class Game {
     // rx -1,05 no início do arco) — antes era uma rampa linear dividida por 0,28 fixo.
     const DEPLOY = { knife: 0.25, pistol: 0.34, smg: 0.38, rifle: 0.42, shotgun: 0.42, awp: 0.45 };
     const _dcls = BALL_CLASS[w] === 'smg' ? 'smg' : (STATIC_CLASS[w] || 'rifle');
+    p.lastInv = p.weapon;   // #261: Q alterna entre as duas últimas (lastinv do CS)
     p.weapon = w; p.reloadUntil = 0; p.drawUntil = this.time + (GUNFEEL ? (DEPLOY[_dcls] || 0.38) : 0.28);
     p.sprayI = 0; p.lastShotAt = -9;   // rajada nova: padrão de recuo recomeça do tiro 1
     // remember the slot so 1/2 recall the LAST weapon of that kind (primary vs sidearm)
@@ -4942,16 +4946,17 @@ export class Game {
     const w = pk.weapon;                           // qualquer arma de WEAPONS
     if (!WEAPONS[w]) return false;
     if (isPlayer) {
+      if (who.weapon === w) return false;   // #264: mesma arma na mão não recarrega - reload existe p/ isso
       if (!who.ammo[w]) who.ammo[w] = { mag: 0, res: 0 };
       who.ammo[w].mag = WEAPONS[w].mag;
       who.ammo[w].res = WEAPONS[w].reserve;
-      if (who.weapon !== w) {
+      {
         const oldW = who.weapon;                   // arma que estava na mão
         this._switchWeapon(w); this.sfx.reloadEnd();
         // dropa a arma antiga no chão (estilo CS) — MAS não no rack: o rack é armário, você
         // só troca de arma lá sem largar a anterior (senão o spawn vira um monte de armas).
         if (oldW && oldW !== w && oldW !== 'knife' && pk.mesh && !pk.rack) this._dropWeapon(pk.mesh.position.x, pk.mesh.position.z, oldW, false);
-      } else this.sfx.uiClick();                   // mesma arma = só munição
+      }
     } else {
       who.weapon = w === 'knife' ? 'awp' : w;      // bot grabs it
     }
@@ -5072,9 +5077,16 @@ export class Game {
     if (this._deathPanel) this._deathPanel.innerHTML = '';   // painel de morte não vaza pra vida nova
     p.protUntil = this.time + SPAWN_PROT;
     p.yaw = p.team === 'E' ? Math.PI : 0; p.pitch = 0;
-    // top off the CURRENT loadout's mags (primary could be any weapon now, not just AWP)
-    if (p.primary && p.ammo[p.primary]) p.ammo[p.primary] = { mag: WEAPONS[p.primary].mag, res: WEAPONS[p.primary].reserve };
-    if (p.secondary && p.ammo[p.secondary]) p.ammo[p.secondary] = { mag: WEAPONS[p.secondary].mag, res: WEAPONS[p.secondary].reserve };
+    // Top off the CURRENT loadout's mags (primary could be any weapon now, not just AWP).
+    // #268: em modo arma-única só recarrega slot PERMITIDO pelo modo (pistola não sai de
+    // 0/0 no SÓ AWP), e quem morreu com arma proibida renasce com a arma do modo.
+    if (p.primary && this._pickupAllowed(p.primary) && p.ammo[p.primary]) p.ammo[p.primary] = { mag: WEAPONS[p.primary].mag, res: WEAPONS[p.primary].reserve };
+    if (p.secondary && this._pickupAllowed(p.secondary) && p.ammo[p.secondary]) p.ammo[p.secondary] = { mag: WEAPONS[p.secondary].mag, res: WEAPONS[p.secondary].reserve };
+    if (!this._pickupAllowed(p.weapon)) {
+      const mode = this._wpnMode();
+      const volta = mode === 'awp' ? 'awp' : (p.secondary || 'pistol');
+      if (WEAPONS[volta] && this._pickupAllowed(volta)) this._switchWeapon(volta);
+    }
     this.camera.rotation.z = 0;
     this.el.respawn.classList.add('hidden');
     this.sfx.respawn();
@@ -5330,7 +5342,19 @@ export class Game {
         // PERDA DE TRACKING: sumiu de vista, a mira "solta" o alvo. Reaparecendo, o bot tem
         // que reconquistar a precisão (é o que dá valor a quebrar linha de visão / peek).
         b.aimErr = Math.min(0.26, (b.aimErr || 0) + 0.045);   // por tick de think (~0.16s)
-        if (this.time - b._lostAt > 1.2) { b.target = null; b._losLost = false; b._lostAt = 0; }
+        // #281: FUMAÇA não é "alvo sumiu" — ele continua lá atrás. Com o grace comum de
+        // 1.2s o bot largava o alvo, virava roam ("barata tonta") e inimigos se cruzavam
+        // no meio da nuvem sem nunca re-engatar. Enquanto uma nuvem OPACA bloqueia o
+        // segmento, o grace estica p/ 4s: segura a direção e re-engata assim que abre.
+        // O gate de tiro (_losLost) continua fechado — não atira no que não vê.
+        let grace = 1.2;
+        for (const s of this._smokes) {
+          if (!s._opaque) continue;
+          const ab = b.target.pos.clone().sub(b.pos);
+          const t = Math.max(0, Math.min(1, s.center.clone().sub(b.pos).dot(ab) / (ab.lengthSq() || 1)));
+          if (b.pos.clone().addScaledVector(ab, t).distanceToSquared(s.center) <= s.radius * s.radius) { grace = 4.0; break; }
+        }
+        if (this.time - b._lostAt > grace) { b.target = null; b._losLost = false; b._lostAt = 0; }
       }
     }
 
@@ -6272,11 +6296,12 @@ export class Game {
       const totalRounds = this._inspectionTotalRounds || this.roundsMax;
       const clock = this.ctf ? Math.max(0, Math.ceil(this.ctfMatchLeft)) : Math.max(0, Math.ceil(this.timeLeft));
       const clockText = `${Math.floor(clock / 60)}:${String(clock % 60).padStart(2, '0')}`;
+      const crest = (side) => String(this._factionOf(side) || 'E').toLowerCase();
       document.querySelector('#scoreboard h3').innerHTML =
         (r ? `<span class="sb-result">${r.titulo}</span><span class="sb-result-sub">${r.sub}</span>` : '') +
         `<span class="sb-clock">RODADA ${this.roundNum}/${totalRounds} · <em>${clockText}</em></span>` +
-        `<span class="sb-score"><b class="tp"><i class="sb-diamond"></i><span class="sb-team-name">${this._teamName('E')}</span><strong class="sb-score-num">${this.roundsWon.E}</strong></b>` +
-        `<span class="sb-vs">VS</span><b class="tb"><strong class="sb-score-num">${this.roundsWon.B}</strong><span class="sb-team-name">${this._teamName('B')}</span><i class="sb-diamond"></i></b></span>`;
+        `<span class="sb-score"><b class="tp"><img class="sb-crest" src="/img/brasoes/${crest('E')}.png" alt=""><span class="sb-team-name">${this._teamName('E')}</span><strong class="sb-score-num">${this.roundsWon.E}</strong></b>` +
+        `<span class="sb-vs">VS</span><b class="tb"><strong class="sb-score-num">${this.roundsWon.B}</strong><span class="sb-team-name">${this._teamName('B')}</span><img class="sb-crest" src="/img/brasoes/${crest('B')}.png" alt=""></b></span>`;
       // no CTF ordena por capturas (depois kills); senão por kills
       const rank = this.ctf ? (a, b) => (b.captures || 0) - (a.captures || 0) || b.kills - a.kills : (a, b) => b.kills - a.kills;
       /* DUAS COLUNAS COM BRASÃO (referência 08_placar, pedido do dono 07/08: "na tela de
@@ -6294,7 +6319,7 @@ export class Game {
           );
         }).join('');
         return `<div class="sb-col ${side === 'E' ? 'tp' : 'tb'}${this.ctf ? ' ctf' : ''}">
-          <div class="sb-chead"><span class="sb-team">${tr('JOGADOR')}</span><span>K</span><span>D</span><span>SCORE</span><span>PING</span>${this.ctf ? '<span class="sb-cap">CAP.</span>' : ''}</div>
+          <div class="sb-chead"><span class="sb-team"><img class="sb-crest" src="/img/brasoes/${crest(side)}.png" alt=""><b>${tr('JOGADOR')}</b></span><span>K</span><span>D</span><span>SCORE</span><span>PING</span>${this.ctf ? '<span class="sb-cap">CAP.</span>' : ''}</div>
           <table><thead><tr><th>${tr('JOGADOR')}</th><th>K</th><th>D</th><th>SCORE</th><th>PING</th>${this.ctf ? '<th>CAP.</th>' : ''}</tr></thead>
           <tbody>${linhas}</tbody></table></div>`;
       };

@@ -37,6 +37,10 @@ try {
     ['settings', '07', '#settings-panel', '07_config-direto'],
   ]) {
     await open(target[0], target[1], target[2]);
+    if (target[0] === 'splash') {
+      await page.waitForSelector('#splash-enter:not(.hidden)', { state: 'visible', timeout: 120000 });
+      await page.waitForFunction(() => document.getElementById('load-character-3d')?.dataset.ready === '1', null, { timeout: 240000 });
+    }
     if (target[0] === 'settings') {
       const settings = await page.evaluate(() => ({
         quality: document.getElementById('set-quality')?.value,
@@ -57,6 +61,39 @@ try {
     console.log(`✓ ${target[0]} direto`);
   }
 
+  const wallpaperViewports = [
+    [1920, 1080, '16x9'], [1536, 1024, '3x2'], [1024, 768, '4x3'],
+    [2560, 1080, 'ultrawide'], [390, 844, 'mobile'],
+  ];
+  for (const [width, height, label] of wallpaperViewports) {
+    await page.setViewportSize({ width, height });
+    await open('menu', '01', '#main-menu');
+    const wallpaper = await page.evaluate(() => {
+      const wall = document.querySelector('#main-menu .cs-wallpaper');
+      const primary = getComputedStyle(wall, '::after');
+      const fill = getComputedStyle(wall, '::before');
+      const rect = wall.getBoundingClientRect();
+      return {
+        frame: [Math.round(rect.width), Math.round(rect.height)],
+        primarySize: primary.backgroundSize,
+        primaryRepeat: primary.backgroundRepeat,
+        primaryImage: primary.backgroundImage,
+        fillSize: fill.backgroundSize,
+        fillRepeat: fill.backgroundRepeat,
+        fillImage: fill.backgroundImage,
+      };
+    });
+    if (wallpaper.frame.join('x') !== `${width}x${height}` || wallpaper.primarySize !== 'contain'
+      || wallpaper.primaryRepeat !== 'no-repeat' || wallpaper.fillSize !== 'cover'
+      || wallpaper.fillRepeat !== 'no-repeat' || !wallpaper.primaryImage.includes('/img/wall-')
+      || wallpaper.primaryImage !== wallpaper.fillImage) {
+      throw new Error(`wallpaper ${label} inválido: ${JSON.stringify(wallpaper)}`);
+    }
+    await page.screenshot({ path: `${OUT}/01_menu-wall-${label}.png` });
+  }
+  await page.setViewportSize({ width: 1536, height: 1024 });
+  console.log('✓ wallpaper do início: arte inteira e sem repetição em 16:9, 3:2, 4:3, ultrawide e celular');
+
   await open('menu', '01', '#main-menu');
   const menuProfile = await page.evaluate(() => ({
     avatar: getComputedStyle(document.getElementById('pp-avatar')).backgroundImage,
@@ -66,6 +103,7 @@ try {
   if (!menuProfile.avatar.includes('/img/chars/avatars/') || menuProfile.avatarText || menuProfile.support !== '▸SUPORTE AO JOGO') {
     throw new Error(`perfil/suporte do menu inválido: ${JSON.stringify(menuProfile)}`);
   }
+  const registeredMaps = await page.evaluate(async () => (await import('/js/maps.js')).MAP_IDS.length);
   await page.click('.cs-item[data-act="jogar"]');
   await page.click('.cs-item[data-act="sp"]');
   await page.waitForSelector('#map-screen', { state: 'visible' });
@@ -75,7 +113,7 @@ try {
     full: !document.getElementById('map-screen')?.classList.contains('hidden'),
     rounds: document.getElementById('ms-rounds')?.value,
   }));
-  if (modeMap.mode !== 'MATA-MATA' || modeMap.cards !== 6 || !modeMap.full || modeMap.rounds !== '5') throw new Error(`Mata-mata não entrou pelo catálogo: ${JSON.stringify(modeMap)}`);
+  if (modeMap.mode !== 'MATA-MATA' || modeMap.cards !== registeredMaps || !modeMap.full || modeMap.rounds !== '5') throw new Error(`Mata-mata não entrou pelo catálogo: ${JSON.stringify({ registeredMaps, ...modeMap })}`);
   await page.selectOption('#ms-wpn-mode', 'awp');
   await page.selectOption('#ms-players', '6');
   await page.selectOption('#ms-rounds', '7');
@@ -102,7 +140,7 @@ try {
     cards: document.querySelectorAll('#ms-strip .ms-thumb').length,
     rounds: document.getElementById('ms-rounds')?.value,
   }));
-  if (ctfMap.mode !== 'CAPTURE THE FLAG' || ctfMap.cards !== 6 || ctfMap.rounds !== '3') throw new Error(`CTF não entrou pelo catálogo: ${JSON.stringify(ctfMap)}`);
+  if (ctfMap.mode !== 'CAPTURE THE FLAG' || ctfMap.cards !== registeredMaps || ctfMap.rounds !== '3') throw new Error(`CTF não entrou pelo catálogo: ${JSON.stringify({ registeredMaps, ...ctfMap })}`);
   await page.selectOption('#ms-rounds', '1');
   const ctfOptions = await page.evaluate(() => JSON.parse(localStorage.getItem('awpbr_settings') || '{}'));
   if (ctfOptions.ctfRounds !== 1 || ctfOptions.rounds !== 7) {
@@ -112,7 +150,7 @@ try {
     const stored = JSON.parse(localStorage.getItem('awpbr_settings') || '{}');
     localStorage.setItem('awpbr_settings', JSON.stringify({ ...stored, wpnMode: 'all', bots: 4, rounds: 5, ctfRounds: 3 }));
   });
-  console.log('✓ segunda interação: os dois modos abrem os seis mapas; armas, jogadores e rounds persistem com padrões 5/3');
+  console.log(`✓ segunda interação: os dois modos abrem os ${registeredMaps} mapas; armas, jogadores e rounds persistem com padrões 5/3`);
 
   for (const [team, character] of [['E', 'gotinha'], ['U', 'punk']]) {
     await open('character', `personagem&time=${team}&char=${character}`, '#char-select');
@@ -154,7 +192,7 @@ try {
       preview: { left: preview.left, right: preview.right, top: preview.top, bottom: preview.bottom, width: preview.width },
     };
   });
-  if (maps.count !== 6 || maps.selected !== 1 || !maps.visual || !maps.navigation || !maps.options || !maps.fullBleed || !maps.overlay
+  if (maps.count !== registeredMaps || maps.selected !== 1 || !maps.visual || !maps.navigation || !maps.options || !maps.fullBleed || !maps.overlay
     || maps.selectedId !== 'quebrada' || !maps.name.includes('Quebrada') || !maps.image.includes('/quebrada.jpg')) {
     throw new Error(`mapas inválidos: ${JSON.stringify(maps)}`);
   }
@@ -166,14 +204,29 @@ try {
     const cards = [...document.querySelectorAll('.ms-thumb')];
     return {
       count: cards.length,
+      ids: cards.map((card) => card.dataset.id),
       allCities: cards.every((card) => card.querySelector('.ms-thumb-cat')?.dataset.cat === 'CIDADES'),
       selected: cards.filter((card) => card.getAttribute('aria-pressed') === 'true').map((card) => card.dataset.id),
     };
   });
-  if (cityNavigation.count !== 3 || !cityNavigation.allCities || cityNavigation.selected.join('') !== 'loja_h') {
+  if (cityNavigation.count < 1 || !cityNavigation.allCities || cityNavigation.selected.join('') !== 'loja_h'
+    || !['praca_poderes', 'loja_h', 'atacadao_treta'].every((id) => cityNavigation.ids.includes(id))) {
     throw new Error(`navegação filtrada de mapas inválida: ${JSON.stringify(cityNavigation)}`);
   }
   console.log('✓ mapas CIDADES: setas permanecem dentro da categoria e mantêm um card selecionado');
+  await page.click('.ms-tab[data-cat="ARENA"]');
+  const arenaNavigation = await page.evaluate(() => {
+    const cards = [...document.querySelectorAll('.ms-thumb')];
+    return {
+      ids: cards.map((card) => card.dataset.id),
+      allArenas: cards.every((card) => card.querySelector('.ms-thumb-cat')?.dataset.cat === 'ARENA'),
+    };
+  });
+  if (!arenaNavigation.allArenas || !['piscina_treta', 'ferro_velho', 'posto_treta']
+    .every((id) => arenaNavigation.ids.includes(id))) {
+    throw new Error(`categoria ARENA inválida: ${JSON.stringify(arenaNavigation)}`);
+  }
+  console.log('✓ mapas ARENA: Piscina da Treta, Ferro Velho do Zé e Posto da Treta');
 
   await open('loading', 'loading&time=B&map=praca_poderes', '#load-overlay');
   await page.waitForFunction(() => document.getElementById('load-character-3d')?.dataset.ready === '1', null, { timeout: 240000 });
@@ -347,10 +400,23 @@ try {
     clock: document.querySelector('.sb-clock')?.innerText,
     cols: document.querySelectorAll('.sb-col').length,
     heads: [...document.querySelectorAll('.sb-chead')].map((head) => head.innerText),
+    scoreCrests: [...document.querySelectorAll('.sb-score .sb-crest')].map((img) => ({ src: img.getAttribute('src'), size: [img.clientWidth, img.clientHeight] })),
+    columnCrests: [...document.querySelectorAll('.sb-chead .sb-crest')].map((img) => ({ src: img.getAttribute('src'), size: [img.clientWidth, img.clientHeight] })),
+    verticalDelta: (() => {
+      const boxes = [document.querySelector('#scoreboard h3'), document.getElementById('sb-cols')]
+        .map((element) => element.getBoundingClientRect());
+      const top = Math.min(...boxes.map((box) => box.top));
+      const bottom = Math.max(...boxes.map((box) => box.bottom));
+      return Math.abs((top + bottom) / 2 - innerHeight / 2);
+    })(),
     pauseHidden: document.getElementById('pause-menu')?.classList.contains('hidden'),
   }));
   if (scoreboard.clock !== 'RODADA 4/5 · 1:32' || scoreboard.cols !== 2 || !scoreboard.pauseHidden
-    || scoreboard.heads.some((head) => head !== 'JOGADOR\nK\nD\nSCORE\nPING')) {
+    || scoreboard.heads.some((head) => head !== 'JOGADOR\nK\nD\nSCORE\nPING')
+    || scoreboard.scoreCrests.map((crest) => crest.src).join(',') !== '/img/brasoes/e.png,/img/brasoes/b.png'
+    || scoreboard.columnCrests.map((crest) => crest.src).join(',') !== '/img/brasoes/e.png,/img/brasoes/b.png'
+    || [...scoreboard.scoreCrests, ...scoreboard.columnCrests].some((crest) => crest.size.some((value) => value <= 0))
+    || scoreboard.verticalDelta > 2) {
     throw new Error(`placar direto inválido: ${JSON.stringify(scoreboard)}`);
   }
   await page.screenshot({ path: `${OUT}/08_placar-direto.png` });
