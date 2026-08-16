@@ -535,7 +535,7 @@ const loadingAcoes3d = new Set(loadingActions).size >= 6
   && /this\.ctrl\.setCrouch\(/.test(loading3d)
   && /this\.ctrl\.update\(dt, moving, hasTarget, speed\)/.test(loading3d)
   && /this\.canvas\.dataset\.clip = Object\.entries\(this\.ctrl\.actions\)\.find\(\(\[, clip\]\) => clip === this\.ctrl\.cur\)/.test(loading3d)
-  && /loadingStage\.update\(dt\)/.test(main);
+  && /loadingStage\.update\(/.test(main);   // chamada importa, não a forma do clamp (#300 fatia dtReal)
 
 const funcLoop = blocoFuncao(main, 'loop');
 const funcShow = blocoFuncao(main, 'show');
