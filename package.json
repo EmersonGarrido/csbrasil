@@ -115,7 +115,7 @@
     "eval:loadingwall": "node tools/eval/loading-wallpaper-check.mjs",
     "//eval:matchoptions": "Opções do mapa em tela cheia precisam atravessar o estado e governar o Game real; testa 1/3/5/7 rounds nos dois modos e os padrões históricos.",
     "eval:matchoptions": "node tools/eval/match-options-check.mjs",
-    "//eval:charvoice": "O clique no avatar toca uma fala determinística e exclusiva do personagem dentro do pool da facção; a seleção automática abre muda. Mutantes: sem-clique|auto-fala|mesmo-som.",
+    "//eval:charvoice": "O clique no avatar toca uma fala determinística e exclusiva; bordões declarados mantêm a identidade mesmo se o pool mudar. A seleção automática abre muda. Mutantes: sem-clique|auto-fala|mesmo-som|sem-identidade|troca-clubber-rasta|pack-antigo.",
     "eval:charvoice": "node tools/eval/character-select-voice-check.mjs",
     "eval:mat": "node tools/eval/mat-check.mjs",
     "//eval:seo": "LÊ dist/client/ — o HTML publicado, não o .astro. Rode `npm run build` antes, ou use `npm run check:seo`, que já faz os dois. `--mutate` prova que a régua morde.",

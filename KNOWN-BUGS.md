@@ -2311,6 +2311,16 @@ publicação em potencial, e o `.gitignore` não protege de um deploy local.
 
 ## Relatos recentes e resolução
 
+- **~~BUG-65 · bordões da seleção pertenciam à posição, não ao personagem~~ · RESOLVIDO 16/08.**
+  Palavras do dono: *"o Faria Limer tá usando um áudio do Lula"*, *"o Clubber não pode ser
+  bomboclaat, tem que ser o ai delícia; o bomboclaat é o Rasta"* e *"o Funk Raiz é o coé,
+  rapaziada"*. `public/js/audio.js:102` usava o índice do avatar no elenco para buscar o
+  pool; no elenco Urbanas, por exemplo, o índice do Clubber apontava exatamente para
+  `bomboclaat`. A régua nasceu vermelha em **5 identidades**. Agora seis personagens têm
+  associação explícita, os demais pulam os arquivos reservados para não compartilhar fala,
+  e o pacote v5 acrescenta a vinheta de 8 s do Dollynho. `eval:charvoice` passa; os seis
+  mutantes passam a deixar ao menos uma cláusula vermelha, inclusive a troca Clubber↔Rasta.
+
 - **~~BUG-64 · wallpaper da home não preenche o 3:2 sem cortar e versão sai do canto~~ · RESOLVIDO 16/08.**
   Palavras do dono: *"a tela inicial também não está com o wallpaper cheio e a versão do
   jogo não está no canto direito"*. `cover` preenchia, mas cortava logo ou personagem dos
