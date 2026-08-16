@@ -1,7 +1,7 @@
 // Boot, menus, settings, logo, main loop.
 import * as THREE from 'three';
 import { initTextures } from './textures.js';
-import { CHARACTERS, buildCharacter, charWeapon, setCharacterRendererCapabilities } from './characters.js';
+import { CHARACTERS, buildCharacter, charWeapon } from './characters.js';
 import { preloadCharacterAssets, buildCharacterModel, hasModel, GLB_CHARS } from './glbchars.js';
 import { preloadFPArms } from './fparms.js';
 import { preloadMapProps } from './mapprops.js';
@@ -51,7 +51,6 @@ const COMPAT_MODE = SAFE_MODE || renderer.__csWebgl?.degraded === true;
 if (COMPAT_MODE) { preferredQuality = settings.quality; settings.quality = 'low'; }
 const ASSET_CHECK = new URLSearchParams(location.search).get('assetcheck') === '1';
 let staticPreviews = COMPAT_MODE && !ASSET_CHECK;
-setCharacterRendererCapabilities(renderer);
 renderer.setSize(innerWidth, innerHeight);
 renderer.setPixelRatio(COMPAT_MODE ? 0.75 : 1);
 renderer.shadowMap.enabled = !COMPAT_MODE;

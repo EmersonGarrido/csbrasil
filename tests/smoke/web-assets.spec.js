@@ -52,6 +52,7 @@ test('preload 3D real do elenco termina e renderiza GLB na vitrine', async ({ pa
   expect(ficha.rows).toBeGreaterThan(0);
   expect(ficha.preview_glb).toBe(true);
   expect(ficha.info_name.length).toBeGreaterThan(0);
+  await expect(page.locator('#crash-overlay')).toBeHidden();
 
   // partida também abre com o caminho real (já com elenco/modelos batidos em cache)
   await page.locator('#char-confirm').click();

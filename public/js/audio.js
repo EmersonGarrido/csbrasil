@@ -9,6 +9,15 @@ const GUN_VOL = (() => {
   return Number.isFinite(q) && q > 0 ? q : 0.62;
 })();
 
+export const CHARACTER_SELECT_VOICE = Object.freeze({
+  gotinha: 'audio/a/cc77ec4f134a71ba.mp3',
+  farialimer: 'audio/a/55678d5886537476.mp3',
+  dollynho: 'audio/a/dc26854fa366d0ec.mp3',
+  clubber: 'audio/a/08290068f8d9935f.mp3',
+  reggae: 'audio/a/f180be207d0b440b.mp3',
+  funkraiz: 'audio/a/d5b87c3d2638e166.mp3',
+});
+
 export class Sfx {
   constructor() {
     this.ctx = null; this.master = null; this.vol = 0.7;
@@ -92,11 +101,23 @@ export class Sfx {
   }
   characterSelectVoice(characterId, faction, rosterIds) {
     if (!this.speechEnabled) return false;
-    const slot = rosterIds?.indexOf(characterId) ?? -1;
+    const rosterSlot = rosterIds?.indexOf(characterId) ?? -1;
+    if (rosterSlot < 0) return false;
     const pool = this.pack?.voice?.[faction];
-    if (slot < 0 || !pool?.[slot]) return false;
+    const characterVoice = { ...CHARACTER_SELECT_VOICE, ...this.pack?.characterVoice };
+    let file = characterVoice[characterId];
+    if (!file) {
+      const reserved = new Set(rosterIds
+        .map((id) => characterVoice[id])
+        .filter((candidate) => pool?.includes(candidate)));
+      const fallbackSlot = rosterIds
+        .filter((id) => !characterVoice[id])
+        .indexOf(characterId);
+      file = pool?.filter((candidate) => !reserved.has(candidate))[fallbackSlot];
+    }
+    if (!file) return false;
     if (this._characterSelectAudio) this._characterSelectAudio.pause();
-    this._characterSelectAudio = this._sample(pool[slot]);
+    this._characterSelectAudio = this._sample(file);
     return !!this._characterSelectAudio;
   }
   /* SOM DE FIM DE ROUND — com teto e com fim.

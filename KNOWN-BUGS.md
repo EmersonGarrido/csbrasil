@@ -2311,6 +2311,16 @@ publicação em potencial, e o `.gitignore` não protege de um deploy local.
 
 ## Relatos recentes e resolução
 
+- **~~BUG-65 · bordões da seleção pertenciam à posição, não ao personagem~~ · RESOLVIDO 16/08.**
+  Palavras do dono: *"o Faria Limer tá usando um áudio do Lula"*, *"o Clubber não pode ser
+  bomboclaat, tem que ser o ai delícia; o bomboclaat é o Rasta"* e *"o Funk Raiz é o coé,
+  rapaziada"*. `public/js/audio.js:102` usava o índice do avatar no elenco para buscar o
+  pool; no elenco Urbanas, por exemplo, o índice do Clubber apontava exatamente para
+  `bomboclaat`. A régua nasceu vermelha em **5 identidades**. Agora seis personagens têm
+  associação explícita, os demais pulam os arquivos reservados para não compartilhar fala,
+  e o pacote v5 acrescenta a vinheta de 8 s do Dollynho. `eval:charvoice` passa; os seis
+  mutantes passam a deixar ao menos uma cláusula vermelha, inclusive a troca Clubber↔Rasta.
+
 - **~~BUG-64 · wallpaper da home não preenche o 3:2 sem cortar e versão sai do canto~~ · RESOLVIDO 16/08.**
   Palavras do dono: *"a tela inicial também não está com o wallpaper cheio e a versão do
   jogo não está no canto direito"*. `cover` preenchia, mas cortava logo ou personagem dos
@@ -2331,14 +2341,15 @@ publicação em potencial, e o `.gitignore` não protege de um deploy local.
 
 - **~~BUG-62 · shader dos personagens não compila no Chromium headless~~ · RESOLVIDO 16/08.** Descoberto pelo
   smoke real em 16/08: `web-assets.spec.js` carregou o GLB e a ficha, mas o overlay de debug
-  bloqueou `#char-confirm` por 900 tentativas. Primeiro erro do shader: linha 1538,
-  `textureLod(map, vMapUv, csAlbLod)` sem sobrecarga disponível; depois vieram `.rgb`,
-  dimensão e conversão como efeitos em cascata. A origem é `CS_ALB_REGIONAL` em
-  `characters.js`; o Three r160 gera uma camada de compatibilidade própria para LOD e o bloco
-  injetado a contornava. WG11 nasceu vermelha. A correção usa `texture2DLodEXT`, nome que o
-  preâmbulo do Three r160 traduz para `textureLod` no perfil correto; o mutante que devolve a
-  chamada direta deixa WG11 vermelha. O mesmo smoke caiu de **17,2 min/timeout** para
-  **16,5 s verde**, abriu a partida real e não gerou `crash-overlay`.
+  bloqueou `#char-confirm` por 900 tentativas. A primeira correção trocou a amostragem por
+  `texture2DLodEXT` e deixou WG11 verde, mas a régua só reconhecia o nome da função. O smoke
+  Linux do PR #302 provou que a extensão estava desabilitada no renderer da vitrine; além
+  disso, a variante do material dependia da capacidade global do renderer principal. A
+  correção usa o bias nativo do fragment shader — `texture2D(map, vMapUv, csAlbLod)` — e não
+  compartilha capacidade entre renderers. WG11 agora recusa a extensão e o estado global; o
+  mutante `texture-lod-ext` devolve a extensão e deixa WG11 vermelha. O smoke também verifica o `crash-overlay`
+  antes de clicar, para uma regressão de shader falhar imediatamente em vez de aguardar o
+  timeout do botão.
 
 - **~~BUG-58 · trocar de time com M quebra a tela~~ · RESOLVIDO 16/08.** Palavras do dono:
   *"o fluxo de trocar de time parece quebrado quando aperto m ele quebra a tela"*.

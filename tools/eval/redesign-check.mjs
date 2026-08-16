@@ -298,7 +298,7 @@ main = muta('perfil-volta-iniciais', main,
   'applyPlayerAvatar($(\'pp-avatar\'), nick);',
   "$('pp-avatar').textContent = (nick || 'CS').slice(0, 2);");
 astro = muta('suporte-sai-do-menu', astro,
-  '<button class="cs-item" data-act="feedback" type="button"><span class="cs-tick">▸</span>SUPORTE AO JOGO</button>',
+  '<button class="cs-item" data-act="feedback" type="button"><span class="cs-tick">▸</span>ENVIE SEU FEEDBACK</button>',
   '');
 game = muta('mouse-invertido-ignorado', game,
   'const invertY = this.settings.invertY ? -1 : 1;',
@@ -724,7 +724,7 @@ const perfilComAvatar = /const PLAYER_AVATAR_KEY = 'awpbr_player_avatar'/.test(m
   && /applyPlayerAvatar\(\$\('pp-avatar'\), nick\);/.test(main)
   && /res && res\.ok && res\.url[\s\S]{0,220}localStorage\.setItem\(PLAYER_AVATAR_KEY, res\.url\)[\s\S]{0,160}renderPlayerPlate\(\)/.test(main)
   && /#menu-bottombar \.pp-avatar\{[^}]*background-size:cover[^}]*background-position:center/.test(css);
-const suporteNoMenu = /<button class="cs-item" data-act="feedback" type="button"><span class="cs-tick">▸<\/span>SUPORTE AO JOGO<\/button>/.test(astro)
+const suporteNoMenu = /<button class="cs-item" data-act="feedback" type="button"><span class="cs-tick">▸<\/span>ENVIE SEU FEEDBACK<\/button>/.test(astro)
   && /case 'feedback': markCurrent\('feedback'\); show\('feedback-panel'\); break;/.test(main);
 const mouseVerticalConfiguravel = /invertY: false/.test(main)
   && /id="set-invert-y" type="checkbox"/.test(astro)
@@ -879,8 +879,8 @@ const resultados = [
     `punk=${punkAvatarSha256.slice(0, 12)} gotinha=${gotinhaAvatarSha256.slice(0, 12)} referência=${resultAudit.avatarReference || 'ausente'}`],
   ['UIR29', 'perfil usa avatar estável do elenco e troca imediatamente pela foto enviada', perfilComAvatar,
     'fallback é derivado do UID/nick; upload bem-sucedido persiste a URL e redesenha o card'],
-  ['UIR30', 'menu principal expõe suporte usando o canal de feedback existente', suporteNoMenu,
-    'SUPORTE AO JOGO abre o painel funcional sem criar rota morta'],
+  ['UIR30', 'menu principal convida o jogador a enviar feedback pelo canal existente', suporteNoMenu,
+    'ENVIE SEU FEEDBACK abre o painel funcional sem criar rota morta'],
   ['UIR31', 'configuração de eixo vertical chega ao mouse-look real', mouseVerticalConfiguravel,
     'checkbox persistido inverte somente movementY; movimento horizontal permanece igual'],
   ['UIR32', 'menu preenche o 3:2 sem cortar; splash e loading preservam a arte inteira', wallpaperLoadingResponsivo,
