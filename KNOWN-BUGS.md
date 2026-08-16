@@ -24,9 +24,10 @@ PULADAS:  4 (exigem browser ou arnês ausente)
 
 Colado de uma execução real de **16/08**. As 13 dívidas continuam todas identificadas em
 `KNOWN-RED.json` e não reprovam o processo; o gate terminou com código 0. `AUD1` passou
-depois do refresh do JSON de viewmodel. Na mesma árvore, o `check:fast` percorreu os 44
-passos pelo runner e todos passaram — inclusive `feet:check`, `anims:check` e o novo
-`eval:matchoptions`; não existe mais a antiga corrente de `&&` que escondia gates posteriores.
+depois do refresh do JSON de viewmodel. Na mesma árvore, o `check:fast` percorreu os 45
+passos pelo runner e todos passaram — inclusive `feet:check`, `anims:check`,
+`eval:matchoptions` e `menuwalls:check`; não existe mais a antiga corrente de `&&` que
+escondia gates posteriores.
 
 Mudou em 04/08: **CHR5B saiu do aviso e ficou VERDE** (27/44 personagens sem mapa de
 superfície → 0/44) e entrou a **CHR7** (convenção de skin), verde — daí 49 e não 48.
@@ -2307,6 +2308,24 @@ publicação em potencial, e o `.gitignore` não protege de um deploy local.
 ---
 
 ## Relatos recentes e resolução
+
+- **~~BUG-64 · wallpaper da home não preenche o 3:2 sem cortar e versão sai do canto~~ · RESOLVIDO 16/08.**
+  Palavras do dono: *"a tela inicial também não está com o wallpaper cheio e a versão do
+  jogo não está no canto direito"*. `cover` preenchia, mas cortava logo ou personagem dos
+  wallpapers 16:9; `contain` preservava a arte, mas deixava faixas visíveis no viewport 3:2.
+  Cada wallpaper ganhou uma variante 3:2 derivada exclusivamente da própria imagem: quadro
+  original inteiro no centro e extensão desfocada nas áreas novas. Em 1536×1024 a captura
+  mostra logo e personagem inteiros, sem faixa vazia; a versão fica fixa 14 px acima da borda
+  inferior e alinhada à direita. UIR32/UIR42 passam, os mutantes `menu-wall-sem-3x2` e
+  `versao-menu-volta-rodape` ficam vermelhos, e `menuwalls:check` liga fonte, receita e saída.
+
+- **~~BUG-63 · tela final tinha emenda colorida atrás do personagem~~ · RESOLVIDO 16/08.**
+  Palavras do dono: *"faltou só a parte do vitória estar preto igual o degradê final da
+  imagem à esquerda pra parecer uma tela só"*. Dois pseudo-elementos desenhavam um radial
+  verde e um gradiente restrito à metade direita. Ambos foram removidos: vitória e derrota
+  agora usam o mesmo preto contínuo atrás do recorte alfa inteiro. Capturas reais em
+  1536×1024 confirmam ausência de emenda; UIR41 passa e `resultado-emenda-volta` recoloca o
+  radial, deixando a cláusula vermelha.
 
 - **~~BUG-62 · shader dos personagens não compila no Chromium headless~~ · RESOLVIDO 16/08.** Descoberto pelo
   smoke real em 16/08: `web-assets.spec.js` carregou o GLB e a ficha, mas o overlay de debug

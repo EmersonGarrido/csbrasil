@@ -83,24 +83,43 @@ try {
         fillImage: fill.backgroundImage,
       };
     });
-    if (wallpaper.frame.join('x') !== `${width}x${height}` || wallpaper.primarySize !== 'contain'
+    const isThreeTwo = label === '3x2';
+    const expectedPrimarySize = isThreeTwo ? 'cover' : 'contain';
+    const expectedPath = isThreeTwo ? '/img/walls-3x2/wall-' : '/img/wall-';
+    if (wallpaper.frame.join('x') !== `${width}x${height}` || wallpaper.primarySize !== expectedPrimarySize
       || wallpaper.primaryRepeat !== 'no-repeat' || wallpaper.fillSize !== 'cover'
-      || wallpaper.fillRepeat !== 'no-repeat' || !wallpaper.primaryImage.includes('/img/wall-')
+      || wallpaper.fillRepeat !== 'no-repeat' || !wallpaper.primaryImage.includes(expectedPath)
       || wallpaper.primaryImage !== wallpaper.fillImage) {
       throw new Error(`wallpaper ${label} inválido: ${JSON.stringify(wallpaper)}`);
     }
     await page.screenshot({ path: `${OUT}/01_menu-wall-${label}.png` });
   }
   await page.setViewportSize({ width: 1536, height: 1024 });
-  console.log('✓ wallpaper do início: arte inteira e sem repetição em 16:9, 3:2, 4:3, ultrawide e celular');
+  console.log('✓ wallpaper inteiro em todos os formatos e variante cheia dedicada no 3:2');
 
   await open('menu', '01', '#main-menu');
-  const menuProfile = await page.evaluate(() => ({
-    avatar: getComputedStyle(document.getElementById('pp-avatar')).backgroundImage,
-    avatarText: document.getElementById('pp-avatar').textContent,
-    support: document.querySelector('.cs-item[data-act="feedback"]')?.textContent.trim(),
-  }));
-  if (!menuProfile.avatar.includes('/img/chars/avatars/') || menuProfile.avatarText || menuProfile.support !== '▸SUPORTE AO JOGO') {
+  const menuProfile = await page.evaluate(() => {
+    const version = document.getElementById('mf-ver');
+    const versionStyle = getComputedStyle(version);
+    const versionRect = version.getBoundingClientRect();
+    return {
+      avatar: getComputedStyle(document.getElementById('pp-avatar')).backgroundImage,
+      avatarText: document.getElementById('pp-avatar').textContent,
+      support: document.querySelector('.cs-item[data-act="feedback"]')?.textContent.trim(),
+      version: {
+        text: version.textContent,
+        position: versionStyle.position,
+        right: parseFloat(versionStyle.right),
+        bottom: parseFloat(versionStyle.bottom),
+        rightGap: innerWidth - versionRect.right,
+        bottomGap: innerHeight - versionRect.bottom,
+      },
+    };
+  });
+  if (!menuProfile.avatar.includes('/img/chars/avatars/') || menuProfile.avatarText || menuProfile.support !== '▸SUPORTE AO JOGO'
+    || !menuProfile.version.text.startsWith('CORO SOLTO v') || menuProfile.version.position !== 'fixed'
+    || Math.abs(menuProfile.version.right - menuProfile.version.rightGap) > 1
+    || Math.abs(menuProfile.version.bottom - menuProfile.version.bottomGap) > 1) {
     throw new Error(`perfil/suporte do menu inválido: ${JSON.stringify(menuProfile)}`);
   }
   const registeredMaps = await page.evaluate(async () => (await import('/js/maps.js')).MAP_IDS.length);
@@ -286,7 +305,8 @@ try {
     mask: getComputedStyle(document.getElementById('me-hero')).maskImage,
     size: getComputedStyle(document.getElementById('me-hero')).backgroundSize,
     position: getComputedStyle(document.getElementById('me-hero')).backgroundPosition,
-    accent: getComputedStyle(document.getElementById('match-end')).getPropertyValue('--me-accent-rgb').trim(),
+    wrapAfter: getComputedStyle(document.querySelector('.me-wrap'), '::after').content,
+    heroAfter: getComputedStyle(document.getElementById('me-hero'), '::after').content,
   }));
   const victoryStage = victory.stage;
   const resultViewport = page.viewportSize();
@@ -295,7 +315,7 @@ try {
     || Math.abs(victoryStage[0] + victoryStage[2] - resultViewport.width) > 1
     || Math.abs(victoryStage[1] + victoryStage[3] - resultViewport.height) > 1
     || victory.mask !== 'none' || victory.size !== 'contain' || victory.position !== '100% 100%'
-    || victory.accent !== '255,85,85') {
+    || victory.wrapAfter !== 'none' || victory.heroAfter !== 'none') {
     throw new Error(`vitória inválida: ${JSON.stringify(victory)}`);
   }
   await page.screenshot({ path: `${OUT}/08_vitoria-direto.png` });
@@ -309,6 +329,8 @@ try {
     mask: getComputedStyle(document.getElementById('me-hero')).maskImage,
     size: getComputedStyle(document.getElementById('me-hero')).backgroundSize,
     filter: getComputedStyle(document.getElementById('me-hero')).filter,
+    wrapAfter: getComputedStyle(document.querySelector('.me-wrap'), '::after').content,
+    heroAfter: getComputedStyle(document.getElementById('me-hero'), '::after').content,
   }));
   const defeatStage = defeat.stage;
   if (defeat.title !== 'DERROTA' || !defeat.art.includes('mst-derrota.webp')
@@ -316,6 +338,7 @@ try {
     || Math.abs(defeatStage[0] + defeatStage[2] - resultViewport.width) > 1
     || Math.abs(defeatStage[1] + defeatStage[3] - resultViewport.height) > 1
     || defeat.mask !== 'none' || defeat.size !== 'contain'
+    || defeat.wrapAfter !== 'none' || defeat.heroAfter !== 'none'
     || !defeat.filter.includes('saturate(0.48)') || !defeat.filter.includes('brightness(0.72)')) {
     throw new Error(`derrota inválida: ${JSON.stringify(defeat)}`);
   }

@@ -49,7 +49,6 @@ const alvoPorMutante = {
   'hud-sem-barras': 'UIR18',
   'hud-fonte-antiga': 'UIR18',
   'resultado-corta-personagem': 'UIR19',
-  'resultado-sem-degrade': 'UIR19',
   'resultado-sem-alpha': 'UIR19',
   'resultado-derrota-sem-alpha': 'UIR19',
   'idioma-por-navegador': 'UIR20',
@@ -71,7 +70,7 @@ const alvoPorMutante = {
   'suporte-sai-do-menu': 'UIR30',
   'mouse-invertido-ignorado': 'UIR31',
   'loading-wall-cover-unico': 'UIR32',
-  'menu-wall-cover-unico': 'UIR32',
+  'menu-wall-sem-3x2': 'UIR32',
   'opcoes-mapa-decorativas': 'UIR33',
   'borda-tracejada-volta': 'UIR34',
   'splash-sem-personagem': 'UIR35',
@@ -81,6 +80,8 @@ const alvoPorMutante = {
   'backend-aviso-volta': 'UIR38',
   'faccao-mostra-antes-da-arte': 'UIR39',
   'troca-m-abre-pausa': 'UIR40',
+  'resultado-emenda-volta': 'UIR41',
+  'versao-menu-volta-rodape': 'UIR42',
 };
 if (MUTANTE && !alvoPorMutante[MUTANTE]) {
   console.error(`mutante desconhecido: ${MUTANTE}`);
@@ -158,9 +159,9 @@ game = muta('placar-sem-brasoes', game,
 css = muta('loading-wall-cover-unico', css,
   'background-size:cover,contain;background-position:center;background-repeat:no-repeat}',
   'background-size:cover,cover;background-position:center;background-repeat:no-repeat}');
-css = muta('menu-wall-cover-unico', css,
-  '.cs-wallpaper::after{inset:0;z-index:1;background-size:contain}',
-  '.cs-wallpaper::after{inset:0;z-index:1;background-size:cover}');
+css = muta('menu-wall-sem-3x2', css,
+  "background-image:var(--menu-wall-3x2,var(--menu-wall))",
+  'background-image:var(--menu-wall)');
 main = muta('opcoes-mapa-decorativas', main,
   'roundsMax: matchRounds(),',
   'roundsMax: 5,');
@@ -254,9 +255,12 @@ css = muta('hud-fonte-antiga', css,
 css = muta('resultado-corta-personagem', css,
   'background:var(--me-art,none) right bottom/contain no-repeat',
   'background:var(--me-art,none) center top/cover no-repeat;');
-css = muta('resultado-sem-degrade', css,
-  'background:linear-gradient(90deg,rgba(var(--bg-900-rgb),.98) 0%,rgba(var(--bg-900-rgb),.34) 18%,rgba(var(--bg-900-rgb),0) 42%)',
-  'background:none');
+css = muta('resultado-emenda-volta', css,
+  '.me-wrap{position:relative;',
+  '.me-wrap::after{content:"";position:absolute;inset:0 0 0 44%;background:radial-gradient(ellipse at 88% 58%,rgba(73,168,70,.2),transparent 78%)}\n.me-wrap{position:relative;');
+astro = muta('versao-menu-volta-rodape', astro,
+  '<span class="menu-version" id="mf-ver"></span>',
+  '<span class="mf-ver" id="mf-ver"></span>');
 css = muta('loading-volta-grande', css,
   'width:min(86px,6.8vw);height:min(144px,15.2vh);pointer-events:none;',
   'width:min(430px,34vw);height:min(720px,76vh);pointer-events:none;');
@@ -668,8 +672,6 @@ const hudArma2D = /id="weapon-hud"/.test(astro) && /id="ammo-bars"/.test(astro)
 const resultadoIntegrado = /\.me-hero\{[^}]*position:absolute[^}]*inset:2\.5% 0 0 44%[^}]*overflow:visible/.test(css)
   && /\.me-hero\{[^}]*background:var\(--me-art,none\) right bottom\/contain no-repeat/.test(css)
   && !/\.me-hero\{[^}]*(?:mask-image|-webkit-mask-image)/.test(css)
-  && /\.me-hero::after\{[^}]*linear-gradient\(90deg[^}]*rgba\(var\(--bg-900-rgb\),0\) 42%/.test(css)
-  && /\.me-wrap::after\{[^}]*--me-accent-rgb/.test(css)
   && resultadoRuins.length === 0;
 const loadingStageCss = (css.match(/#load-character-stage\{([^}]*)\}/) || [])[1] || '';
 const loadingCompactoDireita = /width:min\(86px,6\.8vw\)/.test(loadingStageCss)
@@ -729,13 +731,25 @@ const mouseVerticalConfiguravel = /invertY: false/.test(main)
   && /invertEl = \$\('set-invert-y'\)/.test(main)
   && /settings\.invertY = invertEl\.checked/.test(main)
   && /const invertY = this\.settings\.invertY \? -1 : 1;[\s\S]{0,100}this\.player\.pitch -= e\.movementY \* s \* invertY;/.test(game);
+const menuWallSources = readdirSync(join(ROOT, 'public', 'img')).filter((file) => /^wall-\d+\.webp$/.test(file));
+const menuWall3x2AssetsOk = menuWallSources.length > 0 && (await Promise.all(menuWallSources.map(async (name) => {
+  const file = join(ROOT, 'public', 'img', 'walls-3x2', name);
+  if (!existsSync(file)) return false;
+  const sourceMeta = await sharp(join(ROOT, 'public', 'img', name)).metadata();
+  const meta = await sharp(file).metadata();
+  return meta.width === sourceMeta.width && meta.height === Math.round(sourceMeta.width / 1.5);
+}))).every(Boolean);
 const wallpaperLoadingResponsivo = /setProperty\('--loading-wall', loadingWallUrl\(_wallK\)\)/.test(main)
   && /setProperty\('--loading-wall', loadingWallUrl\(_loadWallI\+\+\)\)/.test(main)
   && /setProperty\('--menu-wall', HOME_WALL\)/.test(main)
   && /setProperty\('--menu-wall', SETUP_WALL\)/.test(main)
+  && /setProperty\('--menu-wall-3x2', HOME_WALL_3X2\)/.test(main)
+  && /setProperty\('--menu-wall-3x2', SETUP_WALL_3X2\)/.test(main)
   && /\.cs-wallpaper::before,\.cs-wallpaper::after\{[^}]*background-image:var\(--menu-wall\);[^}]*background-repeat:no-repeat/.test(css)
   && /\.cs-wallpaper::before\{[^}]*background-size:cover;[^}]*filter:blur\(18px\)/.test(css)
   && /\.cs-wallpaper::after\{[^}]*background-size:contain/.test(css)
+  && /@media \(min-aspect-ratio:37\/25\) and \(max-aspect-ratio:38\/25\)\{[\s\S]{0,240}background-image:var\(--menu-wall-3x2,var\(--menu-wall\)\)[\s\S]{0,180}\.cs-wallpaper::after\{background-size:cover\}/.test(css)
+  && menuWall3x2AssetsOk
   && /#boot-splash::before,#load-overlay::before\{[^}]*background-image:var\(--loading-wall\);background-size:cover;[^}]*filter:blur\(18px\)/.test(css)
   && /#boot-splash::after\{[^}]*background-image:[^}]*var\(--loading-wall\);[^}]*background-size:cover,contain;/.test(css)
   && /#load-overlay::after\{[^}]*background-image:[^}]*var\(--loading-wall\);[^}]*background-size:cover,contain;/.test(css);
@@ -781,6 +795,11 @@ const faccaoPreloadBloqueante = /const FACTION_ART_URLS = \[[^\]]*time-e\.webp[^
 const trocaMConsistente = /game\.onRequestSwitch = \(\) => \{[\s\S]{0,180}game\.setPaused\(true\);[\s\S]{0,120}pickTeam\(game\.enemyFaction\)/.test(main)
   && /\$\('char-back'\)\.onclick = \(\) => \{[\s\S]{0,400}if \(switchMode && game\)[\s\S]{0,300}game\.resume\(\)/.test(main)
   && /const oldFaction = this\.playerFaction;[\s\S]{0,160}this\.playerFaction = this\.enemyFaction;[\s\S]{0,80}this\.enemyFaction = oldFaction;/.test(game);
+const resultadoFundoContinuo = !/\.me-(?:wrap|hero)::after\{/.test(css)
+  && !/--me-accent-rgb/.test(`${css}\n${main}\n${game}`);
+const versaoMenuNoCanto = /<\/div>\s*<span class="menu-version" id="mf-ver"><\/span>\s*<\/div>\s*<!-- PAINEL DE SETUP/.test(astro)
+  && /\.menu-version\{[^}]*position:fixed[^}]*right:min\(4vw,42px\)[^}]*bottom:14px/.test(css)
+  && /\.menu-footer\{[^}]*bottom:48px/.test(css);
 const idiomaGeo = /const EN_GEO_COUNTRIES = new Set\(\[[\s\S]*?'US'[\s\S]*?'GB'/.test(astro)
   && /export const prerender = false/.test(astro)
   && /const GEO_COUNTRY = \(Astro\.request\.headers\.get\('x-vercel-ip-country'\)[\s\S]*?cf-ipcountry/.test(astro)
@@ -836,7 +855,7 @@ const resultados = [
     'times e relógio sem placa preta; números em Rajdhani'],
   ['UIR18', 'HUD 1–5 usa silhuetas 2D planas na lateral direita', hudArma2D,
     'slots vêm de _wpnIcon; arte WebP 3D fica oculta e a coluna lateral não tem placas'],
-  ['UIR19', 'resultado enquadra o personagem inteiro e dissolve a foto no fundo', resultadoIntegrado,
+  ['UIR19', 'resultado enquadra o personagem inteiro como recorte alpha', resultadoIntegrado,
     resultadoRuins.length
       ? `${resultadoRuins.length}/${resultadoVisual.length} artes cortadas, opacas ou no quadro errado: ${resultadoRuins.slice(0, 4).map(({ arquivo, meta, bounds }) => `${arquivo} ${meta.width}×${meta.height} alpha=${meta.alpha} margens=${[bounds.left, bounds.right, bounds.top, bounds.bottom].map((v) => (v * 100).toFixed(1)).join('/')}`).join(' · ')}`
       : `${resultadoVisual.length}/${resultadoVisual.length} recortes alpha do elenco inteiro, com folga nos quatro lados`],
@@ -864,8 +883,8 @@ const resultados = [
     'SUPORTE AO JOGO abre o painel funcional sem criar rota morta'],
   ['UIR31', 'configuração de eixo vertical chega ao mouse-look real', mouseVerticalConfiguravel,
     'checkbox persistido inverte somente movementY; movimento horizontal permanece igual'],
-  ['UIR32', 'wallpapers de menu, splash e loading preservam a arte inteira em qualquer aspecto', wallpaperLoadingResponsivo,
-    'arte contain íntegra sobre cover desfocado de preenchimento; nenhuma camada repete'],
+  ['UIR32', 'menu preenche o 3:2 sem cortar; splash e loading preservam a arte inteira', wallpaperLoadingResponsivo,
+    'cada wallpaper ganha variante 3:2 derivada da arte real; demais formatos mantêm contain sobre cover'],
   ['UIR33', 'tela cheia de mapas configura armas, jogadores e número real de rounds', opcoesPartidaNoMapa,
     'os três controles persistem no estado; roundsMax atravessa main.js e governa o encerramento em game.js'],
   ['UIR34', 'interface pública não usa borda tracejada ou faixa hazard', semBordaTracejada,
@@ -882,6 +901,10 @@ const resultados = [
     'o preload começa no boot e o primeiro acesso aguarda o mesmo Promise antes de mostrar team-select'],
   ['UIR40', 'troca com M pausa uma única camada e mantém facção, lado e volta coerentes', trocaMConsistente,
     'o jogo pausa antes do pointer lock sair; seleção usa enemyFaction e VOLTAR retoma a partida'],
+  ['UIR41', 'resultado usa um único fundo preto contínuo atrás da arte alpha', resultadoFundoContinuo,
+    'nenhum halo ou degradê limitado à metade direita pode criar emenda no palco do personagem'],
+  ['UIR42', 'menu preenche o viewport e fixa a versão no canto inferior direito', versaoMenuNoCanto,
+    'a versão fica em camada própria abaixo do rodapé, sem participar da fileira de links'],
 ];
 
 for (const [id, desc, ok, evid] of resultados) console.log(`${ok ? '✓' : '✗'} ${id} · ${desc}\n  ${evid}`);

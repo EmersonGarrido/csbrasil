@@ -1375,9 +1375,6 @@ html[data-ui="legacy"] .kf-row .kf-n{clip-path:none;border-radius:var(--r-1)}
 #match-end::before{content:"";position:absolute;inset:0;pointer-events:none;background:var(--lambe);opacity:.6}
 .me-wrap{position:relative;isolation:isolate;gap:0;display:grid;grid-template-columns:minmax(0,clamp(420px,46%,720px)) minmax(0,1fr);
   align-items:stretch;width:100%;height:100%;padding:10% 0 7% 4.3%}
-.me-wrap::after{content:"";position:absolute;inset:0;z-index:0;pointer-events:none;
-  background:radial-gradient(ellipse 52% 82% at 88% 58%,rgba(var(--me-accent-rgb,73,168,70),.2) 0%,rgba(var(--bg-800-rgb),.12) 50%,transparent 78%)}
-#match-end.lose .me-wrap::after{background:radial-gradient(ellipse 48% 72% at 77% 58%,rgba(224,50,50,.14) 0%,rgba(var(--bg-800-rgb),.16) 46%,transparent 76%)}
 /* Ritmo da referência: título/sub/cartão empilhados no terço de cima com respiro CONSTANTE,
    e as ações ancoradas no rodapé da coluna (`margin-top:auto`). `space-between` puro abria um
    vão morto entre o sub e o cartão quando a partida rende só 3 linhas de estatística. */
@@ -1389,8 +1386,6 @@ html[data-ui="legacy"] .kf-row .kf-n{clip-path:none;border-radius:var(--r-1)}
 .me-hero{position:absolute;inset:2.5% 0 0 44%;z-index:1;pointer-events:none;overflow:visible;
   background:var(--me-art,none) right bottom/contain no-repeat}
 #match-end.lose .me-hero{filter:saturate(.48) brightness(.72);opacity:.9}
-.me-hero::after{content:"";position:absolute;inset:0;pointer-events:none;
-  background:linear-gradient(90deg,rgba(var(--bg-900-rgb),.98) 0%,rgba(var(--bg-900-rgb),.34) 18%,rgba(var(--bg-900-rgb),0) 42%)}
 .me-verdict{display:flex;flex-direction:column;align-items:flex-start;gap:var(--s-2);text-align:left}
 /* peso 400: Bebas Neue só existe em Regular (@font-face único, linha 6). Pedir 700
    fazia o browser engrossar o contorno sozinho — e este é o MAIOR texto do jogo
@@ -1493,12 +1488,14 @@ html[data-ui="legacy"] #match-title{font-family:var(--font)}
 
 /* ============ MENU (Coro Solto) — wallpaper + lista de texto à esquerda ============ */
 #main-menu.cs-screen{display:block;padding:0;gap:0;overflow:hidden}
-/* A arte principal sempre usa contain: o logo e os personagens pintados no wall-* não
-   podem ser recortados. Uma cópia desfocada só preenche a sobra de aspecto atrás dela. */
 .cs-wallpaper{position:absolute;inset:0;z-index:0;overflow:hidden;isolation:isolate;background:var(--bg-900)}
 .cs-wallpaper::before,.cs-wallpaper::after{content:"";position:absolute;pointer-events:none;background-image:var(--menu-wall);background-position:center;background-repeat:no-repeat}
 .cs-wallpaper::before{inset:-24px;z-index:0;background-size:cover;filter:blur(18px) brightness(.48) saturate(.72)}
 .cs-wallpaper::after{inset:0;z-index:1;background-size:contain}
+@media (min-aspect-ratio:37/25) and (max-aspect-ratio:38/25){
+  .cs-wallpaper::before,.cs-wallpaper::after{background-image:var(--menu-wall-3x2,var(--menu-wall))}
+  .cs-wallpaper::after{background-size:cover}
+}
 /* Scrim que NASCE na borda da tela e morre em nada (CS2/Valorant). O texto passa a
    depender do scrim, não de um card — por isso o painel de nav pode perder a caixa.
 
@@ -1963,10 +1960,11 @@ html[data-ui="legacy"] #splash-enter{font-family:var(--font)}
   border:1px solid var(--line-2);color:var(--am)}
 .ms-arrow:hover{background:var(--am);color:#141216}
 /* rodapé do menu: online + links de dev (substitui a frase de sátira) */
-.menu-footer{position:fixed;right:min(4vw,42px);bottom:16px;z-index:60;
+.menu-footer{position:fixed;right:min(4vw,42px);bottom:48px;z-index:60;
   display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;justify-content:flex-end;
   font-size:12px;color:var(--ink-300);text-align:right;max-width:min(70vw,760px)}
-.menu-footer .mf-ver{color:var(--ink-200);font-weight:700;letter-spacing:1px}
+.menu-version{position:fixed;right:min(4vw,42px);bottom:14px;z-index:60;color:var(--ink-200);
+  font-size:12px;font-weight:700;letter-spacing:1px;text-align:right}
 /* Bolinha virou LOSANGO: o redesign proíbe raio, e o losango já é o sinal de
    "isto está vivo/é você" em três outros lugares (você no radar, thumb do slider,
    canto do card selecionado). Trocar por quadrado puro perderia essa rima. */
@@ -1995,6 +1993,7 @@ html[data-ui="legacy"] #splash-enter{font-family:var(--font)}
   #main-menu{display:block}
   .menu-footer{position:static;justify-content:flex-start;text-align:left;
     max-width:none;padding:18px var(--s-5) 24px}
+  .menu-version{position:static;display:block;padding:0 var(--s-5) 24px;text-align:right}
 }
 
 /* =========================================================================

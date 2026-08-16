@@ -288,8 +288,11 @@ try {
   localStorage.setItem('cs_wallK', String(_wallVisit));
 } catch {}
 let _wallK = _wallVisit % WALLS.length;
-const wallUrl = (i) => `url('${WALLS[(_wallK + i) % WALLS.length]}')`;
+const wallPath = (i) => WALLS[(_wallK + i) % WALLS.length];
+const wallUrl = (i) => `url('${wallPath(i)}')`;
+const wall3x2Url = (i) => `url('${wallPath(i).replace('/img/', '/img/walls-3x2/')}')`;
 let HOME_WALL = wallUrl(0), SETUP_WALL = wallUrl(1), TEAM_WALL = wallUrl(2), CHAR_WALL = wallUrl(3);
+let HOME_WALL_3X2 = wall3x2Url(0), SETUP_WALL_3X2 = wall3x2Url(1);
 // Splash e espera do mapa compartilham o lote loading-* do manifesto.
 const LOADING_WALLS = ['/img/loading-1.webp', '/img/loading-2.webp', '/img/loading-3.webp',
   '/img/loading-4.webp', '/img/loading-5.webp', '/img/loading-6.webp'];
@@ -308,14 +311,21 @@ fetch(`/img/walls.json?v=${VERSION}`)
     if (Array.isArray(manifest.loading) && manifest.loading.length) LOADING_WALLS.splice(0, LOADING_WALLS.length, ...manifest.loading);
     _wallK = _wallVisit % WALLS.length;
     HOME_WALL = wallUrl(0); SETUP_WALL = wallUrl(1); TEAM_WALL = wallUrl(2); CHAR_WALL = wallUrl(3);
+    HOME_WALL_3X2 = wall3x2Url(0); SETUP_WALL_3X2 = wall3x2Url(1);
     applyHomeWall();
     const team = $('team-select'); if (team) team.style.setProperty('--wall', TEAM_WALL);
     const character = $('char-select'); if (character) character.style.setProperty('--wall', CHAR_WALL);
     applySplashWallpaper();
   })
   .catch(() => {});
-function applyHomeWall() { const w = document.querySelector('#main-menu .cs-wallpaper'); if (w) w.style.setProperty('--menu-wall', HOME_WALL); }
-function applySetupWall() { const w = document.querySelector('#main-menu .cs-wallpaper'); if (w) w.style.setProperty('--menu-wall', SETUP_WALL); }
+function applyHomeWall() {
+  const w = document.querySelector('#main-menu .cs-wallpaper');
+  if (w) { w.style.setProperty('--menu-wall', HOME_WALL); w.style.setProperty('--menu-wall-3x2', HOME_WALL_3X2); }
+}
+function applySetupWall() {
+  const w = document.querySelector('#main-menu .cs-wallpaper');
+  if (w) { w.style.setProperty('--menu-wall', SETUP_WALL); w.style.setProperty('--menu-wall-3x2', SETUP_WALL_3X2); }
+}
 applyHomeWall();
 { const t = $('team-select'); if (t) t.style.setProperty('--wall', TEAM_WALL); }
 { const c = $('char-select'); if (c) c.style.setProperty('--wall', CHAR_WALL); }
@@ -2392,8 +2402,6 @@ window.__CS_MAIN_READY__ = true;
 window.__gameLaunch?.ready('boot');
 function showInspectionResult(won, character) {
   const end = $('match-end');
-  const accent = (PALETA[currentFaction]?.base || '#49a846').match(/[\da-f]{2}/gi)?.map((byte) => parseInt(byte, 16));
-  if (accent) end.style.setProperty('--me-accent-rgb', accent.join(','));
   end.classList.toggle('win', won);
   end.classList.toggle('lose', !won);
   $('match-title').textContent = won ? tr('VITÓRIA') : tr('DERROTA');

@@ -2214,8 +2214,6 @@ export class Game {
       : ((this.matchKills.E + this.roundKills.E) >= (this.matchKills.B + this.roundKills.B) ? 'E' : 'B');
     const mine = winner === this.playerTeam;
     // Tela de fim estilo CoD/Valorant: VITÓRIA/DERROTA gigante, time vencedor no sub.
-    const accent = tons(this.playerFaction).base.match(/[\da-f]{2}/gi)?.map((byte) => parseInt(byte, 16));
-    if (accent) this.el.matchEnd.style.setProperty('--me-accent-rgb', accent.join(','));
     this.el.matchEnd.classList.toggle('win', mine);
     this.el.matchEnd.classList.toggle('lose', !mine);
     this.el.matchTitle.textContent = mine ? tr('VITÓRIA') : tr('DERROTA');
