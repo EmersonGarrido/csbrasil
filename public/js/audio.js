@@ -11,7 +11,7 @@ const GUN_VOL = (() => {
 
 export const CHARACTER_SELECT_VOICE = Object.freeze({
   gotinha: 'audio/a/cc77ec4f134a71ba.mp3',
-  farialimer: 'audio/a/55678d5886537476.mp3',
+  farialimer: 'audio/a/fc5bf11f5b8287f5.mp3',
   dollynho: 'audio/a/dc26854fa366d0ec.mp3',
   clubber: 'audio/a/08290068f8d9935f.mp3',
   reggae: 'audio/a/f180be207d0b440b.mp3',

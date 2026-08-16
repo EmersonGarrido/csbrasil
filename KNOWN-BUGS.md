@@ -2371,6 +2371,17 @@ publicação em potencial, e o `.gitignore` não protege de um deploy local.
 
 ## Relatos recentes e resolução
 
+- **~~BUG-66 · Faria Limer ainda fala com a voz do Lula~~ · RESOLVIDO 16/08.** Palavras do dono: *"o farialimer
+  ainda tá com som do Lula; precisamos usar um do time do Bolsonaro"*. O vínculo explícito
+  criado no BUG-65 aponta para `55678d5886537476`, hash do arquivo-fonte `cana_doce.mp3`:
+  ele estava classificado dentro da pasta do Time B, mas o conteúdo continua sendo a voz
+  errada. A substituição escolhida vem do mesmo pool B e tem fonte nominal
+  `bolsonaro-acabou-porra.mp3` (`fc5bf11f5b8287f5`); os hashes SHA-1 do fonte e do asset
+  publicado são idênticos. Antes, `eval:charvoice` deixava VOICE10 e VOICE12 vermelhas;
+  depois, passa com o runtime e o deploy no `audio-pack-v6`. Os mutantes
+  `faria-volta-lula` e `pack-antigo` reacendem uma cláusula cada. Custo declarado: nenhum
+  áudio novo; só muda a reserva de um clipe que já pertencia ao pool B.
+
 - **~~BUG-65 · bordões da seleção pertenciam à posição, não ao personagem~~ · RESOLVIDO 16/08.**
   Palavras do dono: *"o Faria Limer tá usando um áudio do Lula"*, *"o Clubber não pode ser
   bomboclaat, tem que ser o ai delícia; o bomboclaat é o Rasta"* e *"o Funk Raiz é o coé,

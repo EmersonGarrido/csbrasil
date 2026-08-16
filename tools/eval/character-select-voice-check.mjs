@@ -5,7 +5,7 @@
 import { readFileSync } from 'node:fs';
 
 const mutante = process.argv.find((arg) => arg.startsWith('--mutante='))?.slice(10) || '';
-if (mutante && !['sem-clique', 'auto-fala', 'mesmo-som', 'sem-identidade', 'troca-clubber-rasta', 'pack-antigo'].includes(mutante)) {
+if (mutante && !['sem-clique', 'auto-fala', 'mesmo-som', 'sem-identidade', 'troca-clubber-rasta', 'faria-volta-lula', 'pack-antigo'].includes(mutante)) {
   console.error(`mutante desconhecido: ${mutante}`);
   process.exit(2);
 }
@@ -21,7 +21,7 @@ if (mutante === 'sem-clique') {
 if (mutante === 'auto-fala') {
   main = main.replace('if (row) selectChar(character, row);', 'row?.click();');
 }
-if (mutante === 'pack-antigo') fetchAudio = fetchAudio.replace('audio-pack-v5', 'audio-pack-v4');
+if (mutante === 'pack-antigo') fetchAudio = fetchAudio.replace('audio-pack-v6', 'audio-pack-v5');
 
 const failures = [];
 const expect = (ok, message) => { if (!ok) failures.push(message); };
@@ -41,8 +41,8 @@ expect(!/characterSelectVoice/.test(selectBody),
   'VOICE3 selectChar fala durante a montagem automática da tela');
 expect(!/row\?\.click\(\)/.test(main),
   'VOICE4 a query string simula clique humano e dispara fala');
-expect(/releases\/download\/audio-pack-v5\/audio-pack\.zip/.test(fetchAudio),
-  'VOICE12 o build não baixa o pacote que contém a vinheta do Dollynho');
+expect(/releases\/download\/audio-pack-v6\/audio-pack\.zip/.test(fetchAudio),
+  'VOICE12 o build não baixa o pacote com a voz corrigida do Faria Limer');
 
 globalThis.location ||= { search: '' };
 const { Sfx } = await import('../../public/js/audio.js');
@@ -109,7 +109,7 @@ const voice = {
 };
 const identityCases = [
   { id: 'gotinha', faction: 'E', roster: ['esquerdomacho', 'sindicato', 'mst', 'doutora', 'mistico', 'gotinha', 'hipster', 'et'], expected: 'audio/a/cc77ec4f134a71ba.mp3' },
-  { id: 'farialimer', faction: 'B', roster: ['caminhoneiro', 'sertanejo', 'coach', 'farialimer', 'bombado', 'dollynho', 'ancap', 'canarinho', 'proerd'], expected: 'audio/a/55678d5886537476.mp3' },
+  { id: 'farialimer', faction: 'B', roster: ['caminhoneiro', 'sertanejo', 'coach', 'farialimer', 'bombado', 'dollynho', 'ancap', 'canarinho', 'proerd'], expected: 'audio/a/fc5bf11f5b8287f5.mp3' },
   { id: 'dollynho', faction: 'B', roster: ['caminhoneiro', 'sertanejo', 'coach', 'farialimer', 'bombado', 'dollynho', 'ancap', 'canarinho', 'proerd'], expected: 'audio/a/dc26854fa366d0ec.mp3' },
   { id: 'clubber', faction: 'U', roster: ['emo', 'blackmetal', 'metaleiro', 'punk', 'skatista', 'clubber', 'rapper', 'reggae', 'pagodeiro'], expected: 'audio/a/08290068f8d9935f.mp3' },
   { id: 'reggae', faction: 'U', roster: ['emo', 'blackmetal', 'metaleiro', 'punk', 'skatista', 'clubber', 'rapper', 'reggae', 'pagodeiro'], expected: 'audio/a/f180be207d0b440b.mp3' },
@@ -131,6 +131,16 @@ if (mutante === 'troca-clubber-rasta') {
   identityProbe.characterSelectVoice = function (characterId, faction, rosterIds) {
     const swapped = characterId === 'clubber' ? 'reggae' : characterId === 'reggae' ? 'clubber' : characterId;
     return original.call(this, swapped, faction, rosterIds);
+  };
+}
+if (mutante === 'faria-volta-lula') {
+  const original = identityProbe.characterSelectVoice;
+  identityProbe.characterSelectVoice = function (characterId, faction, rosterIds) {
+    if (characterId === 'farialimer') {
+      this._characterSelectAudio = this._sample('audio/a/55678d5886537476.mp3');
+      return true;
+    }
+    return original.call(this, characterId, faction, rosterIds);
   };
 }
 for (const testCase of identityCases) {
