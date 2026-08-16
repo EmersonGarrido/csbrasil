@@ -80,7 +80,7 @@
 ## [2.0.0-alpha.114] — 2026-08-14
 
 ### Mudado
-- fix(api): client Supabase com timeout no fetch — acaba com os 504 de 300s (#269)
+- fix(api): client de dados com timeout no fetch — acaba com os 504 de 300s (#269)
 - [Notas completas do release](https://github.com/rubenmarcus/csbrasil/releases/tag/v2.0.0-alpha.114).
 
 ## [2.0.0-alpha.113] — 2026-08-14
@@ -488,7 +488,7 @@
   paredes de 4 m livres. As vagas são medidas, não declaradas.
 - Os murais do Chorão e do Yuka são "no espírito de", não retrato — semelhança de verdade
   precisa de foto de referência local (`tools/gen-image.mjs --ref`).
-- `013_feedback.sql` é aplicada **à mão** no Supabase de produção; até lá o form responde
+- `013_feedback.sql` é aplicada **à mão** na base de produção; até lá o form responde
   "indisponível".
 - 13 dívidas críticas seguem no `tools/eval/KNOWN-RED.json` e o BOT8/BUG-03 continua aberto.
 
@@ -500,7 +500,7 @@
   `/api/leaderboard` responde `{disabled:true}` e o painel do jogo mostra "desligado" em vez
   de "indisponível" (escolha ≠ defeito, e o jogador lê a diferença). O FAQ e o JSON-LD da home
   pararam de prometer ranking global. **Religar é uma linha.**
-- **Telemetria anônima** (`supabase/migrations/012` + `POST /api/telemetry`): quanto tempo se
+- **Telemetria anônima** (`migrations internas 012` + `POST /api/telemetry`): quanto tempo se
   joga e em que mapa/modo, agregado por dia em `map_daily` e `player_daily`. `anonId` é UUID
   no `localStorage` — identifica navegador, não pessoa; nenhum IP é gravado. **Não passa pelo
   rate limit do `submit_match`** (1 partida/90 s por nick), que existe contra ranking forjado
@@ -929,7 +929,7 @@
 Fase 3: login social, avatar e mapa ao vivo.
 
 ### Adicionado
-- Login com **Google, GitHub, LinkedIn e X** (Supabase Auth) — botões no menu
+- Login com **Google, GitHub, LinkedIn e X** (auth própria) — botões no menu
   principal; avatar do provedor entra no perfil automaticamente
 - **Upload de foto de perfil** (tela RANKING): redimensiona pra 128×128 no
   client e sobe pro bucket `avatars` com policy por dono
@@ -941,7 +941,7 @@ Fase 3: login social, avatar e mapa ao vivo.
 - `GET /api/config`: entrega URL + anon key (públicas) pro client ligar OAuth
 
 ## [1.2.0] — 2026-07-17
-Ranking global (Fase 2) — código completo, ativa ao configurar o Supabase.
+Ranking global (Fase 2) — código completo, ativa ao configurar o servidor de ranking.
 
 ### Adicionado
 - Stats novos por jogador: rounds jogados e partidas como Petista × Bolsonarista
@@ -985,5 +985,5 @@ Primeira release pública.
 - 8 personagens satíricos originais (Petistas × Bolsonaristas), mapa
   awp_map brasileiro procedural, 100% vanilla JS + Three.js, zero build
 - Site Astro (landing, personagens, como-jogar) + API routes SSR pro ranking
-- Ranking local com nick + link social; schema Supabase pronto (Fase 2)
+- Ranking local com nick + link social; schema do backend pronto (Fase 2)
 - SEO/AEO: JSON-LD, sitemap, robots, llms.txt, og-image

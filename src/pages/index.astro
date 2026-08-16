@@ -558,7 +558,7 @@ window.__SUPPORT = { br: SUPPORT_URL_BR, intl: SUPPORT_URL_INTL };
       <button class="cs-item" data-act="ranking" type="button"><span class="cs-tick">▸</span>RANKING</button>
       <!-- MAPA saiu do menu (o mapa se escolhe dentro de SINGLE PLAYER / CTF); no
            lugar entrou FEEDBACK (pedido do dono, 07/08), que alimenta a lista da
-           futura newsletter - ver /api/feedback e supabase/migrations/013. -->
+           futura newsletter - ver /api/feedback e o contrato em tools/eval/telemetry-check.mjs. -->
       <button class="cs-item" data-act="feedback" type="button"><span class="cs-tick">▸</span>FEEDBACK</button>
       <button class="cs-item" data-act="apoie" type="button"><span class="cs-tick">▸</span>APOIE O JOGO</button>
       <button class="cs-item" data-act="sobre" type="button"><span class="cs-tick">▸</span>SOBRE O JOGO</button>
@@ -914,7 +914,7 @@ window.__SUPPORT = { br: SUPPORT_URL_BR, intl: SUPPORT_URL_INTL };
   </div>
 </div>
 
-<!-- Ranking (local + global quando o Supabase estiver ligado) -->
+<!-- Ranking (local + global quando ligado no servidor) -->
 <div id="ranking-panel" class="screen hidden">
   <div class="panel center-panel">
     <h2>RANKING</h2>
