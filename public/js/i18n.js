@@ -276,9 +276,9 @@ const FRASES = {
   voltaTreta: { pt: () => 'De volta pra treta!', en: () => 'Back to the fight!' },
   rodadaDe: { pt: (a, b) => `RODADA ${a}/${b}`, en: (a, b) => `ROUND ${a}/${b}` },
   respawnEm: { pt: (s) => `Respawn em ${s}`, en: (s) => `Respawn in ${s}` },
-  melhorDe5: { pt: () => 'MATA-MATA · MELHOR DE 5', en: () => 'DEATHMATCH · BEST OF 5' },
-  melhorDeN: { pt: (n) => `MATA-MATA · MELHOR DE ${n}`, en: (n) => `DEATHMATCH · BEST OF ${n}` },
-  ctfMelhorDeN: { pt: (n) => `CAPTURE A BANDEIRA · MELHOR DE ${n}`, en: (n) => `CAPTURE THE FLAG · BEST OF ${n}` },
+  melhorDe5: { pt: () => 'MATA-MATA · 5 ROUNDS', en: () => 'DEATHMATCH · 5 ROUNDS' },
+  melhorDeN: { pt: (n) => `MATA-MATA · ${n} ROUNDS`, en: (n) => `DEATHMATCH · ${n} ROUNDS` },
+  ctfMelhorDeN: { pt: (n) => `CAPTURE A BANDEIRA · ${n} ROUNDS`, en: (n) => `CAPTURE THE FLAG · ${n} ROUNDS` },
   resumoPartida: {
     pt: (modo, n, armas) => `${modo}  ·  ${n} VS ${n}  ·  ARMAS: ${armas}`,
     en: (modo, n, armas) => `${modo}  ·  ${n} VS ${n}  ·  WEAPONS: ${armas}`,

@@ -2197,12 +2197,8 @@ export class Game {
      gateado por `!this.ctf` (game.js:update), o que fazia o modo CAPTURA rodar pra sempre —
      rounds infinitos, nenhuma tela de fim, e o placar do topo subindo sem teto. */
   _fimDaPartida() {
-    /* O CAPTURA mantém melhor de 3 como padrão porque a rodada de bandeira é 2-3× mais
-       longa, mas a seleção pode escolher outro teto ímpar. O tempo ainda é a rede de segurança. */
-    if (this.ctf)
-      return this.roundsWon.E >= this.roundsToWin || this.roundsWon.B >= this.roundsToWin
-        || this.roundNum >= this.roundsMax || this.ctfMatchLeft <= 0;
-    return this.roundsWon.E >= this.roundsToWin || this.roundsWon.B >= this.roundsToWin || this.roundNum >= this.roundsMax;
+    if (this.ctf) return this.roundNum >= this.roundsMax || this.ctfMatchLeft <= 0;
+    return this.roundNum >= this.roundsMax;
   }
   // teto de rodadas do modo em jogo — o HUD conta "RODADA n/N" com este número
   get roundsMax() { return this._roundsMax; }
@@ -2218,6 +2214,8 @@ export class Game {
       : ((this.matchKills.E + this.roundKills.E) >= (this.matchKills.B + this.roundKills.B) ? 'E' : 'B');
     const mine = winner === this.playerTeam;
     // Tela de fim estilo CoD/Valorant: VITÓRIA/DERROTA gigante, time vencedor no sub.
+    const accent = tons(this.playerFaction).base.match(/[\da-f]{2}/gi)?.map((byte) => parseInt(byte, 16));
+    if (accent) this.el.matchEnd.style.setProperty('--me-accent-rgb', accent.join(','));
     this.el.matchEnd.classList.toggle('win', mine);
     this.el.matchEnd.classList.toggle('lose', !mine);
     this.el.matchTitle.textContent = mine ? tr('VITÓRIA') : tr('DERROTA');
@@ -2395,14 +2393,17 @@ export class Game {
     if (charId) { this.playerDef = byId(charId); this.playerCharId = charId; p.def = this.playerDef; }   // personagem do novo lado
     const oldTeam = this.playerTeam;
     const newTeam = oldTeam === 'E' ? 'B' : 'E';
+    const oldFaction = this.playerFaction;
     this.playerTeam = newTeam; this.enemyTeam = oldTeam;
+    this.playerFaction = this.enemyFaction;
+    this.enemyFaction = oldFaction;
     p.team = newTeam;
     // rebalanceia 4×4: um bot do time novo deserta pro time velho
     const candidates = this.bots.filter(b => b.team === newTeam);
     const swapBot = candidates[(Math.random() * candidates.length) | 0];
     if (swapBot) {
       swapBot.team = oldTeam;
-      const defs = CHARACTERS.filter(c => c.team === oldTeam && c.id !== p.def.id);
+      const defs = CHARACTERS.filter(c => c.team === oldFaction && c.id !== p.def.id);
       const newDef = defs[(Math.random() * defs.length) | 0];
       swapBot.def = newDef; swapBot.name = newDef.name;
       this.scene.remove(swapBot.mesh.group);

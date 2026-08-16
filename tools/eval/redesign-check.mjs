@@ -78,6 +78,9 @@ const alvoPorMutante = {
   'splash-conteudo-atras': 'UIR35',
   'placar-sem-brasoes': 'UIR36',
   'placar-volta-topo': 'UIR37',
+  'backend-aviso-volta': 'UIR38',
+  'faccao-mostra-antes-da-arte': 'UIR39',
+  'troca-m-abre-pausa': 'UIR40',
 };
 if (MUTANTE && !alvoPorMutante[MUTANTE]) {
   console.error(`mutante desconhecido: ${MUTANTE}`);
@@ -249,11 +252,11 @@ css = muta('hud-fonte-antiga', css,
   '#ammo{order:0;font-family:var(--font);',
   '#ammo{order:0;font-family:var(--aaa-font-display);');
 css = muta('resultado-corta-personagem', css,
-  'background:var(--me-art,none) calc(100% - clamp(20px,7vw,120px)) bottom/auto 96% no-repeat;',
+  'background:var(--me-art,none) right bottom/contain no-repeat',
   'background:var(--me-art,none) center top/cover no-repeat;');
 css = muta('resultado-sem-degrade', css,
-  '-webkit-mask-image:radial-gradient(ellipse 42% 92% at 77% 52%,#000 0%,#000 70%,transparent 100%);',
-  '-webkit-mask-image:none;');
+  'background:linear-gradient(90deg,rgba(var(--bg-900-rgb),.98) 0%,rgba(var(--bg-900-rgb),.34) 18%,rgba(var(--bg-900-rgb),0) 42%)',
+  'background:none');
 css = muta('loading-volta-grande', css,
   'width:min(86px,6.8vw);height:min(144px,15.2vh);pointer-events:none;',
   'width:min(430px,34vw);height:min(720px,76vh);pointer-events:none;');
@@ -305,6 +308,15 @@ i18n = muta('idioma-por-navegador', i18n,
 astro = muta('idioma-prerender', astro,
   'export const prerender = false;',
   'export const prerender = true;');
+main = muta('backend-aviso-volta', main,
+  "function submitNote(msg) {\n  console.warn('[ranking]', msg);\n}",
+  "function submitNote(msg) {\n  console.warn('[ranking]', msg);\n  const el = document.getElementById('match-stats');\n  if (el) el.textContent += ` SUPABASE_SERVICE_ROLE_KEY ${msg}`;\n}");
+main = muta('faccao-mostra-antes-da-arte', main,
+  "await factionArtReady;\n  setTeamStep('side');",
+  "setTeamStep('side');");
+main = muta('troca-m-abre-pausa', main,
+  "game.setPaused(true);\n    switchMode = true;",
+  "if (document.pointerLockElement) document.exitPointerLock();\n    switchMode = true;");
 
 function literalIds() {
   const bloco = characters.match(/export const CHARACTERS = \[([\s\S]*?)\n\];\nexport const byId/);
@@ -420,28 +432,45 @@ for (const arquivo of resultadoImg) {
   hashResultado.update(rel).update('\0').update(readFileSync(join(ROOT, rel))).update('\0');
 }
 const resultImagesSha256 = hashResultado.digest('hex');
-let resultadoHeroBuf = readFileSync(join(ROOT, 'public/img/resultado/mst-vitoria.webp'));
-let resultadoDerrotaBuf = readFileSync(join(ROOT, 'public/img/resultado/mst-derrota.webp'));
+const resultadoBufPorArquivo = new Map(resultadoImg.map((arquivo) => [
+  arquivo,
+  readFileSync(join(ROOT, 'public/img/resultado', arquivo)),
+]));
 if (MUTANTE === 'resultado-sem-alpha') {
-  resultadoHeroBuf = Buffer.from(resultadoHeroBuf);
+  const resultadoHeroBuf = Buffer.from(resultadoBufPorArquivo.get('mst-vitoria.webp'));
   const chunk = resultadoHeroBuf.indexOf(Buffer.from('VP8X'));
   if (chunk >= 0) {
     resultadoHeroBuf[chunk + 8] &= ~0x10;
+    resultadoBufPorArquivo.set('mst-vitoria.webp', resultadoHeroBuf);
     mutacaoAplicou = true;
   }
 }
 if (MUTANTE === 'resultado-derrota-sem-alpha') {
-  resultadoDerrotaBuf = Buffer.from(resultadoDerrotaBuf);
+  const resultadoDerrotaBuf = Buffer.from(resultadoBufPorArquivo.get('mst-derrota.webp'));
   const chunk = resultadoDerrotaBuf.indexOf(Buffer.from('VP8X'));
   if (chunk >= 0) {
     resultadoDerrotaBuf[chunk + 8] &= ~0x10;
+    resultadoBufPorArquivo.set('mst-derrota.webp', resultadoDerrotaBuf);
     mutacaoAplicou = true;
   }
 }
-const resultadoHeroMeta = metaWebpAlpha(resultadoHeroBuf);
-const resultadoDerrotaMeta = metaWebpAlpha(resultadoDerrotaBuf);
-const resultadoHeroBounds = await alphaBounds(resultadoHeroBuf);
-const resultadoDerrotaBounds = await alphaBounds(resultadoDerrotaBuf);
+const resultadoVisual = await Promise.all([...resultadoBufPorArquivo].map(async ([arquivo, buf]) => ({
+  arquivo,
+  pose: arquivo.endsWith('-vitoria.webp') ? 'vitoria' : 'derrota',
+  meta: metaWebpAlpha(buf),
+  bounds: await alphaBounds(buf),
+})));
+const resultadoRuins = resultadoVisual.filter(({ meta, bounds }) => {
+  const [width, height] = [1024, 1536];
+  const usoPrincipal = 1 - bounds.top - bounds.bottom;
+  return !meta.alpha || meta.width !== width || meta.height !== height
+    || bounds.total < width * height * .01
+    || bounds.top < .015 || bounds.top > .20
+    || bounds.bottom < .015 || bounds.bottom > .20
+    || bounds.right < .015 || bounds.right > .08
+    || bounds.left < .015 || bounds.left > .65
+    || usoPrincipal < .72;
+});
 let resultAudit = {};
 try { resultAudit = JSON.parse(staticAudit); } catch { /* ausência ou JSON inválido reprova UIA1 */ }
 const punkAvatarSha256 = createHash('sha256').update(readFileSync(join(ROOT, 'public/img/chars/avatars/punk.webp'))).digest('hex');
@@ -636,15 +665,12 @@ const hudArma2D = /id="weapon-hud"/.test(astro) && /id="ammo-bars"/.test(astro)
   && /\.weapon-mask\{[^}]*mask:var\(--weapon-mask\) center\/contain no-repeat/.test(css)
   && /#ammo-bars\{[^}]*display:grid/.test(css)
   && /#ammo\{[^}]*font-family:var\(--font\)/.test(css);
-const resultadoIntegrado = /\.me-hero\{[^}]*position:absolute[^}]*inset:0[^}]*overflow:visible/.test(css)
-  && /\.me-hero\{[^}]*background:var\(--me-art,none\) calc\(100% - clamp\(20px,7vw,120px\)\) bottom\/auto 96% no-repeat/.test(css)
-  && /\.me-hero\{[^}]*-webkit-mask-image:radial-gradient\(ellipse 42% 92% at 77% 52%,#000 0%,#000 70%,transparent 100%\)/.test(css)
-  && /\.me-hero\{[^}]*mask-image:radial-gradient\(ellipse 42% 92% at 77% 52%,#000 0%,#000 70%,transparent 100%\)/.test(css)
-  && /\.me-wrap::after\{[^}]*radial-gradient\(ellipse 48% 72% at 77% 58%/.test(css)
-  && resultadoHeroMeta.alpha && resultadoHeroMeta.width === 1024 && resultadoHeroMeta.height === 1536
-  && resultadoDerrotaMeta.alpha && resultadoDerrotaMeta.width === 1024 && resultadoDerrotaMeta.height === 1536
-  && [resultadoHeroBounds, resultadoDerrotaBounds].every((b) => b.top >= .02 && b.top <= .12
-    && b.bottom <= .05 && b.left >= .03 && b.right >= .03);
+const resultadoIntegrado = /\.me-hero\{[^}]*position:absolute[^}]*inset:2\.5% 0 0 44%[^}]*overflow:visible/.test(css)
+  && /\.me-hero\{[^}]*background:var\(--me-art,none\) right bottom\/contain no-repeat/.test(css)
+  && !/\.me-hero\{[^}]*(?:mask-image|-webkit-mask-image)/.test(css)
+  && /\.me-hero::after\{[^}]*linear-gradient\(90deg[^}]*rgba\(var\(--bg-900-rgb\),0\) 42%/.test(css)
+  && /\.me-wrap::after\{[^}]*--me-accent-rgb/.test(css)
+  && resultadoRuins.length === 0;
 const loadingStageCss = (css.match(/#load-character-stage\{([^}]*)\}/) || [])[1] || '';
 const loadingCompactoDireita = /width:min\(86px,6\.8vw\)/.test(loadingStageCss)
   && /height:min\(144px,15\.2vh\)/.test(loadingStageCss)
@@ -723,7 +749,7 @@ const opcoesPartidaNoMapa = /id="ms-wpn-mode"/.test(astro)
   && /roundsMax: matchRounds\(\),/.test(main)
   && /constructor\(\{[^}]*roundsMax/.test(game)
   && /this\._roundsMax = \[1, 3, 5, 7\]\.includes\(requestedRounds\)/.test(game)
-  && /this\.roundsWon\.E >= this\.roundsToWin/.test(game)
+  && /if \(this\.ctf\) return this\.roundNum >= this\.roundsMax \|\| this\.ctfMatchLeft <= 0;[\s\S]{0,80}return this\.roundNum >= this\.roundsMax;/.test(game)
   && /get roundsMax\(\) \{ return this\._roundsMax; \}/.test(game);
 const semBordaTracejada = !/(?:--hazard|var\(--hazard\)|border(?:-(?:bottom|top|left|right|style))?[^;}{]*(?:dashed|dotted))/i.test(css)
   && !/border(?:-(?:bottom|top|left|right|style))?[^;}{]*(?:dashed|dotted)/i.test(dev);
@@ -744,6 +770,17 @@ const placarCentralizado = /<div class="sb-center">[\s\S]{0,180}<h3>CORO SOLTO -
   && /#scoreboard \.sb-center\{position:absolute;inset:0 64px;display:flex;flex-direction:column;justify-content:center;/.test(css)
   && /#scoreboard \.sb-center>h3\{position:static;[^}]*width:100%/.test(css)
   && /#scoreboard \.sb-center>\.sb-cols\{position:static;[^}]*width:100%/.test(css);
+const submitNoteBlock = blocoFuncao(main, 'submitNote');
+const backendSoNoConsole = /console\.warn\('\[ranking\]', msg\)/.test(submitNoteBlock)
+  && !/(?:document|appendChild|match-stats|SUPABASE_)/.test(submitNoteBlock);
+const faccaoPreloadBloqueante = /const FACTION_ART_URLS = \[[^\]]*time-e\.webp[^\]]*time-b\.webp[^\]]*tribos\.webp[^\]]*palhacos\.webp[^\]]*funkeiros\.webp[^\]]*\]/s.test(main)
+  && /const factionArtImages = FACTION_ART_URLS\.map/.test(main)
+  && /const factionArtReady = Promise\.all\(factionArtImages\.map/.test(main)
+  && /\$\('btn-jogar'\)\.onclick = async \(\) => \{[\s\S]{0,900}await factionArtReady;[\s\S]{0,120}show\('team-select'\)/.test(main)
+  && /target\.screen === 'faction'[\s\S]{0,80}await factionArtReady;[\s\S]{0,120}show\('team-select'\)/.test(main);
+const trocaMConsistente = /game\.onRequestSwitch = \(\) => \{[\s\S]{0,180}game\.setPaused\(true\);[\s\S]{0,120}pickTeam\(game\.enemyFaction\)/.test(main)
+  && /\$\('char-back'\)\.onclick = \(\) => \{[\s\S]{0,400}if \(switchMode && game\)[\s\S]{0,300}game\.resume\(\)/.test(main)
+  && /const oldFaction = this\.playerFaction;[\s\S]{0,160}this\.playerFaction = this\.enemyFaction;[\s\S]{0,80}this\.enemyFaction = oldFaction;/.test(game);
 const idiomaGeo = /const EN_GEO_COUNTRIES = new Set\(\[[\s\S]*?'US'[\s\S]*?'GB'/.test(astro)
   && /export const prerender = false/.test(astro)
   && /const GEO_COUNTRY = \(Astro\.request\.headers\.get\('x-vercel-ip-country'\)[\s\S]*?cf-ipcountry/.test(astro)
@@ -800,7 +837,9 @@ const resultados = [
   ['UIR18', 'HUD 1–5 usa silhuetas 2D planas na lateral direita', hudArma2D,
     'slots vêm de _wpnIcon; arte WebP 3D fica oculta e a coluna lateral não tem placas'],
   ['UIR19', 'resultado enquadra o personagem inteiro e dissolve a foto no fundo', resultadoIntegrado,
-    `palco full-bleed + máscara radial; vitória topo=${(resultadoHeroBounds.top * 100).toFixed(2)}% base=${(resultadoHeroBounds.bottom * 100).toFixed(2)}% alpha=${resultadoHeroMeta.alpha}; derrota topo=${(resultadoDerrotaBounds.top * 100).toFixed(2)}% base=${(resultadoDerrotaBounds.bottom * 100).toFixed(2)}% alpha=${resultadoDerrotaMeta.alpha}`],
+    resultadoRuins.length
+      ? `${resultadoRuins.length}/${resultadoVisual.length} artes cortadas, opacas ou no quadro errado: ${resultadoRuins.slice(0, 4).map(({ arquivo, meta, bounds }) => `${arquivo} ${meta.width}×${meta.height} alpha=${meta.alpha} margens=${[bounds.left, bounds.right, bounds.top, bounds.bottom].map((v) => (v * 100).toFixed(1)).join('/')}`).join(' · ')}`
+      : `${resultadoVisual.length}/${resultadoVisual.length} recortes alpha do elenco inteiro, com folga nos quatro lados`],
   ['UIR20', 'idioma automático usa país conhecido e português como fallback', idiomaGeo,
     'EUA/Reino Unido/Europa elegível recebem inglês; Portugal, Espanha e país desconhecido ficam em português'],
   ['UIR21', 'loading ocupa um quinto do palco anterior e olha para o avanço da barra', loadingCompactoDireita,
@@ -837,6 +876,12 @@ const resultados = [
     'cabeçalho geral e cada tabela resolvem /img/brasoes pela facção que ocupa o lado'],
   ['UIR37', 'conteúdo do placar do TAB fica centralizado verticalmente', placarCentralizado,
     'cabeçalho e tabelas formam um único bloco flex centrado no viewport'],
+  ['UIR38', 'falha de ranking nunca vaza detalhe de backend na interface', backendSoNoConsole,
+    'submitNote preserva diagnóstico no console e não escreve no DOM nem publica nomes de variáveis'],
+  ['UIR39', 'as cinco artes de facção terminam de decodificar antes da tela aparecer', faccaoPreloadBloqueante,
+    'o preload começa no boot e o primeiro acesso aguarda o mesmo Promise antes de mostrar team-select'],
+  ['UIR40', 'troca com M pausa uma única camada e mantém facção, lado e volta coerentes', trocaMConsistente,
+    'o jogo pausa antes do pointer lock sair; seleção usa enemyFaction e VOLTAR retoma a partida'],
 ];
 
 for (const [id, desc, ok, evid] of resultados) console.log(`${ok ? '✓' : '✗'} ${id} · ${desc}\n  ${evid}`);

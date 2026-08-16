@@ -127,7 +127,7 @@ try {
     ],
   }));
   if (dmOptions.selected.join('/') !== 'awp/6/7' || dmOptions.stored.wpnMode !== 'awp'
-    || dmOptions.stored.bots !== 6 || dmOptions.stored.rounds !== 7 || !dmOptions.meta?.includes('MELHOR DE 7')) {
+    || dmOptions.stored.bots !== 6 || dmOptions.stored.rounds !== 7 || !dmOptions.meta?.includes('7 ROUNDS')) {
     throw new Error(`opções Mata-mata não persistiram: ${JSON.stringify(dmOptions)}`);
   }
   await page.screenshot({ path: `${OUT}/01_mata-mata-abre-mapas.png` });
@@ -285,9 +285,17 @@ try {
     stage: (() => { const r = document.getElementById('me-hero').getBoundingClientRect(); return [r.left, r.top, r.width, r.height]; })(),
     mask: getComputedStyle(document.getElementById('me-hero')).maskImage,
     size: getComputedStyle(document.getElementById('me-hero')).backgroundSize,
+    position: getComputedStyle(document.getElementById('me-hero')).backgroundPosition,
+    accent: getComputedStyle(document.getElementById('match-end')).getPropertyValue('--me-accent-rgb').trim(),
   }));
+  const victoryStage = victory.stage;
+  const resultViewport = page.viewportSize();
   if (victory.title !== 'VITÓRIA' || !victory.art.includes('mst-vitoria.webp')
-    || victory.stage.join(',') !== '0,0,1536,1024' || !victory.mask.includes('radial-gradient') || victory.size !== 'auto 96%') {
+    || Math.abs(victoryStage[0] - resultViewport.width * .44) > 1 || Math.abs(victoryStage[1] - resultViewport.height * .025) > 1
+    || Math.abs(victoryStage[0] + victoryStage[2] - resultViewport.width) > 1
+    || Math.abs(victoryStage[1] + victoryStage[3] - resultViewport.height) > 1
+    || victory.mask !== 'none' || victory.size !== 'contain' || victory.position !== '100% 100%'
+    || victory.accent !== '255,85,85') {
     throw new Error(`vitória inválida: ${JSON.stringify(victory)}`);
   }
   await page.screenshot({ path: `${OUT}/08_vitoria-direto.png` });
@@ -299,9 +307,16 @@ try {
     art: document.getElementById('me-hero').style.getPropertyValue('--me-art'),
     stage: (() => { const r = document.getElementById('me-hero').getBoundingClientRect(); return [r.left, r.top, r.width, r.height]; })(),
     mask: getComputedStyle(document.getElementById('me-hero')).maskImage,
+    size: getComputedStyle(document.getElementById('me-hero')).backgroundSize,
+    filter: getComputedStyle(document.getElementById('me-hero')).filter,
   }));
+  const defeatStage = defeat.stage;
   if (defeat.title !== 'DERROTA' || !defeat.art.includes('mst-derrota.webp')
-    || defeat.stage.join(',') !== '0,0,1536,1024' || !defeat.mask.includes('radial-gradient')) {
+    || Math.abs(defeatStage[0] - resultViewport.width * .44) > 1 || Math.abs(defeatStage[1] - resultViewport.height * .025) > 1
+    || Math.abs(defeatStage[0] + defeatStage[2] - resultViewport.width) > 1
+    || Math.abs(defeatStage[1] + defeatStage[3] - resultViewport.height) > 1
+    || defeat.mask !== 'none' || defeat.size !== 'contain'
+    || !defeat.filter.includes('saturate(0.48)') || !defeat.filter.includes('brightness(0.72)')) {
     throw new Error(`derrota inválida: ${JSON.stringify(defeat)}`);
   }
   await page.screenshot({ path: `${OUT}/09_derrota-direto.png` });
@@ -312,7 +327,7 @@ try {
     rounds: document.querySelector('#match-stats div b')?.textContent,
     art: document.getElementById('me-hero').style.getPropertyValue('--me-art'),
   }));
-  if (victoryB.rounds !== '1 × 3' || !victoryB.art.includes('canarinho-vitoria.webp')) {
+  if (victoryB.rounds !== '1 × 4' || !victoryB.art.includes('canarinho-vitoria.webp')) {
     throw new Error(`vitória do lado B inválida: ${JSON.stringify(victoryB)}`);
   }
   console.log('✓ vitória direta do lado B: placar mantém ordem E × B');

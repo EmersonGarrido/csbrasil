@@ -2,7 +2,7 @@
 
 > Estado revisado: **2026-08-16**. Só entra aqui defeito com **evidência**: `arquivo:linha`, saída de
 > régua ou passo de reprodução. Suspeita sem medição vai para o fim, na seção
-> *Relatados, ainda não reproduzidos*.
+> *Relatos recentes e resolução*.
 >
 > Regra da casa: bug que o dono reporta vira **invariante permanente** em
 > `tools/eval/invariants.mjs`. Enquanto não virar, fica aqui com o campo `Régua: nenhuma`.
@@ -24,9 +24,9 @@ PULADAS:  4 (exigem browser ou arnês ausente)
 
 Colado de uma execução real de **16/08**. As 13 dívidas continuam todas identificadas em
 `KNOWN-RED.json` e não reprovam o processo; o gate terminou com código 0. `AUD1` passou
-depois do refresh do JSON de viewmodel. Na mesma árvore, o `check:fast` percorreu os 43
+depois do refresh do JSON de viewmodel. Na mesma árvore, o `check:fast` percorreu os 44
 passos pelo runner e todos passaram — inclusive `feet:check`, `anims:check` e o novo
-`eval:redesign`; não existe mais a antiga corrente de `&&` que escondia gates posteriores.
+`eval:matchoptions`; não existe mais a antiga corrente de `&&` que escondia gates posteriores.
 
 Mudou em 04/08: **CHR5B saiu do aviso e ficou VERDE** (27/44 personagens sem mapa de
 superfície → 0/44) e entrou a **CHR7** (convenção de skin), verde — daí 49 e não 48.
@@ -1168,6 +1168,22 @@ Zé da Gotinha, Canarinho, Black Metal, Bonzo ou Mandrake conforme a facção. A
 completas foram inspecionadas com passada alternada, arma nas duas mãos e alpha, e seus
 bytes aprovados ficaram presos ao hash estático.
 
+**Quarta revisão do dono (16/08).** *"essa tela de vitória/derrota eu já falei 20x,
+tem que arrumar: o personagem tem que aparecer por inteiro e, se possível, encostado no
+right; o bg integrado com ele como se fosse uma coisa só"*. A captura em 2048×1280 ainda
+mostra cabeça/mão e pés cortados e uma moldura retangular escura atrás da arte. A revisão
+anterior, portanto, não fechou o enquadramento servido.
+
+**Resolvido na quarta revisão.** A régua de pixels ficou vermelha em **87/88** artes: os
+arquivos quadrados opacos não tinham como revelar corpo inteiro com CSS. Os 44 personagens
+do elenco atual foram republicados em recorte alpha 1024×1536, sem inventar personagem; Punk
+e Sindicato foram conferidos nos próprios GLBs. UIR19 agora lê todos os pixels e exige folga
+superior/inferior, alinhamento à direita e pelo menos 72% do eixo vertical ocupado. A tela usa
+`contain`, sem máscara e sem retângulo; vitória e derrota em 1536×1024 mostram cabeça, mãos e
+botas inteiras. Os mutantes de `cover`, remoção do degradê e alpha ausente deixam UIR19
+vermelha. Custo: o lote de resultado passa a 7,2 MB; é carregado sob demanda, uma arte por
+fim de partida.
+
 **Régua.** A fonte única dos mutantes vigentes é `alvoPorMutante` em
 `tools/eval/redesign-check.mjs`; a documentação não repete essa lista. Para esta revisão,
 `loading-sem-canvas`, `loading-uma-acao`, `loading-uma-faccao` e `mapa-volta-grade`
@@ -2290,7 +2306,48 @@ publicação em potencial, e o `.gitignore` não protege de um deploy local.
 
 ---
 
-## Relatados, ainda não reproduzidos
+## Relatos recentes e resolução
+
+- **~~BUG-62 · shader dos personagens não compila no Chromium headless~~ · RESOLVIDO 16/08.** Descoberto pelo
+  smoke real em 16/08: `web-assets.spec.js` carregou o GLB e a ficha, mas o overlay de debug
+  bloqueou `#char-confirm` por 900 tentativas. Primeiro erro do shader: linha 1538,
+  `textureLod(map, vMapUv, csAlbLod)` sem sobrecarga disponível; depois vieram `.rgb`,
+  dimensão e conversão como efeitos em cascata. A origem é `CS_ALB_REGIONAL` em
+  `characters.js`; o Three r160 gera uma camada de compatibilidade própria para LOD e o bloco
+  injetado a contornava. WG11 nasceu vermelha. A correção usa `texture2DLodEXT`, nome que o
+  preâmbulo do Three r160 traduz para `textureLod` no perfil correto; o mutante que devolve a
+  chamada direta deixa WG11 vermelha. O mesmo smoke caiu de **17,2 min/timeout** para
+  **16,5 s verde**, abriu a partida real e não gerou `crash-overlay`.
+
+- **~~BUG-58 · trocar de time com M quebra a tela~~ · RESOLVIDO 16/08.** Palavras do dono:
+  *"o fluxo de trocar de time parece quebrado quando aperto m ele quebra a tela"*.
+  O smoke reproduziu o estado inválido: depois de `KeyM` e `pointerlockchange`, `#char-select`
+  estava visível **junto** com `#pause-menu` (`expected hidden, received visible`). A causa era
+  sair do pointer lock antes de marcar a pausa; o evento de perda abria uma segunda camada.
+  Agora a pausa ocorre primeiro, a seleção usa `enemyFaction` (não o lado físico), VOLTAR
+  restaura facção/time/personagem e `_switchTeam()` troca também as duas facções. O smoke
+  completo passa e `--mutante=troca-m-abre-pausa` deixa UIR40 vermelha.
+
+- **~~BUG-59 · opção de 5 rounds encerra a partida em 3~~ · RESOLVIDO 16/08.** Palavras do dono:
+  *"o jogo falava 5 rounds mas teve 3"*. A opção se
+  chama “Nº DE ROUNDS”, mas `_fimDaPartida()` encerrava ao atingir maioria. A nova régua
+  ficou vermelha em **8/8** combinações (1/3/5/7 × mata-mata/CTF). O contrato agora é literal:
+  5 selecionado = 5 rounds disputados; só o relógio global do CTF continua como rede de
+  segurança. `eval:matchoptions` passa e os mutantes `fixo` e `maioria` ficam vermelhos.
+
+- **~~BUG-60 · aviso interno do Supabase aparece na tela final~~ · RESOLVIDO 16/08.** Palavras do dono:
+  *"esses erros de supabase jamais devem aparecer no jogo"*. A captura
+  mostra `SUPABASE_URL` e `SUPABASE_SERVICE_ROLE_KEY` em vermelho dentro do placar final;
+  `submitNote()` anexava a mensagem técnica ao `#match-stats`. Ele agora registra somente
+  `console.warn('[ranking]', msg)`: não consulta DOM e não contém nomes de variáveis de
+  backend. UIR38 passa; `--mutante=backend-aviso-volta` recoloca o vazamento e fica vermelho.
+
+- **~~BUG-61 · seleção de facções abre com arte em branco~~ · RESOLVIDO 16/08.** Palavras do dono:
+  *"carregando a tela de facções, ela deve ser preloaded já as imagens das facções pra não
+  dar delay e espaço em branco"*. As cinco imagens CSS (403.008 bytes) agora começam a
+  carregar no boot; tanto o fluxo normal quanto `?tela=faccao` aguardam o mesmo `decode()`
+  antes de mostrar `#team-select`. UIR39 passa e o mutante que remove o `await` fica vermelho;
+  o browser abre a facção diretamente sem espaço vazio nem skeleton.
 
 - **BUG-41 · `crypto.randomUUID` derruba presença em navegador incompatível (#143).**
   O cliente chamava o método diretamente ao criar `cs_anon` e `awpbr_token`; quando

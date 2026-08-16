@@ -254,6 +254,19 @@ function show(id) {
   else { applyHomeWall(); if (musicArmed) startMenuMusic(); }   // volta pra home: wallpaper + música de menu
 }
 const $ = id => document.getElementById(id);
+const FACTION_ART_URLS = ['/img/faccoes/time-e.webp', '/img/faccoes/time-b.webp', '/img/faccoes/tribos.webp', '/img/faccoes/palhacos.webp', '/img/faccoes/funkeiros.webp'];
+const factionArtImages = FACTION_ART_URLS.map((src) => {
+  const image = new Image();
+  image.decoding = 'async';
+  image.src = src;
+  return image;
+});
+const factionArtReady = Promise.all(factionArtImages.map((image) => (
+  image.decode ? image.decode() : new Promise((resolve, reject) => {
+    image.onload = resolve;
+    image.onerror = reject;
+  })
+))).catch((error) => console.warn('[facções] preload parcial', error));
 
 /* Wallpapers rotativos (wall-1..9): 1 por tela no fluxo home→setup→lado→personagem, sem
    repetir; o offset rotaciona a cada acesso (localStorage) pra variar entre visitas.
@@ -1284,7 +1297,7 @@ function syncPlayState() {
   }
   renderPlayerPlate();   // nick do card do menu acompanha a digitação
 }
-$('btn-jogar').onclick = () => {
+$('btn-jogar').onclick = async () => {
   if (!(nickEl.value || '').trim()) {
     // sem nick o JOGAR não morre: ele LEVA pro passo que falta (o nick não está mais
     // nesta tela, então um shake num campo invisível não diria nada a ninguém)
@@ -1296,6 +1309,7 @@ $('btn-jogar').onclick = () => {
     return;   // sem nick, sem treta
   }
   sfx.uiClick();
+  await factionArtReady;
   setTeamStep('side');
   show('team-select');
   window.__gameLaunch?.ready('menu');
@@ -1604,7 +1618,16 @@ document.querySelectorAll('.set-tab').forEach(tab => {
 });
 $('mobile-ok').onclick = () => { sfx.uiClick(); show('main-menu'); };
 $('team-back').onclick = () => { ui.back(); pickingEnemy = false; setEnemyPickMode(false); setTeamStep('side'); show('main-menu'); };
-$('char-back').onclick = () => { ui.back(); show('team-select'); };
+$('char-back').onclick = () => {
+  ui.back();
+  if (switchMode && game) {
+    switchMode = false;
+    currentTeam = game.playerTeam; currentFaction = game.playerFaction;
+    currentEnemyFaction = game.enemyFaction; currentChar = game.playerCharId;
+    show(null); game.resume(); return;
+  }
+  show('team-select');
+};
 // Setas do filmstrip: movem a SELEÇÃO (não só o scroll) e garantem a linha visível.
 const stripStep = (dir) => {
   const rows = [...document.querySelectorAll('.char-row')];
@@ -1691,9 +1714,9 @@ $('btn-menu').onclick = () => { sfx.uiClick(); quitToMenu(); };
 let switchMode = false;
 function armSwitchHook() {
   game.onRequestSwitch = () => {
-    if (document.pointerLockElement) document.exitPointerLock();
+    game.setPaused(true);
     switchMode = true;
-    pickTeam(game.enemyTeam);
+    pickTeam(game.enemyFaction);
   };
 }
 $('char-confirm').onclick = () => {
@@ -1706,7 +1729,11 @@ $('char-confirm').onclick = () => {
     switchMode = false;
     currentChar = selChar.id;
     show(null);
-    try { game._switchTeam(selChar.id); } catch (e) { console.error('switch team failed', e); }
+    try {
+      game._switchTeam(selChar.id);
+      currentTeam = game.playerTeam; currentFaction = game.playerFaction;
+      currentEnemyFaction = game.enemyFaction; currentChar = game.playerCharId;
+    } catch (e) { console.error('switch team failed', e); }
     game.resume();   // unpause + re-request pointer lock (fixes "M opens but game won't resume")
   } else {
     switchMode = false;
@@ -1824,13 +1851,6 @@ async function api(path, body) {
 }
 function submitNote(msg) {
   console.warn('[ranking]', msg);
-  const el = document.getElementById('match-stats');
-  if (el && !document.getElementById('match-end').classList.contains('hidden')) {
-    const d = document.createElement('div');
-    d.style.cssText = 'color:#ff8080;font-size:12px;width:100%';
-    d.textContent = '⚠ stats não enviados: ' + msg;
-    el.appendChild(d);
-  }
 }
 function traduErroSubmit(msg) {
   if (/identity|identidade|token|uid/i.test(msg) || rankingBloqueado)
@@ -2372,13 +2392,15 @@ window.__CS_MAIN_READY__ = true;
 window.__gameLaunch?.ready('boot');
 function showInspectionResult(won, character) {
   const end = $('match-end');
+  const accent = (PALETA[currentFaction]?.base || '#49a846').match(/[\da-f]{2}/gi)?.map((byte) => parseInt(byte, 16));
+  if (accent) end.style.setProperty('--me-accent-rgb', accent.join(','));
   end.classList.toggle('win', won);
   end.classList.toggle('lose', !won);
   $('match-title').textContent = won ? tr('VITÓRIA') : tr('DERROTA');
   const winnerName = tr(FACTION_NAME[won ? currentFaction : currentEnemyFaction] || 'TIME ADVERSÁRIO');
   $('match-sub').textContent = won ? frase('venceu', winnerName) : frase('perdeu', winnerName);
-  const playerRounds = won ? 3 : 1;
-  const enemyRounds = won ? 1 : 3;
+  const playerRounds = won ? 4 : 1;
+  const enemyRounds = won ? 1 : 4;
   const playerOnE = currentTeam === 'E';
   const roundsE = playerOnE ? playerRounds : enemyRounds;
   const roundsB = playerOnE ? enemyRounds : playerRounds;
@@ -2404,6 +2426,7 @@ async function openInspectionScreen(target) {
   if (target.screen === 'menu') { show('main-menu'); return; }
   if (target.screen === 'maps') { renderMapScreen(); show('map-screen'); return; }
   if (target.screen === 'faction') {
+    await factionArtReady;
     setEnemyPickMode(false); setTeamStep('side'); show('team-select'); ensureTeamPreviews(); return;
   }
   if (target.screen === 'character') {

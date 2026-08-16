@@ -24,6 +24,7 @@
      --mutante=qualidade-persistida volta a gravar o low temporário e acende WG8
      --mutante=canvas-reusado insiste num contexto fornecido que já falhou e acende WG9
      --mutante=preview-null remove o fallback do preview e acende WG10
+     --mutante=texture-lod-direto ignora a macro GLSL do Three e acende WG11
    ============================================================================ */
 import { readFileSync } from 'node:fs';
 
@@ -33,7 +34,7 @@ if (MUT === 'alto-primeiro') source = source.replace("rotulo: 'padrao'", "rotulo
 if (MUT === 'sem-webgl1') source = source.replaceAll("'webgl'", "'webgl-removido'").replaceAll("'experimental-webgl'", "'experimental-removido'");
 if (MUT === 'erro-provisorio') source = source.replace('if (!gl) continue;', "if (!gl) { console.error('tentativa provisoria'); continue; }");
 if (MUT === 'canvas-reusado') source = source.replace('if (suppliedCanvas) break tentativas;', 'if (suppliedCanvas) continue;');
-if (MUT && !['alto-primeiro', 'sem-webgl1', 'erro-provisorio', 'contexto-extra', 'fundo-fatal', 'sem-context-loss', 'qualidade-persistida', 'canvas-reusado', 'preview-null'].includes(MUT)) throw new Error(`mutante desconhecido: ${MUT}`);
+if (MUT && !['alto-primeiro', 'sem-webgl1', 'erro-provisorio', 'contexto-extra', 'fundo-fatal', 'sem-context-loss', 'qualidade-persistida', 'canvas-reusado', 'preview-null', 'texture-lod-direto'].includes(MUT)) throw new Error(`mutante desconhecido: ${MUT}`);
 
 source = source.replace("import * as THREE from 'three';", 'const THREE = globalThis.__WEBGL_TEST_THREE;');
 const nativeError = console.error.bind(console);
@@ -122,12 +123,14 @@ try {
 
   let main = readFileSync('public/js/main.js', 'utf8');
   let characters = readFileSync('public/js/characters.js', 'utf8');
+  const threeVendor = readFileSync('public/vendor/three.module.js', 'utf8');
   let site = readFileSync('public/js/site-bg.js', 'utf8');
   if (MUT === 'contexto-extra') main += "\ndocument.createElement('canvas').getContext('webgl2');";
   if (MUT === 'fundo-fatal') site = site.replace('{ optional: true }', '{ optional: false }');
   if (MUT === 'sem-context-loss') main = main.replace("renderer.domElement.addEventListener('webglcontextlost'", "renderer.domElement.addEventListener('removido'");
   if (MUT === 'qualidade-persistida') main = main.replace('quality: preferredQuality ?? settings.quality', 'quality: settings.quality');
   if (MUT === 'preview-null') main = main.replace('if (!p) return fallbackUrl;', '');
+  if (MUT === 'texture-lod-direto') characters = characters.replace('texture2DLodEXT(map, vMapUv, csAlbLod)', 'textureLod(map, vMapUv, csAlbLod)');
   const forbidden = (main.match(/createElement\('canvas'\)[\s\S]{0,180}getContext\(['\"]webgl/g) || []).length
     + (characters.match(/createElement\('canvas'\)[\s\S]{0,180}getContext\(['\"]webgl/g) || []).length;
   if (forbidden) failures.push(`WG5 boot ainda abre ${forbidden} contexto(s) de sonda`);
@@ -143,6 +146,11 @@ try {
     failures.push('WG8 modo compatibilidade pode persistir qualidade baixa fora da sessão');
   if (!main.includes('if (!p) return fallbackUrl;'))
     failures.push('WG10 falha do renderer de preview ainda pode desreferenciar null');
+  const regional = characters.match(/const CS_ALB_REGIONAL = `([\s\S]*?)`;/)?.[1] || '';
+  if (!regional.includes('texture2DLodEXT(map, vMapUv, csAlbLod)') || /\btextureLod\(/.test(regional))
+    failures.push('WG11 shader regional ignora texture2DLodEXT e pode não compilar no perfil GLSL gerado pelo Three');
+  if (!threeVendor.includes('#define texture2DLodEXT textureLod'))
+    failures.push('WG11 vendor não publica a macro de compatibilidade exigida pelo shader regional');
 } finally {
   console.error = nativeError;
 }
