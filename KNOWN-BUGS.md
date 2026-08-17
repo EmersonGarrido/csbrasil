@@ -1,6 +1,6 @@
 # BUGS CONHECIDOS — CORO SOLTO: Treta Suprema
 
-> Estado revisado: **2026-08-16**. Só entra aqui defeito com **evidência**: `arquivo:linha`, saída de
+> Estado revisado: **2026-08-17**. Só entra aqui defeito com **evidência**: `arquivo:linha`, saída de
 > régua ou passo de reprodução. Suspeita sem medição vai para o fim, na seção
 > *Relatos recentes e resolução*.
 >
@@ -22,12 +22,11 @@ AVISOS:   VM15 e BOT2 fora do alvo
 PULADAS:  4 (exigem browser ou arnês ausente)
 ```
 
-Colado de uma execução real de **16/08**. As 13 dívidas continuam todas identificadas em
+Colado de uma execução real de **17/08**. As 13 dívidas continuam todas identificadas em
 `KNOWN-RED.json` e não reprovam o processo; o gate terminou com código 0. `AUD1` passou
-depois do refresh do JSON de viewmodel. Na mesma árvore, o `check:fast` percorreu os 45
-passos pelo runner e todos passaram — inclusive `feet:check`, `anims:check`,
-`eval:matchoptions` e `menuwalls:check`; não existe mais a antiga corrente de `&&` que
-escondia gates posteriores.
+depois do refresh do JSON de viewmodel. Na mesma árvore, o `check:fast` percorreu os **51
+passos** pelo runner e todos passaram — inclusive os novos `eval:parquewheel`,
+`eval:velhooeste`, `eval:penitenciaria`, `eval:backendhints` e `changelog:check`.
 
 Mudou em 04/08: **CHR5B saiu do aviso e ficou VERDE** (27/44 personagens sem mapa de
 superfície → 0/44) e entrou a **CHR7** (convenção de skin), verde — daí 49 e não 48.
