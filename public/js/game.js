@@ -1626,6 +1626,9 @@ export class Game {
          registrou a derrota ("use C pra agachar"); quem venceu foi `_travaAtalhos()`, com
          a Keyboard Lock API em tela cheia, mais a confirmação de saída do main.js. */
       if ((e.ctrlKey || e.metaKey) && document.pointerLockElement) e.preventDefault();
+      // Firefox Quick Find: qualquer letra abre a barra de busca se não cancelar o evento.
+      // Em pointer lock o jogo é dono do teclado — engole tudo.
+      if (document.pointerLockElement) e.preventDefault();
       this.keys[e.code] = true;
       if (this.radioOpen) {
         const n = { Digit1: 1, Digit2: 2, Digit3: 3 }[e.code];
