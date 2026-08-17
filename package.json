@@ -1,6 +1,6 @@
 {
   "name": "coro-solto",
-  "version": "2.0.0-alpha.147",
+  "version": "2.0.0-alpha.148",
   "license": "AGPL-3.0-only",
   "description": "CORO SOLTO: Treta Suprema (ex-CS BRASIL) — FPS satírico de navegador com 5 facções brasileiras (site Astro + jogo vanilla em Three.js), gerado em par com agentes de IA (AI generated & AI friendly)",
   "scripts": {
@@ -108,8 +108,8 @@
     "//eval:botbrain": "Contrato de produção do BotBrain: coleta opt-in autenticada por UID, limites confiáveis, objetivo CTF, cache bust dos módulos, usuário não-root e balanceamento do corpus remoto. Mutantes: anonimo|ctf|optout|cache|root|poison.",
     "eval:botbrain": "node tools/eval/botbrain-safety-check.mjs",
     "//eval:posters": "O aspecto declarado de cada cartaz em POSTER_FILES (textures.js) bate com o pixel do arquivo em public/posters/? Erro >6% = arte esticada na parede (issue #79). `--mutate` estraga um número e prova que a régua morde.",
-"//eval:comentario": "A regra do orçamento de comentário (CONTRIBUTING \"Código não é relatório\", AGENTS \"orçamento quase zero\") nunca teve régua: quem cobrava era revisor humano ou bot de PR, sempre DEPOIS do push. Em 12/08 o greptile reprovou um comentário de 4 linhas EM INGLÊS no error-provenance.mjs - duas violações da mesma regra, num PR com 17 portões verdes. Mede só o que o diff ACRESCENTA contra a base (ratchet, não faxina) em public/js e src; tools/eval fica fora porque cabeçalho longo de régua é o padrão da casa. --mutante=bloco-longo|comentario-ingles provam que morde.",
-"//eval:fixture": "A lei 3 sempre valeu para tools/eval e nunca para scripts/ci - que decide automerge, dedupe de crash, triagem e roteamento de PR. Em 12/08 dois bugs moraram exatamente lá: um filtro que nunca casava e um separador de registro que colidia com o dado; os dois morreriam na primeira fixture. Cobra --selftest em todo scripts/ci/*.py TOCADO pelo diff. Ratchet: a dívida herdada (11 scripts) está listada e só pode encolher. --mutante=lista-cresce|selftest-quebrado.",
+    "//eval:comentario": "A regra do orçamento de comentário (CONTRIBUTING \"Código não é relatório\", AGENTS \"orçamento quase zero\") nunca teve régua: quem cobrava era revisor humano ou bot de PR, sempre DEPOIS do push. Em 12/08 o greptile reprovou um comentário de 4 linhas EM INGLÊS no error-provenance.mjs - duas violações da mesma regra, num PR com 17 portões verdes. Mede só o que o diff ACRESCENTA contra a base (ratchet, não faxina) em public/js e src; tools/eval fica fora porque cabeçalho longo de régua é o padrão da casa. --mutante=bloco-longo|comentario-ingles provam que morde.",
+    "//eval:fixture": "A lei 3 sempre valeu para tools/eval e nunca para scripts/ci - que decide automerge, dedupe de crash, triagem e roteamento de PR. Em 12/08 dois bugs moraram exatamente lá: um filtro que nunca casava e um separador de registro que colidia com o dado; os dois morreriam na primeira fixture. Cobra --selftest em todo scripts/ci/*.py TOCADO pelo diff. Ratchet: a dívida herdada (11 scripts) está listada e só pode encolher. --mutante=lista-cresce|selftest-quebrado.",
     "eval:fixture": "node tools/eval/fixture-check.mjs",
     "eval:comentario": "node tools/eval/comentario-check.mjs",
     "eval:posters": "node tools/eval/poster-aspect-check.mjs",
