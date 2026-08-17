@@ -10,7 +10,7 @@
 >
 <!-- BEGIN:GERADO:versao_atual — não edite à mão, rode `npm run docs` -->
 
-**O jogo está em `2.0.0-alpha.143`.** Prerelease do semver ordena sozinho
+**O jogo está em `2.0.0-alpha.144`.** Prerelease do semver ordena sozinho
 (`alpha` < `beta` < release), e o fluxo automático cuida do bump.
 
 > Bloco gerado por `node tools/gen-docs.mjs`. Fonte: `grep VERSION public/js/version.js · node -p "require('./package.json').version"`
@@ -22,6 +22,13 @@
 > das três tem tag git** (a última tag é `v1.12.4`). "v3" nunca existiu como coisa publicada.
 > O conteúdo e as datas das entradas continuam intactos; só o rótulo mudou, porque chamar de
 > 3.3.0 um build com P0 em aberto promete ao jogador uma estabilidade que ele não tem.
+
+## [2.0.0-alpha.144] — 2026-08-17
+
+### Mudado
+- fix: adiciona texturas faltantes do mapa Velho Oeste
+- fix: adiciona arquivos faltantes do mapa Velho Oeste (map_velho_oeste.js, eval)
+- feat(mapa): adiciona Penitenciária e Velho Oeste da Treta (#335)
 
 ## [2.0.0-alpha.143] — 2026-08-17
 
