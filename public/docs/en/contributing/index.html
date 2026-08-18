@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="generator" content="Docusaurus v3.6.3">
 <title data-rh="true">How to contribute | CORO SOLTO — Docs do Dev</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://www.csbrasil.online/docs/en/img/og-image.jpg"><meta data-rh="true" name="twitter:image" content="https://www.csbrasil.online/docs/en/img/og-image.jpg"><meta data-rh="true" property="og:url" content="https://www.csbrasil.online/docs/en/contributing"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" property="og:locale:alternate" content="pt"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="How to contribute | CORO SOLTO — Docs do Dev"><meta data-rh="true" name="description" content="Setup, how to run the gate, what a PR needs, how to add a weapon / character / map, and the good first tasks."><meta data-rh="true" property="og:description" content="Setup, how to run the gate, what a PR needs, how to add a weapon / character / map, and the good first tasks."><link data-rh="true" rel="icon" href="/docs/en/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://www.csbrasil.online/docs/en/contributing"><link data-rh="true" rel="alternate" href="https://www.csbrasil.online/docs/contributing" hreflang="pt"><link data-rh="true" rel="alternate" href="https://www.csbrasil.online/docs/en/contributing" hreflang="en"><link data-rh="true" rel="alternate" href="https://www.csbrasil.online/docs/contributing" hreflang="x-default"><link rel="stylesheet" href="/docs/en/assets/css/styles.7925f6bd.css">
-<script src="/docs/en/assets/js/runtime~main.994d1f36.js" defer="defer"></script>
+<script src="/docs/en/assets/js/runtime~main.a75a4ae6.js" defer="defer"></script>
 <script src="/docs/en/assets/js/main.90418239.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
@@ -245,9 +245,12 @@ In other words, if you look for the tasks in the Issues tab, you will not find t
 when <code>public/models/anims/</code> was missing — a folder that <strong>is versioned today</strong> (438 files
 in <code>git ls-files public/models/anims</code>). A doc that tells you to do what has already been done burns
 someone&#x27;s first contribution; that is why the list became a pointer to <code>docs/issues/</code>,
-which is maintained.</p><p>The only item from the old list that <strong>still stands</strong>: the message of invariants
-PX1–PX4 tells you to use <code>tools/eval/motion.mjs</code>, which does not exist (<code>ls</code> confirms). Pointing to
-the right harness, or marking it as &quot;harness to be written&quot;, is a 15-minute PR.</p></div></div>
+which is maintained.</p><p>The only item from the old list that <strong>still stands</strong> — and is now fixed: the
+message of invariants PX1–PX4 pointed to <code>tools/eval/motion.mjs</code>, which never
+existed in git (a phantom pointer). The skips now honestly declare &quot;no dedicated
+harness (PX debt)&quot;: what runs in CI browsers today is <code>portao-browser</code> (real game
+boot + graffiti + selection-screen silhouette), and a dedicated viewmodel
+harness remains open work.</p></div></div>
 <h3 class="anchor anchorWithStickyNavbar_LWe7" id="real-work-still-accessible">Real work, still accessible<a href="#real-work-still-accessible" class="hash-link" aria-label="Direct link to Real work, still accessible" title="Direct link to Real work, still accessible">​</a></h3>
 <ol>
 <li>
