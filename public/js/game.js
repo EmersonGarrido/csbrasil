@@ -2937,7 +2937,7 @@ export class Game {
         mk.best = Math.max(mk.best || 0, mk.count);
         const kind = mk.count >= 6 ? 'godlike' : (MK_TIERS[mk.count] || (mk.life === 5 ? 'killingspree' : null));
         if (kind) { this._mkBanner(MK_LABELS[kind]); this.sfx.general(kind); }
-        if (REPLAY_CAM && (head || mk.count >= 2) && ent.pos) {
+        if (REPLAY_CAM && head && ent.pos) {
           this._replayCam = {
             t: 0,
             victimPos: ent.pos.clone(),
