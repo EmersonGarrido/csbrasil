@@ -2941,12 +2941,7 @@ export class Game {
           this._replayCam = {
             t: 0,
             victimPos: ent.pos.clone(),
-            killerPos: attacker.pos.clone(),
             killerYaw: attacker.yaw,
-            killerPitch: attacker.pitch || 0,
-            savedCamPos: this.camera.position.clone(),
-            savedCamRot: new THREE.Euler().copy(this.camera.rotation),
-            savedFov: this.camera.fov,
           };
         }
       }
@@ -4442,16 +4437,16 @@ export class Game {
   }
   _updateReplayCam(dt) {
     const rc = this._replayCam;
-    if (!rc) return false;
+    if (!rc) return;
     rc.t += dt;
     if (rc.t >= REPLAY_DUR) {
-      this.camera.position.copy(rc.savedCamPos);
-      this.camera.rotation.copy(rc.savedCamRot);
-      this.camera.fov = rc.savedFov;
-      this.camera.updateProjectionMatrix();
       this._replayCam = null;
-      if (this.el.crosshair) this.el.crosshair.style.display = '';
-      return false;
+      const p = this.player;
+      const tFov = p.scoped ? this._zoomFov(p.weapon) : 70;
+      this.camera.fov = tFov;
+      this.camera.updateProjectionMatrix();
+      this._fovFrom = undefined;
+      return;
     }
     const progress = rc.t / REPLAY_DUR;
     const angle = rc.killerYaw + Math.PI + progress * 1.2;
@@ -4468,17 +4463,17 @@ export class Game {
       Math.atan2(-dx, -dz),
       0
     );
-    if (this.camera.fov !== 50) { this.camera.fov = 50; this.camera.updateProjectionMatrix(); }
+    this.camera.fov = 50;
+    this.camera.updateProjectionMatrix();
     if (this.vm?.root) this.vm.root.visible = false;
     if (this.el.crosshair) this.el.crosshair.style.display = 'none';
-    return true;
   }
   _updatePlayer(dt) {
     const p = this.player;
     this._checkCtfAlvo();          // alvo de BANDEIRAS: única condição de vitória da rodada de CAPTURA (sem gate)
     if (PACE) this._checkPace();   // alvo de abates / match point — vale também com o jogador morto
     if (!p.alive) {
-      if (this._replayCam) { this._replayCam = null; if (this.vm?.root) this.vm.root.visible = true; if (this.el.crosshair) this.el.crosshair.style.display = ''; }
+      if (this._replayCam) this._replayCam = null;
       const left = p.respawnAt - this.time;
       this.el.respawnCount.textContent = Math.max(0, left).toFixed(1);
       this._deathFeedback(dt);
