@@ -38,9 +38,10 @@ window.__SUPPORT = { br: SUPPORT_URL_BR, intl: SUPPORT_URL_INTL };
 (function(){
   var TETO_SESSAO = 10;      /* no máximo 10 erros DISTINTOS por carregamento de página */
   var TETO_EXTERNO = 3;      // externos ficam no banco, mas com cota própria (BUG-51)
+  var TETO_CONSOLE = 3;      // log tagarela não come a cota reservada a exceção (BUG-72)
   var MIGALHAS = 20;         // últimas ações guardadas
   var DEBUG = new URLSearchParams(location.search).get('debug') === '1';
-  var enviados = {}, corpos = {}, nEnviados = 0, nExternos = 0, migalhas = [], reportando = false;
+  var enviados = {}, corpos = {}, nEnviados = 0, nExternos = 0, nConsole = 0, migalhas = [], reportando = false;
   var relatorioFalha = null, falhaPendente = null, erroDoBoot = null;
   var inicio = Date.now();
   var consoleErroNativo = null;
@@ -69,6 +70,13 @@ window.__SUPPORT = { br: SUPPORT_URL_BR, intl: SUPPORT_URL_INTL };
     var h = 2166136261;
     for (var i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = (h * 16777619) >>> 0; }
     return ('0000000' + h.toString(16)).slice(-8);
+  }
+
+  /* Espelha o `str()` de `src/pages/api/jserror.ts` (trim, depois corte): o que é hasheado
+     tem que ser o que vai no corpo, ou o servidor não reconstrói o fingerprint (BUG-71). */
+  function corta(v, max){
+    var t = (v === null || v === undefined ? '' : String(v)).trim();
+    return t ? t.slice(0, max).trim() : '';
   }
 
   /* A versão sai do `?v=` do próprio HTML: ela já está aqui, já sobe junto no bump dos
@@ -112,12 +120,16 @@ window.__SUPPORT = { br: SUPPORT_URL_BR, intl: SUPPORT_URL_INTL };
   function reporta(kind, msg, source, stack, externa){
     if (reportando) return null;                           // guarda de laço
     try{
-      var fp = digital(kind + '|' + (msg || '') + '|' + (source || ''));
+      var mFinal = corta(msg, 500) || '?', sFinal = corta(source, 300) || null;
+      var fp = digital(kind + '|' + mFinal + '|' + (sFinal || ''));
       if (enviados[fp]) return { fp: fp, corpo: corpos[fp] || null }; // 1 envio automático por erro distinto
       if (!enviados[fp]) {
         if (externa) {
           if (nExternos >= TETO_EXTERNO) return null;
           nExternos++;
+        } else if (kind === 'console' && !stack) {
+          if (nConsole >= TETO_CONSOLE) return null;
+          nConsole++;
         } else {
           if (nEnviados >= TETO_SESSAO) return null;
           nEnviados++;
@@ -127,8 +139,8 @@ window.__SUPPORT = { br: SUPPORT_URL_BR, intl: SUPPORT_URL_INTL };
       reportando = true;
       var c = contexto();
       c.fingerprint = fp; c.kind = kind;
-      c.message = String(msg || '?').slice(0, 500);
-      c.source = source || null;
+      c.message = mFinal;
+      c.source = sFinal;
       c.stack = stack ? String(stack).slice(0, 4000) : null;
       var corpo = JSON.stringify(c);
       corpos[fp] = corpo;
@@ -358,7 +370,10 @@ window.__SUPPORT = { br: SUPPORT_URL_BR, intl: SUPPORT_URL_INTL };
           partes.push(a && a.message ? a.message : String(a));
         }
         var m = partes.join(' ');
-        var pilha = (arguments[0] && arguments[0].stack) || null;
+        /* `console.error('falha ao abrir', e)` põe o erro no argumento 1 (main.js, 4 chamadas):
+           ler só o 0 jogava a pilha fora e o relato chegava sem stack (BUG-72). */
+        var pilha = null;
+        for (var j = 0; j < arguments.length && j < 4 && !pilha; j++) pilha = (arguments[j] && arguments[j].stack) || null;
         // mesma guarda dos outros dois caminhos: extensão que loga não abre overlay
         // nem come a cota de dez envios do jogo (KNOWN-BUGS.md, BUG-51).
         var interna = origemDoJogo(null, pilha, m);
