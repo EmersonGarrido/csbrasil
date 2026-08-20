@@ -9,7 +9,7 @@ import { MAPS, MAP_IDS, DEFAULT_MAP, resolveMapId, mapaDaSessao } from './maps.j
 import { PALETA } from './paleta.js';
 import { setHavanCarSeed } from './map_havan.js';
 import { Sfx } from './audio.js';
-import { Game, confirmGate, CONFIRM_MAX_MS } from './game.js';
+import { Game, confirmGate, CONFIRM_MAX_MS, pickMatchRoster } from './game.js';
 import { VERSION } from './version.js';
 import { LANG, translateDom, tr, frase } from './i18n.js';
 import { enableLightBloom } from './bloom.js';
@@ -185,6 +185,10 @@ function _mkPhase(fillEl, pctEl, statusEl) {
 // fase de boot: props do cenário 3D do menu (carrega por baixo da splash)
 const _bootPhase = _mkPhase(document.getElementById('boot-bar-fill'), document.getElementById('boot-pct'));
 let _splashReady = false;
+/* JANELA DE ENTRADA: o gesto que tira a splash não é escolha de menu. Em máquina lenta ele
+   vazava para o item recém-focado e o JOGAR abria o submenu sozinho (régua ENTRADA1). */
+const ENTRADA_MS = 350;
+let _entradaEm = 0;
 function _splashSetReady() {
   if (_splashReady) return; _splashReady = true;
   _bootPhase.set(1);
@@ -449,9 +453,11 @@ const _armMusic = () => {
 // SPLASH DE BOOT ("pressione para entrar"): o gesto que sai da splash é GARANTIDO, então
 // destrava o áudio COM SOM na hora — sem fallback mudo e sem fade atrapalhado. Registrado
 // em capture ANTES do _armMusic, que vira no-op (musicArmed já true).
-function dismissSplash() {
+function dismissSplash(e) {
   const sp = document.getElementById('boot-splash');
   if (!sp || !_splashReady || sp.classList.contains('gone')) return;
+  e?.preventDefault?.(); e?.stopPropagation?.();
+  _entradaEm = performance.now();
   loadingStage.hide();
   dockLoadingCharacter();
   sp.classList.add('gone');
@@ -1039,14 +1045,13 @@ async function _startGame(team, charId, enemyFaction) {
   // load in parallel and are optional — the map renders fine if they're missing.
   // sorteia os carros da Havan desta partida ANTES do preload (seleção = props do mapa)
   setHavanCarSeed((Math.random() * 1e9) | 0);
-  /* SÓ OS PERSONAGENS DA PARTIDA: sobem só os GLBs das 2 facções — o roster (game.js) sorteia
-     dentro da facção, inclusive na troca de lados. Filtro vazio = rede de segurança: elenco inteiro. */
-  const _matchFacs = new Set([faction, enemyFac]);
-  const _matchChars = [...GLB_CHARS].filter((id) => {
-    const c = CHARACTERS.find((ch) => ch.id === id);
-    return c && _matchFacs.has(c.team);
-  });
-  const _charsToLoad = _matchChars.length ? _matchChars : [...GLB_CHARS];
+  /* SÓ OS PERSONAGENS DA PARTIDA: o roster é sorteado ANTES do preload e só esses GLBs sobem
+     (jogador + ~teamSize×2). Filtro vazio = rede de segurança: elenco inteiro. Régua: PL1. */
+  const matchRoster = pickMatchRoster(faction, enemyFac, Math.max(1, Math.min(8, settings.bots || 4)), charId);
+  const _rosterGlb = [charId, ...matchRoster.allyDefs, ...matchRoster.enemyDefs]
+    .map((d) => (typeof d === 'string' ? d : d.id))
+    .filter((id, i, a) => GLB_CHARS.has(id) && a.indexOf(id) === i);
+  const _charsToLoad = _rosterGlb.length ? _rosterGlb : [...GLB_CHARS];
   try {
     if (!navOnly) {
       await Promise.all([
@@ -1060,7 +1065,7 @@ async function _startGame(team, charId, enemyFaction) {
   game = new Game({
     renderer, textures, sfx, settings,
     playerCharId: charId, playerTeam: side, playerFaction: faction, enemyFaction: enemyFac, mapId: currentMap,
-    nickname: $('nick-input').value, testMode, mobile: TOUCH,
+    nickname: $('nick-input').value, testMode, mobile: TOUCH, matchRoster,
     ctf: matchMode === 'ctf',   // o modo agora é 100% escolha do jogador (ctfMode só define o PADRÃO ao trocar de mapa)
     roundsMax: matchRounds(),
     onMatchEnd: recordMatchStats,
@@ -1292,6 +1297,7 @@ function abreModos(abrir) {
 csItems.forEach((it) => {
   it.onmouseenter = () => ui.hover();
   it.onclick = () => {
+    if (performance.now() - _entradaEm < ENTRADA_MS) return;
     ui.click();
     switch (it.dataset.act) {
       case 'jogar': abreModos(); markCurrent(csModos && !csModos.hidden ? 'jogar' : null); break;
@@ -1628,9 +1634,6 @@ function renderMapScreen() {
     (oficialDe(currentMap) ? ` <span class="ms-badge-oficial">${tr('OFICIAL')}</span>` : ` <span class="ms-badge-comunidade">${tr('COMUNIDADE')}</span>`);
   const desc = $('ms-cat-desc');
   if (desc) desc.textContent = CAT_DESC[mapCategory] ? tr(CAT_DESC[mapCategory]) : '';
-  // Sem sub-filtro por autor: a aba COMUNIDADE lista TODOS os mapas de comunidade direto.
-  const autores = $('ms-authors');
-  if (autores) { autores.hidden = true; autores.innerHTML = ''; }
   $('ms-count').textContent = `${tr('MAPA')} ${MAP_IDS.indexOf(currentMap) + 1} ${tr('DE')} ${MAP_IDS.length}`;
   const shown = visibleMapIds();
   $('ms-strip').style.setProperty('--map-count', shown.length);
