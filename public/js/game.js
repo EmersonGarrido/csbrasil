@@ -293,9 +293,8 @@ const MK_LABELS = { doublekill: 'DOUBLE KILL', triplekill: 'TRIPLE KILL', multik
    caixa, sem padrão, sem falloff). Existe porque isto muda o COMPORTAMENTO de mira das 26
    armas de uma vez — se algo ficar ruim em produção o dono tem o A/B na querystring. */
 const GUNFEEL = new URLSearchParams(location.search).get('gunfeel') !== '0';
-// ?blood=0 desliga o sangue (spray de partículas + respingo grudado em parede/chão + poça
-// no corpo). Estilo CS 1.6: névoa vermelha que sai do alvo, mancha na superfície ATRÁS dele
-// e poça que cresce sob o cadáver. Muda o "gore" sentido pelo jogador — flag pro A/B do dono.
+// Kill-switch: ?blood=0 desliga o sangue (spray + mancha em parede/chão + poça sob o
+// cadáver). Muda o "gore" sentido pelo jogador — flag pro A/B do dono, como ?gunfeel=0.
 const BLOOD = new URLSearchParams(location.search).get('blood') !== '0';
 const D2R = Math.PI / 180;
 // Recoil compartilhado pelo jogo e pelas bancadas vive em recoil.js.
@@ -964,10 +963,8 @@ export class Game {
       this._holeGeo = new THREE.PlaneGeometry(0.22, 0.22);
       this._holeMat = new THREE.MeshBasicMaterial({ map: t, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 });
     }
-    // BLOOD (CS 1.6): manchas grudadas em parede/chão + poça sob o cadáver. Mesmo padrão do
-    // furo de bala — geometria única + materiais pré-assados compartilhados (zero alloc por
-    // tiro), variedade por sortear entre 5 texturas de respingo. Ring buffer próprio (não
-    // evicta os furos de bala) com teto de 64. As poças crescem via _bloodPools/_updateBlood.
+    // Manchas de sangue: mesmo padrão do furo de bala (geometria única + materiais
+    // pré-assados, zero alloc por tiro), mas ring buffer próprio com teto 64 — não evicta furo.
     this.bloodDecals = [];
     this._bloodPools = [];
     this._bloodGeo = new THREE.PlaneGeometry(1, 1);   // escalado por colocação
@@ -1609,9 +1606,8 @@ export class Game {
     x.fillStyle = g; x.fillRect(0, 0, 64, 64);
     const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
   }
-  // Respingo de sangue: massa central irregular + gotas satélite espalhando pra fora, densidade
-  // caindo com o raio (a "estrela" de respingo do CS 1.6). `seed` gera 5 variantes estáveis pra
-  // as manchas não repetirem. Vermelho escuro coagulado (#5a0608–#6e0a0c), não vivo.
+  // Respingo de sangue: `seed` gera 5 variantes estáveis pras manchas não repetirem.
+  // Vermelho escuro coagulado (#5a0608–#6e0a0c) de propósito — não vivo.
   _makeBloodTex(seed = 0) {
     const S = 128, c = document.createElement('canvas'); c.width = c.height = S;
     const x = c.getContext('2d');
@@ -1624,9 +1620,10 @@ export class Game {
       g.addColorStop(1, 'rgba(52,4,6,0)');
       x.fillStyle = g; x.beginPath(); x.arc(px, py, r, 0, 7); x.fill();
     };
-    for (let i = 0; i < 6; i++) blob(cx + (rnd() - .5) * 26, cy + (rnd() - .5) * 26, 20 + rnd() * 16, 0.95);   // massa central
-    for (let i = 0; i < 22; i++) { const a = rnd() * 7, d = 24 + rnd() * 26; blob(cx + Math.cos(a) * d, cy + Math.sin(a) * d, 3 + rnd() * 7, 0.9); }   // anel médio
-    for (let i = 0; i < 30; i++) { const a = rnd() * 7, d = 40 + rnd() * 22; blob(cx + Math.cos(a) * d, cy + Math.sin(a) * d, 1 + rnd() * 3, 0.85); }   // spray fino
+    // 3 camadas de densidade decaindo: massa central, anel médio, spray fino
+    for (let i = 0; i < 6; i++) blob(cx + (rnd() - .5) * 26, cy + (rnd() - .5) * 26, 20 + rnd() * 16, 0.95);
+    for (let i = 0; i < 22; i++) { const a = rnd() * 7, d = 24 + rnd() * 26; blob(cx + Math.cos(a) * d, cy + Math.sin(a) * d, 3 + rnd() * 7, 0.9); }
+    for (let i = 0; i < 30; i++) { const a = rnd() * 7, d = 40 + rnd() * 22; blob(cx + Math.cos(a) * d, cy + Math.sin(a) * d, 1 + rnd() * 3, 0.85); }
     const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
   }
   // Poça sob o cadáver: mais redonda e densa que o respingo, com gotas em volta. Cresce em cena.
@@ -1665,10 +1662,8 @@ export class Game {
     if (this.bloodDecals.length > 64) { const old = this.bloodDecals.shift(); this.scene.remove(old); }
     return m;
   }
-  // Sistema de partículas do spray de sangue: SEMPRE vermelho, em qualquer qualidade. Não usa
-  // _tintFx de propósito — ele cai pro puff BRANCO em quality 'low', o que fazia o sangue do
-  // CORPO virar fumaça branca (enquanto parede/chão, que são decals, seguiam vermelhos).
-  // Compartilha o relógio/escala do puff pra animar junto sem update próprio.
+  // Spray de sangue: SEMPRE vermelho em qualquer quality — não usa _tintFx de propósito
+  // (ele cai pro puff branco no 'low'). Compartilha o relógio do puff pra animar junto.
   _makeBloodFx(additive = false) {
     const c = document.createElement('canvas'); c.width = c.height = 32;
     const g = c.getContext('2d');
@@ -1687,9 +1682,8 @@ export class Game {
     fx.points.renderOrder = additive ? 7 : 6;   // por cima da fumaça de impacto
     return fx;
   }
-  // Pinta o sangue na parede ATRÁS do alvo (na direção da bala) e pinga uma gota no chão sob
-  // ele. `dir` é a direção do tiro; `head` engrossa o respingo. `footY` é a altura dos pés do
-  // alvo (fallback: groundHeightAt na coluna do hit).
+  // Mancha na parede ATRÁS do alvo (na direção da bala) + gota no chão sob ele.
+  // `footY` é a altura dos pés do alvo; o fallback é groundHeightAt na coluna do hit.
   _bloodSpatter(pos, dir, head = false, footY = null) {
     if (!BLOOD || !this.world) return;
     // parede atrás (a "saída" do projétil): occluders são justamente as paredes/objetos altos
@@ -1698,9 +1692,8 @@ export class Game {
       const b = this.ray.intersectObjects(this.world.occluders, false)[0];
       if (b && b.face) this._bloodDecal(b.point, b.face.normal, 0.5 + Math.random() * 0.5 + (head ? 0.4 : 0));
     }
-    // gota no chão sob o alvo. O PISO NÃO É OCCLUDER (só h>1.2 entra em occluders), então o
-    // raycast pra baixo falhava — por isso "não marcava no chão". groundHeightAt dá a altura
-    // do chão em qualquer (x,z), inclusive rampa/degrau.
+    // O PISO NÃO É OCCLUDER (só h>1.2 entra em occluders) — raycast pra baixo falha.
+    // groundHeightAt dá a altura do chão em qualquer (x,z), inclusive rampa/degrau.
     const gy = this.world.groundHeightAt ? this.world.groundHeightAt(pos.x, pos.z, pos.y) : footY;
     if (gy != null && Math.random() < 0.7) {
       const jx = (Math.random() - .5) * 0.7, jz = (Math.random() - .5) * 0.7;   // não empilha no mesmo ponto
@@ -1882,11 +1875,8 @@ export class Game {
     if (this.mobile) this._touchControls();
   }
 
-  /* ============ CONTROLES DE TOQUE (mobile, fase 1) ============
-     Overlay semitransparente: joystick esquerdo (mover), arraste na tela (olhar), e botões
-     de atirar/pular/recarregar/mirar/pausar. Cada zona é um elemento próprio — o toque
-     "pertence" ao elemento onde começou, então joystick + olhar + atirar funcionam juntos
-     (multitouch) sem um roubar o dedo do outro. Nada disso existe no desktop (gate this.mobile). */
+  /* ============ CONTROLES DE TOQUE (mobile) ============
+     Cada zona é um elemento próprio, então joystick + olhar + atirar funcionam juntos (multitouch). Só no mobile (gate this.mobile). */
   _touchControls() {
     if (this._touchUi) return;
     const root = document.createElement('div');
@@ -2000,10 +1990,8 @@ export class Game {
       }, { passive: false });
     });
   }
-  /* AIM-ASSIST DO TOQUE (mobile): puxa a mira DE LEVE pro inimigo mais próximo dentro de um cone
-     estreito, com linha de visão. É "sticky aim", não auto-aim — o cone é apertado e o ganho é
-     pequeno, então o jogador continua no comando; só compensa a imprecisão do dedo contra bot.
-     Mais forte enquanto atira. Só roda no mobile. */
+  /* AIM-ASSIST DO TOQUE (mobile): sticky aim, não auto-aim — cone apertado e ganho pequeno,
+     o jogador continua no comando; só compensa a imprecisão do dedo. Só roda no mobile. */
   _aimAssist(dt) {
     const p = this.player; if (!p.alive) return;
     const from = this.camera.position;
@@ -3107,25 +3095,22 @@ export class Game {
   // acertou uma PESSOA era o mesmo bip de acertar uma parede (grep blood = 0 ocorrências).
   _fleshImpact(pos, dir, head, footY = null, byPlayer = true) {
     if (!GUNFEEL) return;
-    // acerto que NÃO é seu (parceiro levando tiro, bot×bot): só rende se estiver perto o
-    // bastante pra ser visto — senão espirra sangue do outro lado do mapa e come frame.
+    // acerto alheio (parceiro levando tiro, bot×bot): só rende se perto — longe, espirra sangue invisível e come frame
     if (!byPlayer && this.camera.position.distanceToSquared(pos) > 3600) return;   // >60 m: pula
-    const voice = byPlayer && this._fxVoice(head ? 3 : 2);   // som úmido só nos SEUS tiros
+    const voice = byPlayer && this._fxVoice(head ? 3 : 2);
     // buffer maior (384): um cartucho de shotgun são 9 pellets × ~26 gotas num frame só.
     const fx = this._bloodFx || (this._bloodFx = this._makeBloodFx());
     const pop = this._bloodPop || (this._bloodPop = this._makeBloodFx(true));   // camada aditiva brilhante
     const back = dir.clone().multiplyScalar(-1);
-    // A nuvem NASCE LEVEMENTE À FRENTE do corpo (14 cm na direção da câmera). Antes ela nascia
-    // na própria superfície do alvo, então metade das partículas ficava ATRÁS dele (tapada) e a
-    // sensação era de "sangue fraco". Empurrando pra frente, a nuvem toda fica visível.
+    // A nuvem nasce 14 cm À FRENTE do corpo: na superfície do alvo, metade das partículas
+    // ficava atrás dele (tapada) e o sangue lia fraco.
     const sp = pos.clone().addScaledVector(dir, -0.14);
     // "pop" aditivo instantâneo (lê como acerto na hora) + 2 camadas de nuvem GORDA e vermelha.
     // Sprites de GPUParticles encolhem com a distância — por isso os tamanhos são grandes.
     pop.spawn(sp, { life: 0.10, size: head ? 1.1 : 0.75, grow: 2.4 });
     fx.spawn(sp, { life: 0.30, size: head ? 1.4 : 0.95, grow: 3.2 });
     fx.spawn(sp, { life: 0.44, size: head ? 0.9 : 0.6, grow: 4.2 });
-    // chuva de gotas GORDAS — CS 1.6; ~40% SAI PELA FRENTE (ferida de saída), o resto respinga
-    // de volta pra câmera. Sem BLOOD, volta ao mínimo antigo.
+    // ~40% das gotas SAI PELA FRENTE (ferida de saída, CS 1.6). Sem BLOOD, volta ao mínimo antigo.
     const n = ((BLOOD ? (head ? 26 : 18) : (head ? 6 : 4)) * (byPlayer ? 1 : 0.6)) | 0;   // hit alheio: mais leve
     for (let i = 0; i < n; i++) {
       const fwd = BLOOD && i % 5 < 2;

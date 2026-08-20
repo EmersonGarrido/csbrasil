@@ -49,11 +49,8 @@ if (!renderer) {
 }
 const COMPAT_MODE = SAFE_MODE || renderer.__csWebgl?.degraded === true;
 if (COMPAT_MODE) { preferredQuality = settings.quality; settings.quality = 'low'; }
-/* AUTO-PERFIL PARA MÁQUINA FRACA. GPU integrada (Intel HD/UHD/Iris), pouca RAM ou poucos
-   núcleos rodando 'med' (bloom+sombras+DPR 1) trava e enche a VRAM — a Iris Xe divide 2 GB
-   com o sistema. Detecta o hardware e cai pra 'low' POR PADRÃO, mas só quando o jogador nunca
-   escolheu qualidade à mão (savedSettings.quality ausente): a escolha manual sempre vence, e o
-   dropdown de configurações continua mandando. ?perfilauto=0 desliga a heurística. */
+/* AUTO-PERFIL PARA MÁQUINA FRACA: cai pra 'low' por padrão só se o jogador NUNCA escolheu
+   qualidade à mão (a escolha manual sempre vence). ?perfilauto=0 desliga a heurística. */
 const AUTO_PROFILE = new URLSearchParams(location.search).get('perfilauto') !== '0';
 function detectaHwFraco() {
   const gpu = (renderer.__csWebgl?.renderer || '').toLowerCase();
@@ -466,10 +463,8 @@ function dismissSplash() {
   const m = _ensureMusic();
   m.muted = false; m.volume = MENU_MUSIC_VOL; m.play().catch(() => {});
 }
-/* Foco no 1º item VISÍVEL do menu CS. O handler de setas (mais abaixo) vive no #cs-menu, então
-   só dispara com o foco já lá dentro — depois do splash o foco fica no <body> e a seta "morre".
-   Guardas: não rouba foco de campo de texto nem quando o painel de setup está aberto (o foco é
-   dele), e só age com o menu principal na tela. */
+/* Foco no 1º item visível do menu CS: o handler de setas vive no #cs-menu e só dispara com
+   o foco lá dentro. Guardas: não rouba foco de campo de texto nem do painel de setup. */
 function focusMenu() {
   const ae = document.activeElement;
   if (ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.isContentEditable)) return;
@@ -997,8 +992,7 @@ async function startGame(team, charId, enemyFaction) {
   }
 }
 async function _startGame(team, charId, enemyFaction) {
-  // MOBILE (fase 1): não bloqueia mais — entra com controles de toque. Fullscreen + trava de
-  // orientação são pedidos abaixo (junto do requestFullscreen); no retrato o overlay
+  // MOBILE: não bloqueia mais — entra com controles de toque. No retrato o overlay
   // "gire o celular" (CSS) cobre a tela até deitar.
   // facção = time do personagem ('E'/'B'/'U'). O jogador ESCOLHE o adversário (enemyFaction);
   // default = oposto político. Mesma facção dos dois lados = mirror (inimigo roxo no HUD).
@@ -1045,13 +1039,8 @@ async function _startGame(team, charId, enemyFaction) {
   // load in parallel and are optional — the map renders fine if they're missing.
   // sorteia os carros da Havan desta partida ANTES do preload (seleção = props do mapa)
   setHavanCarSeed((Math.random() * 1e9) | 0);
-  /* SÓ OS PERSONAGENS DA PARTIDA. Antes subiam os ~44 GLBs do elenco inteiro de uma vez —
-     o pico de VRAM que derruba o contexto WebGL em GPU integrada (o "53 personagens sobem
-     juntos" do #297). Mas uma partida é `faction` × `enemyFac`, e o roster (game.js) só sorteia
-     DENTRO da facção (repete se faltar; só cai no elenco geral se a facção estiver VAZIA). Logo
-     os únicos modelos que podem aparecer — inclusive na troca de lados do intervalo — são os
-     das DUAS facções. Carregar só eles corta o pico pela metade sem risco de pop-in nem modelo
-     faltando. Rede de segurança: se o filtro vier vazio, volta pro elenco inteiro. */
+  /* SÓ OS PERSONAGENS DA PARTIDA: sobem só os GLBs das 2 facções — o roster (game.js) sorteia
+     dentro da facção, inclusive na troca de lados. Filtro vazio = rede de segurança: elenco inteiro. */
   const _matchFacs = new Set([faction, enemyFac]);
   const _matchChars = [...GLB_CHARS].filter((id) => {
     const c = CHARACTERS.find((ch) => ch.id === id);
@@ -1611,18 +1600,14 @@ function autoresDeComunidade() {
   return [...new Set(MAP_IDS.filter((id) => catsDe(id).includes('COMUNIDADE')).map(autorDe))].sort();
 }
 function visibleMapIds() {
-  /* A aba TODOS lista só os mapas OFICIAIS da casa — os de comunidade têm a própria aba
-     (COMUNIDADE). Antes TODOS despejava o acervo inteiro e os oficiais sumiam no meio dos
-     de comunidade. Um mapa é "de comunidade" pela categoria (mesma etiqueta que aparece no
-     crachá) — coincide com a autoria não-oficial. */
+  /* A aba TODOS lista só os mapas OFICIAIS — os de comunidade têm a própria aba. "De comunidade"
+     é pela categoria (a etiqueta do crachá), que coincide com autoria não-oficial. */
   return MAP_IDS.filter((id) => mapCategory === 'TODOS' ? !catsDe(id).includes('COMUNIDADE') : catsDe(id).includes(mapCategory));
 }
 function renderMapScreen() {
   const img = $('ms-bg-img'); if (!img) return;
-  /* O mapa em foco manda na aba. Ao reabrir no último jogado (ex.: Posto, de comunidade), a
-     aba abria em OFICIAIS e o cabeçalho mostrava um mapa que não estava na tira — inconsistente.
-     Se o mapa em foco não pertence à aba atual, troca pra aba que o contém. As trocas manuais de
-     aba já re-ancoram o mapa antes de chegar aqui, então isto não briga com elas. */
+  /* O mapa em foco manda na aba: se não pertence à aba atual, troca pra aba que o contém.
+     Trocas manuais de aba já re-ancoram o mapa antes, então isto não briga com elas. */
   if (!visibleMapIds().includes(currentMap)) {
     mapCategory = catsDe(currentMap).includes('COMUNIDADE') ? 'COMUNIDADE' : 'TODOS';
   }
@@ -2521,10 +2506,8 @@ function aplicarResize() {
   if (game) game.onResize();
 }
 addEventListener('resize', aplicarResize);
-/* iOS (Safari/Chrome = WebKit): ao girar, o viewport se assenta com ATRASO e o primeiro
-   'resize' vem com dimensão velha — o canvas fica com aspect errado (mira fora do centro,
-   viewmodel torto). Re-disparar depois que assenta conserta. visualViewport cobre a barra
-   de endereço que aparece/some. */
+/* iOS (WebKit): ao girar, o 1º 'resize' vem com dimensão velha (o viewport assenta com atraso)
+   — por isso os re-disparos. visualViewport cobre a barra de endereço que aparece/some. */
 addEventListener('orientationchange', () => { aplicarResize(); setTimeout(aplicarResize, 250); setTimeout(aplicarResize, 600); });
 if (window.visualViewport) visualViewport.addEventListener('resize', aplicarResize);
 const clock = new THREE.Clock();
