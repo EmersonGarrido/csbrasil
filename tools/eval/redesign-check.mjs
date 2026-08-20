@@ -576,8 +576,11 @@ const autoriaNaFicha = /const MAP_AUTOR = \{/.test(main)
   && /\$\{autorDe\(currentMap\)\}<\/strong> · \$\{MAP_DATA\[currentMap\] \|\| ''\}/.test(funcMap)
   && /ms-badge-oficial/.test(funcMap)
   && /ms-badge-comunidade/.test(funcMap)
-  && /id="ms-authors" class="ms-authors" hidden/.test(astro)
-  && /autores\.hidden = true/.test(funcMap);   // #368: sub-filtro por autor saiu — COMUNIDADE lista todos
+  // #368: o sub-filtro por autor saiu — COMUNIDADE lista todos. Guardava o elemento ESCONDIDO;
+  // agora guarda a AUSÊNCIA dele (marcação morta é lixo que confunde quem lê — achado do #368).
+  && !/ms-authors/.test(astro)
+  && !/ms-authors/.test(main)
+  && !/ms-authors/.test(css);
 const mapaReferencia = /const shown = visibleMapIds\(\);/.test(funcMap)
   && /ferro_velho: \['ARENA'\], quebrada: \['FAVELA'\]/.test(main)
   && /piscina_treta: \['ARENA', 'COMUNIDADE'\], posto_treta: \['ARENA', 'COMUNIDADE'\], atacadao_treta: \['ARENA', 'COMUNIDADE'\]/.test(main)
@@ -930,8 +933,8 @@ const resultados = [
     'nenhum halo ou degradê limitado à metade direita pode criar emenda no palco do personagem'],
   ['UIR42', 'menu preenche o viewport e fixa a versão no canto inferior direito', versaoMenuNoCanto,
     'a versão fica em camada própria abaixo do rodapé, sem participar da fileira de links'],
-  ['UIR43', 'ficha do mapa traz autor, data e crachá OFICIAL/COMUNIDADE (sem sub-filtro de autor, #368)', autoriaNaFicha,
-    'MAP_AUTOR/MAP_DATA por mapa; byline renderiza; badge OFICIAL pra casa e COMUNIDADE pra fora; chips de autor escondidos'],
+  ['UIR43', 'ficha do mapa traz autor, data e crachá OFICIAL/COMUNIDADE (sub-filtro de autor removido, #368)', autoriaNaFicha,
+    'MAP_AUTOR/MAP_DATA por mapa; byline renderiza; badge OFICIAL pra casa e COMUNIDADE pra fora; sem marcação morta de chips de autor'],
 ];
 
 for (const [id, desc, ok, evid] of resultados) console.log(`${ok ? '✓' : '✗'} ${id} · ${desc}\n  ${evid}`);
