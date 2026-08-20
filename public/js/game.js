@@ -578,6 +578,13 @@ export class Game {
     if (this.world.pickups) {
       const keep = [];
       for (const pk of this.world.pickups) {
+        /* id fora de WEAPONS não entra no estado do jogo: o prompt do [E] lê `.short`
+           sem guarda todo quadro e congelava a partida. KNOWN-BUGS BUG-70 / #366. */
+        if (!WEAPONS[pk.weapon]) {
+          console.warn(`[pickup] mapa ${this._mapId}: arma '${pk.weapon}' não existe em WEAPONS — pickup ignorado`);
+          pk.mesh?.removeFromParent();
+          continue;
+        }
         if (this._pickupAllowed(pk.weapon)) {
           const rw = weaponModel(pk.weapon);            // swap the map's box gun for the real GLB
           if (rw && pk.mesh) {
@@ -737,7 +744,7 @@ export class Game {
       const nMine = this.bots.filter(b => b.team === playerTeam).length + 1;   // +1 = o jogador
       const nFoe = this.bots.filter(b => b.team === this.enemyTeam).length;
       const msg = `[times] ${this._teamTag(playerTeam)} ${nMine} × ${nFoe} ${this._teamTag(this.enemyTeam)} (teamSize ${teamSize})`;
-      if (nMine !== nFoe) console.error(msg + ' — TIMES DESIGUAIS (bug de composição)');
+      if (nMine !== nFoe) console.error(new Error(msg + ' — TIMES DESIGUAIS (bug de composição)'));
       else console.info(msg);
       this.teamCount = { [playerTeam]: nMine, [this.enemyTeam]: nFoe };   // exposto p/ debug/harness
     }
