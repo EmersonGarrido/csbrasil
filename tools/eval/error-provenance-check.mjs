@@ -12,6 +12,7 @@ const mutants = [
   'sem-vercel-helper', 'sem-vercel-cliente', 'sem-webgl',
   'sem-fingerprint', 'escala-incoerente', 'grava-forjado', 'receita-imul', 'cliente-hash-bruto', 'cliente-sem-retrim',
   'sem-log', 'log-amplo', 'log-sobre-tudo', 'log-nao-corta', 'sem-teto-console', 'pilha-so-no-primeiro', 'times-sem-erro',
+  'onerror-sem-src', 'boot-sem-migalha', 'payload-sem-migalhas', 'issue-sem-migalhas',
   'sem-midia', 'midia-ampla', 'sem-cota-midia',
 ];
 if (mutant && !mutants.includes(mutant)) throw new Error(`mutante desconhecido: ${mutant}`);
@@ -153,6 +154,19 @@ if (mutant === 'midia-ampla') helperSource = mutate(helperSource,
 if (mutant === 'sem-cota-midia') page = mutate(page,
   'if (nMidia >= TETO_MIDIA) return null;',
   'if (nMidia < 0) return null;');
+
+/* BUG-74 · o `onerror` da tag do módulo guardava um booleano e jogava fora o ErrorEvent,
+   inclusive o `src` com o `?v=`. O relatório virava paráfrase nossa, sem evidência nenhuma. */
+if (mutant === 'onerror-sem-src') page = mutate(page,
+  'onerror="window.__CS_MAIN_FAILED=1;window.__CS_BOOT_SRC=this.src"',
+  'onerror="window.__CS_MAIN_FAILED=1"');
+if (mutant === 'boot-sem-migalha') page = mutate(page,
+  "            migalha('boot falhou src=' + (window.__CS_BOOT_SRC || '?'));\n", '');
+if (mutant === 'payload-sem-migalhas') api = mutate(api,
+  'client_payload: { fingerprint: chave, message, source, stack, origin, breadcrumbs,',
+  'client_payload: { fingerprint: chave, message, source, stack, origin,');
+if (mutant === 'issue-sem-migalhas') workflow = mutate(workflow,
+  '**Migalhas:**', '**Migalhas removidas:**');
 
 let classifyCrash = null, shouldDispatchCrash = null, crashFingerprint = null, fingerprintConfere = null, isConsoleLog = null;
 if (helperSource) {
@@ -473,6 +487,34 @@ const logWired = api.includes('isConsoleLog')
   && baseIndex >= 0 && baseIndex < api.indexOf('if (!shouldDispatchCrash(classification)')
   && /const classification = base === 'codigo' && isConsoleLog\(\{ kind, stack \}\) \? 'log' : base;/.test(api);
 
+/* EP15 · BUG-74 (issue #386). O watchdog de boot relatava "o código do jogo não chegou"
+   sem UMA evidência: o `onerror` da tag do módulo (index.astro) descartava o ErrorEvent
+   inteiro, `migalha()` só era chamada no clique, e as migalhas gravadas nunca entravam no
+   `client_payload`, logo nunca chegavam à issue. Instrumentar, não suprimir.
+
+   A fixture do fingerprint amarra isto à BUG-71: a instrumentação vai para a MIGALHA e não
+   para a mensagem, senão o `?v=` criaria fingerprint novo a cada release e picotaria o
+   agrupamento. Se alguém mover a evidência para o texto, este número muda e a cláusula cai. */
+const MSG_386 = 'Falha ao abrir a arena: o código do jogo não chegou (verifique a conexão)';
+const fingerprint386Estavel = typeof crashFingerprint === 'function'
+  && crashFingerprint('error', MSG_386, 'boot-watchdog') === '9703f595';
+
+/* O `onerror` guarda o src (o `?v=` distingue CDN sem o módulo de conexão caída). */
+const onerrorGuardaSrc = /onerror="window\.__CS_MAIN_FAILED=1;window\.__CS_BOOT_SRC=this\.src"/.test(page)
+  && /onload="window\.__CS_MAIN_LOADED=1[^"]*"/.test(page);
+
+/* O ramo do boot-watchdog registra migalha ANTES do fail, senão a evidência não viaja. */
+const migalhaIndex = page.indexOf("migalha('boot falhou src=");
+const failIndex = page.indexOf("lancamento.fail(erroDoBoot || new Error('o código do jogo não chegou");
+const bootMigalha = migalhaIndex >= 0 && failIndex > migalhaIndex
+  && page.includes("importmap suportado=")
+  && page.includes('rede online=');
+
+/* As migalhas atravessam a API e aparecem na issue: sem os dois elos elas morrem no banco. */
+const migalhasNoPayload = /client_payload: \{ fingerprint: chave, message, source, stack, origin, breadcrumbs,/.test(api);
+const migalhasNaIssue = workflow.includes('**Migalhas:**') && workflow.includes('$MIGALHAS')
+  /* `join` porque breadcrumbs é array: sem ele o corpo sai como [object Object]. */
+  && /MIGALHAS: \$\{\{ join\(github\.event\.client_payload\.breadcrumbs/.test(workflow);
 /* EP14 executa o `erroIgnoravel` INLINE do cliente, como o EP6 faz com o `origemDoJogo`:
    regex de fiação sozinha aprovaria `function erroIgnoravel(){ return true; }`, que calaria
    crash de verdade. Cliente e servidor precisam concordar na MESMA redação — se um dos dois
@@ -537,6 +579,9 @@ const checks = [
     && shouldDispatchCrash('log') === false && shouldDispatchCrash('codigo') === true
     && hookAchaPilha && cotaConsoleWired && logWired && sinalDeliberadoTemPilha,
     'console.error com string fica na telemetria e não abre issue; console COM pilha (o idioma `console.error(msg, e)` de main.js) continua escalando, e log tem cota própria'],
+  ['EP15', fingerprint386Estavel && onerrorGuardaSrc && bootMigalha
+    && migalhasNoPayload && migalhasNaIssue,
+    'falha de boot chega com evidência: o onerror guarda o src do módulo, o watchdog registra migalha com import map e rede, e as migalhas atravessam a API até a issue sem mover o fingerprint'],
   ['EP14', midiaFixtures.every((fixture) => classify(fixture) === 'recuperavel')
     && naoMidiaFixtures.every((fixture) => classify(fixture) === 'codigo')
     && typeof shouldDispatchCrash === 'function'
@@ -561,6 +606,8 @@ const mutantClause = {
   'receita-imul': 'EP12', 'cliente-hash-bruto': 'EP12', 'cliente-sem-retrim': 'EP12',
   'sem-log': 'EP13', 'log-amplo': 'EP13', 'log-sobre-tudo': 'EP13',
   'log-nao-corta': 'EP13', 'sem-teto-console': 'EP13', 'pilha-so-no-primeiro': 'EP13', 'times-sem-erro': 'EP13',
+  'onerror-sem-src': 'EP15', 'boot-sem-migalha': 'EP15',
+  'payload-sem-migalhas': 'EP15', 'issue-sem-migalhas': 'EP15',
   'sem-midia': 'EP14', 'midia-ampla': 'EP14', 'sem-cota-midia': 'EP14',
 };
 if (mutant && !failed.some(([id]) => id === mutantClause[mutant])) {
