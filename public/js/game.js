@@ -34,11 +34,13 @@ export { WEAPONS };
    Motivo: as três mudam COMPORTAMENTO sentido pelo jogador; o dono precisa do A/B. */
 const QS = new URLSearchParams(location.search);
 const REPLAY_CAM = QS.get('replaycam') !== '0';
-const REPLAY_DUR = 1.2;        // duração total da replay cam (s)
-const REPLAY_SLOWMO = 0.18;    // dt scale nos primeiros frames (hit-stop)
-const REPLAY_SLOWMO_DUR = 0.2; // duração do slowmo (s, tempo real)
-const REPLAY_ORBIT_R = 3.2;    // raio orbital da câmera em torno da vítima
-const REPLAY_ORBIT_H = 1.8;    // altura da câmera acima da vítima
+/* Replay cam (kill-switch ?replaycam=0): duração total em s, escala de dt do hit-stop e a
+   janela dele em tempo real, e o raio/altura da órbita em torno da vítima. */
+const REPLAY_DUR = 1.2;
+const REPLAY_SLOWMO = 0.18;
+const REPLAY_SLOWMO_DUR = 0.2;
+const REPLAY_ORBIT_R = 3.2;
+const REPLAY_ORBIT_H = 1.8;
 // ?vmlab=1 usa o viewmodel afinado; sem a flag mantém o calibrado.
 const VMLAB = QS.get('vmlab') === '1';
 /* KILL-SWITCH DA RODADA DE MATERIAL: ?vmmat=legacy devolve, de uma vez, o clamp
