@@ -39,6 +39,342 @@ lista de "balão" do CHR1 tem os mesmos 13 antes e depois).
 
 ## P0 — quebram o jogo ou mentem para quem mede
 
+### ~~BUG-73 · abort de mídia virava crash de produção — o jogo cortava o `play()` de propósito e abria issue por isso~~ · RESOLVIDO 20/08 (issue #389)
+
+**Sintoma (literal, issue #389, aberta pelo `crash-fix.yml`):**
+*"The play() request was interrupted by a call to pause(). https://goo.gl/LdLk22"*,
+fingerprint `7d439dd4`, classe `codigo`, alpha.161, **origem e stack vazias**.
+
+**Causa raiz — confirmada.** Não é defeito de áudio: é o rótulo. Essa mensagem é o
+`AbortError` que o navegador devolve quando um `play()` pendente é cortado por um
+`pause()`, e **o jogo corta de propósito**, em três lugares — `audio.js:97` (`radioVoice`
+corta a fala anterior, comportamento CS-style), `audio.js:119` (`characterSelectVoice`
+corta a voz do avatar anterior) e `audio.js:159` (`stopRound` corta a vinheta com fade).
+Não é acidente nem descuido: `tools/eval/character-select-voice-check.mjs:56` **exige** a
+interrupção (`VOICE8 a fala anterior não foi interrompida (pausas=3)`).
+
+O abort chega **sem `stack` e sem `source`**. Sem nenhuma URL para inspecionar, o
+`origemDoJogo` do cliente cai em `return !viuExterna` = `true` (marca como interno e come
+a cota de exceção), e o `classifyCrash` não batia `OPAQUE_RE`, `AMBIENTE_RE`,
+`CACHE_SPLIT_RE` nem `RECOVERABLE_RE`: caía no `return 'codigo'` final e escalava. Trocar
+de faixa, clicar rápido em dois avatares ou entrar na partida por cima da vinheta abria
+issue automática no GitHub.
+
+**É a metade não terminada do BUG-37**, que já tinha o diagnóstico certo em 07/08 —
+*"O defeito não é o áudio: é o overlay de crash tratar isso como crash"* — e cujo próximo
+passo prescrito era exatamente *"filtrar `AbortError` de mídia"*. Desde então entrou o
+`erroIgnoravel` (`index.astro:163`), mas ele só silenciava o painel de falha (`:322`):
+**não cortava o `reporta()` da linha 321**, e o servidor nunca soube de nada. Medido no
+`erroIgnoravel` de antes, executado do fonte: reconhecia a forma `DOMException` com
+`name:'AbortError'` e **não** reconhecia a forma só-mensagem — e em nenhuma das duas
+impedia o envio.
+
+**Palpite óbvio, REFUTADO com medição.** *"Algum `play()` perdeu o `.catch()`."* Falso, e
+a prova já estava no portão: `npm run eval:medianet` varre **49 `.js`, 2 módulos de mídia,
+7 `play()` inspecionados**, e tranca esse contrato desde a #117 — verde antes e depois
+deste conserto. Conferidos à mão os 7 sítios (`audio.js:55`, `main.js:406-409`, `:412`,
+`:416`, `:449`, `:501`): todos guardados. Não há `<audio>` no HTML (só o
+`<video id="char-preview-video">` de `index.astro:914`) e não existe Howler nem
+`THREE.Audio` no repo. **Por isso `public/js/audio.js` e `public/js/main.js` não foram
+tocados:** conserto ali deixaria a régua verde antes e depois, que é a régua que não mede
+nada.
+
+**Medido antes do conserto** (helper e `erroIgnoravel` reais, extraídos do fonte, sem browser):
+
+| | antes | depois |
+|---|---|---|
+| abort de mídia classificado `recuperavel` | **0/5** | **5/5** |
+| abort de mídia abre issue | **5/5** | **0/5** |
+| `erroIgnoravel` do cliente reconhece as 2 formas | 1/2 | 2/2 |
+| balde que o abort consome no cliente | 1 dos 10 de exceção | 1 dos 2 de mídia |
+| crash real dentro de `audio.js` continua `codigo` | sim | sim |
+| cláusulas verdes / mutantes que mordem | 13 / 32 | 14 / 35 |
+
+As 5 redações medidas são as do Chrome/Firefox/Safari: `…interrupted by a call to
+pause()`, `…by a new load request`, `…because the media was removed from the document`,
+`The fetching process for the media resource was aborted…` (a do BUG-37) e
+`AbortError: The operation was aborted.`
+
+**Custo declarado, medido na população real.** Das **88** issues `crash-auto` do
+repositório, exatamente **2** são desta família: a #389 (aberta) e a #122 (fechada, a do
+BUG-37). Nenhuma outra deixa de abrir. O regex é estreito de propósito — `aborted` ou
+`interrupted` soltos engoliriam crash de verdade, e é isso que o mutante `midia-ampla`
+prova. A linha continua gravada no `js_error` com rótulo `recuperavel`: some o disparo
+automático, não o dado.
+
+**O que deliberadamente NÃO entrou no corte, e por quê.** Duas mensagens de mídia vizinhas
+seguem `codigo`, conferidas uma a uma:
+
+| issue | mensagem | por que continua acionável |
+|---|---|---|
+| #293 (aberta) | *"The media resource indicated by the src attribute … was not suitable."* | não é abort: é som que **não toca**. É o sinal do BUG-08/BUG-52 (mídia nova ignorada em silêncio), o defeito mais caro desta base em áudio |
+| #117 (fechada) | *"The play method is not allowed by the user agent…"* | autoplay barrado; já tem régua no portão (`eval:medianet` nasceu dela) e o jogo já cai no fallback mudo de `main.js:407` |
+
+**Custo declarado adicional.** Se algum dia um abort de mídia for sintoma de defeito real
+(o `pause()` chegando cedo demais e cortando fala que deveria tocar inteira), ele deixa de
+gritar sozinho — vai estar no `js_error` com `classification='recuperavel'`, e quem
+procurar acha. É a mesma troca do BUG-72: fim do "regex por incidente" em troca de olhar a
+telemetria em vez de esperar issue.
+
+**Não verificado, e é honesto dizer:** **não há browser nesta máquina** (sem Playwright
+global, sem `CHROME_BIN`), então `tools/eval/crash-watch.mjs` — o instrumento que
+capturaria o `unhandledrejection` ao vivo — não rodou, e **o produtor exato da promessa
+solta em produção continua sem nome**. Os 7 `play()` do fonte estão guardados, então o
+candidato mais provável é bundle antigo em cache, extensão ou portal. O que este conserto
+prova é que, produza quem produzir, a mensagem não vira mais crash nem issue. Quem tiver
+Chrome: `npm run eval:serve &` e `node tools/eval/crash-watch.mjs`, spammando rádio e troca
+de avatar. A tabela `js_error` do Supabase também não foi consultada (sem credencial aqui),
+então quantos slots de `TETO_SESSAO` a família vinha comendo por sessão fica sem número. E
+o stub de node (`tools/eval/harness.mjs:83`) tem `Audio.play()` devolvendo `undefined`, não
+Promise: **nenhuma régua node-side consegue observar essa rejeição** — por isso a régua
+mede a classificação, não a reprodução.
+
+**Régua: `tools/eval/error-provenance-check.mjs`** (`npm run eval:error-origin`, já no
+`check:fast` e no `check:deploy` — nenhum passo novo no portão). EP14 mede os dois lados:
+classifica as 5 redações do navegador, exige que 3 mensagens vizinhas continuem `codigo`
+(inclusive um crash que estoura **dentro** de `audio.js`), e **executa o `erroIgnoravel`
+recortado do fonte** — regex de fiação sozinha aprovaria `function erroIgnoravel(){ return
+true; }`, que calaria crash de verdade. **3 mutações medidas:** `sem-midia` (o ramo devolve
+`codigo` e a #389 volta a abrir issue), `midia-ampla` (troca o regex por
+`/aborted|interrupted/i` e o crash de `audio.js` vira `recuperavel`) e `sem-cota-midia`
+(anula o teto e o abort volta a comer a cota de exceção). Todas acendem EP14; as 32
+anteriores seguem acendendo as suas — **35 de 35 na matriz completa**.
+
+### ~~BUG-72 · `console.error` informativo virava bug do jogo, e a pilha do idioma `(msg, e)` se perdia~~ · RESOLVIDO 19/08 (issue #382)
+
+**Sintoma (literal, issue #382, aberta pelo `crash-fix.yml`):**
+*"%c[cheat-demo] ainda sem window.__game - você está no menu. Entre numa partida (JOGAR) e
+o cheat ativa sozinho. color:#ff2244;font-weight:bold"*, classe `codigo`, alpha.159,
+**origem e stack vazias**.
+
+**Causa raiz - confirmada.** Não é exceção. `cheat-demo`, `ainda sem window.__game` e
+`o cheat ativa sozinho` não existem em nenhum arquivo do repositório, `git log --all -S`
+não devolve commit para nenhuma delas, e não há **um único** `%c` em todo o repo. É snippet
+de cheat de terceiro colado no devtools de produção; `window.__game` é o handle público que
+o jogo expõe, e o `SECURITY.md:9` já assume que anti-cheat client-side é teatro.
+
+O hook de `console.error` (`src/pages/index.astro:363-374`) junta até 4 argumentos com
+`partes.join(' ')` - daí o `%c` e a CSS colados no título - e passa `source` como `null`
+**hardcoded**, razão de *toda* issue deste caminho ter "Origem:" vazia. Sem source e sem
+pilha, o `origemDoJogo` do cliente cai em `return !viuExterna` = `true` (marca como interno
+e consome a cota de exceção) e o `classifyCrash` não bate `OPAQUE_RE`, `AMBIENTE_RE`,
+`CACHE_SPLIT_RE` nem `RECOVERABLE_RE`: cai no `return 'codigo'` final e escala.
+
+**Não era caso isolado.** De 84 issues `crash-auto`, cerca de **24 são log informativo e
+não exceção**: `%c[cheat-demo]` (#382), avisos de extensão (#309, #328, #157, #156),
+`Couldn't load texture` (10 issues, já contidas pela `RECOVERABLE_RE`),
+`THREE.WebGLProgram: Shader Error` (9), e avisos de mídia (#293, #122, #117). O padrão da
+casa vinha sendo comprar uma regex por incidente: a #110 comprou a `RECOVERABLE_RE`
+sozinha. Este conserto corta a classe em vez de comprar a próxima regex.
+
+**Segundo defeito, achado auditando o corte - e foi ele que salvou o conserto.** O corte
+"console sem pilha não escala" ia silenciar **código nosso**: `main.js` chama
+`console.error('falha ao abrir a partida', e)` em 4 lugares (`:959`, `:1010`, `:1102`,
+`:1841`), com o erro no argumento **1**, e o hook lia só `arguments[0].stack`. Ou seja, a
+pilha já estava sendo jogada fora hoje - esses relatos sempre chegaram com stack vazia - e
+com o corte parariam de abrir issue. O hook agora varre os argumentos até achar pilha.
+
+**Medido antes do conserto** (helper e hook reais, sem browser):
+
+| | antes | depois |
+|---|---|---|
+| payload da #382 escala | sim (`codigo`) | não (`log`, gravado) |
+| `console.error('falha ao abrir', e)` traz pilha | **não** | sim |
+| `console.error(new Error(...))` escala | sim | sim |
+| `cache-split` vindo do console dispara purge | sim | sim |
+| cláusulas verdes / mutantes que mordem | 12 / 25 | 13 / 31 |
+
+**O que foi DESCARTADO com medição.** Cortar só na diretiva `%c`: mata a #382 e mais nada.
+As outras ~23 do mesmo grupo não têm `%c`, e o corte por formato é conserto no sintoma.
+
+**Custo declarado, medido.** A família `THREE.WebGLProgram: Shader Error` (9 issues: #331,
+#330, #294, #275, #130, #127, #121, #120, #115) deixa de abrir issue. Aceito porque shader
+já tem régua **no portão**, e mais forte que issue de produção:
+`tools/eval/shader-log-check.mjs` existe para que "logs WebGL anuláveis não escondam o
+diagnóstico real do shader" e `tools/eval/shader-budget-check.mjs` mede o orçamento de
+varyings. A linha continua na telemetria bruta. A família da textura (10 issues) não muda:
+já era `recuperavel`. `glcontext.js:105` também não muda: já é `externo` pela `AMBIENTE_RE`.
+**Inventário dos 6 sítios de `console.error` em `public/js/`, um a um:**
+
+| sítio | tem pilha depois do conserto | escala |
+|---|---|---|
+| `main.js:959` `'falha ao abrir a partida', e` | sim (argumento 1) | sim |
+| `main.js:1010` `'preload da partida falhou parcialmente', e` | sim | sim |
+| `main.js:1102` `'dispose falhou ao sair pro menu', e` | sim | sim |
+| `main.js:1841` `'switch team failed', e` | sim | sim |
+| `glcontext.js:105` `sem_webgl: …` | não | não, e já era `externo` pela `AMBIENTE_RE` |
+| `game.js:739` `TIMES DESIGUAIS` | sim, passou a carregar `Error` | sim |
+
+Sem os dois consertos acima este patch silenciaria **cinco** sítios de sinal real de uma
+vez. Com eles, zero. O `game.js:739` foi o mais perto de escapar: é o único sinal
+deliberado do nosso código que só existia como `console.error` de string, **não há régua
+nenhuma cobrindo composição de times** (conferido: nada em `tools/eval/` cita `teamCount`,
+`teamSize` ou `TIMES DESIGUAIS`), então quem o guarda agora é a própria EP13, pelo mutante
+`times-sem-erro`. Envolver em `Error` não move o agrupamento: o hook usa
+`a.message ? a.message : String(a)`, então o texto reportado continua byte a byte o mesmo.
+
+**O risco que sobra, declarado.** O `three.module.js` reporta quase tudo por `console.error`
+com string literal e sem `Error` (`Shader Error`, `WebGLState: Invalid blending`,
+`computeBoundingSphere(): Computed radius is NaN`). Esses deixam de abrir issue. É
+exatamente o custo que se quis trocar pelo fim do "regex por incidente", e os controles
+compensatórios existem, com os limites deles: `tools/eval/console-check.mjs` reprova o
+portão com qualquer erro de console nas rotas publicadas em Chrome de verdade (mas só
+carrega rotas, não entra em partida), `shader-log-check.mjs` guarda o diagnóstico de shader
+e `shader-budget-check.mjs` o orçamento de varyings. E tudo continua gravado no `js_error`
+com `kind='console'`: some o disparo automático, não o dado.
+
+**Não verificado:** o `sendBeacon` real de uma sessão com devtools aberto, e como o `%c` se
+comporta no console nativo de Firefox e Safari. A régua exercita o hook extraído do fonte,
+não o navegador.
+
+**Régua: `tools/eval/error-provenance-check.mjs`** (`npm run eval:error-origin`, no
+`check:fast` e no `check:deploy`). EP13 executa o hook do console **extraído do fonte** com
+os mesmos argumentos que o jogo passa - regex de fiação sozinha aprovaria uma varredura que
+não varre - e mede também a cota. **6 mutações medidas:** `sem-log`, `log-amplo` (tira o
+`&& !stack`, e console COM pilha pararia de escalar), `log-sobre-tudo` (rebaixaria
+`cache-split` e mataria o purge), `log-nao-corta`, `sem-teto-console` e
+`pilha-so-no-primeiro` (devolve o furo do `arguments[0]`). Todas acendem EP13; as 25
+anteriores seguem acendendo as suas - **31 de 31 na matriz completa**.
+
+### ~~BUG-71 · `/api/jserror` aceitava fingerprint forjado — carga sintética abria issue e calava crash real~~ · RESOLVIDO 19/08 (issue #383)
+
+**Sintoma (literal, issue #383, aberta pelo `crash-fix.yml`):**
+*"jserror-overload-2026-08-19T17-36-24-896Z | fase A (mesmo fingerprint) #1"*,
+fingerprint `18084ef4`, classe `codigo`, **sem stack, sem origem e sem versão do jogo** —
+enquanto #379, #380 e #381, do mesmo dia, chegaram todas com `2.0.0-alpha.159`.
+
+**Causa raiz — confirmada.** `src/pages/api/jserror.ts` lia o `fingerprint` do corpo e o
+entregava ao RPC sem conferir nada. Esse campo é ao mesmo tempo a **chave de agrupamento**
+do `js_error` (o UPSERT da migration 015 vira `hits`) e a **chave de dedupe do
+escalonamento** (`dispatched_at`, migration 020). Aceito na palavra do cliente ele deixa de
+ser função do conteúdo, e o estrago tem dois sentidos: uma rajada com um fingerprint só (a
+"fase A" da #383) funde erros DISTINTOS num grupo só e **todos menos o primeiro somem sem
+nunca abrir issue**; e texto arbitrário de qualquer `curl` vira título de issue `crash-auto`.
+
+**A medição que prova.** A receita do `digital()` de `src/pages/index.astro` é FNV-1a de 32
+bits sobre `kind|message|source`. Aplicada aos fingerprints **publicados** nas três issues
+legítimas de 19/08 ela os reproduz, e não reproduz o da #383 em nenhum dos três `kind`
+possíveis (`127b9df5`, `5ead1108`, `00753bac` contra o `18084ef4` reivindicado):
+
+```
+ANTES   ACEITA 470752a2 #379 · ACEITA 7122f83c #380 · ACEITA cd468274 #381 · ACEITA 18084ef4 #383
+DEPOIS  ACEITA 470752a2 #379 · ACEITA 7122f83c #380 · ACEITA cd468274 #381 · RECUSA 18084ef4 #383
+```
+
+**Correção, e ela mudou de forma na revisão.** A primeira versão **recusava com 400** o corpo
+incoerente. Dois críticos de contexto limpo mostraram, executando o cliente real, que isso
+**apagava relatório legítimo**: o cliente cortava a mensagem em 500 chars ao serializar mas
+hasheava o valor BRUTO, então todo crash com mensagem acima de 500 (stack embutida,
+`console.error` multi-argumento, o `'Falha ao abrir ' + etapa + ': ' + msg` do `lancamento`)
+respondia 400 e sumia — inclusive no botão ENVIAR RELATÓRIO, que reenvia o mesmo corpo e
+nunca fecharia. O conserto ficou nos dois lados, na causa:
+
+- **cliente** (`src/pages/index.astro`): `corta()` espelha o `str()` do servidor, e `reporta`
+  passa a hashear **exatamente o que envia**;
+- **servidor** (`src/pages/api/jserror.ts`): incoerente **não é recusado** — é gravado sob a
+  chave DERIVADA do conteúdo (o que desfaz a fusão do grupo) e fica fora do escalonamento,
+  no mesmo early-return do `externo`.
+
+**Armadilha da receita, e ela é real:** a multiplicação do `digital()` é em **ponto
+flutuante**. `h * 16777619` passa de 2^53 e perde precisão, e é esse número lossy que está
+publicado nas issues desde a alpha.1. `Math.imul`, que é a FNV-1a "correta", dá outro valor
+(`cd468274` → `b7cc23a5`) e invalidaria todo fingerprint em campo. Mutante `receita-imul`.
+
+**Régua.** EP12 de `tools/eval/error-provenance-check.mjs` (`npm run eval:error-origin`).
+Ela **extrai e executa** a `digital`, a `corta` e o trecho de hash do `reporta` do
+`index.astro` — recompor a receita à mão foi o furo da primeira versão, que aprovava uma
+composição existente só dentro do arnês. Exige: os três fingerprints publicados reproduzidos;
+o corpo real do cliente aceito **inclusive com mensagem de 900 chars, espaço nas pontas,
+source de 400 chars e mensagem vazia**; o forjado da #383 recusado nos três `kind` com as 5
+chaves derivadas da rajada saindo **distintas**; e a fiação conferida sobre o código **sem
+comentários** — a versão anterior casava um `return` COMENTADO e ficava verde com a guarda
+desativada.
+
+**Mutantes:** `sem-fingerprint` (coerente por decreto), `escala-incoerente` (devolve o vetor
+da #383), `grava-forjado` (grava sob a chave reivindicada e envenena o agrupamento),
+`receita-imul`, `cliente-hash-bruto` (cliente volta a hashear o valor bruto — acende pela
+mensagem comprida) e `cliente-sem-retrim` (ver abaixo). Os seis acendem EP12; os 19
+anteriores seguem acendendo as suas — **25 de 25 na matriz completa**.
+
+**Segundo defeito, achado auditando o primeiro: a régua comparava o cliente com ele mesmo.**
+O `servidorAceita` da EP12 conferia o fingerprint contra o corpo que o cliente monta, sem
+passar pelo `str()` de `jserror.ts:32` que a API aplica antes de conferir. Com isso a
+fronteira do corte ficava cega: mensagem com espaço EXATAMENTE no caractere 500 (ou source
+no 300) era cortada pelo cliente com o espaço no fim, o `trim()` do servidor o tirava, e o
+fingerprint deixava de bater — crash real gravado sob chave derivada e **nunca escalado**,
+em silêncio. Medido: `'a'*499 + ' ' + 'b'*50` fecha em 500 chars no cliente e em 499 no
+servidor. A régua agora roda o `str()` real antes da conferência (o que a deixou vermelha,
+como devia), e o `corta()` do cliente reapara depois do corte, de modo que o `trim()` do
+servidor vira no-op. O mutante `cliente-sem-retrim` desfaz o reaparo e acende EP12.
+
+**Custo declarado.** Durante a janela de cache, aba aberta com o `index.astro` antigo hasheia
+o valor bruto: relatório com mensagem acima de 500 chars ou source acima de 300 continua
+**gravado**, mas não escala até a aba recarregar. Fingerprint em campo muda **só** nesses dois
+casos — os três publicados acima são byte a byte os mesmos. **Não verificado:** POST real
+contra staging; a guarda foi exercitada pelo helper de produção, pelo trecho executado do
+cliente e pela conferência de fiação, não contra o banco.
+
+### ~~BUG-70 · crash em produção no `_updatePickups` — arma do mapa com id que não existe~~ · RESOLVIDO 18/08
+
+**Sintoma (literal, issue #366, aberta pelo `crash-fix.yml`):**
+*"Uncaught TypeError: Cannot read properties of undefined (reading 'short')"*,
+fingerprint `ea71c000`, classe `codigo`, versão 2.0.0-alpha.157, em
+`game.js:4849:66` → `Game._updatePickups` → `Game.update` → `loop`.
+
+**Causa raiz — confirmada.** `map_penitenciaria.js:223` declarava o 8º pickup da fileira
+central como `kind:'smg'`. **`smg` não é arma: é CLASSE de arma.** Quem mapeia arma→classe
+é `recoil.js:38`, `game.js:316`, `audio.js:271` e `vmattach.js:622`, todos com
+`mp5|uzi|p90 -> 'smg'`; `WEAPONS` (em `public/js/data/weapons.js`, 26 chaves) nunca teve
+`smg`. O prompt do `[E]` desreferencia `WEAPONS[w].short` **sem guarda**
+(`game.js:4849`), e o `_updatePickups` roda **todo quadro** dentro do `update()` — então
+olhar para aquela arma não estragava o HUD, **congelava a partida**. O mapa entrou em
+`f87ff467` (Penitenciária + Velho Oeste, #335), o que explica por que o crash é novo.
+
+**Reprodução:** `node tools/eval/pickup-arma-check.mjs` (semente 12345, sem browser). A
+cláusula PA2 planta o jogador em cima do pickup e chama o `_updatePickups` de produção;
+a exceção sai com a mensagem literal de #366.
+
+**Medido antes do conserto** (`node tools/eval/pickup-arma-check.mjs`, 12 mapas, 772 pickups):
+
+| | antes | depois |
+|---|---|---|
+| ids de pickup fora de `WEAPONS` | **1** (`penitenciaria/mapa 'smg'`) | 0 |
+| mapas em que o `_updatePickups` de produção lança | **1** (penitenciaria) | 0 |
+| `_grabPickup` naquele pickup | `false` (impegável) | `true`, jogador sai com `uzi` na mão |
+
+**O que foi DESCARTADO com medição, não com palpite.** O caminho óbvio era `WEAPONS[w]?.short`
+na linha do crash. Medido: com o `?.`, o HUD passa a escrever literalmente
+**`[E] PEGAR undefined`** e `_grabPickup(pk, player, true)` continua devolvendo **`false`** —
+a arma segue impegável, uma caixa dourada em x=10,0 z=−2,2 no meio de 7 armas de verdade.
+O `?.` não conserta o defeito: troca um crash por uma mentira. Por isso o conserto é no
+**id**, e a guarda de runtime ficou na **porta de entrada**, não no `.short`.
+
+**Correção.** Duas, em camadas diferentes:
+1. `public/js/map_penitenciaria.js:223` — `'smg'` → `'uzi'` (SMG de verdade, chave de
+   `WEAPONS`; `mp5` já ocupava a outra vaga de SMG da fileira). É a causa.
+2. `public/js/game.js:573-581` — id que não existe em `WEAPONS` **não entra no estado do
+   jogo**: o pickup é descartado na ingestão do mapa com `console.warn`. É rede, não
+   conserto: mantém o defeito de dado fora do caminho quente sem escondê-lo de quem mede,
+   porque a régua lê a lista **crua** do `MAPS[id].build()`, antes desta porta.
+
+**Custo declarado, medido.**
+- `check:fast` ganhou um passo: **+3,7 s** (`eval:pickuparma`), de 53 para 54 passos.
+- A penitenciária ganhou uma arma jogável a mais na fileira central (a vaga já existia e
+  estava morta). Posição, yaw e contagem de pickups do mapa não mudaram: **16 antes, 16
+  depois**. A caixa-marcador `arma-central-uzi` passa a ser trocada pelo GLB real em
+  `game.js:574`, como as 7 irmãs — **isto não foi verificado em browser**, só no harness,
+  onde o carregamento de GLB é stub.
+
+**Régua: `tools/eval/pickup-arma-check.mjs`** (`npm run eval:pickuparma`, no `check:fast`).
+2 cláusulas, 3 mutações medidas:
+`--mutante=smg` acende PA1 (1 id fora de `WEAPONS`) **e** PA2 (1 mapa lançando) — reproduz #366;
+`--mutante=sem-short` acende PA1 nos 12 mapas (`mp5` sem `.short`);
+`--mutante=sem-pickups` acende a anti-vacuidade nos 12 (0 < piso de 20).
+**Resultado negativo medido e declarado no cabeçalho da régua:** `--mutante=sem-short`
+**não** acende a PA2, e é de propósito — campo ausente numa arma que existe vira
+`undefined` no template (mentira), não exceção. PA2 pega o crash, PA1 pega a mentira que
+sobra quando alguém "conserta" o crash com `?.`.
+
 ### BUG-51 · erro de extensão ou beacon virava bug do jogo
 
 **Evidência antes.** #138, #152, #156, #157 e #166 têm esquema
@@ -2621,25 +2957,23 @@ quality na mesma amostra, a próxima leitura do painel separa máquina fraca de 
   gráfico de contribuidores pode levar até 24 h para refletir uma reescrita; as notas dos
   releases e os trailers já são verificáveis imediatamente.
 
-- **BUG-37 · Tarja vermelha de CRASH por um erro que não é crash.** Print do dono, 07/08,
-  com o menu de pausa aberto (`RESUME ▶` no canto):
+- **~~BUG-37 · Tarja vermelha de CRASH por um erro que não é crash~~ · RESOLVIDO 20/08
+  pelo BUG-73** (issue #122, e a #389 é a irmã). Print do dono, 07/08, com o menu de pausa
+  aberto (`RESUME ▶` no canto):
   *"⚠ CRASH (promise): The fetching process for the media resource was aborted by the user
   agent at the user's request."*
-  **Régua: nenhuma.**
-  Essa mensagem é o `AbortError` padrão de um `<audio>` cujo `play()` estava pendente
-  quando alguém chamou `pause()` ou trocou o `src` — acontece em toda troca de faixa e em
-  todo fade de saída. **O defeito não é o áudio: é o overlay de crash tratar isso como
-  crash.** O handler está em `src/pages/index.astro:27` e mostra QUALQUER
-  `unhandledrejection` numa tarja vermelha pedindo print. Um jogador levando "CRASH" na
-  cara por causa de música que trocou é ruído que ainda por cima treina todo mundo a
-  ignorar a tarja — inclusive quando ela for de verdade.
-  **O que já foi conferido e NÃO é a origem:** os `play()` do `startMenuMusic`
-  (`main.js:206-216`) têm todos tratamento de rejeição, e o `_sample` do `audio.js:46`
-  também (`.catch(() => off())`). Falta achar quem produz a promessa solta — o
-  `stopMenuMusic` pausa por fade (`main.js:222-228`) e é candidato, mas não foi medido.
-  **Próximo passo:** régua que abra a rota, force troca de faixa/pausa e exija zero
-  `unhandledrejection`; depois filtrar `AbortError` de mídia no overlay, mantendo tudo o
-  mais visível.
+  O diagnóstico desta entrada estava certo desde 07/08 - *"o defeito não é o áudio: é o
+  overlay de crash tratar isso como crash"* - e o próximo passo prescrito, *"filtrar
+  `AbortError` de mídia"*, é exatamente o que o **BUG-73** fez, na mesma família de
+  mensagens e na mesma classificação (`recuperavel`, sem issue, sem tarja, gravado no
+  banco). Régua: EP14 de `tools/eval/error-provenance-check.mjs`, com as 3 mutações.
+  Duas correções de ponteiro que esta entrada carregava velhas: o `startMenuMusic` mora
+  hoje em `main.js:398-417` (não `:206-216`) e o `_sample` em `audio.js:55` (não `:46`).
+  A suspeita registrada aqui - *"o `stopMenuMusic` pausa por fade e é candidato"* - foi
+  **refutada com medição**: `npm run eval:medianet` inspeciona os 7 `play()` de mídia do
+  fonte e todos estão guardados, o do fade inclusive. O produtor da promessa solta em
+  produção continua sem nome, e o BUG-73 diz por quê (não há browser na máquina que
+  consertou).
 
 - **BUG-38 · "Andando não consigo mexer a mira, só quando para" — touchpad de notebook.**
   Palavras de quem reportou (Matheus Paz, 07/08): *"Andando não consigo mexer a mira, só

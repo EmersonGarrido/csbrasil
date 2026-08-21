@@ -89,6 +89,25 @@ jobs:
       # Supabase, que é exatamente o estado do CI.
       - name: Smoke do site (13 rotas, contrato + JSON-LD)
         run: node tools/eval/site-smoke.mjs
+  # O bloco de autoria sai do shortlog e o squash reescreve o autor: num PR ele não é
+  # derivável (ver tools/eval/docs-autoria-check.mjs). Aqui, na main, é — e só aqui reprova.
+  # fetch-depth: 0 é obrigatório: com clone raso o gerador PULA esse bloco e o portão fica cego.
+  autoria-na-main:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Bloco de autoria em dia (derivável só depois do merge)
+        run: npm run docs:check:autoria
+
   dco:
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -137,13 +156,14 @@ jobs:
           # Idempotente: o release.yml do push na main e este job do push da
           # TAG criam a mesma release numa corrida de segundos — o perdedor
           # levava 422 "tag_name already exists" e pintava o run de vermelho
-          # (alpha.154, 18/08). Release que já existe só recebe as notas.
+          # (alpha.154, 18/08). Release que já existe NÃO SE TOCA: o `edit`
+          # com --notes do CHANGELOG APAGAVA a seção "What's Changed" com os
+          # colaboradores que o vencedor gerou (alpha.156-.158, 19/08).
           TAG="${{ github.ref_name }}"
           if gh release view "$TAG" >/dev/null 2>&1; then
-            echo "release $TAG já existe — atualizando notas"
-            gh release edit "$TAG" "${EXTRA[@]}" --title "CSBR $TAG" || true
-          else
-            gh release create "$TAG" --generate-notes "${EXTRA[@]}" --title "CSBR $TAG"
+            echo "release $TAG já existe (vencedor da corrida) — nada a fazer"
+            exit 0
           fi
+          gh release create "$TAG" --generate-notes "${EXTRA[@]}" --title "CSBR $TAG"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

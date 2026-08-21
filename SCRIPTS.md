@@ -106,6 +106,14 @@ Todo mapa DO REGISTRO devolve o que o game.js CONSOME. Irma da eval:mapjson, que
 npm run eval:mapcontrato
 ```
 
+## `eval:pickuparma`
+
+Toda arma no chão é uma arma que EXISTE (BUG-70, crash em produção #366: um mapa declarava `weapon:'smg'`, que é CLASSE de arma e não chave de `WEAPONS`, e o prompt do [E] fazia `WEAPONS[w].short` sem guarda a cada quadro dentro do `update()` — olhar pra ela congelava a partida). PA1 lê a lista CRUA de `MAPS[id].build()`, antes da guarda de entrada do Game, mais o armário do spawn, e exige que todo id resolva em `WEAPONS` com `short`/`name`/`mag`/`reserve` (os campos desreferenciados sem guarda). PA2 planta o jogador em cima de cada pickup e chama o `_updatePickups()` de produção — a linha exata do stack. Mutantes: `smg|sem-short|sem-pickups`.
+
+```bash
+npm run eval:pickuparma
+```
+
 ## `eval:parquewheel`
 
 A roda-gigante gira em torno do cubo; assentos não invadem lateral, base nem aro. Mede pivô, deriva e folgas durante a animação; mutantes: pivo-base|lateral-verde|altura-baixa|aro-no-assento.
@@ -332,7 +340,7 @@ npm run eval:vmlabhud
 
 ## `bot:record`
 
-BOTBRAIN: gera o dataset bootstrap (estado→ação) gravando os bots roteirizados no botsim — o professor da rede enquanto não há dado de jogador. Uso: [segundos] [mapId|all].
+BOTBRAIN: gera o dataset bootstrap (estado→ação) gravando os bots roteirizados no botsim — o professor da rede enquanto não há dado de jogador. Usa `TRAIN_SEEDS`, separadas das sementes do gate funcional. Uso: [segundos] [mapId|all].
 
 ```bash
 npm run bot:record
@@ -348,7 +356,7 @@ npm run bot:train
 
 ## `bot:brain:check`
 
-BOTBRAIN (régua Fase D): a rede é um controlador funcional (move+atira+mata, não congela) e a régua mede a rede — --mutante=zero zera os pesos e a régua reprova.
+BOTBRAIN (régua Fase D): a rede é um controlador funcional (move+atira+mata, não congela) em `EVAL_SEEDS` fora do dataset bootstrap. `--mutante=zero` zera os pesos e a régua reprova.
 
 ```bash
 npm run bot:brain:check
@@ -356,7 +364,7 @@ npm run bot:brain:check
 
 ## `eval:botbrain`
 
-Contrato de produção do BotBrain: coleta opt-in autenticada por UID, limites confiáveis, objetivo CTF, cache bust dos módulos, usuário não-root e balanceamento do corpus remoto. Mutantes: anonimo|ctf|optout|cache|root|poison.
+Contrato de produção do BotBrain: coleta opt-in autenticada por UID, limites confiáveis, objetivo CTF, cache bust dos módulos, usuário não-root, balanceamento do corpus remoto e avaliação sem sobreposição de sementes com o treino. Mutantes: anonimo|ctf|optout|cache|root|poison|eval-leak|eval-usa-treino|treino-usa-eval.
 
 ```bash
 npm run eval:botbrain
