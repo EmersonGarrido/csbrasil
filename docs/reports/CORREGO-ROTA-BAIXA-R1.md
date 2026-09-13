@@ -25,6 +25,7 @@ O modelo não pode promover o próprio resultado a `REAUTHORIZED`. A aprovação
 - Base de investigação: `3a372fdd0a0d4dc3d0a3e84f18713a4cf58f01f1` (`v2.0.0-alpha.254`)
 - Base final após rebase limpo: `dffcf1f5815342e1ae26e5d79beeaf54b833a2df` (`v2.0.0-alpha.255`)
 - Arquivo de produção alterado: `public/js/map_corrego.js`
+- Draft PR: [corosolto/client#599](https://github.com/corosolto/client/pull/599), head técnico `8ee77df24b8fa226d03d5b6a47e593754545e88d` antes deste fechamento de ledger
 
 O catálogo do ROADMAP #28 manda integrar a rota baixa antes de arte, manter Mint em `HOLD`, medir o custo histórico de aproximadamente 11,06 milhões de triângulos/quadro e separar revisão técnica de aceite humano.
 
@@ -137,4 +138,4 @@ npm run check:deploy
 
 ## Próximo passo
 
-Abrir draft PR contra `main`, obter teste humano pela URL local e promover somente após feedback explícito. Se o usuário aprovar, tratar separadamente os 404 globais e o drift de documentos em lanes próprias; não ampliar este PR.
+O draft PR #599 está aberto e mergeável contra `main`. O próximo passo é obter teste humano pela URL local e promover somente após feedback explícito. Se o usuário aprovar, tratar separadamente os 404 globais e o drift de documentos em lanes próprias; não ampliar este PR.
