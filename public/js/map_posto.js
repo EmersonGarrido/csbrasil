@@ -662,6 +662,18 @@ export function buildPosto(scene, T) {
   /* ---------------- spawns (E sul / B norte) + bandeiras CTF (triângulo) ---------------- */
   const mk = s => [-8, -2, 4, 10].map(x => ({ x, z: (HALF_Z - 6) * s, yaw: s < 0 ? 0 : Math.PI }));
   const spawns = { E: mk(-1), B: mk(1) };
+  const tacticalRoutes = {
+    E: [
+      { id: 'loja', x: -22.6, z: -6.8 },
+      { id: 'bombas', x: 1.2, z: -6.8 },
+      { id: 'rodovia', x: 21.6, z: -6.8 },
+    ],
+    B: [
+      { id: 'loja', x: -22.6, z: 6.8 },
+      { id: 'bombas', x: 1.2, z: 6.8 },
+      { id: 'rodovia', x: 21.6, z: 6.8 },
+    ],
+  };
 
   /* BUG-57: posto de estrada tem caramelo dormindo perto da bomba e pombo na marquise. */
   const ambience = createFavelaAmbience(root, {
@@ -678,14 +690,13 @@ export function buildPosto(scene, T) {
   });
 
   return {
-    /* SOM: `hum` desafinado pra grave vira bomba ligada na ilha do meio; `funk`
-       (tamborzão instrumental, sem letra) com lowpass vira rádio abafado da loja. */
+    /* Fontes curtas separam bomba e loja; o runtime atual aplica raio, volume e posição. */
     ambience, sound: {
       loops: [
         { src: AMB_LOOPS.vento, pos: [0, 3, 0], radius: 75, vol: .24 },
         { src: AMB_LOOPS.cidade, pos: [0, 3, 0], radius: 75, vol: .26 },
-        { src: AMB_LOOPS.hum, pos: [COB_CX, 1.2, 0], radius: 9, vol: .30, rate: .72, tag: 'bomba-ligada' },
-        { src: AMB_LOOPS.funk, pos: [LX, 1.6, 0], radius: 11, vol: .26, lowpass: 620, tag: 'radio-loja' },
+        { src: AMB_LOOPS.hum, pos: [COB_CX, 1.2, 0], radius: 9, vol: .30, tag: 'bomba-ligada' },
+        { src: AMB_LOOPS.funk, pos: [LX, 1.6, 0], radius: 11, vol: .26, tag: 'radio-loja' },
       ],
       bioma: 'urbano',
     },
@@ -696,7 +707,7 @@ export function buildPosto(scene, T) {
       { id: 'MID', label: 'MARQUISE', x: 4, z: 0 },
       { id: 'B', label: 'PÁTIO NORTE', x: -10, z: 12 },
     ],
-    waypoints: { nodes, adj }, nearestWaypoint, findPath,
+    waypoints: { nodes, adj }, nearestWaypoint, findPath, tacticalRoutes,
     bounds: { minX: -HALF_X + 0.5, maxX: HALF_X - 0.5, minZ: -HALF_Z + 0.5, maxZ: HALF_Z - 0.5 },
   };
 }

@@ -49,9 +49,11 @@
               só foi o primeiro erro desta régua — a mutação `patio-limpo`
               apagava as muretas e o percentual não se mexia UM DÍGITO.
      POSTO6 · SOM DO POSTO — o loop `bomba-ligada` fica na ilha central com raio
-              curto e `rate` grave; o `radio-loja` fica DENTRO da sala andável e
-              tem `lowpass` (é o que faz o rádio soar atravessando parede em vez
-              de tocar na cara do jogador).
+              curto; o `radio-loja` fica DENTRO da sala andável, com fonte própria
+              e raio curto. Só cobra parâmetros que o soundscape aplica no runtime.
+     POSTO7 · ROTAS POR SPAWN — cada um dos quatro spawns de cada time alcança as
+              três decisões declaradas: loja, bombas e rodovia. As três âncoras
+              ficam em bandas laterais distintas e chegam por caminhos distintos.
 
    ── O QUE ELA NÃO MEDE, DE PROPÓSITO ───────────────────────────────────────
    Em node o GLB não carrega (`placeProp` devolve null e o mapa cai no fallback,
@@ -67,7 +69,8 @@
      --mutante=sem-cobertura .. a telha desaparece               -> POSTO3
      --mutante=patio-aberto ... some a ilha de ar/água da coxia  -> POSTO4
      --mutante=patio-limpo .... mureta e jardineira saem do mapa -> POSTO5
-     --mutante=radio-limpo .... o rádio da loja perde o lowpass  -> POSTO6
+     --mutante=radio-fora ..... o rádio sai da loja              -> POSTO6
+     --mutante=rota-fechada ... some a decisão da rodovia em E   -> POSTO7
    `--mutar=` é aceito como apelido de `--mutante=`.
 
    Uso: node tools/eval/posto-check.mjs [--mutante=<nome>]
@@ -77,7 +80,7 @@ import { THREE, MAPS, initTextures } from './harness.mjs';
 
 const arg = (n) => (process.argv.find((a) => a.startsWith(`--${n}=`)) || '').split('=')[1] || '';
 const MUT = arg('mutante') || arg('mutar');
-const MUTANTES = new Set(['bomba-caixa', 'loja-macica', 'sem-cobertura', 'patio-aberto', 'patio-limpo', 'radio-limpo']);
+const MUTANTES = new Set(['bomba-caixa', 'loja-macica', 'sem-cobertura', 'patio-aberto', 'patio-limpo', 'radio-fora', 'rota-fechada']);
 if (MUT && !MUTANTES.has(MUT)) { console.error(`mutante desconhecido: ${MUT}`); process.exit(2); }
 
 const FONTE_MAPA = new URL('../../public/js/map_posto.js', import.meta.url);
@@ -117,7 +120,9 @@ if (MUT === 'patio-limpo') {
   muretas.length = 0; jardineiras.length = 0;
 }
 
-const loops = (world.sound?.loops || []).map((l) => (MUT === 'radio-limpo' && l.tag === 'radio-loja' ? { ...l, lowpass: 0 } : l));
+const loops = (world.sound?.loops || []).map((l) => (MUT === 'radio-fora' && l.tag === 'radio-loja' ? { ...l, pos: [0, 1.6, 0] } : l));
+const tacticalRoutes = structuredClone(world.tacticalRoutes || {});
+if (MUT === 'rota-fechada') tacticalRoutes.E = (tacticalRoutes.E || []).filter((r) => r.id !== 'rodovia');
 
 /* ================= POSTO1 · BOMBA CENTRAL ================= */
 const MOLDE_BOMBA = 'bombas_combustivel';
@@ -192,8 +197,32 @@ const posto5 = solidosPeito.length >= MIN_PEITO && muretas.length >= 12 && jardi
 /* ================= POSTO6 · SOM DO POSTO ================= */
 const bomba = loops.find((l) => l.tag === 'bomba-ligada');
 const radio = loops.find((l) => l.tag === 'radio-loja');
-const posto6 = !!bomba && Math.abs(bomba.pos[0] - 4) < 1.5 && Math.abs(bomba.pos[2]) < 1.5 && bomba.radius <= 12 && bomba.rate > 0 && bomba.rate < 1
-  && !!radio && dentroSala(radio.pos[0], radio.pos[2]) && radio.lowpass > 0 && radio.lowpass <= 1200 && radio.vol > 0;
+const posto6 = !!bomba && Math.abs(bomba.pos[0] - 4) < 1.5 && Math.abs(bomba.pos[2]) < 1.5 && bomba.radius <= 12 && bomba.vol > 0
+  && !!radio && dentroSala(radio.pos[0], radio.pos[2]) && radio.radius <= 12 && radio.vol > 0 && radio.src !== bomba.src;
+
+/* ================= POSTO7 · TRÊS DECISÕES POR SPAWN ================= */
+const bandOf = (route) => route.x < -14 ? 'loja' : route.x > 14 ? 'rodovia' : 'bombas';
+const routeEvidence = [];
+let posto7 = true;
+for (const team of ['E', 'B']) {
+  const routes = tacticalRoutes[team] || [];
+  const ids = new Set(routes.map((r) => r.id));
+  const bands = new Set(routes.map(bandOf));
+  if (routes.length !== 3 || ids.size !== 3 || bands.size !== 3) posto7 = false;
+  for (const spawn of world.spawns[team] || []) {
+    const start = world.nearestWaypoint(spawn.x, spawn.z);
+    const signatures = [];
+    for (const route of routes) {
+      const end = world.nearestWaypoint(route.x, route.z);
+      const path = Number.isInteger(start) && Number.isInteger(end) ? world.findPath(start, end) : [];
+      const endNode = world.waypoints.nodes[end];
+      if (!path?.length || path.at(-1) !== end || !endNode || Math.hypot(endNode.x - route.x, endNode.z - route.z) > 4.9) posto7 = false;
+      signatures.push((path || []).map((i) => world.waypoints.nodes[i]).filter(Boolean).map((n) => `${n.x.toFixed(1)},${n.z.toFixed(1)}`).join('|'));
+    }
+    if (new Set(signatures).size !== routes.length) posto7 = false;
+    routeEvidence.push(`${team}(${spawn.x},${spawn.z}):${routes.map((r, i) => `${r.id}/${signatures[i]?.split('|').filter(Boolean).length || 0}`).join(',')}`);
+  }
+}
 
 /* ---------------- veredito ---------------- */
 const marca = MUT ? ` [mutante ${MUT}]` : '';
@@ -204,11 +233,12 @@ const r = [
   linha('POSTO3', posto3, `telha y=${telha ? telha.position.y.toFixed(2) : '—'} sobre as 3 ilhas · ${telhaSemColisor ? 'sem' : 'COM'} colisor · ${pilaresColidem.length}/${pilares.length} pilares colidem`),
   linha('POSTO4', posto4, `${(fracao * 100).toFixed(1)}% dos ${pares} pares >20 m com linha livre (teto ${(TETO_LIVRE * 100).toFixed(0)}%) · ${solidosOlho.length} sólidos na banda do olho (mín. ${MIN_OLHO})`),
   linha('POSTO5', posto5, `${solidosPeito.length} colisores de peito (mín. ${MIN_PEITO}) · ${muretas.length} muretas · ${jardineiras.length} jardineiras`),
-  linha('POSTO6', posto6, `bomba em (${bomba ? `${bomba.pos[0]}, ${bomba.pos[2]}` : '—'}) raio ${bomba?.radius ?? '—'} rate ${bomba?.rate ?? '—'} · rádio lowpass ${radio?.lowpass ?? '—'} Hz dentro da sala`),
+  linha('POSTO6', posto6, `bomba em (${bomba ? `${bomba.pos[0]}, ${bomba.pos[2]}` : '—'}) raio ${bomba?.radius ?? '—'} · rádio em (${radio ? `${radio.pos[0]}, ${radio.pos[2]}` : '—'}) raio ${radio?.radius ?? '—'} · fontes ${bomba?.src === radio?.src ? 'iguais' : 'distintas'}`),
+  linha('POSTO7', posto7, `${routeEvidence.join(' · ')}`),
 ];
 
 const falhas = r.filter((ok) => !ok).length;
 let cega = false;
 if (MUT && !falhas) { console.log(`MUTAÇÃO '${MUT}' não acendeu nenhuma cláusula — portão cego (lei 3)`); cega = true; }
-if (!falhas && !cega) console.log(`POSTO ✓ 6 cláusulas do Posto da Treta (molde, interior, cobertura, visão, peito, som)`);
+if (!falhas && !cega) console.log(`POSTO ✓ 7 cláusulas do Posto da Treta (molde, interior, cobertura, visão, peito, som, rotas)`);
 process.exit(falhas || cega ? 1 : 0);
