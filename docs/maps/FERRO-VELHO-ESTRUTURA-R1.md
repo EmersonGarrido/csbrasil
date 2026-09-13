@@ -9,6 +9,7 @@ os quatro objetivos CTF e a identidade visual existente foram preservados.
 - worktree: `/Volumes/Zenith/Projects/game/corosolto/csbrasil/worktrees/ferro-velho-estrutura-r1`
 - branch: `codex/ferro-velho-estrutura-r1`
 - base: `origin/main@dffcf1f5815342e1ae26e5d79beeaf54b833a2df`
+- draft PR: [corosolto/client#600](https://github.com/corosolto/client/pull/600)
 - escopo alterado: `public/js/map_ferrovelho.js`, validadores próprios e scripts npm
 - exclusões: nenhum material compartilhado, runtime compartilhado, asset externo,
   Mint, Astra, merge ou deploy
