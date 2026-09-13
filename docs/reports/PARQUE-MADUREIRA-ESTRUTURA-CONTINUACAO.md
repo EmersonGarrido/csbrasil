@@ -28,6 +28,8 @@ A lane fica pronta para revisão quando:
 - worktree: `/Volumes/Zenith/Projects/game/corosolto/csbrasil/worktrees/parque-estrutura-r1`
 - branch: `codex/parque-estrutura-r1`
 - base integrada por fast-forward normal: `origin/main@3a372fdd0a0d4dc3d0a3e84f18713a4cf58f01f1`
+- checkpoints: `810e0372dacf4a9d585e7d702616c1d04df404de` e
+  `beeb6d43ef5f36e91df42a8e6dc1b6180c922fe5`
 - candidata local: `http://127.0.0.1:8165/?debug=1&auto=P,mst&map=parque_treta&perfilauto=0&ctf=1`
 - recibos/capturas locais: `artifacts/parque/browser/`
 - aprovação humana: pendente
@@ -89,14 +91,14 @@ praça central, rota leste, spawn norte e overview.
 
 | Matriz | p50 | p95 | máximo | >100 ms | draw calls | triângulos |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| 5x5, 1536x1024, médio | 8,3 ms | 9,9 ms | 10,4 ms | 0 | 709 | 1.222.498 |
-| 8x8, 1600x900, baixo | 8,3 ms | 10,0 ms | 10,4 ms | 0 | 480 | 636.423 |
+| 5x5, 1536x1024, médio | 8,3 ms | 9,9 ms | 10,4 ms | 0 | 749 | 1.211.214 |
+| 8x8, 1600x900, baixo | 8,3 ms | 9,9 ms | 10,4 ms | 0 | 450 | 636.363 |
 
 O boot mediu WebGL2 real, 394 nós, três pontos CTF, 16 wrappers hero, quatro
 bilheterias, doze peças de cobertura e quatro tipos de fauna. Não houve erro de
 página ou HTTP inesperado. O recibo final é
 `artifacts/parque/browser/receipt.json`, SHA-256
-`35dcf432908672a8ada488f8ad9ec4ad15d96f13c930fcba39b79a67763dc263`.
+`707d843d9b10da0a979c7aa2d45507787218068b768eb9ea8098770a27e36bab`.
 Os artefatos ficam ignorados pelo Git para não inflar o repositório.
 
 ## Assets locais e proveniência
@@ -146,6 +148,14 @@ global: UIR15 em `eval:redesign`. A mesma UIR15 foi reproduzida em worktree
 destacada da própria `origin/main@3a372fdd0`; ela mede arte estática de resultado
 e não toca nenhum arquivo alterado por esta lane. Nenhuma exceção ou teto foi
 reduzido para obter verde.
+
+O `check:fast` executa `eval:parque` e o deixa verde. Os vermelhos amplos restantes
+são dívidas externas reproduzíveis: `eval:mapid` encontra o id legado `fy_mansao`
+em `docs/reports/JOA-MAIN-R2.md:39` tanto aqui quanto na mesma `origin/main`; UIR15
+é a falha acima; e `audio:check` continua vermelho porque o pacote ignorado pelo
+Git está divergente/ausente. Com os sete MP3 locais presentes, `eval:audioproc`
+passa e somente o inventário do pack reprova. `eval:amazonia`, que falhara com um
+`node_modules` emprestado de outra worktree, passou após `npm ci` local.
 
 ## Próximo passo
 
