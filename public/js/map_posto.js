@@ -659,6 +659,36 @@ export function buildPosto(scene, T) {
     murais: { texturas: T.muraisHom, nomes: T.muraisHomNomes, seed: 61, separacao: 18 },
   });
 
+  /* As caixas decorativas repetidas viram instâncias por material e grupo. Colisores,
+     meshes nomeados e transparências ficam intactos para física, gates e leitura. */
+  {
+    const solids = new Set(occluders);
+    const unit = new THREE.BoxGeometry(1, 1, 1), pose = new THREE.Matrix4();
+    const batch = (parent) => {
+      for (const child of [...parent.children]) if (!child.isMesh) batch(child);
+      const lots = new Map();
+      for (const mesh of [...parent.children]) {
+        if (!mesh.isMesh || mesh.isInstancedMesh || mesh.name || solids.has(mesh) || mesh.material?.transparent || mesh.geometry?.type !== 'BoxGeometry') continue;
+        const p = mesh.geometry.parameters;
+        const key = `${mesh.material.uuid}:${mesh.castShadow ? 1 : 0}:${mesh.receiveShadow ? 1 : 0}`;
+        if (!lots.has(key)) lots.set(key, []);
+        lots.get(key).push({ mesh, size: new THREE.Vector3(p.width * mesh.scale.x, p.height * mesh.scale.y, p.depth * mesh.scale.z) });
+      }
+      for (const list of lots.values()) {
+        if (list.length < 2) continue;
+        const instanced = new THREE.InstancedMesh(unit, list[0].mesh.material, list.length);
+        instanced.name = 'posto-decor-batch';
+        instanced.castShadow = list[0].mesh.castShadow; instanced.receiveShadow = list[0].mesh.receiveShadow;
+        list.forEach(({ mesh, size }, i) => {
+          pose.compose(mesh.position, mesh.quaternion, size); instanced.setMatrixAt(i, pose);
+          parent.remove(mesh); mesh.geometry.dispose();
+        });
+        instanced.computeBoundingSphere(); parent.add(instanced);
+      }
+    };
+    batch(root);
+  }
+
   /* ---------------- spawns (E sul / B norte) + bandeiras CTF (triângulo) ---------------- */
   const mk = s => [-8, -2, 4, 10].map(x => ({ x, z: (HALF_Z - 6) * s, yaw: s < 0 ? 0 : Math.PI }));
   const spawns = { E: mk(-1), B: mk(1) };

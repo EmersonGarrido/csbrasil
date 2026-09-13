@@ -66,6 +66,9 @@ try {
     const hide = (o) => { try { Object.defineProperty(o, 'visible', { get: () => false, set: () => {}, configurable: true }); } catch {} };
     for (const bot of g.bots || []) if (bot.mesh?.group) hide(bot.mesh.group);
     for (const drop of g.drops || []) if (drop.mesh) hide(drop.mesh);
+    for (const smoke of g._smokes || []) g.scene.remove(smoke.group);
+    for (const grenade of g._grenades || []) g.scene.remove(grenade.mesh);
+    g._smokes = []; g._grenades = [];
     if (g.vmScene) g.vmScene.visible = false;
     g.update = function captureFrame() { this.scene.updateMatrixWorld(true); this.renderer.render(this.scene, this.camera); };
     return {
