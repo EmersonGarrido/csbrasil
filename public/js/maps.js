@@ -90,7 +90,7 @@ export const MAPS = {
   // por portas de verdade na fachada. Gôndolas reais (gondola_mercado/eletro), caixas, doca, e um
   // bairro/skyline em volta. A treta é o preço absurdo. Simétrico funcional, A* pelos corredores.
   atacadao_treta: { name: 'Atacadão da Treta', build: buildAtacadao, props: ATACADAO_PROPS, ctfMode: true },
-  parque_treta: { name: 'Parque Madureira', build: buildParque, props: PARQUE_PROPS, ambience: PARQUE_AMBIENCE, ctfMode: true },
+  parque_treta: { name: 'Parque da Treta', build: buildParque, props: PARQUE_PROPS, ambience: PARQUE_AMBIENCE, ctfMode: true },
   velho_oeste: { name: 'Sertão da Treta', build: buildVelhoOeste, props: VELHO_OESTE_PROPS, ambience: VELHO_OESTE_AMBIENCE, ctfMode: true },
   penitenciaria: { name: 'Penitenciária da Treta', build: buildPenitenciaria, ctfMode: true },
 };

@@ -1,7 +1,8 @@
 # Parque Madureira — continuação estrutural e visual
 
-Atualizado em 13/09/2026. Este é o ledger da lane isolada que mantém o id
-interno `parque_treta` e apresenta o mapa ao jogador como **Parque Madureira**.
+Atualizado em 13/09/2026. Este é o ledger da lane isolada que mantém o id e o
+nome compatíveis (`parque_treta`, **Parque da Treta**) e apresenta o lugar no
+cenário como **Parque Madureira**.
 Não autoriza merge/deploy e não substitui a revisão visual e de gameplay do dono.
 
 ## Objetivo e definição de pronto
@@ -38,8 +39,8 @@ compartilhado de props não foi alterado.
 
 ## Resultado produzido
 
-- Nome de catálogo e sinalização passam a ler **Parque Madureira**, preservando
-  `parque_treta` como chave compatível.
+- A sinalização passa a ler **Parque Madureira**. Id e nome de catálogo continuam
+  `parque_treta`/`Parque da Treta` para preservar links, estatísticas e personalidade.
 - O entorno fecha o quarteirão com oito prédios art déco e alameda de palmeiras;
   o interior tem roda gigante, carrossel, coreto, castelo, trilho, barracas,
   bilheterias, bancos, lixeiras, postes e vegetação tropical.

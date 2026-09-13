@@ -294,7 +294,6 @@ export function buildParque(scene, T) {
      o shadow fica no builder porque ele conhece os limites do mapa. */
   const { hemi, sun } = applyLook(scene, T, 'parque_treta');
   aplicaSombraSol(sun);
-  sun.shadow.mapSize.set(2048, 2048);
   sun.shadow.camera.left = -46; sun.shadow.camera.right = 46;
   sun.shadow.camera.top = 54; sun.shadow.camera.bottom = -54;
   sun.shadow.camera.far = 220; sun.shadow.bias = -0.0005;
