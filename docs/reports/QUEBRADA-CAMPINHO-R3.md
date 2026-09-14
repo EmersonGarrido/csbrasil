@@ -94,6 +94,12 @@ de decalque/URL malformada da alpha.255. O gate separa essas assinaturas exatas
 e reprova qualquer erro de página ou HTTP novo. Esta lane não muda os sistemas
 globais que originam essas falhas.
 
+O `check:deploy` fechou 39/40. A única falha foi `eval:redesign`, cláusula
+UIR15. O mesmo comando e a mesma cláusula reprovam numa exportação limpa de
+`origin/main@dffcf1f58`; nenhum arquivo de UI ou resultado faz parte deste diff.
+Todos os demais gates, incluindo sintaxe, cache por conteúdo, shaders, docs,
+assets, Vercel, mídia, comentários e autoria, passaram.
+
 A inspeção visual desta produção confirma que as vistas servidas são
 revisáveis; a aprovação humana final continua pertencendo ao dono.
 
