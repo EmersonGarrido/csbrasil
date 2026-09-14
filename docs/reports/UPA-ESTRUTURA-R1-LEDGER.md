@@ -41,7 +41,7 @@
 - `node tools/eval/ctf-win-check.mjs upa_24h`: as três bandeiras encerram a rodada na terceira captura.
 - `npm run build`, `git diff --check` e `npm run arch:check`: verdes.
 - `npm run docs:check` fica verde depois da regeneração dos blocos derivados nesta branch.
-- `npm run check:fast`: 141/145 verdes. As quatro falhas não foram introduzidas pela UPA: `eval:mapid` (a string `fy_mansao` no relatório Joá), `eval:redesign` (UIR15), `audio:check` (checkout sem o lote privado) reproduzem byte a byte na `alpha.255`; `eval:docsautoria` deliberadamente fecha enquanto os documentos gerados estão sem commit e será reexecutado no checkpoint Git.
+- `npm run check:fast`: 141/145 verdes. Três falhas não foram introduzidas pela UPA: `eval:mapid` (a string `fy_mansao` no relatório Joá), `eval:redesign` (UIR15) e `audio:check` (checkout sem o lote privado) reproduzem byte a byte na `alpha.255`. A quarta, `eval:docsautoria`, era o fechamento deliberado sobre documentos sem commit; depois do checkpoint Git, `npm run docs`, `npm run docs:check` e `npm run eval:docsautoria` ficaram verdes.
 
 ### Chrome/WebGL real
 
