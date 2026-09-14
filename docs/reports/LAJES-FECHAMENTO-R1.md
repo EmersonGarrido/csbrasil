@@ -12,6 +12,8 @@ geração visual Astra foi usado.
 
 - Worktree: `/Volumes/Zenith/Projects/game/corosolto/csbrasil/worktrees/lajes-fechamento-r1`.
 - Branch: `codex/lajes-fechamento-r1`.
+- Draft PR: [#604](https://github.com/corosolto/client/pull/604).
+- Checkpoints: `14c1a0746` (aceite/gates/dossiê) e `7f49367f5` (blocos gerados).
 - Base: `origin/main` em `dffcf1f5815342e1ae26e5d79beeaf54b833a2df`, release
   `v2.0.0-alpha.255`.
 - O PR #517 já está integrado pela main; o PR #539 contém apenas a correção de estado
@@ -66,7 +68,9 @@ Os 22 gates próprios de Lajes e a contraprova do classificador de browser passa
 O `check:fast` amplo terminou 140/145: as cinco falhas ficam em `eval:mapid`,
 `eval:redesign`, `audio:check`, `eval:netcode` e `eval:amazonia` (fixtures locais ausentes de
 galinha/pintinho). Nenhum desses checks lê os arquivos alterados nesta lane; os resultados
-ficam registrados como dívida da base, sem serem convertidos em verde.
+ficam registrados como dívida da base, sem serem convertidos em verde. Depois da regeneração
+documental, `check:deploy` ficou 39/40: apenas `eval:redesign`/UIR15 continuou vermelho; o
+contrato de mapa passou nos 17 mapas.
 
 ### WebGL real e desempenho
 
