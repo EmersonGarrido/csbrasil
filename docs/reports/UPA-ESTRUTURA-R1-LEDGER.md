@@ -42,6 +42,7 @@
 - `npm run build`, `git diff --check` e `npm run arch:check`: verdes.
 - `npm run docs:check` fica verde depois da regeneração dos blocos derivados nesta branch.
 - `npm run check:fast`: 141/145 verdes. Três falhas não foram introduzidas pela UPA: `eval:mapid` (a string `fy_mansao` no relatório Joá), `eval:redesign` (UIR15) e `audio:check` (checkout sem o lote privado) reproduzem byte a byte na `alpha.255`. A quarta, `eval:docsautoria`, era o fechamento deliberado sobre documentos sem commit; depois do checkpoint Git, `npm run docs`, `npm run docs:check` e `npm run eval:docsautoria` ficaram verdes.
+- O pre-push executou `npm run check:deploy`: 39/40 portões verdes; somente o mesmo `eval:redesign`/UIR15 herdado falhou. Como a falha foi reproduzida sem diferença na `alpha.255`, a publicação da branch usa a exceção documentada `--no-verify`; nenhuma falha da UPA foi suprimida.
 
 ### Chrome/WebGL real
 
