@@ -16,10 +16,8 @@ import { indexLajesRaycast as indexStaticRaycast } from './lajes_raycast_index.j
 const QP = new URLSearchParams(typeof location !== 'undefined' ? location.search : '');
 const LOWQ = (() => { try { return JSON.parse(localStorage.getItem('awpbr_settings') || '{}').quality === 'low'; } catch (e) { return false; } })();
 
-// Medium 8x8 used to pay the full shadow pass for the dense interior forest on
-// top of the 15 combatants. Keep every tree, prop and collider, but remove only
-// those secondary shadow casters in this crowded preset. The query switch is a
-// local A/B control used by the fresh-process browser evaluator.
+// AMZ-R3: medium 8×8 preserva a mata e corta só sombras/distância secundárias.
+// `?amzfoliageshadow=1` restaura o controle completo no avaliador por processo.
 export function resolveAmazoniaRenderProfile(settings = {}, query = QP) {
   const quality = settings.quality || 'med';
   const crowdedMedium = quality === 'med' && Number(settings.bots || 4) >= 8;
@@ -401,9 +399,8 @@ export function buildAmazonia(scene, T) {
     const cabin=CS.add(st,casaChapa);
     if(hasProp('palafita_aberta_amazonia')&&!casaChapa) {
       PB.add('palafita_aberta_amazonia',{x:st.x,z:st.z,y:PILA_GLB,targetH:6,ry:dx<0?0:Math.PI});
-      // O molde tem travessas decorativas, mas suas pontas podiam parecer soltas
-      // em terreno irregular. Quatro estacas autoradas ligam cada cabana ao chão
-      // medido pelo próprio mapa, sem criar parede/collider invisível.
+      // Quatro estacas ligam cada cabana ao chão medido pelo mapa, sem criar
+      // collider invisível; as travessas decorativas do molde ficam intactas.
       for (const [u, v] of [[-2.55,-2.45],[2.55,-2.45],[-2.55,2.45],[2.55,2.45]]) {
         const [x, z] = W(u, v), bottom = chaoBase(x, z), top = cabin.floorY;
         pieceBox(matPoste, .26, top-bottom, .26, x, bottom+(top-bottom)/2, z, yaw);
