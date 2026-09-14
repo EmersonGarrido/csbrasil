@@ -13,6 +13,7 @@ mkdirSync(out, { recursive: true });
 
 const sourceFiles = [
   'public/js/map_quebrada.js',
+  'public/js/graffiti_layout.js',
   'tools/eval/campinho-integration-foundation-check.mjs',
   'tools/eval/campinho-browser-check.mjs',
 ];
