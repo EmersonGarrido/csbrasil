@@ -12,6 +12,8 @@ Worktree: `worktrees/quebrada-campinho-r3`
 Branch: `codex/quebrada-campinho-r3`  
 Base: `origin/main@dffcf1f5815342e1ae26e5d79beeaf54b833a2df`
 
+Draft substituto: `https://github.com/corosolto/client/pull/602`.
+
 ## Extração seletiva
 
 O draft #577 estava `DIRTY/CONFLICTING` e partia da alpha.246. Seus quatro
