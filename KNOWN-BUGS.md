@@ -176,6 +176,36 @@ uma publicação de produção.
 
 ## P0 — quebram o jogo ou mentem para quem mede
 
+### BUG-171 · chapéu de cangaceiro pintado no osso do braço fazia 14 reprovados no portão de seleção · CORRIGIDO 17/09
+
+**Sintoma:** `portao-browser` (eval:select) vermelho em TODA PR e na `main` desde 13/09 —
+14/53 reprovados contra dívida declarada de 12. Lampião 43,2 e Maria Bonita 31,3 ruins/1e4
+(teto 23,6, derivado de mandrake 18,9 × 1,25).
+
+**Causa raiz — confirmada por atribuição por osso.** Toda aresta ruinosa dos dois era
+Head↔Arm: a aba do chapéu, no bind T-pose, fica MAIS PERTO do segmento ombro→cotovelo do
+que do segmento curto da cabeça, e o auto-skin por proximidade (`rig-from-donor.mjs`)
+crava "rígido no mais próximo" — a aba virou carne de `LeftArm`/`RightArm`. O idle abana
+o braço, a aba fica: L0 1,4 → L 23,8 (r = 15,9). Mesma classe do jozo/trapfunk documentada
+na guarda de palma ("auto-skin pendurou no osso um pedaço de malha que não está lá").
+Ablações `semik`/`semtudo`/`semtrans` não movem o número: 100% pintura.
+
+**Por que a lane miticos não pegou:** o merge #570 registrou "lampiao 121,5 -> 42,3,
+dentro da dívida publicada" — a contagem fechava em 12 naquele dia; personagens que
+deixaram a tela de seleção depois empurraram a conta para 14 na main.
+
+**Conserto (`tools/head-zone-repin.mjs`):** cirúrgico, só JOINTS_0/WEIGHTS_0 dos dois GLB.
+Vértice acima da linha do pescoço não carrega peso em subtree de ombro/braço; o peso
+livre vira blend POT (inverso-distância^1,5, a mistura do reskin) sobre a cadeia
+neck→Head→folhas, peso de tronco preservado, suavização de vizinhança com anel de
+fronteira (SUAVIZA=6 no lampiao, 3 na maria). Repintura total do reskin foi medida e
+DESCARTADA: 43,2 → 57,7 (perde o tuning da lane).
+
+**Medido:** lampiao 43,2 → **23,4**; mariabonita 31,3 → **22,8**; portão **12/53, EXIT 0**.
+`check:fast` 141/145 (= baseline da máquina); `eval:chao` CHR7 53/53 na catraca; fotos da
+região da cabeça sem rasgo nem flutuação. Mutante: `git checkout` dos GLB devolve 14/53.
+
+
 ### BUG-170 · queda de rede do jogador entrava como crash de código e abria issue automática · CORRIGIDO 15/09
 
 **Sintoma:** issue #592, aberta sozinha pelo `crash-fix.yml` em
