@@ -176,6 +176,26 @@ uma publicação de produção.
 
 ## P0 — quebram o jogo ou mentem para quem mede
 
+### BUG-172 · o B5 do boot-check injetava erro com stack de arnês e o corte de automação o filtra · CORRIGIDO 18/09
+
+**Sintoma:** `eval:boot` (passo do `portao-browser`) reprovando **B5** — "?debug=1
+preserva o painel técnico" — em toda árvore desde o merge #587 (BUG-151), inclusive na
+`main` (run 35252681261, 17/09 17:25). B1–B4 e B6–B7 verdes.
+
+**Causa raiz — confirmada por stack.** O B5 injetava o diagnóstico com
+`page.evaluate(() => console.error(new Error(...)))` — a stack nasce com os frames
+`UtilityScript.evaluate` do Playwright. O corte `AUTOMACAO_RE` (BUG-151) existe
+EXATAMENTE para classificar esses frames como externos ("arnês apontado para produção
+não é defeito do jogo") — e classificou o sinal do próprio check, que nunca mais
+chegava ao painel. Medido: stack direto casa `UtilityScript`; via callback de
+`setTimeout` agendado pelo evaluate, NÃO casa.
+
+**Conserto:** a injeção do B5 passou a criar o erro em callback de timer — o formato
+de erro de quem depura de verdade (console do navegador nunca carrega frames de
+arnês, e é esse o contrato do painel ?debug=1). Mutante `--mutante=vaza-detalhe`
+continua reprovando: a régua morde igual.
+
+
 ### BUG-171 · chapéu de cangaceiro pintado no osso do braço fazia 14 reprovados no portão de seleção · CORRIGIDO 17/09
 
 **Sintoma:** `portao-browser` (eval:select) vermelho em TODA PR e na `main` desde 13/09 —
