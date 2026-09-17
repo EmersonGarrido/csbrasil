@@ -25,6 +25,9 @@ const CONTEXT_LOSS_RE = /to WebGL2?RenderingContext\.\w+ must be an instance of 
 // Queda de rede do jogador, uma redação por engine (#125/#592 Firefox, #201 WebKit, Chromium).
 // Prefixo opcional = o do launch watchdog. ESTREITA, casa a mensagem INTEIRA — BUG-170.
 const REDE_RE = /^(?:falha ao abrir [^:]{1,40}: )?(?:network error|load failed|failed to fetch|networkerror when attempting to fetch resource\.?)$/i;
+// Arnês de automação: o predicado do `waitForFunction` roda DENTRO da página e a exceção dele
+// chega como se fosse do jogo. O nome do injetor é a proveniência (KNOWN-BUGS.md, BUG-151).
+const AUTOMACAO_RE = /\bUtilityScript\b|\b__puppeteer_evaluation_script__\b|\bpptr:[/][/]/;
 const HTTP_URL_RE = /https?:\/\/[^\s)'"<>]+/gi;
 /* Assinaturas opacas de terceiro/extensão/resposta corrompida: mensagens sem
    pilha e sem nome de arquivo do próprio jogo que o navegador entrega já
@@ -63,6 +66,9 @@ export function isExternalCrash({ message = '', source = '', stack = '' } = {}, 
   // Mesmo motivo e mesmo lugar da VENDOR_RE: própria origem, código de terceiro. Vale em
   // qualquer campo — o NOME do global É a proveniência (BUG-76).
   if (PONTE_INJETADA_RE.test(evidence)) return true;
+  // Mesmo motivo e mesmo lugar da PONTE_INJETADA_RE: própria origem, código de terceiro. Só na
+  // STACK - na mensagem o nome é carga nossa, e o corte por evidência mordia texto do jogo.
+  if (AUTOMACAO_RE.test(String(stack || ''))) return true;
 
   const sourceOrigin = /^https?:\/\//i.test(sourceText)
     ? normalizedOrigin(sourceText, ownOrigin)
