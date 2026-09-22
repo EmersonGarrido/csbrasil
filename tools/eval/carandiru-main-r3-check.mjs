@@ -129,6 +129,16 @@ const connected = (points) => {
   const path = world.findPath(a, b);
   return a === b || path.length > 1 && path[0] === a && path.at(-1) === b;
 };
+const navigationReach = (() => {
+  const { nodes, adj } = world.waypoints, seen = new Uint8Array(nodes.length), queue = nodes.length ? [0] : [];
+  if (nodes.length) seen[0] = 1;
+  let reached = nodes.length ? 1 : 0;
+  while (queue.length) {
+    const current = queue.pop();
+    for (const next of adj[current] || []) if (!seen[next]) { seen[next] = 1; reached++; queue.push(next); }
+  }
+  return { reached, total:nodes.length };
+})();
 const routeMetric = (route) => {
   const samples = samplesOf(route.points), branch = samplesOf(route.midBranch);
   const failures = [];
@@ -214,8 +224,9 @@ const branchesReachMid = spec.routes.every((route) => {
   const end = route.midBranch.at(-1); return Math.hypot(end[0]-mid.x,end[2]-mid.z) <= .25;
 });
 put('CR3-4', routeMetrics.length === 3 && independent && branchesReachMid && triangleHeight >= 4.5
-  && routeMetrics.every((route) => route.physical && route.connected),
-  `${routeMetrics.map((r) => `${r.id}:${r.physical&&r.connected?'livre':`bloqueada@${r.firstFailure||'grafo'}`}`).join(' ')} triângulo=${triangleHeight.toFixed(1)}m MID=${branchesReachMid}`);
+  && routeMetrics.every((route) => route.physical && route.connected)
+  && navigationReach.reached === navigationReach.total,
+  `${routeMetrics.map((r) => `${r.id}:${r.physical&&r.connected?'livre':`bloqueada@${r.firstFailure||'grafo'}`}`).join(' ')} triângulo=${triangleHeight.toFixed(1)}m MID=${branchesReachMid} grafo=${navigationReach.reached}/${navigationReach.total}`);
 const maxSight = Math.max(...towerSight.map((row) => row.seen));
 put('CR3-5', maxSight <= 2 && counterfire >= 2 && towerSight.every((row) => named(row.name)),
   `visada máxima=${maxSight}/4 contrafogo=${counterfire}/3`);

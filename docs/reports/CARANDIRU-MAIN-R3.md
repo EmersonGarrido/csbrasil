@@ -44,6 +44,7 @@ Comandos: `npm run eval:penitenciaria`, `node tools/eval/map-check.mjs penitenci
 - Quatro escadas contínuas ligam o piso às passarelas da muralha. As quatro guaritas de canto e duas torres centrais têm entradas e rotas registradas.
 - O Pavilhão 6 é oco: possui passagens norte–sul e leste–oeste, escada interna, galeria superior e 12 janelas inseridas em paredes reais, com piso, peitoril e posição de tiro.
 - As rotas `radial-interna`, `externa-oeste` e `muralha-leste` ligam cada spawn ao MID. O MID do CTF foi deslocado para formar triângulo com altura de 8 m.
+- O grafo de bots descarta 11 amostras de um bolsão decorativo fisicamente fechado atrás das alas, em vez de criar uma ligação falsa através da parede; os 1.229 nós jogáveis restantes formam um único componente.
 - Sessenta e quatro coberturas baixas instanciadas fecham os vazios próximos aos spawns sem bloquear as três rotas. A pior lacuna do MAP5 caiu de 20,60 m para 6,64 m e a razão de props subiu de 0,12× para 0,54×.
 - A ambiência cria três animais locais (um rato e dois pombos), com os tipos já pré-carregados para o mapa, três loops já existentes (`vento`, `hum`, `cidade`) e fachos móveis nas torres. O corte de 11 para três preserva as duas leituras de fauna e reduz o custo de triângulos.
 
@@ -72,13 +73,14 @@ node tools/eval/carandiru-main-r3-check.mjs                       PASS (CR3-1..6
 node tools/eval/carandiru-main-r3-check.mjs --selftest-mutantes   PASS (9/9)
 node tools/eval/carandiru-browser-matrix.mjs --self-test          PASS
 node tools/eval/ctf-win-check.mjs penitenciaria                   PASS (3ª bandeira encerra)
+npm run eval:mapcontrato -- --map penitenciaria                  PASS (1.229/1.229 conectados)
 ```
 
 `npm run check:deploy` fechou **39/40** depois da atualização dos blocos de documentação gerados. A única falha é `eval:redesign` / UIR15 (`resultado usa exclusivamente arte estática do personagem atual`), herdada da `main` e fora do diff deste mapa: a lane não altera `public/js/game.js`, CSS/DOM de UI, `src/pages/index.astro` nem a régua de redesign.
 
 O `map-check` confirma MAP2B (2,85 m / 69,6 m²), MAP4 (zero oclusores invisíveis), MAP5 (6,64 m / 0,54×), CTF1 (8 m) e CTF2 (quatro rotas entre todos os pares). A leitura genérica MAP1 ainda acusa 40 interseções não submersas, pior profundidade 1,133 m; parte vem de superfícies baixas transitáveis/escadas porque a régua empilha `groundHeightAt` sem `yRef`. A exposição genérica ficou E 62,2% e B 55,2%, melhor que o baseline, mas ainda alta. Esses dois pontos permanecem dívida declarada, sem mascarar a saída.
 
-Botsim de 20 s na base atual: `stuckPct=3,000`, melhor que 3,311 do baseline; `laneSpread=0,64` foi preservado; `eff=0,821` ficou abaixo do baseline 0,887.
+Botsim de 20 s após a compactação do grafo: `stuckPct=3,078`, melhor que 3,311 do baseline; `laneSpread=0,64` foi preservado; `eff=0,829` ficou abaixo do baseline 0,887.
 
 ## Chrome/WebGL e A/B
 
@@ -88,16 +90,16 @@ A execução usou o harness Playwright/WebGL do próprio repositório com Chrome
 
 | Caso | p95 ms | calls | tris |
 | --- | ---: | ---: | ---: |
-| 3:2 5x5 DM | 9,2 | 886 | 919.179 |
-| 3:2 5x5 CTF | 9,2 | 891 | 920.797 |
-| 3:2 8x8 DM | 9,2 | 946 | 1.065.114 |
-| 3:2 8x8 CTF | 9,1 | 951 | 1.066.734 |
-| 16:9 5x5 DM | 8,9 | 903 | 919.437 |
-| 16:9 5x5 CTF | 9,2 | 898 | 923.616 |
-| 16:9 8x8 DM | 9,1 | 954 | 1.065.365 |
-| 16:9 8x8 CTF | 9,1 | 955 | 1.067.510 |
+| 3:2 5x5 DM | 9,1 | 892 | 920.827 |
+| 3:2 5x5 CTF | 9,8 | 890 | 920.851 |
+| 3:2 8x8 DM | 9,1 | 946 | 1.068.065 |
+| 3:2 8x8 CTF | 9,1 | 946 | 1.067.111 |
+| 16:9 5x5 DM | 9,1 | 897 | 919.393 |
+| 16:9 5x5 CTF | 9,2 | 899 | 923.271 |
+| 16:9 8x8 DM | 9,9 | 953 | 1.063.696 |
+| 16:9 8x8 CTF | 9,9 | 955 | 1.066.524 |
 
-O A/B arquivado em DM contra `origin/main@dffcf1f581` mostrou draw calls 27%–33% menores, triângulos 21%–25% maiores e p95 equivalente. A `main@7bb2707ef` conserva o mesmo arquivo de mapa baseline (hash `0c7759794db25f0a639ac5bd604e96ed11152029a76718fabe2fa3eb8ea2acaf`), mas o aceite atual usa a matriz completa acima após a atualização do runtime. Hash atual do candidato: `c0d36509c5aa2d45b1a2e9c24bf69c4cd825f05a2bd3e87e0fcd5461e5ee64c6`.
+O A/B arquivado em DM contra `origin/main@dffcf1f581` mostrou draw calls 27%–33% menores, triângulos 21%–25% maiores e p95 equivalente. A `main@7bb2707ef` conserva o mesmo arquivo de mapa baseline (hash `0c7759794db25f0a639ac5bd604e96ed11152029a76718fabe2fa3eb8ea2acaf`), mas o aceite atual usa a matriz completa acima após a atualização do runtime. A primeira amostra 3:2/5x5/CTF teve um único quadro transitório acima de 100 ms; a célula foi repetida isoladamente e passou com zero pausas. Hash atual do candidato: `28c2e5fee3fde420511bcedfb91d4307012cd4829db3870504c8b4087d2c6e0b`.
 
 Recibos ignorados pelo Git ficam em:
 

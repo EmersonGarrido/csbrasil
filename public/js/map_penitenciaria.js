@@ -1,4 +1,4 @@
-// Penitenciária da Treta: pátio central exposto, celas transitáveis e flancos de serviço.
+// Carandiru: pátio central exposto, celas transitáveis e flancos de serviço.
 // Reautoria estrutural preservada do PR #556; esta versão usa somente geometria procedural local.
 import * as THREE from 'three';
 import { createFavelaAmbience } from './ambientlife.js';
@@ -967,6 +967,26 @@ export function buildPenitenciaria(scene, T) {
   const clear=(a,b)=>{const distance=Math.hypot(b.x-a.x,b.z-a.z),steps=Math.max(1,Math.ceil(distance/.25));let previous=a.y;for(let i=1;i<=steps;i++){const t=i/steps,x=a.x+(b.x-a.x)*t,z=a.z+(b.z-a.z)*t,y=groundHeightAt(x,z,previous);if(blocked(x,z,.38,previous)||Math.abs(y-previous)>.65)return false;previous=y;}return Math.abs(previous-b.y)<.36;};
   for(let i=0;i<nodes.length;i++)for(let j=i+1;j<nodes.length;j++){const dx=nodes[i].x-nodes[j].x,dy=nodes[i].y-nodes[j].y,dz=nodes[i].z-nodes[j].z;if(dx*dx+dz*dz<=step*step*2.3&&Math.abs(dy)<=.65&&clear(nodes[i],nodes[j])){adj[i].push(j);adj[j].push(i);}}
   for(let i=0;i<nodes.length;i++)if(!adj[i].length){let nearest=-1,distance=Infinity;for(let j=0;j<nodes.length;j++){if(i===j||Math.abs(nodes[i].y-nodes[j].y)>.65||!clear(nodes[i],nodes[j]))continue;const d=(nodes[i].x-nodes[j].x)**2+(nodes[i].z-nodes[j].z)**2;if(d<distance){distance=d;nearest=j;}}if(nearest>=0){adj[i].push(nearest);adj[nearest].push(i);}}
+  /* Descarta bolsões decorativos sem entrada; mantém e remapeia o maior componente,
+     que contém spawns, pátio, rotas, escadas e galerias. */
+  const compactNavigation=()=>{
+    const seen=new Uint8Array(nodes.length),components=[];
+    for(let start=0;start<nodes.length;start++)if(!seen[start]){
+      const queue=[start],component=[];seen[start]=1;
+      while(queue.length){const current=queue.pop();component.push(current);for(const next of adj[current])if(!seen[next]){seen[next]=1;queue.push(next);}}
+      components.push(component);
+    }
+    const keep=components.reduce((largest,current)=>current.length>largest.length?current:largest,[]);
+    if(keep.length===nodes.length)return{components:1,removed:0};
+    const remap=new Int32Array(nodes.length).fill(-1);
+    keep.forEach((old,index)=>{remap[old]=index;});
+    const nextNodes=keep.map((old)=>nodes[old]);
+    const nextAdj=keep.map((old)=>adj[old].map((target)=>remap[target]).filter((target)=>target>=0));
+    const removed=nodes.length-nextNodes.length;
+    nodes.splice(0,nodes.length,...nextNodes);adj.splice(0,adj.length,...nextAdj);
+    return{components:components.length,removed};
+  };
+  carandiru.navigationCompaction=compactNavigation();
   function nearestWaypoint(x,z,yRef){const y=groundHeightAt(x,z,yRef);let best=0,distance=Infinity;for(let i=0;i<nodes.length;i++){const dx=nodes[i].x-x,dy=nodes[i].y-y,dz=nodes[i].z-z,d=dx*dx+dz*dz+dy*dy*16;if(d<distance){distance=d;best=i;}}return best;}
   function findPath(fromIdx,toIdx){if(fromIdx===toIdx)return[toIdx];const prev=new Int16Array(nodes.length).fill(-1),queue=[fromIdx];prev[fromIdx]=fromIdx;while(queue.length){const n=queue.shift();for(const next of adj[n])if(prev[next]<0){prev[next]=n;if(next===toIdx){const path=[next];let p=n;while(p!==fromIdx){path.unshift(p);p=prev[p];}path.unshift(fromIdx);return path;}queue.push(next);}}return[fromIdx];}
   /* BUG-57: pombo de pátio de presídio e rato de cela. r3 Carandiru: o bando
