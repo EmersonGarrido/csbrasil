@@ -8,6 +8,10 @@ import { grafitar } from './graffiti_pass.js';
 import { createFavelaAmbience } from './ambientlife.js';
 import { AMB_LOOPS } from './soundscape.js';
 
+const POSTO_PNEUS_CORREDOR = new URLSearchParams(
+  typeof location !== 'undefined' ? location.search : '',
+).get('postoPneusCorredor') === '1';
+
 // props GLB que este mapa usa (main.js pré-carrega MAPS[id].props)
 export const POSTO_PROPS = [
   // MOLDES do kit posto_obras_r3 (Mint): ilha de bomba e corpo da loja são modelo
@@ -453,9 +457,15 @@ export function buildPosto(scene, T) {
   };
   for (const sz of [-1, 1]) { jardineira(18, sz * 16); jardineira(-6.5, sz * 15, 1.4); }
 
-  // PILHAS DE PNEUS extras nos vazios (cover redondo, altura de peito)
-  for (const sz of [-1, 1]) { prop('pilha_pneus', -12, sz * 19, 1.5, 0, 1.0, 1.0, 1.4); prop('pilha_pneus', 21, sz * 9, 1.5, 0.4, 1.0, 1.0, 1.4); }
-  for (const sz of [-1, 1]) prop('tires', 10.5, sz * 15, 0.8, 0.7, 0.8, 0.8, 0.7);
+  /* Contraprova de navegação: recolocar estes seis sólidos nos corredores faz o
+     portão de bots ficar vermelho. O candidato usa as muretas/jardineiras como cover. */
+  if (POSTO_PNEUS_CORREDOR) {
+    for (const sz of [-1, 1]) {
+      prop('pilha_pneus', -12, sz * 19, 1.5, 0, 1.0, 1.0, 1.4);
+      prop('pilha_pneus', 21, sz * 9, 1.5, 0.4, 1.0, 1.0, 1.4);
+      prop('tires', 10.5, sz * 15, 0.8, 0.7, 0.8, 0.8, 0.7);
+    }
+  }
 
   /* ---------------- PLACAS (totem de preço, rótulos das bombas, avisos, outdoor) ---------------- */
   // placa de DOIS LADOS: duas faces costa-a-costa (cada uma FrontSide), então o texto lê

@@ -38,9 +38,9 @@
               pilares que colidem.
      POSTO4 · LINHA DE VISÃO — na banda do olho (1,2-1,6 m), a fração de pares de
               nós do pátio distantes > 20 m que se enxergam sem nenhum sólido no
-              caminho fica ≤ 33%, com ≥ 68 sólidos nessa banda. A/B medido no
-              branch (`git show <base>:public/js/map_posto.js`): 41,2% -> 30,8%
-              e 57 -> 71 sólidos. O teto de 33% é o medido com folga.
+              caminho fica ≤ 33%. Cada uma das seis meias-rotas (loja, bombas e
+              rodovia, em ambos os lados) precisa ter ≥ 10 sólidos na banda do
+              olho; assim a régua mede distribuição espacial, não volume bruto.
      POSTO5 · COVER DE PEITO — mureta e jardineira são OUTRA coisa: com 1,1 m e
               0,6 m elas nem entram na banda do olho, e é esse o ponto (cobrem
               agachado, deixam o peek em pé). Contadas à parte: ≥ 58 colisores
@@ -171,12 +171,20 @@ const pilaresColidem = pilares.filter((p) => world.colliders.some((c) =>
 const posto3 = !!cobertura && [-8, 0, 8].every(cobreIlha) && telhaSemColisor && pilaresColidem.length >= 6;
 
 /* ================= POSTO4 · LINHA DE VISÃO / POSTO5 · COVER DE PEITO ================= */
-const TETO_LIVRE = 0.33, MIN_OLHO = 68, MIN_PEITO = 58;
+const TETO_LIVRE = 0.33, MIN_BANDA_OLHO = 10, MIN_PEITO = 58;
 const noPatio = world.waypoints.nodes.filter((n) => n.x > -17 && n.x < 26 && Math.abs(n.z) < 26);
 /* Banda do OLHO: o que corta a linha de tiro em pé. Banda do PEITO: o que cobre
    agachado. São conjuntos quase disjuntos, e por isso viram cláusulas separadas. */
 const solidosOlho = world.colliders.filter((c) => c.maxY >= 1.2 && c.minY <= 1.6);
 const solidosPeito = world.colliders.filter((c) => c.maxY >= 0.5 && c.maxY <= 1.5);
+const bandasOlho = [
+  [-28, -14, -36, 0], [-28, -14, 0, 36],
+  [-14, 14, -36, 0], [-14, 14, 0, 36],
+  [14, 28, -36, 0], [14, 28, 0, 36],
+].map(([x0, x1, z0, z1]) => solidosOlho.filter((c) => {
+  const x = (c.minX + c.maxX) / 2, z = (c.minZ + c.maxZ) / 2;
+  return x >= x0 && x < x1 && z >= z0 && z <= z1;
+}).length);
 const linhaLivre = (a, b) => {
   const d = Math.hypot(b.x - a.x, b.z - a.z), N = Math.ceil(d / 0.5);
   for (let i = 1; i < N; i++) {
@@ -191,7 +199,7 @@ for (let i = 0; i < noPatio.length; i++) for (let j = i + 1; j < noPatio.length;
   pares++; if (linhaLivre(noPatio[i], noPatio[j])) livres++;
 }
 const fracao = pares ? livres / pares : 1;
-const posto4 = fracao <= TETO_LIVRE && solidosOlho.length >= MIN_OLHO;
+const posto4 = fracao <= TETO_LIVRE && Math.min(...bandasOlho) >= MIN_BANDA_OLHO;
 const posto5 = solidosPeito.length >= MIN_PEITO && muretas.length >= 12 && jardineiras.length >= 4;
 
 /* ================= POSTO6 · SOM DO POSTO ================= */
@@ -231,7 +239,7 @@ const r = [
   linha('POSTO1', posto1, `${ilhas.length} ilhas · central com molde "${central?.userData.molde || 'nenhum'}" · colisor ${colIlha ? `${(colIlha.maxX - colIlha.minX).toFixed(2)}×${(colIlha.maxZ - colIlha.minZ).toFixed(2)}×${colIlha.maxY.toFixed(2)} m` : 'ausente'}`),
   linha('POSTO2', posto2, `${gondolasComColisor.length} gôndolas com colisor · ${aberturas.length} aberturas · teto y=${teto ? teto.position.y.toFixed(2) : '—'} · ${nosSala.length} nós · rota de ${rotaSala.length} passos · ${lootSala.length} pickups`),
   linha('POSTO3', posto3, `telha y=${telha ? telha.position.y.toFixed(2) : '—'} sobre as 3 ilhas · ${telhaSemColisor ? 'sem' : 'COM'} colisor · ${pilaresColidem.length}/${pilares.length} pilares colidem`),
-  linha('POSTO4', posto4, `${(fracao * 100).toFixed(1)}% dos ${pares} pares >20 m com linha livre (teto ${(TETO_LIVRE * 100).toFixed(0)}%) · ${solidosOlho.length} sólidos na banda do olho (mín. ${MIN_OLHO})`),
+  linha('POSTO4', posto4, `${(fracao * 100).toFixed(1)}% dos ${pares} pares >20 m com linha livre (teto ${(TETO_LIVRE * 100).toFixed(0)}%) · cobertura de olho nas 6 meias-rotas ${bandasOlho.join('/')} (mín. ${MIN_BANDA_OLHO})`),
   linha('POSTO5', posto5, `${solidosPeito.length} colisores de peito (mín. ${MIN_PEITO}) · ${muretas.length} muretas · ${jardineiras.length} jardineiras`),
   linha('POSTO6', posto6, `bomba em (${bomba ? `${bomba.pos[0]}, ${bomba.pos[2]}` : '—'}) raio ${bomba?.radius ?? '—'} · rádio em (${radio ? `${radio.pos[0]}, ${radio.pos[2]}` : '—'}) raio ${radio?.radius ?? '—'} · fontes ${bomba?.src === radio?.src ? 'iguais' : 'distintas'}`),
   linha('POSTO7', posto7, `${routeEvidence.join(' · ')}`),
