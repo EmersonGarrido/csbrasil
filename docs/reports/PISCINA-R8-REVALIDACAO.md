@@ -2,7 +2,10 @@
 
 ## Estado e escopo
 
-- PR: [#566](https://github.com/corosolto/client/pull/566), ainda draft.
+- PR histórico [#566](https://github.com/corosolto/client/pull/566) foi mergeado em
+  22/09/2026 às 01:18 UTC com o head antigo `1e7049994`. Como um PR mergeado não aceita
+  atualização de base/head, esta revalidação segue no draft
+  [#612](https://github.com/corosolto/client/pull/612), contra `main`.
 - Branch/worktree: `codex/piscina-rework-stack` em
   `/Volumes/Zenith/Projects/game/corosolto/csbrasil/worktrees/piscina-rework-stack`.
 - `origin/main` usada: `7bb2707ef576260b30ceb88c5973b9f6618684cd`.

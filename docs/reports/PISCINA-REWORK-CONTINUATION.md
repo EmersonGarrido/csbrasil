@@ -5,6 +5,8 @@
 > revalidação atual, URL local, matrizes 5x5/8x8, capturas 3:2/16:9, orçamento e pendências
 > humanas estão em `docs/reports/PISCINA-R8-REVALIDACAO.md`. Este histórico abaixo explica
 > as etapas anteriores, mas não substitui o checkpoint atual.
+> O PR #566 foi mergeado durante a retomada com o head antigo; a revisão atual está no
+> draft sucessor #612 contra `main`.
 
 ## Objetivo e estado
 
