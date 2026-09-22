@@ -179,7 +179,7 @@ const put = (id, ok, detail) => { results.push({ id, ok }); console.log(`${id} $
 const access = spec.wallAccesses, entries = spec.guardEntries, guardRoutes = spec.guardRoutes;
 put('CR3-1', named('carandiru-placa-casa-de-detencao') && named('carandiru-placa-pavilhao-6-sul')
   && named('carandiru-placa-pavilhao-6-norte') && named('carandiru-viatura-fallback')
-  && world.root.name === 'penitenciaria-da-treta',
+  && world.root.name === 'carandiru',
   'identidade física, Pavilhão 6 e viatura procedural local');
 const validAccess = access.filter((a) => named(a.name) && staircaseWorks(a, 5.7)
   && a.width >= 2.6 && a.run >= 12 && pathWalkable(stairPoints(a)));

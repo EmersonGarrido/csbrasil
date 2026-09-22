@@ -14,7 +14,7 @@ export const PENITENCIARIA_PROPS = [];
 
 export function buildPenitenciaria(scene, T) {
   const root = new THREE.Group();
-  root.name = 'penitenciaria-da-treta';
+  root.name = 'carandiru';
   scene.add(root);
   const colliders = [], occluders = [], pickups = [];
   const elevatedSurfaces = [];
