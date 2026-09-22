@@ -42,44 +42,58 @@ de 89,8% (B) e 84,3% (E), além de quadrantes jogáveis com zero cobertura e esp
 os pilotis terminam em terreno/névoa sem silhueta urbana. O próximo gate mede o uso real
 dessas superfícies e vem acompanhado de mutantes antes da correção.
 
-## Estado
-
 ## Candidato técnico
 
 O candidato substitui a lâmina opaca do espelho por `createWater`, acrescenta duas massas
 urbanas instanciadas fora dos bounds e distribui dez jardineiras de concreto nas rotas sob
-pilotis. O delta continua map-local: nenhum helper, material compartilhado, asset ou runtime
-foi alterado.
+pilotis. Após a primeira crítica independente, as jardineiras foram giradas e movidas para
+o intervalo entre as colunas da grade; oito defensas descontínuas protegem os spawns e seis
+balizadores dão escala aos quadrantes externos. O delta continua map-local: nenhum helper,
+material compartilhado, asset ou runtime foi alterado.
 
 O gate `praca-r2-check.mjs` mede o mundo montado. Resultado final: água viva com sol
-alinhado (`dot=1,000`), horizonte vertical em 93% dos raios externos, cobertura em 10/10
-intervalos de flanco, seis ligações spawn→CTF e três eixos longitudinais navegáveis. Os
-mutantes `agua`, `horizonte`, `cobertura` e `rota` aplicam e reprovam isoladamente.
+alinhado (`dot=1,000`), horizonte vertical em 78% dos raios externos, dez coberturas
+bloqueando LOS a 1 m, oito spawns protegidos na altura do olho, zero waypoint invadido,
+seis ligações spawn→CTF e três eixos longitudinais navegáveis. Os mutantes `agua`,
+`horizonte`, `cobertura`, `navegacao` e `rota` aplicam e reprovam isoladamente. A contraprova
+`?coberturaAntiga=1` também reprova PA3: conserva 544 nós contra 550 do candidato.
 
-`map-contrato-check` permaneceu verde com 548 nós, 3.616 arestas e grafo conexo;
-`ctf-win-check` fecha a rodada na terceira bandeira. `cena-check` mediu 314/350 draw calls e
-646.305/740.000 triângulos. Build, `arch:check` e `docs:check` passaram.
-O `check:deploy` passou 39/40 etapas; a única vermelha é a `UIR15` herdada em
-`eval:redesign` (arte estática do resultado), fora do mapa e sem arquivo tocado nesta lane.
+`map-contrato-check` permaneceu verde com 550 nós, 3.582 arestas e grafo conexo;
+`ctf-win-check` fecha a rodada na terceira bandeira. `cena-check` mediu 323/350 draw calls e
+650.207/740.000 triângulos. Build, `docs:check`, `arch:check` e `git diff --check` passaram.
+O diagnóstico `map-check` reduziu a exposição de 89,8/84,2%
+para 62,9/57,0% (B/E). O pior espaçamento MAP5 caiu de 29,89 para 21,09 m e a pior razão
+de props subiu de 0,24 para 0,35. O caráter monumental continua preservado: MAP5 segue
+explicitamente acima do teto genérico de 7 m, sem mascarar bounds nem afrouxar a régua.
 
 O `botsim` de 30 s cobriu 5x5/8x8 em DM/CTF. O pior `stuck` foi 8,656% no 8x8 DM; no 8x8
-CTF foi 0,411%. A eficiência ficou entre 0,764 e 0,815 e `laneSpread=0,64` nas quatro células.
+DM antes da correção. No candidato final, `stuck` ficou entre 0,389% e 1,100% e eficiência
+entre 0,699 e 0,828. O A/B `praca-bots-ab.mjs` mantém as mesmas malhas e remove somente os
+dez colliders laterais: candidato 0,389%, sem colliders 0,511%, ambos abaixo do baseline
+`alpha.262` de 7,067%; o mutante de regressão reprova o próprio limite.
 
 A matriz Chrome/WebGL2 real cobriu oito células (3:2/16:9 × 5x5/8x8 × DM/CTF), todas em
 `live`, com 9/15 bots, GPU Apple M4 Pro, `p95=9,7–10,2 ms`, zero quadro acima de 100 ms,
-346–407 draw calls máximos e 762.841–917.963 triângulos máximos. Ela registrou zero dívida
+363–416 draw calls máximos e 766.830–922.247 triângulos máximos. A célula 16:9 5x5 CTF
+teve uma pausa transitória acima de 100 ms na primeira passagem e passou isoladamente em
+um processo Chrome novo; o retry está registrado no recibo. A matriz registrou zero dívida
 inesperada. As 39 ocorrências permitidas por célula são herdadas do servidor local: o
 `SUPPORT_URL_BR`, URLs literais do template, `api/geo-lang`, manifests/áudio e decals ausentes;
 nenhuma nasce no delta desta lane.
 
 O `sourceSha256` comum à matriz e às dez capturas é
-`07ad85401eb9d0016fd00ac5f238fc003233130fb3e51f0bae15433f569c8712`.
+`984088e728dc4b40295d10a2a8eddb881eeba629814253ab19397f8ea443c833`.
 Recibos ignorados pelo Git:
 
 - `artifacts/praca-poderes-main-r2/webgl-matrix/matrix.json` — SHA-256
-  `11374c8fc02d0f021586fa48b91410423882a656c0780a451311b630f48faaff`;
+  `75b77700006c53384cc49d207a79c9765a7a9acad6528ebd23908aaefea03e83`;
 - `artifacts/praca-poderes-main-r2/evidence/captures.json` — SHA-256
-  `66c67dfb43debb43b6867d24930d2f5442a631d0e1923bbcdaba06793d6cc330`.
+  `70acb0ef9e26346bce7554d01f5c467326edcdd223ced1b9c1e0896fb4a0d9e9`.
+
+As novas capturas corrigem os três defeitos da primeira revisão: o espelho é visto de cima
+com a lâmina azul legível; o flanco leste parte de uma rota andável, sem câmera dentro de
+geometria; e as fachadas distantes usam janelas descontínuas, alturas e volumes variados em
+vez de barras horizontais repetidas.
 
 ## Pendências de promoção
 
@@ -88,9 +102,11 @@ O candidato está no draft [#616](https://github.com/corosolto/client/pull/616),
 `--no-verify` apenas porque a `UIR15` herdada mantém `check:deploy` em 39/40.
 
 O servidor local está em `http://127.0.0.1:8220/?debug=1&map=praca_poderes&perfilauto=0`.
-O candidato ainda precisa de crítica independente e playtest humano em 3:2. A revisão deve
+O candidato recebeu uma primeira crítica independente BLOQUEADA, e todas as causas técnicas
+apontadas foram corrigidas e revalidadas. Ainda precisa de nova crítica independente e
+playtest humano em 3:2. A revisão deve
 olhar especialmente se as jardineiras quebram a visada sem poluir a monumentalidade, se a
 água está clara o bastante e se as massas de horizonte parecem cidade distante em vez de
-fachadas repetidas. A exposição global dos spawns (89,8% B; 84,2% E) e o MAP5 genérico da
-arena monumental continuam documentados como diagnóstico; nenhum deles foi mascarado por
-redução de bounds ou afrouxamento de teto.
+fachadas repetidas. A exposição residual (62,9% B; 57,0% E) e o MAP5 genérico da arena
+monumental continuam documentados como diagnóstico; nenhum deles foi mascarado por redução
+de bounds ou afrouxamento de teto.
