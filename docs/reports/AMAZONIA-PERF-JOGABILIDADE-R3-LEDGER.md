@@ -98,3 +98,38 @@ Para comparar o custo anterior no mesmo checkout, acrescente `&amzfoliageshadow=
 ## Próximo passo
 
 Revisão humana 3:2 na URL acima. Se aprovada, a ação externa seguinte é tirar o draft e decidir merge; esta lane não fez merge, deploy nem force-push.
+
+## Revalidação sobre a `main` alpha.262
+
+A branch recebeu `origin/main@60ad7501323ef076263f645bfca341e2454fce6b` por merge, sem rebase, no commit `0b4645c62`. Os conflitos ficaram restritos aos blocos de documentação gerada, que foram refeitos por `npm run docs`; `map_amazonia.js` e os quatro gates próprios não conflitaram. O diff funcional continua map-local, sem alteração de runtime, material compartilhado ou asset.
+
+O `select-inflate` que deixava o portão remoto antigo vermelho não reproduz mais na base atual: mede `12/53`, exatamente dentro do teto declarado de 12. A branch não altera `characters.js`, o fluxo de seleção nem esse gate. A falha antiga de `14/53` era estado da base alpha.255 e não justificou uma correção fora do escopo.
+
+Com Node 23.6.0, `docs:check`, `arch:check` e `build` passaram. O `check:deploy` completou 39/40 gates e ficou vermelho somente em `UIR15`, contrato compartilhado da tela de resultado já vermelho na `main`; o diff desta lane não toca `game.js`, DOM/CSS de resultado nem mídia de personagens. A primeira tentativa local com o Node global 16.13.0 foi descartada como ambiente incompatível com o Astro atual.
+
+Os gates AMZ1–AMZ7, AMV1–AMV7, água, 71/71 destinos, 11/11 cabanas, áudio, raycast, dez escadas, seis raios de visão do rio, orçamento medium 8×8, CTF e contrato de mapa passaram de novo. Os três mutantes do orçamento, os quatro de escadas/janelas e o mutante WebGL de apoios foram mordidos. O índice espacial preservou o mesmo estado e objetos em três sementes e mediu redução de CPU de 88,1–89,9% contra o controle linear nesta máquina.
+
+O comando agregado `eval:amazonia` continua interrompendo somente no fixture compartilhado de geometria: `prop-geometry-fixture.mjs` intercepta o `GLTFLoader` vendorizado, enquanto `mapprops.js` resolve a cópia de `node_modules`; `galinha_mint_amazonia` e `pintinho_mint_amazonia` chegam ao `FileLoader` Node como URLs relativas. A mesma causa já estava registrada antes deste merge, e nenhum dos arquivos envolvidos está no diff. O `eval:qualmapas` também reproduz QMAP1/QMAP3 vermelhos exclusivamente em `map_penitenciaria.js`, dívida já presente na `main` e isolada no draft Carandiru #615. Nenhuma dessas duas falhas foi mascarada ou corrigida nesta lane.
+
+### Matriz Chrome/WebGL2 atual
+
+A matriz abaixo foi refeita em processos Chrome separados, com ANGLE Metal no Apple M4 Pro, DPR 1, áudio mudo e fonte `map_amazonia.js` SHA-256 `1037f847ffa7d90b3b52cf00d6afb4dd66c9a41ba66061de564f0b0793e6a470`:
+
+| viewport | modo | times | bots | p95 | máximo | >100 ms | calls máximas | triângulos máximos |
+|---|---|---:|---:|---:|---:|---:|---:|---:|
+| 1536×1024 | DM | 5×5 | 9 | 10,1 ms | 33,4 ms | 0 | 605 | 1.718.342 |
+| 1536×1024 | CTF | 5×5 | 9 | 10,0 ms | 17,9 ms | 0 | 630 | 1.718.340 |
+| 1536×1024 | DM | 8×8 | 15 | 16,4 ms | 34,4 ms | 0 | 657 | 1.615.502 |
+| 1536×1024 | CTF | 8×8 | 15 | 16,9 ms | 33,3 ms | 0 | 689 | 1.615.502 |
+| 1600×900 | DM | 5×5 | 9 | 10,2 ms | 18,7 ms | 0 | 620 | 1.737.966 |
+| 1600×900 | CTF | 5×5 | 9 | 10,2 ms | 24,3 ms | 0 | 635 | 1.733.387 |
+| 1600×900 | DM | 8×8 | 15 | 17,4 ms | 35,3 ms | 0 | 740 | 1.626.004 |
+| 1600×900 | CTF | 8×8 | 15 | 17,1 ms | 26,2 ms | 0 | 724 | 1.626.004 |
+
+As oito células ficaram sem erro de página e sem frame acima de 100 ms. Os enquadramentos fixos foram inspecionados: escada, passarela, cabana, apoios, água e HUD permanecem coerentes nos dois aspectos; a repetição do mesmo ponto serve para comparar proporções e carga, não substitui o percurso humano. Evidência ignorada pelo Git: `artifacts/amazonia-perf-r3/alpha262-matrix/summary.json` SHA-256 `cdc43e60d317642d8b6eb33baf79b66332734de8e39b84b55c9fdd459115d5be`; contato `alpha262-contact.jpg` SHA-256 `bf8dd6d7866d9a439b76aad7971a38fcbc929b3fccf849442236f081942ea811`; apoios `alpha262-supports-r2/candidate.json` SHA-256 `cfebb1066c91040f6cd0a483214949b754eb4e3ddda116a50e7ea6e1f0e8ca68`.
+
+### Dívida de bots herdada
+
+O `botsim` de nove sementes e 20 segundos encontrou `stuckPct` acima do teto de 4% em DM: 9,389% no 5×5 e 4,933% no 8×8. CTF ficou em 1,144% e 2,233%. A contraprova executada sobre a `main` atual produziu exatamente os mesmos números e métricas nas duas células DM; o diff desta branch acrescenta perfil de render e apoios visuais sem collider, sem tocar em grafo, bots ou runtime. A dívida não é causal ao PR, mas continua bloqueando declarar a navegação DM aprovada. O playtest humano deve observar bots presos durante os dois minutos de 8×8 já pedidos e registrar posição/modo se o sintoma aparecer.
+
+O servidor atual responde em `http://127.0.0.1:8196/?debug=1&auto=P,mst&map=amazonia&perfilauto=0&ctf=1`; o SHA-256 servido de `js/map_amazonia.js` coincide com a fonte local acima. A branch permanece draft e a promoção continua dependente do teste humano de fluidez, escadas, rio, apoios e bots.
