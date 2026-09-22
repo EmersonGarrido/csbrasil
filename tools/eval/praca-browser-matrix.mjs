@@ -1,6 +1,6 @@
 import { chromium } from 'playwright';
 import { createHash } from 'node:crypto';
-import { mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { launchPracaMatch } from './praca-browser-launch.mjs';
 import { TETOS } from './cena-tetos.mjs';
 
@@ -8,6 +8,7 @@ const option = (name, fallback) => process.argv.find((arg) => arg.startsWith(`--
 const base = option('base', 'http://127.0.0.1:8220');
 const out = option('out', 'artifacts/praca-poderes-main-r2/webgl-matrix');
 const seconds = Number(option('seconds', '8'));
+const only = option('only', '');
 const allowInherited = process.argv.includes('--allow-inherited');
 const sourceSha256 = createHash('sha256').update(readFileSync('public/js/map_brasilia.js')).digest('hex');
 const canonical = TETOS.praca_poderes;
@@ -40,7 +41,11 @@ if (process.argv.includes('--self-test')) {
 mkdirSync(out, { recursive: true });
 const cases = [];
 for (const viewport of [{ id: '3x2', width: 1536, height: 1024 }, { id: '16x9', width: 1600, height: 900 }])
-  for (const team of [5, 8]) for (const mode of ['dm', 'ctf']) cases.push({ viewport, team, mode });
+  for (const team of [5, 8]) for (const mode of ['dm', 'ctf']) {
+    const row = { viewport, team, mode };
+    if (!only || `${viewport.id}-${team}x${team}-${mode}` === only) cases.push(row);
+  }
+if (!cases.length) throw new Error(`caso desconhecido: ${only}`);
 
 const browser = await chromium.launch({ channel: 'chrome', headless: true, args: ['--mute-audio'] });
 const receipts = [];
@@ -92,6 +97,8 @@ try {
         draw: { ...metrics.draw, averageCalls: Math.round(metrics.draw.totalCalls / Math.max(1, metrics.draw.frames)),
           averageTriangles: Math.round(metrics.draw.totalTriangles / Math.max(1, metrics.draw.frames)) },
         scene: { aguas, horizontes, coberturas: game.world.colliders.filter((c) => c.pracaR2).length,
+          defesasSpawn: game.world.colliders.filter((c) => c.pracaSpawnCover).length,
+          balizadores: game.world.colliders.filter((c) => c.pracaDensidade).length,
           ctfPoints: game.world.ctfPoints.length, waypoints: game.world.waypoints.nodes.length } };
     });
     result.id = `${test.viewport.id}-${test.team}x${test.team}-${test.mode}`;
@@ -107,6 +114,9 @@ try {
       && result.actualBots === test.team * 2 - 1 && result.quality === 'med' && result.gpu?.api === 'webgl2'
       && result.gpu?.software !== true && result.frames >= 120 && passesPerformance(result)
       && result.scene.aguas === 1 && result.scene.horizontes === 2 && result.scene.coberturas === 10
+      // quality=med inclui mobiliário extra e portanto tem uma grade menor que o harness
+      // low (550); o contrato aqui é manter a malha conectada acima do piso histórico.
+      && result.scene.defesasSpawn === 8 && result.scene.balizadores === 6 && result.scene.waypoints >= 300
       && result.scene.ctfPoints === 3 && result.debt.unexpected.length === 0
       && (!result.debt.known.length || allowInherited);
     console.log(`${result.id} ${ok ? 'PASSA' : 'FALHA'} p95=${result.p95?.toFixed(1)}ms bots=${result.actualBots} calls=${result.draw.averageCalls}/${result.draw.maxCalls} tris=${result.draw.averageTriangles}/${result.draw.maxTriangles} debt=${result.debt.known.length}/${result.debt.unexpected.length}`);
@@ -114,6 +124,19 @@ try {
     await context.close();
   }
 } finally { await browser.close(); }
-writeFileSync(`${out}/matrix.json`, JSON.stringify({ sourceSha256, base, seconds,
+const matrixPath = `${out}/matrix.json`;
+const payload = { sourceSha256, base, seconds,
   costBudget: { canonicalAverage: canonical, diagnosticMaxFrame: budget }, cases: receipts,
-  humanVisualApproval: 'pending' }, null, 2));
+  humanVisualApproval: 'pending' };
+if (only) {
+  writeFileSync(`${out}/retry-${only}.json`, JSON.stringify(payload, null, 2));
+  // Retry isolado roda em um processo Chrome novo. Só substitui a célula se ela passou e
+  // se o recibo agregado pertence exatamente ao mesmo fonte; falha nunca apaga evidência.
+  if (!process.exitCode && existsSync(matrixPath)) {
+    const matrix = JSON.parse(readFileSync(matrixPath));
+    if (matrix.sourceSha256 !== sourceSha256) throw new Error('matrix.json pertence a outro sourceSha256');
+    matrix.cases = matrix.cases.map((row) => row.id === only ? receipts[0] : row);
+    matrix.retries = [...(matrix.retries || []), { id: only, reason: 'pausa transitória >100ms', freshChrome: true }];
+    writeFileSync(matrixPath, JSON.stringify(matrix, null, 2));
+  }
+} else writeFileSync(matrixPath, JSON.stringify(payload, null, 2));

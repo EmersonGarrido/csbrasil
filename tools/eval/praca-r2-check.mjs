@@ -88,20 +88,15 @@ const visivel = (objeto) => {
   else verdes.push(`PA2 horizonte urbano ${(fracao * 100).toFixed(0)}%`);
 }
 
-// PA3 — cobertura baixa deve quebrar as quatro saídas dos flancos em intervalos jogáveis.
-// A medida usa colliders reais, na altura do peito, e não o nome/tag da malha.
+// PA3 — cobertura precisa bloquear LOS de verdade e preservar a faixa de navegação.
+// Contar caixas próximas era insuficiente: uma peça baixa podia existir e a bala passar
+// por cima. Aqui o raio cruza as dez malhas a 1 m, os oito spawns precisam ficar protegidos
+// na altura do olho e nenhum collider pode invadir um waypoint com o raio do bot.
 {
-  const amostras = [];
-  for (const x of [-34, 34]) for (const z of [-48, -24, 0, 24, 48]) amostras.push({ x, z });
-  let cobertas = 0;
-  const cobertura = (ponto) => world.colliders.some((c) => {
-    if (c.minY > 0.35 || c.maxY < 1.05 || c.maxY > 3.6) return false;
-    const cx = (c.minX + c.maxX) / 2;
-    const cz = (c.minZ + c.maxZ) / 2;
-    const area = (c.maxX - c.minX) * (c.maxZ - c.minZ);
-    return area <= 60 && Math.hypot(cx - ponto.x, cz - ponto.z) <= 8;
-  });
+  const malhas = [];
+  root.traverse((objeto) => { if (objeto.isMesh && objeto.userData?.pracaR2) malhas.push(objeto); });
   if (mutante === 'cobertura') {
+    for (const m of malhas) { m.position.y += 9; m.updateMatrixWorld(true); mutou = true; }
     for (const c of world.colliders) {
       if (c.pracaR2) {
         c.minY = 9;
@@ -110,9 +105,38 @@ const visivel = (objeto) => {
       }
     }
   }
-  for (const ponto of amostras) if (cobertura(ponto)) cobertas++;
-  if (cobertas < 8) falhas.push(`PA3: cobertura dos flancos em ${cobertas}/${amostras.length} intervalos [mínimo 8/10]`);
-  else verdes.push(`PA3 cobertura dos flancos ${cobertas}/${amostras.length}`);
+  if (mutante === 'navegacao') {
+    for (const c of world.colliders.filter((item) => item.pracaR2)) {
+      const cx = Math.sign((c.minX + c.maxX) / 2) * 35.2;
+      const w = c.maxX - c.minX;
+      c.minX = cx - w / 2; c.maxX = cx + w / 2; mutou = true;
+    }
+  }
+  game.scene.updateMatrixWorld(true);
+  const ray = new THREE.Raycaster();
+  let flancosBloqueados = 0;
+  for (const m of malhas) {
+    const caixa = new THREE.Box3().setFromObject(m);
+    const cx = (caixa.min.x + caixa.max.x) / 2, cz = (caixa.min.z + caixa.max.z) / 2;
+    const de = new THREE.Vector3(cx, 1.0, cz - 6), ate = new THREE.Vector3(cx, 1.0, cz + 6);
+    const dir = ate.clone().sub(de), distancia = dir.length();
+    ray.set(de, dir.normalize()); ray.far = distancia;
+    if (ray.intersectObjects(malhas, false).length) flancosBloqueados++;
+  }
+  let spawnsProtegidos = 0;
+  for (const s of Object.values(world.spawns).flat()) {
+    const observador = new THREE.Vector3(s.x, 1.62, s.z - Math.sign(s.z) * 22);
+    const alvo = new THREE.Vector3(s.x, 1.62, s.z);
+    if (!game._losClear(observador, alvo)) spawnsProtegidos++;
+  }
+  const raioBot = 0.55;
+  const collidersR2 = world.colliders.filter((c) => c.pracaR2);
+  const intrusoes = collidersR2.reduce((total, c) => total + world.waypoints.nodes.filter((n) =>
+    n.x > c.minX - raioBot && n.x < c.maxX + raioBot && n.z > c.minZ - raioBot && n.z < c.maxZ + raioBot).length, 0);
+  const nos = world.waypoints.nodes.length;
+  if (malhas.length !== 10 || collidersR2.length !== 10 || flancosBloqueados !== 10 || spawnsProtegidos !== 8 || intrusoes !== 0 || nos < 550)
+    falhas.push(`PA3: malhas/colliders ${malhas.length}/${collidersR2.length} de 10; LOS flancos ${flancosBloqueados}/10; spawns ${spawnsProtegidos}/8; waypoints invadidos ${intrusoes}; nós ${nos}/550`);
+  else verdes.push(`PA3 dez coberturas bloqueiam LOS, oito spawns protegidos, zero waypoint invadido e ${nos} nós`);
 }
 
 // PA4 — três famílias de rota continuam acessíveis dos dois spawns às três bandeiras.

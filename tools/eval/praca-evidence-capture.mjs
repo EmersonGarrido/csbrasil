@@ -9,9 +9,12 @@ const sourceSha256 = createHash('sha256').update(readFileSync('public/js/map_bra
 const views = [
   ['eixo-central', [0, 1.62, -38], [0, 2, 24]],
   ['flanco-oeste', [-34, 1.62, -42], [-34, 1.4, 24]],
-  ['flanco-leste', [34, 1.62, 42], [34, 1.4, -24]],
-  ['espelho-dagua', [0, 1.62, 62], [0, 0.55, 78]],
-  ['horizonte-pilotis', [38, 1.62, 0], [100, 10, 12]],
+  // O ponto antigo x=34 ficava dentro de uma coluna cinza do piloti. A câmera agora parte
+  // da rota andável e olha em diagonal para as jardineiras, sem atravessar geometria.
+  ['flanco-leste', [32, 1.62, -42], [38, 1.15, 18]],
+  // A borda de granito tem 0,55 m; elevar a câmera mostra a lâmina, o fundo e o parapeito.
+  ['espelho-dagua', [0, 7.0, 62], [0, 0.45, 76]],
+  ['horizonte-pilotis', [32, 1.62, 2], [105, 8, 18]],
 ];
 mkdirSync(out, { recursive: true });
 const browser = await chromium.launch({ channel: 'chrome', headless: true, args: ['--mute-audio'] });
