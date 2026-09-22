@@ -101,7 +101,7 @@ Para revisar a jogabilidade, percorra as três entradas nos dois sentidos, suba 
 ## Pendências herdadas e limites
 
 - O navegador pediu 17 decals opcionais ausentes na `main` e recebeu 404. O mapa os esconde por contrato; não houve asset essencial ausente nem `pageerror`. Reparar o catálogo de decals pertence a uma frente de assets compartilhados.
-- `check:deploy` terminou 37/40: `eval:redesign` falha na UIR15 e `docs:check`/`eval:docsautoria` já encontravam nove blocos gerados desatualizados na base. Depois que os dois gates novos passaram a ser arquivos rastreados, `docs:check` passou a listar 13 blocos: quatro índices gerados também precisam mencionar os gates. O CI `pr-fast/build` reproduz essa pendência. Esta lane não altera UI nem regenera o conjunto compartilhado de documentação.
+- `check:deploy` terminou 37/40 na execução original: `eval:redesign` falha na UIR15 e `docs:check`/`eval:docsautoria` já encontravam blocos gerados desatualizados na base. A pendência de documentação foi resolvida depois do merge da `main` (`v2.0.0-alpha.263`): `npm run docs` e `npm run arch` regeneraram os 13 arquivos derivados, e os índices já contam os dois gates novos desta lane. `docs:check` e `arch:check` passam. `eval:redesign`/UIR15 continua fora desta lane, que não altera UI.
 - A revisão visual foi feita nas capturas 3:2 e 16:9, mas a decisão final de composição continua humana.
 
 ## Próximo passo
