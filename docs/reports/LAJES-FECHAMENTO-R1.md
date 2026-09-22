@@ -12,10 +12,14 @@ geração visual Astra foi usado.
 
 - Worktree: `/Volumes/Zenith/Projects/game/corosolto/csbrasil/worktrees/lajes-fechamento-r1`.
 - Branch: `codex/lajes-fechamento-r1`.
-- Draft PR: [#604](https://github.com/corosolto/client/pull/604).
+- PR aberto: [#604](https://github.com/corosolto/client/pull/604), atualmente não-draft;
+  esse estado preexistente foi preservado e `autoMergeRequest` continua nulo.
 - Checkpoints: `14c1a0746` (aceite/gates/dossiê) e `7f49367f5` (blocos gerados).
-- Base: `origin/main` em `dffcf1f5815342e1ae26e5d79beeaf54b833a2df`, release
-  `v2.0.0-alpha.255`.
+- Reconciliação local: fast-forward puro de `f94ec0241` para o HEAD remoto
+  `50f05a20cbfed2ef4893716dc6f38217d14f7e20`; não havia diff local nem commit
+  exclusivo a preservar.
+- Base integrada: `origin/main` em `60ad7501323ef076263f645bfca341e2454fce6b`, release
+  `v2.0.0-alpha.262`.
 - O PR #517 já está integrado pela main; o PR #539 contém apenas a correção de estado
   documental de BUG-141. Esta lane reaplica as duas mudanças válidas sem trazer a pilha
   antiga de merges automáticos.
@@ -140,6 +144,47 @@ PATH=/opt/homebrew/bin:$PATH node tools/eval/lajes-bots-check.mjs --mutante=deri
 PATH=/opt/homebrew/bin:$PATH node tools/eval/lajes-browser-debt-check.mjs
 PATH=/opt/homebrew/bin:$PATH npm run eval:lajes-browser -- --base=http://127.0.0.1:8184 --width=1600 --height=900 --teams=8 --mode=ctf --fotos=16 --allow-inherited
 ```
+
+Roteiro humano curto:
+
+1. em MATA-MATA 8x8, sair dos dois spawns, atravessar os dois becos e a praça;
+2. subir e descer cada uma das quatro escadas, percorrer as duas rotas de laje e voltar ao
+   térreo sem mantle preso;
+3. em CTF 8x8, confirmar quatro objetivos, passagens sob a ponte e combate cima×baixo;
+4. repetir uma rodada em 1536×1024 e 1600×900, observando HUD, silhuetas, fauna, pipas,
+   helicóptero e 14-bis.
+
+## Reconciliação e replay de 22/09/2026
+
+O HEAD remoto `50f05a20cbfed2ef4893716dc6f38217d14f7e20` foi servido diretamente na porta
+8184 após o fast-forward. O SHA-256 servido de `map_lajes_authored.js` foi
+`c2ffbb4312e95fde70fcc55d5bf6c618685ea43a685ce69dc2e002d0e13aac2f`, igual ao
+arquivo local. Os complementos map-local permaneceram em
+`fefb4b2fe1ee2e1448561c6f9fb13d5e0e1260211c06f54e5b54ced58f082b73`
+(`lajes_houses.js`) e
+`dec6bf59a6049323b723b9d1699a388c4e5daba728e10d7e863a66a96b3c0b69`
+(`lajes_raycast_index.js`).
+
+O replay estrutural passou 21/21 gates; `map-contrato-check` confirmou 612 nós, 7.456
+arestas e grafo conexo, e `ctf-win-check`, build, `docs:check`, `arch:check` e
+`git diff --check` passaram. LB1–LB3 repetiram 3.728 arestas andáveis, camada correta em
+234 consultas e 12 pares de pisos, 21/21 bots explorando ao menos 15 m, raio médio de
+35,6 m e engajamento mediano de 15,0 m. Os quatro mutantes
+`aresta-fantasma-laje`, `planta-2d`, `porta-fechada` e `deriva-rumo` reprovaram a cláusula
+correspondente.
+
+A nova matriz Chrome/ANGLE Metal cobriu 8/8 células 3:2/16:9 × 5x5/8x8 × DM/CTF:
+todas chegaram em `live`, com WebGL2 de hardware, 9/15 bots, quatro objetivos no CTF e
+zero dívida inesperada. Em quatro amostras de desempenho de 12 s, P50 ficou em 8,3 ms,
+P95 em 9,7–16,7 ms, máximo em 16,6–18,3 ms e zero quadro acima de 100 ms; draw calls
+máximas ficaram em 815–873 e triângulos em 1.365.236–1.530.864.
+
+Evidência ignorada pelo Git em `artifacts/lajes-fechamento-r1/reconcile-50f05a20/`:
+
+- `manifest.json` — SHA-256 `3fc216d4169603789259181e3fe2fe87e77fa421a36234d953ec0f38857c1c82`;
+- `contact-3x2.jpg` — SHA-256 `04cd2dbddabc897a4fc09ed9cf29e1853cb72b1bef74ad659587ddd244ea887d`;
+- `contact-16x9.jpg` — SHA-256 `c91e4a1965bea14c351a5e77ed1d26c99a90cc9e9fae7fa5fcffe58f72ef6fd5`;
+- `evidence-3x2/movement.json` registra cinco de cinco percursos completos.
 
 ## Próximo passo
 
