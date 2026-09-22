@@ -8,7 +8,8 @@
   [#612](https://github.com/corosolto/client/pull/612), contra `main`.
 - Branch/worktree: `codex/piscina-rework-stack` em
   `/Volumes/Zenith/Projects/game/corosolto/csbrasil/worktrees/piscina-rework-stack`.
-- `origin/main` usada: `7bb2707ef576260b30ceb88c5973b9f6618684cd`.
+- `origin/main` inicial: `7bb2707ef576260b30ceb88c5973b9f6618684cd`; atualização
+  final após o merge do Carandiru: `60ad7501323ef076263f645bfca341e2454fce6b`.
 - Integração preservou o histórico empilhado por merge, mas o estado final contra `main`
   contém somente o mapa, contrato, régua e evidência da Piscina. Nenhum asset Mint/privado,
   material compartilhado ou runtime compartilhado foi incluído.
@@ -33,7 +34,7 @@
 `piscina-stack-evidence.mjs` mediu 122 nós e 593 arestas. As rotas centrais/oeste/leste
 têm 41,32 / 65,79 / 70,59 m e passam a cápsula de 0,38 m. As 24 combinações de quatro
 spawns por time contra três objetivos são alcançáveis. `eval:mapcontrato`, `eval:ctfwin`,
-`eval:webgl` e o build Astro passaram.
+`eval:webgl`, `docs:check` e o build Astro passaram.
 
 O diagnóstico genérico `map-check` ainda reporta MAP5=99 m e razão de props `0x` nos
 quadrantes centrais. Isto corresponde ao tanque aberto, decisão central do layout, e não
@@ -75,8 +76,12 @@ Assim, o frame time observado é estável, mas o teto histórico de 860 calls / 
 triângulos não está verde em médio. A aprovação de orçamento precisa decidir se o teto
 é absoluto ou se o frame time real desta máquina é a régua operacional.
 
-`eval:qualmapas` passou 4/4 e o mutante de sombra literal foi mordido. No recorte da
-Piscina, `texel-check` mediu mediana/p05/p95 de 128 px/m, dispersão p95 1x e 4% da área
+No primeiro baseline sobre `7bb2707ef`, `eval:qualmapas` passou 4/4 e o mutante de sombra
+literal foi mordido. A `main` final `60ad75013` introduziu uma falha global alheia à
+Piscina: `map_penitenciaria.js` voltou a usar `shadow.mapSize.set` fora de
+`mapquality.js`, reprovando QMAP1/QMAP3. A Piscina continua usando `aplicaSombraSol` e
+esta lane não alterou o mapa da Penitenciária. No recorte da Piscina, `texel-check` mediu
+mediana/p05/p95 de 128 px/m, dispersão p95 1x e 4% da área
 abaixo de 64 px/m. Permanecem duas dívidas: máximo/mediana de 6,5x num cilindro e 6% da
 área texturizada sem medida (206 malhas, principalmente decalques).
 
