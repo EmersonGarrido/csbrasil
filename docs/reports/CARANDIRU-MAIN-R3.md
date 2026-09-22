@@ -74,6 +74,8 @@ node tools/eval/carandiru-browser-matrix.mjs --self-test          PASS
 node tools/eval/ctf-win-check.mjs penitenciaria                   PASS (3ª bandeira encerra)
 ```
 
+`npm run check:deploy` fechou **39/40** depois da atualização dos blocos de documentação gerados. A única falha é `eval:redesign` / UIR15 (`resultado usa exclusivamente arte estática do personagem atual`), herdada da `main` e fora do diff deste mapa: a lane não altera `public/js/game.js`, CSS/DOM de UI, `src/pages/index.astro` nem a régua de redesign.
+
 O `map-check` confirma MAP2B (2,85 m / 69,6 m²), MAP4 (zero oclusores invisíveis), MAP5 (6,64 m / 0,54×), CTF1 (8 m) e CTF2 (quatro rotas entre todos os pares). A leitura genérica MAP1 ainda acusa 40 interseções não submersas, pior profundidade 1,133 m; parte vem de superfícies baixas transitáveis/escadas porque a régua empilha `groundHeightAt` sem `yRef`. A exposição genérica ficou E 62,2% e B 55,2%, melhor que o baseline, mas ainda alta. Esses dois pontos permanecem dívida declarada, sem mascarar a saída.
 
 Botsim de 20 s na base atual: `stuckPct=3,000`, melhor que 3,311 do baseline; `laneSpread=0,64` foi preservado; `eff=0,821` ficou abaixo do baseline 0,887.
@@ -81,6 +83,8 @@ Botsim de 20 s na base atual: `stuckPct=3,000`, melhor que 3,311 do baseline; `l
 ## Chrome/WebGL e A/B
 
 A matriz real entra pelo menu e cobre `3:2/16:9 × 5x5/8x8 × DM/CTF`. As oito células usaram WebGL2 por hardware, qualidade média, 9/15 bots reais, zero frame acima de 100 ms e zero dívida inesperada. A allowlist é explícita para os 404s locais de áudio/geo e CORS do backend; o self-test prova falha para `pageerror`, console, HTTP, request failure e teto de performance desconhecidos.
+
+A execução usou o harness Playwright/WebGL do próprio repositório com Chrome real. O binário `agent-browser` não estava disponível neste ambiente; essa ausência não foi tratada como evidência, e a matriz abaixo é o recibo substituto verificável.
 
 | Caso | p95 ms | calls | tris |
 | --- | ---: | ---: | ---: |
@@ -113,6 +117,8 @@ URL local do candidato:
 
 - A raiz map-local agora se chama `carandiru`, e toda a geometria/identidade interna usa Carandiru. O seletor, descrição e minimapa ainda exibem “Penitenciária da Treta”; essas strings vivem em registros compartilhados (`maps.js`/`main.js`) e a troca global foi deliberadamente deixada fora desta lane map-local.
 - A dívida genérica MAP1/exposição e a queda de eficiência do botsim estão registradas acima e precisam de teste humano antes de promoção.
+- A crítica adversarial independente não foi executada: as quatro vagas de agentes estavam ocupadas pelas lanes prioritárias. Ela continua sendo gate de promoção, junto com o playtest humano.
+- O gate agregado de deploy está em 39/40 pela falha herdada de redesign UIR15 descrita acima; corrigir essa UI compartilhada nesta lane violaria a fronteira map-local.
 - Não houve consumo de Mint/Astra nem inclusão de assets privados. O PR #556 permanece como fonte histórica; esta branch não o carrega como stack.
 - Merge, deploy e aprovação visual humana não fazem parte desta entrega.
 
