@@ -59,6 +59,8 @@ mutantes `agua`, `horizonte`, `cobertura` e `rota` aplicam e reprovam isoladamen
 `map-contrato-check` permaneceu verde com 548 nós, 3.616 arestas e grafo conexo;
 `ctf-win-check` fecha a rodada na terceira bandeira. `cena-check` mediu 314/350 draw calls e
 646.305/740.000 triângulos. Build, `arch:check` e `docs:check` passaram.
+O `check:deploy` passou 39/40 etapas; a única vermelha é a `UIR15` herdada em
+`eval:redesign` (arte estática do resultado), fora do mapa e sem arquivo tocado nesta lane.
 
 O `botsim` de 30 s cobriu 5x5/8x8 em DM/CTF. O pior `stuck` foi 8,656% no 8x8 DM; no 8x8
 CTF foi 0,411%. A eficiência ficou entre 0,764 e 0,815 e `laneSpread=0,64` nas quatro células.
