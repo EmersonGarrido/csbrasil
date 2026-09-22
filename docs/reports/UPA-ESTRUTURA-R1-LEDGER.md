@@ -121,4 +121,4 @@ cd /Volumes/Zenith/Projects/game/corosolto/csbrasil/client/worktrees/upa-estrutu
 PATH=/opt/homebrew/bin:$PATH npm run dev -- --host 127.0.0.1 --port 8202
 ```
 
-Abrir `http://127.0.0.1:8202/?debug=1&auto=E,mst&map=upa_24h&perfilauto=0`. A primeira crítica independente bloqueou gates autodeclarados, DM artificial, ausência de tetos de performance e A/B sem origem auditável. Todos os quatro bloqueios foram corrigidos; o próximo passo é obter uma segunda crítica independente verde e, só então, abrir o draft PR. O aceite visual humano continua pendente.
+Abrir `http://127.0.0.1:8202/?debug=1&auto=E,mst&map=upa_24h&perfilauto=0`. A primeira crítica independente bloqueou gates autodeclarados, DM artificial, ausência de tetos de performance e A/B sem origem auditável. Todos os quatro bloqueios foram corrigidos. A segunda crítica independente deu GO técnico no HEAD `596655ffa`; o draft PR permanece aguardando CI e o aceite visual/jogável humano.
