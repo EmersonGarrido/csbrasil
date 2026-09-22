@@ -11,8 +11,11 @@ const aspect = process.env.ASPECT || '3:2';
 const viewport = { '3:2': { width: 1536, height: 1024 }, '16:9': { width: 1600, height: 900 } }[aspect];
 if (!viewport) throw new Error(`ASPECT inválido: ${aspect}`);
 const bots = Number(process.env.BOTS || (aspect === '3:2' ? 5 : 8));
+const mode = (process.env.MODE || 'ctf').toLowerCase();
+if (!['dm', 'ctf'].includes(mode)) throw new Error(`MODE inválido: ${mode}`);
+const quality = process.env.QUALITY || (aspect === '3:2' ? 'med' : 'low');
 const base = process.env.BASE || 'http://127.0.0.1:8192';
-const out = process.argv[2] || `artifacts/corrego-rota-baixa-r1/runtime-${aspect.replace(':', 'x')}`;
+const out = process.argv[2] || `artifacts/corrego-rota-baixa-r1/runtime-${mode}-${aspect.replace(':', 'x')}-${bots}x${bots}`;
 const cameras = [
   { name: 'spawn-leste', pos: [20.5, 1.65, 34], target: [5, 0.4, 27] },
   { name: 'rota-baixa-ponte', pos: [1.4, -0.10, -15], target: [0, -0.8, -22] },
@@ -44,8 +47,27 @@ try {
     if (!['127.0.0.1', 'localhost'].includes(url.hostname) || url.pathname.startsWith('/api/')) return route.abort();
     return route.continue();
   });
-  await page.addInitScript(({ bots }) => localStorage.setItem('awpbr_settings', JSON.stringify({ quality: 'med', bots, vol: 0, speech: false })), { bots });
-  await page.goto(`${base}/?debug=1&auto=P,mst&map=corrego&perfilauto=0&ctf=1`, { waitUntil: 'domcontentloaded', timeout: 120000 });
+  await page.addInitScript(({ bots, quality }) => {
+    localStorage.setItem('awpbr_settings', JSON.stringify({ quality, bots, vol: 0, speech: false }));
+    localStorage.setItem('awpbr_nick', 'QA Corrego');
+  }, { bots, quality });
+  /* O Córrego abre em CTF por padrão. O fluxo `?auto=` pula o menu e, portanto, não
+     consegue provar DM real. Esta matriz percorre a mesma escolha explícita do jogador
+     nos dois modos antes de iniciar a partida. */
+  await page.goto(`${base}/?debug=1&map=corrego&perfilauto=0`, { waitUntil: 'domcontentloaded', timeout: 120000 });
+  await page.waitForSelector('#btn-jogar', { state: 'attached', timeout: 120000 });
+  await page.waitForTimeout(1200);
+  await page.evaluate((requestedMode) => {
+    document.querySelector(`[data-act="${requestedMode === 'ctf' ? 'ctf' : 'sp'}"]`)?.click();
+    document.getElementById('btn-jogar')?.click();
+  }, mode);
+  await page.waitForFunction(() => !document.getElementById('team-select')?.classList.contains('hidden'), null, { timeout: 120000 });
+  await page.evaluate(() => document.getElementById('btn-team-e')?.click());
+  await page.waitForFunction(() => !document.getElementById('char-select')?.classList.contains('hidden'), null, { timeout: 180000 });
+  await page.evaluate(() => document.getElementById('char-confirm')?.click());
+  await page.waitForFunction(() => document.getElementById('team-select')?.dataset.step === 'enemy'
+    && !document.getElementById('team-select')?.classList.contains('hidden'), null, { timeout: 120000 });
+  await page.evaluate(() => document.getElementById('btn-team-b')?.click());
   await page.waitForFunction(() => window.__game?.state === 'live' || !document.getElementById('launch-error')?.classList.contains('hidden'), null, { timeout: 240000 });
   await page.waitForTimeout(3500);
   if (await page.locator('#launch-error').isVisible()) throw new Error('launch-error visível');
@@ -102,11 +124,23 @@ try {
      ficam no recibo; o gate não converte 8x8 lento em um falso resultado de 60 fps. */
   const p95Budget = bots >= 8 ? 35 : 20;
   const frameBudget = performanceSample.frameMsP95 <= p95Budget && performanceSample.frameMsMax <= 50;
-  const receipt = { viewport: [viewport.width, viewport.height], aspect, bots, sourceSHA256, setup, performanceSample, frameBudget: { p95Ms: p95Budget, maxMs: 50, pass: frameBudget }, cameras: rendered, errors, failedHTTP, absentAssets, assets };
+  /* O frame time sozinho não segura a dívida do Córrego: a grade antiga de 1,25 m
+     desenhava até ~12 M triângulos, mas ainda podia passar no M4 Pro. A matriz mede as
+     seis câmeras com teto por qualidade; assim a correção continua causal em hardware
+     rápido e uma volta silenciosa da densidade antiga fica vermelha. */
+  const maxCalls = Math.max(...rendered.map((camera) => camera.calls || 0));
+  const maxTriangles = Math.max(...rendered.map((camera) => camera.triangles || 0));
+  const sceneLimit = { calls: 850, triangles: quality === 'low' ? 3_000_000 : 6_000_000 };
+  const sceneBudget = maxCalls <= sceneLimit.calls && maxTriangles <= sceneLimit.triangles;
+  const receipt = { viewport: [viewport.width, viewport.height], aspect, mode, quality, bots, sourceSHA256, setup, performanceSample,
+    frameBudget: { p95Ms: p95Budget, maxMs: 50, pass: frameBudget },
+    sceneBudget: { ...sceneLimit, maxCalls, maxTriangles, pass: sceneBudget },
+    cameras: rendered, errors, failedHTTP, absentAssets, assets };
   writeFileSync(`${out}/capture.json`, JSON.stringify(receipt, null, 2));
   const teamsReady = setup.teamCount?.E === bots && setup.teamCount?.B === bots;
-  if (errors.length || absentAssets.length || !setup.webgl.webgl2 || software || setup.map !== 'corrego' || !teamsReady || !frameBudget) throw new Error(JSON.stringify({ errors, absentAssets, webgl: setup.webgl, map: setup.map, teamCount: setup.teamCount, performanceSample }));
-  console.log(`CÓRREGO WEBGL ${aspect} ${bots}x${bots}: ${rendered.length} câmeras · p95 ${performanceSample.frameMsP95.toFixed(2)} ms · ${out}`);
+  const rightMode = mode === 'ctf' ? !!setup.ctf : !setup.ctf;
+  if (errors.length || absentAssets.length || !setup.webgl.webgl2 || software || setup.map !== 'corrego' || !teamsReady || !rightMode || !frameBudget || !sceneBudget) throw new Error(JSON.stringify({ errors, absentAssets, webgl: setup.webgl, map: setup.map, ctf: setup.ctf, teamCount: setup.teamCount, performanceSample, sceneBudget: { ...sceneLimit, maxCalls, maxTriangles } }));
+  console.log(`CÓRREGO WEBGL ${mode.toUpperCase()} ${aspect} ${bots}x${bots}: ${rendered.length} câmeras · p95 ${performanceSample.frameMsP95.toFixed(2)} ms · ${maxCalls} calls · ${maxTriangles} tris · ${out}`);
 } finally {
   await browser.close();
 }

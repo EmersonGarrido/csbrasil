@@ -1645,11 +1645,12 @@ export function buildCorrego(scene, T) {
         n++;
       }
     }
-    /* Chão difuso, instanciado: grade de 1,25 m com jitter. Pula canal, pontes e todo
-       ponto fora do nível da rua. A 2 m lia como mato de rachadura, não chão tomado. */
+    /* Grade difusa em 2,0/2,4 m reduz GLBs de ~4 mil tris sem remover os 26 tufos autorais;
+       diagnóstico causal e A/B: docs/reports/CORREGO-ROTA-BAIXA-R1.md. */
     let espalhados = 0;
-    for (let gx = -HALF_X + 1.2; gx <= HALF_X - 1.2; gx += 1.25) {
-      for (let gz = -HALF_Z + 1.2; gz <= HALF_Z - 1.2; gz += 1.25) {
+    const passoChao = LOWQ ? 2.4 : 2.0;
+    for (let gx = -HALF_X + 1.2; gx <= HALF_X - 1.2; gx += passoChao) {
+      for (let gz = -HALF_Z + 1.2; gz <= HALF_Z - 1.2; gz += passoChao) {
         const k = Math.abs(Math.sin(gx * 12.9898 + gz * 78.233) * 43758.5453);
         const x = gx + ((k % 1) - 0.5) * 0.95;
         const z = gz + (((k * 7.13) % 1) - 0.5) * 0.95;
