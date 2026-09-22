@@ -176,6 +176,28 @@ uma publicação de produção.
 
 ## P0 — quebram o jogo ou mentem para quem mede
 
+### BUG-174 · clarão dos tiros sem controle do jogador atrapalhava a mira · CORRIGIDO 22/09
+
+**Sintoma (relato do jogador, 21/09):** "algumas armas soltam um flash cada vez que voce
+atira, isso atrapalha demais".
+
+**Causa.** O clarão (estrela + núcleo + point light do `_flash`, e a `_vmFlashLight` da
+cena do viewmodel) tinha ajuste SÓ de dev — `_fxTune` via dev.html. Nenhum controle
+chegava ao jogador, e o fator era sempre 1.
+
+**Conserto.** CONFIGURAÇÕES > VÍDEO ganha CLARÃO DOS TIROS: Normal (1,0 — o de hoje) /
+Reduzido (0,45) / Mínimo (0,15). Fatores medidos no dev.html. `FX_CLARAO` no game.js
+aplica em `_fxTune.flash` (estrela/núcleo) e `_fxTune.light` (as duas luzes); faíscas e
+fumaça intocadas — o relato é do clarão. `applySettings()` repassa AO VIVO (mesma
+disciplina da qualidade gráfica); persiste no settings salvo; padrão `normal` = quem não
+procura o ajuste não vê mudança nenhuma.
+
+**Régua:** `eval:fxFlash` (`fx-flash-check.mjs`, no `check:fast`) — boot da Game real por
+opção conferindo o multiplicador que o `_flash` multiplica, aplicação ao vivo, padrão
+intacto, e cláusulas de fonte do seletor/binder. **Reprovou 13 cláusulas no estado
+anterior**; mutante `--mutante=sem-seletor` vermelho (5).
+
+
 ### BUG-173 · não dava para tirar os bots no mata-mata online nem escolher quantos por time · CORRIGIDO 22/09
 
 **Sintoma (relato do jogador, 21/09):** "estava jogando com meu amigo, eu queria tirar x1
