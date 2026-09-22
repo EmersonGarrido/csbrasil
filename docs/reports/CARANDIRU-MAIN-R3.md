@@ -132,4 +132,6 @@ URL local do candidato:
 
 O PR #611 foi mergeado automaticamente pelo bot em `7de72e010`, sem merge manual desta lane, antes de a correção QMAP estar pronta. A `main` resultante virou `alpha.262`. O commit `530dfea55` com orçamento de sombra e nome declarativo ficou fora desse merge e segue isolado no draft #615, com auto-merge desativado.
 
+A integridade do #615 foi refeita por merge, sem rebase, de `origin/main@60ad75013` no commit `158fa963c`. O diff contra a base contém somente cinco arquivos: builder, metadado `MAPS`, dois gates e este ledger; não inclui `package*`, versão, CHANGELOG nem artefatos da release. Para preservar essa allowlist, os nove blocos de documentação gerados ficaram fora do follow-up; por isso `docs:check` acusa apenas esses derivados até a atualização da documentação compartilhada.
+
 Implementação, régua causal, build, CTF, bots, matriz WebGL, nome declarativo, orçamento de sombra e capturas estão concluídos. A promoção do draft #615 continua bloqueada por aprovação visual/jogável humana e pela crítica adversarial independente solicitada a outra lane.
