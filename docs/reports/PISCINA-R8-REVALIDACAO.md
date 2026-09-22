@@ -47,10 +47,10 @@ Simulação determinística de 60 s, nove sementes, usando o `Game` e `_updateBo
 
 | modo | bots | stuck | spin roam | eficiência |
 |---|---:|---:|---:|---:|
-| DM 5x5 | 9 | 2,222% | 0,019 | 0,124 |
-| DM 8x8 | 15 | 1,089% | 0,008 | 0,133 |
-| CTF 5x5 | 9 | 3,611% | 0,024 | 0,130 |
-| CTF 8x8 | 15 | 0,867% | 0,013 | 0,124 |
+| DM 5x5 | 9 | 1,911% | 0,016 | 0,130 |
+| DM 8x8 | 15 | 1,133% | 0,012 | 0,121 |
+| CTF 5x5 | 9 | 2,011% | 0,027 | 0,127 |
+| CTF 8x8 | 15 | 0,589% | 0,011 | 0,119 |
 
 Os quatro casos ficaram abaixo do teto de 4% usado no programa de mapas.
 
@@ -60,21 +60,27 @@ Chrome WebGL2/ANGLE Metal, Apple M4 Pro, sem software fallback e sem erro JS. Fo
 capturados med/low, 5x5/8x8, em 1200x800 (3:2) e 1600x900 (16:9): 56 quadros no total.
 Os recibos confirmam 9/15 bots reais.
 
-Nos oito ensaios DM e oito CTF de 12 s, p95 ficou entre 9,1 e 9,2 ms. Um primeiro DM
-5x5 med teve uma pausa fria de 416,6 ms; a repetição isolada teve máximo 16,6 ms e zero
-quadro acima de 100 ms. Todos os outros casos tiveram zero quadro acima de 100 ms.
+Depois do lote map-local, os 16 ensaios DM/CTF ficaram com p95 entre 9,9 e 10,1 ms.
+Três primeiras passagens tiveram uma pausa fria isolada; cada célula repetida em Chrome
+novo teve máximo 10,4 ms e zero quadro acima de 100 ms.
 
-O custo absoluto continua parcialmente vermelho no médio:
+- 3:2 DM med: 5x5 `519 calls / 931.333 tris`; 8x8 `658 / 1.051.113`;
+- 16:9 DM med: 5x5 `618 / 923.357`; 8x8 `704 / 1.079.813`;
+- 3:2 CTF med: 5x5 `540 / 934.593`; 8x8 `633 / 1.072.559`;
+- 16:9 CTF med: 5x5 `582 / 924.993`; 8x8 `642 / 1.072.573`;
+- todos os casos low ficaram abaixo de `539 calls / 511.494 tris`.
 
-- 3:2 DM med: 5x5 `809 calls / 933.476 tris`; 8x8 `936 / 1.070.745`;
-- 16:9 DM med: 5x5 `851 / 914.818`; 8x8 `920 / 1.080.395`;
-- 3:2 CTF med: 5x5 `805 / 926.638`; 8x8 `978 / 1.073.693`;
-- 16:9 CTF med: 5x5 `837 / 926.880`; 8x8 `1.004 / 1.044.959`;
-- todos os casos low ficaram abaixo de `669 calls / 506.278 tris`.
+A contraprova fixa com 15 bots mede a mesma vista em médio: candidato `460 calls /
+988.201 tris` e `?piscinaBatch=0` `727 / 988.080`; são 267 chamadas removidas (36,7%)
+sem esconder bots nem mudar qualidade. O CENA oficial de 30 s ficou verde em `429 /
+785.902`, contra `860 / 870.000`. A carga densa 8x8 ainda passa de 870 mil triângulos:
+quase todo esse custo é personagem + arma + sombra; a geometria estática do mapa tem
+4.328 triângulos. Cortá-lo nesta lane exigiria reduzir elenco/sombra compartilhada ou
+achatar a iluminação, opções rejeitadas por escopo e qualidade.
 
-Assim, o frame time observado é estável, mas o teto histórico de 860 calls / 870 mil
-triângulos não está verde em médio. A aprovação de orçamento precisa decidir se o teto
-é absoluto ou se o frame time real desta máquina é a régua operacional.
+O layout assado foi regenerado somente para `piscina_treta`: cobertura `83,3%`
+(`758/910`, meta `76%`). O mutante que remove só essa entrada cai para `31,5%`
+(`287/910`) e reprova, provando que o verde vem do bake atual.
 
 No primeiro baseline sobre `7bb2707ef`, `eval:qualmapas` passou 4/4 e o mutante de sombra
 literal foi mordido. A `main` final `60ad75013` introduziu uma falha global alheia à
@@ -93,14 +99,15 @@ deve ouvir o mapa com áudio ligado; as capturas automatizadas usam `--mute-audi
 ## Evidência e reprodução
 
 - URL local: `http://127.0.0.1:8152/?debug=1&map=piscina_treta&auto=P,mst&perfilauto=0&ctf=1`
-- contato 3:2: `artifacts/piscina-r8-20260922/contact-32.jpg`
-  (`c201ffd3b7d4b7850a3f54cae255bc5b4669fbfeee8c9ac9626d42d8a91c2495`)
-- contato 16:9: `artifacts/piscina-r8-20260922/contact-169.jpg`
-  (`1233d71400134ce207601487e1075aa68591969b077737424f9bd237eac46269`)
-- recibos 3:2: `artifacts/piscina-r8-20260922/browser/summary.json`
-  (`c02dff5caecf43229bf4264c83fd67c164e6587537cbec8bba7313b94a1dd974`)
-- recibos 16:9: `artifacts/piscina-r8-20260922/browser-169/summary.json`
-  (`174345a8dddb53f276732b69c432b5c16b2b99b8ee75db72a2d78dea2dcd266c`)
+- fonte local/servida: `b3e55b792cd2005d82f75da88a87fae574123109c3e6c863e2ebf39b73fef213`;
+- contato 3:2: `artifacts/piscina-r9-20260922/contact-32.jpg`
+  (`37c773c67c37272e736404542b657ce6c4f4f6d7e2c4d8d46bc6415139a9b484`)
+- contato 16:9: `artifacts/piscina-r9-20260922/contact-169.jpg`
+  (`240b53bd6895330a6ae67ee2ea539a117209d5fb9ca44ac228eedbcd46698e84`)
+- recibos 3:2: `artifacts/piscina-r9-20260922/browser-32/summary.json`
+  (`d062ee624c955ec5a9e8e291c80e644a34267c1d9295f6be9a96324da34a1e5f`)
+- recibos 16:9: `artifacts/piscina-r9-20260922/browser-169/summary.json`
+  (`f58e0e77624f9cbcc95e833be352096ee8d2958fb1b909e26c177f610e6e354a`)
 - matriz espacial: `artifacts/piscina-r8-20260922/spatial.json`.
 - performance: `artifacts/piscina-r8-20260922/perf-*` e
   `artifacts/piscina-r8-20260922/perf-ctf-*`.
@@ -129,5 +136,6 @@ PATH=/opt/homebrew/bin:/usr/bin:/bin npm run build
 5. Julgar a linguagem branca/azul nas capturas 3:2; tecnicamente legível, mas ainda cabe
    ao dono decidir se o espaço parece vivo o bastante.
 
-PIS7 (aceite visual/jogável) e o orçamento médio permanecem pendentes. Não há autorização
-para merge/deploy nesta lane.
+PIS7 continua pendente do aceite visual/jogável. O CENA oficial e o orçamento de chamadas
+estão verdes; os triângulos do caso denso 8x8 permanecem dívida explícita do elenco/sombra.
+Não há autorização para merge/deploy nesta lane.

@@ -8,6 +8,24 @@
 > O PR #566 foi mergeado durante a retomada com o head antigo; a revisão atual está no
 > draft sucessor #612 contra `main`.
 
+## Fechamento de grafite e chamadas — 22/09/2026
+
+O layout assado da Piscina estava velho em relação à geometria atual: o censo WebGL
+media 42,5% (386/909 placas), abaixo da meta de 76%. A regeneração seletiva alterou
+somente a entrada `piscina_treta` e fechou em 83,3% (758/910). A contraprova sem essa
+entrada mede 31,5% e retorna código 1.
+
+As 240 caixas repetidas do próprio mapa agora viram 39 `InstancedMesh` depois do bake de
+grafite. No A/B 8x8 médio, a mesma cena caiu de 727 para 460 calls; a régua oficial CENA
+mede 429 calls/785.902 tris e fica abaixo do teto. A matriz densa 5x5/8x8 DM/CTF ficou
+entre 519 e 704 calls em médio, contra até 1.004 antes. O pico de triângulos 8x8 ainda é
+~1,08 M e vem de personagens/armas/sombras; não foi mascarado removendo sombra ou elenco.
+
+Rotas, portais, CTF e ambiência continuam verdes; bots ficam entre 0,589% e 2,011% de
+stuck nos quatro casos. As matrizes reais 3:2/16:9 e contatos inspecionados estão em
+`artifacts/piscina-r9-20260922/`. A piscina central continua aberta por decisão de layout;
+somente o dono pode aprovar essa exposição em playtest 8x8. Nenhum merge/deploy foi feito.
+
 ## Objetivo e estado
 
 Terminar a Piscina da Treta como piloto do novo padrão sobre a fundação de mapas
