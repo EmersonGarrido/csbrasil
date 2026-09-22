@@ -4,7 +4,7 @@
 
 - Worktree: `client/worktrees/upa-estrutura-r1`
 - Branch: `codex/upa-estrutura-r1`
-- Base: `origin/main@dffcf1f5815342e1ae26e5d79beeaf54b833a2df` (`v2.0.0-alpha.255`).
+- Base original: `origin/main@dffcf1f5815342e1ae26e5d79beeaf54b833a2df` (`v2.0.0-alpha.255`). Sincronizada por merge normal com `origin/main@60ad7501323ef076263f645bfca341e2454fce6b` (`v2.0.0-alpha.262`) no commit `da307ba87`, sem rebase ou force-push.
 - Mapa escolhido: `upa_24h` (`public/js/map_upa.js`).
 - Motivo: no catálogo ROADMAP #28, UPA é o mapa prioritário em `MAIN_REVIEW` sem PR estrutural aberto. Lajes está em outra lane; Parque, Posto, Atacadão, Obras, Córrego, Loja H, Ferro Velho, Piscina, Escadão, Amazônia, Joá, Quebrada e Carandiru já têm candidatos ou lanes identificadas.
 - Autoria preservada: mapa original de Emerson Garrido no PR #257; recuperação integrada por Ruben no PR #337.
@@ -68,6 +68,51 @@ Capturas representativas:
 Cada JSON registra SHA, URL, porta, fluxo e instante. O baseline foi servido por checkout destacado limpo em `8203`; a candidata por esta worktree em `8202`. O baseline usa o fluxo automático porque a interface `alpha.255` não expõe o mesmo menu atual; a candidata, que é a unidade sob teste, entra pelo menu real.
 
 Inspeção desta lane: a alpha.255 mostra uma loja com gôndolas de alimento e manequins; a candidata mostra recepção, chamada de senha, dispensário e equipamentos clínicos. Os seis enquadramentos cabem em 3:2 e 16:9 e o HUD permanece visível. Isso comprova a mudança, mas não substitui o aceite visual do dono nem a crítica adversarial independente.
+
+## Revalidação sobre alpha.262
+
+A atualização para a release `alpha.262` preservou os seis setores, os doze acessos, as quatro famílias de rota com três decisões cada e as 52 coberturas. O replay de `upa-structure-check` e seus cinco mutantes continuou causalmente verde, assim como `map-contrato-check` (`361/361` nós alcançados, `1.800` arestas) e `ctf-win-check`.
+
+O replay de bots revelou uma regressão que o relatório antigo não expunha. Com a branch pré-correção, o CTF travava `18,533%` no 5×5 e `8,389%` no 8×8, contra `2,311%` e `1,644%` na base limpa `alpha.262`. A causa eram segmentos tangentes às macas e biombos: o grafo aceitava margem de `0,22 m`, menor que o raio de colisão de `0,4 m` do bot. O commit `e5a6e980b` elevou as margens locais do mapa para `0,65 m` nos nós e `0,45 m` nas arestas; `b9459693a` apenas reduziu o comentário aos dois versos aceitos pelo gate de comentários. Nenhum runtime compartilhado foi alterado.
+
+| Perfil, 30 s × 9 sementes | alpha.262 limpa: stuck / eff | candidata antes da correção | candidata final |
+|---|---:|---:|---:|
+| 5×5 DM | 4,144% / 0,516 | 6,467% / 0,513 | 1,978% / 0,483 |
+| 5×5 CTF | 2,311% / 0,555 | 18,533% / 0,506 | 1,344% / 0,394 |
+| 8×8 DM | 4,433% / 0,523 | 5,089% / 0,506 | 2,133% / 0,423 |
+| 8×8 CTF | 1,644% / 0,549 | 8,389% / 0,454 | 0,233% / 0,375 |
+
+O travamento final fica abaixo do teto local de 4% nos quatro perfis e melhora causalmente sobre a base. A eficiência líquida cai porque o grafo mantém mais folga dos obstáculos e evita os atalhos tangentes; isso deve ser observado no playtest, sem ocultar o número.
+
+### WebGL final, fonte congelada
+
+A matriz `artifacts/upa-r1/alpha262-r5/` foi refeita depois da correção e do gate de comentários. As oito combinações entram pelo menu real, usam Chrome/WebGL2, confirmam 9 ou 15 bots e não registram erro inesperado nem quadro acima de 100 ms.
+
+| Aspecto | Equipes | Modo | P95 | Calls máx. | Triângulos máx. |
+|---|---:|---|---:|---:|---:|
+| 3:2 | 5×5 | DM | 9,9 ms | 624 | 864.131 |
+| 3:2 | 5×5 | CTF | 9,8 ms | 572 | 855.799 |
+| 3:2 | 8×8 | DM | 9,7 ms | 649 | 1.009.583 |
+| 3:2 | 8×8 | CTF | 10,0 ms | 623 | 1.024.044 |
+| 16:9 | 5×5 | DM | 10,1 ms | 626 | 864.810 |
+| 16:9 | 5×5 | CTF | 9,9 ms | 577 | 865.330 |
+| 16:9 | 8×8 | DM | 9,8 ms | 717 | 1.011.439 |
+| 16:9 | 8×8 | CTF | 9,9 ms | 633 | 1.010.449 |
+
+- Fonte auditada: `b9459693a0c3cf7916cbfdf4056d106b57ead558`.
+- `public/js/map_upa.js`: `sha256=ca51ae928e0d0f167dfa7940553c80ce4b0dfcdfccfca0d6bffbe5c9ff54431d` em todos os recibos; servidor e worktree conferem.
+- Oito recibos JSON concatenados: `sha256=3bebe6ea9eb2ec088c9c1a2b6c02493cedc9cac39f184c54e8875eb4cc2ee983`.
+- Contato 3:2: `artifacts/upa-r1/alpha262-r5/contact-3x2.jpg`, `sha256=01126f7f46a545ed7500e960d5079ad9af795e5a8dbcc3b5a4d5af7c3249b4d8`.
+- Contato 16:9: `artifacts/upa-r1/alpha262-r5/contact-16x9.jpg`, `sha256=fc8418fb21451bc525bf6e55971d6d6d25ee0e2458b0e587ca635cdd609a35fe`.
+- `eval:select`, contra o servidor local: 12/53 casos rejeitados, exatamente o teto versionado. Como o diff desta lane não toca seletor, montagem ou runtime compartilhado, essa dívida é herdada e não foi maquiada.
+- `npm run build`, `arch:check`, `map-contrato-check`, sintaxe e os gates/mutantes UPA passam na `alpha.262`. `eval:redesign` continua falhando somente em UIR15, reproduzido na base e fora do escopo map-local.
+
+### Aceite humano mínimo pendente
+
+1. Percorrer recepção, dispensário, consultórios, triagem, observação e emergência nos dois aspectos e confirmar que cada setor se distingue durante combate real.
+2. Cruzar os doze acessos e contornar macas/biombos em 8×8, procurando colisão ou hesitação que a simulação não represente.
+3. Jogar uma rodada DM e uma CTF, observando se a maior folga do grafo reduz a fluidez apesar de eliminar os travamentos medidos.
+4. Confirmar contraste do piso/teto muito claros, leitura das coberturas e ausência de clipping do HUD; as capturas técnicas não são aceite visual.
 
 ## Reproduzir e continuar
 
