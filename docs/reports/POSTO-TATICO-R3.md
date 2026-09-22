@@ -194,5 +194,10 @@ Faça duas rodadas, uma 5x5 e outra 8x8. Em cada time, teste:
   vinha do servidor de avaliação, não do runtime: o harness agora resolve as variáveis
   `define:vars`, `map-preview.css` e `ops.js` como o Astro faz. A dívida restante é
   herdada da main e não foi contada como correção do mapa.
+- O `check:deploy` da alpha.262 mantém `UIR15` vermelho em `eval:redesign`. O diff
+  desta lane não toca `game.js`, `style.css`, `index.astro` nem a régua de redesign;
+  portanto essa falha global é herdada e não foi corrigida por uma alteração ampla
+  fora do escopo map-local. Os outros 39 gates agregados passam depois da regeneração
+  dos sete blocos de documentação que passaram a contar o novo script de bots.
 - Não houve merge nem deploy. A promoção só pode ocorrer depois destas pendências e
   da revisão humana.
