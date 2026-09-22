@@ -105,7 +105,7 @@ A matriz `artifacts/upa-r1/alpha262-r5/` foi refeita depois da correção e do g
 - Contato 3:2: `artifacts/upa-r1/alpha262-r5/contact-3x2.jpg`, `sha256=01126f7f46a545ed7500e960d5079ad9af795e5a8dbcc3b5a4d5af7c3249b4d8`.
 - Contato 16:9: `artifacts/upa-r1/alpha262-r5/contact-16x9.jpg`, `sha256=fc8418fb21451bc525bf6e55971d6d6d25ee0e2458b0e587ca635cdd609a35fe`.
 - `eval:select`, contra o servidor local: 12/53 casos rejeitados, exatamente o teto versionado. Como o diff desta lane não toca seletor, montagem ou runtime compartilhado, essa dívida é herdada e não foi maquiada.
-- `npm run build`, `arch:check`, `map-contrato-check`, sintaxe e os gates/mutantes UPA passam na `alpha.262`. `eval:redesign` continua falhando somente em UIR15, reproduzido na base e fora do escopo map-local.
+- `npm run build`, `arch:check`, `map-contrato-check`, sintaxe e os gates/mutantes UPA passam na `alpha.262`. O replay final de `check:deploy` passa 39/40 portões; `eval:redesign` continua falhando somente em UIR15, reproduzido na base e fora do escopo map-local.
 
 ### Aceite humano mínimo pendente
 
