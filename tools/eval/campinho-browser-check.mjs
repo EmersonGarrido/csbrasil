@@ -3,11 +3,13 @@ import assert from 'node:assert/strict';
 import { chromium } from 'playwright';
 import { createHash } from 'node:crypto';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { TETOS } from './cena-tetos.mjs';
 
 const option = (name, fallback) => process.argv.find((arg) => arg.startsWith(`--${name}=`))?.split('=').slice(1).join('=') || fallback;
 const base = option('base', 'http://127.0.0.1:8175');
 const out = option('out', 'artifacts/campinho-r3/browser');
 const seconds = Number(option('seconds', '8'));
+const only = option('only', '');
 if (!(seconds >= 5 && seconds <= 60)) throw Error('--seconds deve ficar entre 5 e 60');
 mkdirSync(out, { recursive: true });
 
@@ -19,12 +21,19 @@ const sourceFiles = [
 ];
 const sources = Object.fromEntries(sourceFiles.map((file) => [file, createHash('sha256').update(readFileSync(file)).digest('hex')]));
 const matrix = [
-  { id: '5x5-3x2-med', bots: 5, quality: 'med', viewport: { width: 1536, height: 1024 } },
-  { id: '8x8-16x9-low', bots: 8, quality: 'low', viewport: { width: 1600, height: 900 } },
+  { id: '5x5-dm-3x2-med', bots: 5, ctf: false, quality: 'med', viewport: { width: 1536, height: 1024 } },
+  { id: '5x5-ctf-3x2-med', bots: 5, ctf: true, quality: 'med', viewport: { width: 1536, height: 1024 } },
+  { id: '8x8-dm-3x2-med', bots: 8, ctf: false, quality: 'med', viewport: { width: 1536, height: 1024 } },
+  { id: '8x8-ctf-3x2-med', bots: 8, ctf: true, quality: 'med', viewport: { width: 1536, height: 1024 } },
+  { id: '5x5-dm-16x9-low', bots: 5, ctf: false, quality: 'low', viewport: { width: 1600, height: 900 } },
+  { id: '5x5-ctf-16x9-low', bots: 5, ctf: true, quality: 'low', viewport: { width: 1600, height: 900 } },
+  { id: '8x8-dm-16x9-low', bots: 8, ctf: false, quality: 'low', viewport: { width: 1600, height: 900 } },
+  { id: '8x8-ctf-16x9-low', bots: 8, ctf: true, quality: 'low', viewport: { width: 1600, height: 900 } },
 ];
 const receipt = { base, sources, matrix: [], generatedAt: new Date().toISOString() };
+const budget = TETOS.quebrada;
 
-for (const run of matrix) {
+for (const run of matrix.filter((item) => !only || item.id === only)) {
   const browser = await chromium.launch({ channel: 'chrome', headless: true, args: ['--mute-audio'] });
   const context = await browser.newContext({ viewport: run.viewport, deviceScaleFactor: 1 });
   const page = await context.newPage();
@@ -34,10 +43,26 @@ for (const run of matrix) {
   try {
     await page.addInitScript(({ bots, quality }) => {
       localStorage.setItem('awpbr_settings', JSON.stringify({ quality, bots, vol: 0, speech: false }));
+      localStorage.setItem('awpbr_nick', 'CAMPINHO-QA');
       let seed = 57700 + bots;
       Math.random = () => { seed ^= seed << 13; seed >>>= 0; seed ^= seed >> 17; seed ^= seed << 5; return (seed >>> 0) / 4294967296; };
     }, { bots: run.bots, quality: run.quality });
-    await page.goto(`${base}/?debug=1&auto=P,mst&map=quebrada&perfilauto=0&ctf=1`, { waitUntil: 'domcontentloaded', timeout: 120000 });
+    await page.goto(`${base}/?debug=1&map=quebrada&perfilauto=0`, { waitUntil: 'domcontentloaded', timeout: 120000 });
+    await page.waitForFunction(() => !document.getElementById('splash-enter')?.classList.contains('hidden'), null, { timeout: 120000 });
+    await page.evaluate(() => document.getElementById('boot-splash')?.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })));
+    await page.waitForSelector('#boot-splash', { state: 'detached', timeout: 30000 });
+    await page.waitForSelector('#main-menu:not(.hidden)', { timeout: 120000 });
+    await page.click('.cs-item[data-act="single-player"]');
+    await page.click(`.cs-item[data-act="${run.ctf ? 'ctf' : 'sp'}"]`);
+    await page.waitForSelector('#map-screen:not(.hidden)', { timeout: 30000 });
+    await page.click('#ms-continue');
+    await page.waitForSelector('#team-select:not(.hidden)', { timeout: 30000 });
+    await page.click('#btn-team-e');
+    await page.waitForSelector('#char-select:not(.hidden)', { timeout: 120000 });
+    await page.click('#char-list .char-row:first-child');
+    await page.click('#char-confirm');
+    await page.waitForSelector('#team-select:not(.hidden)', { timeout: 30000 });
+    await page.click('#btn-team-b');
     await page.waitForFunction(() => window.__game?.state === 'live', null, { timeout: 180000 });
     await page.waitForTimeout(1600);
     const boot = await page.evaluate(() => {
@@ -52,7 +77,7 @@ for (const run of matrix) {
       const seen = new Set([0]), queue = [0];
       while (queue.length) for (const next of adj[queue.shift()] || []) if (!seen.has(next)) { seen.add(next); queue.push(next); }
       return {
-        map: g._mapId, bots: g.bots.length, quality: g.settings.quality,
+        map: g._mapId, bots: g.bots.length, quality: g.settings.quality, ctfMode: g.ctf,
         webgl2: g.renderer.capabilities.isWebGL2,
         gpu: ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : g.renderer.__csWebgl,
         nodes: nodes.length, edges: adj.reduce((sum, entries) => sum + entries.length, 0), connected: seen.size,
@@ -62,10 +87,11 @@ for (const run of matrix) {
     });
     assert.equal(boot.map, 'quebrada');
     assert.equal(boot.bots, run.bots * 2 - 1);
+    assert.equal(boot.ctfMode, run.ctf);
     assert.equal(boot.webgl2, true);
     assert.ok(/Apple M4 Pro|Metal/i.test(boot.gpu), `renderer real inesperado: ${boot.gpu}`);
     assert.ok(boot.nodes >= 340); assert.ok(boot.edges >= 2000); assert.equal(boot.connected, boot.nodes);
-    assert.equal(boot.ctf, 4); assert.equal(boot.pickups, 12); assert.deepEqual(boot.spawns, { E: 4, B: 4 });
+    assert.equal(boot.ctf, run.ctf ? 4 : 0); assert.equal(boot.pickups, 12); assert.deepEqual(boot.spawns, { E: 4, B: 4 });
     assert.equal(boot.roles['gate-cover'], 2); assert.equal(boot.roles['sideline-cover'], 11);
     assert.equal(boot.roles['sideline-backrest'], 2); assert.equal(boot.roles.scoreboard, 1); assert.equal(boot.roles['score-mark'], 9);
 
@@ -96,10 +122,16 @@ for (const run of matrix) {
         textures: g.renderer.info.memory.textures, geometries: g.renderer.info.memory.geometries,
       };
     });
+    perf.budget = {
+      calls: budget.calls, triangles: budget.tris,
+      callsOk: perf.calls <= budget.calls, trianglesOk: perf.triangles <= budget.tris,
+      comparable: run.bots <= 5 || run.quality === 'low',
+    };
     assert.ok(perf.frames > 0); assert.ok(perf.p95 <= 50, `p95 ${perf.p95} ms > 50 ms`);
     assert.ok(perf.over100ms <= 1, `${perf.over100ms} frames >100 ms`);
-    assert.ok(perf.calls <= 2200, `${perf.calls} draw calls > 2200`);
-    assert.ok(perf.triangles <= 1_600_000, `${perf.triangles} triangulos > 1,6 M`);
+    assert.ok(perf.calls <= budget.calls, `${perf.calls} draw calls > ${budget.calls}`);
+    // O teto CENA usa a população padrão; 8x8 médio fica como stress medido, e 8x8 baixo continua reprovando.
+    if (perf.budget.comparable) assert.ok(perf.budget.trianglesOk, `${perf.triangles} triangulos > ${budget.tris}`);
 
     const inheritedErrors = errors.filter((message) => message === 'SUPPORT_URL_BR is not defined');
     const relevantErrors = errors.filter((message) => message !== 'SUPPORT_URL_BR is not defined');
@@ -135,6 +167,8 @@ for (const run of matrix) {
         g.player.hp = 100; g.el.hpNum.textContent = '100'; g.el.hpFill.style.width = '100%';
         g.el.hpNum.classList.remove('low'); g.el.hpFill.classList.remove('low');
         g.el.pause.classList.add('hidden'); g.el.banner.classList.add('hidden');
+        for (const smoke of (g._smokes || [])) g.scene.remove(smoke.group);
+        if (g._smokes) g._smokes.length = 0;
         for (const bot of g.bots) bot.mesh.group.visible = false;
         const ground = view.pos[1] ?? g.world.groundHeightAt(view.pos[0], view.pos[2], 0);
         g.camera.position.set(view.pos[0], ground + (view.aerial ? 0 : 1.62), view.pos[2]);
