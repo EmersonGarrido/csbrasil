@@ -44,7 +44,6 @@ const MENU_MUSIC = MENU_MUSIC_ARG ? resolve(MENU_MUSIC_ARG) : null;
 const MENU_MUSIC_LINK = join(PUBLICO, 'menu-music');
 const MANIFEST = join(PUBLICO, 'manifest.json');
 const MUTANTE_SEM_VETO = process.env.FAB_GAME_LOCAL_MUTANTE === 'sem-veto';
-const MUTANTE_SEM_CAMPOMORRO = process.env.FAB_GAME_LOCAL_MUTANTE === 'sem-campomorro';
 const VETO = ['blood', 'gore', 'bone', 'scream', 'screaming'];
 
 if (!relative(RAIZ_REPO, PACK).startsWith('..')) {
@@ -418,9 +417,10 @@ const CHARACTER_IDS = [
   'bonzo', 'palhacomal', 'jozo', 'adjim', 'esbirro', 'titica', 'padati', 'padata', 'cadequinha',
   'emo', 'blackmetal', 'metaleiro', 'punk', 'skatista', 'clubber', 'rapper', 'reggae', 'pagodeiro',
   'mandrake', 'raul', 'oakley', 'criarj', 'chave', 'funkraiz', 'trapfunk', 'fluxo', 'ostentacao',
+  'lobisomem', 'mariabonita', 'lampiao', 'bandeirante', 'boto', 'zumbi', 'curupira', 'saci', 'caipora',
 ];
-const FEMALE_CHARACTERS = new Set(['doutora']);
-const CREATURE_CHARACTERS = new Set(['gotinha', 'dollynho', 'et', 'canarinho', 'proerd']);
+const FEMALE_CHARACTERS = new Set(['doutora', 'mariabonita', 'caipora']);
+const CREATURE_CHARACTERS = new Set(['gotinha', 'dollynho', 'et', 'canarinho', 'proerd', 'lobisomem', 'boto', 'curupira']);
 const physicalByCharacter = Object.fromEntries(CHARACTER_IDS.map((id) => [
   id, FEMALE_CHARACTERS.has(id) ? 'female' : (CREATURE_CHARACTERS.has(id) ? 'creature' : 'male'),
 ]));
@@ -436,7 +436,7 @@ const loop = (nome, vol) => ({ src: arquivo(nome), global: true, pos: [0, 0, 0],
 const shot = (nomes, minGap, maxGap, vol) => ({ srcs: nomes.map(arquivo), minGap, maxGap, vol });
 const mapSoundscapes = completeLajesSoundscape({ mapSoundscapes: {
   praca_poderes: { loops: [loop('Environment/Wind_Loop_6.wav', .075)], shots: [shot(['Environment/Tree_Rustling_1-1.wav'], 28, 70, .16)] },
-  piscina_treta: { synth: { kind: 'indoor-hum', vol: .018 }, loops: [loop('Environment/Water_Stream_Calm_1.wav', .045)], shots: [shot(['Environment/Water_Splash_1-1.wav'], 22, 60, .13)] },
+  piscina_treta: { loops: [loop('Environment/Water_Stream_Calm_1.wav', .045)], shots: [shot(['Environment/Water_Splash_1-1.wav'], 22, 60, .13)] },
   loja_h: { loops: [loop('Environment/Wind_Loop_1.wav', .055)], shots: [shot(['Doors/Door_Open_3-1.wav', 'Doors/Door_Close_3-1.wav'], 30, 85, .12)] },
   ferro_velho: { loops: [loop('Environment/Wind_Loop_6.wav', .085)], shots: [shot(['Doors/Rusty_Metal_Creak_01.wav', 'Doors/Rusty_Metal_Creak_03.wav'], 18, 52, .18)] },
   quebrada: { loops: [loop('Environment/Wind_Loop_1.wav', .06)], shots: [shot(['Environment/Tree_Rustling_1-4.wav'], 24, 68, .15)] },
@@ -451,7 +451,6 @@ const mapSoundscapes = completeLajesSoundscape({ mapSoundscapes: {
   penitenciaria: { synth: { kind: 'indoor-hum', vol: .02 }, shots: [shot(['Doors/Rusty_Metal_Creak_01.wav', 'Doors/Rusty_Metal_Creak_03.wav'], 22, 64, .14)] },
 } }).mapSoundscapes;
 extendMapSoundscapes({ mapSoundscapes });
-if (MUTANTE_SEM_CAMPOMORRO) delete mapSoundscapes.campomorro;
 /* Stingers <=1,5 s pelo catalog.json. Os Special_Interface 5/6/7 duram
    2,75–9,52 s e invadiriam a rodada. Semântica ainda depende de escuta. */
 const roundstart = seguros(['Interface/Interface_12-1.wav', 'Interface/Interface_12-4.wav']);

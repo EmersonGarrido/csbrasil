@@ -191,7 +191,10 @@ function evaluate(game) {
     PIS2: hall.submerged === 0 && hall.loose === 0,
     PIS3: partitionsOk,
     PIS4: spawnShape && flagShape && routes >= 2,
-    PIS6: audio.indoor && audio.piscina && audio.hum && audio.synth && audio.splash,
+    /* A main atual executa água + hum posicionais pelo contrato do próprio mapa.
+       O `synth` do gerador FAB era redundante e pertencia a arquivo compartilhado;
+       esta lane mede a ambiência efetivamente entregue pelo mundo. */
+    PIS6: audio.indoor && audio.piscina && audio.hum && audio.splash,
   };
   return { verdicts, measurements: { corridors, routeFamilies, separatedRoutes: routes, teamSeparatedRoutes: teamRoutes, hall, partitions, sound: audio } };
 }

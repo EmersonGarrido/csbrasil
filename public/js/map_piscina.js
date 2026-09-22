@@ -27,8 +27,6 @@
 // Same buildWorld contract as map.js.
 import * as THREE from 'three';
 import { decalIds, paredeAtras } from './map_decals.js';
-import { applyAniso } from './textures.js';
-import { fabricasUV } from './map_uv.js';
 import { grafitar, esconderSeFaltar } from './graffiti_pass.js';   // cobertura medida, não coordenada à mão
 import { AMB_LOOPS } from './soundscape.js';
 
@@ -41,9 +39,71 @@ const SIDE_PORTALS = [-11, 0, 11];
 const SPAWN_WALL_Z = 15;
 const SPAWN_PORTALS = [-12, 0, 12];
 
+/* A antiga pilha importava `map_uv.js`, que não existe na main. Mantemos a régua
+   métrica somente neste mapa para o PR continuar isolado, sem reintroduzir helper
+   ou material compartilhado. */
+function poolGeometryFactories(cache = new Map(), texelTarget = 128) {
+  const metric = (material) => {
+    const map = material?.map;
+    if (!map?.image?.width) return null;
+    const repeats = (wrap) => wrap === THREE.RepeatWrapping || wrap === THREE.MirroredRepeatWrapping;
+    if (!repeats(map.wrapS) || !repeats(map.wrapT)) return null;
+    return {
+      u: (map.image.width * (map.repeat?.x || 1)) / texelTarget,
+      v: ((map.image.height || map.image.width) * (map.repeat?.y || 1)) / texelTarget,
+      elevation: Boolean(material.userData?.uvElevacao),
+    };
+  };
+  const key = (m) => m ? `${m.u.toFixed(4)}:${m.v.toFixed(4)}:${m.elevation ? 'e' : 't'}` : '0';
+  const scaleFaces = (geometry, pairs, m) => {
+    const uv = geometry.attributes?.uv;
+    if (!m || !uv) return geometry;
+    for (let face = 0; face < pairs.length; face++) {
+      const [spanU, spanV] = pairs[face];
+      for (let i = face * 4; i < face * 4 + 4 && i < uv.count; i++) {
+        uv.setXY(i, uv.getX(i) * spanU / m.u, m.elevation ? uv.getY(i) : uv.getY(i) * spanV / m.v);
+      }
+    }
+    uv.needsUpdate = true;
+    return geometry;
+  };
+  const box = (w, h, d, material) => {
+    const m = metric(material), id = `b:${w}:${h}:${d}:${key(m)}`;
+    if (!cache.has(id)) cache.set(id, scaleFaces(new THREE.BoxGeometry(w, h, d), [[d, h], [d, h], [w, d], [w, d], [w, h], [w, h]], m));
+    return cache.get(id);
+  };
+  const plano = (w, h, material) => {
+    const m = metric(material), id = `p:${w}:${h}:${key(m)}`;
+    if (!cache.has(id)) cache.set(id, scaleFaces(new THREE.PlaneGeometry(w, h), [[w, h]], m));
+    return cache.get(id);
+  };
+  const cilindro = (r, h, segments, material) => {
+    const m = metric(material), id = `c:${r}:${h}:${segments}:${key(m)}`;
+    if (!cache.has(id)) {
+      const geometry = new THREE.CylinderGeometry(r, r, h, segments);
+      const uv = geometry.attributes?.uv;
+      if (m && uv) {
+        const trunk = (segments + 1) * 2;
+        const scaleU = 2 * Math.PI * r / m.u, scaleV = h / m.v, scaleTop = 2 * r / m.u;
+        for (let i = 0; i < uv.count; i++) {
+          if (i < trunk) uv.setXY(i, uv.getX(i) * scaleU, m.elevation ? uv.getY(i) : uv.getY(i) * scaleV);
+          else uv.setXY(i, .5 + (uv.getX(i) - .5) * scaleTop, .5 + (uv.getY(i) - .5) * scaleTop);
+        }
+        uv.needsUpdate = true;
+      }
+      cache.set(id, geometry);
+    }
+    return cache.get(id);
+  };
+  return { box, plano, cilindro };
+}
+
 /* ---------- inline procedural tile textures ---------- */
 function mkTex(c, rx = 1, rz = 1, clamp = false) {
-  const t = applyAniso(new THREE.CanvasTexture(c));
+  const t = new THREE.CanvasTexture(c);
+  let query;
+  try { query = new URLSearchParams(location.search); } catch (e) { query = new URLSearchParams(''); }
+  t.anisotropy = query.get('texel') === '0' ? 1 : query.get('q') === 'low' ? 4 : 8;
   t.colorSpace = THREE.SRGBColorSpace; t.magFilter = THREE.NearestFilter;
   t.wrapS = t.wrapT = clamp ? THREE.ClampToEdgeWrapping : THREE.RepeatWrapping;
   t.repeat.set(rx, rz);
@@ -132,8 +192,8 @@ export function buildPoolDay(scene, T) {
   scene.add(root);
 
   const lam = (opts) => new THREE.MeshLambertMaterial(opts);
-  /* UV em metros (map_uv.js): densidade de texel pelo tamanho no mundo. */
-  const { box: geoBox, plano: geoPlano, cilindro: geoCil } = fabricasUV();
+  /* UV em metros: densidade de texel pelo tamanho no mundo. */
+  const { box: geoBox, plano: geoPlano, cilindro: geoCil } = poolGeometryFactories();
   function addBox(w, h, d, mat, x, y, z, opts = {}) {
     const m = new THREE.Mesh(geoBox(w, h, d, mat), mat);
     m.position.set(x, y + h / 2, z);
