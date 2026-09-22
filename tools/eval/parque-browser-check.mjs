@@ -8,6 +8,7 @@ const option = (name, fallback) => process.argv.find((a) => a.startsWith(`--${na
 const base = option('base', 'http://127.0.0.1:8165');
 const out = option('out', 'artifacts/parque/browser');
 const seconds = Number(option('seconds', '8'));
+const only = option('only', '');
 if (!(seconds >= 5 && seconds <= 60)) throw Error('--seconds deve ficar entre 5 e 60');
 mkdirSync(out, { recursive: true });
 
@@ -20,12 +21,18 @@ const sourceFiles = [
 ];
 const sources = Object.fromEntries(sourceFiles.map((file) => [file, createHash('sha256').update(readFileSync(file)).digest('hex')]));
 const matrix = [
-  { id: '5x5-3x2-med', bots: 5, quality: 'med', viewport: { width: 1536, height: 1024 } },
-  { id: '8x8-16x9-low', bots: 8, quality: 'low', viewport: { width: 1600, height: 900 } },
+  { id: '5x5-dm-3x2-med', bots: 5, ctf: false, quality: 'med', viewport: { width: 1536, height: 1024 } },
+  { id: '5x5-ctf-3x2-med', bots: 5, ctf: true, quality: 'med', viewport: { width: 1536, height: 1024 } },
+  { id: '8x8-dm-3x2-med', bots: 8, ctf: false, quality: 'med', viewport: { width: 1536, height: 1024 } },
+  { id: '8x8-ctf-3x2-med', bots: 8, ctf: true, quality: 'med', viewport: { width: 1536, height: 1024 } },
+  { id: '5x5-dm-16x9-low', bots: 5, ctf: false, quality: 'low', viewport: { width: 1600, height: 900 } },
+  { id: '5x5-ctf-16x9-low', bots: 5, ctf: true, quality: 'low', viewport: { width: 1600, height: 900 } },
+  { id: '8x8-dm-16x9-low', bots: 8, ctf: false, quality: 'low', viewport: { width: 1600, height: 900 } },
+  { id: '8x8-ctf-16x9-low', bots: 8, ctf: true, quality: 'low', viewport: { width: 1600, height: 900 } },
 ];
 const receipt = { base, sources, matrix: [], generatedAt: new Date().toISOString() };
 
-for (const run of matrix) {
+for (const run of matrix.filter((item) => !only || item.id === only)) {
   // Chrome real, sem SwiftShader e sem mock de renderer.
   const browser = await chromium.launch({ channel: 'chrome', headless: true, args: ['--mute-audio'] });
   const context = await browser.newContext({ viewport: run.viewport, deviceScaleFactor: 1 });
@@ -39,10 +46,29 @@ for (const run of matrix) {
   try {
     await page.addInitScript(({ bots, quality }) => {
       localStorage.setItem('awpbr_settings', JSON.stringify({ quality, bots, vol: 0, speech: false }));
+      localStorage.setItem('awpbr_nick', 'PARQUE-QA');
       let seed = 1313;
       Math.random = () => { seed ^= seed << 13; seed >>>= 0; seed ^= seed >> 17; seed ^= seed << 5; return (seed >>> 0) / 4294967296; };
     }, { bots: run.bots, quality: run.quality });
-    await page.goto(`${base}/?debug=1&auto=P,mst&map=parque_treta&perfilauto=0&ctf=1`, { waitUntil: 'domcontentloaded', timeout: 120000 });
+    const query = new URLSearchParams({ debug: '1', auto: 'P,mst', map: 'parque_treta', perfilauto: '0' });
+    query.delete('auto');
+    await page.goto(`${base}/?${query}`, { waitUntil: 'domcontentloaded', timeout: 120000 });
+    await page.waitForFunction(() => !document.getElementById('splash-enter')?.classList.contains('hidden'), null, { timeout: 120000 });
+    await page.evaluate(() => document.getElementById('boot-splash')?.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })));
+    await page.waitForSelector('#boot-splash', { state: 'detached', timeout: 30000 });
+    await page.waitForSelector('#main-menu:not(.hidden)', { timeout: 120000 });
+    await page.waitForTimeout(800);
+    await page.click('.cs-item[data-act="single-player"]');
+    await page.click(`.cs-item[data-act="${run.ctf ? 'ctf' : 'sp'}"]`);
+    await page.waitForSelector('#map-screen:not(.hidden)', { timeout: 30000 });
+    await page.click('#ms-continue');
+    await page.waitForSelector('#team-select:not(.hidden)', { timeout: 30000 });
+    await page.click('#btn-team-e');
+    await page.waitForSelector('#char-select:not(.hidden)', { timeout: 120000 });
+    await page.click('#char-list .char-row:first-child');
+    await page.click('#char-confirm');
+    await page.waitForSelector('#team-select:not(.hidden)', { timeout: 30000 });
+    await page.click('#btn-team-b');
     await page.waitForFunction(() => window.__game?.state === 'live', null, { timeout: 180000 });
     await page.waitForTimeout(1600);
     const boot = await page.evaluate(() => {
@@ -56,17 +82,18 @@ for (const run of matrix) {
         if (o.userData?.fauna) counts.fauna.add(o.userData.fauna);
       });
       return {
-        map: g._mapId, bots: g.bots.length, quality: g.settings.quality,
+        map: g._mapId, bots: g.bots.length, quality: g.settings.quality, ctf: g.ctf,
         webgl2: g.renderer.capabilities.isWebGL2,
         gpu: ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : g.renderer.__csWebgl,
-        nodes: g.world.waypoints.nodes.length, ctf: g.ctfPts?.length || 0,
+        nodes: g.world.waypoints.nodes.length, ctfPoints: g.ctfPts?.length || 0,
         heroes: counts.heroes, screens: counts.screens, cover: counts.cover, fauna: [...counts.fauna],
       };
     });
     assert.equal(boot.map, 'parque_treta');
     assert.equal(boot.bots, run.bots * 2 - 1);
+    assert.equal(boot.ctf, run.ctf);
     assert.equal(boot.webgl2, true);
-    assert.ok(boot.nodes >= 300); assert.equal(boot.ctf, 3);
+    assert.ok(boot.nodes >= 300); assert.equal(boot.ctf ? boot.ctfPoints : 0, run.ctf ? 3 : 0);
     assert.ok(boot.heroes >= 15); assert.equal(boot.screens, 4); assert.ok(boot.cover >= 12); assert.ok(boot.fauna.length >= 3);
     for (const file of sourceFiles.filter((f) => f.endsWith('.glb'))) {
       const name = file.split('/').at(-1);
@@ -94,18 +121,20 @@ for (const run of matrix) {
         textures: g.renderer.info.memory.textures, geometries: g.renderer.info.memory.geometries,
       };
     });
-    assert.ok(perf.frames > 0); assert.ok(perf.p95 <= 50, `p95 ${perf.p95} ms > 50 ms`);
-    assert.ok(perf.over100ms <= 1, `${perf.over100ms} frames >100 ms`);
-    assert.ok(perf.calls <= 800, `${perf.calls} draw calls > 800`);
-    assert.ok(perf.triangles <= 1_300_000, `${perf.triangles} triângulos > 1,3 M`);
-    assert.equal(errors.length, 0, `erros de página: ${errors.join(' | ')}`);
+    const violations = [];
+    if (!(perf.frames > 0)) violations.push('nenhum frame medido');
+    if (!(perf.p95 <= 50)) violations.push(`p95 ${perf.p95} ms > 50 ms`);
+    if (!(perf.over100ms <= 1)) violations.push(`${perf.over100ms} frames >100 ms`);
+    if (!(perf.calls <= 800)) violations.push(`${perf.calls} draw calls > 800`);
+    if (!(perf.triangles <= 1_300_000)) violations.push(`${perf.triangles} triângulos > 1,3 M`);
+    if (errors.length) violations.push(`erros de página: ${errors.join(' | ')}`);
     const staticPreviewEndpoints = new Set(['/api/geo-lang', '/api/online', '/api/map-plays', '/api/pick',
       '/audio/manifest.json', '/audio/manifest.default.json']);
     const relevantFailures = failed.filter(([, url]) => {
       const pathname = new URL(url).pathname;
       return !staticPreviewEndpoints.has(pathname) && !pathname.startsWith('/audio/menu-music/');
     });
-    assert.equal(relevantFailures.length, 0, `HTTP >=400: ${relevantFailures.map((row) => row.join(' ')).join(' | ')}`);
+    if (relevantFailures.length) violations.push(`HTTP >=400: ${relevantFailures.map((row) => row.join(' ')).join(' | ')}`);
 
     const views = [
       { id: 'spawn-sul', pos: [11.5, null, -38], look: [3, 1.7, -22] },
@@ -133,9 +162,10 @@ for (const run of matrix) {
       const file = `${out}/${run.id}-${view.id}.png`;
       await page.screenshot({ path: file }); photos.push({ ...view, ...metrics, file });
     }
-    const result = { ...run, boot, perf, errors, failed, glbs: [...new Set(glbs)], photos };
+    const result = { ...run, boot, perf, errors, failed, violations, glbs: [...new Set(glbs)], photos };
     receipt.matrix.push(result); writeFileSync(`${out}/${run.id}.json`, JSON.stringify(result, null, 2));
-    console.log(JSON.stringify({ id: run.id, boot, perf }));
+    console.log(JSON.stringify({ id: run.id, boot, perf, violations }));
+    if (violations.length) { receipt.status = 'failed'; process.exitCode = 1; }
   } catch (error) {
     receipt.status = 'failed'; receipt.error = error.stack; process.exitCode = 1; console.error(error);
   } finally {
