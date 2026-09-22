@@ -4,7 +4,7 @@
 
 - Worktree: `/Volumes/Zenith/Projects/game/corosolto/csbrasil/worktrees/carandiru-main-r3`.
 - Branch: `codex/carandiru-main-r3`.
-- Base: `origin/main@dffcf1f5815342e1ae26e5d79beeaf54b833a2df` (`v2.0.0-alpha.255`).
+- Base atualizada: `origin/main@7bb2707ef576260b30ceb88c5973b9f6618684cd` (`v2.0.0-alpha.261`). O checkpoint inicial nasceu em `dffcf1f581` (`alpha.255`) e foi integrado sem conflito.
 - Mapa: id técnico `penitenciaria`, identidade pretendida **Carandiru**.
 - Prioridade: o inventário do PR #538 mede a pior densidade visual e custo de cena do grupo legado; o teste humano mais recente relatou escadas da muralha e guaritas inacessíveis e janelas suspensas no pavilhão. Obras, Parque, Atacadão, Posto, Piscina, Quebrada, Ferro Velho, Loja H e Córrego já têm candidatos atuais em draft; a UPA pertence a outra lane.
 - Origem a preservar: builder original do Emerson Garrido e reautoria estrutural válida do PR #556. A nova lane extrai somente geometria, navegação, identidade procedural e gates que funcionem sobre a `main` atual.
@@ -45,7 +45,7 @@ Comandos: `npm run eval:penitenciaria`, `node tools/eval/map-check.mjs penitenci
 - O Pavilhão 6 é oco: possui passagens norte–sul e leste–oeste, escada interna, galeria superior e 12 janelas inseridas em paredes reais, com piso, peitoril e posição de tiro.
 - As rotas `radial-interna`, `externa-oeste` e `muralha-leste` ligam cada spawn ao MID. O MID do CTF foi deslocado para formar triângulo com altura de 8 m.
 - Sessenta e quatro coberturas baixas instanciadas fecham os vazios próximos aos spawns sem bloquear as três rotas. A pior lacuna do MAP5 caiu de 20,60 m para 6,64 m e a razão de props subiu de 0,12× para 0,54×.
-- A ambiência cria 11 animais com os tipos já pré-carregados para o mapa, três loops já existentes (`vento`, `hum`, `cidade`) e fachos móveis nas torres.
+- A ambiência cria três animais locais (um rato e dois pombos), com os tipos já pré-carregados para o mapa, três loops já existentes (`vento`, `hum`, `cidade`) e fachos móveis nas torres. O corte de 11 para três preserva as duas leituras de fauna e reduz o custo de triângulos.
 
 ## Régua causal
 
@@ -58,25 +58,25 @@ Comandos: `npm run eval:penitenciaria`, `node tools/eval/map-check.mjs penitenci
 - CR3-5: cobertura entre spawn e centro e contrafogo às posições elevadas.
 - CR3-6: fauna e loops de ambiência.
 
-O self-test exige a cláusula exata para oito mutantes de mundo: `fecha-escada`, `fecha-guarita`, `pavilhao-solido`, `janela-suspensa`, `rota-unica`, `ctf-colinear`, `spawn-exposto` e `sem-ambiencia`. Resultado: **8/8 contraprovas rejeitadas**; não há autoatestação por regex.
+O self-test exige a cláusula exata para nove mutantes de mundo: `sem-identidade`, `fecha-escada`, `fecha-guarita`, `pavilhao-solido`, `janela-suspensa`, `rota-unica`, `ctf-colinear`, `spawn-exposto` e `sem-ambiencia`. Resultado: **9/9 contraprovas rejeitadas**; não há autoatestação por regex.
 
 ## Validação técnica
 
-Comandos executados sobre a base `alpha.255`:
+Comandos reexecutados em 22/09/2026 sobre a base `alpha.261`:
 
 ```text
 npm run syntax                                                    PASS
 npm run build                                                     PASS
 npm run eval:penitenciaria                                       PASS
 node tools/eval/carandiru-main-r3-check.mjs                       PASS (CR3-1..6)
-node tools/eval/carandiru-main-r3-check.mjs --selftest-mutantes   PASS (8/8)
+node tools/eval/carandiru-main-r3-check.mjs --selftest-mutantes   PASS (9/9)
 node tools/eval/carandiru-browser-matrix.mjs --self-test          PASS
 node tools/eval/ctf-win-check.mjs penitenciaria                   PASS (3ª bandeira encerra)
 ```
 
 O `map-check` confirma MAP2B (2,85 m / 69,6 m²), MAP4 (zero oclusores invisíveis), MAP5 (6,64 m / 0,54×), CTF1 (8 m) e CTF2 (quatro rotas entre todos os pares). A leitura genérica MAP1 ainda acusa 40 interseções não submersas, pior profundidade 1,133 m; parte vem de superfícies baixas transitáveis/escadas porque a régua empilha `groundHeightAt` sem `yRef`. A exposição genérica ficou E 62,2% e B 55,2%, melhor que o baseline, mas ainda alta. Esses dois pontos permanecem dívida declarada, sem mascarar a saída.
 
-Botsim de 20 s: `stuckPct=2,989`, melhor que 3,311 do baseline; `laneSpread=0,64` foi preservado; `eff=0,833` ficou abaixo do baseline 0,887.
+Botsim de 20 s na base atual: `stuckPct=3,000`, melhor que 3,311 do baseline; `laneSpread=0,64` foi preservado; `eff=0,821` ficou abaixo do baseline 0,887.
 
 ## Chrome/WebGL e A/B
 
@@ -84,16 +84,16 @@ A matriz real entra pelo menu e cobre `3:2/16:9 × 5x5/8x8 × DM/CTF`. As oito c
 
 | Caso | p95 ms | calls | tris |
 | --- | ---: | ---: | ---: |
-| 3:2 5x5 DM | 9,7 | 941 | 1.117.883 |
-| 3:2 5x5 CTF | 9,7 | 949 | 1.119.557 |
-| 3:2 8x8 DM | 9,9 | 1.067 | 1.262.271 |
-| 3:2 8x8 CTF | 9,9 | 1.039 | 1.263.817 |
-| 16:9 5x5 DM | 9,9 | 949 | 1.118.011 |
-| 16:9 5x5 CTF | 9,8 | 959 | 1.129.423 |
-| 16:9 8x8 DM | 9,7 | 1.093 | 1.262.397 |
-| 16:9 8x8 CTF | 9,8 | 1.009 | 1.265.593 |
+| 3:2 5x5 DM | 9,2 | 886 | 919.179 |
+| 3:2 5x5 CTF | 9,2 | 891 | 920.797 |
+| 3:2 8x8 DM | 9,2 | 946 | 1.065.114 |
+| 3:2 8x8 CTF | 9,1 | 951 | 1.066.734 |
+| 16:9 5x5 DM | 8,9 | 903 | 919.437 |
+| 16:9 5x5 CTF | 9,2 | 898 | 923.616 |
+| 16:9 8x8 DM | 9,1 | 954 | 1.065.365 |
+| 16:9 8x8 CTF | 9,1 | 955 | 1.067.510 |
 
-O A/B fresco em DM compara o candidato com `origin/main@dffcf1f581`: as draw calls caíram entre 27% e 33%; triângulos cresceram entre 21% e 25%; o p95 permaneceu em 9,7–9,9 ms contra 9,9–10,2 ms. Hash do mapa no candidato: `7f68f2ae5d675a7feb8b3c4902521a25e832a4aef18e4bf98e511576ea632cfd`; baseline: `0c7759794db25f0a639ac5bd604e96ed11152029a76718fabe2fa3eb8ea2acaf`.
+O A/B arquivado em DM contra `origin/main@dffcf1f581` mostrou draw calls 27%–33% menores, triângulos 21%–25% maiores e p95 equivalente. A `main@7bb2707ef` conserva o mesmo arquivo de mapa baseline (hash `0c7759794db25f0a639ac5bd604e96ed11152029a76718fabe2fa3eb8ea2acaf`), mas o aceite atual usa a matriz completa acima após a atualização do runtime. Hash atual do candidato: `c0d36509c5aa2d45b1a2e9c24bf69c4cd825f05a2bd3e87e0fcd5461e5ee64c6`.
 
 Recibos ignorados pelo Git ficam em:
 
@@ -111,11 +111,11 @@ URL local do candidato:
 
 ## Dívidas e fronteiras
 
-- O seletor e o minimapa ainda exibem “Penitenciária da Treta”; essa string vive no registro compartilhado `maps.js` e a troca global para “Carandiru” foi deliberadamente deixada fora desta lane map-local.
+- A raiz map-local agora se chama `carandiru`, e toda a geometria/identidade interna usa Carandiru. O seletor, descrição e minimapa ainda exibem “Penitenciária da Treta”; essas strings vivem em registros compartilhados (`maps.js`/`main.js`) e a troca global foi deliberadamente deixada fora desta lane map-local.
 - A dívida genérica MAP1/exposição e a queda de eficiência do botsim estão registradas acima e precisam de teste humano antes de promoção.
 - Não houve consumo de Mint/Astra nem inclusão de assets privados. O PR #556 permanece como fonte histórica; esta branch não o carrega como stack.
 - Merge, deploy e aprovação visual humana não fazem parte desta entrega.
 
 ## Estado
 
-Implementação, régua causal, build, CTF, bots, matriz WebGL e capturas concluídos. A crítica adversarial independente está em andamento; o draft PR só será aberto após GO ou correção de bloqueios.
+Implementação, régua causal, build, CTF, bots, matriz WebGL e capturas concluídos na `main@alpha.261`. O draft pode ser aberto com a promoção bloqueada por aprovação visual/jogável humana e por crítica adversarial independente.
