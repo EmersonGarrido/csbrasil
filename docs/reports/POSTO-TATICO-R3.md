@@ -1,8 +1,9 @@
 # Posto da Treta — loja jogável, bombas e três decisões por spawn
 
-Atualizado em 13/09/2026. Esta é uma entrega **draft para revisão humana**, construída
+Atualizado em 22/09/2026. Esta é uma entrega **draft para revisão humana**, construída
 na worktree `posto-tatico-r3`, branch `codex/posto-tatico-r3`, sobre
-`origin/main@3a372fdd0` (`v2.0.0-alpha.254`). Não houve merge, deploy, force-push nem
+`origin/main@60ad75013` (`v2.0.0-alpha.262`), integrada por merge normal no commit
+`73992ba06`. Não houve rebase, merge do PR, deploy, force-push nem
 gasto novo no Mint.
 
 ## Objetivo e definição de pronto
@@ -14,7 +15,7 @@ Cada um dos quatro spawns de cada time alcança três decisões distintas — `l
 `bombas` e `rodovia` — em 5x5 e 8x8. CTF, bots e o contrato de mapa precisam continuar
 funcionando.
 
-“Pronto” nesta lane significa: sete cláusulas causais verdes com oito mutantes mortos,
+“Pronto” nesta lane significa: sete cláusulas causais verdes com nove mutantes mortos,
 5x5 e 8x8 exercitados com bots de produção, capturas WebGL reais em 3:2 e 16:9, assets
 locais rastreáveis e revisão jogável pelo dono. Os gates técnicos específicos desta
 lane estão verdes; a
@@ -39,7 +40,7 @@ aprovação visual, a mixagem audível e o equilíbrio competitivo continuam hum
 
 ## Assets aceitos e rejeitados
 
-Foram usados somente dois modelos que já existiam localmente no kit
+Foram preservados somente dois modelos públicos que já existiam no kit
 `posto_obras_r3`, sem nova geração:
 
 | Asset | Tamanho / geometria | SHA256 | Proveniência |
@@ -64,8 +65,10 @@ necessário para reproduzir o candidato.
 2. Implantar três `bombas_combustivel` com a colisão declarada no mapa. A cobertura
    não colide; somente seus seis pilares colidem, permitindo tiro e circulação sob a
    telha.
-3. Distribuir proteção baixa e de olho separadamente. A composição final mede 68
-   colisores de peito, 14 muretas, 4 jardineiras e 71 sólidos na banda do olho.
+3. Distribuir proteção baixa e de olho separadamente. A composição final mede 62
+   colisores de peito, 14 muretas e 4 jardineiras; as seis meias-rotas têm
+   11/11/17/16/11/11 sólidos que cortam a linha de tiro na altura do olho.
+   As seis pilhas de pneus que comprimiam os corredores foram removidas do candidato.
 4. Declarar as decisões `loja`, `bombas` e `rodovia` em bandas laterais distintas
    para E e B. O gate resolve caminhos reais a partir de todos os oito spawns.
 5. Instanciar apenas caixas decorativas opacas, sem nome e sem colisão, agrupadas por
@@ -89,9 +92,10 @@ Resultado final da régua:
 - POSTO1: 3 ilhas, molde central presente e colisor 2,60 × 1,20 × 2,22 m.
 - POSTO2: 4 gôndolas com colisor, 2 aberturas, 6 nós, rota de 15 passos e 2 pickups.
 - POSTO3: telha a y=5,61 sobre as 3 ilhas, sem colisão; 6/6 pilares colidem.
-- POSTO4: 30,8% de 7.365 pares de nós a mais de 20 m com linha livre, abaixo do teto
-  medido de 33%; eram 41,2% no estado anterior.
-- POSTO5: 68 colisores de peito, 14 muretas e 4 jardineiras.
+- POSTO4: 32,9% dos pares de nós a mais de 20 m têm linha livre, abaixo do teto
+  medido de 33%; as seis meias-rotas têm 11/11/17/16/11/11 sólidos de olho, acima
+  do mínimo espacial de 10 por banda.
+- POSTO5: 62 colisores de peito, 14 muretas e 4 jardineiras.
 - POSTO6: bomba em `(4,0)`, raio 9; rádio dentro da loja em `(-21,0)`, raio 11.
 - POSTO7: loja/bombas/rodovia alcançáveis a partir dos 4 spawns E e 4 spawns B. Os
   caminhos medem respectivamente 8–14, 8–9 e 10–12 nós.
@@ -108,16 +112,27 @@ Cada invariante morre isoladamente:
 | `radio-fora` | POSTO6 |
 | `rota-fechada` | POSTO7 |
 | `times-fixos` | rejeita placar 4x4 no ensaio 5x5/8x8 |
+| `?postoPneusCorredor=1` | recoloca seis sólidos nos corredores e eleva stuck 5x5 DM a 5,133% |
 
-Na simulação de 60 s × 9 seeds com `Game` e bots de produção:
+Na simulação de 60 s × 9 seeds com `Game` e bots de produção, o teto de stuck
+é 4,5%, isto é, a pior célula da alpha.262 (4,067%) mais 10% de folga:
 
-| Carga | Bots | stuck | eficiência | spinRoam | laneSpread |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| 5x5 | 9 | 3,744% | 0,202 | 0,057 | 0,64 |
-| 8x8 | 15 | 1,844% | 0,157 | 0,047 | 0,64 |
+| Carga | Modo | Candidato stuck / eficiência | alpha.262 stuck / eficiência | spinRoam | laneSpread |
+| --- | --- | ---: | ---: | ---: | ---: |
+| 5x5 | DM | 3,978% / 0,176 | 4,067% / 0,212 | 0,036 | 0,64 |
+| 5x5 | CTF | 3,078% / 0,209 | 2,933% / 0,219 | 0,051 | 0,64 |
+| 8x8 | DM | 3,078% / 0,184 | 2,067% / 0,173 | 0,052 | 0,64 |
+| 8x8 | CTF | 2,389% / 0,195 | 1,389% / 0,162 | 0,044 | 0,64 |
+
+O candidato melhora 5x5 DM e a eficiência das duas células 8x8, mas aumenta stuck
+nas outras três células em relação à alpha.262; não se esconde essa dívida causal.
+Todas ficam abaixo do teto. A contraprova que recoloca somente os seis pneus nos
+corredores sobe o stuck 5x5 DM de 3,978% para 5,133% (+1,155 p.p.) e fica vermelha.
+Inflar a margem de navegação para 0,4/0,6/0,8 foi rejeitado: em 5x5 DM produziu
+5,500%/4,067%/5,256% de stuck, sem melhora global consistente.
 
 `syntax`, `eval:mapcontrato`, `eval:spawn`, `eval:ctfround`, `eval:ctfwin` e
-`arch:check` passaram; o Posto tem 275 nós, 1.338 arestas e grafo conexo.
+`arch:check` passaram; o Posto tem 279 nós, 1.414 arestas e grafo conexo.
 
 ## Evidência WebGL e limite de performance
 
@@ -126,15 +141,17 @@ sem page errors, com os dois GLBs retornando HTTP 200:
 
 | Janela / carga | p95 / máximo | Draw calls nas 5 câmeras | Triângulos |
 | --- | --- | --- | --- |
-| 1536×1024, 3:2, 5x5 | 17,0 / 18,3 ms | 1.246–1.886 | 1,34–2,35 M |
-| 1600×900, 16:9, 8x8 | 17,0 / 18,1 ms | 1.255–1.896 | 1,38–2,29 M |
+| 1536×1024, 3:2, 5x5 CTF | 17,5 / 25,0 ms | 1.230–1.870 | 1,327–2,313 M |
+| 1600×900, 16:9, 8x8 CTF | 17,1 / 18,0 ms | 1.250–1.894 | 1,356–2,293 M |
 
 O batching reduziu o candidato 3:2 de 1.328–2.170 para 1.246–1.886 draw calls
 (6,2% no mínimo e 12,6% no máximo). A base, cuja fonte é igual na alpha.252 e na
 alpha.254 (`SHA256 1fcc...a304`), media p95 10 ms e 1.031–1.779 calls. Portanto o
 candidato fica perto de 60 FPS nesta máquina, mas ainda custa mais que a
-base e não prova desempenho em GPUs fracas. O hash da fonte candidata capturada é
-`f9ebe0a8a8e0343c34c40a0aeeefc87d5e1009b4d1bbe04f47afbb069bcfa74c`.
+base e não prova desempenho em GPUs fracas. O hash da fonte candidata capturada e
+servida é `e899f45d3ceb8956f8e940b557b43b601d1011aca934152cc8b52c5193404fba`.
+Os contact sheets 3:2 e 16:9 têm respectivamente SHA256 `04392c8d...` e
+`fc27a622...`.
 
 As cinco câmeras foram inspecionadas em ambos os aspectos: spawn E, loja/caixa,
 bombas/cobertura, rota da rodovia e overview. Loja e entradas ficam legíveis; bombas,
@@ -143,9 +160,8 @@ fechar o horizonte. Isso torna o candidato revisável, não visualmente aprovado
 
 Evidência local ignorada pelo Git:
 
-- `artifacts/posto-tatico-r3/runtime-final-3x2/`
-- `artifacts/posto-tatico-r3/runtime-final-16x9/`
-- `artifacts/posto-tatico-r3/final-mutants/`
+- `artifacts/posto-tatico-r3/alpha262-final-3x2/`
+- `artifacts/posto-tatico-r3/alpha262-final-16x9/`
 
 ## Como testar localmente
 
@@ -170,11 +186,13 @@ Faça duas rodadas, uma 5x5 e outra 8x8. Em cada time, teste:
 - Falta aprovação humana de composição, rotas, CTF e equilíbrio 5x5/8x8.
 - O pacote privado de áudio não está materializado nesta máquina; a régua prova o
   contrato espacial, mas ninguém ouviu nem aprovou a mixagem final nesta lane.
-- O pacote local de decals está incompleto: 196 arquivos faltam e 18 URLs retornaram
-  404 durante as capturas. O mapa renderizou e os dois GLBs próprios retornaram 200,
-  mas os decals ausentes precisam ser materializados antes do gate integral de assets.
-- `docs:check` detecta que os novos utilitários ainda não estão refletidos nos blocos
-  gerados. Esta lane não regenerou os 13 documentos compartilhados para não competir
-  com as outras frentes; integrar esse catálogo é uma etapa de promoção.
+- O pacote local de decals está incompleto: 18 URLs herdadas retornaram 404 durante
+  as capturas. O mapa renderizou, os dois GLBs próprios retornaram 200 e não houve
+  page error; a dívida de decals continua explícita para o gate integral de assets.
+- O `select-inflate` final termina com 12/53 seleções vermelhas, dentro do teto
+  declarado e melhor que os 14/53 do PR antigo. O `SUPPORT_URL_BR is not defined`
+  vinha do servidor de avaliação, não do runtime: o harness agora resolve as variáveis
+  `define:vars`, `map-preview.css` e `ops.js` como o Astro faz. A dívida restante é
+  herdada da main e não foi contada como correção do mapa.
 - Não houve merge nem deploy. A promoção só pode ocorrer depois destas pendências e
   da revisão humana.
