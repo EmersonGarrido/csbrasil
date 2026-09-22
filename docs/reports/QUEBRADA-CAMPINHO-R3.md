@@ -135,3 +135,108 @@ Servidor mantido em `http://127.0.0.1:8175`.
 Próximo passo: revisão humana nos dois links, com atenção aos dois portões,
 à passagem pelas laterais e à pressão do Campinho em 8x8. Não houve merge,
 deploy ou force-push.
+
+## Revalidação sobre a alpha.262 — 22/09/2026
+
+A branch recebeu `origin/main@60ad7501323ef076263f645bfca341e2454fce6b`
+(`v2.0.0-alpha.262`) pelo merge normal
+`e49e63b238888bc14b3b2ac70a4bbc9b0384f964`, sem rebase ou force-push. Os
+conflitos eram somente blocos documentais gerados; a resolução tomou a base
+atual, preservou os gates do Campinho e regenerou a documentação.
+
+Nenhuma correção de geometria foi necessária. O replay na base nova permaneceu
+verde:
+
+- `eval:campinho-integration`: 5x5/8x8 em DM e CTF, 15 coberturas sólidas,
+  grafo Node 344/2.042 conectado, 12 armas, spawns 4×4 livres, 4 bandeiras e
+  32 rotas spawn-bandeira;
+- os dez mutantes `cobertura-invisivel`, `cobertura-sem-bala`,
+  `spawn-obstruido`, `ctf-curto`, `rota-partida`, `grafo-ilhado`,
+  `arsenal-incompleto`, `campinho-sem-placar`, `time-5x5` e `time-8x8`
+  foram rejeitados individualmente;
+- `map-check`: MAP1 zero, MAP2 exposição E 11,2%/70 m e B 0,7%/28,2 m,
+  MAP2B 2,1 m/42,9 m², MAP4 zero, MAP5 4,28 m e CTF2 com no mínimo duas
+  rotas separadas;
+- `eval:mapcontrato`: 344 nós, 2.042 arestas, rota válida e conectado;
+- `ctf-round-check`: quatro bandeiras, objetivo fecha a rodada e a rede de
+  segurança encerra a partida.
+
+Bots determinísticos, 60 s por célula:
+
+| Célula | stuck | spinRoam | eficiência | laneSpread |
+|---|---:|---:|---:|---:|
+| 5x5 DM | 2,878% | 0,084 | 0,206 | 0,640 |
+| 5x5 CTF | 3,011% | 0,099 | 0,219 | 0,640 |
+| 8x8 DM | 1,978% | 0,091 | 0,184 | 0,640 |
+| 8x8 CTF | 1,778% | 0,090 | 0,219 | 0,640 |
+
+### WebGL real e performance
+
+O harness foi ampliado para entrar pelos modos DM e CTF e cobrir a matriz
+5x5/8x8 em 3:2 média e 16:9 baixa. As oito células carregaram WebGL2/Metal, 365
+nós e 2.354 arestas conectados, 12 armas, spawns 4×4 e os quinze objetos de
+cobertura. As células CTF expuseram quatro bandeiras; DM não criou pontos CTF.
+Nenhuma célula teve erro de página, HTTP novo ou frame acima de 100 ms.
+
+| Célula | p95 | Calls | Triângulos |
+|---|---:|---:|---:|
+| 5x5 DM · 3:2 média | 16,9 ms | 1.656 | 1.705.438 |
+| 5x5 CTF · 3:2 média | 16,8 ms | 1.664 | 1.708.058 |
+| 8x8 DM · 3:2 média | 17,1 ms | 1.713 | 1.857.300 |
+| 8x8 CTF · 3:2 média | 17,2 ms | 1.719 | 1.859.918 |
+| 5x5 DM · 16:9 baixa | 9,0 ms | 819 | 962.924 |
+| 5x5 CTF · 16:9 baixa | 9,1 ms | 823 | 963.211 |
+| 8x8 DM · 16:9 baixa | 9,0 ms | 860 | 1.019.927 |
+| 8x8 CTF · 16:9 baixa | 9,1 ms | 856 | 1.022.205 |
+
+A régua oficial `CENA1..CENA4`, com população padrão e 30 s de aquecimento,
+passou com 1.950/2.060 calls, 1.223.227/1.810.000 triângulos, 83,9 FPS e sem
+laço de exceção. O stress 8x8 em qualidade média ficou 47–50 mil triângulos
+acima do teto oficial de população padrão, embora tenha mantido p95 ≤17,2 ms e
+zero frame longo; isso é dívida mensurada para playtest, não teto alterado. Em
+qualidade baixa o mesmo 8x8 ficou em aproximadamente 1,02 M de triângulos.
+
+Evidência ignorada pelo Git: `artifacts/campinho-r3/alpha262-final-r2/`.
+`receipt.json` tem SHA-256
+`593cc4ee0de2983a5cfa539c0ca5a9a0dfca95396fa4f45e8b00ba0767853f37`;
+registra `map_quebrada.js` com
+`09e36545e5f581fc0f8804a7414b176dd052ad73682c8dc4ab6210c963d0c862`
+e `graffiti_layout.js` com
+`0626a914e594e6706ec26d52fcb0a06b6d4601296082ca0aae8224de6506ef3e`.
+Os contact sheets 3:2 e 16:9 têm SHA-256
+`e6c3cca510d1fbf74d17cfa9c94cd92a86fe15e8abbeffeeab0320b2ac74a9e4`
+e `4f2b043f22b527d09a8040d0355a563d4f7115d57761431d1e2bf30cde34c374`.
+
+O preview estático ainda encontra 65 decals ausentes e cinco endpoints que não
+existem no servidor de arquivos; são respostas herdadas e explicitamente
+separadas pelo harness. A alpha.262 não repetiu o antigo pageerror de
+`SUPPORT_URL_BR`, e nenhum erro/HTTP próprio desta lane foi aceito pelo filtro.
+
+### Limite técnico, visual e de licença
+
+O estado é tecnicamente apto a playtest e continua sem aceite visual/jogável
+humano. A inspeção dos contact sheets encontrou:
+
+- forte assimetria de exposição entre os spawns (E 11,2%/70 m contra B 0,7%/
+  28,2 m), que exige duelo dos dois lados;
+- Campinho ainda amplo e plano apesar das rotas laterais e coberturas verdes;
+- paredões de tijolo/concreto repetitivos, placar escuro simples e o paredão de
+  caixas de som dominando a leitura de uma entrada;
+- no overview, a borda retangular do mapa fica evidente; esta câmera não é uma
+  vista de jogo, mas confirma que falta acabamento de horizonte/perímetro.
+
+O diff não adiciona GLB, textura, áudio ou decal. Portanto não há licença nova a
+aprovar: a candidata preserva os assets registrados da Quebrada e só acrescenta
+geometria procedural no arquivo do mapa. Qualquer passada Astra+Mint futura deve
+entrar em branch artística separada, com manifest, fonte, licença e comparação
+antes/depois, sem substituir cobertura ou colisão sem replay dos mutantes.
+
+Servidor atual: `http://127.0.0.1:8175`.
+
+- DM: `http://127.0.0.1:8175/?debug=1&auto=P,mst&map=quebrada&perfilauto=0`
+- CTF: `http://127.0.0.1:8175/?debug=1&auto=P,mst&map=quebrada&perfilauto=0&ctf=1`
+
+Playtest mínimo: 5x5 DM pelos dois portões e laterais; 8x8 CTF atravessando os
+quatro objetivos; repetir dos dois spawns para julgar a assimetria; conferir se
+caixas de som, pneus, muretas e bancos criam cobertura sem fechar visão; comparar
+qualidade média e baixa antes de promover o draft.
