@@ -8,6 +8,8 @@ import { pathToFileURL } from 'node:url';
 const arg = (name, fallback) => process.argv.find((x) => x.startsWith(`--${name}=`))?.slice(name.length + 3) || fallback;
 const base = arg('base', 'http://127.0.0.1:8152');
 const out = arg('out', 'artifacts/piscina-stack/final/browser');
+const width = Number(arg('width', '1200'));
+const height = Number(arg('height', '800'));
 mkdirSync(out, { recursive: true });
 
 const npmRoot = execSync('npm root -g').toString().trim();
@@ -31,7 +33,7 @@ const poses = [
 const receipts = [];
 
 for (const quality of ['med', 'low']) for (const teamSize of [5, 8]) {
-  const context = await browser.newContext({ viewport: { width: 1200, height: 800 }, deviceScaleFactor: 1 });
+  const context = await browser.newContext({ viewport: { width, height }, deviceScaleFactor: 1 });
   const page = await context.newPage();
   const errors = [];
   page.on('pageerror', (error) => errors.push(error.message));
@@ -68,7 +70,7 @@ for (const quality of ['med', 'low']) for (const teamSize of [5, 8]) {
   receipt.teamSize = teamSize;
   receipt.requestedQuality = quality;
   receipt.mode = `${teamSize}x${teamSize}`;
-  receipt.viewport = [1200, 800];
+  receipt.viewport = [width, height];
   receipt.url = url;
   receipt.errors = errors;
   receipt.captures = [];

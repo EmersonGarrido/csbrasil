@@ -1,5 +1,11 @@
 # Piscina da Treta — ledger de reautoria
 
+> **Retomada de 22/09/2026:** a branch foi atualizada por merge com `origin/main`
+> (`7bb2707ef`) e o estado final foi reduzido aos arquivos próprios da Piscina. A
+> revalidação atual, URL local, matrizes 5x5/8x8, capturas 3:2/16:9, orçamento e pendências
+> humanas estão em `docs/reports/PISCINA-R8-REVALIDACAO.md`. Este histórico abaixo explica
+> as etapas anteriores, mas não substitui o checkpoint atual.
+
 ## Objetivo e estado
 
 Terminar a Piscina da Treta como piloto do novo padrão sobre a fundação de mapas

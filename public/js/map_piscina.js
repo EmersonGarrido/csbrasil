@@ -29,6 +29,7 @@ import * as THREE from 'three';
 import { decalIds, paredeAtras } from './map_decals.js';
 import { grafitar, esconderSeFaltar } from './graffiti_pass.js';   // cobertura medida, não coordenada à mão
 import { AMB_LOOPS } from './soundscape.js';
+import { aplicaSombraSol } from './mapquality.js';
 
 const HALF_X = 17, HALF_Z = 25;   // interior half-extents (walls sit just outside)
 const WALL_H = 7, CEIL = 7;
@@ -833,7 +834,7 @@ export function buildPoolDay(scene, T) {
   scene.add(hemi);
   const sun = new THREE.DirectionalLight(0xffffff, 1.4);
   sun.position.set(10, 45, -6); sun.castShadow = true;
-  sun.shadow.mapSize.set(2048, 2048);
+  aplicaSombraSol(sun);
   sun.shadow.camera.left = -30; sun.shadow.camera.right = 30;
   sun.shadow.camera.top = 30; sun.shadow.camera.bottom = -30;
   sun.shadow.camera.far = 110; sun.shadow.bias = -0.0004;
