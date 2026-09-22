@@ -202,6 +202,7 @@ export function buildPoolDay(scene, T) {
     if (opts.ry) m.rotation.y = opts.ry;
     if (opts.rx) m.rotation.x = opts.rx;
     if (opts.rz) m.rotation.z = opts.rz;
+    m.userData.piscinaStaticBox = true;
     root.add(m);
     if (opts.collide !== false) {
       const pad = opts.pad || 0;
@@ -211,6 +212,50 @@ export function buildPoolDay(scene, T) {
       occluders.push(m);
     } else if (opts.occlude === true) occluders.push(m);
     return m;
+  }
+
+  function batchStaticBoxes() {
+    let enabled = true;
+    try { enabled = new URLSearchParams(location.search).get('piscinaBatch') !== '0'; } catch { /* node */ }
+    if (!enabled) return { meshes: 0, batches: 0 };
+
+    const groups = new Map();
+    for (const mesh of [...root.children]) {
+      if (!mesh.isMesh || !mesh.userData?.piscinaStaticBox || Array.isArray(mesh.material)) continue;
+      const key = [mesh.geometry.uuid, mesh.material.uuid, mesh.castShadow ? 1 : 0,
+        mesh.receiveShadow ? 1 : 0, mesh.renderOrder || 0].join(':');
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(mesh);
+    }
+
+    let meshes = 0, batches = 0;
+    for (const list of groups.values()) {
+      if (list.length < 2) continue;
+      const first = list[0];
+      const batch = new THREE.InstancedMesh(first.geometry, first.material, list.length);
+      batch.castShadow = first.castShadow;
+      batch.receiveShadow = first.receiveShadow;
+      batch.renderOrder = first.renderOrder;
+      batch.name = 'piscina:static-batch';
+      list.forEach((mesh, i) => {
+        mesh.updateMatrix();
+        batch.setMatrixAt(i, mesh.matrix);
+      });
+      batch.instanceMatrix.needsUpdate = true;
+
+      const occludes = list.some((mesh) => occluders.includes(mesh));
+      const members = new Set(list);
+      for (let i = occluders.length - 1; i >= 0; i--)
+        if (members.has(occluders[i])) occluders.splice(i, 1);
+      if (occludes) occluders.push(batch);
+
+      for (const mesh of list) root.remove(mesh);
+      root.add(batch);
+      meshes += list.length;
+      batches++;
+    }
+    root.userData.piscinaBatch = { meshes, batches };
+    return root.userData.piscinaBatch;
   }
   function addPlane(w, h, mat, x, y, z, ry = 0, rx = 0) {
     const m = new THREE.Mesh(geoPlano(w, h, mat), mat);
@@ -961,6 +1006,10 @@ export function buildPoolDay(scene, T) {
     ],
     murais: { texturas: T.muraisHom, nomes: T.muraisHomNomes, seed: 53, separacao: 11 },
   });
+
+  /* A passada viva precisa enxergar cada parede/armário como malha separada. O lote entra
+     somente depois dela: preserva o bake e troca N caixas repetidas por uma chamada. */
+  batchStaticBoxes();
 
   return {
     root, colliders, occluders, decalSolids: [root], groundHeightAt, slowAt,
