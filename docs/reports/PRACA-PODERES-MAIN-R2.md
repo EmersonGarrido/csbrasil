@@ -64,20 +64,20 @@ O `botsim` de 30 s cobriu 5x5/8x8 em DM/CTF. O pior `stuck` foi 8,656% no 8x8 DM
 CTF foi 0,411%. A eficiência ficou entre 0,764 e 0,815 e `laneSpread=0,64` nas quatro células.
 
 A matriz Chrome/WebGL2 real cobriu oito células (3:2/16:9 × 5x5/8x8 × DM/CTF), todas em
-`live`, com 9/15 bots, GPU Apple M4 Pro, `p95=9,9–10,1 ms`, zero quadro acima de 100 ms,
-346–405 draw calls máximos e 762.841–921.431 triângulos máximos. Ela registrou zero dívida
+`live`, com 9/15 bots, GPU Apple M4 Pro, `p95=9,7–10,2 ms`, zero quadro acima de 100 ms,
+346–407 draw calls máximos e 762.841–917.963 triângulos máximos. Ela registrou zero dívida
 inesperada. As 39 ocorrências permitidas por célula são herdadas do servidor local: o
 `SUPPORT_URL_BR`, URLs literais do template, `api/geo-lang`, manifests/áudio e decals ausentes;
 nenhuma nasce no delta desta lane.
 
 O `sourceSha256` comum à matriz e às dez capturas é
-`ba5d7f3825834d54bf9724473891e64aa43cfa6989f2eb2bb8a34e8cb842d588`.
+`07ad85401eb9d0016fd00ac5f238fc003233130fb3e51f0bae15433f569c8712`.
 Recibos ignorados pelo Git:
 
 - `artifacts/praca-poderes-main-r2/webgl-matrix/matrix.json` — SHA-256
-  `a1bb7629f5904399919e11f4a3734dd8ebde3477ca0fd0681863008ff5a4ca7f`;
+  `11374c8fc02d0f021586fa48b91410423882a656c0780a451311b630f48faaff`;
 - `artifacts/praca-poderes-main-r2/evidence/captures.json` — SHA-256
-  `c8780cad538a99109b2fa0c7211c217d1ad30781690c21525ce06b3a4762f403`.
+  `66c67dfb43debb43b6867d24930d2f5442a631d0e1923bbcdaba06793d6cc330`.
 
 ## Pendências de promoção
 
