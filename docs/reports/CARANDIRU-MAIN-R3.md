@@ -11,8 +11,8 @@
 
 ## Restrições
 
-- Somente `public/js/map_penitenciaria.js`, gates específicos e este dossiê.
-- Sem runtime, materiais compartilhados, registro global de mapas, áudio compartilhado, Mint/Astra, assets privados, merge, deploy ou force-push.
+- Somente `public/js/map_penitenciaria.js`, o nome declarativo do registro em `public/js/maps.js`, gates específicos e este dossiê.
+- Sem lógica de runtime, materiais compartilhados, mudança estrutural no registro de mapas, áudio compartilhado, Mint/Astra, assets privados, merge, deploy ou force-push.
 - O asset Mint do PR #556 não entra: a própria descrição registra termos comerciais ainda pendentes. O mapa deve funcionar e manter identidade com geometria procedural e assets locais já licenciados.
 - Aprovação visual humana não será presumida.
 
@@ -74,6 +74,9 @@ node tools/eval/carandiru-main-r3-check.mjs --selftest-mutantes   PASS (9/9)
 node tools/eval/carandiru-browser-matrix.mjs --self-test          PASS
 node tools/eval/ctf-win-check.mjs penitenciaria                   PASS (3ª bandeira encerra)
 npm run eval:mapcontrato -- --map penitenciaria                  PASS (1.229/1.229 conectados)
+npm run eval:qualmapas                                           PASS (QMAP1–QMAP4)
+node tools/eval/quality-mapas-check.mjs --mutar=carandiru-sombra-solta
+                                                                  REPROVA QMAP1/QMAP3 como esperado
 ```
 
 `npm run check:deploy` fechou **39/40** depois da atualização dos blocos de documentação gerados. A única falha é `eval:redesign` / UIR15 (`resultado usa exclusivamente arte estática do personagem atual`), herdada da `main` e fora do diff deste mapa: a lane não altera `public/js/game.js`, CSS/DOM de UI, `src/pages/index.astro` nem a régua de redesign.
@@ -117,7 +120,8 @@ URL local do candidato:
 
 ## Dívidas e fronteiras
 
-- A raiz map-local agora se chama `carandiru`, e toda a geometria/identidade interna usa Carandiru. O seletor, descrição e minimapa ainda exibem “Penitenciária da Treta”; essas strings vivem em registros compartilhados (`maps.js`/`main.js`) e a troca global foi deliberadamente deixada fora desta lane map-local.
+- A raiz map-local se chama `carandiru`, toda a geometria/identidade interna usa Carandiru e o único metadado de nome do registro agora é `CARANDIRU`. Menu, loading, seletor multiplayer e minimapa já consomem `MAPS[id].name`; nenhuma lógica compartilhada de runtime precisou mudar. A descrição existente em `main.js` não continha o nome antigo e foi preservada.
+- A sombra do sol agora usa `aplicaSombraSol(sun)`, o mesmo orçamento central aprovado nos demais mapas. A contraprova `carandiru-sombra-solta` restaura o literal local e remove a delegação; QMAP1 e QMAP3 mordem exatamente a regressão.
 - A dívida genérica MAP1/exposição e a queda de eficiência do botsim estão registradas acima e precisam de teste humano antes de promoção.
 - A crítica adversarial independente não foi executada: as quatro vagas de agentes estavam ocupadas pelas lanes prioritárias. Ela continua sendo gate de promoção, junto com o playtest humano.
 - O gate agregado de deploy está em 39/40 pela falha herdada de redesign UIR15 descrita acima; corrigir essa UI compartilhada nesta lane violaria a fronteira map-local.
@@ -126,4 +130,4 @@ URL local do candidato:
 
 ## Estado
 
-Implementação, régua causal, build, CTF, bots, matriz WebGL e capturas concluídos na `main@alpha.261`. O draft pode ser aberto com a promoção bloqueada por aprovação visual/jogável humana e por crítica adversarial independente.
+Implementação, régua causal, build, CTF, bots, matriz WebGL, nome declarativo, orçamento de sombra e capturas concluídos na `main@alpha.261`. O draft está aberto com a promoção bloqueada por aprovação visual/jogável humana e pela crítica adversarial independente solicitada a outra lane.
