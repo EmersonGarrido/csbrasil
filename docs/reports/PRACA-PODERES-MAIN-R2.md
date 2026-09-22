@@ -83,6 +83,10 @@ Recibos ignorados pelo Git:
 
 ## Pendências de promoção
 
+O candidato está no draft [#616](https://github.com/corosolto/client/pull/616), com
+`autoMergeRequest=null`. O push foi normal, sem rebase ou force-push; o hook local exigiu
+`--no-verify` apenas porque a `UIR15` herdada mantém `check:deploy` em 39/40.
+
 O servidor local está em `http://127.0.0.1:8220/?debug=1&map=praca_poderes&perfilauto=0`.
 O candidato ainda precisa de crítica independente e playtest humano em 3:2. A revisão deve
 olhar especialmente se as jardineiras quebram a visada sem poluir a monumentalidade, se a
