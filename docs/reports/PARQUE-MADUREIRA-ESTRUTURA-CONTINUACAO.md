@@ -167,3 +167,80 @@ passa e somente o inventário do pack reprova. `eval:amazonia`, que falhara com 
    distância separadamente da aprovação visual.
 4. Só após aceite humano promover o PR draft. Merge e deploy permanecem fora do
    escopo desta lane.
+
+## Reconciliação alpha.262 e matriz ampliada — 22/09/2026
+
+O PR draft `#597` foi reconciliado por merge normal com
+`origin/main@60ad7501323ef076263f645bfca341e2454fce6b` (`v2.0.0-alpha.262`).
+Os conflitos ficaram restritos aos documentos gerados, que foram regenerados a
+partir do `package.json` combinado. O checkpoint de integração é `26816bf34` e o
+checkpoint da régua WebGL ampliada é `cb4c7bd5e`; nenhum commit do Parque foi
+descartado, não houve rebase nem force-push.
+
+### Replay técnico
+
+- `PV1..PV6`, `PC1..PC2`, `PKE1..PKE7`, roda/carrossel e todos os 12 mutantes
+  continuam verdes/mordidos;
+- MAP1 permanece em zero; MAP2 mede exposição distante de 26,7%/27,5%; MAP2B
+  mede 2,75 m e 58,7 m²; MAP5 mede 6,33 m; CTF oferece 3–4 rotas separadas;
+- grafo: 394 nós, 2.258 arestas, conexo; CTF encerra na terceira bandeira;
+- bots, 30 s e nove seeds: DM 5x5 `stuck 3,356% / eff 0,603`, CTF 5x5
+  `2,711% / 0,520`, DM 8x8 `2,189% / 0,608`, CTF 8x8 `1,056% / 0,555`;
+- `docs:check`, `arch:check` e `npm run build` passam em alpha.262.
+
+A régua `parque-browser-check.mjs` agora entra nos dois modos pelo fluxo real do
+menu. Antes, `?auto=` herdava `ctfMode:true` e as células rotuladas como
+Mata-Mata não mediam Mata-Mata. O teste passou a cobrir 3:2 e 16:9, 5x5 e 8x8,
+Mata-Mata e CTF. O servidor de revisão usa o `dist/client` compilado; servir
+`src/pages/index.astro` cru expõe `SUPPORT_URL_BR is not defined`, dívida do
+arnês `serve.mjs` herdada de `main`, e não erro do mapa.
+
+| Célula real | p95 | draw calls | triângulos | Veredito |
+| --- | ---: | ---: | ---: | --- |
+| 5x5 DM, 3:2 médio | 10,1 ms | 752 | 1.226.852 | verde |
+| 5x5 CTF, 3:2 médio | 10,0 ms | 716 | 1.219.818 | verde |
+| 8x8 DM, 3:2 médio | 9,8 ms | 840 | 1.348.946 | vermelho: `+40` calls e `+48.946` tris |
+| 8x8 CTF, 3:2 médio | 9,8 ms | 805 | 1.364.627 | vermelho: `+5` calls e `+64.627` tris |
+| 5x5 DM, 16:9 baixo | 9,9 ms | 476 | 574.197 | verde |
+| 5x5 CTF, 16:9 baixo | 9,7 ms | 414 | 567.199 | verde |
+| 8x8 DM, 16:9 baixo | 9,8 ms | 508 | 633.099 | verde |
+| 8x8 CTF, 16:9 baixo | 9,8 ms | 442 | 629.765 | verde |
+
+O teto já usado pela lane (5x5 médio e 8x8 baixo) continua verde. A ampliação
+descobriu uma dívida real de orçamento no 8x8 médio: o tempo de quadro permanece
+baixo, mas as duas células excedem 800 calls e 1,3 M de triângulos. Isso bloqueia
+declarar suporte técnico irrestrito a 8x8 no perfil médio; não bloqueia testar o
+candidato no perfil baixo. Nenhum teto foi relaxado e nenhuma geometria foi
+apagada para maquiar a medição.
+
+### Evidência e hash servido
+
+- resumo das oito células: `artifacts/parque/browser-alpha262-review/matrix-summary.json`
+  (`1671c568d5e9a44dd60904f40497e0b215f22c4b63a45a3641b6414d7da7b6de`);
+- contato 3:2: `artifacts/parque/browser-alpha262-review/contact-3x2.png`
+  (`534e59ae53363b5c3821d7f482d655584daaf3de6909d23a65b5024f147151c1`);
+- contato 16:9: `artifacts/parque/browser-alpha262-review/contact-16x9.png`
+  (`c71b8c0402d92bdbcad3fa4e4863f65b011ac2d8d1da7b78a38cdb1c7d4b6825`);
+- `map_parque.js` local, servido e registrado nos recibos:
+  `c90c69feefc67ebb6b8d8eb51ce5ade451ea9c39a708fe4eb25aeaaf01e1c914`.
+
+Os artefatos continuam ignorados pelo Git. A URL local atual é
+`http://127.0.0.1:8165/?debug=1&map=parque_treta&perfilauto=0`; escolha
+**Mata-Mata** ou **Capture a Bandeira** no menu para testar o modo desejado.
+
+### Bloqueios antes de nova arte
+
+1. **Visual/humano:** as capturas são legíveis e as três faixas têm cobertura,
+   mas castelo, árvores esféricas e grandes volumes pastel ainda dominam o quadro.
+   A leitura é de parque de diversões estilizado; a identidade urbana de Parque
+   Madureira ainda precisa de aceite explícito ou de uma rodada de direção de arte.
+2. **Performance:** reduzir o custo 8x8 médio sem remover rotas, bilheterias,
+   coberturas ou os seis marcos registrados. O A/B deve preservar o hash/contagem
+   dos contratos e repetir as oito células.
+3. **Áudio/distribuição:** os sete MP3 CC0 continuam somente no pack local
+   ignorado. A prova sonora local não comprova disponibilidade em clone limpo.
+4. **Jogabilidade/humano:** percorrer oeste, centro e leste dos dois spawns em
+   5x5 e 8x8; conferir se o castelo não vira cobertura dominante, se a praça do
+   coreto não abre linha longa demais e se bilheterias não estrangulam a saída.
+
+Até esses pontos serem decididos, o PR deve permanecer draft e sem automerge.
