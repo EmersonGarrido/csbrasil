@@ -91,6 +91,11 @@ mediana/p05/p95 de 128 px/m, dispersão p95 1x e 4% da área
 abaixo de 64 px/m. Permanecem duas dívidas: máximo/mediana de 6,5x num cilindro e 6% da
 área texturizada sem medida (206 malhas, principalmente decalques).
 
+O `check:deploy` local também para em UIR15 (`eval:redesign`). A contraprova no checkout
+destacado da própria `main` `60ad75013` reproduz a mesma falha: o resultado do personagem
+não satisfaz a exigência estática atual. O diff da Piscina não toca `game.js`, DOM ou CSS;
+portanto esse vermelho é dívida herdada de UI, não regressão nem escopo desta lane.
+
 O verificador estático `ambience-registry-check --map=piscina_treta` continua vermelho
 porque não reconhece a ambiência declarada diretamente no mundo. A régua causal do mapa
 confirma água + hum + splash e o mutante `sem-ambiencia` a derruba. O playtest humano

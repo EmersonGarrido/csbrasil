@@ -26,6 +26,12 @@ stuck nos quatro casos. As matrizes reais 3:2/16:9 e contatos inspecionados est�
 `artifacts/piscina-r9-20260922/`. A piscina central continua aberta por decisão de layout;
 somente o dono pode aprovar essa exposição em playtest 8x8. Nenhum merge/deploy foi feito.
 
+`docs:check`, `arch:check`, build e todos os gates próprios do mapa estão verdes. O
+`check:deploy` global continua vermelho somente em UIR15; o mesmo `eval:redesign`
+reprova no checkout destacado da `main` `60ad75013`, e o diff desta lane não toca os
+arquivos de UI envolvidos. O push deve registrar essa contraprova herdada, sem maquiar
+o gate e sem puxar a correção de UI para o mapa.
+
 ## Objetivo e estado
 
 Terminar a Piscina da Treta como piloto do novo padrão sobre a fundação de mapas
