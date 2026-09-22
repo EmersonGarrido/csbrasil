@@ -130,4 +130,6 @@ URL local do candidato:
 
 ## Estado
 
-Implementação, régua causal, build, CTF, bots, matriz WebGL, nome declarativo, orçamento de sombra e capturas concluídos na `main@alpha.261`. O draft está aberto com a promoção bloqueada por aprovação visual/jogável humana e pela crítica adversarial independente solicitada a outra lane.
+O PR #611 foi mergeado automaticamente pelo bot em `7de72e010`, sem merge manual desta lane, antes de a correção QMAP estar pronta. A `main` resultante virou `alpha.262`. O commit `530dfea55` com orçamento de sombra e nome declarativo ficou fora desse merge e segue isolado no draft #615, com auto-merge desativado.
+
+Implementação, régua causal, build, CTF, bots, matriz WebGL, nome declarativo, orçamento de sombra e capturas estão concluídos. A promoção do draft #615 continua bloqueada por aprovação visual/jogável humana e pela crítica adversarial independente solicitada a outra lane.
