@@ -126,7 +126,7 @@ URL local do candidato:
 - A raiz map-local se chama `carandiru`, toda a geometria/identidade interna usa Carandiru e o único metadado de nome do registro agora é `CARANDIRU`. Menu, loading, seletor multiplayer e minimapa já consomem `MAPS[id].name`; nenhuma lógica compartilhada de runtime precisou mudar. A descrição existente em `main.js` não continha o nome antigo e foi preservada.
 - A sombra do sol agora usa `aplicaSombraSol(sun)`, o mesmo orçamento central aprovado nos demais mapas. A contraprova `carandiru-sombra-solta` restaura o literal local e remove a delegação; QMAP1 e QMAP3 mordem exatamente a regressão.
 - A dívida genérica MAP1/exposição e a queda de eficiência do botsim estão registradas acima e precisam de teste humano antes de promoção.
-- A crítica adversarial independente foi solicitada a outra lane e aguarda o HEAD final deste draft. Ela continua sendo gate de promoção, junto com o playtest humano.
+- A crítica adversarial independente do HEAD `fc250f47f` concluiu **GO técnico**: diff de 14 arquivos íntegro, hashes do mapa/matriz/capturas coincidentes, docs/build e gates causais verdes. A matriz independente também viu duas pausas transitórias, em células diferentes da execução desta lane; ambas passaram ao serem repetidas em processos Chrome isolados, sem dívida inesperada. MAP1, exposição e eficiência dos bots continuam exigindo playtest humano antes de aprovação final de gameplay/visual.
 - O gate agregado de deploy está em 39/40 pela falha herdada de redesign UIR15 descrita acima; corrigir essa UI compartilhada nesta lane violaria a fronteira map-local.
 - Não houve consumo de Mint/Astra nem inclusão de assets privados. O PR #556 permanece como fonte histórica; esta branch não o carrega como stack.
 - Merge, deploy e aprovação visual humana não fazem parte desta entrega.
@@ -137,4 +137,4 @@ No PR #611, a identidade `rubenmarcus` marcou o draft como pronto em 22/09/2026 
 
 A integridade do #615 foi refeita por merge, sem rebase, de `origin/main@60ad75013` no commit `158fa963c`. O diff autoral contém cinco arquivos: builder, metadado `MAPS`, dois gates e este ledger. A regeneração necessária para deixar `docs:check` verde acrescenta exatamente nove blocos derivados (`ARCH.generated.md`, `README.md`, `STATUS.md`, três páginas PT-BR e os três espelhos EN). Não há `package*`, versão, CHANGELOG nem artefato de release no diff.
 
-Implementação, régua causal, build, CTF, bots, matriz WebGL, nome declarativo, orçamento de sombra e capturas estão concluídos. A promoção do draft #615 continua bloqueada por aprovação visual/jogável humana e pela crítica adversarial independente solicitada a outra lane.
+Implementação, régua causal, build, CTF, bots, matriz WebGL, nome declarativo, orçamento de sombra, capturas e crítica independente estão concluídos. O draft #615 permanece sem promoção; a aprovação final de gameplay/visual depende do playtest humano, especialmente para MAP1, exposição e eficiência dos bots.
