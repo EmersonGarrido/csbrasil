@@ -1429,8 +1429,7 @@ export function buildBrasilia(scene, T) {
     addBox(3, 0.5, 0.9, jardTex, px, 0.9, pz);
   }
 
-  // As rotas sob os pilotis já eram navegáveis, mas tinham trechos inteiros sem uma
-  // cobertura na altura do peito. Jardineiras baixas quebram a visada sem fechar o flanco:
+  // Jardineiras na altura do peito quebram a visada sob os pilotis sem fechar o flanco;
   // cada peça ocupa 3,2 × 1,1 m num corredor de aproximadamente 20 m.
   for (const sx of [-1, 1]) for (const z of [-48, -24, 0, 24, 48]) {
     const x = sx * 34;
@@ -1627,9 +1626,8 @@ export function buildBrasilia(scene, T) {
     }
   }
 
-  // Massas urbanas fora dos bounds fecham o horizonte visto das rotas sob pilotis.
-  // São duas InstancedMesh sem colisão/sombra: dão escala a Brasília sem criar rota ou
-  // custo por objeto. `?horizonte=0` preserva uma contraprova visual reproduzível.
+  // Duas InstancedMesh sem colisão/sombra fecham o horizonte visto sob os pilotis;
+  // `?horizonte=0` preserva a contraprova visual.
   if (QP.get('horizonte') !== '0') {
     const ROAD_OUT = ROAD_IN + ROAD_W;
     const ruido = (n) => {
