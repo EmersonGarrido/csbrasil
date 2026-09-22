@@ -44,5 +44,47 @@ dessas superfícies e vem acompanhado de mutantes antes da correção.
 
 ## Estado
 
-Diagnóstico concluído; implementação ainda não promovida. URL/PR e matrizes finais serão
-registrados somente depois dos gates e da crítica independente.
+## Candidato técnico
+
+O candidato substitui a lâmina opaca do espelho por `createWater`, acrescenta duas massas
+urbanas instanciadas fora dos bounds e distribui dez jardineiras de concreto nas rotas sob
+pilotis. O delta continua map-local: nenhum helper, material compartilhado, asset ou runtime
+foi alterado.
+
+O gate `praca-r2-check.mjs` mede o mundo montado. Resultado final: água viva com sol
+alinhado (`dot=1,000`), horizonte vertical em 93% dos raios externos, cobertura em 10/10
+intervalos de flanco, seis ligações spawn→CTF e três eixos longitudinais navegáveis. Os
+mutantes `agua`, `horizonte`, `cobertura` e `rota` aplicam e reprovam isoladamente.
+
+`map-contrato-check` permaneceu verde com 548 nós, 3.616 arestas e grafo conexo;
+`ctf-win-check` fecha a rodada na terceira bandeira. `cena-check` mediu 314/350 draw calls e
+646.305/740.000 triângulos. Build, `arch:check` e `docs:check` passaram.
+
+O `botsim` de 30 s cobriu 5x5/8x8 em DM/CTF. O pior `stuck` foi 8,656% no 8x8 DM; no 8x8
+CTF foi 0,411%. A eficiência ficou entre 0,764 e 0,815 e `laneSpread=0,64` nas quatro células.
+
+A matriz Chrome/WebGL2 real cobriu oito células (3:2/16:9 × 5x5/8x8 × DM/CTF), todas em
+`live`, com 9/15 bots, GPU Apple M4 Pro, `p95=9,9–10,1 ms`, zero quadro acima de 100 ms,
+346–405 draw calls máximos e 762.841–921.431 triângulos máximos. Ela registrou zero dívida
+inesperada. As 39 ocorrências permitidas por célula são herdadas do servidor local: o
+`SUPPORT_URL_BR`, URLs literais do template, `api/geo-lang`, manifests/áudio e decals ausentes;
+nenhuma nasce no delta desta lane.
+
+O `sourceSha256` comum à matriz e às dez capturas é
+`ba5d7f3825834d54bf9724473891e64aa43cfa6989f2eb2bb8a34e8cb842d588`.
+Recibos ignorados pelo Git:
+
+- `artifacts/praca-poderes-main-r2/webgl-matrix/matrix.json` — SHA-256
+  `a1bb7629f5904399919e11f4a3734dd8ebde3477ca0fd0681863008ff5a4ca7f`;
+- `artifacts/praca-poderes-main-r2/evidence/captures.json` — SHA-256
+  `c8780cad538a99109b2fa0c7211c217d1ad30781690c21525ce06b3a4762f403`.
+
+## Pendências de promoção
+
+O servidor local está em `http://127.0.0.1:8220/?debug=1&map=praca_poderes&perfilauto=0`.
+O candidato ainda precisa de crítica independente e playtest humano em 3:2. A revisão deve
+olhar especialmente se as jardineiras quebram a visada sem poluir a monumentalidade, se a
+água está clara o bastante e se as massas de horizonte parecem cidade distante em vez de
+fachadas repetidas. A exposição global dos spawns (89,8% B; 84,2% E) e o MAP5 genérico da
+arena monumental continuam documentados como diagnóstico; nenhum deles foi mascarado por
+redução de bounds ou afrouxamento de teto.
