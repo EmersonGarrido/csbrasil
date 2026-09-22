@@ -1170,6 +1170,20 @@ window.__GEO_LANG__ = (function () {
             <label>MODO
               <select id="mp-modo"><option value="rounds">MATA-MATA</option><option value="ctf">CAPTURE A BANDEIRA</option></select>
             </label>
+            <label>JOGADORES POR TIME
+              <!-- teamSize no POST /rooms (backend PR #29): bots completam o que falta de
+                   gente; 1 com dois humanos = X1 puro. Relato do jogador, 21/09. -->
+              <select id="mp-teamsize" aria-label="Jogadores por time (bots completam)">
+                <option value="1">1 - X1 SEM BOTS</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+                <option value="5" selected>5 (padrão)</option>
+                <option value="6">6</option>
+                <option value="7">7</option>
+                <option value="8">8</option>
+              </select>
+            </label>
             <label class="mp-check"><input id="mp-privada" type="checkbox" /> SALA PRIVADA (só com senha)</label>
             <label id="mp-senha-wrap" hidden>SENHA <input id="mp-senha" type="text" maxlength="32" /></label>
             <button id="mp-criar" class="btn" type="button">CRIAR E ENTRAR</button>

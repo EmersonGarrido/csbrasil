@@ -3307,6 +3307,7 @@ function mpMontarFormulario() {
         ...(aDedo ? { mapas: escolhidos, mapId: escolhidos[0] } : {}),
         faccaoE: mpEl('mp-fac-e').value, faccaoB: mpEl('mp-fac-b').value,
         ctf: mpEl('mp-modo').value === 'ctf', private: privada, password: senha, maxPlayers: 10,
+        teamSize: +mpEl('mp-teamsize').value || 5,   // teamSize do criador: 1 = X1 sem bots (backend #29, relato 21/09)
         creatorNick: ($('nick-input').value || '').trim() || null,
       }, ticket);
       let cheia = { ...sala, id: sala.room || sala.id };

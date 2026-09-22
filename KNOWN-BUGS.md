@@ -176,6 +176,31 @@ uma publicação de produção.
 
 ## P0 — quebram o jogo ou mentem para quem mede
 
+### BUG-173 · não dava para tirar os bots no mata-mata online nem escolher quantos por time · CORRIGIDO 22/09
+
+**Sintoma (relato do jogador, 21/09):** "estava jogando com meu amigo, eu queria tirar x1
+com ele e não encontrei um jeito de tirar os bots no mata mata, ou escolher quantos bots
+queremos em cada time".
+
+**Causa raiz.** Dupla: o `POST /rooms` do servidor **cravava `teamSize: 5`** e nem lia o
+campo do corpo (`game/index.js`), e o formulário de criar sala do cliente não oferecia
+controle nenhum. O `Room` sempre soube (`teamSize` 1–8, bots completam o que falta de
+gente; quem sai vira bot) — era só a porta de entrada que não existia.
+
+**Conserto em dois repos.** Backend (PR corosolto/backend#29): handler aceita `teamSize`
+(int, clamp 1–8, padrão 5 retrocompatível). Cliente: seletor JOGADORES POR TIME no criar
+sala (1 = "X1 SEM BOTS", padrão 5) e o cfg do `createRoom` leva o valor; o JOGO RÁPIDO
+segue sem o campo. Com 1 e dois humanos: 2 corpos, ZERO bots, lobby sem vaga de bot.
+
+**Réguas.** Backend: seção "tamanho de time do criador" no `game/smoke.mjs` — 7 cláusulas
+que REPROVAVAM antes (welcome 5, 10 corpos, 8 bots, vagas) e passam depois; smoke 81/0.
+Cliente: `eval:mpRoomOptions` (`mp-room-options-check.mjs`, no `check:fast`), 5 cláusulas
+com 4 mutantes (`sem-campo`, `fixo`, `sem-x1`, `padrao-1`) — todos vermelhos.
+
+**Dependência de deploy:** o nó de produção roda imagem com CLIENT_REF fixado; o recurso
+só chega ao jogador depois do redeploy do nó + este cliente.
+
+
 ### BUG-172 · o B5 do boot-check injetava erro com stack de arnês e o corte de automação o filtra · CORRIGIDO 18/09
 
 **Sintoma:** `eval:boot` (passo do `portao-browser`) reprovando **B5** — "?debug=1
