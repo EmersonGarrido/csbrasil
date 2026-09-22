@@ -188,6 +188,11 @@ descartado, não houve rebase nem force-push.
   `2,711% / 0,520`, DM 8x8 `2,189% / 0,608`, CTF 8x8 `1,056% / 0,555`;
 - `docs:check`, `arch:check` e `npm run build` passam em alpha.262.
 
+O `check:deploy` mantém um único vermelho em UIR15. A mesma falha foi
+reproduzida num arquivo limpo de `origin/main@60ad75013`; ela não toca o diff do
+Parque. Os outros 39 contratos de `eval:redesign` e todos os demais passos do
+portão passam. Esta dívida herdada fica registrada, sem alterar a régua.
+
 A régua `parque-browser-check.mjs` agora entra nos dois modos pelo fluxo real do
 menu. Antes, `?auto=` herdava `ctfMode:true` e as células rotuladas como
 Mata-Mata não mediam Mata-Mata. O teste passou a cobrir 3:2 e 16:9, 5x5 e 8x8,
