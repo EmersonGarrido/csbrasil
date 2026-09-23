@@ -176,6 +176,22 @@ uma publicação de produção.
 
 ## P0 — quebram o jogo ou mentem para quem mede
 
+### BUG-177 · `loop()` lia `#char-select` sem guarda e congelava o jogo quando o elemento sumia · CORRIGIDO 23/09
+
+**Sintoma:** crash automático #617 em produção (alpha.262), `TypeError: Cannot read
+properties of null (reading 'classList')` em `main.js:2825` dentro de `loop`.
+
+**Causa raiz:** `loop()` roda a cada quadro e fazia `$('char-select').classList` sem
+checar null. Quando `#char-select` não está no DOM (extensão ou tradutor que reescreve o
+body), o TypeError se repete a cada quadro — `requestAnimationFrame(loop)` vem antes,
+então o laço continua, mas nada depois da linha roda: sem `game.update`, sem render.
+
+**Conserto:** acesso por `?.` no `csOpen` (ausente = fechada) e na espera do
+`char-select` do deep link. Régua `LOOP1` em `tools/eval/invariants.mjs`: nenhum
+`$('…').` sem `?.` no corpo de `loop()`. Mutante: o `main.js` da alpha.262 reprova
+(`char-select`).
+
+
 ### BUG-174 · clarão dos tiros sem controle do jogador atrapalhava a mira · CORRIGIDO 22/09
 
 **Sintoma (relato do jogador, 21/09):** "algumas armas soltam um flash cada vez que voce
@@ -221,7 +237,6 @@ com 4 mutantes (`sem-campo`, `fixo`, `sem-x1`, `padrao-1`) — todos vermelhos.
 
 **Dependência de deploy:** o nó de produção roda imagem com CLIENT_REF fixado; o recurso
 só chega ao jogador depois do redeploy do nó + este cliente.
-
 
 ### BUG-172 · o B5 do boot-check injetava erro com stack de arnês e o corte de automação o filtra · CORRIGIDO 18/09
 
