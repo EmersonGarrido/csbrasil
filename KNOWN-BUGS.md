@@ -213,7 +213,6 @@ opção conferindo o multiplicador que o `_flash` multiplica, aplicação ao viv
 intacto, e cláusulas de fonte do seletor/binder. **Reprovou 13 cláusulas no estado
 anterior**; mutante `--mutante=sem-seletor` vermelho (5).
 
-
 ### BUG-173 · não dava para tirar os bots no mata-mata online nem escolher quantos por time · CORRIGIDO 22/09
 
 **Sintoma (relato do jogador, 21/09):** "estava jogando com meu amigo, eu queria tirar x1
