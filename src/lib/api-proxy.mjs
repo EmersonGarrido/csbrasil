@@ -15,6 +15,8 @@ const cloudflare = new BlockList();
 for (const faixa of CLOUDFLARE_V4) { const [ip, bits] = faixa.split('/'); cloudflare.addSubnet(ip, Number(bits), 'ipv4'); }
 for (const faixa of CLOUDFLARE_V6) { const [ip, bits] = faixa.split('/'); cloudflare.addSubnet(ip, Number(bits), 'ipv6'); }
 
+// Cold start do Cloud Run (~1 s) cabe; backend pendurado não segura a função da Vercel.
+const TEMPO_MAXIMO_MS = 10_000;
 const GEO_VERCEL = ['x-vercel-ip-country', 'x-vercel-ip-city', 'x-vercel-ip-latitude', 'x-vercel-ip-longitude'];
 const GEO_CLOUDFLARE = ['cf-ipcountry', 'cf-ipcity', 'cf-iplatitude', 'cf-iplongitude'];
 
@@ -23,8 +25,9 @@ export function saltoDaCloudflare(ip) {
   return tipo ? cloudflare.check(ip, tipo === 4 ? 'ipv4' : 'ipv6') : false;
 }
 
-// A Cloudflare manda a cidade em UTF-8 cru, que o runtime lê como latin1.
+// A Cloudflare manda a cidade em UTF-8 cru, que o runtime lê como latin1; já codificada, passa.
 const cidadeCodificada = (bruto) => {
+  if (/%[0-9A-Fa-f]{2}/.test(bruto)) { try { decodeURIComponent(bruto); return bruto; } catch { /* segue */ } }
   const utf8 = Buffer.from(bruto, 'latin1').toString('utf8');
   return encodeURIComponent(utf8.includes('�') ? bruto : utf8);
 };
@@ -70,6 +73,7 @@ export async function proxyApiRequest(request, target, clientAddress, fetchFn = 
     headers: upstreamHeaders,
     body: temCorpo ? await request.arrayBuffer() : undefined,
     redirect: 'manual',
+    signal: AbortSignal.timeout(TEMPO_MAXIMO_MS),
   });
 
   const responseHeaders = new Headers();

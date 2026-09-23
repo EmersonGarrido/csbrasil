@@ -20,15 +20,16 @@
          forjados NÃO sobem
      GP6 o segredo da env API_PROXY_SECRET sobe como x-csb-proxy-auth, e só ele
      GP7 main.js manda telemetry/presence/heartbeat/submit-match/perf por apiUrl
+     GP8 o fetch do proxy tem prazo (backend pendurado não segura a função)
 
    Mutantes: --mutante=geo-direto | pop-como-cidade | cf-forjado | sem-segredo
-             | rota-fora-do-proxy | fetch-cru
+             | rota-fora-do-proxy | fetch-cru | sem-prazo
    Uso: node tools/eval/geo-proxy-check.mjs [--mutante=...]
    ============================================================================ */
 import { readFileSync } from 'node:fs';
 
 const mut = (process.argv.find((a) => a.startsWith('--mutante=')) || '').split('=')[1] || '';
-const MUTANTES = ['geo-direto', 'pop-como-cidade', 'cf-forjado', 'sem-segredo', 'rota-fora-do-proxy', 'fetch-cru'];
+const MUTANTES = ['geo-direto', 'pop-como-cidade', 'cf-forjado', 'sem-segredo', 'rota-fora-do-proxy', 'fetch-cru', 'sem-prazo'];
 if (mut && !MUTANTES.includes(mut)) throw new Error(`mutante desconhecido: ${mut}`);
 const muta = (fonte, de, para) => {
   const novo = fonte.replace(de, para);
@@ -43,6 +44,7 @@ let main = readFileSync('public/js/main.js', 'utf8');
 if (mut === 'geo-direto') jogo = muta(jogo, "if (VIA_SITE.has(nome) && !forcado) return caminho;", '');
 if (mut === 'pop-como-cidade') proxy = muta(proxy, 'if (saltoDaCloudflare(clientAddress)) {', 'if (false) {');
 if (mut === 'cf-forjado') proxy = muta(proxy, 'if (saltoDaCloudflare(clientAddress)) {', "if (request.headers.has('cf-connecting-ip')) {");
+if (mut === 'sem-prazo') proxy = muta(proxy, '    signal: AbortSignal.timeout(TEMPO_MAXIMO_MS),\n', '');
 if (mut === 'sem-segredo') rota = muta(rota, '{ segredo: SEGREDO }', '{}');
 if (mut === 'rota-fora-do-proxy') rota = muta(rota, "'submit-match', ", '');
 if (mut === 'fetch-cru') main = muta(main, "void fetch(apiUrl(path), {", "void fetch(path, {");
@@ -79,12 +81,13 @@ const fora = ESPERADAS.filter((r) => !migradas.includes(r));
 cobra(fora.length === 0, `GP3 rota(s) de geo fora do proxy do site: ${fora.join(', ')} — responderiam 404`);
 
 const { proxyApiRequest } = await importa(proxy);
+let sinal;
 async function sobe(headers, clientAddress, opcoes) {
   let enviados;
   await proxyApiRequest(
     new Request('https://www.csbrasil.online/api/telemetry', { method: 'POST', headers: { 'content-type': 'application/json', ...headers }, body: '{}' }),
     'https://backend.invalid/api/telemetry', clientAddress,
-    async (_url, init) => { enviados = init.headers; return new Response('{}', { status: 200 }); },
+    async (_url, init) => { enviados = init.headers; sinal = init.signal; return new Response('{}', { status: 200 }); },
     opcoes,
   );
   return enviados;
@@ -102,6 +105,10 @@ const CF = { 'cf-connecting-ip': '201.17.0.9', 'cf-ipcountry': 'BR', 'cf-ipcity'
     `GP4 x-vercel-ip-* subiu com salto da Cloudflare (${h.get('x-vercel-ip-city')}) — gravaria a cidade do PoP como se fosse do jogador`);
 }
 {
+  const h = await sobe({ 'cf-connecting-ip': '201.17.0.9', 'cf-ipcountry': 'BR', 'cf-ipcity': 'S%C3%A3o%20Paulo' }, '172.70.1.2');
+  cobra(decodeURIComponent(h.get('cf-ipcity') || '') === 'São Paulo', `GP4 cidade já codificada foi codificada de novo (${h.get('cf-ipcity')})`);
+}
+{
   const h = await sobe({ 'x-vercel-ip-country': 'BR', 'x-vercel-ip-city': 'Recife', ...CF }, '203.0.113.9');
   cobra(h.get('x-vercel-ip-city') === 'Recife' && h.get('x-csb-client-ip') === '203.0.113.9',
     `GP5 salto direto na Vercel perdeu a geo/IP da Vercel (cidade=${h.get('x-vercel-ip-city')}, ip=${h.get('x-csb-client-ip')})`);
@@ -114,6 +121,7 @@ const CF = { 'cf-connecting-ip': '201.17.0.9', 'cf-ipcountry': 'BR', 'cf-ipcity'
   cobra(com.get('x-csb-proxy-auth') === 'z'.repeat(40), 'GP6 o proxy não prova a origem ao backend — com API_PROXY_SECRET no backend a geo seria descartada');
   cobra(!sem.has('x-csb-proxy-auth'), 'GP6 x-csb-proxy-auth do NAVEGADOR atravessou o proxy');
 }
+cobra(sinal instanceof AbortSignal, 'GP8 fetch do proxy sem prazo — Cloud Run pendurado segura cada chamada de telemetria até o teto da função da Vercel');
 cobra(/const SEGREDO = import\.meta\.env\.API_PROXY_SECRET \|\| '';/.test(rota) && /\{ segredo: SEGREDO \}/.test(rota),
   'GP6 [rota].ts não repassa API_PROXY_SECRET ao proxy');
 

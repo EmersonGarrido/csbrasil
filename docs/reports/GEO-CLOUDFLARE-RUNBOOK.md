@@ -73,13 +73,20 @@ publica na Vercel. Ordem:
 3. Merge do PR do cliente (remendo) → deploy da Vercel.
 4. Managed Transform (1.2) pode vir a qualquer momento.
 
-Por que o backend antes: com o backend antigo, o IP de rate limit das rotas que passam pelo
+**Não inverta.** Por que o backend antes: com o backend antigo, o IP de rate limit das rotas que passam pelo
 proxy sai da heurística do `x-forwarded-for` (penúltimo salto), que não foi medida para esse
 caminho. `submit-match` tem teto de 1 partida / 30 s por IP — se o IP colapsar no salto da
 Vercel, o ranking trava para todo mundo. Com o backend novo e o segredo, o IP vem explícito
 em `x-csb-client-ip`.
 
+Antes do passo 3, confira que o deploy da Vercel feito **depois** de criar a env já está no ar
+(a env é embutida no build: env criada sem redeploy = proxy sem prova).
+
 ### 1.4 Verificação (30 min depois do deploy do cliente)
+
+- `curl -s <run.app>/health` → `borda.modos.site` subindo e `borda.modos.direto` parado. `direto`
+  subindo depois do passo 3 = segredo divergente entre Vercel e Cloud Run: a geo é descartada e o
+  IP de rate limit vira o salto da Vercel. Corrija o segredo ou reverta o cliente na hora.
 
 ```sql
 -- somente leitura
@@ -93,6 +100,10 @@ select city, country, matches from city_daily where day = (now() at time zone 'A
   cidades de PoP (São Paulo, Rio, Fortaleza, Miami, Atlanta…), a geo está vindo do PoP: pare e
   investigue antes da campanha.
 - `/api/health` sem `city` em `stale` depois da primeira partida concluída com cidade.
+
+Custo e limites: presença (a cada 45 s por aba visível), heartbeat, telemetria, perf e submit
+passam a ser invocações de função da Vercel (prazo de 10 s no proxy). Confira o plano da Vercel
+(invocações e concorrência) antes da campanha; o Cloud Run já tem `min_instance_count = 1`.
 
 ### 1.5 Reverter
 
