@@ -10,7 +10,7 @@
 >
 <!-- BEGIN:GERADO:versao_atual — não edite à mão, rode `npm run docs` -->
 
-**O jogo está em `2.0.0-alpha.264`.** Prerelease do semver ordena sozinho
+**O jogo está em `2.0.0-alpha.265`.** Prerelease do semver ordena sozinho
 (`alpha` < `beta` < release), e o fluxo automático cuida do bump.
 
 > Bloco gerado por `node tools/gen-docs.mjs`. Fonte: `grep VERSION public/js/version.js · node -p "require('./package.json').version"`
@@ -60,6 +60,27 @@
 - Captura de bandeira passa a receber placar, progresso, donos e relógio pelo snapshot v3.
 - Slots abandonados voltam à IA e as salas oficiais passam de 5v5 para 4v4.
 - O catálogo in-game usa a mesma versão v8 do pacote de áudio baixado no build.
+
+## [2.0.0-alpha.265] — 2026-09-23
+
+### Mudado
+- fix(crash): lançamento de partida que perde a corrida desiste em vez … (#627)
+- chore(docs): regenera blocos derivados com o eval:launchrace do PR
+- chore(docs): regenera bloco derivado (autofix)
+- chore(docs): regenera blocos derivados sobre a alpha.264
+- chore(docs): regenera bloco derivado (autofix)
+- chore(docs): regenera bloco derivado (autofix)
+- chore(docs): regenera blocos derivados com o package.json do PR (243 scripts)
+- chore(docs): regenera bloco derivado (autofix)
+- chore(docs): regenera blocos derivados (DOCS1) para o novo script
+- chore(docs): regenera bloco derivado (autofix)
+- chore(docs): regenera bloco derivado (autofix)
+- chore(docs): regenera blocos derivados (DOCS1/ARCH1)
+- chore(docs): regenera bloco derivado (autofix)
+- chore(docs): regenera bloco derivado (autofix)
+- chore(docs): regenera blocos derivados do eval:launchrace
+- chore(docs): regenera bloco derivado (autofix)
+- fix(crash): lançamento de partida que perde a corrida desiste em vez de mexer em `game` nulo (#609, #608)
 
 ## [2.0.0-alpha.264] — 2026-09-23
 
