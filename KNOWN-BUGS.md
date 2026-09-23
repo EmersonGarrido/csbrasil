@@ -333,6 +333,20 @@ e a corrida é de dois quadros (repro manual confiável não existe; foi por iss
 virou `vm` com rAF sob controle, e não `crash-watch`). `npm run build` e `check:seo` também não
 rodaram aqui. A recorrência em produção não foi medida: a tabela `js_error` é schema privado,
 sem credencial nesta máquina.
+### BUG-177 · `loop()` lia `#char-select` sem guarda e congelava o jogo quando o elemento sumia · CORRIGIDO 23/09
+
+**Sintoma:** crash automático #617 em produção (alpha.262), `TypeError: Cannot read
+properties of null (reading 'classList')` em `main.js:2825` dentro de `loop`.
+
+**Causa raiz:** `loop()` roda a cada quadro e fazia `$('char-select').classList` sem
+checar null. Quando `#char-select` não está no DOM (extensão ou tradutor que reescreve o
+body), o TypeError se repete a cada quadro — `requestAnimationFrame(loop)` vem antes,
+então o laço continua, mas nada depois da linha roda: sem `game.update`, sem render.
+
+**Conserto:** acesso por `?.` no `csOpen` (ausente = fechada) e na espera do
+`char-select` do deep link. Régua `LOOP1` em `tools/eval/invariants.mjs`: nenhum
+`$('…').` sem `?.` no corpo de `loop()`. Mutante: o `main.js` da alpha.262 reprova
+(`char-select`).
 
 ### BUG-172 · o B5 do boot-check injetava erro com stack de arnês e o corte de automação o filtra · CORRIGIDO 18/09
 
