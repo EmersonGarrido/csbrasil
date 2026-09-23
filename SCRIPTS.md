@@ -690,6 +690,14 @@ O BUNDLE PÚBLICO NÃO NOMEIA O BACKEND. Decisão do dono (15/08): quem abre o j
 npm run eval:backendhints
 ```
 
+## `eval:dautelemetria`
+
+QUEM JOGOU ENTRA NA CONTA, UMA VEZ SÓ (backend#22). O painel tinha 1.1K `game_start` (Vercel Analytics) para 215 `match_end` e o banco nenhum início; sair do multiplayer (`mpSair`/`mpDesconectou`) nunca chamava `sendTelemetry`, então quem só jogou online não entrava em player_daily; e mp_session gravava o SHA do cliente vendorizado no nó. Cobra a saída do MP antes de limpar o contexto, 1 envio por partida (sair + fechar a aba + fim, simulado com a função real extraída do main.js), event/gameType/matchEventId e mapa/modo do JOGO, `game_started` no início (e não na troca de vaga da mesma partida online) e o `csha` hex do build no join. Mutantes: --mutante=mp-sem-telemetria|sem-trava|sem-inicio|inicio-na-troca|contexto-novo|csha-livre.
+
+```bash
+npm run eval:dautelemetria
+```
+
 ## `changelog:check`
 
 A seção do CHANGELOG da versão corrente é a NOTA do release — não pode linkar o release nela mesma (o ponteiro circular vivia no topo de toda entrada desde o início e apontava pro domínio pré-migração), não pode citar rubenmarcus/csbrasil (o repo é corosolto/client desde a migração; redirect existe, mas régua se escreve no domínio canônico) e, quando há tags locais, a contagem de (#N) tem que bater com os merges reais do git na faixa vAnterior..vAtual — entra no release.yml via sync-changelog e o que é gerado por robô se verifica por robô. Clone sem tags (build da Vercel): a contagem PULA declarada, a estrutura morde igual. Mutantes: --mutante=selflink|dominio-velho|pr-sumido.
