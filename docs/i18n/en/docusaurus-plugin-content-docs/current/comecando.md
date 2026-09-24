@@ -41,7 +41,7 @@ this page was aging at the very first commit — see
 
 | What | How much | Where to check |
 |---|---:|---|
-| Game code | 48,435 lines in 96 files | `git ls-files public/js/*.js \| xargs wc -l` |
+| Game code | 48,471 lines in 96 files | `git ls-files public/js/*.js \| xargs wc -l` |
 | `game.js` | **7,483** lines | `wc -l public/js/game.js` |
 | `main.js` | 3,571 lines | `wc -l public/js/main.js` |
 | Weapons with GLB | 26 | `git ls-files 'public/models/weapons/*.glb' \| wc -l` |
@@ -51,7 +51,7 @@ this page was aging at the very first commit — see
 | Playable characters | 53, in 6 factions | `CHARACTERS` array in `characters.js` |
 | Maps in the registry | 17 | `MAPS` object in `maps.js` |
 | Visual harnesses in HTML | 15 | `git ls-files 'public/*.html' \| wc -l` |
-| Harness scripts | 383 | `git ls-files 'tools/eval/*.mjs' 'tools/eval/*.py' \| wc -l` |
+| Harness scripts | 385 | `git ls-files 'tools/eval/*.mjs' 'tools/eval/*.py' \| wc -l` |
 | Pipeline scripts | 76 | `git ls-files 'tools/*.mjs' \| wc -l` |
 | Written entry tasks | 26 | `git ls-files 'docs/issues/[0-9]*.md' \| wc -l` |
 | Version | `2.0.0-alpha.266` | `public/js/version.js` and `package.json` (match) |
@@ -234,7 +234,7 @@ The maps registered today, and which mode each one opens in:
 | `corrego` | Córrego (Favela de SP) | **capture** | `map_corrego.js` | 1,348 |
 | `lajes` | Lajes (Comunidade) | **capture** | `map_lajes_authored.js` | 392 |
 | `posto_treta` | Posto da Treta | **capture** | `map_posto.js` | 490 |
-| `upa_24h` | UPA 24h da Treta | **capture** | `map_upa.js` | 289 |
+| `upa_24h` | UPA 24h da Treta | **capture** | `map_upa.js` | 325 |
 | `obras_prefeitura` | Obras da Prefeitura | **capture** | `map_obras.js` | 241 |
 | `atacadao_treta` | Atacadão da Treta | **capture** | `map_atacadao.js` | 256 |
 | `parque_treta` | Parque da Treta | **capture** | `map_parque.js` | 403 |
