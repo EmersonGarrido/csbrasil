@@ -18,12 +18,15 @@
 //      pós-tonemap no último passe (grain migrou pra lá, senão o sharpen amplifica ruído).
 //  (5) Foco dinâmico do shadow map do sol em volta do jogador: 12.8 cm/texel → ~2.2 cm/texel.
 import * as THREE from 'three';
+import { orcamentoSombra } from './mapquality.js';
 import { EffectComposer } from '../vendor/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from '../vendor/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from '../vendor/addons/postprocessing/UnrealBloomPass.js';
 import { ShaderPass } from '../vendor/addons/postprocessing/ShaderPass.js';
 import { OutputPass } from '../vendor/addons/postprocessing/OutputPass.js';
 import { Pass, FullScreenQuad } from '../vendor/addons/postprocessing/Pass.js';
+import { LOOK } from './look.js';
+import { DepthPass, WATER_LAYER, SOFT_LAYER } from './water.js';
 
 const QP = () => new URLSearchParams(location.search);
 
@@ -65,10 +68,14 @@ const QP = () => new URLSearchParams(location.search);
 // Previsão: praca_poderes 36,4 -> 42,3 com blk 0,00 % e p1 5,0;  havan 40,4 -> 43,6 com blk
 // 2,26 % -> 0,00 % e p1 2,6 -> 4,0.
 const LOOKS = {
-  praca_poderes:       { exposure: 2.40, floor: 0.0042, expAces: 2.61 },   // Brasília, meio-dia seco
-  piscina_treta:   { exposure: 1.92, floor: 0.0039, expAces: 1.91 },   // Piscinão: TEM que ser o mais claro
-  loja_h:      { exposure: 1.50, floor: 0.0060, expAces: 1.59 },
-  ferro_velho: { exposure: 1.66, floor: 0.0041, expAces: 1.76 },
+  praca_poderes: { exposure: 2.40, floor: 0.0042, expAces: 2.61 },   // Brasília, meio-dia seco
+  piscina_treta: { exposure: 1.92, floor: 0.0039, expAces: 1.91 },   // Piscinão: TEM que ser o mais claro
+  loja_h:        { exposure: 1.50, floor: 0.0060, expAces: 1.59 },
+  ferro_velho:   { exposure: 1.66, floor: 0.0041, expAces: 1.76 },
+  quebrada:      { exposure: 1.58, floor: 0.0046, expAces: 1.68 },
+  escadao:    { exposure: 1.52, floor: 0.0048, expAces: 1.62 },
+  lajes:      { exposure: 1.55, floor: 0.0047, expAces: 1.65 },
+  // os 3 pilotos do RC1 (mansao/corrego/campomorro) saíram daqui: vivem no LOOK (look.js)
 };
 // id desconhecido cai no praca_poderes em maps.js (DEFAULT_MAP) — o look padrão tem que ser o
 // MESMO, senão o mapa que roda e a curva que é aplicada divergem.
@@ -91,7 +98,8 @@ function currentQuality() {
 
 function currentLook() {
   const id = currentMapId();
-  const base = LOOKS[id] || DEFAULT_LOOK;
+  const L = LOOK[id];   // piloto RC1: a grade mora no look.js, uma fonte só
+  const base = L ? { exposure: L.grade.exposicao, floor: L.grade.piso, expAces: L.grade.expAces } : (LOOKS[id] || DEFAULT_LOOK);
   const q = QP();
   const exp = parseFloat(q.get('exp'));
   const flo = parseFloat(q.get('floor'));
@@ -103,17 +111,34 @@ function currentLook() {
     expAces: isFinite(exp) ? exp : base.expAces,
   };
 }
+/* O mapview não tem composer: sem isto ele renderizava NoToneMapping/exposição 1,0 e
+   toda captura de revisão saía ~1 stop mais escura que o jogo — a "sombra esmagada"
+   que se caçava no mapa morava no instrumento. */
+export function lookAtual() { return currentLook(); }
 
 // Fog radial usa a cor de céu medida por `tools/eval/r3_fog.py`; `?fog2=0` restaura o fog nativo.
 const AERIAL = {
   //                 densidade   cor-base medida do céu    direção do sol (posição da
   //                             logo acima da silhueta     DirectionalLight do mapa)
-  praca_poderes:       { d: 0.0066, color: 0x7d9cbb, sun: [90, 62, -40], dir: 0.90 },
-  piscina_treta:   { d: 0.0078, color: 0x93b9df, sun: [14, 76, -9],  dir: 0.85 },
-  loja_h:      { d: 0.0088, color: 0xa3c4e5, sun: [18, 55, 20],  dir: 0.80 },
-  ferro_velho: { d: 0.0112, color: 0xa5c5e5, sun: [-46, 20, 32], dir: 1.00 },
+  praca_poderes: { d: 0.0066, color: 0x7d9cbb, sun: [90, 62, -40], dir: 0.90 },
+  piscina_treta: { d: 0.0078, color: 0x93b9df, sun: [14, 76, -9],  dir: 0.85 },
+  loja_h:        { d: 0.0088, color: 0xa3c4e5, sun: [18, 55, 20],  dir: 0.80 },
+  ferro_velho:   { d: 0.0112, color: 0xa5c5e5, sun: [-46, 20, 32], dir: 1.00 },
+  quebrada:      { d: 0.0084, color: 0xb58f78, sun: [38, 30, -22], dir: 0.82 },
+  escadao:    { d: 0.0080, color: 0xb9977f, sun: [25, 40, 20], dir: 0.86 },
+  lajes:      { d: 0.0085, color: 0xb18f79, sun: [25, 45, 15], dir: 0.84 },
+  // os 3 pilotos do RC1 (mansao/corrego/campomorro) saíram daqui: vivem no LOOK (look.js)
 };
 const AERIAL_DEFAULT = AERIAL.praca_poderes;
+
+/* A entrada de névoa de um mapa, de UMA fonte só: os pilotos do RC1 vêm do LOOK
+   (a cor é o `horizonte` medido do webp — a régua eval:look garante o casamento);
+   os demais seguem na tabela acima até o rollout. */
+function aerialEntry(mapId) {
+  const L = LOOK[mapId];
+  if (L) return { d: L.neblina.d, color: L.horizonte, sun: L.neblina.solDir, dir: L.neblina.forca };
+  return AERIAL[mapId] || AERIAL_DEFAULT;
+}
 
 // TypedArray permanece compartilhado por `cloneUniforms`: xyz é o sol no mundo e w sua força.
 const _fogSun = new Float32Array([0, 1, 0, 0]);
@@ -207,14 +232,16 @@ patchFogChunks();
    ilumina, que é o "a tela lava pra branco" do dono. Uma fonte só, medida, para os dois.
    `new THREE.Color(hex)` converte sRGB -> linear de trabalho, então o retorno já é radiância. */
 export function skyRadiance(mapId) {
-  return new THREE.Color((AERIAL[mapId] || AERIAL_DEFAULT).color);
+  return new THREE.Color(aerialEntry(mapId).color);
 }
 
 /* A tabela, exportada para LEITURA. Quem quer a cor do céu de um mapa continua chamando
    `skyRadiance`; isto existe para o arnês `clima.html`, que precisa dos valores de
    partida dos sliders e do nome dos campos. Exportar não é convite para escrever: o que
-   ships sai daqui, medido por `tools/eval/r3_fog.py` sobre frames reais. */
-export const AERIAL_TABELA = AERIAL;
+   ships sai daqui, medido por `tools/eval/r3_fog.py` sobre frames reais (e, nos pilotos
+   do RC1, por `tools/eval/look-horizonte.py` sobre o webp do céu). */
+export const AERIAL_TABELA = Object.fromEntries(
+  [...Object.keys(AERIAL), ...Object.keys(LOOK)].map((k) => [k, aerialEntry(k)]));
 
 /* Névoa de um mapa. Os map_*.js chamam isto no lugar de `new THREE.Fog(...)`.
 
@@ -225,7 +252,7 @@ export const AERIAL_TABELA = AERIAL;
    deixar de ser. Nenhum chamador de produção passa `over`. */
 export function makeAerialFog(mapId, over = null) {
   const q = QP();
-  const A = over ? { ...(AERIAL[mapId] || AERIAL_DEFAULT), ...over } : (AERIAL[mapId] || AERIAL_DEFAULT);
+  const A = over ? { ...aerialEntry(mapId), ...over } : aerialEntry(mapId);
   const dOv = parseFloat(q.get('fogd'));
   const d = isFinite(dOv) ? dOv : A.d;
   // sem o patch (vendor diferente / ?fog2=0) a exponencial mudaria o look sem a cor
@@ -248,6 +275,18 @@ export function makeAerialFog(mapId, over = null) {
    15 taps de textura por pixel de meia-res e o tempo até jogar subiu 35 % na r1; 6 amostras
    com o mesmo blur bilateral mantêm o gradiente de contato e cortam ~40 % do custo do passe.
    ================================================================ */
+// Interruptores dos passes de pós, lidos a cada frame pelo composer. Quem escreve é a escada
+// adaptativa (qualidade-adaptativa.js); o bloom fica de fora porque o composite lê o alvo dele.
+const _pos = { ssao: true, aa: true, charmask: true };
+export function ajustaPos(flags = {}) { Object.assign(_pos, flags); }
+export function posAtual() { return { ..._pos }; }
+// tamanho REAL em que o pós desenha — é o que prova que o DPR chegou aos alvos (BUG-163)
+export function alvoDoPos(scene) {
+  const cp = _composersDebug.get(scene);
+  return cp ? { w: cp.renderTarget1.width, h: cp.renderTarget1.height, dpr: cp._dpr } : null;
+}
+const _composersDebug = new WeakMap();
+
 const SSAO_SAMPLES_HIGH = 10;
 const SSAO_SAMPLES_MED = 6;
 
@@ -684,7 +723,10 @@ export function focusSunShadow(scene, camera, radius) {
       st.dir = new THREE.Vector3().copy(l.position).sub(l.target.position);
       st.dist = Math.max(20, st.dir.length());
       st.dir.normalize();
-      if (l.shadow.mapSize.width < 2048) { l.shadow.mapSize.set(2048, 2048); l.shadow.map = null; }
+      // piso = ORÇAMENTO do nível, não um 2048 cravado: cravado, o pós desfazia a redução de
+      // sombra que o mapa (e a qualidade adaptativa) tivessem pedido. Fonte: mapquality.js.
+      const piso = orcamentoSombra();
+      if (l.shadow.mapSize.width < piso) { l.shadow.mapSize.set(piso, piso); l.shadow.map = null; }
       // guarda o que o MAPA tunou, pra escalar em vez de jogar fora
       st.r0 = Math.max(4, Math.abs(l.shadow.camera.right) || 60);
       st.bias0 = l.shadow.bias;
@@ -949,11 +991,17 @@ export function enableLightBloom(renderer, opts = {}) {
     // EffectComposer.render() chama renderer.render internamente (quads dos passes):
     // restaura o raw durante o composer p/ não recursar infinito, reinstala depois.
     renderer.render = rawRender;
+    // interruptores da escada adaptativa: o composer respeita `enabled` em runtime, então
+    // ligar e desligar passe não reconstrói nada (ver qualidade-adaptativa.js)
+    if (cp._ssao) cp._ssao.enabled = _pos.ssao;
+    if (cp._aa) cp._aa.enabled = _pos.aa;
+    if (cp._charmask) cp._charmask.enabled = _pos.charmask;
     cp._time = (cp._time || 0) + 1 / 60;
     if (cp._composite) cp._composite.uniforms.uLens.value.w = cp._time;
     if (cp._aa) cp._aa.uniforms.uTime.value = cp._time;
     if (cp._ssao) cp._ssao.camera = camera;   // a cena pode trocar de câmera (menu/preview)
     if (scene.userData.vmPass) focusSunShadow(scene, camera);   // só na cena de jogo
+    if (cp._water) cp._water.camera = camera;   // a cena pode trocar de câmera
     cp.render();
     renderer.render = patched;
   };
@@ -978,8 +1026,26 @@ export function enableLightBloom(renderer, opts = {}) {
       cp = new EffectComposer(renderer);
       cp.setPixelRatio(renderer.getPixelRatio());
       cp.setSize(innerWidth, innerHeight);
-      cp._w = innerWidth; cp._h = innerHeight;
+      cp._w = innerWidth; cp._h = innerHeight; cp._dpr = renderer.getPixelRatio();
       cp.addPass(new RenderPass(scene, camera));
+      /* Água viva (RC2) + partículas soft (RC3): com composer migram p/ as camadas
+         WATER/SOFT e o DepthPass assume — amostrar o depth do próprio readBuffer é loop. */
+      const ws = scene.userData.waters || [];
+      const ss = scene.userData.softs || [];
+      if (ws.length || ss.length) {
+        if (!cp.renderTarget1.depthTexture) attachDepth(cp);
+        for (const w of ws) {
+          w.mesh.layers.set(WATER_LAYER);
+          w.material.depthTest = false;
+          w.material.uniforms.uDepthOn.value = 1;
+        }
+        for (const s of ss) {
+          s.points.layers.set(SOFT_LAYER);
+          s.uniforms.uDepthOn.value = 1;
+        }
+        cp._water = new DepthPass(scene, camera, rawRender, ws, ss);
+        cp.addPass(cp._water);
+      }
       // threshold alto (0.85): só picos de brilho (sol, flash de tiro, speculars) — "bloom leve"
       const bloomPass = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.25, 0.45, 0.85);
       // A máscara de personagem tem que vir AQUI, colada no RenderPass: é o único ponto da
@@ -987,7 +1053,7 @@ export function enableLightBloom(renderer, opts = {}) {
       // vmPass limpa a profundidade). Sem esse depth a máscara não sabe quem está atrás de
       // parede. O bloom em si só entra lá embaixo — ele é o consumidor, não o produtor.
       const uCharMask = charMaskOn ? patchHighPassForCharMask(bloomPass) : null;
-      if (uCharMask) cp.addPass(new CharNoBloomPass(scene, camera, rawRender, uCharMask));
+      if (uCharMask) { const cm = new CharNoBloomPass(scene, camera, rawRender, uCharMask); cp.addPass(cm); cp._charmask = cm; }
       // SSAO só na cena de JOGO (a que tem vmPass). O backdrop do menu é um mapa orbitando
       // ao longe — ninguém lê contato de prop ali, e o passe custava mais um programa +
       // 2 render targets compilados ANTES de a partida começar (o harness estourou 300 s
@@ -1032,9 +1098,14 @@ export function enableLightBloom(renderer, opts = {}) {
         }
       }
       composers.set(scene, cp);
-    } else if (cp._w !== innerWidth || cp._h !== innerHeight) {
+      _composersDebug.set(scene, cp);   // só leitura, para a régua de navegador ver o alvo real
+    } else if (cp._w !== innerWidth || cp._h !== innerHeight || cp._dpr !== renderer.getPixelRatio()) {
+      /* O DPR entra aqui junto com o resize, e não é detalhe: `_applyQuality` troca o
+         pixel ratio do renderer e os alvos do composer nasceram com o do boot — trocar de
+         qualidade no meio da partida NÃO mudava a resolução do mundo (KNOWN-BUGS BUG-163). */
+      cp.setPixelRatio(renderer.getPixelRatio());
       cp.setSize(innerWidth, innerHeight);   // acompanha resize da janela
-      cp._w = innerWidth; cp._h = innerHeight;
+      cp._w = innerWidth; cp._h = innerHeight; cp._dpr = renderer.getPixelRatio();
       if (cp._ssao) attachDepth(cp);         // setSize dispõe os RTs: recria o depth
       if (cp._aa) cp._aa.uniforms.uTexel.value.set(1 / (innerWidth * renderer.getPixelRatio()), 1 / (innerHeight * renderer.getPixelRatio()));
     }

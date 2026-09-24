@@ -50,6 +50,49 @@ Mede o que o EDGE está servindo, não o repo: baixa o HTML de produção, segue
 npm run prod:coherence
 ```
 
+## `ops:diag`
+
+A camada operacional: o jogo se diagnostica e explica. Encadeia boot (HTML → import map → main.js → version.js → grafo via prod-coherence), APIs (`/api/health` campo a campo e rotas leves N vezes, para separar 5xx constante de intermitente — o cold start do Cloud Run medido em 06/09/2026), ranking (flag × backend × página), assets no edge (Range GET com prova de cabeçalho), a árvore (versão, index.astro, grafo local, assets) e a partida sintética (Game real em node, todo mapa × modo). Escreve causa provável, evidência, impacto e próximo passo por achado, e separa "tecnicamente verde" de "pronto para lançamento". Só lê: nenhum POST. `--browser` acrescenta o Chromium (o main.js AVALIA?) e o snapshot do `public/js/ops.js`. Fica FORA do check:fast por precisar de rede; quem roda é gente ou o prod-watch. Runbook: docs/runbooks/operacao-autonoma.md.
+
+```bash
+npm run ops:diag
+npm run ops:diag -- --browser --partida
+```
+
+## `ops:diag:local`
+
+Só a árvore, sem rede: versão sincronizada, index.astro com a cadeia de boot, grafo de módulos coerente num servidor estático (pega import de símbolo inexistente ANTES do deploy — `syntax` não pega), assets com o cabeçalho certo e a partida sintética em todos os mapas. É o `ops:diag` que cabe no CI.
+
+```bash
+npm run ops:diag:local
+```
+
+## `ops:aquecer`
+
+Aquece o edge depois de um deploy: pede, com a URL que o runtime monta (`?v=` da raiz), os módulos do import map e todos os assets dos registros que a produção serve (armas, elenco, props, prévias, anims, three, CSS), e confere HIT numa segunda passada. O `prod-watch.yml` chama no `deployment_status`; à mão, `--esperada=2.0.0-alpha.N` espera a raiz servir essa versão.
+
+```bash
+npm run ops:aquecer
+npm run ops:aquecer -- https://www.csbrasil.online --esperada=2.0.0-alpha.225
+```
+
+## `ops:selftest`
+
+A prova de que a diagnose morde (lei 3): sobe uma produção sintética por sintoma — export arrancado, módulo 404, versão divergente, main.js servido como HTML, banco fora, 503 intermitente, GLB em 404 ou como HTML, flag de ranking incoerente, CSP ausente, raiz lenta, árvore dessincronizada, GLB corrompido — e cobra o achado com id e severidade esperados; o cenário sadio tem de sair tecnicamente verde. Com Playwright disponível, prova ainda o boot em Chromium e o mutante de TDZ (o caso de 07/08). Mutante que não acende sai 1. Entra no check:fast.
+
+```bash
+npm run ops:selftest
+node tools/ops/selftest.mjs --so=rota-intermitente --verboso
+```
+
+## `ops:test`
+
+Unidades da camada operacional em `node --test`: regras sintoma → causa, veredito (verde ≠ pronto), parsers de HTML/import map/version.js, classificação de erro de rede e o `public/js/ops.js` rodando num DOM stubado (boot, FPS, falhas de carga, WebGL, abandono). Milissegundos; entra no check:fast.
+
+```bash
+npm run ops:test
+```
+
 ## `eval:release`
 
 Release preserva nome/créditos, DCO, docs e um único deploy automático pela main; o CLI fica manual. Mutantes: nome-antigo|semcreditos|semdco|semdocs|semrollback|deploy-duplo.
@@ -64,6 +107,18 @@ procedência de DROP_TTL/DROP_MAX: acúmulo de armas no chão em regime
 
 ```bash
 npm run eval:drop
+```
+
+## `eval:penetration`
+
+Constrói o `Game` real com uma camada fina controlada e cobra o contrato de
+penetração: apenas AWP, madeira/vidro até 0,28 m, 50% de dano e só um inimigo
+depois de uma única parede. Concreto, AK, segunda parede e cliente online
+permanecem bloqueados. O mutante que remove a saída da parede precisa deixar a
+cláusula de travessia vermelha. Entra no `check:fast`.
+
+```bash
+npm run eval:penetration
 ```
 
 ## `eval:deps`
@@ -160,6 +215,30 @@ O arco de dano na borda da tela (_dmgArc) tem que apontar pro atacante, não pro
 
 ```bash
 npm run eval:dmgdir
+```
+
+## `eval:abateshud`
+
+O contador de abates do JOGADOR tem que ser legível DURANTE a partida. Nasceu do pedido do dono: o HUD tinha dois números grandes no topo e nenhum dos dois é o abate pessoal — `#score-e`/`#score-b` imprimem `roundKills[side]`, que é do TIME e zera na virada; o número do jogador só existia atrás do TAB. Mede marcação (`#kill-counter`/`#kill-count` dentro do `#hud`, com rótulo), legibilidade por medida (piso de 24px fora de `@media`, contra os 42px do `#hp-num`) e comportamento com o Game rodando: imprime `player.kills`, não o placar do time, e sobrevive ao `_startRound`. `--mutante=time|rodada|congelado|miudo`.
+
+```bash
+npm run eval:abateshud
+```
+
+## `eval:botfaca`
+
+Em rodada de faca o bot tem que jogar de faca. Nasceu do pedido do dono. A faca já ia pra mão dele (`_botWeapon`), mas a cabeça continuava de fuzil em duas frentes: a banda de distância de `_updateBot` entra em recuo abaixo de 6 m e a faca alcança 2,4 m (medido antes do conserto: menor distância bot→alvo 5,98 m, zero golpes e zero abates em 60 s), e o golpe, quando saía, ia pelo caminho do tiro — com traçante, fogacho de cano e som de disparo. Mede perseguição, golpe, ausência de enfeite de arma de fogo e — cláusula que impede o conserto preguiçoso — que a rodada NORMAL continue com bot que abre distância (piso de 4 m). `--mutante=recuo|tracante|corredor`.
+
+```bash
+npm run eval:botfaca
+```
+
+## `eval:replaycam`
+
+Headshot **não** tira a câmera da mão do jogador. A régua nasceu junto com a replay cam do #364 (media se ela disparava e devolvia o FOV) e **trocou de lado** em 06/09/2026, quando o dono pediu o efeito de volta pra caixa: 1,2 s em câmera orbital, FOV 50, hit-stop de 0,18 e sem viewmodel/mira é o duelo seguinte perdido por quem acertou o tiro difícil. Agora mede o contrário — câmera parada, relógio 1:1, arma e mira na tela — e mantém uma cláusula de que o abate segue contando, para o conserto preguiçoso (matar o `_kill`) não ficar verde. `--mutante=orbita|hitstop|esconde|sem-kill`.
+
+```bash
+npm run eval:replaycam
 ```
 
 ## `eval:ctflabels`
@@ -260,7 +339,7 @@ npm run eval:error-console
 
 ## `eval:error-origin`
 
-Erros de extensão e scripts cross-origin continuam brutos, mas não acionam watchdog, dispatch ou issue do jogo. Mutantes: sem-extensao|sem-cross-origin|filtro-amplo|sem-api|sem-early-return|sem-workflow|abre-externo|sem-cliente|cliente-mensagem-url|sem-teto-externo|debug-externo|cache-antes-origem.
+Erros de extensão e scripts cross-origin continuam brutos, mas não acionam watchdog, dispatch ou issue do jogo. Mutantes: sem-extensao|sem-cross-origin|filtro-amplo|sem-api|sem-early-return|sem-workflow|abre-externo|sem-cliente|cliente-mensagem-url|sem-teto-externo|debug-externo|console-sem-origem|cache-antes-origem|sem-recuperavel|sem-opaco|opaco-sem-guarda|sem-vercel-helper|sem-vercel-cliente|sem-webgl|sem-fingerprint|escala-incoerente|grava-forjado|receita-imul|cliente-hash-bruto|cliente-sem-retrim|sem-log|log-amplo|log-sobre-tudo|log-nao-corta|sem-teto-console|pilha-so-no-primeiro|times-sem-erro|onerror-sem-src|boot-sem-migalha|payload-sem-migalhas|issue-sem-migalhas|sem-midia|midia-ampla|sem-cota-midia|cache-sem-binding|cache-so-ingles|cache-sem-especificador|sem-ponte|ponte-ampla|ponte-insensivel|sem-ponte-cliente|jogo-com-ponte|sem-webglstate|webglstate-amplo|sem-capacidade|capacidade-ampla|lock-sem-catch.
 
 ```bash
 npm run eval:error-origin
@@ -284,7 +363,7 @@ npm run eval:webglguard
 
 ## `eval:shaderlog`
 
-Logs WebGL nulos viram string vazia antes de trim; framebuffer nulo não derruba o WeakMap de drawBuffers; rotas usam versão, arnêses usam hash do core e addons sem URL própria revalidam na origem/CDN. Mutantes: sem-guardas|sem-cache-bust|addons-immutable|cloudflare-vendor|framebuffer-nulo.
+Logs WebGL nulos viram string vazia antes de trim; framebuffer nulo não derruba o WeakMap de drawBuffers; o render() consulta gl.isContextLost() além da flag assíncrona (perda de contexto no meio do frame, #419/#420); rotas usam versão, arnêses usam hash do core e addons sem URL própria revalidam na origem/CDN. Mutantes: sem-guardas|sem-cache-bust|addons-immutable|cloudflare-vendor|framebuffer-nulo|sem-contexto-sincrono.
 
 ```bash
 npm run eval:shaderlog
@@ -368,6 +447,14 @@ Contrato de produção do BotBrain: coleta opt-in autenticada por UID, limites c
 
 ```bash
 npm run eval:botbrain
+```
+
+## `eval:i18ntwins`
+
+Pares PT↔EN numa tabela só (`src/lib/i18n-pairs.ts`): hreflang, `html lang`, og:locale, sitemap e o parser único do changelog. A gêmea do `/changelog` é `/whats-new`; o cromo é EN e o corpo continua o `CHANGELOG.md`. Mutantes: sem-par|sem-redirect|chrome-pt|lang-pt|sem-sitemap|parser-dup.
+
+```bash
+npm run eval:i18ntwins
 ```
 
 ## `eval:posters`
@@ -506,12 +593,109 @@ O LAYOUT ASSADO (public/js/graffiti_layout.js) não envelhece em silêncio (issu
 npm run eval:grafitelayout
 ```
 
+## `eval:audioalcance`
+
+O som que o código nomeia chega na build? `public/js/soundscape.js` nomeia os arquivos de ambiente e nenhum deles era alcançado pela pipeline: o gerador não tinha regra para `ambiente/` (entravam como órfãos), o empacotador copia só o que o manifest nomeia, e o que falta no zip vira 404 que `soundscape.js:59` engole com um warn — lição 5 e lição 12 juntas. A régua ARMA uma fixture sintética em pasta temporária e roda o gerador e o empacotador REAIS contra ela (`--raiz=`), em vez de depender do pacote privado, que não existe em clone limpo. ALC1 mede o gerador, ALC2 o pack; sem `zip` no PATH a ALC2 se declara NÃO MEDIDA e a régua reprova assim mesmo. A irmã de produção é a cláusula de ambiente do `assert:assets`, que mede o pacote instalado e lê a lista da mesma fonte. `--mutante=nome-trocado|sem-copia` prova que morde.
+
+```bash
+npm run eval:audioalcance
+```
+
+## `eval:audioespacial`
+
+O tiro por sample ouve a distância? `game.js:6336` calcula distância, pan e atraso de propagação em todo tiro de bot; o caminho por sample (`weaponSamples: true`, que é o que o piloto Fab liga) descartava os três e tocava por HTMLAudio, que não tem grafo nem `start(t)`. Bot a 40 m às suas costas soava igual a bot a 2 m à sua frente. A régua planta um `AudioContext` falso que grava o grafo e importa o `public/js/audio.js` de produção — nenhum WAV entra, `fetch` devolve 32 bytes sintéticos. ESP1 cache frio não silencia, ESP2 pan, ESP3 propagação, ESP4 duck pela mesma regra do synth, ESP5 é a cláusula IRMÃ (o synth continua espacializando — sem ela, apagar os dois lados ficaria verde) e ESP6 o fallback synth intacto. A LEI DE VOLUME por distância fica de fora de propósito: é decisão de ouvido, e vira bloqueio no `docs/audio/FAB-PILOT-HANDOFF.md`. `--mutante=sem-pan|sem-propagacao|duck-fixo` prova que morde.
+
+```bash
+npm run eval:audioespacial
+```
+
+## `eval:audioproc`
+
+Asset sem origem declarada não entra numa build. O `.gitignore` protege o GIT e só ele: o pacote de áudio é montado à parte e servido em produção, então arquivo de procedência desconhecida chega ao jogador sem passar por commit nenhum. Cobra a forma do ledger `docs/audio/proveniencia.json` — PRV1 campos obrigatórios, PRV2 `aprovado` exige `escutaAB` (nenhuma régua desta base ouve som: quem aprova é o dono, A/B no jogo real), PRV3 todo evento do piloto com decisão declarada (`synth` ou `derivado`), PRV4 fonte citada existe e nenhum áudio está rastreado pelo git. A cláusula de build é a PRV5 do `assert:assets`, que confere sha-256 contra o pacote instalado. O contrato inteiro está em `docs/audio/PROVENIENCIA.md`. `--mutante=aprovado-sem-escuta|derivado-sem-fonte|evento-sem-decisao` prova que morde.
+
+```bash
+npm run eval:audioproc
+```
+
+## `audio:inventario`
+
+Metadado do staging privado, e só metadado. O pacote fonte do piloto mora fora do git e a listagem diz `Allows usage with AI: No` — abrir os WAVs com um agente no meio é o que a licença proíbe. Lê o áudio LOCALMENTE com ffprobe/ffmpeg e emite nome, sha-256, formato, codec, duração, canais, taxa, bits, pico e loudness. Não copia, não converte, não move um WAV, não fala com a rede e RECUSA `--saida=` dentro do repositório. O `sha256` liga ao `sha256Fonte` do ledger de procedência. Campo que a máquina não sabe medir vem `null`, com `ferramentas.naoMedido` dizendo qual e por quê — zero disfarçado de medição é a lição 5.
+
+```bash
+npm run audio:inventario -- <dir> --saida=<fora-do-repo>.json
+```
+
+## `audio:inventario:autoteste`
+
+A fixture do inventariador: WAVs gerados na hora com ruído determinístico. Prova saída idêntica entre duas execuções, arquivo não-áudio de fora, hashes distintos para conteúdos distintos, e nenhum campo de nível preenchido quando a ferramenta falta. Está no check:fast porque ferramenta de decisão sem fixture é o furo que o `eval:fixture` existe para fechar.
+
+```bash
+npm run audio:inventario:autoteste
+```
+
+## `eval:audiocapacidade`
+
+O runtime sabe tocar isso? O ledger deixava qualquer um dos 8 eventos do piloto virar `derivado` aprovado, e o runtime não tem caminho específico para a maioria: `shotWeapon(w, …)` recebe a arma, mas `bolt()`/`reloadStart()`/`reloadEnd()` não recebem — leem `cs.bolt`/`cs.reload`/`cs.reloadend`, que valem para o arsenal inteiro; `step(surface)` recebe a superfície e mesmo assim sorteia de `cs.footsteps`, pool única; `death()` e `ricochet()` não consultam o pack. Aprovar um "passo em concreto" aprovaria um passo que toca em grama e metal igual; "morte corporal" e os impactos ficariam aprovados no papel e mudos no jogo. A régua NÃO lê assinatura de função (isso seria ler a declaração, lição 3): ela instala a chave que um caminho específico usaria, dispara o evento e olha o que tocou — `arma` se trocar a arma troca o arquivo, `global` se a chave específica nunca é lida, `nenhum` se só sai synth. Medido: 1 em arma, 4 em global, 3 em nenhum. CAP4 é a IRMÃ — a sonda tem que achar pelo menos um `arma`, senão uma sonda cega bate com um ledger todo `nenhum`. Foi ela que pegou a primeira versão da própria sonda medindo errado. `--mutante=declara-errado|aprova-sem-caminho` prova que morde.
+
+```bash
+npm run eval:audiocapacidade
+```
+
+## `eval:audiofablocal`
+
+Prova o instalador do laboratório Fab sem ler áudio comprado: a fixture usa arquivos de texto e exige symlink para a raiz privada exata, manifest sem caminho absoluto, somente os 5 eventos que o runtime alcança hoje e tiro da AK fixado em um candidato para não cair eternamente em cache frio. Também planta gore dentro de `ak.shot`; `--mutante=sem-veto` desliga o filtro do instalador e precisa acender LAB4.
+
+```bash
+npm run eval:audiofablocal
+node tools/eval/audio-fab-local-check.mjs --mutante=sem-veto
+```
+
+## `audio:shortlist`
+
+Candidatos por evento do piloto, SÓ por metadado. Lê `catalog.json` e `inventory.json` do staging privado — nome, hash, duração, canais, taxa, pico, loudness — e nunca um byte de áudio: a listagem do pacote diz `Allows usage with AI: No`. O casamento é por família de nome, e a saída é SHORTLIST, não escolha: nome não é som, e quem escolhe é o ouvido do dono no `audio:ab`. Quando o pacote não cobre o evento, `semCandidato` diz isso com o motivo em vez de forçar um casamento ruim — forçar `Hit_Generic` de luta corpo a corpo como "impacto de bala em concreto" seria inventar procedência sonora. `VETO_GORE` barra sangue, osso e grito por linha editorial, e é uma denylist conferida no autoteste. Recusa `--saida=` dentro do repositório.
+
+```bash
+npm run audio:shortlist -- <dir-do-pack> --saida=<fora-do-repo>.json
+```
+
+## `audio:shortlist:autoteste`
+
+A fixture da shortlist. Prova cinco coisas num catálogo sintético: o veto de gore barra os 3 arquivos de sangue/osso/grito, `Gunshot_Distant_` não contamina o evento de tiro seco (os dois começam com `Gunshot_`), evento sem candidato fica vazio em vez de forçado, o metadado do inventário é juntado pelo sha-256, e a família preserva o número da arma (`Gunshot_3`, não `Gunshot`) — sem isso as 8 famílias viram uma e a escuta A/B perde a comparação que decide qual soa como AK. No check:fast.
+
+```bash
+npm run audio:shortlist:autoteste
+```
+
+## `audio:ab`
+
+Escuta A/B local e privada, para o dono decidir. Sobe um servidor em `127.0.0.1` que serve a página e os WAVs lidos do staging privado onde eles estão — não copia nada para o repositório, não escreve em `public/`, só aceita loopback e recusa caminho que escape da raiz do pacote. O lado B é o `public/js/audio.js` REAL do jogo, não uma imitação: comparar contra outra coisa não responderia a pergunta. O clique grava `{evento, arquivo, sha256, decisao, por, quando, nota}` num JSONL fora do repositório — isso é REGISTRO DE ESCUTA, não aprovação: virar `aprovado` no ledger continua sendo passo manual, e a PRV2 cobra `escutaAB.por` e `escutaAB.data`. Aprovação automática é o que o contrato existe para impedir.
+
+```bash
+npm run audio:ab -- <dir-do-pack> --porta=8130 --por=ruben
+```
+
+## `audio:game:local`
+
+Liga o staging privado do Action Game Sounds Pack ao jogo local sem copiar WAVs: cria `public/audio/fab-dev` como symlink ignorado e escreve um `manifest.json` também ignorado. Recusa pack dentro do repositório, caminho que escape da raiz, arquivo ausente, nome vetado e qualquer manifest/symlink preexistente que não pertença ao laboratório. Mapeia um tiro da AK e todas as variações disponíveis de recarga, ferrolho e passo concreto; os quatro eventos sem caminho compatível continuam apenas na escuta A/B. É laboratório, não aprovação nem pacote de release.
+
+```bash
+npm run audio:game:local -- <dir-do-pack>
+```
+
 ## `eval:backendhints`
 
 O BUNDLE PÚBLICO NÃO NOMEIA O BACKEND. Decisão do dono (15/08): quem abre o jogo vê o JOGO — 'sem dar pistas se usamos supabase, postgres o que'. Mede no fonte (sem build) toda superfície servida crua: public/js, public/llms.txt, src/pages (corpo .astro, fora do frontmatter de servidor), CHANGELOG.md (renderizado em /changelog). A doc Docusaurus fica FORA, como dívida declarada — virar neutra é decisão editorial. Em 15/08 a primeira corrida achou 8 vazamentos, um deles TEXTO DE UI ('envs do Supabase pendentes'). --mutante=inject prova que morde; lista de padrões vazia se denuncia sozinha.
 
 ```bash
 npm run eval:backendhints
+```
+
+## `eval:geoproxy`
+
+A GEO DO JOGADOR CHEGA AO BACKEND (backend#22). Desde 30/08/2026 o jogo chamava o Cloud Run direto (run.app, sem borda): o `geoFrom` do backend nunca mais viu país/cidade, city_daily congelou em 2026-08-30T02:41:50Z e 88,9% da presença ficou sem geo — tudo respondendo 200. Cobra que telemetry/presence/heartbeat/submit-match/perf vão pelo proxy same-origin (`apibase.js` VIA_SITE), que o proxy sobe UMA fonte de geo por requisição (cf-* só com salto de faixa da Cloudflare; x-vercel-ip-* fora dela, porque atrás da Cloudflare ele descreve o PoP) e que `API_PROXY_SECRET` sobe como prova. Mutantes: --mutante=geo-direto|pop-como-cidade|cf-forjado|sem-segredo|rota-fora-do-proxy|fetch-cru.
+
+```bash
+npm run eval:geoproxy
 ```
 
 ## `changelog:check`
@@ -679,4 +863,23 @@ FPS baixo não pode desacelerar o relógio do jogo (issue #295). O clamp de 50 m
 
 ```bash
 npm run eval:simclock
+```
+
+## `eval:sertao-livestock` e `eval:sertao-livestock-runtime`
+
+O dono não via os animais Mint no mapa. A régua em node lê os três GLBs finais,
+confere procedência/hash, skin, clipes, textura e o URL realmente solicitado pelo
+preloader. Entra no `check:fast`; mutantes `sem-rig`, `sem-clipe`,
+`textura-ausente`, `hash-divergente` e `cache-velho`.
+
+A régua de navegador carrega o mapa real em3:2, confere os bytes servidos,
+deformação durante caminhada contínua, percurso contra os colisores do jogo,
+orçamento, low, reset, descarte e contato em pixels. Fica fora do portão rápido.
+Mutantes: `sem-caprinos`, `patas-paradas`, `parede`, `sombra`, `low-cheio`,
+`reset-ausente`, `sem-contato`, `dispose-ausente` e `rig-nao-descartado`. Relatório e imagens em
+`artifacts/sertao-astra/livestock-runtime/`; `ARTIFACT_DIR` muda a pasta.
+
+```bash
+npm run eval:sertao-livestock
+BASE=http://localhost:8149 npm run eval:sertao-livestock-runtime
 ```

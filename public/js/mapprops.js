@@ -4,6 +4,7 @@
 // renders fine before (or without) the Mint-generated assets exist.
 import * as THREE from 'three';
 import { VERSION } from './version.js';
+import { corteVegetacao } from './mapquality.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
@@ -39,6 +40,13 @@ export async function preloadMapProps(ids) {
 }
 
 export function hasProp(id) { return _base.has(id); }
+
+/* Registra um template de prop no mesmo registro do `preloadMapProps`. Existe para a
+   régua: sem isto, em node, toda cláusula de prop passa por vacuidade (BUG-72). */
+export function registerPropTemplate(id, scene) {
+  if (!scene) { _base.delete(id); return; }
+  _base.set(id, scene);
+}
 
 // Clone a prop, normalized so its height == targetH (metres), feet at y (default 0),
 // centred on (x,z) and yawed by ry. Returns the Object3D, or null if not loaded.
@@ -91,6 +99,10 @@ export function normalizeGeo(src, mtx, opts = {}) {
   g.setAttribute('position', new THREE.BufferAttribute(pullAttr(pos, 3, n), 3));
   g.setAttribute('normal', new THREE.BufferAttribute(pullAttr(src.attributes.normal, 3, n), 3));
   g.setAttribute('uv', new THREE.BufferAttribute(pullAttr(src.attributes.uv, 2, n), 2));
+  // uv1 precisa sobreviver: material com textura em canal 1 (Mini Cooper e mais 6 GLBs)
+  // sem uv1 na geometria compila shader com `uv1` não declarado (props-uv1-check).
+  const uv1 = src.attributes.uv1 || src.attributes.uv;
+  g.setAttribute('uv1', new THREE.BufferAttribute(pullAttr(uv1, 2, n), 2));
   if (opts.color) {
     const src3 = src.attributes.color;
     const c = src3 ? pullAttr(src3, 3, n) : new Float32Array(n * 3).fill(1);
@@ -228,6 +240,8 @@ export class PropBatch {
      opts.shadowMin — fracao minima de triangulos para a peca projetar sombra
      opts.tag — sufixo do cache de parts (dois mapas podem querer tweaks diferentes) */
   constructor(opts = {}) { this.opts = opts; this.bucket = opts.bucket || 0; this.by = new Map(); }
+  /* opts.cortes = { id: metros } — o lote daquele prop some além da distância. É POR ID
+     porque grama a 45 m não se vê e carro a 45 m sim: corte global faria o mapa piscar. */
   /* Mesma assinatura de placeProp + `color` (hex) para pintura por instancia.
      Retorna false se o GLB nao carregou — o chamador cai no fallback dele, igual antes. */
   add(id, { x = 0, y = 0, z = 0, targetH = 2.4, targetLen = 0, ry = 0, color = null } = {}) {
@@ -279,6 +293,16 @@ export class PropBatch {
           im.castShadow = this.opts.cast !== false && part.cast !== false; im.receiveShadow = true;
           im.frustumCulled = PROP_CULL;
           im.computeBoundingSphere();
+          const corte = this.opts.cortes?.[id] || 0;
+          if (corte) {
+            // o raio do bloco entra na conta: o corte é da PEÇA mais próxima, não do centro
+            const c = im.geometry.boundingSphere;
+            let cx = 0, cz = 0;
+            for (const p of items) { cx += p.x; cz += p.z; }
+            im.userData.corte = corte + (this.bucket || 0) * 0.71 + (c ? c.radius : 0);
+            im.userData.corteX = cx / items.length; im.userData.corteZ = cz / items.length;
+            (root.userData.__cortes || (root.userData.__cortes = [])).push(im);
+          }
           root.add(im);
         }
       }
@@ -333,4 +357,21 @@ export function memoTex(fn) {
     if (t === undefined) { t = fn(...a); cache.set(k, t); }
     return t;
   };
+}
+
+/* Corte por distância dos lotes que pediram (PropBatch `opts.cortes`). Roda uma vez por
+   quadro DESENHADO; é um laço sobre algumas dezenas de malhas, sem alocar nada. */
+export function atualizaCortes(root, camX, camZ) {
+  const lista = root && root.userData.__cortes;
+  if (!lista) return 0;
+  const f = corteVegetacao();
+  let ocultos = 0;
+  for (const im of lista) {
+    const dx = im.userData.corteX - camX, dz = im.userData.corteZ - camZ;
+    const lim = im.userData.corte * f;
+    const dentro = (dx * dx + dz * dz) <= lim * lim;
+    if (im.visible !== dentro) im.visible = dentro;
+    if (!dentro) ocultos++;
+  }
+  return ocultos;
 }

@@ -1,0 +1,247 @@
+/* TRANSPORTE DE REDE. WebSocket puro atrás de uma interface pequena (trocável por
+   WebTransport). Daqui só sai INPUT. Nós por região e ping: docs/MULTIPLAYER.md. */
+
+/* NÓS OFICIAIS. Cada um é um processo do servidor numa região. Acrescentar região é
+   acrescentar uma linha aqui e subir a VM com o mesmo script de deploy. */
+// Registro de nós em nos.js: a página de convite do site lê a MESMA lista.
+export { NOS, parseConvite, linkDeConvite, httpDoNo, NO_RE, ordenarNos, FAIXA_PING_MS, melhorNoParaJogar, TETO_COMPANHIA_MS } from './nos.js';
+import { NOS } from './nos.js';
+import { decodeSnapshot, MAX_SNAPSHOT_BYTES, SNAPSHOT_PROTOCOLS } from './netcodec.js';
+import { TransporteWS, TransporteWT } from './transporte.js';
+
+export const resolvePlayerSide = (team, faction, online) =>
+  online ? (team === 'B' ? 'B' : 'E') : (faction === 'B' ? 'B' : 'E');
+
+export async function transitionSlot(m, meta, current, validChar, remount) {
+  const next = { ...current, spectator: !!m.espectador };
+  if (!next.spectator && (m.yourTeam === 'E' || m.yourTeam === 'B')) {
+    next.team = m.yourTeam;
+    next.faction = next.team === 'B' ? meta.faccaoB : meta.faccaoE;
+    next.enemyFaction = next.team === 'B' ? meta.faccaoE : meta.faccaoB;
+    const corpo = (meta.roster || []).find((r) => r.id === m.yourEnt);
+    if (corpo && validChar(corpo.char)) next.char = corpo.char;
+  }
+  await remount(next);
+  return next;
+}
+
+// URLs de lobby e jogo a partir do menu/URL: '1' = local, 'host:porta', ou 'wss://...'
+export function mpUrls(v) {
+  const host = (typeof location !== 'undefined' && location.hostname) || 'localhost';
+  if (/^wss?:\/\//.test(v)) {
+    const wsBase = v.replace(/\/ws.*$/, '');
+    return { http: wsBase.replace(/^ws/, 'http'), ws: wsBase + '/ws' };
+  }
+  const hp = v === '1' ? `${host}:8787` : v;
+  return { http: `http://${hp}`, ws: `ws://${hp}/ws` };
+}
+
+const j = async (url, opt) => {
+  const r = await fetch(url, { cache: 'no-store', ...opt });
+  if (!r.ok) throw new Error(`http_${r.status}`);
+  return r.json();
+};
+export const listRooms = (httpBase) => j(`${httpBase}/rooms`).then((x) => x.rooms || []);
+// Uma sala pelo código do convite. 404 vira null: sala que acabou não é erro, é sala que acabou.
+export const salaPorConvite = (httpBase, codigo) =>
+  j(`${httpBase}/sala/${encodeURIComponent(codigo)}`).then((x) => x.sala).catch(() => null);
+export const listMaps = (httpBase) => j(`${httpBase}/maps`).then((x) => x.maps || []);
+export const health = (httpBase) => j(`${httpBase}/health`);
+export const createRoom = (httpBase, cfg, ticket = '') => j(`${httpBase}/rooms`, {
+  method: 'POST', headers: { 'content-type': 'application/json', ...(ticket ? { authorization: `Bearer ${ticket}` } : {}) }, body: JSON.stringify(cfg),
+});
+
+/* Sonda TODOS os nós em paralelo e devolve cada um com ping e lotação. É a coluna de ping do
+   server browser — sem ela o jogador não tem como saber que o nó da Europa é o dele. Nó que
+   não responde volta com ping null e NÃO some da lista: sumir esconde a queda do servidor. */
+// Prazo que só anda quando o navegador dá a vez: thread travada não pode consumi-lo.
+// `setTimeout` mede relógio de parede e derrubava a sonda inteira no boot — BUG-169.
+const PASSO_MS = 100;
+export function prazoAcordado(ms, aoEstourar) {
+  let resta = ms, antes = performance.now();
+  const id = setInterval(() => {
+    const agora = performance.now(), dt = agora - antes;
+    antes = agora;
+    // tique muito mais longo que o passo é tempo CONGELADO: cobra-se o passo, não o relógio
+    resta -= Math.min(dt, PASSO_MS * 2);
+    if (resta <= 0) { clearInterval(id); aoEstourar(); }
+  }, PASSO_MS);
+  return () => clearInterval(id);
+}
+
+export async function sondarNos(nos = NOS, timeoutMs = 2500, amostras = 2) {
+  return Promise.all(nos.map(async (no) => {
+    const { http } = mpUrls(no.url);
+    const ctrl = new AbortController();
+    const cancelaPrazo = prazoAcordado(timeoutMs, () => ctrl.abort());
+    // Amostra que chegou não se apaga: a 1ª paga DNS+TLS e, se estourava o prazo da 2ª, o nó
+    // que RESPONDEU aparecia fora do ar — os três juntos, em rede lenta (BUG-166).
+    let h = null, ping = 0;
+    try {
+      const n = Math.max(1, Math.min(3, amostras | 0));
+      for (let i = 0; i < n; i++) {
+        const t0 = performance.now();
+        const r = await j(`${http}/health`, { signal: ctrl.signal });
+        h = r; ping = performance.now() - t0;   // a última que chegou é a mais quente
+      }
+    } catch { /* a amostra que faltou não apaga a que veio */ }
+    finally { cancelaPrazo(); }
+    if (!h) return { ...no, http, ping: null, online: false, jogadores: 0, salas: 0 };
+    return { ...no, http, ticketNode: h.regiao || no.id, ping: Math.round(ping), online: true, jogadores: h.players | 0, salas: h.rooms | 0 };
+  }));
+}
+
+export class NetClient {
+  constructor(url, { nome = null, room = null, codigo = null, pw = '', team = 'auto', ticket = '', wt = '', wtHashes = null } = {}) {
+    // `sp` leva o subprotocolo para o gateway: quem escolhe a versão do snapshot é quem
+    // vai decodificá-la, e no caminho WebTransport não existe handshake para negociar
+    const qs = new URLSearchParams({ team, ...(codigo ? { codigo } : room ? { room } : {}), ...(pw ? { pw } : {}), ...(nome ? { nome } : {}), ...(ticket ? { ticket } : {}) });
+    this.url = `${url}${url.includes('?') ? '&' : '?'}${qs}`;
+    this.wtUrl = wt ? `${wt}${wt.includes('?') ? '&' : '?'}${qs}&sp=${encodeURIComponent(SNAPSHOT_PROTOCOLS[0])}` : '';
+    this.wtHashes = wtHashes;
+    this.tp = null;
+    this.connected = false;
+    // `ws` continua legível (overlay de rede, réguas, sonda): é o socket de VERDADE, mas
+    // ninguém mais fala com ele — quem fala é o transporte.
+    Object.defineProperty(this, 'ws', { get: () => this.tp?.ws || null, configurable: true });
+    this.yourEnt = null;     // id do combatente que ESTE cliente controla (null = espectador)
+    this.yourTeam = null;
+    this.espectador = true;
+    // welcome (meta) + os dois últimos snapshots, que é o que a interpolação consome.
+    this.meta = null;
+    this.snap = null;
+    this.events = [];   // lotes `ev` (tick, t, list) — ver netgame._drenar
+    this.prev = null;
+    this.seq = 0;
+    this.onWelcome = null; this.onSnapshot = null; this.onSlot = null; this.onPartida = null; this.onClose = null;
+    // ── diagnóstico de rede (overlay do jogo) ──
+    this.stats = { hz: 0, kbps: 0, gapMax: 0, sinceLast: 0, ents: 0, tick: 0, ping: 0, snaps: 0, bytes: 0 };
+    this._snapT = []; this._byteT = []; this._lastSnapT = 0;
+    this._pingTimer = null;
+  }
+
+  computeStats() {
+    const now = performance.now(), cut = now - 1000;
+    while (this._snapT.length && this._snapT[0] < cut) this._snapT.shift();
+    while (this._byteT.length && this._byteT[0].t < cut) this._byteT.shift();
+    this.stats.hz = this._snapT.length;
+    this.stats.kbps = this._byteT.reduce((s, x) => s + x.b, 0) / 1024;
+    this.stats.sinceLast = this._lastSnapT ? now - this._lastSnapT : 0;
+    return this.stats;
+  }
+
+  /* RTT medido no PRÓPRIO canal do jogo (ping/pong pelo WS). O módulo antigo media por
+     `fetch /health`: outra conexão, outro caminho, sem a fila do WebSocket — dava um número
+     bonito e errado, justamente quando o socket estava congestionado (que é quando importa). */
+  startPing(intervalMs = 1500) {
+    if (this._pingTimer) return;
+    const bate = () => { this.tp?.enviar(JSON.stringify({ type: 'ping', t: performance.now() })); };
+    bate();
+    this._pingTimer = setInterval(bate, intervalMs);
+  }
+  stopPing() { if (this._pingTimer) { clearInterval(this._pingTimer); this._pingTimer = null; } }
+
+  /* NEGOCIAÇÃO DE TRANSPORTE. WebSocket continua o PADRÃO: o datagrama só vira padrão
+     depois que o canário provar, e até lá quem pede é `?wt=`. Prazo curto e queda em
+     SILÊNCIO — um gateway fora do ar não pode virar "o jogo não abre". */
+  async connect(timeoutMs = 8000) {
+    if (this.wtUrl && typeof WebTransport === 'function') {
+      try {
+        return await this._conectar(timeoutMs, () => new TransporteWT(this.wtUrl, { hashes: this.wtHashes }));
+      } catch (e) {
+        this.tp = null; this.connected = false;
+        try { console.info('[net] WebTransport falhou, caindo para WebSocket:', e?.message || e); } catch { /* console mudo */ }
+      }
+    }
+    return this._conectar(timeoutMs, () => new TransporteWS(this.url));
+  }
+
+  _conectar(timeoutMs, fabrica) {
+    return new Promise((resolve, reject) => {
+      let done = false;
+      /* Welcome tem PRAZO: um nó que aceita o TCP e nunca responde deixava o connect()
+         pendente pra sempre — sem erro, sem mensagem, o clique em ENTRAR "não fazia nada"
+         (BUG-88). Régua: tools/eval/netcode-check.mjs. */
+      const prazo = Number.isFinite(timeoutMs)
+        ? setTimeout(() => { if (!done) { done = true; this.tp?.fechar(); reject(new Error('timeout')); } }, timeoutMs)
+        : null;
+      const assenta = (fn, v) => { if (done) return; done = true; if (prazo) clearTimeout(prazo); fn(v); };
+      try {
+        this.tp = fabrica();
+        this.tp.abrir({
+          aberto: () => { this.connected = true; },
+          erro: (e) => assenta(reject, e),
+          fechado: () => { this.connected = false; this.onClose?.(); assenta(reject, new Error('closed')); },
+          mensagem: (dados, binario, bytes) => trata(dados, binario, bytes),
+        });
+      } catch (e) { assenta(reject, e); return; }
+      const trata = (dados, binary, bytes) => {
+        let m;
+        try { m = binary ? decodeSnapshot(dados) : JSON.parse(dados); }
+        catch { if (binary) this.tp.fechar(1002, 'snapshot_invalid'); return; }
+        if (m.type === 'welcome') {
+          this.meta = m; this.yourEnt = m.yourEnt; this.yourTeam = m.yourTeam; this.espectador = !!m.espectador;
+          this.onWelcome?.(m);
+          assenta(resolve, m);
+        } else if (m.type === 'error') {
+          assenta(reject, new Error(m.error || 'erro'));
+        } else if (m.type === 'pong') {
+          this.stats.ping = performance.now() - m.t;
+        } else if (m.type === 'partida') {
+          // o servidor girou o mapa: meta NOVA (roster, ids, mapa, facções) + o seu slot (BUG-112)
+          this.meta = m; this.yourEnt = m.yourEnt; this.yourTeam = m.yourTeam; this.espectador = !!m.espectador;
+          this.snap = null; this.prev = null;   // snapshots do jogo velho não servem para o novo
+          this.events.length = 0;               // eventos do jogo velho idem
+          this.onPartida?.(m);
+        } else if (m.type === 'slot') {
+          // entrou em campo / virou espectador (o servidor confirma; a UI nunca decide sozinha)
+          this.yourEnt = m.yourEnt; this.yourTeam = m.yourTeam; this.espectador = !!m.espectador;
+          this.onSlot?.(m);
+        } else if (m.type === 'ev') {
+          // eventos do servidor (acerto/abate com autor): texto, drenados pelo netgame no tick deles
+          if (Array.isArray(m.list) && Number.isInteger(m.tick)) {
+            this.events.push({ tick: m.tick, t: m.t, list: m.list.slice(0, 32) });
+            if (this.events.length > 256) this.events.splice(0, this.events.length - 256);
+            this.stats.evs = (this.stats.evs || 0) + 1;
+          }
+        } else if (m.type === 'snapshot') {
+          this.prev = this.snap; this.snap = m;
+          const now = performance.now();
+          this.stats.tick = m.tick | 0; this.stats.ents = (m.ents && m.ents.length) || 0;
+          if (this._lastSnapT) { const gap = now - this._lastSnapT; this.stats.gapMax = Math.max(gap, this.stats.gapMax * 0.92); }
+          this._lastSnapT = now;
+          this._snapT.push(now); this._byteT.push({ t: now, b: bytes });
+          this.stats.snaps++; this.stats.bytes += bytes;
+          this.onSnapshot?.(m);
+        }
+      };
+    });
+  }
+
+  // input compacto — o servidor sanitiza tudo de novo (cliente = território inimigo).
+  sendInput(inp) {
+    if (!this.tp?.pronto) return 0;
+    const seq = ++this.seq;
+    // INPUT tolera perda (o próximo comando corrige): é o primeiro candidato a datagrama
+    this.tp.enviarInseguro(JSON.stringify({ type: 'input', seq, ...inp }));
+    return seq;   // netgame ancora a pose predita no mesmo input que o servidor reconhece no v4
+  }
+  // Amostra de EXPERIÊNCIA do cliente (não autoridade): FPS só existe no navegador.
+  // O nó valida/taxa e junta isto à sessão autoritativa de sala para o painel interno.
+  sendClientStats(sample) {
+    this.tp?.enviar(JSON.stringify({ type: 'client_stats', ...sample }));
+  }
+  // pedir vaga num time ('E' | 'B' | 'auto'); o servidor responde com `slot`.
+  pedirTime(team = 'auto') { this.tp?.enviar(JSON.stringify({ type: 'time', team })); }
+  // sair de campo e assistir: o corpo volta a ser bot e a partida segue cheia.
+  espectar() { this.tp?.enviar(JSON.stringify({ type: 'espectar' })); }
+
+  close() {
+    this.stopPing();
+    if (!this.tp) return;
+    // O close handshake do navegador pode demorar; avisa o nó antes para devolver o slot
+    // humano imediatamente e não deixar Rubao fantasma no lobby até o timeout de 45 s.
+    this.tp.enviar(JSON.stringify({ type: 'leave' }));
+    this.tp.fechar(1000, 'client_quit');
+  }
+}

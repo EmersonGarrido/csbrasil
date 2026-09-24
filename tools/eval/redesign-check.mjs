@@ -74,6 +74,7 @@ const alvoPorMutante = {
   'hud-sem-vinheta-baixa': 'UIR24',
   'killfeed-volta-svg': 'UIR25',
   'modo-volta-setup': 'UIR26',
+  'ctf-some-home': 'UIR26',
   'personagem-dificuldade-volta': 'UIR27',
   'punk-avatar-nao-auditado': 'UIR28',
   'perfil-volta-iniciais': 'UIR29',
@@ -102,10 +103,17 @@ if (MUTANTE && !alvoPorMutante[MUTANTE]) {
 }
 
 let main = readFileSync(join(ROOT, 'public/js/main.js'), 'utf8');
+/* O catálogo dos mapas (categoria/autoria/data) saiu do main.js para o mapcat.js quando o
+   servidor de multiplayer passou a precisar do MESMO recorte oficial/comunidade — main.js é
+   código de tela e não sobe fora do navegador. As cobranças abaixo seguem as mesmas, só
+   apontam para onde a tabela mora agora. */
+let mapcat = readFileSync(join(ROOT, 'public/js/mapcat.js'), 'utf8');
 let css = readFileSync(join(ROOT, 'public/style.css'), 'utf8');
 let i18n = readFileSync(join(ROOT, 'public/js/i18n.js'), 'utf8');
 let astro = readFileSync(join(ROOT, 'src/pages/index.astro'), 'utf8');
-let mapPlaysApi = readFileSync(join(ROOT, 'src/pages/api/map-plays.ts'), 'utf8');
+/* A rota /api/map-plays saiu deste repositório (ver docs/APIS.md). O que ela faz por dentro
+   agora é cobrado no backend; aqui fica o que é do CLIENTE: que a tela chame a rota e aguente
+   a resposta não chegar. */
 const characters = readFileSync(join(ROOT, 'public/js/characters.js'), 'utf8');
 let videoGenerator = readFileSync(join(ROOT, 'tools/eval/char-native-vids.mjs'), 'utf8');
 let game = readFileSync(join(ROOT, 'public/js/game.js'), 'utf8');
@@ -217,7 +225,7 @@ main = muta('mapa-esconde-um', main,
   "return mapCategory === 'TODOS' ? MAP_IDS : MAP_IDS.filter((id) => MAP_CAT[id] === mapCategory);",
   "return mapCategory === 'TODOS' ? MAP_IDS.slice(0, -1) : MAP_IDS.filter((id) => MAP_CAT[id] === mapCategory);");
 main = muta('mapa-sem-miniaturas', main,
-  '`<img class="ms-thumb-img" src="/img/map-previews/${id}.jpg?v=${VERSION}" alt="">` +',
+  '`<span class="ms-thumb-media"><img class="ms-thumb-img" loading="lazy" decoding="async" src="${mapPreviewPoster(id, VERSION)}" alt=""></span>` +',
   "'' +");
 main = muta('mapa-navega-global', main,
   "$('ms-next').onclick = () => stepMap(1, visibleMapIds());",
@@ -245,7 +253,8 @@ main = muta('mapa-plays-inventado', main,      // zero vira "0 partidas" em vez 
 main = muta('mapa-todos-sem-ranking', main,    // TODOS deixa de ordenar por partidas jogadas
   'return MAP_IDS.slice().sort((a, b) => playsDe(b) - playsDe(a) || MAP_IDS.indexOf(a) - MAP_IDS.indexOf(b));',
   'return MAP_IDS.slice();');
-mapPlaysApi = muta('mapa-plays-sem-guarda', mapPlaysApi,   // sem banco, a rota passa a estourar
+// (mutante 'mapa-plays-sem-guarda' foi junto com a rota, para o backend)
+const _mapPlaysApiRemovido = muta('mapa-plays-sem-guarda', '',   // sem banco, a rota passa a estourar
   '  if (!supabaseAdmin) return resposta({ plays: {} });',
   '  // guarda removida');
 css = muta('mapa-card-achatado', css,          // volta ao px fixo: o card deixa de ser quadrado
@@ -347,6 +356,7 @@ css = muta('hud-sem-vinheta-baixa', css,
 game = muta('killfeed-volta-svg', game,
   '${this._killfeedWeaponIcon(weap)}',
   '${this._wpnIcon(weap)}');
+astro = muta('ctf-some-home', astro, 'data-act="ctf"', 'data-act="ctf-removido"');
 main = muta('modo-volta-setup', main,
   "case 'sp':    openModeMap('rounds', 'MATA-MATA', 'sp'); break;",
   "case 'sp':    openSetup('rounds', 'MATA-MATA', 'sp'); break;");
@@ -615,9 +625,9 @@ const previewPausa = /id !== 'char-select'[\s\S]{0,60}pvStopVideo\(\)/.test(func
   && /function pvStopVideo\(\)[\s\S]{0,180}video\.pause\(\)/.test(main);
 const strip = (css.match(/\.ms-strip\{([^}]*)\}/) || [])[1] || '';
 const fundoMapa = (css.match(/\.ms-bg\{([^}]*)\}/) || [])[1] || '';
-const autoriaNaFicha = /const MAP_AUTOR = \{/.test(main)
-  && /const MAP_DATA = \{/.test(main)
-  && /const AUTOR_CASA = 'Ruben Marcus';/.test(main)
+const autoriaNaFicha = /const MAP_AUTOR = \{/.test(mapcat)
+  && /const MAP_DATA = \{/.test(mapcat)
+  && /const AUTOR_CASA = 'Ruben Marcus';/.test(mapcat)
   && /const byline = \$\('ms-byline'\);/.test(funcMap)
   && /\$\{autorDe\(currentMap\)\}<\/strong> · \$\{MAP_DATA\[currentMap\] \|\| ''\}/.test(funcMap)
   && /ms-badge-oficial/.test(funcMap)
@@ -626,11 +636,15 @@ const autoriaNaFicha = /const MAP_AUTOR = \{/.test(main)
   // agora guarda a AUSÊNCIA dele (marcação morta é lixo que confunde quem lê — achado do #368).
   && !/ms-authors/.test(astro)
   && !/ms-authors/.test(main)
+  && !/ms-authors/.test(mapcat)
   && !/ms-authors/.test(css);
 const mapaReferencia = /const shown = visibleMapIds\(\);/.test(funcMap)
-  && /ferro_velho: \['ARENA'\], quebrada: \['FAVELA'\]/.test(main)
-  && /piscina_treta: \['ARENA', 'COMUNIDADE'\], posto_treta: \['ARENA', 'COMUNIDADE'\], atacadao_treta: \['ARENA', 'COMUNIDADE'\]/.test(main)
-  && /const catsDe = \(id\) => MAP_CATS\[id\] \|\| \['ARENA'\];/.test(main)
+  && /ferro_velho: \['ARENA'\], quebrada: \['FAVELA'\]/.test(mapcat)
+  && /piscina_treta: \['ARENA', 'COMUNIDADE'\], posto_treta: \['ARENA', 'COMUNIDADE'\], atacadao_treta: \['ARENA', 'COMUNIDADE'\]/.test(mapcat)
+  && /const catsDe = \(id\) => MAP_CATS\[id\] \|\| \['ARENA'\];/.test(mapcat)
+  /* main.js consome do catálogo em vez de guardar uma segunda cópia: duas tabelas fariam a
+     sala oficial do multiplayer sortear um mapa que a tela chama de comunidade. */
+  && /import \{[^}]*MAP_CATS[^}]*\} from '\.\/mapcat\.js';/.test(main)
   /* TODOS voltou a ser o acervo INTEIRO (21/08) e ordena por partidas jogadas; OFICIAIS
      virou aba própria. Sem o desempate por índice a lista dança entre renders. */
   && /if \(mapCategory === 'TODOS'\) \{[\s\S]{0,220}playsDe\(b\) - playsDe\(a\) \|\| MAP_IDS\.indexOf\(a\) - MAP_IDS\.indexOf\(b\)/.test(main)
@@ -638,11 +652,10 @@ const mapaReferencia = /const shown = visibleMapIds\(\);/.test(funcMap)
   && /return MAP_IDS\.filter\(\(id\) => catsDe\(id\)\.includes\(mapCategory\)\)/.test(main)
   /* a estatística sai do contador REAL (picks_daily via /api/pick), nunca de número local,
      e a tela tem de abrir sem ela: rede caída não pode derrubar a escolha de mapa. */
-  && /fetch\('\/api\/map-plays'\)/.test(main)
+  && /fetch(?:ComRetry)?\(apiUrl\('\/api\/map-plays'\)\)/.test(main)   // com retry no cold start (06/09), a mesma rota
   && /let mapPlays = \{\};/.test(main)
   && /\.catch\(\(\) => \{ \/\* sem banco\/rede/.test(main)
-  && /\.from\('picks_daily'\)[\s\S]{0,120}\.eq\('kind', 'mapa'\)/.test(mapPlaysApi)
-  && /if \(!supabaseAdmin\) return resposta\(\{ plays: \{\} \}\);/.test(mapPlaysApi)
+
   /* zero partidas é AUSÊNCIA de medida, não medida de zero: o crachá some em vez de mentir */
   && /plays\.hidden = !n;/.test(funcMap)
   && /function stepMap\(dir, ids = MAP_IDS\)/.test(main)
@@ -656,7 +669,7 @@ const mapaReferencia = /const shown = visibleMapIds\(\);/.test(funcMap)
   && /\$\('ms-strip'\)\.innerHTML = shown\.map\(\(id\) =>/.test(funcMap)
   && /\$\('ms-strip'\)\.style\.setProperty\('--map-count', shown\.length\)/.test(funcMap)
   && /aria-pressed="\$\{id === currentMap\}"/.test(funcMap)
-  && /<img class="ms-thumb-img" loading="lazy" decoding="async" src="\/img\/map-previews\/\$\{id\}\.jpg\?v=\$\{VERSION\}" alt="">/.test(funcMap)
+  && /<img class="ms-thumb-img" loading="lazy" decoding="async" src="\$\{mapPreviewPoster\(id, VERSION\)\}" alt="">/.test(funcMap)
   && /id="ms-tabs"/.test(astro) && /id="ms-prev"/.test(astro) && /id="ms-next"/.test(astro)
   && /id="ms-dashes"/.test(astro) && /class="ms-carousel"/.test(astro)
   // As três abas: TODOS (acervo inteiro, por partidas), OFICIAIS e COMUNIDADE. O #368
@@ -753,7 +766,12 @@ const resultadoEstatico = /--me-art/.test(game)
   && !/video\/resultado|meVideo/.test(game)
   && !/id="me-video"/.test(astro)
   && !/\.me-hero video/.test(css)
-  && /if \(charId\) \{ this\.playerDef = byId\(charId\); this\.playerCharId = charId; p\.def = this\.playerDef; \}/.test(game);
+  /* A troca de lado tem de RESSINCRONIZAR a identidade (playerDef, playerCharId e p.def)
+     — é ela que faz o resultado apontar para a arte do personagem ATUAL (BUG-168).
+     Aqui se mede a sincronia, não o texto: a versão anterior colava a linha inteira
+     (`if (charId) { this.playerDef = byId(charId); ... }`) e ficou vermelha sozinha
+     quando o guarda ganhou reserva de facção, sem que nada do contrato mudasse. */
+  && /_switchTeam\(charId\)[\s\S]{0,900}?this\.playerDef =[\s\S]{0,400}?this\.playerCharId = this\.playerDef\.id;[\s\S]{0,200}?p\.def = this\.playerDef;/.test(game);
 const loadingWallpaper = /const loadingWallUrl = \(i\) =>/.test(main)
   && /_lo\.box\.style\.setProperty\('--loading-wall', loadingWallUrl\(_loadWallI\+\+\)\)/.test(main)
   && /splash\.style\.setProperty\('--loading-wall', loadingWallUrl\(_wallK\)\)/.test(main)
@@ -822,11 +840,19 @@ const killfeedArma2D = /_killfeedWeaponIcon\(short\) \{/.test(game)
   && /\.kf-weapon-mask\{[^}]*background:currentColor[^}]*mask:var\(--weapon-mask\) center\/contain no-repeat/.test(css)
   && /\.kf-weapon-2d:has\(\.kf-weapon-mask\) \.kf-fallback\{display:none\}/.test(css);
 const funcAttrs = blocoFuncao(main, 'renderCharAttrs');
-const modoMapaPadrao = /<button class="cs-item cs-sub-item" data-act="sp"[^>]*>[\s\S]*?MATA-MATA<\/button>/.test(astro)
+/* Multiplayer abre direto. Single Player abre seu submenu, que contém os dois modos locais.
+   O relato de 06/09 confirmou que CTF não pode virar uma terceira entrada solta na home.
+   O mutante ctf-some-home remove o acesso do submenu. */
+const modoMapaPadrao = /<button class="cs-item cs-prime" data-act="mp"[^>]*>[\s\S]*?MULTIPLAYER[\s\S]*?<\/button>\s*\n\s*<button class="cs-item cs-prime" data-act="single-player"[^>]*>[\s\S]*?SINGLE PLAYER[\s\S]*?<\/button>/.test(astro)
+  && /<button class="cs-item cs-prime" data-act="single-player"[^>]*aria-controls="cs-modos"[^>]*>[\s\S]*?SINGLE PLAYER[\s\S]*?<\/button>\s*\n\s*<div class="cs-sub" id="cs-modos" hidden>[\s\S]*?<button class="cs-item cs-sub-item" data-act="sp"[^>]*>[\s\S]*?MATA-MATA[\s\S]*?<\/button>[\s\S]*?<button class="cs-item cs-sub-item" data-act="ctf"[^>]*>[\s\S]*?CAPTURE A BANDEIRA[\s\S]*?<\/button>[\s\S]*?<\/div>/.test(astro)
   && !/>ABATE<\/button>/.test(astro)
+  && /function toggleModeMenu\(\) \{[\s\S]{0,160}modeMenu\.hidden = !open;[\s\S]{0,160}singlePlayerButton\.setAttribute\('aria-expanded', String\(open\)\);/.test(main)
+  && /case 'single-player': toggleModeMenu\(\); break;/.test(main)
   && /function openModeMap\(mode, title, act\) \{[\s\S]{0,180}openSetup\(mode, title, act\);[\s\S]{0,100}renderMapScreen\(\);[\s\S]{0,80}show\('map-screen'\);/.test(main)
   && /case 'sp':\s+openModeMap\('rounds', 'MATA-MATA', 'sp'\); break;/.test(main)
-  && /case 'ctf':\s+openModeMap\('ctf', 'CAPTURE THE FLAG', 'ctf'\); break;/.test(main);
+  && /case 'ctf':\s+openModeMap\('ctf', 'CAPTURE THE FLAG', 'ctf'\); break;/.test(main)
+  // o modo continua alternável pelo jogador, senão o CTF vira inalcançável ao sair do menu
+  && /matchMode = matchMode === 'ctf' \? 'rounds' : 'ctf';/.test(main);
 const personagemSemDificuldade = !!funcAttrs && !/attr-dif|DIFICULDADE|undefined/.test(funcAttrs);
 const perfilComAvatar = /const PLAYER_AVATAR_KEY = 'awpbr_player_avatar'/.test(main)
   && /function fallbackPlayerAvatar\(seed\)[\s\S]{0,420}\/img\/chars\/avatars\/\$\{character\.id\}\.webp/.test(main)
@@ -987,7 +1013,7 @@ const resultados = [
     'vida e munição 42px; nome 11px; vinheta e vermelho crítico medidos na tela 05'],
   ['UIR25', 'killfeed usa a mesma silhueta 2D alfa da arma que realizou o abate', killfeedArma2D,
     'short da arma resolve o WebP publicado; máscara monocromática substitui o SVG no evento real'],
-  ['UIR26', 'Mata-mata e CTF entram pela seleção de mapas em tela cheia', modoMapaPadrao,
+  ['UIR26', 'Single Player abre o submenu de mata-mata e CTF; os dois modos entram pela seleção de mapas', modoMapaPadrao,
     'os dois modos preservam seu estado no setup e abrem a tela 04 antes de facção/personagem'],
   ['UIR27', 'ficha do personagem não inventa dificuldade sem contrato', personagemSemDificuldade,
     'renderCharAttrs publica somente VIDA, VELOCIDADE, PRECISÃO e MEME; nenhum undefined'],

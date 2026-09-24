@@ -125,8 +125,9 @@ try {
       novo = `void testMode;\n${novo}`;
       mutacaoAplicou = true;
     } else {
-      const inicioPartida = 'async function _startGame(team, charId, enemyFaction) {';
-      novo = novo.replace(inicioPartida, `${inicioPartida}\n  throw new Error('SEGREDO_BOOT_CHECK');`);
+      // ancorado no NOME: a lista de parâmetros já mudou uma vez (#489, `online = false`) e cegou a régua
+      const inicioPartida = /async function _startGame\([^)]*\) \{/;
+      novo = novo.replace(inicioPartida, (m) => `${m}\n  throw new Error('SEGREDO_BOOT_CHECK');`);
       novo = novo.replace("if (testMode && params.get('auto'))", "if (params.get('auto'))");
       if (!novo.includes("throw new Error('SEGREDO_BOOT_CHECK')") || novo === corpo)
         throw new Error('fixture de falha não aplicou em main.js');
@@ -240,7 +241,17 @@ try {
     if (b3 && b4) {
       const debug = await context.newPage();
       await debug.goto(`${BASE}/?debug=1`, { waitUntil: 'domcontentloaded', timeout: 120000 });
-      await debug.evaluate(() => console.error(new Error('DETALHE_DEBUG_BOOT_CHECK')));
+      /* Injeção em callback de TIMER, não direto no evaluate: a stack de erro criado
+         direto em page.evaluate carrega os frames do UtilityScript do Playwright, e o
+         corte de arnês de automação (BUG-151, merge #587) classifica esses frames como
+         externos DE PROPÓSITO — arnês apontado para produção não é defeito do jogo.
+         Erro de quem depura de verdade (console do navegador) nunca carrega esses
+         frames; callback de setTimeout agendado pelo evaluate também não (medido:
+         "at eval (eval at evaluate…)" sem UtilityScript), e é esse o formato de erro
+         que o painel ?debug=1 promete exibir. Sem isto o B5 falha desde o #587. */
+      await debug.evaluate(() => new Promise((resolve) => {
+        setTimeout(() => { console.error(new Error('DETALHE_DEBUG_BOOT_CHECK')); resolve(); }, 0);
+      }));
       await debug.waitForTimeout(100);
       const painel = await debug.locator('#crash-overlay').textContent().catch(() => '');
       b5 = /DEBUG \(console\)/.test(painel || '') && /DETALHE_DEBUG_BOOT_CHECK/.test(painel || '');
@@ -272,9 +283,9 @@ try {
     await jornada.locator('#boot-splash').dispatchEvent('pointerdown');
     await jornada.waitForTimeout(3100);
     const entradaOk = await jornada.locator('#launch-error').evaluate((el) => el.classList.contains('hidden'));
-    await jornada.locator('.cs-item[data-act="jogar"]').click();
-    await jornada.locator('#cs-modos:not([hidden])').waitFor();
-    await jornada.locator('.cs-item[data-act="sp"]').click();
+    // SINGLE PLAYER abre os modos contra bots; Mata-mata inicia a jornada padrão.
+    await jornada.locator('.cs-item[data-act="single-player"]').click();
+    await jornada.locator('.cs-item[data-act="sp"]:visible').click();
     await jornada.evaluate(() => {
       const nick = document.getElementById('nick-input');
       nick.value = 'BOOT_CHECK';
