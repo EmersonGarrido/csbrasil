@@ -1026,9 +1026,8 @@ export class Game {
       this._vmFlashLight.position.set(0.1, -0.06, -0.75);   // boca do cano em view space (pose GAUNTLET 2.0)
       this.vmScene.add(this._vmFlashLight);
       this._vmFlash = { t: 1, life: 0.045, peak: 1.6 };
-      // Clarão dos tiros configurável pelo jogador (relato 21/09: "algumas armas soltam
-      // um flash cada vez que voce atira, isso atrapalha demais"). Fatores medidos no
-      // dev.html. Régua: eval:fxFlash. spark/smoke não entram — o relato é do CLARÃO.
+      // Clarão dos tiros por opção do jogador; faíscas e fumaça ficam de fora (BUG-174).
+      // Fatores medidos no dev.html. Régua: eval:fxFlash.
       const _fx = FX_CLARAO[this.settings.fxFlash] ?? 1;
       this._fxTune = { light: _fx, flash: _fx, spark: 1, smoke: 1 };   // multiplicadores de FX (dev.html game-backed)
     }
