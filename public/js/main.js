@@ -2662,9 +2662,9 @@ function selectChar(c, row) {
   const tagEl = $('char-faction-tag');
   // spans separados (não uma string só) pro CSS poder quebrar em 2 linhas no mobile: some o
   // "·" e joga a contagem pra linha de baixo. No desktop segue inline numa linha.
+  const nFac = CHARACTERS.filter(x => x.team === currentFaction).length;
   if (tagEl) tagEl.innerHTML = `<span class="cft-fac">${tr(FACTION_NAME[currentFaction] || '')}</span>`
-    + `<span class="cft-sep"> · </span>`
-    + `<span class="cft-count">${CHARACTERS.filter(x => x.team === currentFaction).length} ${tr('PERSONAGENS')}</span>`;
+    + `<span class="cft-sep"> · </span><span class="cft-count">${nFac} ${tr('PERSONAGENS')}</span>`;
   $('char-info-name').textContent = c.name;
   $('char-info-blurb').textContent = tr(c.blurb);
   renderCharAttrs(c);

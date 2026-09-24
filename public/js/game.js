@@ -5331,9 +5331,8 @@ export class Game {
     let _ax = (this.keys.KeyD ? 1 : 0) - (this.keys.KeyA ? 1 : 0);
     let _az = (this.keys.KeyS ? 1 : 0) - (this.keys.KeyW ? 1 : 0);
     if (this.touchMove && (this.touchMove.x || this.touchMove.z)) { _ax = this.touchMove.x; _az = this.touchMove.z; }
-    // mobile: STICK DIREITO = olhar por TAXA (gira enquanto o dedo empurra, estilo dual-stick
-    // de console). Ao contrário do arraste, o valor é velocidade angular: aplica × dt. Fica
-    // aqui, e não no _moveEntity, porque mira é do JOGADOR local — o remoto vem pela rede.
+    // mobile: stick direito olha por TAXA (velocidade angular × dt), não por delta.
+    // Mora aqui e não no _moveEntity: mira é do jogador local, o remoto vem pela rede.
     if (this.touchLook && (this.touchLook.x || this.touchLook.y) && this._acceptInput()) {
       const ls = this.settings.sens * 2.6 * dt * (p.scoped ? Math.max(0.3, this.camera.fov / 70) : 1);
       const invY = this.settings.invertY ? -1 : 1;
