@@ -9,6 +9,7 @@ import { dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { MENU_MUSIC_ACTIVE_IDS } from '../../public/js/menu-music-selection.js';
 import { completeLajesSoundscape } from './lajes-soundscape.mjs';
+import { extendMapSoundscapes } from './extend-map-soundscapes.mjs';
 
 const RAIZ_REPO = resolve(fileURLToPath(new URL('../..', import.meta.url)));
 const arg = (nome, padrao = '') => (process.argv.find((a) => a.startsWith(`--${nome}=`)) || '').split('=').slice(1).join('=') || padrao;
@@ -416,9 +417,10 @@ const CHARACTER_IDS = [
   'bonzo', 'palhacomal', 'jozo', 'adjim', 'esbirro', 'titica', 'padati', 'padata', 'cadequinha',
   'emo', 'blackmetal', 'metaleiro', 'punk', 'skatista', 'clubber', 'rapper', 'reggae', 'pagodeiro',
   'mandrake', 'raul', 'oakley', 'criarj', 'chave', 'funkraiz', 'trapfunk', 'fluxo', 'ostentacao',
+  'lobisomem', 'mariabonita', 'lampiao', 'bandeirante', 'boto', 'zumbi', 'curupira', 'saci', 'caipora',
 ];
-const FEMALE_CHARACTERS = new Set(['doutora']);
-const CREATURE_CHARACTERS = new Set(['gotinha', 'dollynho', 'et', 'canarinho', 'proerd']);
+const FEMALE_CHARACTERS = new Set(['doutora', 'mariabonita', 'caipora']);
+const CREATURE_CHARACTERS = new Set(['gotinha', 'dollynho', 'et', 'canarinho', 'proerd', 'lobisomem', 'boto', 'curupira']);
 const physicalByCharacter = Object.fromEntries(CHARACTER_IDS.map((id) => [
   id, FEMALE_CHARACTERS.has(id) ? 'female' : (CREATURE_CHARACTERS.has(id) ? 'creature' : 'male'),
 ]));
@@ -439,6 +441,7 @@ const mapSoundscapes = completeLajesSoundscape({ mapSoundscapes: {
   ferro_velho: { loops: [loop('Environment/Wind_Loop_6.wav', .085)], shots: [shot(['Doors/Rusty_Metal_Creak_01.wav', 'Doors/Rusty_Metal_Creak_03.wav'], 18, 52, .18)] },
   quebrada: { loops: [loop('Environment/Wind_Loop_1.wav', .06)], shots: [shot(['Environment/Tree_Rustling_1-4.wav'], 24, 68, .15)] },
   corrego: { loops: [loop('Environment/Water_Stream_Moderate_1.wav', .13)], shots: [shot(['Environment/Water_Splash_1-1.wav'], 18, 48, .16)] },
+  amazonia: { loops: [loop('Environment/Water_Stream_Moderate_1.wav', .12), loop('Environment/Tree_Rustling_1-4.wav', .065)], shots: [shot(['Environment/Water_Splash_1-1.wav'], 16, 44, .15)] },
   posto_treta: { loops: [loop('Environment/Wind_Loop_1.wav', .07)], shots: [shot(['Doors/Door_Open_3-1.wav'], 34, 90, .1)] },
   upa_24h: { synth: { kind: 'indoor-hum', vol: .027 }, shots: [shot(['Doors/Door_Open_3-1.wav', 'Doors/Door_Close_3-1.wav'], 38, 95, .09)] },
   obras_prefeitura: { loops: [loop('Environment/Wind_Loop_6.wav', .085)], shots: [shot(['Environment/Rock_Impact_21.wav', 'Environment/Wood_Move_1-1.wav'], 20, 58, .14)] },
@@ -447,6 +450,7 @@ const mapSoundscapes = completeLajesSoundscape({ mapSoundscapes: {
   velho_oeste: { loops: [loop('Environment/Wind_Loop_6.wav', .09)], shots: [shot(['Environment/Wood_Move_1-1.wav', 'Environment/Wood_Move_2-1.wav'], 16, 46, .17)] },
   penitenciaria: { synth: { kind: 'indoor-hum', vol: .02 }, shots: [shot(['Doors/Rusty_Metal_Creak_01.wav', 'Doors/Rusty_Metal_Creak_03.wav'], 22, 64, .14)] },
 } }).mapSoundscapes;
+extendMapSoundscapes({ mapSoundscapes });
 /* Stingers <=1,5 s pelo catalog.json. Os Special_Interface 5/6/7 duram
    2,75–9,52 s e invadiriam a rodada. Semântica ainda depende de escuta. */
 const roundstart = seguros(['Interface/Interface_12-1.wav', 'Interface/Interface_12-4.wav']);

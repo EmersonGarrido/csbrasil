@@ -11,9 +11,26 @@ import { createFavelaAmbience, placeFauna, CORREGO_FAUNA_ASSETS, AMAZONIA_FAUNA_
 import { createSkyLife } from './skylife.js';
 import { AMB_LOOPS } from './soundscape.js';
 import { detailFor } from './textures.js';
+import { indexLajesRaycast as indexStaticRaycast } from './lajes_raycast_index.js';
 
 const QP = new URLSearchParams(typeof location !== 'undefined' ? location.search : '');
 const LOWQ = (() => { try { return JSON.parse(localStorage.getItem('awpbr_settings') || '{}').quality === 'low'; } catch (e) { return false; } })();
+
+// AMZ-R3: medium 8×8 preserva a mata e corta só sombras/distância secundárias.
+// `?amzfoliageshadow=1` restaura o controle completo no avaliador por processo.
+export function resolveAmazoniaRenderProfile(settings = {}, query = QP) {
+  const quality = settings.quality || 'med';
+  const crowdedMedium = quality === 'med' && Number(settings.bots || 4) >= 8;
+  const forceFoliageShadows = query?.get?.('amzfoliageshadow') === '1';
+  return Object.freeze({
+    quality,
+    teamSize: Number(settings.bots || 4),
+    crowdedMedium,
+    foliageShadows: quality !== 'low' && (!crowdedMedium || forceFoliageShadows),
+    foliageCutMeters: crowdedMedium && !forceFoliageShadows ? { trees:16, palms:12, grass:8 } : null,
+    fullFoliageOverride: forceFoliageShadows,
+  });
+}
 
 export const HALF_X = 32, HALF_Z = 44;
 export const AMAZONIA_AMBIENCE = Object.freeze([...CORREGO_FAUNA_ASSETS, ...AMAZONIA_FAUNA_ASSETS]);   // + jacaré/capivara e o elenco novo (este mapa baixa)
@@ -39,23 +56,26 @@ const PILA_GLB = 1.1;              // offset do molde acompanha a subida da pass
 const CASA_A = 3.0;
 const PAT_A = 1.6;
 const ESC_N = 12, ESC_PISO = 0.26;  // espelho ~0,15: 2 espelhos cabem no pé de 0,30 do corpo
+export const AMAZONIA_NAV_STEP = 3.2;
 const ESTACOES = [
-  { x: 14, z: -26, d: [-1, 0], e: -1, rede: true },   // A — pé da bandeira E
+  { x: 14, z: -27, d: [-1, 0], e: -1, rede: true },   // A — pé da bandeira E; o pino de canto
+  // (st.z+2.6) não pode cair no vão da cabeça da ponte −24 (VM14)
   { x: 25, z: -18, d: [-1, 0], e: -1 },
   { x: 14, z: -9, d: [-1, 0], e: 0, rede: true },     // C — passagem (sem escada: sobe pela rede)
   { x: 14, z: 6, d: [-1, 0], e: 1, rede: true },      // D — virada pro igarapé
   { x: 21, z: 17, d: [-1, 0], e: 1 },
   { x: 27, z: 7, d: [-1, 0], e: 1 },
-  { x: 17, z: 29, d: [-1, 0], e: -1 },
+  { x: 17, z: 29, d: [-1, 0], e: 1 },                 // B: lance abre para o respawn norte
   { x: 27, z: -7, d: [-1, 0], e: 1 },
   { x: -14, z: 6, d: [1, 0], e: -1, rede: true },     // F — cabeça oeste da travessia
-  { x: -14, z: -22, d: [1, 0], e: -1 },
-  { x: -27, z: -25, d: [1, 0], e: -1 },
+  { x: -14, z: -19, d: [1, 0], e: 1, aguaE: -1 },  // a z −22 o pé do lance (z −27..−23,9)
+  // selava a faixa norte da ponte −24 junto com o patamar: deck virava ilha (VM14)
+  { x: -27, z: -25, d: [1, 0], e: 1, aguaE: -1 },
 ];
 for (const st of ESTACOES) { st.p = [st.d[1], -st.d[0]]; }   // p = lateral esquerda de d
 /* Pranchas da rota alta (eixos alinhados): patamar→patamar/plataforma a DECK_Y. */
 const PONTES_ALTA = [
-  { ax: 9.4, az: -24.4, bx: 9.4, bz: -10.6 },   // A→C →D →M →F: a travessia alta
+  { ax: 9.4, az: -25.4, bx: 9.4, bz: -10.6 },   // A→C →D →M →F: a travessia alta; az = borda do patamar A
   { ax: 9.4, az: -7.4, bx: 9.4, bz: 4.4 },
   { ax: 7.8, az: 6, bx: 1.6, bz: 6 },
   { ax: -1.6, az: 6, bx: -7.8, bz: 6 },
@@ -195,6 +215,9 @@ if (arvoreNoAcesso) arvoreNoAcesso.z = 21.5;
 
 export function buildAmazonia(scene, T) {
   const colliders = [], occluders = [], pickups = [];
+  let storedSettings = {};
+  try { storedSettings = JSON.parse(localStorage.getItem('awpbr_settings') || '{}'); } catch (e) { /* storage bloqueado */ }
+  const renderProfile = resolveAmazoniaRenderProfile(storedSettings);
   const root = new THREE.Group();
   root.name = 'treta-na-amazonia';
   scene.add(root);
@@ -367,13 +390,23 @@ export function buildAmazonia(scene, T) {
   };
   const CS = createCabinShells({root,colliders,occluders,wallMaterial:matDeck,floorMaterial:matDeck});
   const CAIXAS_AGUA = [];
+  const PALAFITA_SUPPORTS = [];
   const estacao = (st) => {
     const [dx, dz] = st.d, [px, pz] = st.p;
     const W = (u, v) => [st.x + dx * u + px * v, st.z + dz * u + pz * v];
     const yaw = Math.atan2(-dz, dx);
     const casaChapa = (st.x === 14 && st.z === -9) || (st.x === -14 && st.z === 6);
     const cabin=CS.add(st,casaChapa);
-    if(hasProp('palafita_aberta_amazonia')&&!casaChapa) PB.add('palafita_aberta_amazonia',{x:st.x,z:st.z,y:PILA_GLB,targetH:6,ry:dx<0?0:Math.PI});
+    if(hasProp('palafita_aberta_amazonia')&&!casaChapa) {
+      PB.add('palafita_aberta_amazonia',{x:st.x,z:st.z,y:PILA_GLB,targetH:6,ry:dx<0?0:Math.PI});
+      // Quatro estacas ligam cada cabana ao chão medido pelo mapa, sem criar
+      // collider invisível; as travessas decorativas do molde ficam intactas.
+      for (const [u, v] of [[-2.55,-2.45],[2.55,-2.45],[-2.55,2.45],[2.55,2.45]]) {
+        const [x, z] = W(u, v), bottom = chaoBase(x, z), top = cabin.floorY;
+        pieceBox(matPoste, .26, top-bottom, .26, x, bottom+(top-bottom)/2, z, yaw);
+        PALAFITA_SUPPORTS.push({ station:[st.x,st.z], x, z, bottom, top });
+      }
+    }
     else {
       for(const [u,v] of [[-2.6,-2.6],[2.6,-2.6],[-2.6,2.6],[2.6,2.6]]){
         const [x,z]=W(u,v);addCyl(.16,cabin.floorY,matPoste,x,0,z,{seg:6});
@@ -482,7 +515,7 @@ export function buildAmazonia(scene, T) {
       }
       st.escada = { g0, esp, n, run };
     }
-    CAIXAS_AGUA.push(W(CASA_A + 2 * PAT_A + 0.7, st.e * 1.35));
+    CAIXAS_AGUA.push(W(CASA_A + 2 * PAT_A + 0.7, (st.aguaE ?? st.e) * 1.35));
   };
   for (const st of ESTACOES) estacao(st);
 
@@ -605,9 +638,12 @@ export function buildAmazonia(scene, T) {
   pranchas(MX - 6.5, -4.5, 0.34); pranchas(MX + 4.5, -4.8, -0.28); pranchas(23, 33, 0.18);
   // Madeira armazenada protege os spawns; duas saídas laterais e borda do canal livres.
   for (const side of [-1, 1]) {
-    const x = side * 15, z = side * 35.7;
-    addBox(8.2, 1.9, 0.8, matDeck, x, 0, z);
-    for (let i = 1; i < 6; i++) pieceBox(matCasca, 8.2, 0.025, 0.025, x, i * 0.3, z - side * 0.411);
+    const z = side * 35.7;
+    const stacks = side > 0 ? [[11.15, 0.5], [16.6, 5.0]] : [[-15, 8.2]];
+    for (const [x, w] of stacks) {
+      addBox(w, 1.9, 0.8, matDeck, x, 0, z);
+      for (let i = 1; i < 6; i++) pieceBox(matCasca, w, 0.025, 0.025, x, i * 0.3, z - side * 0.411);
+    }
   }
   // scrap da madeireira: pneus e entulho herdam o vocabulário do ferro-velho
   for (const [id, x, z, h, ry] of [['pilha_pneus', MX - 8.5, 5.5, 1.1, 0.2], ['dumpster', MX + 9.8, 0, 1.4, -0.34], ['tires', 12.5, -33.5, 0.8, 0.4], ['pilha_pneus', 25, 20, 1.1, -0.26]]) {
@@ -619,7 +655,14 @@ export function buildAmazonia(scene, T) {
   /* ── MATA DENSA (molde arvore_mata.glb + palmeira_babacu.glb, kit Mint r2): fileira
       de árvores de verdade por cima da cerca — o horizonte vira floresta, não cidade.
       Instanciado no PropBatch (1 draw call por material) e com tronco-collider. */
-  const PBM = new PropBatch({ bucket: 18, tag: 'amazonia-bosque', shadowMin: 0.02, cast: !LOWQ });
+  const cuts = renderProfile.foliageCutMeters;
+  const PBM = new PropBatch({ bucket: 18, tag: 'amazonia-bosque', shadowMin: 0.02,
+    cast: renderProfile.foliageShadows, cortes: cuts ? {
+      arvore_mata_amazonia: cuts.trees,
+      palmeira_babacu_amazonia: cuts.palms,
+      grama_corrego_01: cuts.grass,
+      grama_corrego_02: cuts.grass,
+    } : undefined });
   const mataPerimetroBatch = new PropBatch({ bucket: 18, tag: 'amazonia-perimetro', cast: false });
   const mataFundoBatch = new PropBatch({ bucket: 18, tag: 'amazonia-fundo', cast: false });
   for (const a of MATA_FUNDO) mataFundoBatch.add('arvore_mata_amazonia', {x:a.x,z:a.z,targetH:a.s,ry:fract(a.z*.31)*6.283});
@@ -717,7 +760,7 @@ export function buildAmazonia(scene, T) {
       const a = i * Math.PI * 2 / 5 + x;
       const copa = new THREE.Mesh(new THREE.SphereGeometry(2.6 * s, 8, 6), matMata);
       copa.position.set(x + Math.cos(a) * 2.4 * s, (8.4 + Math.sin(i * 2.1) * 1.2) * s, z + Math.sin(a) * 2.4 * s);
-      copa.scale.y = 0.62; copa.castShadow = true; copa.receiveShadow = true;
+      copa.scale.y = 0.62; copa.castShadow = renderProfile.foliageShadows; copa.receiveShadow = true;
       root.add(copa); occluders.push(copa);
       colliders.push({ minX: copa.position.x - 2, maxX: copa.position.x + 2, minY: copa.position.y - 1.2, maxY: copa.position.y + 1.2, minZ: copa.position.z - 2, maxZ: copa.position.z + 2 });
     }
@@ -732,14 +775,14 @@ export function buildAmazonia(scene, T) {
   ];
   const moita = (x, z, s) => {
     const m = new THREE.Mesh(new THREE.IcosahedronGeometry(0.55 * s, 1), matMata);
-    m.position.set(x, 0.3 * s, z); m.scale.y = 0.75; m.castShadow = true; m.receiveShadow = true;
+    m.position.set(x, 0.3 * s, z); m.scale.y = 0.75; m.castShadow = renderProfile.foliageShadows; m.receiveShadow = true;
     m.userData.nonSolidSurface = true;
     root.add(m);
   };
   let fi = 0;
   for (const [x, z] of [[-29, -20], [-28.2, -6], [-29.5, 10], [-28, 24], [29, -18], [28.3, -4], [29.4, 12], [28.1, 26], [-12, -32], [12, 33], [-11, 34], [11, -33], [-22, -27], [22, 28], [-20, 28], [19, -28]]) {
     const [id, h] = FX[fi++ % FX.length];
-    if (hasProp(id)) { const p = placeProp(id, { x, z, y: 0, targetH: h * (0.85 + (fi % 4) * 0.1), ry: fi * 1.7 }); if (p) { p.traverse((o) => { if (o.isMesh) o.userData.nonSolidSurface = true; }); root.add(p); } }
+    if (hasProp(id)) { const p = placeProp(id, { x, z, y: 0, targetH: h * (0.85 + (fi % 4) * 0.1), ry: fi * 1.7 }); if (p) { p.traverse((o) => { if (o.isMesh) { o.userData.nonSolidSurface = true; o.castShadow = renderProfile.foliageShadows; } }); root.add(p); } }
     else moita(x + 1.2, z + 0.8, h);
     if (fi % 2 === 0) moita(x - 1.4, z - 0.6, h * 0.8);
   }
@@ -804,7 +847,7 @@ export function buildAmazonia(scene, T) {
     return colliders.some((c) => c.minY < g + 1.5 && c.maxY > g + 0.3
       && x > c.minX - inflate && x < c.maxX + inflate && z > c.minZ - inflate && z < c.maxZ + inflate);
   };
-  const STEP = 3.2;
+  const STEP = AMAZONIA_NAV_STEP;
   const crusos = [];
   for (let x = -HALF_X + 2.5; x <= HALF_X - 2.5; x += STEP) for (let z = -HALF_Z + 2.5; z <= HALF_Z - 2.5; z += STEP)
     if (!blocked(x, z)) crusos.push({ x, z, y: groundHeightAt(x, z, 0) });
@@ -912,8 +955,8 @@ export function buildAmazonia(scene, T) {
   function findPath(fromIdx, toIdx) {
     if (fromIdx === toIdx) return [toIdx];
     const prev = new Int16Array(nodes.length).fill(-1), queue = [fromIdx]; prev[fromIdx] = fromIdx;
-    while (queue.length) {
-      const n = queue.shift();
+    for (let head = 0; head < queue.length; head++) {
+      const n = queue[head];
       for (const next of adj[n]) if (prev[next] === -1) { prev[next] = n; if (next === toIdx) { const path = [next]; let cur = n; while (cur !== fromIdx) { path.unshift(cur); cur = prev[cur]; } path.unshift(fromIdx); return path; } queue.push(next); }
     }
     return [fromIdx];
@@ -1091,11 +1134,24 @@ export function buildAmazonia(scene, T) {
       {center:[14,20.5,20],radius:12,speed:.14,phase:2.26,subida:1.4},
     ]});
   // O Game já encerra ambience; cancela também a montagem assíncrona das aves.
+  const indexedOccluders = [...new Set(occluders)].filter(mesh =>
+    !mesh.isInstancedMesh && ['madeira-amazonia', 'chao-de-mata'].includes(mesh.name));
+  const disposeRaycasts = QP.get('amzrayindex') === '0' ? [] : indexedOccluders.map(indexStaticRaycast);
+  const rayHits = [];
+  const rayOccluded = raycaster => {
+    for (const mesh of occluders) {
+      rayHits.length = 0;
+      raycaster.intersectObject(mesh, false, rayHits);
+      if (rayHits.length) return true;
+    }
+    return false;
+  };
   const disposeAmbience = ambience.dispose.bind(ambience);
-  ambience.dispose = () => { skyLife._disposed = true; faunaMotion.dispose(); disposeAmbience(); };
+  ambience.dispose = () => { for (const dispose of disposeRaycasts) dispose(); skyLife._disposed = true; faunaMotion.dispose(); disposeAmbience(); };
   return {
     // Contrato: grafo com camadas, consultas de piso/nó com yRef e curvas precisas no CTF.
     botLayeredNavigation: true,
+    rayOccluded: QP.get('amzrayindex') === '0' ? undefined : rayOccluded,
     root, colliders, occluders, decalSolids: [root], groundHeightAt, slowAt, footstepSurfaceAt,     spawns: {
       /* 0,4 m além da face da mata girada: o AABB conservador da copa com yaw
          projeta a quina ~0,5 m para dentro da caixa e a folga do MAP2B mede
@@ -1117,6 +1173,8 @@ export function buildAmazonia(scene, T) {
       rotaLateralB: { nodes: rotaLateralBNodos, links: rotaLateralBLigacoes },
       perimetro: { arvores: MATA_ARVORES, palmeiras: MATA_PALMEIRAS, fundo: MATA_FUNDO },
       interior: { arvores: MATA_INTERIOR, palmeiras: BABACU_INTERIOR, subbosque: BABACU_INTERIOR.length + GRAMA_INTERIOR.length },
+      renderProfile,
+      palafitaSupports: PALAFITA_SUPPORTS,
     },
     sound: {
       loops: [

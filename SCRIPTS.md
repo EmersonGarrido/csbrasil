@@ -109,6 +109,18 @@ procedência de DROP_TTL/DROP_MAX: acúmulo de armas no chão em regime
 npm run eval:drop
 ```
 
+## `eval:penetration`
+
+Constrói o `Game` real com uma camada fina controlada e cobra o contrato de
+penetração: apenas AWP, madeira/vidro até 0,28 m, 50% de dano e só um inimigo
+depois de uma única parede. Concreto, AK, segunda parede e cliente online
+permanecem bloqueados. O mutante que remove a saída da parede precisa deixar a
+cláusula de travessia vermelha. Entra no `check:fast`.
+
+```bash
+npm run eval:penetration
+```
+
 ## `eval:deps`
 
 npm audit --omit=dev: alta/crítica fora da lista de isenção reprova (isenções nominais e datadas no deps-check.mjs). Precisa de rede — passo de CI, não do check:deploy.
@@ -203,6 +215,30 @@ O arco de dano na borda da tela (_dmgArc) tem que apontar pro atacante, não pro
 
 ```bash
 npm run eval:dmgdir
+```
+
+## `eval:abateshud`
+
+O contador de abates do JOGADOR tem que ser legível DURANTE a partida. Nasceu do pedido do dono: o HUD tinha dois números grandes no topo e nenhum dos dois é o abate pessoal — `#score-e`/`#score-b` imprimem `roundKills[side]`, que é do TIME e zera na virada; o número do jogador só existia atrás do TAB. Mede marcação (`#kill-counter`/`#kill-count` dentro do `#hud`, com rótulo), legibilidade por medida (piso de 24px fora de `@media`, contra os 42px do `#hp-num`) e comportamento com o Game rodando: imprime `player.kills`, não o placar do time, e sobrevive ao `_startRound`. `--mutante=time|rodada|congelado|miudo`.
+
+```bash
+npm run eval:abateshud
+```
+
+## `eval:botfaca`
+
+Em rodada de faca o bot tem que jogar de faca. Nasceu do pedido do dono. A faca já ia pra mão dele (`_botWeapon`), mas a cabeça continuava de fuzil em duas frentes: a banda de distância de `_updateBot` entra em recuo abaixo de 6 m e a faca alcança 2,4 m (medido antes do conserto: menor distância bot→alvo 5,98 m, zero golpes e zero abates em 60 s), e o golpe, quando saía, ia pelo caminho do tiro — com traçante, fogacho de cano e som de disparo. Mede perseguição, golpe, ausência de enfeite de arma de fogo e — cláusula que impede o conserto preguiçoso — que a rodada NORMAL continue com bot que abre distância (piso de 4 m). `--mutante=recuo|tracante|corredor`.
+
+```bash
+npm run eval:botfaca
+```
+
+## `eval:replaycam`
+
+Headshot **não** tira a câmera da mão do jogador. A régua nasceu junto com a replay cam do #364 (media se ela disparava e devolvia o FOV) e **trocou de lado** em 06/09/2026, quando o dono pediu o efeito de volta pra caixa: 1,2 s em câmera orbital, FOV 50, hit-stop de 0,18 e sem viewmodel/mira é o duelo seguinte perdido por quem acertou o tiro difícil. Agora mede o contrário — câmera parada, relógio 1:1, arma e mira na tela — e mantém uma cláusula de que o abate segue contando, para o conserto preguiçoso (matar o `_kill`) não ficar verde. `--mutante=orbita|hitstop|esconde|sem-kill`.
+
+```bash
+npm run eval:replaycam
 ```
 
 ## `eval:ctflabels`
@@ -654,6 +690,14 @@ O BUNDLE PÚBLICO NÃO NOMEIA O BACKEND. Decisão do dono (15/08): quem abre o j
 npm run eval:backendhints
 ```
 
+## `eval:geoproxy`
+
+A GEO DO JOGADOR CHEGA AO BACKEND (backend#22). Desde 30/08/2026 o jogo chamava o Cloud Run direto (run.app, sem borda): o `geoFrom` do backend nunca mais viu país/cidade, city_daily congelou em 2026-08-30T02:41:50Z e 88,9% da presença ficou sem geo — tudo respondendo 200. Cobra que telemetry/presence/heartbeat/submit-match/perf vão pelo proxy same-origin (`apibase.js` VIA_SITE), que o proxy sobe UMA fonte de geo por requisição (cf-* só com salto de faixa da Cloudflare; x-vercel-ip-* fora dela, porque atrás da Cloudflare ele descreve o PoP) e que `API_PROXY_SECRET` sobe como prova. Mutantes: --mutante=geo-direto|pop-como-cidade|cf-forjado|sem-segredo|rota-fora-do-proxy|fetch-cru.
+
+```bash
+npm run eval:geoproxy
+```
+
 ## `changelog:check`
 
 A seção do CHANGELOG da versão corrente é a NOTA do release — não pode linkar o release nela mesma (o ponteiro circular vivia no topo de toda entrada desde o início e apontava pro domínio pré-migração), não pode citar rubenmarcus/csbrasil (o repo é corosolto/client desde a migração; redirect existe, mas régua se escreve no domínio canônico) e, quando há tags locais, a contagem de (#N) tem que bater com os merges reais do git na faixa vAnterior..vAtual — entra no release.yml via sync-changelog e o que é gerado por robô se verifica por robô. Clone sem tags (build da Vercel): a contagem PULA declarada, a estrutura morde igual. Mutantes: --mutante=selflink|dominio-velho|pr-sumido.
@@ -819,4 +863,23 @@ FPS baixo não pode desacelerar o relógio do jogo (issue #295). O clamp de 50 m
 
 ```bash
 npm run eval:simclock
+```
+
+## `eval:sertao-livestock` e `eval:sertao-livestock-runtime`
+
+O dono não via os animais Mint no mapa. A régua em node lê os três GLBs finais,
+confere procedência/hash, skin, clipes, textura e o URL realmente solicitado pelo
+preloader. Entra no `check:fast`; mutantes `sem-rig`, `sem-clipe`,
+`textura-ausente`, `hash-divergente` e `cache-velho`.
+
+A régua de navegador carrega o mapa real em3:2, confere os bytes servidos,
+deformação durante caminhada contínua, percurso contra os colisores do jogo,
+orçamento, low, reset, descarte e contato em pixels. Fica fora do portão rápido.
+Mutantes: `sem-caprinos`, `patas-paradas`, `parede`, `sombra`, `low-cheio`,
+`reset-ausente`, `sem-contato`, `dispose-ausente` e `rig-nao-descartado`. Relatório e imagens em
+`artifacts/sertao-astra/livestock-runtime/`; `ARTIFACT_DIR` muda a pasta.
+
+```bash
+npm run eval:sertao-livestock
+BASE=http://localhost:8149 npm run eval:sertao-livestock-runtime
 ```

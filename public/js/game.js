@@ -1,6 +1,7 @@
 // Core game: FPS controller, weapons, bots, rounds, HUD.
 import * as THREE from 'three';
 import { MAPS, resolveMapId } from './maps.js';
+import { atualizaCortes } from './mapprops.js';
 import { buildCharacter, poseCharacter, byId, CHARACTERS, buildRifle, charWeapon } from './characters.js';
 import { buildCharacterModel, hasModel, preloadCharacterAssets } from './glbchars.js';
 import { weaponModel, weaponCFG, ONE_HANDED, WEAPON_IDS, PISTOLS, gripPoints } from './weapons.js';
@@ -31,18 +32,11 @@ export { WEAPONS };
    ?pace=0  -> round volta a ser SÓ tempo (sem alvo de abates, sem match point)
    ?move=0  -> movimento volta ao modelo antigo (4.7 base, sprint 6.6, sem counter-strafe)
    ?killcam=0 -> sem painel/câmera de morte
-   ?replaycam=0 -> sem replay cam ao matar (câmera orbital na vítima)
    Motivo: as três mudam COMPORTAMENTO sentido pelo jogador; o dono precisa do A/B. */
 const QS = new URLSearchParams(location.search);
-const REPLAY_CAM = QS.get('replaycam') !== '0';
 const ANNOUNCER_LAB = ['kills', 'rounds', 'all'].includes(QS.get('announcerlab')) ? QS.get('announcerlab') : '';
-/* Replay cam (kill-switch ?replaycam=0): duração total em s, escala de dt do hit-stop e a
-   janela dele em tempo real, e o raio/altura da órbita em torno da vítima. */
-const REPLAY_DUR = 1.2;
-const REPLAY_SLOWMO = 0.18;
-const REPLAY_SLOWMO_DUR = 0.2;
-const REPLAY_ORBIT_R = 3.2;
-const REPLAY_ORBIT_H = 1.8;
+/* Replay cam de headshot (#364) REMOVIDA a pedido do dono: nada aqui pode voltar a mexer em
+   câmera, FOV ou dt no abate. Régua do contrário: tools/eval/replaycam-check.mjs */
 // ?vmlab=1 usa o viewmodel afinado; sem a flag mantém o calibrado.
 const VMLAB = QS.get('vmlab') === '1';
 /* KILL-SWITCH DA RODADA DE MATERIAL: ?vmmat=legacy devolve, de uma vez, o clamp
@@ -304,6 +298,37 @@ const MK_LABELS = { doublekill: 'DOUBLE KILL', triplekill: 'TRIPLE KILL', multik
    caixa, sem padrão, sem falloff). Existe porque isto muda o COMPORTAMENTO de mira das 26
    armas de uma vez — se algo ficar ruim em produção o dono tem o A/B na querystring. */
 const GUNFEEL = new URLSearchParams(location.search).get('gunfeel') !== '0';
+
+/* CONE DO DISPARO — a MESMA conta no cliente (que desenha) e no servidor (que decide o dano).
+   Duas implementações separadas foi o que deixou a arma laser no multiplayer: docs/MULTIPLAYER.md. */
+// Código de 1 letra do material no impacto, para o evento `tiro` do servidor. Tabela ÚNICA:
+// duas (uma no nó, outra aqui) envelheceriam separadas — foi esse o defeito desta rodada.
+export const SUP_COD = Object.freeze({ concreto: 'c', madeira: 'w', metal: 'm', vidro: 'v', areia: 's', agua: 'g' });
+const SUP_REV = Object.freeze(Object.fromEntries(Object.entries(SUP_COD).map(([k, v]) => [v, k])));
+export const supDeCod = (c) => SUP_REV[c] || null;
+
+export const ADS_RAMPA_S = 0.11;   // contrato do ADS: entrar e sair custam 110 ms (ver _updatePlayer)
+export function coneDoDisparo(estado, W, rnd) {
+  const crouchMul = 1 - 0.5 * (estado.crouchF || 0);
+  const moveMul = GUNFEEL ? (1 + 1.8 * Math.min(1, (estado.sp || 0) / 6.6) + (estado.grounded ? 0 : 2.5)) : 1;
+  const adsF = Math.min(1, Math.max(0, estado.adsF || 0));
+  const spScoped = W.spreadScope ?? W.spreadHip * 0.35;
+  const base = (GUNFEEL
+    ? (W.spreadHip + (spScoped - W.spreadHip) * adsF)
+    : (estado.scoped && W.spreadScope !== undefined ? W.spreadScope : W.spreadHip)) * crouchMul * moveMul;
+  const sp = base * (1 + (estado.bloom || 0));
+  const saida = [];
+  for (let i = 0, n = W.pellets || 1; i < n; i++) {
+    if (GUNFEEL) {
+      // POLAR (disco). A distribuição em caixa do legado fazia os furos formarem um quadrado.
+      const ang = rnd() * Math.PI * 2, rad = sp * 0.5 * Math.sqrt(rnd());
+      saida.push({ x: Math.cos(ang) * rad, y: Math.sin(ang) * rad, z: 0 });
+    } else {
+      saida.push({ x: (rnd() - 0.5) * sp, y: (rnd() - 0.5) * sp, z: (rnd() - 0.5) * sp });
+    }
+  }
+  return saida;
+}
 // Kill-switch: ?blood=0 desliga o sangue (spray + mancha em parede/chão + poça sob o
 // cadáver). Muda o "gore" sentido pelo jogador — flag pro A/B do dono, como ?gunfeel=0.
 const BLOOD = new URLSearchParams(location.search).get('blood') !== '0';
@@ -566,8 +591,10 @@ const _rosterPool = (pool, want, quem, fallback) => {
    time aliado, então o lado aliado leva teamSize corpos inteiros (e não teamSize-1). É o que
    faz uma sala 5v5 ter DEZ vagas de gente, e não nove com um manequim do lado. */
 export function pickMatchRoster(playerFaction, enemyFaction, teamSize, playerCharId, dedicado = false) {
+  const allies = CHARACTERS.filter(c => c.team === playerFaction);
+  const others = allies.filter(c => c.id !== playerCharId);
   return {
-    allyDefs: _rosterPool(CHARACTERS.filter(c => c.team === playerFaction && c.id !== playerCharId),
+    allyDefs: _rosterPool(others.length ? others : allies,
       dedicado ? teamSize : teamSize - 1, `aliados (${playerFaction})`, CHARACTERS.filter(c => c.id !== playerCharId)),
     enemyDefs: _rosterPool(CHARACTERS.filter(c => c.team === enemyFaction), teamSize, `inimigos (${enemyFaction})`, CHARACTERS),
   };
@@ -680,8 +707,11 @@ export class Game {
     // facção do INIMIGO (o jogador escolhe o adversário: P/B/U). Default = lado político oposto.
     // Se == playerFaction é um MIRROR (mesmo time dos dois lados) -> o inimigo fica ROXO no HUD.
     this.enemyFaction = enemyFaction || this.enemyTeam;
-    this.playerDef = byId(playerCharId);
-    this.playerCharId = playerCharId;   // usado por _buildViewModels (paleta/braços FP) e _resetPositions (loadout)
+    // id de personagem que não existe (URL velha, elenco renomeado) NÃO pode virar crash na
+    // morte, quadro a quadro, meia hora depois do boot: cai no primeiro válido e avisa.
+    this.playerDef = byId(playerCharId) || CHARACTERS[0];
+    if (!byId(playerCharId)) console.warn(`[elenco] personagem '${playerCharId}' não existe — usando '${this.playerDef.id}'`);
+    this.playerCharId = this.playerDef.id;   // usado por _buildViewModels (paleta/braços FP) e _resetPositions (loadout)
     this.combatants = [];   // scoreboard entries
     /* Servidor dedicado: o `player` que ninguém controla fica FORA do elenco, senão vira corpo
        parado e imortal que os inimigos abatem em loop. Ver docs/MULTIPLAYER.md. */
@@ -1172,7 +1202,7 @@ export class Game {
     this.el = {
       hud: $('hud'), crosshair: $('crosshair'), hitmarker: $('hitmarker'), dmgNums: $('dmg-numbers'),
       scope: $('scope-overlay'), vignette: $('damage-vignette'), dmgDir: $('dmg-dir'),
-      hpFill: $('hp-fill'), hpNum: $('hp-num'), weaponName: $('weapon-name'),
+      hpFill: $('hp-fill'), hpNum: $('hp-num'), killCount: $('kill-count'), weaponName: $('weapon-name'),
       ammoMag: $('ammo-mag'), ammoRes: $('ammo-reserve'), reloadNote: $('reload-note'), smokeCount: $('smoke-count'),
       ammoWeaponArt: $('ammo-weapon-art'), ammoBars: $('ammo-bars'),
       roundTime: $('round-time'), roundsRow: $('rounds-row'),
@@ -1273,7 +1303,7 @@ export class Game {
     const pal = (pdef && pdef.pal) || { skin: 0xd9a066, shirt: 0x3a4a5a };
     // LUVA POR TIME no fallback procedural também (mãos genéricas por time — pedido do dono):
     // P vermelho, B verde, U roxo; blend 55% (igual ao fparms) pra não virar luva plástica.
-    const GLOVE = { E: 0xd83232, B: 0x28c858, U: 0x8a3ffc };
+    const GLOVE = { E: 0xd83232, B: 0x28c858, U: 0x8a3ffc, M: 0x9d4edd };
     const skinMat = dark(pal.skin);
     if (GLOVE[this.playerFaction]) skinMat.color.lerp(new THREE.Color(GLOVE[this.playerFaction]), 0.85);
     const sleeveMat = dark(pal.shirt);
@@ -2692,6 +2722,7 @@ export class Game {
     if (this.state !== 'live' && this.state !== 'countdown') v = false;
     const entrou = v && !this.paused;
     this.paused = v;
+    this.soundscape?.setPaused(v);
     if (v) { this.keys = {}; this.touchMove.x = 0; this.touchMove.z = 0; this.mouseDown0 = false; }
     this.el.pause.classList.toggle('hidden', !v);
     // pausado, o overlay de toque some — senão a camada de OLHAR (tela cheia) tapava o menu
@@ -2754,7 +2785,15 @@ export class Game {
   _switchTeam(charId) {
     if (!this.player.alive || (this.state !== 'live' && this.state !== 'countdown')) return;
     const p = this.player;
-    if (charId) { this.playerDef = byId(charId); this.playerCharId = charId; p.def = this.playerDef; }   // personagem do novo lado
+    /* Reserva igual à da linha 712 (`byId` dá undefined fora do elenco), e da facção em que
+       ele ENTRA. Sem ela o Game seguia corrompido: BUG-168, `eval:switchteam`. */
+    if (charId) {
+      const def = byId(charId);
+      if (!def) console.warn(`[elenco] troca de lado pediu '${charId}', fora do elenco — usando a reserva da facção`);
+      this.playerDef = def || CHARACTERS.find(c => c.team === this.enemyFaction) || this.playerDef;
+      this.playerCharId = this.playerDef.id;
+      p.def = this.playerDef;
+    }
     const oldTeam = this.playerTeam;
     const newTeam = oldTeam === 'E' ? 'B' : 'E';
     const oldFaction = this.playerFaction;
@@ -3083,17 +3122,18 @@ export class Game {
     // tracer só em PARTE dos tiros (CS): 1 em 3 na rajada; sniper/shotgun sempre (o tiro é o
     // evento). Antes TODO tiro deixava rastro — vira "chuva de laser" em full-auto.
     const wantTracer = !GUNFEEL || pellets > 1 || (REC_DEG[p.weapon] ?? 1) > 2.4 || ((p.sprayI || 0) % 3) === 0;
-    for (let i = 0; i < pellets; i++) {
-      const sp = spreadBase * (1 + this.bloom);
-      let dir;
-      if (GUNFEEL) {
-        const ang = Math.random() * Math.PI * 2, rad = sp * 0.5 * Math.sqrt(Math.random());
-        dir = new THREE.Vector3(Math.cos(ang) * rad, Math.sin(ang) * rad, -1).applyQuaternion(this.camera.quaternion).normalize();
-      } else {
-        dir = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion);
-        dir.x += (Math.random() - .5) * sp; dir.y += (Math.random() - .5) * sp; dir.z += (Math.random() - .5) * sp;
-        dir.normalize();
-      }
+    // ONLINE quem sorteia o cone é o nó, e é do evento `tiro` que saem traçante e furo — o
+    // palpite local seria outro cone (KNOWN-BUGS BUG-159). Servidor sem `ev`: caminho antigo.
+    const servidorDesenha = this.online && !!this._mp?._evOn;
+    const cone = servidorDesenha ? [] : coneDoDisparo(
+      { crouchF: p.crouchF, sp: sp0, grounded: p.grounded, adsF, bloom: this.bloom, scoped: p.scoped },
+      w, Math.random);
+    for (let i = 0; i < cone.length; i++) {
+      const o = cone[i];
+      const dir = GUNFEEL
+        ? new THREE.Vector3(o.x, o.y, -1).applyQuaternion(this.camera.quaternion).normalize()
+        : new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion);
+      if (!GUNFEEL) { dir.x += o.x; dir.y += o.y; dir.z += o.z; dir.normalize(); }
       this._fireHitscan(this.player, from, dir, w.dmg, true, w.short, p.weapon, wantTracer && i < 2);
     }
     // recuo: CÂMERA (padrão determinístico + mola, ver _shotRecoil) e VIEWMODEL (mola própria
@@ -3134,7 +3174,42 @@ export class Game {
       const d = to.length();
       if (d < bd && to.normalize().dot(dir) > 0.6) { best = b; bd = d; }
     }
-    if (best) { this.sfx.knifeHit(); this._damage(best, WEAPONS.knife.dmg, this.player, 'FACA'); }
+    // Online o servidor já é autoridade da faca (room.js clampa por W.range): aplicar aqui
+    // contaria o dano duas vezes e piscaria vida errada até o snapshot desfazer.
+    if (best) { this.sfx.knifeHit(); if (!this.online) this._damage(best, WEAPONS.knife.dmg, this.player, 'FACA'); }
+  }
+  /* Alcance de corpo a corpo (0 = arma de fogo). Fonte única de até onde o bot fecha e de
+     onde o golpe conecta: em cópias separadas os dois voltam a divergir (BUG-143). */
+  _meleeRange(wid) {
+    return wid === 'knife' ? (WEAPONS.knife.range || 2.4) : 0;
+  }
+  /* Golpe de faca do BOT — espelha `_meleeHit`: pelo caminho de tiro o golpe saía com
+     traçante, fogacho de cano e som de disparo. Régua: tools/eval/botfaca-check.mjs (BF3) */
+  _botMelee(b, e) {
+    const W = WEAPONS[b.weapon] || WEAPONS.knife;
+    const alcance = this._meleeRange(b.weapon) || WEAPONS.knife.range;
+    b.nextShotAt = this.time + (W.rate || 0.55) * (1 + Math.random() * 0.5) / Math.max(0.5, b.skill);
+    b.revealedAt = this.time;
+    b.burst = 0;
+    this.sfx.knife();
+    if (b.mesh?.isGLB) b.mesh.ctrl.shoot();
+    const from = this._botEye(b);
+    const alvo = e.isPlayer ? this.camera.position.clone() : this._botEye(e);
+    const to = alvo.clone().sub(from);
+    const d = to.length();
+    const dir = to.clone().normalize();
+    if (d > alcance + 0.6) return;
+    if (dir.dot(new THREE.Vector3(Math.sin(b.yaw), 0, Math.cos(b.yaw))) < 0.5) return;
+    if (!this._losClear(from, alvo)) return;
+    const mul = e.isPlayer ? (BOT_FAIR ? this._botDmgPlayer : BOT_DMG_PLAYER) : 1;
+    const dmg = Math.max(6, Math.min(e.isPlayer ? 100 : 130, Math.round((W.dmg || 55) * mul)));
+    this.sfx.knifeHit();
+    this._damage(e, dmg, b, W.short || 'FACA', false, alvo);
+    if (BLOOD) {
+      if (e.isPlayer) this._bloodSpatter(alvo, dir, false, e.pos ? e.pos.y : null);
+      else this._fleshImpact(alvo, dir, false, e.pos ? e.pos.y : null, false);
+    }
+    if (e.isPlayer) this._noteHit(b, W.short || 'FACA', dmg, false, d);
   }
   /* Dano de um tiro: base × falloff por classe × multiplicador de headshot. O servidor usa a
      MESMA conta — duas cópias envelheceriam separadas. Ver docs/MULTIPLAYER.md. */
@@ -3157,12 +3232,7 @@ export class Game {
     const hC = hitsChar[0], hW = hitsWorld[0];
     let end;
     if (hC && (!hW || hC.distance < hW.distance)) {
-      let o = hC.object, bot = null, head = false;
-      while (o) {
-        if (o.userData.botOwner && !bot) bot = o.userData.botOwner;
-        if (bot && o === bot.mesh.parts.head) head = true;
-        o = o.parent;
-      }
+      const { bot, head } = this._targetFromHit(hC);
       end = hC.point;
       if (bot) {
         if (bot.team === shooter.team) { /* friendly fire off */ }
@@ -3177,12 +3247,27 @@ export class Game {
     } else if (hW) {
       end = hW.point;
       const n = hW.face ? hW.face.normal : null;
-      const surf = GUNFEEL ? this._surfaceOf(hW.object) : null;
+      const surf = this._surfaceOf(hW.object);
       this._puff(hW.point, n, surf);
       // som de impacto em 100% dos tiros do jogador (era `ricochet()` — um BIP de sine — em
       // 30%: 70% dos tiros na parede eram literalmente mudos).
       if (GUNFEEL) { if (byPlayer || Math.random() < 0.35) this._impactSfx(surf, hW.point, from.distanceTo(hW.point)); }
       else if (Math.random() < 0.3) this.sfx.ricochet();
+      const pen = this._penetrationExit(hW, dir, wid, surf);
+      if (pen) {
+        const nextWorld = hitsWorld.find(hit => hit.distance > pen.exitDistance + 0.005);
+        const hP = hitsChar.find(hit => hit.distance > pen.exitDistance + 0.005
+          && (!nextWorld || hit.distance < nextWorld.distance - 0.005));
+        if (hP) {
+          const { bot, head } = this._targetFromHit(hP);
+          if (bot && bot.team !== shooter.team) {
+            end = hP.point;
+            const penDamage = Math.round(this._shotDamage(dmg, wid, hP.distance, head) * pen.damageMul);
+            if (!this.online) this._damage(bot, penDamage, shooter, weap, head, end);
+            this._fleshImpact(end, dir, head, bot.pos ? bot.pos.y : null, byPlayer, this._armoredTarget(bot));
+          }
+        }
+      }
     } else {
       end = from.clone().add(dir.clone().multiplyScalar(120));
     }
@@ -3192,6 +3277,32 @@ export class Game {
       this._tracer(muzzle, end);
     }
     return end;
+  }
+  _targetFromHit(hit) {
+    let o = hit.object, bot = null, head = false;
+    while (o) {
+      if (o.userData.botOwner && !bot) bot = o.userData.botOwner;
+      if (bot && o === bot.mesh.parts.head) head = true;
+      o = o.parent;
+    }
+    return { bot, head };
+  }
+  _penetrationExit(hit, dir, wid, surf) {
+    const cfg = WEAPONS[wid]?.penetration;
+    if (!cfg || this.online || !cfg.surfaces.includes(surf)) return null;
+    const box = new THREE.Box3().setFromObject(hit.object);
+    if (box.isEmpty()) return null;
+    const origin = hit.point.clone().addScaledVector(dir, 1e-4);
+    let exit = Infinity;
+    for (const axis of ['x', 'y', 'z']) {
+      const d = dir[axis], p = origin[axis], lo = box.min[axis], hi = box.max[axis];
+      if (Math.abs(d) < 1e-8) { if (p < lo || p > hi) return null; continue; }
+      const t0 = (lo - p) / d, t1 = (hi - p) / d;
+      exit = Math.min(exit, Math.max(t0, t1));
+    }
+    const thickness = exit + 1e-4;
+    if (!(thickness > 0 && thickness <= cfg.maxThickness)) return null;
+    return { exitDistance: hit.distance + thickness, damageMul: cfg.damageMul };
   }
   // MATERIAL da superfície atingida, inferido do material do mesh (os mapas não marcam
   // userData.surf; quando marcarem, ela ganha prioridade). Cache em WeakMap — o raycast roda
@@ -3387,13 +3498,7 @@ export class Game {
           ? this.sfx.general(kind || 'headshot')
           : this.sfx.characterVoice(attacker.def?.id, 'kill', { fallbackFaction: this._voiceKey(attacker.team) });
         if (!announced && !this.sfx.general('kill')) this.sfx.voice(this._voiceKey(attacker.team));
-        if (REPLAY_CAM && head && ent.pos) {
-          this._replayCam = {
-            t: 0,
-            victimPos: ent.pos.clone(),
-            killerYaw: attacker.yaw,
-          };
-        }
+        /* O feedback do headshot é TODO sonoro/HUD daqui pra cima — ver BUG-142. */
       }
     }
     if (ent.isPlayer) {
@@ -4218,8 +4323,8 @@ export class Game {
   // Facção que ocupa um LADO físico (P/B): lado do jogador = playerFaction, o outro = enemyFaction.
   _factionOf(side) { return side === this.playerTeam ? this.playerFaction : this.enemyFaction; }
   _voiceKey(side) { return this._factionOf(side); }   // pack de vozes/round por facção (P/B/U)
-  _teamName(side) { const f = this._factionOf(side); return f === 'U' ? 'TRIBOS URBANAS' : f === 'C' ? 'PALHAÇOS' : f === 'F' ? 'FUNKEIROS' : (TEAM_LABEL[f] || f); }
-  _teamTag(side) { const f = this._factionOf(side); return f === 'U' ? 'TRB' : f === 'C' ? 'PLH' : f === 'F' ? 'FNK' : f === 'E' ? 'TME' : 'TMB'; }
+  _teamName(side) { const f = this._factionOf(side); return f === 'U' ? 'TRIBOS URBANAS' : f === 'C' ? 'PALHAÇOS' : f === 'F' ? 'FUNKEIROS' : f === 'M' ? 'MÍTICO' : (TEAM_LABEL[f] || f); }
+  _teamTag(side) { const f = this._factionOf(side); return f === 'U' ? 'TRB' : f === 'C' ? 'PLH' : f === 'F' ? 'FNK' : f === 'M' ? 'MIT' : f === 'E' ? 'TME' : 'TMB'; }
 
   /* Uma plaqueta do HUD. Chamada por QUADRO, então tudo aqui é comparação barata:
      o número só é escrito se mudou, e o brasão (data-f, arte no CSS) só quando a
@@ -4270,10 +4375,15 @@ export class Game {
         px += (dx / d) * w; pz += (dz / d) * w;
       }
       if (BOT_CROWD && d2 < BODY2 * BODY2) {             // (b)
-        const d = Math.sqrt(d2), push = (BODY2 - d) * 0.5;
+        /* Corpo com dono não se empurra: no servidor o slot humano é um bot, e o cliente não
+           prediz este empurrão — ele volta como correção (BUG-151). `__mut…`: régua. */
+        const humano = !!o._remote && !this.__mutEmpurraHumano;
+        const d = Math.sqrt(d2), push = (BODY2 - d) * (humano ? 1 : 0.5);
         b.pos.x += (dx / d) * push; b.pos.z += (dz / d) * push;
-        o.pos.x -= (dx / d) * push; o.pos.z -= (dz / d) * push;
-        this._collide(o.pos, 0.38);
+        if (!humano) {
+          o.pos.x -= (dx / d) * push; o.pos.z -= (dz / d) * push;
+          this._collide(o.pos, 0.38);
+        }
       }
     }
     b._crowd = crowd;
@@ -4393,6 +4503,7 @@ export class Game {
       let np = 0, nb = 0;
       for (const c of this.combatants) {
         if (!c.alive) continue;
+        if (this.world.ctfLayerContains?.(pt, c.pos) === false) continue;
         const dx = c.pos.x - pt.x, dz = c.pos.z - pt.z;
         if (dx * dx + dz * dz <= pt.r * pt.r) { if (c.team === 'E') np++; else nb++; }
       }
@@ -4410,6 +4521,7 @@ export class Game {
           this.roundCaps[solo] = (this.roundCaps[solo] || 0) + 1;   // placar DA RODADA (quem leva o round)
           for (const c of this.combatants) {
             if (!c.alive || c.team !== solo) continue;
+            if (this.world.ctfLayerContains?.(pt, c.pos) === false) continue;
             const dx = c.pos.x - pt.x, dz = c.pos.z - pt.z;
             if (dx * dx + dz * dz <= pt.r * pt.r) c.captures = (c.captures || 0) + 1;
           }
@@ -4617,7 +4729,7 @@ export class Game {
        giro contínuo, A* local com nós banidos, checagem física de alcance, raio de chegada
        de 1,5 m (o de 0,7 m era menor que o passo de um frame lento — o bot "chegava" e
        "saía" do nó no mesmo lugar), teto de giro e destravamento por deslize. */
-    if (distPt < pt.r * 0.7) {   // dentro do anel: SEGURA o ponto e vigia as entradas
+    if (distPt < pt.r * 0.7 && W.ctfLayerContains?.(pt, b.pos) !== false) {   // dentro do anel: SEGURA o ponto e vigia as entradas
       b._ctfMoving = 0;
       if (BOT_MOVE2) {
         // varredura por SETORES com dwell: escolhe um rumo, para 1,4-2,8 s olhando pra ele,
@@ -4653,14 +4765,16 @@ export class Game {
       let guard = 0;
       while (b.pathIdx < b.path.length - 1 && guard++ < 8) {
         const c = W.waypoints.nodes[b.path[b.pathIdx]];
-        if (c && Math.hypot(c.x - b.pos.x, c.z - b.pos.z) < 1.5) b.pathIdx++; else break;
+        const mesmaCamada = !W.botLayeredNavigation || Math.abs((c?.y ?? b.pos.y) - b.pos.y) < .20;
+        if (c && mesmaCamada && Math.hypot(c.x - b.pos.x, c.z - b.pos.z) < 1.5) b.pathIdx++; else break;
       }
     }
     const atEnd = !b.path || b.pathIdx >= b.path.length;
-    let tx = pt.x, tz = pt.z;
-    if (!atEnd) { const n = W.waypoints.nodes[b.path[Math.min(b.pathIdx, b.path.length - 1)]]; tx = n.x; tz = n.z; }
+    let tx = pt.x, tz = pt.z, targetNode = null;
+    if (!atEnd) { targetNode = W.waypoints.nodes[b.path[Math.min(b.pathIdx, b.path.length - 1)]]; tx = targetNode.x; tz = targetNode.z; }
     const dx = tx - b.pos.x, dz = tz - b.pos.z, d = Math.hypot(dx, dz);
-    if (!atEnd && d < (BOT_MOVE2 ? 0.35 : 0.7)) { b.pathIdx++; b._ctfMoving = 1; return; }
+    const targetNaCamada = !W.botLayeredNavigation || Math.abs((targetNode?.y ?? b.pos.y) - b.pos.y) < .20;
+    if (!atEnd && targetNaCamada && d < (BOT_MOVE2 ? 0.35 : 0.7)) { b.pathIdx++; b._ctfMoving = 1; return; }
     /* MESMO RUMO SUAVIZADO DO ROAM (b._hdg — ver o comentário lá). O CTF é um caminho de
        movimento SEPARADO, então sem repetir aqui o dono continuaria vendo o zigzag no modo
        em que ele mais joga: trocar de nó teleportava o alvo de rotação, e a menos de 1,2 m
@@ -4972,39 +5086,6 @@ export class Game {
       c.rotation.x += (wantPitch - c.rotation.x) * Math.min(1, dt * 3.5);
     }
   }
-  _updateReplayCam(dt) {
-    const rc = this._replayCam;
-    if (!rc) return;
-    rc.t += dt;
-    if (rc.t >= REPLAY_DUR) {
-      this._replayCam = null;
-      const p = this.player;
-      const tFov = p.scoped ? this._zoomFov(p.weapon) : 70;
-      this.camera.fov = tFov;
-      this.camera.updateProjectionMatrix();
-      this._fovFrom = undefined;
-      return;
-    }
-    const progress = rc.t / REPLAY_DUR;
-    const angle = rc.killerYaw + Math.PI + progress * 1.2;
-    const ease = 1 - (1 - progress) * (1 - progress);
-    const r = REPLAY_ORBIT_R * (0.6 + 0.4 * ease);
-    const cx = rc.victimPos.x + Math.sin(angle) * r;
-    const cz = rc.victimPos.z + Math.cos(angle) * r;
-    const cy = rc.victimPos.y + REPLAY_ORBIT_H - ease * 0.4;
-    this.camera.position.set(cx, cy, cz);
-    const lookY = rc.victimPos.y + 1.2;
-    const dx = rc.victimPos.x - cx, dz = rc.victimPos.z - cz;
-    this.camera.rotation.set(
-      Math.atan2(lookY - cy, Math.hypot(dx, dz)),
-      Math.atan2(-dx, -dz),
-      0
-    );
-    this.camera.fov = 50;
-    this.camera.updateProjectionMatrix();
-    if (this.vm?.root) this.vm.root.visible = false;
-    if (this.el.crosshair) this.el.crosshair.style.display = 'none';
-  }
   // Cicla 1ª → 3ª (longe) → ombro (perto, vê braços) → 1ª (tecla B). Constrói o corpo
   // 3ª pessoa na 1ª vez (lazy).
   _toggleCamView() {
@@ -5220,7 +5301,6 @@ export class Game {
     this._checkCtfAlvo();          // alvo de BANDEIRAS: única condição de vitória da rodada de CAPTURA (sem gate)
     if (PACE) this._checkPace();   // alvo de abates / match point — vale também com o jogador morto
     if (!p.alive) {
-      if (this._replayCam) this._replayCam = null;
       const left = p.respawnAt - this.time;
       this.el.respawnCount.textContent = Math.max(0, left).toFixed(1);
       this._deathFeedback(dt);
@@ -5459,7 +5539,6 @@ export class Game {
       if (wg) poseToWeapon(this.vm.arms, wg, p.weapon);
     }
     if (VMLAB) this._vmlabFrame(p, a);   // ?vmlab=1: troca pelo viewmodel do editor (isolado)
-    this._updateReplayCam(dt);
   }
 
   /* O mapa ainda não expõe material sob o pé. Até essa API existir, cada arena
@@ -6246,13 +6325,19 @@ export class Game {
          piscinão). Com histerese ele COMPROMETE com um estado e só troca quando a distância
          muda de verdade: entra em avanço acima de 22 m e só sai abaixo de 17; entra em recuo
          abaixo de 6 m e só sai acima de 9,5. */
+      /* A banda acima é de fuzil e nunca chega no alcance de uma faca de 2,4 m (BUG-143):
+         arma de corpo a corpo fecha e não recua. Régua: tools/eval/botfaca-check.mjs */
+      const alcanceArma = this._meleeRange(b.weapon);
+      const corpoACorpo = alcanceArma > 0;
       const rs = b._range || 'mid';
-      b._range = rs === 'push' ? (dist < 17 ? 'mid' : 'push')
+      b._range = corpoACorpo ? (dist > alcanceArma * 0.6 ? 'push' : 'mid')
+        : rs === 'push' ? (dist < 17 ? 'mid' : 'push')
         : rs === 'back' ? (dist > 9.5 ? 'mid' : 'back')
         : (dist > 22 ? 'push' : dist < 6 ? 'back' : 'mid');
       let approach = holding ? 0
         : BOT_MOVE2 ? (b._range === 'push' ? 0.9 : b._range === 'back' ? -1 : (b._adv || 0))
         : (dist > 20 ? 0 : dist < 8 ? -1 : (b._adv || 0));
+      if (corpoACorpo && !holding) approach = b._range === 'push' ? 1 : Math.max(0, approach);
       /* NUNCA GIRAR PARADO. Restava um caso: alvo fora do eixo (o bot ainda virando) numa
          decisão de "segurar posição" (45% delas dão _adv = 0). Corpo parado + cabeça girando
          é, na tela, a pirueta — e a métrica confirma (voltas/min sobe quando o bot para de
@@ -6340,8 +6425,7 @@ export class Game {
       }
       // FACA (w.range): bot de faca disparava hitscan a 40m como se fosse rifle — agora só
       // "ataca" no alcance real da arma; longe disso ele avança (o approach acima já faz isso).
-      const _w0 = WEAPONS[b.weapon];
-      const inRange = !(_w0 && _w0.range) || dist <= _w0.range + 0.6;
+      const inRange = alcanceArma > 0 ? dist <= alcanceArma + 0.6 : true;
       // fire (bloqueado enquanto o alvo está stale/sem LOS — ver aquisição: sem wallhack)
       // TURNO DE DUELO: contra o JOGADOR só atira quem tem o token (ver _duelToken). Fora do
       // turno o bot continua manobrando/avançando — ele não congela, só não soma fogo.
@@ -6361,8 +6445,10 @@ export class Game {
          cego, fora de alcance) desqualifica; impedimento IMINENTE (reação, foco, cadência) não. */
       const canUse = !b._losLost && inRange && this.time > (b.reloadUntil || 0);
       const hasTurn = !(BOT_FAIR && e.isPlayer) || (canUse && this._duelToken(b));
-      if (this.time > b.reactAt && this.time > (b.focusUntil || 0) && this.time > b.nextShotAt && this.time > (b.reloadUntil || 0)
-          && Math.abs(dy) < 0.3 && !b._losLost && inRange && hasTurn) {
+      const podeAtacar = this.time > b.reactAt && this.time > (b.focusUntil || 0) && this.time > b.nextShotAt && this.time > (b.reloadUntil || 0)
+          && Math.abs(dy) < 0.3 && !b._losLost && inRange && hasTurn;
+      if (podeAtacar && corpoACorpo) this._botMelee(b, e);
+      else if (podeAtacar) {
         /* ===== TIRO DO BOT =====
            ANTES: dano FIXO (63 no jogador / 100 no bot), cadência 0.75-3.5s igual pra P90 e
            AWP, e um sorteio de acerto invisível (até 92%) que ignorava a parede no caminho.
@@ -7182,6 +7268,13 @@ export class Game {
     this.el.hpFill.style.width = Math.max(0, p.hp) + '%';
     this.el.hpFill.classList.toggle('low', p.hp <= 35);
     this.el.hpNum.classList.toggle('low', p.hp <= 35);
+    /* `player.kills` (partida), não `roundKills` (time, zera na virada). Escrito só quando
+       muda porque este método roda por quadro. Régua: tools/eval/abateshud-check.mjs */
+    const abates = p.kills | 0;
+    if (this.el.killCount && this._hudKills !== abates) {
+      this._hudKills = abates;
+      this.el.killCount.textContent = String(abates);
+    }
     if (this.el.ammoWeaponArt.dataset.weapon !== p.weapon) {
       this.el.ammoWeaponArt.dataset.weapon = p.weapon;
       this.el.ammoWeaponArt.src = `/img/weapons/${p.weapon}.webp`;
@@ -7256,11 +7349,8 @@ export class Game {
   /* ================= main update ================= */
   update(dt, render = true) {
     if (this.paused) return;
-    // Hit-stop: scale dt during replay cam slowmo phase (uses wall-clock time, not game time)
-    if (this._replayCam) {
-      const wallT = this._replayCam._wallT = (this._replayCam._wallT || 0) + dt;
-      if (wallT < REPLAY_SLOWMO_DUR) dt *= REPLAY_SLOWMO;
-    }
+    /* O `dt` chega e vai embora inteiro: o hit-stop do headshot saiu com a replay cam,
+       porque escalar o relógio vazava para física, tiro e rede (BUG-142). */
     this.time += dt;
     // Snapshot ANTES de mover: aplicar depois renderizaria o frame com o mundo de ontem.
     if (this.online) this._mp?.applySnapshot();
@@ -7314,6 +7404,13 @@ export class Game {
     this._updateFx(dt);
     this._updateDoors(dt);
     this._updateGrenades(dt);
+    /* #295: o main.js fatia frames longos em vários update() — só o ÚLTIMO
+       passo desenha; render no meio multiplicaria custo de GPU em FPS baixo. */
+    if (!render) return;
+    // vegetação longe some (mapprops `cortes`): é desenho, então mora depois do portão
+    atualizaCortes(this.world.root, this.camera.position.x, this.camera.position.z);
+    // HUD e radar são DESENHO, não estado: ficam DEPOIS do portão. Antes rodavam em todo passo —
+    // 57 operações de Canvas2D por quadro exibido a 5 FPS (régua tools/eval/passo-sim-check.mjs).
     this._updateHud();
     this._updateRadar();
     // hint de pointer lock: visível só quando o jogo está ativo mas sem lock
@@ -7321,9 +7418,6 @@ export class Game {
       this.el.lockHint.classList.toggle('hidden',
         this.testMode || this.mobile || this.paused || !!document.pointerLockElement || this.espectando() ||
         (this.state !== 'live' && this.state !== 'countdown'));
-    /* #295: o main.js fatia frames longos em vários update() — só o ÚLTIMO
-       passo desenha; render no meio multiplicaria custo de GPU em FPS baixo. */
-    if (!render) return;
     this._rafFrames = (this._rafFrames || 0) + 1;   // fps REAL de render (lido pelo overlay de rede)
     this.renderer.render(this.scene, this.camera);
     // VM overlay SEM pós (quality low / ?bloom=0): o composer não existe, então desenha
