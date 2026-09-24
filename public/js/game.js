@@ -2731,7 +2731,7 @@ export class Game {
     const entrou = v && !this.paused;
     this.paused = v;
     this.soundscape?.setPaused(v);
-    if (v) { this.keys = {}; this.touchMove.x = 0; this.touchMove.z = 0; this.touchLook.x = 0; this.touchLook.y = 0; this.mouseDown0 = false; if (this._fireStick) { this._fireStick.l = this._fireStick.r = false; } }
+    if (v) { this.keys = {}; this.touchMove.x = 0; this.touchMove.z = 0; this.mouseDown0 = false; if (this.touchLook) { this.touchLook.x = 0; this.touchLook.y = 0; } if (this._fireStick) { this._fireStick.l = this._fireStick.r = false; } }
     this.el.pause.classList.toggle('hidden', !v);
     // pausado, o overlay de toque some — senão a camada de OLHAR (tela cheia) tapava o menu
     // de pausa e roubava os toques dos botões dele.
